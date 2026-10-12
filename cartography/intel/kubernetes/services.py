@@ -10,6 +10,7 @@ from kubernetes.client.models import V1Service
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_gke_cluster_ref
 from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
@@ -87,7 +88,9 @@ def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -
 
 
 def transform_services(
-    services: list[V1Service], all_pods: list[dict[str, Any]]
+    services: list[V1Service],
+    all_pods: list[dict[str, Any]],
+    gcp_project_id: str | None = None,
 ) -> list[dict[str, Any]]:
     services_list = []
     for service in services:
@@ -105,12 +108,8 @@ def transform_services(
             "cluster_ip": service.spec.cluster_ip,
             "load_balancer_ip": service.spec.load_balancer_ip,
             "load_balancer_ips": [],
-            "load_balancer_listeners": sorted(
-                {
-                    f"{port.protocol or 'TCP'}:{port.port}"
-                    for port in service.spec.ports or []
-                }
-            ),
+            # Scopes IP matching against GCP forwarding rules to the GKE cluster's project.
+            "gcp_project_id": gcp_project_id,
         }
 
         # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
@@ -182,7 +181,10 @@ def sync_services(
     common_job_parameters: dict[str, Any],
 ) -> None:
     services = get_services(client)
-    transformed_services = transform_services(services, all_pods)
+    gke_ref = get_gke_cluster_ref(client)
+    transformed_services = transform_services(
+        services, all_pods, gke_ref.project if gke_ref else None
+    )
     load_services(
         session=session,
         services=transformed_services,

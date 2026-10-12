@@ -3876,6 +3876,11 @@ class CLI:
                 )
                 workos_api_key = os.environ.get(workos_apikey_env_var)
 
+            if gke_endpoint not in ("dns", "private", "public"):
+                raise typer.BadParameter(
+                    "--gke-endpoint must be one of: dns, private, public."
+                )
+
             # Build the Config object
             config = Config(
                 neo4j_uri=neo4j_uri,

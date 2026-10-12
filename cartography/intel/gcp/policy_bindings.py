@@ -310,6 +310,20 @@ _WIF_PRINCIPAL_PREFIXES = (
 )
 
 
+def _extract_gke_workload_pool(member_type: str, identifier: str) -> str | None:
+    """
+    Return the workload pool of a legacy GKE Kubernetes service account member.
+
+    ``serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/KSA_NAME]`` -> ``PROJECT_ID.svc.id.goog``
+    """
+    if member_type != "serviceAccount" or not identifier.endswith("]"):
+        return None
+    pool, sep, _ = identifier.partition("[")
+    if not sep or not pool.endswith(".svc.id.goog"):
+        return None
+    return pool
+
+
 def _extract_wif_pool_resource(member: str) -> str | None:
     """
     Extract the Workload Identity pool resource name from a binding member
@@ -374,7 +388,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 wif_pools: set[str] = set()
                 domains: set[str] = set()
                 is_public = False
-                has_gke_member = False
+                gke_workload_pools: set[str] = set()
                 for member in members:
                     # GCP encodes the "anyone on the internet" principals as
                     # plain identifiers without a "type:" prefix. They never
@@ -394,12 +408,13 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     if ":" not in member:
                         continue
                     member_type, identifier = member.split(":", 1)
-                    if (
-                        member_type == "serviceAccount"
-                        and ".svc.id.goog[" in identifier
-                        and identifier.endswith("]")
-                    ):
-                        has_gke_member = True
+                    gke_workload_pool = _extract_gke_workload_pool(
+                        member_type, identifier
+                    )
+                    if gke_workload_pool:
+                        # Legacy GKE KSA member; it has no GCPPrincipal node and
+                        # is matched to Kubernetes service accounts by analysis.
+                        gke_workload_pools.add(gke_workload_pool)
                         continue
                     if member_type in ("user", "serviceAccount", "group"):
                         # Store only the email part
@@ -417,7 +432,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     and not is_public
                     and not wif_pools
                     and not domains
-                    and not has_gke_member
+                    and not gke_workload_pools
                 ):
                     continue
 
@@ -444,6 +459,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     existing_domains = set(bindings[key].get("domains", []))
                     existing_domains.update(domains)
                     bindings[key]["domains"] = sorted(existing_domains)
+                    bindings[key]["gke_workload_pools"] = sorted(
+                        set(bindings[key]["gke_workload_pools"]) | gke_workload_pools
+                    )
                     bindings[key]["is_public"] = (
                         bindings[key].get("is_public", False) or is_public
                     )
@@ -470,6 +488,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "raw_members": sorted(set(members)),
                         "wif_pools": sorted(wif_pools),
                         "domains": sorted(domains),
+                        "gke_workload_pools": sorted(gke_workload_pools),
                         "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (

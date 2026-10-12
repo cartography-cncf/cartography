@@ -30,9 +30,8 @@ def get_kubernetes_cluster_version(client: K8sClient) -> VersionInfo:
 
 @timeit
 def get_kubernetes_cluster_tls_diagnostics(client: K8sClient) -> dict[str, Any]:
-    diagnostics = getattr(client, "tls_diagnostics", None)
-    if isinstance(diagnostics, dict):
-        return diagnostics
+    if client.tls_diagnostics is not None:
+        return client.tls_diagnostics
     return get_kubeconfig_tls_diagnostics(client.name, client.config_file)
 
 
@@ -55,13 +54,12 @@ def transform_kubernetes_cluster(
         "platform": version.platform,
     }
     cluster.update(tls_diagnostics)
-    metadata = getattr(client, "gke_cluster", None)
-    if isinstance(metadata, dict):
-        cluster["gke_resource_name"] = metadata["resource_name"]
-        cluster["gke_uid"] = metadata.get("id")
-        cluster["workload_pool"] = (metadata.get("workloadIdentityConfig") or {}).get(
-            "workloadPool"
-        )
+    if client.gke_cluster:
+        cluster["gke_resource_name"] = client.gke_cluster["resource_name"]
+        cluster["gke_uid"] = client.gke_cluster.get("id")
+        cluster["workload_pool"] = (
+            client.gke_cluster.get("workloadIdentityConfig") or {}
+        ).get("workloadPool")
 
     return [cluster]
 
@@ -126,7 +124,7 @@ def sync_kubernetes_cluster(
         tls_diagnostics,
     )
 
-    if isinstance(getattr(client, "gke_cluster", None), dict):
+    if client.gke_cluster:
         try:
             discovery = get_service_account_oidc(client)
             cluster_info[0]["service_account_issuer"] = discovery.get("issuer")
@@ -134,8 +132,10 @@ def sync_kubernetes_cluster(
         except ApiException as err:
             if err.status not in (401, 403, 404):
                 raise
-            logger.info(
-                "Service account OIDC discovery is unavailable for this Kubernetes reader"
+            logger.warning(
+                "ServiceAccount OIDC discovery is unavailable on cluster %s (status %s).",
+                client.name,
+                err.status,
             )
     load_kubernetes_cluster(neo4j_session, cluster_info, update_tag)
     return cluster_info[0]

@@ -22,55 +22,54 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     resource_name: PropertyRef = PropertyRef(
         "resource_name",
         extra_index=True,
-        description="Normalized projects/project/locations/location/clusters/name reference.",
+        description="`projects/{project_id}/locations/{location}/clusters/{name}`, derived from `Cluster.selfLink` using the project ID (selfLink may carry the project number). Matched by `KubernetesCluster.gke_resource_name`.",
     )
     project_id: PropertyRef = PropertyRef(
-        "project_id", description="Project identifier in the GKE resource reference."
+        "project_id", description="ID of the project that owns the cluster."
     )
     gke_uid: PropertyRef = PropertyRef(
         "gke_uid",
-        description="Immutable Google-generated cluster ID; distinct from the Kubernetes namespace UID.",
+        description="GKE API `Cluster.id`: the immutable Google-generated cluster identifier.",
     )
     autopilot_enabled: PropertyRef = PropertyRef(
-        "autopilot_enabled", description="Whether this is an Autopilot cluster."
+        "autopilot_enabled",
+        description="GKE API `Cluster.autopilot.enabled`: whether this is an Autopilot cluster.",
     )
     workload_pool: PropertyRef = PropertyRef(
         "workload_pool",
-        description="GKE-managed workload pool, typically PROJECT_ID.svc.id.goog.",
-    )
-    network_uri: PropertyRef = PropertyRef(
-        "network_uri",
-        description="Full project-scoped network resource path, including the host project for Shared VPC.",
+        description="GKE API `Cluster.workloadIdentityConfig.workloadPool` (e.g. `PROJECT_ID.svc.id.goog`).",
     )
     datapath_provider: PropertyRef = PropertyRef(
         "datapath_provider",
-        description="Dataplane implementation, including ADVANCED_DATAPATH for Dataplane V2.",
+        description="GKE API `Cluster.networkConfig.datapathProvider` (`ADVANCED_DATAPATH` is Dataplane V2).",
     )
     dns_endpoint: PropertyRef = PropertyRef(
-        "dns_endpoint", description="Google-managed DNS API endpoint."
+        "dns_endpoint",
+        description="GKE API `Cluster.controlPlaneEndpointsConfig.dnsEndpointConfig.endpoint`: the DNS-based control plane hostname.",
     )
     dns_endpoint_enabled: PropertyRef = PropertyRef(
         "dns_endpoint_enabled",
-        description="Whether user traffic is enabled on the DNS endpoint.",
+        description="GKE API `dnsEndpointConfig.allowExternalTraffic`: whether clients outside Google can reach the DNS-based control plane endpoint (still authorized by IAM `container.clusters.connect`). Null when the API does not return `controlPlaneEndpointsConfig`.",
     )
     dns_allow_kubernetes_tokens: PropertyRef = PropertyRef(
         "dns_allow_kubernetes_tokens",
-        description="Whether Kubernetes ServiceAccount tokens are accepted through the DNS endpoint.",
+        description="GKE API `dnsEndpointConfig.enableK8sTokensViaDns`: whether Kubernetes ServiceAccount tokens are accepted on the DNS endpoint.",
     )
     dns_allow_kubernetes_certs: PropertyRef = PropertyRef(
         "dns_allow_kubernetes_certs",
-        description="Whether Kubernetes client certificates are accepted through the DNS endpoint.",
+        description="GKE API `dnsEndpointConfig.enableK8sCertsViaDns`: whether Kubernetes client certificates are accepted on the DNS endpoint.",
     )
     ip_endpoints_enabled: PropertyRef = PropertyRef(
-        "ip_endpoints_enabled", description="Whether direct IP access is enabled."
+        "ip_endpoints_enabled",
+        description="GKE API `controlPlaneEndpointsConfig.ipEndpointsConfig.enabled`: whether the control plane is reachable by IP address at all.",
     )
     control_plane_public_access: PropertyRef = PropertyRef(
         "control_plane_public_access",
-        description="Whether an authenticated DNS endpoint or public IP endpoint is enabled for clients. IAM and network controls still apply.",
+        description="True when the control plane is reachable from the internet through the DNS endpoint or a public IP endpoint. Falls back to `not privateClusterConfig.enablePrivateEndpoint` when `controlPlaneEndpointsConfig` is absent. IAM, authorized networks, and RBAC still apply.",
     )
     public_ip_endpoint_enabled: PropertyRef = PropertyRef(
         "public_ip_endpoint_enabled",
-        description="Whether direct public IP access is enabled; an allocated IP alone does not imply access.",
+        description="GKE API `ipEndpointsConfig.enabled` and `ipEndpointsConfig.enablePublicEndpoint` are both true. An allocated public IP alone does not imply access.",
     )
     name: PropertyRef = PropertyRef("name", description="The name of the cluster.")
     self_link: PropertyRef = PropertyRef(
@@ -151,7 +150,7 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="Set to true when the control plane has an enabled authenticated DNS or public IP endpoint. IAM and network restrictions still apply. Older snapshots use the legacy exposure heuristic.",
+        description="Set to `True` if `private_nodes` or `master_authorized_networks` is disabled, or `control_plane_public_access` is true.",
     )  # Populated by the GCP_GKE_ASSET_EXPOSURE analysis job.
     private_nodes: PropertyRef = PropertyRef(
         "private_nodes",
@@ -236,35 +235,36 @@ class GCPGKEClusterSchema(CartographyNodeSchema):
 class GKENodePoolNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="Canonical GKE cluster resource name followed by /nodePools/NAME.",
+        description="`{GKECluster.resource_name}/nodePools/{name}`. Matched by Kubernetes nodes through their `cloud.google.com/gke-nodepool` label.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef(
-        "name", description="Node pool name within its cluster."
-    )
+    name: PropertyRef = PropertyRef("name", description="GKE API `NodePool.name`.")
     cluster_resource_name: PropertyRef = PropertyRef(
-        "cluster_resource_name", description="Normalized owning cluster reference."
+        "cluster_resource_name",
+        description="`resource_name` of the owning GKECluster.",
     )
     service_account: PropertyRef = PropertyRef(
         "service_account",
-        description="Configured node Google service account; the API may return default.",
+        description="GKE API `NodePool.config.serviceAccount`: the Google service account the nodes run as. `default` means the Compute Engine default service account.",
     )
     oauth_scopes: PropertyRef = PropertyRef(
-        "oauth_scopes", description="OAuth scopes available to node credentials."
+        "oauth_scopes",
+        description="GKE API `NodePool.config.oauthScopes` available to the node service account.",
     )
     workload_metadata_mode: PropertyRef = PropertyRef(
         "workload_metadata_mode",
-        description="GKE_METADATA uses workload identity; GCE_METADATA exposes Compute metadata.",
+        description="GKE API `NodePool.config.workloadMetadataConfig.mode`. `GKE_METADATA` serves Workload Identity credentials to pods; `GCE_METADATA` exposes the node service account to pods.",
     )
     instance_group_urls: PropertyRef = PropertyRef(
         "instance_group_urls",
-        description="Managed instance group URLs reported by GKE; Compute visibility varies by cluster mode.",
+        description="GKE API `NodePool.instanceGroupUrls`. Autopilot instance groups are not visible to the Compute API.",
     )
     status: PropertyRef = PropertyRef(
-        "status", description="Provider-reported node pool status."
+        "status", description="GKE API `NodePool.status`."
     )
     version: PropertyRef = PropertyRef(
-        "version", description="Node pool Kubernetes version."
+        "version",
+        description="GKE API `NodePool.version`: the nodes' Kubernetes version.",
     )
 
 
@@ -285,7 +285,7 @@ class GKENodePoolToClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GKENodePoolToServiceAccountRel(CartographyRelSchema):
-    """The Google service account used by the pool's nodes, including image pulls."""
+    """Links a node pool to the Google service account its nodes run as."""
 
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

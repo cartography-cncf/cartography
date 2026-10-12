@@ -6,14 +6,16 @@ from typing import Dict
 from typing import List
 
 import neo4j
+from kubernetes.client import ApiClient
 from kubernetes.client import V1ClusterRole
 from kubernetes.client import V1ClusterRoleBinding
+from kubernetes.client import V1PolicyRule
 from kubernetes.client import V1Role
 from kubernetes.client import V1RoleBinding
 from kubernetes.client import V1ServiceAccount
+from kubernetes.client.exceptions import ApiException
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
@@ -70,6 +72,13 @@ def get_cluster_roles(k8s_client: K8sClient) -> List[V1ClusterRole]:
 def get_cluster_role_bindings(k8s_client: K8sClient) -> List[V1ClusterRoleBinding]:
 
     return k8s_paginate(k8s_client.rbac.list_cluster_role_binding, raise_on_error=True)
+
+
+def _serialize_rules(rules: List[V1PolicyRule] | None) -> str:
+    """JSON-encode policy rules with Kubernetes API field names (e.g. `nonResourceURLs`)."""
+    return json.dumps(
+        ApiClient().sanitize_for_serialization(rules or []), sort_keys=True
+    )
 
 
 def transform_service_accounts(
@@ -133,9 +142,7 @@ def transform_roles(roles: List[V1Role], cluster_name: str) -> List[Dict[str, An
                 "uid": role.metadata.uid,
                 "creation_timestamp": get_epoch(role.metadata.creation_timestamp),
                 "resource_version": role.metadata.resource_version,
-                "rules": json.dumps(
-                    [r.to_dict() for r in role.rules or []], sort_keys=True
-                ),
+                "rules": _serialize_rules(role.rules),
                 "api_groups": sorted(
                     all_api_groups
                 ),  # sorts to keep consistent ordering and converts to list to appease neo4j
@@ -230,9 +237,7 @@ def transform_cluster_roles(
                     cluster_role.metadata.creation_timestamp
                 ),
                 "resource_version": cluster_role.metadata.resource_version,
-                "rules": json.dumps(
-                    [r.to_dict() for r in cluster_role.rules or []], sort_keys=True
-                ),
+                "rules": _serialize_rules(cluster_role.rules),
                 "api_groups": sorted(
                     all_api_groups
                 ),  # sorts to keep consistent ordering and converts to list to appease neo4j
@@ -522,14 +527,29 @@ def sync_kubernetes_rbac(
 ) -> None:
     logger.info(f"Syncing Kubernetes RBAC resources for cluster {client.name}")
 
-    # Get namespace-scoped resources
-    service_accounts = get_service_accounts(client)
-    roles = get_roles(client)
-    role_bindings = get_role_bindings(client)
+    try:
+        # Get namespace-scoped resources
+        service_accounts = get_service_accounts(client)
+        roles = get_roles(client)
+        role_bindings = get_role_bindings(client)
 
-    # Get cluster-scoped resources
-    cluster_roles = get_cluster_roles(client)
-    cluster_role_bindings = get_cluster_role_bindings(client)
+        # Get cluster-scoped resources
+        cluster_roles = get_cluster_roles(client)
+        cluster_role_bindings = get_cluster_role_bindings(client)
+    except ApiException as err:
+        if err.status in (401, 403):
+            # A partial RBAC snapshot cannot be told apart from an empty one, so skip
+            # load + cleanup and keep the previous RBAC subgraph, like `sync_secrets`.
+            logger.warning(
+                "Cartography lacks permission to list RBAC resources on cluster %s "
+                "(status %s). Skipping RBAC sync and preserving previously synced "
+                "data. Grant `list` on serviceaccounts, roles, rolebindings, "
+                "clusterroles and clusterrolebindings to enable ingestion.",
+                client.name,
+                err.status,
+            )
+            return
+        raise
 
     # Transform namespace-scoped resources
     transformed_service_accounts = transform_service_accounts(
@@ -613,11 +633,4 @@ def sync_kubernetes_rbac(
         cluster_name=cluster_name,
     )
 
-    # DEPRECATED: pre-v1.0.0 annotation-only edges did not prove IAM authorization.
-    # Annotation evidence is loaded first; verified GKE edges have their own scope marker.
-    run_write_query(
-        session,
-        "MATCH (:KubernetesCluster {id: $id})-[:RESOURCE]->(:KubernetesServiceAccount)-[r:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) WHERE r._sub_resource_id IS NULL DELETE r",
-        id=cluster_id,
-    )
     cleanup(session, common_job_parameters)

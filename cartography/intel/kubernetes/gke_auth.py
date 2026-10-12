@@ -12,14 +12,18 @@ import google.auth
 from google.auth import impersonated_credentials
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from kubernetes.client import ApiClient
 from kubernetes.client import Configuration
 from requests.utils import DEFAULT_CA_BUNDLE_PATH
 
+from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.gke_utils import parse_cluster_ref
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 SCOPES = (
@@ -29,6 +33,7 @@ SCOPES = (
 
 
 def get_credentials(service_account: str | None = None) -> Credentials:
+    """Return Google ADC, optionally impersonating `service_account`."""
     credentials, _ = google.auth.default(scopes=SCOPES)
     if service_account:
         credentials = impersonated_credentials.Credentials(
@@ -39,20 +44,47 @@ def get_credentials(service_account: str | None = None) -> Credentials:
     return credentials
 
 
-def get_cluster(resource_name: str, credentials: Credentials) -> dict[str, Any]:
+@timeit
+def get_cluster(resource_name: str, credentials: Credentials) -> dict[str, Any] | None:
+    """
+    Read one cluster from the GKE control plane API (container.googleapis.com).
+
+    This is the Google Cloud API, not the cluster's Kubernetes API server: it needs IAM
+    `container.clusters.get`. Returns None when the cluster is missing or not readable.
+    """
     reference = parse_cluster_ref(resource_name)
-    with build(
-        "container", "v1", credentials=credentials, cache_discovery=False
-    ) as api:
+    try:
+        container = build_client("container", "v1", credentials=credentials)
         cluster = gcp_api_execute_with_retry(
-            api.projects().locations().clusters().get(name=reference.resource_name)
+            container.projects()
+            .locations()
+            .clusters()
+            .get(name=reference.resource_name)
         )
+    except HttpError as e:
+        if classify_gcp_http_error(e) in (
+            "api_disabled",
+            "billing_disabled",
+            "forbidden",
+            "not_found",
+        ):
+            logger.warning(
+                "Could not read GKE cluster %s; skipping it. %s",
+                reference.resource_name,
+                summarize_gcp_http_error(e),
+            )
+            return None
+        raise
     # Carry the requested project ID even when Google's selfLink uses a project number.
     cluster["resource_name"] = reference.resource_name
     return cluster
 
 
 def select_endpoint(cluster: dict[str, Any], endpoint: str) -> tuple[str, bool]:
+    """
+    Return the Kubernetes API server URL for `endpoint` and whether its certificate is
+    issued by a public CA (DNS endpoint) rather than the cluster CA (IP endpoints).
+    """
     endpoints = cluster.get("controlPlaneEndpointsConfig") or {}
     if endpoint == "dns":
         dns = endpoints.get("dnsEndpointConfig") or {}

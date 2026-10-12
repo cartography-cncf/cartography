@@ -14,10 +14,16 @@ def _make_http_error(status: int) -> HttpError:
     return HttpError(mock_resp, json.dumps({"error": {"code": status}}).encode())
 
 
-class TestGetGkeClustersPartialScanSafety:
-    """Permission failures are unknown inventory, not authoritative emptiness."""
+class TestGetGkeClustersCurrentStateSemantics:
+    """
+    Verify current-state semantics for get_gke_clusters.
 
-    def test_preserves_unknown_on_forbidden(self):
+    On permission or API-disabled errors, returning {} (instead of raising) lets
+    the cleanup step remove any previously ingested clusters from the graph, ensuring
+    the graph reflects only the currently visible state.
+    """
+
+    def test_returns_empty_dict_on_forbidden(self):
         mock_container = MagicMock()
         with (
             patch(
@@ -29,9 +35,9 @@ class TestGetGkeClustersPartialScanSafety:
                 return_value="forbidden",
             ),
         ):
-            assert get_gke_clusters(mock_container, "test-project") is None
+            assert get_gke_clusters(mock_container, "test-project") == {}
 
-    def test_preserves_unknown_on_api_disabled(self):
+    def test_returns_empty_dict_on_api_disabled(self):
         mock_container = MagicMock()
         with (
             patch(
@@ -43,9 +49,9 @@ class TestGetGkeClustersPartialScanSafety:
                 return_value="api_disabled",
             ),
         ):
-            assert get_gke_clusters(mock_container, "test-project") is None
+            assert get_gke_clusters(mock_container, "test-project") == {}
 
-    def test_preserves_unknown_on_billing_disabled(self):
+    def test_returns_empty_dict_on_billing_disabled(self):
         mock_container = MagicMock()
         with (
             patch(
@@ -57,7 +63,7 @@ class TestGetGkeClustersPartialScanSafety:
                 return_value="billing_disabled",
             ),
         ):
-            assert get_gke_clusters(mock_container, "test-project") is None
+            assert get_gke_clusters(mock_container, "test-project") == {}
 
     def test_reraises_on_unexpected_error(self):
         mock_container = MagicMock()

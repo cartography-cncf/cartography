@@ -21,6 +21,9 @@ from kubernetes.client import VersionApi
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config.kube_config import KubeConfigMerger
 
+from cartography.intel.gcp.gke_utils import GKEClusterRef
+from cartography.intel.gcp.gke_utils import parse_cluster_ref
+
 logger = logging.getLogger(__name__)
 
 
@@ -192,7 +195,9 @@ class K8sClient:
         self.name = name
         self.config_file = config_file
         self.external_id = external_id
+        # GKE API `Cluster` resource, set only when GKE metadata was fetched for this cluster.
         self.gke_cluster = gke_cluster
+        # Pre-computed TLS posture for clients built without a kubeconfig.
         self.tls_diagnostics = tls_diagnostics
         self.core = K8CoreApiClient(self.name, self.config_file, api_client)
         self.networking = K8NetworkingApiClient(self.name, self.config_file, api_client)
@@ -202,6 +207,13 @@ class K8sClient:
         self.apps = K8AppsApiClient(self.name, self.config_file, api_client)
         self.batch = K8BatchApiClient(self.name, self.config_file, api_client)
         self.storage = K8StorageApiClient(self.name, self.config_file, api_client)
+
+
+def get_gke_cluster_ref(client: K8sClient) -> GKEClusterRef | None:
+    """Return the GKE cluster reference for a client with GKE metadata, otherwise None."""
+    if not client.gke_cluster:
+        return None
+    return parse_cluster_ref(client.gke_cluster["resource_name"])
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:

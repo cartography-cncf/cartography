@@ -34,7 +34,7 @@ class KubernetesClusterRoleNodeProperties(CartographyNodeProperties):
     )
     rules: PropertyRef = PropertyRef(
         "rules",
-        description="JSON policy rules retaining the coupling between API groups, resources, verbs, resource names and non-resource URLs. Flattened fields alone cannot determine effective access.",
+        description="JSON-encoded string of the Kubernetes `ClusterRole.rules` field, preserving the coupling between API groups, resources, verbs, resource names and non-resource URLs that the flattened list properties lose.",
     )
     api_groups: PropertyRef = PropertyRef(
         "api_groups",

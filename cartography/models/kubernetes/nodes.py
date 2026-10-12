@@ -65,11 +65,11 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
     )
     gcp_instance_id: PropertyRef = PropertyRef(
         "gcp_instance_id",
-        description="Canonical Compute Engine resource ID parsed from the node providerID. Autopilot VMs may not be visible in Compute inventory.",
+        description="Compute Engine instance partial URI (`projects/{project}/zones/{zone}/instances/{name}`) parsed from the Kubernetes `Node.spec.providerID` (`gce://{project}/{zone}/{name}`); null for non-GCE providers.",
     )
     gke_node_pool: PropertyRef = PropertyRef(
         "gke_node_pool",
-        description="GKE node pool name from the cloud.google.com/gke-nodepool label.",
+        description='GKE node pool name from the Kubernetes `Node.metadata.labels["cloud.google.com/gke-nodepool"]` label; null for non-GKE nodes.',
     )
     labels: PropertyRef = PropertyRef(
         "labels",
@@ -143,12 +143,46 @@ class KubernetesNodeToEC2InstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class KubernetesNodeToGCPInstanceRel(KubernetesNodeToEC2InstanceRel):
-    """Links a Kubernetes node to an inventoried Compute Engine VM by providerID."""
+class KubernetesNodeToGCPInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesNode)-[:IS_INSTANCE]->(:GCPInstance)
+# Only created for GKE nodes whose providerID resolves to a Compute Engine instance.
+class KubernetesNodeToGCPInstanceRel(CartographyRelSchema):
+    """Links a node to the Compute Engine instance backing it. Autopilot VMs are not visible to the Compute API, so this edge is absent for Autopilot clusters."""
 
     target_node_label: str = "GCPInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("gcp_instance_id")}
+        {"id": PropertyRef("gcp_instance_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: KubernetesNodeToGCPInstanceRelProperties = (
+        KubernetesNodeToGCPInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesNodeToGKENodePoolRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesNode)-[:MEMBER_OF]->(:GKENodePool)
+# Only created for clusters ingested with GKE metadata (`--gke-cluster` or `--managed-kubernetes gke`).
+class KubernetesNodeToGKENodePoolRel(CartographyRelSchema):
+    """Links a node to the GKE node pool named by its `cloud.google.com/gke-nodepool` label."""
+
+    target_node_label: str = "GKENodePool"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("gke_node_pool_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF"
+    properties: KubernetesNodeToGKENodePoolRelProperties = (
+        KubernetesNodeToGKENodePoolRelProperties()
     )
 
 
@@ -165,5 +199,6 @@ class KubernetesNodeSchema(CartographyNodeSchema):
         [
             KubernetesNodeToEC2InstanceRel(),
             KubernetesNodeToGCPInstanceRel(),
+            KubernetesNodeToGKENodePoolRel(),
         ]
     )

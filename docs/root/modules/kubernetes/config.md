@@ -220,10 +220,21 @@ after a successful sync.
 - [Kubernetes kubeconfig documentation](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
 - [Amazon EKS access entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html)
 
-## GKE: Google credentials without kubeconfig
+## GKE
 
-Use Application Default Credentials (ADC), including attached service accounts,
-federated credentials, or local `gcloud auth application-default login` credentials:
+Cartography can connect GKE clusters to the GCP graph. Two different control planes are
+involved, each with its own authorization:
+
+| Control plane | Endpoint | Used for | Authorized by |
+| --- | --- | --- | --- |
+| GKE API | `container.googleapis.com` | Reading the cluster's GKE metadata (endpoints, CA, workload pool) | Google IAM: `container.clusters.get` |
+| Kubernetes API server | The cluster's DNS or IP endpoint | Listing Kubernetes objects | Google IAM (GKE's IAM authorizer) **or** Kubernetes RBAC, plus `container.clusters.connect` for the DNS endpoint |
+
+### Connecting with Google credentials (`--gke-cluster`)
+
+`--gke-cluster` connects without a kubeconfig, using Application Default Credentials
+(ADC): an attached service account, federated credentials, or
+`gcloud auth application-default login`.
 
 ```bash
 cartography --neo4j-uri bolt://localhost:7687 \
@@ -232,80 +243,79 @@ cartography --neo4j-uri bolt://localhost:7687 \
   --gke-impersonate-service-account cartography@example-project.iam.gserviceaccount.com
 ```
 
-Repeat `--gke-cluster` to select additional clusters. It accepts canonical resource
-names, GKE selfLinks, or `gke_PROJECT_LOCATION_NAME` context identifiers. Bare
-cluster names are rejected. This mode does not discover every cluster or write
-kubeconfig files. Tokens stay in memory and refresh during ingestion.
+- Repeat `--gke-cluster` for more clusters. It accepts
+  `projects/PROJECT_ID/locations/LOCATION/clusters/NAME`, a GKE selfLink, or a
+  `gke_PROJECT_ID_LOCATION_NAME` kubeconfig context name. Use the project ID, not the
+  project number, so the cluster matches the GCP module's `GKECluster`.
+- Tokens stay in memory and refresh during ingestion. No kubeconfig is written.
+- `--gke-endpoint` picks the Kubernetes API endpoint, with no fallback:
+  - `dns` (default): the DNS-based endpoint, verified against public CAs. Requires
+    `controlPlaneEndpointsConfig.dnsEndpointConfig.allowExternalTraffic`.
+  - `private`: the private IP endpoint, verified against the cluster CA. The collector
+    needs a network route to it.
+  - `public`: the public IP endpoint, verified against the cluster CA. Must be enabled;
+    an allocated public IP alone is not enough.
+- A cluster whose GKE metadata cannot be read (missing, or IAM denied) is logged and
+  skipped.
 
-The default `--gke-endpoint dns` uses Google's public certificate authorities and
-requires DNS access to be enabled. `--gke-endpoint private` uses the private IP and
-cluster CA; the collector must have a network route to that endpoint.
-`--gke-endpoint public` explicitly selects an enabled public IP endpoint and its
-cluster CA. Cartography never falls back between endpoint types or disables TLS
-verification. Allocated public IP addresses do not establish that IP access is enabled.
+Required permissions for the ADC identity (or the impersonated service account):
 
-For an existing kubeconfig, use `--managed-kubernetes gke`; each context's cluster
-reference must identify its GKE project, location, and name. Google credentials
-resolve its cloud metadata while kubeconfig continues to authenticate Kubernetes
-requests. `--gke-impersonate-service-account` affects the Google credential path,
-not kubeconfig's own authentication.
+- GKE API: `container.clusters.get` on each cluster.
+- Kubernetes API server: `container.clusters.connect` for the DNS endpoint, and read
+  access to the Kubernetes objects listed above. `roles/container.clusterViewer`
+  grants `get` and `connect` but **no** Kubernetes object reads. Grant object reads in
+  either of two ways:
+  - IAM: `roles/container.viewer` (read-only access to Kubernetes objects, without
+    Secrets).
+  - RBAC: bind the Kubernetes permissions above to a subject of kind `User` named after
+    the Google identity that ADC represents: the service account email when using a
+    service account or `--gke-impersonate-service-account`, or the user's email for
+    user credentials.
+- Impersonation: the ADC identity needs `iam.serviceAccounts.getAccessToken` on the
+  target service account, usually through `roles/iam.serviceAccountTokenCreator`.
+- Optional: `get` on the non-resource URL `/.well-known/openid-configuration` records
+  the cluster's ServiceAccount token issuer and JWKS URI on `KubernetesCluster`.
 
-The Google reader needs `container.clusters.get`, `container.clusters.list`, and
-`container.clusters.connect` (included in `roles/container.clusterViewer`).
-Impersonation additionally requires the caller to have
-`iam.serviceAccounts.getAccessToken` on the chosen reader account, normally via
-`roles/iam.serviceAccountTokenCreator`. Grant the Kubernetes read permissions above
-through a ClusterRoleBinding whose subject is **kind `User`**, with the Google
-service account email as its name. Cloud cluster discovery permission alone does
-not authorize Kubernetes inventory reads. DNS endpoint access can also be restricted
-by IAM and VPC Service Controls.
+### Kubeconfig with GKE metadata (`--managed-kubernetes gke`)
 
-Optionally grant `get` on the non-resource URL
-`/.well-known/openid-configuration` to collect the Kubernetes ServiceAccount OIDC
-issuer and advertised JWKS URI. Cartography does not retrieve tokens or follow the
-advertised URI. These fields describe workload token issuance, not external OIDC
-login for human users.
+With an existing kubeconfig, `--managed-kubernetes gke` reads each context's GKE
+metadata with Google ADC; kubeconfig still authenticates Kubernetes requests. Each
+context's cluster name must be a GKE reference (the `gke_PROJECT_ID_LOCATION_NAME`
+names written by `gcloud container clusters get-credentials` work). This needs
+`container.clusters.get`; `--gke-impersonate-service-account` only affects that call.
 
-Run the GCP module first with GKE, IAM, workload identity pools, policy bindings,
-and Compute forwarding rules enabled. The native reader options only select the
-identity used for GKE discovery and Kubernetes; they do not change the GCP module's
-credentials. See [GCP configuration](../gcp/config.md) for its permission model.
-Google inventory and Kubernetes inventory can be collected in separate runs into
-the same graph, provided GCP inventory is available before Kubernetes enrichment.
+### Graph
 
-### GKE graph semantics
+Run the GCP module before the Kubernetes module, with GKE, IAM, workload identity,
+policy bindings, and Compute enabled. The links below match against GCP nodes that
+already exist in the graph.
 
-- `GKECluster -[:MAPS_TO]-> KubernetesCluster` links the cloud resource to the
-  observed `kube-system` namespace UID. Cloud names normalize zonal and regional
-  API paths. Recreating a cluster replaces its cloud mapping.
-- `GKECluster -[:HAS_NODE_POOL]-> GKENodePool` records node credentials, OAuth
-  scopes, workload metadata mode, and instance group URLs. Kubernetes nodes link
-  to their pools and to inventoried Compute instances by `gce://` providerID.
-  Autopilot's Compute VMs may be invisible through the Compute API; a missing VM
-  link is not evidence of a missing worker node.
-- `KubernetesServiceAccount -[:HAS_ALLOW_POLICY]-> GCPPolicyBinding` preserves
-  exact matching WIF members and the IAM snapshot timestamp. Supported selectors
-  are namespace/name subjects, ServiceAccount UID subjects, namespace and cluster
-  principal sets, whole-pool sets, and legacy `serviceAccount:POOL[ns/sa]` members.
-  Named identities and namespace sets intentionally span clusters in the same pool.
-- `ANNOTATED_SERVICE_ACCOUNT` records the GSA annotation. A
-  `WORKLOAD_IDENTITY_BINDING` additionally requires a matching **unconditional**
-  `roles/iam.workloadIdentityUser` binding attached directly to that GSA. Inherited
-  project/folder/organization grants remain visible as policy paths but are not
-  expanded into impersonation edges. Conditional grants
-  remain traversable through policy nodes; CEL conditions are not evaluated.
-  Previous annotation-only `WORKLOAD_IDENTITY_BINDING` edges are removed after a successful Kubernetes RBAC sync. Queries relying on the old
-  annotation semantics should migrate to `ANNOTATED_SERVICE_ACCOUNT`.
-- IAM allow paths are configuration evidence, not proof of successful runtime
-  access. Account status, IAM deny policies, conditions, service perimeters,
-  node metadata mode, host networking, and API-specific restrictions can change
-  the result. Inspect the timestamps of both inventory sources.
-- Services, Ingresses, and Gateways link to GCP forwarding rules using assigned
-  status IPs, the GKE project, and (for internal rules) the full VPC path. Shared
-  VPC host-project network paths are preserved. Backend health and effective
-  firewall reachability are not inferred from this link. Gateway HTTPRoute paths
-  follow accepted attachments already collected by the Gateway API module.
+- `GKECluster -[:MAPS_TO]-> KubernetesCluster`, matched on the GKE resource name.
+- `KubernetesNode -[:MEMBER_OF]-> GKENodePool` from the `cloud.google.com/gke-nodepool`
+  label, and `KubernetesNode -[:IS_INSTANCE]-> GCPInstance` from `spec.providerID`.
+  Autopilot VMs are not visible to the Compute API, so Autopilot nodes have no
+  `IS_INSTANCE` edge.
+- `KubernetesService`, `KubernetesIngress`, and `KubernetesGateway -[:USES_LOAD_BALANCER]->
+  GCPForwardingRule`, matched on the status IP address within the cluster's project.
+  Backend health and firewall reachability are not evaluated.
+- `GCPPrincipal -[:MAPS_TO]-> KubernetesUser`, matched on email.
+- `KubernetesServiceAccount -[:HAS_ALLOW_POLICY]-> GCPPolicyBinding` when a binding
+  member names the service account through the cluster's workload pool
+  ([member formats](https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity#principal-id)):
+  the namespace/name subject, the ServiceAccount UID, the namespace, the cluster, the
+  whole pool, or the legacy `serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/NAME]`
+  form. The workload pool is shared by every cluster in a project, so namespace/name
+  and namespace members also match same-named service accounts in other clusters. IAM
+  conditions are not evaluated; `matched_members` lists the members that matched.
+- `KubernetesServiceAccount -[:ANNOTATED_SERVICE_ACCOUNT]-> GCPServiceAccount` records
+  the `iam.gke.io/gcp-service-account` annotation alone.
+- `KubernetesServiceAccount -[:WORKLOAD_IDENTITY_BINDING]-> GCPServiceAccount` requires
+  the annotation **and** an unconditional `roles/iam.workloadIdentityUser` binding set
+  directly on that Google service account. Grants inherited from the project, folder,
+  or organization are not expanded.
 
-Incomplete GKE discovery preserves existing inventory. Kubernetes node, service,
-ingress, and RBAC list failures fail the cluster sync before their cleanup. Optional
-Gateway API access denial preserves prior gateway links as well as gateway nodes.
+```{note}
+Before this release, `WORKLOAD_IDENTITY_BINDING` was created from the annotation alone.
+Queries that relied on that should use `ANNOTATED_SERVICE_ACCOUNT`. Old annotation-only
+edges are removed on the next Kubernetes sync.
+```

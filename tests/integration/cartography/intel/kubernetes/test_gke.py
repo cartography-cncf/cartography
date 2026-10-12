@@ -1,316 +1,286 @@
-from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
+import cartography.intel.kubernetes.nodes as nodes_module
+from cartography.analysis.kubernetes.analysis import K8S_GKE_JOBS
+from cartography.intel.gcp.compute import load_gcp_forwarding_rules
+from cartography.intel.gcp.compute import transform_gcp_forwarding_rules
 from cartography.intel.gcp.gke import sync_gke_clusters
+from cartography.intel.gcp.iam import load_gcp_service_accounts
+from cartography.intel.gcp.iam import transform_gcp_service_accounts
+from cartography.intel.gcp.policy_bindings import cleanup as cleanup_policy_bindings
 from cartography.intel.gcp.policy_bindings import load_bindings
-from cartography.intel.kubernetes.gke import sync
+from cartography.intel.gcp.policy_bindings import transform_bindings
+from cartography.intel.gcp.workload_identity import load_pools
+from cartography.intel.gcp.workload_identity import transform_pools
+from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
+from cartography.intel.kubernetes.nodes import sync_nodes
+from cartography.intel.kubernetes.rbac import load_service_accounts
+from cartography.intel.kubernetes.rbac import load_users
+from cartography.intel.kubernetes.rbac import transform_service_accounts
+from cartography.intel.kubernetes.rbac import transform_users
+from cartography.intel.kubernetes.services import load_services
+from cartography.intel.kubernetes.services import transform_services
+from cartography.util import run_typed_analysis_job
+from tests.data.kubernetes.gke import GKE_CLUSTER
+from tests.data.kubernetes.gke import GKE_CLUSTER_ID
+from tests.data.kubernetes.gke import GKE_CLUSTER_NAME
+from tests.data.kubernetes.gke import GKE_FORWARDING_RULES
+from tests.data.kubernetes.gke import GKE_GCP_SERVICE_ACCOUNTS
+from tests.data.kubernetes.gke import GKE_GSA_EMAIL
+from tests.data.kubernetes.gke import GKE_NODES
+from tests.data.kubernetes.gke import GKE_OTHER_PROJECT_ID
+from tests.data.kubernetes.gke import gke_policy_results
+from tests.data.kubernetes.gke import GKE_POOL_ID
+from tests.data.kubernetes.gke import GKE_PROJECT_ID
+from tests.data.kubernetes.gke import GKE_RESOURCE_NAME
+from tests.data.kubernetes.gke import GKE_SELF_LINK
+from tests.data.kubernetes.gke import GKE_SERVICE_ACCOUNTS
+from tests.data.kubernetes.gke import GKE_SERVICES
+from tests.data.kubernetes.gke import GKE_WORKLOAD_POOLS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-PROJECT = "example-project"
-RESOURCE = f"projects/{PROJECT}/locations/us-central1/clusters/example"
-CLOUD_ID = "https://container.googleapis.com/v1/" + RESOURCE
-POOL = f"projects/111122223333/locations/global/workloadIdentityPools/{PROJECT}.svc.id.goog"
-NETWORK = f"projects/{PROJECT}/global/networks/example"
-EMAIL = f"workload@{PROJECT}.iam.gserviceaccount.com"
-CLUSTER = {
-    "name": "example",
-    "selfLink": CLOUD_ID,
-    "resource_name": RESOURCE,
-    "networkConfig": {"network": NETWORK},
-    "workloadIdentityConfig": {"workloadPool": f"{PROJECT}.svc.id.goog"},
-    "nodePools": [
-        {
-            "name": "pool",
-            "config": {
-                "serviceAccount": EMAIL,
-                "workloadMetadataConfig": {"mode": "GKE_METADATA"},
+TAG = 1
+COMMON = {"UPDATE_TAG": TAG, "CLUSTER_ID": GKE_CLUSTER_ID}
+
+
+def _load_gcp(session, update_tag: int, include_impersonation: bool = True) -> None:
+    common = {"UPDATE_TAG": update_tag, "PROJECT_ID": GKE_PROJECT_ID}
+    load_gcp_service_accounts(
+        session,
+        transform_gcp_service_accounts(GKE_GCP_SERVICE_ACCOUNTS, GKE_PROJECT_ID),
+        GKE_PROJECT_ID,
+        update_tag,
+    )
+    load_pools(
+        session,
+        transform_pools(GKE_WORKLOAD_POOLS, GKE_PROJECT_ID),
+        GKE_PROJECT_ID,
+        update_tag,
+    )
+    container = MagicMock()
+    container.projects.return_value.zones.return_value.clusters.return_value.list.return_value.execute.return_value = {
+        "clusters": [GKE_CLUSTER],
+    }
+    sync_gke_clusters(session, container, GKE_PROJECT_ID, update_tag, common)
+    for project_id, response in GKE_FORWARDING_RULES.items():
+        load_gcp_forwarding_rules(
+            session,
+            transform_gcp_forwarding_rules(response),
+            update_tag,
+            project_id,
+        )
+    load_bindings(
+        session,
+        transform_bindings(gke_policy_results(include_impersonation)),
+        GKE_PROJECT_ID,
+        update_tag,
+    )
+    cleanup_policy_bindings(session, common)
+
+
+def _load_kubernetes(session, monkeypatch, update_tag: int) -> None:
+    client = MagicMock()
+    client.name = GKE_CLUSTER_NAME
+    client.gke_cluster = {**GKE_CLUSTER, "resource_name": GKE_RESOURCE_NAME}
+    load_kubernetes_cluster(
+        session,
+        [
+            {
+                "id": GKE_CLUSTER_ID,
+                "name": GKE_CLUSTER_NAME,
+                "gke_resource_name": GKE_RESOURCE_NAME,
             },
-        }
-    ],
-}
+        ],
+        update_tag,
+    )
+    monkeypatch.setattr(nodes_module, "get_nodes", lambda _: GKE_NODES)
+    sync_nodes(session, client, update_tag, {**COMMON, "UPDATE_TAG": update_tag})
+    load_service_accounts(
+        session,
+        transform_service_accounts(GKE_SERVICE_ACCOUNTS, GKE_CLUSTER_NAME),
+        update_tag,
+        GKE_CLUSTER_ID,
+        GKE_CLUSTER_NAME,
+    )
+    reader_binding = SimpleNamespace(
+        subjects=[SimpleNamespace(kind="User", name=GKE_GSA_EMAIL)],
+    )
+    load_users(
+        session,
+        transform_users([], [reader_binding], GKE_CLUSTER_NAME),
+        update_tag,
+        GKE_CLUSTER_ID,
+        GKE_CLUSTER_NAME,
+    )
+    load_services(
+        session,
+        transform_services(GKE_SERVICES, [], GKE_PROJECT_ID),
+        update_tag,
+        GKE_CLUSTER_ID,
+        GKE_CLUSTER_NAME,
+    )
+
+
+def _run_gke_jobs(session, update_tag: int) -> None:
+    for job in K8S_GKE_JOBS:
+        run_typed_analysis_job(job, session, {**COMMON, "UPDATE_TAG": update_tag})
 
 
 @pytest.fixture
-def seeded(neo4j_session):
+def gke_graph(neo4j_session, monkeypatch):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    neo4j_session.run(
-        "CREATE (:GCPProject {id: $project}), (:GCPServiceAccount {id: 'gsa', email: $email}), (:GCPWorkloadIdentityPool {id: $pool, pool_id: $pool_name, project_id: $project})",
-        project=PROJECT,
-        email=EMAIL,
-        pool=POOL,
-        pool_name=f"{PROJECT}.svc.id.goog",
-    )
-    api = MagicMock()
-    api.projects.return_value.locations.return_value.clusters.return_value.list.return_value.execute.return_value = {
-        "clusters": [deepcopy(CLUSTER)]
-    }
-    sync_gke_clusters(
-        neo4j_session, api, PROJECT, 1, {"PROJECT_ID": PROJECT, "UPDATE_TAG": 1}
-    )
-    neo4j_session.run(
-        "CREATE (c:KubernetesCluster {id: 'cluster'}), (other:KubernetesCluster {id: 'other'}), (recreated:KubernetesCluster {id: 'recreated'}) WITH c CREATE (c)-[:RESOURCE]->(:KubernetesNode {id: 'node', gke_node_pool: 'pool', lastupdated: 1})"
-    )
-    neo4j_session.run(
-        "MATCH (c:KubernetesCluster {id: 'cluster'}) UNWIND ['direct', 'linked', 'annotation-only'] AS name CREATE (c)-[:RESOURCE]->(s:KubernetesServiceAccount {id: name, name: name, namespace: 'ns', uid: name + '-uid', lastupdated: 1}) SET s.gcp_service_account = CASE WHEN name <> 'direct' THEN $email ELSE null END",
-        email=EMAIL,
-    )
-    load_bindings(
-        neo4j_session,
-        [
-            {
-                "id": "direct-binding",
-                "role": "roles/storage.objectViewer",
-                "resource": "//storage.googleapis.com/buckets/example-bucket",
-                "raw_members": [
-                    f"principal://iam.googleapis.com/{POOL}/subject/ns/ns/sa/direct"
-                ],
-                "wif_pools": [POOL],
-                "has_condition": False,
-            },
-            {
-                "id": "impersonation-binding",
-                "role": "roles/iam.workloadIdentityUser",
-                "resource": f"//iam.googleapis.com/projects/{PROJECT}/serviceAccounts/{EMAIL}",
-                "raw_members": [f"serviceAccount:{PROJECT}.svc.id.goog[ns/linked]"],
-                "has_condition": False,
-            },
-        ],
-        PROJECT,
-        1,
-    )
-    neo4j_session.run(
-        "MATCH (s:KubernetesServiceAccount {id: 'annotation-only'}), (g:GCPServiceAccount) CREATE (s)-[:WORKLOAD_IDENTITY_BINDING {lastupdated: 0}]->(g)"
-    )
-    neo4j_session.run(
-        "MATCH (c:KubernetesCluster {id: 'cluster'}) CREATE (c)-[:RESOURCE]->(:KubernetesService {id: 'svc', load_balancer_ips: ['10.0.0.2'], lastupdated: 1}), (c)-[:RESOURCE]->(:KubernetesIngress {id: 'ing', load_balancer_ips: ['10.0.0.2'], lastupdated: 1}), (c)-[:RESOURCE]->(:KubernetesGateway {id: 'gateway', load_balancer_ips: ['10.0.0.2'], lastupdated: 1}), (:GCPForwardingRule {id: 'lb', ip_address: '10.0.0.2', project_id: $project, network: $network, load_balancing_scheme: 'INTERNAL'})",
-        project=PROJECT,
-        network=NETWORK,
-    )
-    return neo4j_session, api
+    for project_id in (GKE_PROJECT_ID, GKE_OTHER_PROJECT_ID):
+        neo4j_session.run("CREATE (:GCPProject {id: $id})", id=project_id)
+    _load_gcp(neo4j_session, TAG)
+    _load_kubernetes(neo4j_session, monkeypatch, TAG)
+    return neo4j_session
 
 
-def test_gke_bridge_and_annotation_evidence(seeded):
+def test_gke_cloud_resources_map_to_kubernetes_inventory(gke_graph):
     # Arrange
-    session, _ = seeded
+    session = gke_graph
+
     # Act
-    sync(session, CLUSTER, "cluster", 1)
+    _run_gke_jobs(session, TAG)
+
     # Assert
+    assert check_rels(
+        session, "GKECluster", "id", "KubernetesCluster", "id", "MAPS_TO"
+    ) == {(GKE_SELF_LINK, GKE_CLUSTER_ID)}
     assert check_nodes(session, "GKENodePool", ["id", "workload_metadata_mode"]) == {
-        (RESOURCE + "/nodePools/pool", "GKE_METADATA")
+        (f"{GKE_RESOURCE_NAME}/nodePools/pool", "GKE_METADATA"),
     }
+    assert check_rels(
+        session, "GKECluster", "id", "GKENodePool", "id", "HAS_NODE_POOL"
+    ) == {(GKE_SELF_LINK, f"{GKE_RESOURCE_NAME}/nodePools/pool")}
+    assert check_rels(
+        session, "KubernetesNode", "name", "GKENodePool", "name", "MEMBER_OF"
+    ) == {("node", "pool")}
+    assert check_rels(
+        session, "GKENodePool", "name", "GCPServiceAccount", "email", "RUNS_AS"
+    ) == {("pool", GKE_GSA_EMAIL)}
     assert check_rels(
         session,
         "GKECluster",
         "id",
-        "KubernetesCluster",
+        "GCPWorkloadIdentityPool",
         "id",
-        "MAPS_TO",
-        rel_direction_right=True,
-    ) == {(CLOUD_ID, "cluster")}
+        "USES_WORKLOAD_IDENTITY_POOL",
+    ) == {(GKE_SELF_LINK, GKE_POOL_ID)}
+    assert check_rels(
+        session, "GCPPrincipal", "email", "KubernetesUser", "name", "MAPS_TO"
+    ) == {(GKE_GSA_EMAIL, GKE_GSA_EMAIL)}
+
+
+def test_gke_service_uses_forwarding_rule_in_cluster_project_only(gke_graph):
+    # Arrange
+    session = gke_graph
+
+    # Act
+    result = check_rels(
+        session,
+        "KubernetesService",
+        "name",
+        "GCPForwardingRule",
+        "project_id",
+        "USES_LOAD_BALANCER",
+    )
+
+    # Assert
+    assert result == {("ilb", GKE_PROJECT_ID)}
+
+
+def test_gke_workload_identity_policies_and_bindings(gke_graph):
+    # Arrange
+    session = gke_graph
+
+    # Act
+    _run_gke_jobs(session, TAG)
+
+    # Assert
     assert check_rels(
         session,
         "KubernetesServiceAccount",
-        "id",
+        "name",
         "GCPPolicyBinding",
-        "id",
+        "role",
         "HAS_ALLOW_POLICY",
-        rel_direction_right=True,
-    ) == {("direct", "direct-binding"), ("linked", "impersonation-binding")}
+    ) == {
+        ("direct", "roles/storage.objectViewer"),
+        ("linked", "roles/iam.workloadIdentityUser"),
+        ("conditional", "roles/iam.workloadIdentityUser"),
+    }
+    matched = session.run(
+        "MATCH (:KubernetesServiceAccount {name: 'direct'})-[r:HAS_ALLOW_POLICY]->() "
+        "RETURN r.matched_members AS members",
+    ).single()["members"]
+    assert matched == [
+        f"principal://iam.googleapis.com/{GKE_POOL_ID}/subject/ns/ns/sa/direct",
+    ]
+    # The annotation is recorded separately from verified impersonation.
     assert check_rels(
         session,
         "KubernetesServiceAccount",
-        "id",
+        "name",
+        "GCPServiceAccount",
+        "email",
+        "ANNOTATED_SERVICE_ACCOUNT",
+    ) == {
+        ("linked", GKE_GSA_EMAIL),
+        ("conditional", GKE_GSA_EMAIL),
+        ("annotation-only", GKE_GSA_EMAIL),
+    }
+    assert check_rels(
+        session,
+        "KubernetesServiceAccount",
+        "name",
         "GCPServiceAccount",
         "email",
         "WORKLOAD_IDENTITY_BINDING",
-        rel_direction_right=True,
-    ) == {("linked", EMAIL)}
-    assert check_rels(
-        session,
-        "KubernetesNode",
-        "id",
-        "GKENodePool",
-        "id",
-        "MEMBER_OF",
-        rel_direction_right=True,
-    ) == {("node", RESOURCE + "/nodePools/pool")}
-    for label, id_ in [
-        ("KubernetesService", "svc"),
-        ("KubernetesIngress", "ing"),
-        ("KubernetesGateway", "gateway"),
-    ]:
-        assert check_rels(
-            session,
-            label,
-            "id",
-            "GCPForwardingRule",
-            "id",
-            "USES_LOAD_BALANCER",
-            rel_direction_right=True,
-        ) == {(id_, "lb")}
+    ) == {("linked", GKE_GSA_EMAIL)}
 
 
-def test_removed_grants_addresses_and_cluster_recreation_cleanup(seeded):
+def test_gke_workload_identity_binding_removed_with_grant(gke_graph, monkeypatch):
     # Arrange
-    session, _ = seeded
-    sync(session, CLUSTER, "cluster", 1)
-    session.run("MATCH (b:GCPPolicyBinding) SET b.raw_members = [], b.lastupdated = 2")
+    session = gke_graph
+    _run_gke_jobs(session, TAG)
+    # A pre-existing annotation-only edge from older Cartography versions.
     session.run(
-        "MATCH (:KubernetesCluster {id: 'cluster'})-[:RESOURCE]->(n) SET n.lastupdated = 2, n.load_balancer_ips = []"
+        "MATCH (s:KubernetesServiceAccount {name: 'annotation-only'}), "
+        "(g:GCPServiceAccount {email: $email}) "
+        "MERGE (s)-[:WORKLOAD_IDENTITY_BINDING {lastupdated: 0}]->(g)",
+        email=GKE_GSA_EMAIL,
     )
-    session.run(
-        "MATCH (c:KubernetesCluster {id: 'other'}), (lb:GCPForwardingRule) CREATE (c)-[:RESOURCE]->(s:KubernetesService {id: 'other-svc'}), (s)-[:USES_LOAD_BALANCER {_sub_resource_label: 'KubernetesCluster', _sub_resource_id: 'other', lastupdated: 1}]->(lb)"
-    )
+    _load_gcp(session, TAG + 1, include_impersonation=False)
+    _load_kubernetes(session, monkeypatch, TAG + 1)
+
     # Act
-    sync(session, CLUSTER, "cluster", 2)
-    sync(session, CLUSTER, "recreated", 2)
+    _run_gke_jobs(session, TAG + 1)
+
     # Assert
-    assert check_rels(
-        session,
-        "GKECluster",
-        "id",
-        "KubernetesCluster",
-        "id",
-        "MAPS_TO",
-        rel_direction_right=True,
-    ) == {(CLOUD_ID, "recreated")}
     assert (
         check_rels(
             session,
             "KubernetesServiceAccount",
-            "id",
+            "name",
             "GCPServiceAccount",
             "email",
             "WORKLOAD_IDENTITY_BINDING",
-            rel_direction_right=True,
         )
         == set()
     )
     assert check_rels(
         session,
-        "KubernetesService",
-        "id",
-        "GCPForwardingRule",
-        "id",
-        "USES_LOAD_BALANCER",
-        rel_direction_right=True,
-    ) == {("other-svc", "lb")}
-
-
-def test_gateway_denied_preserves_links(seeded):
-    # Arrange
-    session, _ = seeded
-    sync(session, CLUSTER, "cluster", 1)
-    # Act
-    sync(session, CLUSTER, "cluster", 2, gateway_complete=False)
-    # Assert
-    assert check_rels(
-        session,
-        "KubernetesGateway",
-        "id",
-        "GCPForwardingRule",
-        "id",
-        "USES_LOAD_BALANCER",
-        rel_direction_right=True,
-    ) == {("gateway", "lb")}
-
-
-def test_cloud_incomplete_preserves_but_empty_cleans(seeded):
-    # Arrange
-    session, api = seeded
-    api.projects.return_value.locations.return_value.clusters.return_value.list.return_value.execute.return_value = {
-        "clusters": [],
-        "missingZones": ["us-central1-a"],
+        "KubernetesServiceAccount",
+        "name",
+        "GCPPolicyBinding",
+        "role",
+        "HAS_ALLOW_POLICY",
+    ) == {
+        ("direct", "roles/storage.objectViewer"),
+        ("conditional", "roles/iam.workloadIdentityUser"),
     }
-    # Act and assert
-    with pytest.raises(RuntimeError):
-        sync_gke_clusters(
-            session, api, PROJECT, 2, {"PROJECT_ID": PROJECT, "UPDATE_TAG": 2}
-        )
-    assert check_nodes(session, "GKECluster", ["id"]) == {(CLOUD_ID,)}
-    # Arrange
-    api.projects.return_value.locations.return_value.clusters.return_value.list.return_value.execute.return_value = (
-        {}
-    )
-    # Act
-    sync_gke_clusters(
-        session, api, PROJECT, 3, {"PROJECT_ID": PROJECT, "UPDATE_TAG": 3}
-    )
-    # Assert
-    assert check_nodes(session, "GKECluster", ["id"]) == set()
-    assert check_nodes(session, "GKENodePool", ["id"]) == set()
-
-
-@pytest.mark.parametrize(
-    "entry", ["KubernetesService", "KubernetesIngress", "KubernetesGateway"]
-)
-def test_gcp_load_balancer_exposure_paths_and_cleanup(seeded, entry):
-    # Arrange
-    from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
-    from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
-    from cartography.util import run_typed_analysis_job
-
-    session, _ = seeded
-    session.run(
-        "MATCH (lb:GCPForwardingRule) SET lb:LoadBalancer, lb.exposed_internet = true"
-    )
-    session.run(
-        "MATCH (c:KubernetesCluster {id: 'cluster'}), (s:KubernetesService {id: 'svc'}) CREATE (c)-[:RESOURCE]->(p:KubernetesPod {id: 'pod'}), (p)-[:CONTAINS]->(:KubernetesContainer {id: 'container'}), (s)-[:TARGETS]->(p)"
-    )
-    session.run(
-        "MATCH (i:KubernetesIngress), (s:KubernetesService {id: 'svc'}), (g:KubernetesGateway), (c:KubernetesCluster {id: 'cluster'}) CREATE (i)-[:TARGETS]->(s), (g)-[:ROUTES]->(r:KubernetesHTTPRoute {id: 'route'}), (c)-[:RESOURCE]->(r), (r)-[:TARGETS]->(s)"
-    )
-    sync(session, CLUSTER, "cluster", 1)
-    session.run(
-        f"MATCH (s)-[r:USES_LOAD_BALANCER]->(:GCPForwardingRule) WHERE NOT s:{entry} DELETE r"
-    )
-    jobs = (*K8S_COMPUTE_ASSET_EXPOSURE_JOBS, *K8S_LB_EXPOSURE_JOBS)
-    # Act
-    for job in jobs:
-        run_typed_analysis_job(job, session, {"UPDATE_TAG": 1, "CLUSTER_ID": "cluster"})
-    # Assert
-    assert check_rels(
-        session,
-        "GCPForwardingRule",
-        "id",
-        "KubernetesPod",
-        "id",
-        "EXPOSE",
-        rel_direction_right=True,
-    ) == {("lb", "pod")}
-    assert check_rels(
-        session,
-        "GCPForwardingRule",
-        "id",
-        "KubernetesContainer",
-        "id",
-        "EXPOSE",
-        rel_direction_right=True,
-    ) == {("lb", "container")}
-    # Arrange: internal / no longer exposed must remove derived exposure on the next tag.
-    session.run("MATCH (lb:GCPForwardingRule) SET lb.exposed_internet = false")
-    # Act
-    for job in jobs:
-        run_typed_analysis_job(job, session, {"UPDATE_TAG": 2, "CLUSTER_ID": "cluster"})
-    # Assert
-    assert (
-        check_rels(
-            session,
-            "GCPForwardingRule",
-            "id",
-            "KubernetesPod",
-            "id",
-            "EXPOSE",
-            rel_direction_right=True,
-        )
-        == set()
-    )
-    assert (
-        session.run(
-            "MATCH (p:KubernetesPod {id: 'pod'}) RETURN coalesce(p.exposed_internet, false) AS exposed"
-        ).single()["exposed"]
-        is False
-    )

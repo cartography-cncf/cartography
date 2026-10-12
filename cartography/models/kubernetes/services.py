@@ -13,15 +13,11 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesServiceNodeProperties(CartographyNodeProperties):
-    load_balancer_listeners: PropertyRef = PropertyRef(
-        "load_balancer_listeners",
-        description="Declared frontend protocol and port pairs, e.g. TCP:80, used to disambiguate shared load balancer IPs.",
-    )
+    id: PropertyRef = PropertyRef("uid", description="UID of the kubernetes service.")
     load_balancer_ips: PropertyRef = PropertyRef(
         "load_balancer_ips",
-        description="Assigned IP addresses from the Kubernetes load balancer status, not requested spec addresses.",
+        description="Assigned IP addresses from the Kubernetes `Service.status.loadBalancer.ingress[].ip` field, not requested spec addresses. Used to match GCP forwarding rules for GKE clusters.",
     )
-    id: PropertyRef = PropertyRef("uid", description="UID of the kubernetes service.")
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the kubernetes service."
     )
@@ -101,6 +97,30 @@ class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
     rel_label: str = "USES_LOAD_BALANCER"
     properties: KubernetesServiceToLoadBalancerV2RelProperties = (
         KubernetesServiceToLoadBalancerV2RelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesServiceToGCPForwardingRuleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesService)-[:USES_LOAD_BALANCER]->(:GCPForwardingRule)
+class KubernetesServiceToGCPForwardingRuleRel(CartographyRelSchema):
+    """Links a service of type `LoadBalancer` to the GCP forwarding rule that exposes it. Matches `status.loadBalancer.ingress[].ip` against `GCPForwardingRule.ip_address` within the GKE cluster's own project, so private addresses reused in other projects do not collide. Only created for clusters ingested with GKE metadata. Backend health and firewall reachability are not evaluated."""
+
+    target_node_label: str = "GCPForwardingRule"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "ip_address": PropertyRef("load_balancer_ips", one_to_many=True),
+            "project_id": PropertyRef("gcp_project_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesServiceToGCPForwardingRuleRelProperties = (
+        KubernetesServiceToGCPForwardingRuleRelProperties()
     )
 
 
@@ -188,5 +208,6 @@ class KubernetesServiceSchema(CartographyNodeSchema):
             KubernetesServiceToKubernetesNamespaceRel(),
             KubernetesServiceToKubernetesPodRel(),
             KubernetesServiceToLoadBalancerV2Rel(),
+            KubernetesServiceToGCPForwardingRuleRel(),
         ]
     )

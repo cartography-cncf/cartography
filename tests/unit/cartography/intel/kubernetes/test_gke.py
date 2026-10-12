@@ -1,27 +1,36 @@
+import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from googleapiclient.errors import HttpError
 
-from cartography.intel.gcp.gke import get_gke_clusters
 from cartography.intel.gcp.gke import transform_gke_clusters
 from cartography.intel.gcp.gke_utils import instance_id_from_provider_id
 from cartography.intel.gcp.gke_utils import parse_cluster_ref
-from cartography.intel.kubernetes.gke import match_load_balancers
-from cartography.intel.kubernetes.gke import match_workload_policies
-from cartography.intel.kubernetes.gke import principal_members
+from cartography.intel.kubernetes.clusters import get_service_account_oidc
 from cartography.intel.kubernetes.gke_auth import connect
+from cartography.intel.kubernetes.gke_auth import get_cluster
 from cartography.intel.kubernetes.gke_auth import select_endpoint
+from cartography.intel.kubernetes.nodes import transform_nodes
 
 RESOURCE = "projects/example-project/locations/us-central1/clusters/example"
-POOL = "projects/111122223333/locations/global/workloadIdentityPools/example-project.svc.id.goog"
-SA = {
-    "id": "cluster/ns/app",
-    "namespace": "ns",
-    "name": "app",
-    "uid": "sa-uid",
-    "gcp_service_account": "app@example-project.iam.gserviceaccount.com",
+DNS_CLUSTER = {
+    "resource_name": RESOURCE,
+    "controlPlaneEndpointsConfig": {
+        "dnsEndpointConfig": {
+            "endpoint": "example.gke.goog",
+            "allowExternalTraffic": True,
+        }
+    },
 }
+
+
+def _http_error(status: int) -> HttpError:
+    resp = MagicMock()
+    resp.status = status
+    return HttpError(resp, json.dumps({"error": {"code": status}}).encode())
 
 
 @pytest.mark.parametrize(
@@ -36,6 +45,7 @@ SA = {
 def test_cluster_reference(reference):
     # Act
     ref = parse_cluster_ref(reference)
+
     # Assert
     assert ref.resource_name == RESOURCE
 
@@ -66,129 +76,24 @@ def test_compute_provider_id():
     assert instance_id_from_provider_id(None) is None
 
 
-@pytest.mark.parametrize("selector", sorted(principal_members(SA, POOL, RESOURCE)))
-def test_wif_documented_selectors(selector):
+def test_transform_nodes_links_gke_node_pool_only_with_gke_metadata():
     # Arrange
-    binding = {
-        "id": "binding",
-        "raw_members": [selector],
-        "role": "roles/storage.objectViewer",
-        "has_condition": False,
-        "lastupdated": 10,
-    }
-    # Act
-    grants, impersonations = match_workload_policies([SA], [binding], POOL, RESOURCE)
-    # Assert
-    assert grants == [
-        {
-            "source_id": SA["id"],
-            "target_id": "binding",
-            "matched_members": [selector],
-            "policy_lastupdated": 10,
-        }
-    ]
-    assert impersonations == []
-
-
-def test_wif_exact_matching_and_conditions():
-    # Arrange
-    subject = f"principal://iam.googleapis.com/{POOL}/subject/ns/ns/sa/app"
-    bindings = [
-        {
-            "id": "good",
-            "raw_members": [subject],
-            "role": "roles/iam.workloadIdentityUser",
-            "service_account_emails": [SA["gcp_service_account"]],
-            "has_condition": False,
-        },
-        {
-            "id": "conditional",
-            "raw_members": [subject],
-            "role": "roles/iam.workloadIdentityUser",
-            "service_account_emails": [SA["gcp_service_account"]],
-            "has_condition": True,
-        },
-        {
-            "id": "wrong-gsa",
-            "raw_members": [subject],
-            "role": "roles/iam.workloadIdentityUser",
-            "service_account_emails": ["other@example-project.iam.gserviceaccount.com"],
-            "has_condition": False,
-        },
-        {"id": "wrong-sa", "raw_members": [subject + "-other"]},
-        {
-            "id": "wrong-project",
-            "raw_members": [subject.replace("111122223333", "444455556666")],
-        },
-        {"id": "pool-only", "wif_pools": [POOL]},
-    ]
-    # Act
-    grants, impersonations = match_workload_policies([SA], bindings, POOL, RESOURCE)
-    # Assert
-    assert {r["target_id"] for r in grants} == {"good", "conditional", "wrong-gsa"}
-    assert len(impersonations) == 1
-    assert impersonations[0]["target_id"] == SA["gcp_service_account"]
-
-
-def test_wif_same_subject_across_clusters_but_uid_and_cluster_selectors_differ():
-    # Arrange
-    other = {**SA, "id": "other/ns/app", "uid": "other-uid"}
-    other_resource = RESOURCE.replace("clusters/example", "clusters/other")
-    # Act
-    shared = principal_members(SA, POOL, RESOURCE) & principal_members(
-        other, POOL, other_resource
-    )
-    # Assert
-    assert len(shared) == 4
-    assert not any(
-        "kubernetes.cluster/" in m or "serviceaccount.uid/" in m for m in shared
+    node = SimpleNamespace(
+        metadata=SimpleNamespace(
+            name="node", labels={"cloud.google.com/gke-nodepool": "pool"}
+        ),
+        spec=SimpleNamespace(provider_id="gce://example-project/us-central1-a/node"),
+        status=None,
     )
 
-
-def test_lb_project_network_and_status_address():
-    # Arrange
-    resources = [
-        {"id": "svc", "load_balancer_ips": ["10.0.0.2", "2001:db8::1", "invalid"]}
-    ]
-    network = "projects/host-project/global/networks/shared"
-    rules = [
-        {
-            "id": "internal",
-            "ip_address": "10.0.0.2",
-            "project_id": "example-project",
-            "network": network,
-            "load_balancing_scheme": "INTERNAL",
-        },
-        {
-            "id": "wrong-network",
-            "ip_address": "10.0.0.2",
-            "project_id": "example-project",
-            "network": network + "-other",
-            "load_balancing_scheme": "INTERNAL",
-        },
-        {
-            "id": "wrong-project",
-            "ip_address": "10.0.0.2",
-            "project_id": "other",
-            "network": network,
-            "load_balancing_scheme": "INTERNAL",
-        },
-        {
-            "id": "external-v6",
-            "ip_address": "2001:db8:0:0:0:0:0:1",
-            "project_id": "example-project",
-            "load_balancing_scheme": "EXTERNAL_MANAGED",
-        },
-        {"id": "unknown", "ip_address": "10.0.0.2", "project_id": "example-project"},
-    ]
     # Act
-    result = match_load_balancers(resources, rules, "example-project", network)
+    gke = transform_nodes([node], "cluster", RESOURCE)[0]
+    plain = transform_nodes([node], "cluster")[0]
+
     # Assert
-    assert {r["target_id"] for r in result} == {"internal", "external-v6"}
-    assert {
-        r["target_id"]
-        for r in match_load_balancers(resources, rules, "example-project", None)
-    } == {"external-v6"}
+    assert gke["gke_node_pool_id"] == f"{RESOURCE}/nodePools/pool"
+    assert plain["gke_node_pool_id"] is None
+    assert plain["gke_node_pool"] == "pool"
 
 
 def test_endpoint_selection_never_falls_back_to_allocated_ip():
@@ -203,6 +108,7 @@ def test_endpoint_selection_never_falls_back_to_allocated_ip():
         },
         "privateClusterConfig": {"publicEndpoint": "192.0.2.1"},
     }
+
     # Act and assert
     assert select_endpoint(cluster, "dns") == ("https://example.gke.goog", True)
     with pytest.raises(ValueError, match="disabled"):
@@ -214,85 +120,123 @@ def test_endpoint_selection_never_falls_back_to_allocated_ip():
         select_endpoint(cluster, "dns")
 
 
-def test_native_client_initial_token_refresh_and_isolation():
+def test_native_client_refreshes_token_per_request():
     # Arrange
-    cluster = {
-        "resource_name": RESOURCE,
-        "controlPlaneEndpointsConfig": {
-            "dnsEndpointConfig": {
-                "endpoint": "example.gke.goog",
-                "allowExternalTraffic": True,
-            }
-        },
-    }
     credentials = MagicMock(valid=True, token="first")
+
     # Act
-    with connect(cluster, credentials) as client:
+    with connect(DNS_CLUSTER, credentials) as client:
         config = client.core.api_client.configuration
         first = config.auth_settings()["BearerToken"]["value"]
         credentials.token = "second"
         second = config.auth_settings()["BearerToken"]["value"]
+
         # Assert
         assert first == "Bearer first"
         assert second == "Bearer second"
         assert config.verify_ssl is True
         assert client.core.api_client is client.rbac.api_client
+        assert client.name == "gke_example-project_us-central1_example"
         assert (
             client.tls_diagnostics["kubeconfig_tls_configuration_status"] == "public_ca"
         )
 
 
-def test_partial_zone_listing_is_not_authoritative():
+@pytest.mark.parametrize("status", [403, 404])
+def test_get_cluster_skips_unreadable_cluster(status):
     # Arrange
-    api = MagicMock()
+    container = MagicMock()
+    container.projects.return_value.locations.return_value.clusters.return_value.get.return_value.execute.side_effect = _http_error(
+        status
+    )
+
+    # Act
     with patch(
-        "cartography.intel.gcp.gke.gcp_api_execute_with_retry",
-        return_value={"missingZones": ["us-central1-a"]},
+        "cartography.intel.kubernetes.gke_auth.build_client", return_value=container
     ):
-        # Act and assert
-        with pytest.raises(RuntimeError, match="incomplete"):
-            get_gke_clusters(api, "example-project")
+        result = get_cluster(RESOURCE, MagicMock())
+
+    # Assert
+    assert result is None
 
 
-def test_gke_dataplane_and_endpoint_fields():
+def test_get_cluster_keeps_requested_project_id():
+    # Arrange
+    container = MagicMock()
+    container.projects.return_value.locations.return_value.clusters.return_value.get.return_value.execute.return_value = {
+        "selfLink": "https://container.googleapis.com/v1/projects/111122223333/locations/us-central1/clusters/example",
+    }
+
+    # Act
+    with patch(
+        "cartography.intel.kubernetes.gke_auth.build_client", return_value=container
+    ):
+        result = get_cluster("gke_example-project_us-central1_example", MagicMock())
+
+    # Assert
+    assert result is not None
+    assert result["resource_name"] == RESOURCE
+
+
+def test_control_plane_fields_dns_endpoint_is_public_access():
     # Arrange
     cluster = {
         "name": "example",
         "selfLink": "https://container.googleapis.com/v1/" + RESOURCE,
         "networkConfig": {"datapathProvider": "ADVANCED_DATAPATH"},
-        "controlPlaneEndpointsConfig": {"ipEndpointsConfig": {"enabled": False}},
-        "privateClusterConfig": {"publicEndpoint": "192.0.2.1"},
-    }
-    # Act
-    transformed = transform_gke_clusters({"clusters": [cluster]})[0]
-    # Assert
-    assert transformed["network_policy"] == "DATAPLANE_V2"
-    assert transformed["public_ip_endpoint_enabled"] is False
-    assert transformed["resource_name"] == RESOURCE
-
-
-def test_oidc_discovery_reads_raw_json_without_following_jwks_uri():
-    # Arrange
-    from cartography.intel.kubernetes.clusters import get_service_account_oidc
-
-    cluster = {
-        "resource_name": RESOURCE,
         "controlPlaneEndpointsConfig": {
             "dnsEndpointConfig": {
                 "endpoint": "example.gke.goog",
                 "allowExternalTraffic": True,
-            }
+            },
+            "ipEndpointsConfig": {"enabled": False},
+        },
+        "privateClusterConfig": {
+            "enablePrivateEndpoint": True,
+            "publicEndpoint": "192.0.2.1",
         },
     }
+
+    # Act
+    transformed = transform_gke_clusters({"clusters": [cluster]})[0]
+
+    # Assert
+    assert transformed["network_policy"] == "DATAPLANE_V2"
+    assert transformed["resource_name"] == RESOURCE
+    assert transformed["ip_endpoints_enabled"] is False
+    assert transformed["public_ip_endpoint_enabled"] is False
+    assert transformed["dns_endpoint_enabled"] is True
+    assert transformed["control_plane_public_access"] is True
+
+
+def test_control_plane_fields_fall_back_to_private_cluster_config():
+    # Arrange
+    cluster = {
+        "name": "example",
+        "selfLink": "https://container.googleapis.com/v1/" + RESOURCE,
+        "privateClusterConfig": {"enablePrivateEndpoint": True},
+    }
+
+    # Act
+    transformed = transform_gke_clusters({"clusters": [cluster]})[0]
+
+    # Assert
+    assert transformed["dns_endpoint_enabled"] is None
+    assert transformed["control_plane_public_access"] is False
+
+
+def test_oidc_discovery_reads_raw_json_without_following_jwks_uri():
+    # Arrange
     response = MagicMock(
         data=b'{"issuer":"https://issuer.example","jwks_uri":"https://keys.example/jwks","extra":"not-collected"}'
     )
-    with connect(cluster, MagicMock(valid=True, token="test-token")) as client:
+    with connect(DNS_CLUSTER, MagicMock(valid=True, token="test-token")) as client:
         with patch.object(
             client.core.api_client, "request", return_value=response
         ) as request:
             # Act
             result = get_service_account_oidc(client)
+
             # Assert
             assert result == {
                 "issuer": "https://issuer.example",
@@ -304,26 +248,3 @@ def test_oidc_discovery_reads_raw_json_without_following_jwks_uri():
                 == "https://example.gke.goog/.well-known/openid-configuration"
             )
             response.release_conn.assert_called_once()
-
-
-def test_shared_vip_disambiguates_protocol_and_port():
-    # Arrange
-    resource = {
-        "id": "service",
-        "load_balancer_ips": ["192.0.2.1"],
-        "load_balancer_listeners": ["TCP:443"],
-    }
-    base = {
-        "project_id": "example-project",
-        "ip_address": "192.0.2.1",
-        "load_balancing_scheme": "EXTERNAL",
-    }
-    rules = [
-        {**base, "id": "https", "ip_protocol": "TCP", "port_range": "443-443"},
-        {**base, "id": "http", "ip_protocol": "TCP", "ports": ["80"]},
-        {**base, "id": "quic", "ip_protocol": "UDP", "ports": ["443"]},
-    ]
-    # Act
-    result = match_load_balancers([resource], rules, "example-project", None)
-    # Assert
-    assert result == [{"source_id": "service", "target_id": "https"}]

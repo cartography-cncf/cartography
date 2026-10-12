@@ -35,23 +35,24 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
     )
     service_account_issuer: PropertyRef = PropertyRef(
         "service_account_issuer",
-        description="Kubernetes ServiceAccount OIDC issuer read from the authenticated API server. This is distinct from external user OIDC login.",
+        description="`issuer` from the Kubernetes API server's `/.well-known/openid-configuration` ServiceAccount discovery document. Only collected for GKE clusters.",
     )
     service_account_jwks_uri: PropertyRef = PropertyRef(
         "service_account_jwks_uri",
-        description="Public signing-key discovery URI advertised by the API server; not fetched by Cartography.",
+        description="`jwks_uri` from the Kubernetes API server's `/.well-known/openid-configuration` ServiceAccount discovery document. Only collected for GKE clusters.",
     )
     gke_resource_name: PropertyRef = PropertyRef(
         "gke_resource_name",
         extra_index=True,
-        description="Verified GKE resource name, including project, location, and cluster name.",
+        description="GKE cluster resource name (`projects/{project}/locations/{location}/clusters/{name}`) from the GKE API `projects.locations.clusters.get` response; null for non-GKE clusters.",
     )
     gke_uid: PropertyRef = PropertyRef(
-        "gke_uid", description="GKE cloud cluster unique identifier."
+        "gke_uid",
+        description="GKE API `Cluster.id`: the immutable Google-generated cluster identifier.",
     )
     workload_pool: PropertyRef = PropertyRef(
         "workload_pool",
-        description="GKE workload identity pool configured on the cluster.",
+        description="GKE API `Cluster.workloadIdentityConfig.workloadPool` (e.g. `PROJECT_ID.svc.id.goog`); null when Workload Identity Federation for GKE is disabled.",
     )
     version: PropertyRef = PropertyRef(
         "git_version",
@@ -132,6 +133,27 @@ class KubernetesClusterToEKSClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesClusterToGKEClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GKECluster)-[:MAPS_TO]->(:KubernetesCluster)
+class KubernetesClusterToGKEClusterRel(CartographyRelSchema):
+    """Links a GKE cluster to the Kubernetes cluster it hosts. Only created when the Kubernetes sync fetched GKE metadata for the cluster."""
+
+    target_node_label: str = "GKECluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"resource_name": PropertyRef("gke_resource_name")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesClusterToGKEClusterRelProperties = (
+        KubernetesClusterToGKEClusterRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesClusterSchema(CartographyNodeSchema):
     "A Kubernetes cluster discovered from a kubeconfig context."
 
@@ -139,5 +161,8 @@ class KubernetesClusterSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_CLUSTER])
     properties: KubernetesClusterNodeProperties = KubernetesClusterNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
-        [KubernetesClusterToEKSClusterRel()]
+        [
+            KubernetesClusterToEKSClusterRel(),
+            KubernetesClusterToGKEClusterRel(),
+        ]
     )
