@@ -1,12 +1,15 @@
 import logging
 from collections import defaultdict
 from typing import Any
+from typing import Iterator
 
 import neo4j
 from falconpy.oauth2 import OAuth2
 from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
 
 from cartography.client.core.tx import load
+from cartography.intel.crowdstrike.util import CrowdstrikeAPIError
+from cartography.intel.crowdstrike.util import get_response_body
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
 from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
@@ -22,8 +25,7 @@ def sync_vulnerabilities(
     authorization: OAuth2,
 ) -> None:
     client = Spotlight_Vulnerabilities(auth_object=authorization)
-    all_ids = get_spotlight_vulnerability_ids(client)
-    for ids in all_ids:
+    for ids in get_spotlight_vulnerability_ids(client):
         vulnerability_data = get_spotlight_vulnerabilities(client, ids)
         vulns, cves = transform(vulnerability_data)
         load_vulnerability_data(neo4j_session, vulns, update_tag)
@@ -115,33 +117,48 @@ def load_cve_data(
 
 def get_spotlight_vulnerability_ids(
     client: Spotlight_Vulnerabilities,
-) -> list[list[str]]:
-    ids = []
+) -> Iterator[list[str]]:
+    """
+    Yield non-closed vulnerability IDs one page at a time.
+
+    A tenant can have millions of open vulnerabilities, so the caller loads each
+    page before the next one is fetched instead of holding every ID in memory.
+    """
     parameters = {"filter": 'status:!"closed"', "limit": 400}
-    response = client.queryVulnerabilities(parameters=parameters)
-    body = response.get("body", {})
-    resources = body.get("resources", [])
-    if not resources:
-        logger.warning("No vulnerability IDs in spotlight queryVulnerabilities.")
-        return []
-    ids.append(resources)
-    after = body.get("meta", {}).get("pagination", {}).get("after")
-    while after:
-        parameters["after"] = after
-        response = client.queryVulnerabilities(parameters=parameters)
-        body = response.get("body", {})
-        resources = body.get("resources", [])
+    seen_cursors: set[str] = set()
+    first_page = True
+    while True:
+        body = get_response_body(
+            client.queryVulnerabilities(parameters=parameters),
+            "queryVulnerabilities",
+        )
+        resources = body.get("resources") or []
         if not resources:
-            break
-        ids.append(resources)
+            if first_page:
+                logger.warning(
+                    "No vulnerability IDs in spotlight queryVulnerabilities."
+                )
+            return
+        first_page = False
+        yield resources
         after = body.get("meta", {}).get("pagination", {}).get("after")
-    return ids
+        if not after:
+            return
+        if after in seen_cursors:
+            raise CrowdstrikeAPIError(
+                "CrowdStrike queryVulnerabilities returned a pagination cursor it "
+                "already returned; refusing to page forever.",
+            )
+        seen_cursors.add(after)
+        parameters["after"] = after
 
 
 def get_spotlight_vulnerabilities(
     client: Spotlight_Vulnerabilities,
     ids: list[str],
 ) -> list[dict]:
-    response = client.getVulnerabilities(ids=",".join(ids))
-    body = response.get("body", {})
+    body = get_response_body(
+        client.getVulnerabilities(ids=",".join(ids)),
+        "getVulnerabilities",
+    )
     return body.get("resources", [])
