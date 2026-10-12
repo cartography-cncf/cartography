@@ -23,6 +23,13 @@ TEST_BASE_URL = "https://api.opsgenie.com"
 )
 @patch.object(
     cartography.intel.opsgenie.resources,
+    "get_team_members",
+    side_effect=lambda _session, _base_url, _timeout, team_id: (
+        tests.data.opsgenie.data.TEAM_MEMBERS[team_id]
+    ),
+)
+@patch.object(
+    cartography.intel.opsgenie.resources,
     "get_users",
     return_value=tests.data.opsgenie.data.USERS,
 )
@@ -32,7 +39,12 @@ TEST_BASE_URL = "https://api.opsgenie.com"
     return_value=tests.data.opsgenie.data.SCHEDULES,
 )
 def test_sync_opsgenie(
-    mock_schedules, mock_users, mock_teams, mock_account, neo4j_session
+    mock_schedules,
+    mock_users,
+    mock_team_members,
+    mock_teams,
+    mock_account,
+    neo4j_session,
 ):
     # Arrange
     api_session = requests.Session()
@@ -90,3 +102,19 @@ def test_sync_opsgenie(
         ("example-account", "schedule-1"),
         ("example-account", "schedule-2"),
     }
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieUser",
+        "id",
+        "OpsgenieTeam",
+        "id",
+        "MEMBER_OF",
+    ) == {("user-1", "team-1"), ("user-2", "team-1"), ("user-2", "team-2")}
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieUser",
+        "id",
+        "OpsgenieTeam",
+        "id",
+        "ADMIN_OF",
+    ) == {("user-1", "team-1")}

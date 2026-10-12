@@ -9,12 +9,22 @@ TEAMS = [
     {"id": "team-2", "name": "Payments", "description": "Payments team"},
 ]
 
+TEAM_MEMBERS = {
+    "team-1": [
+        {"user": {"id": "user-1", "username": "alice@example.com"}, "role": "admin"},
+        {"user": {"id": "user-2", "username": "bob@example.com"}, "role": "user"},
+    ],
+    "team-2": [
+        {"user": {"id": "user-2", "username": "bob@example.com"}, "role": "user"},
+    ],
+}
+
 USERS = [
     {
         "id": "user-1",
         "username": "alice@example.com",
         "fullName": "Alice Example",
-        "role": {"name": "User"},
+        "role": {"id": "User", "name": "User"},
         "blocked": False,
         "verified": True,
         "timeZone": "America/Los_Angeles",
@@ -25,7 +35,7 @@ USERS = [
         "id": "user-2",
         "username": "bob@example.com",
         "fullName": "Bob Example",
-        "role": {"name": "Admin"},
+        "role": {"id": "Admin", "name": "Admin"},
         "blocked": False,
         "verified": True,
         "timeZone": "Europe/London",

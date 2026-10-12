@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import USER_ACCOUNT
 
@@ -66,6 +67,39 @@ class OpsgenieAccountToUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class OpsgenieUserToTeamRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:OpsgenieUser)-[:MEMBER_OF]->(:OpsgenieTeam)
+@dataclass(frozen=True)
+class OpsgenieUserToTeamMemberOfRel(CartographyRelSchema):
+    """The user is a member of the team."""
+
+    target_node_label: str = "OpsgenieTeam"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("team_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF"
+    properties: OpsgenieUserToTeamRelProperties = OpsgenieUserToTeamRelProperties()
+
+
+# (:OpsgenieUser)-[:ADMIN_OF]->(:OpsgenieTeam)
+@dataclass(frozen=True)
+class OpsgenieUserToTeamAdminOfRel(CartographyRelSchema):
+    """The user is an administrator of the team."""
+
+    target_node_label: str = "OpsgenieTeam"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("admin_team_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ADMIN_OF"
+    properties: OpsgenieUserToTeamRelProperties = OpsgenieUserToTeamRelProperties()
+
+
+@dataclass(frozen=True)
 class OpsgenieUserSchema(CartographyNodeSchema):
     """A user in an Opsgenie account."""
 
@@ -73,3 +107,6 @@ class OpsgenieUserSchema(CartographyNodeSchema):
     properties: OpsgenieUserNodeProperties = OpsgenieUserNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     sub_resource_relationship: OpsgenieAccountToUserRel = OpsgenieAccountToUserRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[OpsgenieUserToTeamMemberOfRel(), OpsgenieUserToTeamAdminOfRel()],
+    )

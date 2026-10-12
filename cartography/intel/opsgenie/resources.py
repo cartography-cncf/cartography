@@ -45,6 +45,18 @@ def get_teams(
 
 
 @timeit
+def get_team_members(
+    api_session: requests.Session,
+    base_url: str,
+    timeout: int,
+    team_id: str,
+) -> list[dict[str, Any]]:
+    # The list endpoint omits members, so membership needs one call per team.
+    team = _get_data(api_session, f"{base_url}/v2/teams/{team_id}", timeout)["data"]
+    return team.get("members") or []
+
+
+@timeit
 def get_users(
     api_session: requests.Session,
     base_url: str,
@@ -97,7 +109,21 @@ def transform_teams(teams: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
-def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_users(
+    users: list[dict[str, Any]],
+    team_members: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    team_ids: dict[str, list[str]] = {}
+    admin_team_ids: dict[str, list[str]] = {}
+    for team_id, members in team_members.items():
+        for member in members:
+            user_id = (member.get("user") or {}).get("id")
+            if not user_id:
+                continue
+            team_ids.setdefault(user_id, []).append(team_id)
+            if member.get("role") == "admin":
+                admin_team_ids.setdefault(user_id, []).append(team_id)
+
     result = []
     for user in users:
         role = user.get("role") or {}
@@ -112,6 +138,8 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "timezone": user.get("timeZone"),
                 "locale": user.get("locale"),
                 "created_at": user.get("createdAt"),
+                "team_ids": team_ids.get(user["id"], []),
+                "admin_team_ids": admin_team_ids.get(user["id"], []),
             },
         )
     return result
@@ -172,7 +200,8 @@ def sync(
         lastupdated=update_tag,
     )
 
-    teams = transform_teams(get_teams(api_session, base_url, timeout))
+    raw_teams = get_teams(api_session, base_url, timeout)
+    teams = transform_teams(raw_teams)
     logger.info("Loading %d Opsgenie teams", len(teams))
     _load_and_cleanup(
         neo4j_session,
@@ -182,7 +211,11 @@ def sync(
         update_tag,
     )
 
-    users = transform_users(get_users(api_session, base_url, timeout))
+    team_members = {
+        team["id"]: get_team_members(api_session, base_url, timeout, team["id"])
+        for team in raw_teams
+    }
+    users = transform_users(get_users(api_session, base_url, timeout), team_members)
     logger.info("Loading %d Opsgenie users", len(users))
     _load_and_cleanup(
         neo4j_session,
