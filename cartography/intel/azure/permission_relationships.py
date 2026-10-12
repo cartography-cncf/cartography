@@ -305,7 +305,11 @@ def is_valid_azure_rpr(rpr: dict[str, Any]) -> bool:
     for field in required_fields:
         if field not in rpr:
             return False
-    return bool(rpr.get("permissions") or rpr.get("data_permissions"))
+    permissions = rpr.get("permissions", [])
+    data_permissions = rpr.get("data_permissions", [])
+    if not isinstance(permissions, list) or not isinstance(data_permissions, list):
+        return False
+    return bool(permissions or data_permissions)
 
 
 def transform_mappings(principal_mappings: list[dict]) -> dict[str, list[dict]]:

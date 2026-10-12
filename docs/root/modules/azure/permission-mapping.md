@@ -17,8 +17,8 @@ The [permission relationship file](https://github.com/cartography-cncf/cartograp
 ```
 Each RPR consists of
 - target_label (string) - The node Label that permissions will be built for
-- permissions (list(string)) - The list of control-plane permissions (role `Actions`) to map. If any of these permissions are present between a resource and a principal then the relationship is created.
-- data_permissions (list(string)) - The list of data-plane permissions (role `DataActions`) to map. These are matched only against a role's `DataActions`, because Azure never lets an `Actions` wildcard such as Reader's `*/read` grant a data operation. Use this for operations like `Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read` or `Microsoft.KeyVault/vaults/secrets/getSecret/action`.
+- permissions (list(string)) - The list of permissions to map, matched against both a role's `Actions` and its `DataActions`. If any of these permissions are present between a resource and a principal then the relationship is created. Use this for control-plane operations.
+- data_permissions (list(string)) - The list of data-plane permissions to map, matched only against a role's `DataActions`. Azure never lets an `Actions` wildcard such as Reader's `*/read` grant a data operation, so listing a data operation under `permissions` instead would map every Reader. Use this for operations like `Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read` or `Microsoft.KeyVault/vaults/secrets/getSecret/action`.
 - relationship_name (string) - The name of the relationship cartography will create
 
 An RPR needs at least one of `permissions` or `data_permissions`. A principal that matches either list gets the relationship.

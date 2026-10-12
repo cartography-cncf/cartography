@@ -3,10 +3,10 @@
 # for principals that have a role assignment with _any_ of the below
 # permissions. Similar logic applies for the other entries in this file.
 #
-# `permissions` holds control-plane operations (a role's Actions).
-# `data_permissions` holds data-plane operations (a role's DataActions) and is
-# matched only against DataActions, because Azure never lets an Actions
-# wildcard such as Reader's `*/read` grant a data operation.
+# `permissions` entries are matched against both a role's Actions and its
+# DataActions. `data_permissions` entries are matched only against DataActions,
+# because Azure never lets an Actions wildcard such as Reader's `*/read` grant a
+# data operation. Put data-plane operations under `data_permissions`.
 - target_label: AzureSQLServer
   permissions:
   - Microsoft.Sql/servers/delete
@@ -56,6 +56,7 @@
 - target_label: AzureStorageAccount
   permissions:
   - Microsoft.Storage/storageAccounts/delete
+  - Microsoft.Storage/storageAccounts/listKeys/action
   data_permissions:
   - Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete
   - Microsoft.Storage/storageAccounts/fileServices/fileshares/files/delete

@@ -145,6 +145,7 @@ class PermissionRelationshipDefinition:
     permissions: tuple[str, ...]
     config_path: str
     target_precondition: TargetPreconditionDefinition | None = None
+    data_permissions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -811,9 +812,10 @@ def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition
                         source_label=source_label,
                         target_label=target_label,
                         relationship_name=relationship_name,
-                        permissions=tuple(permissions + data_permissions),
+                        permissions=tuple(permissions),
                         config_path=relative_path.as_posix(),
                         target_precondition=target_precondition,
+                        data_permissions=tuple(data_permissions),
                     )
                 )
     yield from sorted(

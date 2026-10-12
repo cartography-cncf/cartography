@@ -75,6 +75,14 @@ def test_data_permissions_only_match_data_actions(role, assignment, expected):
             {"target_label": "AzureKeyVault", "relationship_name": "CAN_READ"},
             False,
         ),
+        (
+            {
+                "target_label": "AzureKeyVault",
+                "data_permissions": "Microsoft.KeyVault/vaults/secrets/getSecret/action",
+                "relationship_name": "CAN_READ",
+            },
+            False,
+        ),
     ],
 )
 def test_rpr_needs_permissions_or_data_permissions(rpr, expected):
