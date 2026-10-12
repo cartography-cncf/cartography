@@ -85,20 +85,6 @@ class OpsgenieUserToTeamMemberOfRel(CartographyRelSchema):
     properties: OpsgenieUserToTeamRelProperties = OpsgenieUserToTeamRelProperties()
 
 
-# (:OpsgenieUser)-[:ADMIN_OF]->(:OpsgenieTeam)
-@dataclass(frozen=True)
-class OpsgenieUserToTeamAdminOfRel(CartographyRelSchema):
-    """The user is an administrator of the team."""
-
-    target_node_label: str = "OpsgenieTeam"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("admin_team_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "ADMIN_OF"
-    properties: OpsgenieUserToTeamRelProperties = OpsgenieUserToTeamRelProperties()
-
-
 @dataclass(frozen=True)
 class OpsgenieUserSchema(CartographyNodeSchema):
     """A user in an Opsgenie account."""
@@ -108,5 +94,5 @@ class OpsgenieUserSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     sub_resource_relationship: OpsgenieAccountToUserRel = OpsgenieAccountToUserRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        rels=[OpsgenieUserToTeamMemberOfRel(), OpsgenieUserToTeamAdminOfRel()],
+        rels=[OpsgenieUserToTeamMemberOfRel()],
     )

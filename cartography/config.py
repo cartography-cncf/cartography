@@ -249,11 +249,11 @@ class Config:
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
     :param pagerduty_request_timeout: Seconds to timeout for pagerduty session requests. Optional
-    :type: opsgenie_api_key: str
+    :type opsgenie_api_key: str
     :param opsgenie_api_key: API authentication key for Opsgenie. Optional.
-    :type: opsgenie_api_url: str
+    :type opsgenie_api_url: str
     :param opsgenie_api_url: Opsgenie API base URL. Optional.
-    :type: opsgenie_request_timeout: int
+    :type opsgenie_request_timeout: int
     :param opsgenie_request_timeout: Seconds to timeout for Opsgenie API requests. Optional.
     :type: nist_cve_url: str
     :param nist_cve_url: NIST CVE data provider base URI, e.g. https://nvd.nist.gov/feeds/json/cve/1.1. Optional.

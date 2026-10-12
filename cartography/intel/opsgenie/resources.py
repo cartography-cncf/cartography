@@ -114,15 +114,12 @@ def transform_users(
     team_members: dict[str, list[dict[str, Any]]],
 ) -> list[dict[str, Any]]:
     team_ids: dict[str, list[str]] = {}
-    admin_team_ids: dict[str, list[str]] = {}
     for team_id, members in team_members.items():
         for member in members:
             user_id = (member.get("user") or {}).get("id")
             if not user_id:
                 continue
             team_ids.setdefault(user_id, []).append(team_id)
-            if member.get("role") == "admin":
-                admin_team_ids.setdefault(user_id, []).append(team_id)
 
     result = []
     for user in users:
@@ -139,7 +136,6 @@ def transform_users(
                 "locale": user.get("locale"),
                 "created_at": user.get("createdAt"),
                 "team_ids": team_ids.get(user["id"], []),
-                "admin_team_ids": admin_team_ids.get(user["id"], []),
             },
         )
     return result
@@ -190,9 +186,10 @@ def sync(
     timeout: int,
     update_tag: int,
 ) -> None:
+    logger.info("Starting Opsgenie sync")
     account = transform_account(get_account(api_session, base_url, timeout))
     account_id = account[0]["id"]
-    logger.info("Loading Opsgenie account")
+    logger.debug("Loading Opsgenie account")
     load(
         neo4j_session,
         OpsgenieAccountSchema(),
@@ -202,7 +199,7 @@ def sync(
 
     raw_teams = get_teams(api_session, base_url, timeout)
     teams = transform_teams(raw_teams)
-    logger.info("Loading %d Opsgenie teams", len(teams))
+    logger.debug("Loading %d Opsgenie teams", len(teams))
     _load_and_cleanup(
         neo4j_session,
         OpsgenieTeamSchema(),
@@ -216,7 +213,7 @@ def sync(
         for team in raw_teams
     }
     users = transform_users(get_users(api_session, base_url, timeout), team_members)
-    logger.info("Loading %d Opsgenie users", len(users))
+    logger.debug("Loading %d Opsgenie users", len(users))
     _load_and_cleanup(
         neo4j_session,
         OpsgenieUserSchema(),
@@ -226,7 +223,7 @@ def sync(
     )
 
     schedules = transform_schedules(get_schedules(api_session, base_url, timeout))
-    logger.info("Loading %d Opsgenie schedules", len(schedules))
+    logger.debug("Loading %d Opsgenie schedules", len(schedules))
     _load_and_cleanup(
         neo4j_session,
         OpsgenieScheduleSchema(),
@@ -234,3 +231,4 @@ def sync(
         account_id,
         update_tag,
     )
+    logger.info("Completed Opsgenie sync")

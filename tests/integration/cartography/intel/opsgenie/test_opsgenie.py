@@ -112,9 +112,17 @@ def test_sync_opsgenie(
     ) == {("user-1", "team-1"), ("user-2", "team-1"), ("user-2", "team-2")}
     assert check_rels(
         neo4j_session,
-        "OpsgenieUser",
+        "OpsgenieAccount",
         "id",
         "OpsgenieTeam",
         "id",
-        "ADMIN_OF",
-    ) == {("user-1", "team-1")}
+        "RESOURCE",
+    ) == {("example-account", "team-1"), ("example-account", "team-2")}
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieAccount",
+        "id",
+        "OpsgenieUser",
+        "id",
+        "RESOURCE",
+    ) == {("example-account", "user-1"), ("example-account", "user-2")}
