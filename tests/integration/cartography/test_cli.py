@@ -194,6 +194,47 @@ def test_cli_microsoft_requested_syncs_set_config():
     assert config.microsoft_requested_syncs == "users,groups"
 
 
+def test_cli_azure_requested_syncs_set_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--azure-requested-syncs",
+            "rbac,compute",
+        ],
+    )
+
+    # Assert
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.azure_requested_syncs == "rbac,compute"
+
+
+def test_cli_rejects_unknown_azure_requested_sync():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--azure-requested-syncs",
+            "rbac,virtual_machines",
+        ],
+    )
+
+    # Assert
+    assert exit_code != 0
+    sync.run.assert_not_called()
+
+
 def test_cli_rejects_unknown_microsoft_requested_sync():
     # Arrange
     sync = unittest.mock.MagicMock()

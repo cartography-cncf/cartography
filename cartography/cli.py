@@ -788,6 +788,19 @@ class CLI:
                     hidden=PANEL_AZURE not in visible_panels,
                 ),
             ] = None,
+            azure_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--azure-requested-syncs",
+                    help=(
+                        "Comma-separated list of Azure resources to sync. "
+                        'Example: "rbac,compute". See '
+                        "cartography.intel.azure.resources for full list."
+                    ),
+                    rich_help_panel=PANEL_AZURE,
+                    hidden=PANEL_AZURE not in visible_panels,
+                ),
+            ] = None,
             azure_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -3074,6 +3087,14 @@ class CLI:
 
                 parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
 
+            # Validate Azure options
+            if azure_requested_syncs:
+                from cartography.intel.azure.util.common import (
+                    parse_and_validate_azure_requested_syncs,
+                )
+
+                parse_and_validate_azure_requested_syncs(azure_requested_syncs)
+
             # Validate Microsoft options
             if microsoft_requested_syncs:
                 from cartography.intel.microsoft.util import (
@@ -3906,6 +3927,7 @@ class CLI:
                 azure_client_secret=azure_client_secret,
                 azure_access_token=azure_access_token,
                 azure_subscription_id=azure_subscription_id,
+                azure_requested_syncs=azure_requested_syncs,
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,

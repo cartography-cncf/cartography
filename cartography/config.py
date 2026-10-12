@@ -197,6 +197,8 @@ class Config:
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
+    :type azure_requested_syncs: str
+    :param azure_requested_syncs: Comma-separated list of Azure resources to sync. Optional.
     :type azure_permission_relationships_file: str
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
     :type gcp_requested_syncs: str
@@ -809,6 +811,7 @@ class Config:
         zoom_request_limit=100000,
         azure_access_token: str | None = None,
         microsoft_access_token: str | None = None,
+        azure_requested_syncs: str | None = None,
         gke_clusters: list[str] | None = None,
         gke_endpoint: str = "dns",
         gke_impersonate_service_account: str | None = None,
@@ -845,6 +848,7 @@ class Config:
         self.azure_client_secret = azure_client_secret
         self.azure_subscription_id = azure_subscription_id
         self.azure_access_token = azure_access_token
+        self.azure_requested_syncs = azure_requested_syncs
         (
             self.microsoft_tenant_id,
             self.microsoft_client_id,
