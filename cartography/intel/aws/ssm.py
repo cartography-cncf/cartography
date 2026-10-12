@@ -8,6 +8,7 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -222,19 +223,43 @@ def transform_ssm_parameters(
 
 
 @timeit
-@aws_handle_regions
 def get_ssm_parameter_tags(
     boto3_session: boto3.session.Session,
     region: str,
     parameters: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """Fetch tags for private SSM parameters."""
+    """
+    Add each private SSM parameter's tags under the "Tags" key.
+
+    Not decorated with aws_handle_regions: it would replace the whole parameter
+    list with [] on AccessDenied, and the SSM cleanup would then delete every
+    parameter. A parameter whose tags cannot be read is still returned, without
+    a "Tags" key.
+    """
     client = create_boto3_client(boto3_session, "ssm", region_name=region)
     for parameter in parameters:
-        response = client.list_tags_for_resource(
-            ResourceType="Parameter",
-            ResourceId=parameter["Name"],
-        )
+        try:
+            response = client.list_tags_for_resource(
+                ResourceType="Parameter",
+                ResourceId=parameter["Name"],
+            )
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code == "InvalidResourceId":
+                # Deleted between DescribeParameters and ListTagsForResource.
+                logger.info(
+                    "SSM parameter %s no longer exists while fetching tags; skipping.",
+                    parameter["Name"],
+                )
+                continue
+            if error_code in ("AccessDenied", "AccessDeniedException"):
+                logger.warning(
+                    "Access denied to ssm:ListTagsForResource in region '%s'; "
+                    "loading SSM parameters without tags.",
+                    region,
+                )
+                break
+            raise
         parameter["Tags"] = response.get("TagList", [])
     return parameters
 

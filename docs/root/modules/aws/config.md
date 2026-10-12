@@ -76,6 +76,10 @@ Center and Identity Store actions that Cartography calls: `sso:ListInstances`,
 `sso:ListAccountAssignmentsForPrincipal`, `identitystore:ListUsers`,
 `identitystore:ListGroups`, and `identitystore:ListGroupMemberships`.
 
+`SecurityAudit` also includes `ssm:ListTagsForResource`, which Cartography
+calls once per SSM parameter to read its tags. If a custom policy denies it,
+parameters are still ingested but their `tags` property is empty.
+
 Full AWS Organizations hierarchy enumeration requires credentials from the
 management account or a delegated administrator account. Grant
 `organizations:Describe*` and `organizations:List*` permissions. The managed
@@ -107,7 +111,6 @@ the corresponding data.
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
   `AWSPublicSSMParameter` nodes represent shared regional catalog data and are
   not resources owned by the account performing the sync.
-- SSM parameter tag ingestion requires `ssm:ListTagsForResource`.
 
 ## Configure Cartography
 

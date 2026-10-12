@@ -68,7 +68,7 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
     )
     tags: PropertyRef = PropertyRef(
         "TagsJson",
-        description="A JSON string of tags attached to the parameter.",
+        description="A JSON string of tags attached to the parameter, from `ListTagsForResource`. Null for AWS-managed public parameters and when the tags cannot be read.",
     )
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the parameter."

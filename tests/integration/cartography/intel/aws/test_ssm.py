@@ -194,7 +194,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     cartography.intel.aws.ssm,
     "get_ssm_parameter_tags",
     return_value=[
-        {**parameter, "Tags": [{"Key": "Environment", "Value": "prod"}]}
+        {**parameter, "Tags": tests.data.aws.ssm.SSM_PARAMETER_TAGS}
         for parameter in tests.data.aws.ssm.SSM_PARAMETERS_DATA
     ],
 )
@@ -249,7 +249,7 @@ def test_load_ssm_parameters(
                     },
                 ]
             ),
-            '[{"Key": "Environment", "Value": "prod"}]',
+            json.dumps(tests.data.aws.ssm.SSM_PARAMETER_TAGS),
             TEST_REGION_FOR_KMS,
             TEST_UPDATE_TAG,
         ),
@@ -269,7 +269,7 @@ def test_load_ssm_parameters(
                     }
                 ]
             ),
-            '[{"Key": "Environment", "Value": "prod"}]',
+            json.dumps(tests.data.aws.ssm.SSM_PARAMETER_TAGS),
             TEST_REGION_FOR_KMS,
             TEST_UPDATE_TAG,
         ),
