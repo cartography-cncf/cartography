@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -12,7 +14,7 @@ from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_controller_owner_reference
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_gpu_quantity
-from cartography.intel.kubernetes.util import k8s_paginate
+from cartography.intel.kubernetes.util import k8s_paginate_pages
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.containers import KubernetesContainerSchema
 from cartography.models.kubernetes.pods import KubernetesPodSchema
@@ -299,10 +301,11 @@ def _extract_pod_secrets(pod: V1Pod, cluster_name: str) -> tuple[list[str], list
     return list(volume_secrets), list(env_secrets)
 
 
-@timeit
-def get_pods(client: K8sClient) -> list[V1Pod]:
-    items = k8s_paginate(client.core.list_pod_for_all_namespaces)
-    return items
+def get_pods(client: K8sClient) -> Iterator[V1Pod]:
+    # Stream page by page: a deserialized V1Pod is ~10x larger than its transformed
+    # dict, so materializing every pod first OOMs the sync on large clusters.
+    for page in k8s_paginate_pages(client.core.list_pod_for_all_namespaces):
+        yield from page
 
 
 def _format_pod_labels(labels: dict[str, str]) -> str:
@@ -365,7 +368,7 @@ def _resolve_pod_workload_parent(
 
 
 def transform_pods(
-    pods: list[V1Pod],
+    pods: Iterable[V1Pod],
     cluster_name: str,
     node_arch_map: dict[str, str] | None = None,
     replicaset_owner_map: dict[str, str] | None = None,

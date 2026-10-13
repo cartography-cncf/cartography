@@ -26,13 +26,13 @@ def sync_okta_applications(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> set[str]:
     """
     Sync Okta applications
     :param okta_client: An Okta client object
     :param neo4j_session: Session with Neo4j server
     :param common_job_parameters: Settings used by all Okta modules
-    :return: Nothing
+    :return: IDs of the synced applications
     """
 
     logger.info("Syncing Okta applications")
@@ -45,6 +45,7 @@ def sync_okta_applications(
     reply_uris = _transform_okta_reply_uris(applications)
     _load_okta_reply_uris(neo4j_session, reply_uris, common_job_parameters)
     _cleanup_okta_reply_uris(neo4j_session, common_job_parameters)
+    return {application.id for application in applications}
 
 
 @timeit

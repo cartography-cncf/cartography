@@ -146,6 +146,7 @@ async def sync_entra_applications(
     common_job_parameters: dict[str, Any],
     *,
     delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> None:
     """
     Sync Entra applications and their app role assignments to the graph.
@@ -156,7 +157,9 @@ async def sync_entra_applications(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters containing UPDATE_TAG and TENANT_ID
-    :param delegated_auth: Use the current Azure CLI user and skip cleanup
+    :param delegated_auth: Use a user's identity and skip cleanup
+    :param access_token: Pre-issued Graph access token for delegated auth; the
+        current Azure CLI user is used when it is not set
     """
     # Create credentials and client
     credential = credentials.make_credential(
@@ -164,6 +167,7 @@ async def sync_entra_applications(
         client_id,
         client_secret,
         delegated_auth=delegated_auth,
+        access_token=access_token,
     )
 
     client = GraphServiceClient(

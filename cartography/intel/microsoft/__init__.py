@@ -6,6 +6,7 @@ from cartography.config import Config
 from cartography.intel.microsoft.entra import start_entra_ingestion
 from cartography.intel.microsoft.intune import start_intune_ingestion
 from cartography.intel.microsoft.o365 import start_o365_ingestion
+from cartography.intel.microsoft.util import requested_microsoft_syncs
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -37,8 +38,15 @@ def start_microsoft_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
             "mode. Intune and O365 ingestion were not attempted. Prefer "
             "application authentication for complete inventory.",
         )
+    requested = requested_microsoft_syncs(config)
+    if requested is not None:
+        logger.info(
+            "Microsoft selective sync enabled for: %s", ", ".join(sorted(requested))
+        )
     start_entra_ingestion(neo4j_session, config)
     if config.microsoft_delegated_auth:
         return
-    start_intune_ingestion(neo4j_session, config)
-    start_o365_ingestion(neo4j_session, config)
+    if requested is None or "intune" in requested:
+        start_intune_ingestion(neo4j_session, config)
+    if requested is None or "o365" in requested:
+        start_o365_ingestion(neo4j_session, config)

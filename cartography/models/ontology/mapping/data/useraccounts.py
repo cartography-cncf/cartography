@@ -23,6 +23,10 @@ entra_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="active", node_field="account_enabled"
                 ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity",
+                    node_field="last_successful_sign_in_date_time",
+                ),
             ],
         ),
     ],
@@ -427,6 +431,23 @@ slack_mapping = OntologyMapping(
         ),
     ],
 )
+notion_mapping = OntologyMapping(
+    module_name="notion",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NotionUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email",
+                    node_field="email",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="email"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
 spacelift_mapping = OntologyMapping(
     module_name="spacelift",
     nodes=[
@@ -480,6 +501,25 @@ pagerduty_mapping = OntologyMapping(
                     ontology_field="email", node_field="email", required=True
                 ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
+opsgenie_mapping = OntologyMapping(
+    module_name="opsgenie",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OpsgenieUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="username", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="full_name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="blocked",
+                    special_handling="invert_boolean",
+                ),
             ],
         ),
     ],
@@ -773,7 +813,79 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+zendesk_mapping = OntologyMapping(
+    module_name="zendesk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZendeskUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="suspended",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_login_at"
+                ),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "jira": OntologyMapping(
+        module_name="jira",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="JiraUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(ontology_field="active", node_field="active"),
+                ],
+            )
+        ],
+    ),
+    "zoom": OntologyMapping(
+        module_name="zoom",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="ZoomUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="firstname", node_field="first_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastname", node_field="last_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="active",
+                        node_field="status",
+                        special_handling="equal_boolean",
+                        extra={"values": ["active"]},
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastactivity", node_field="last_login_time"
+                    ),
+                ],
+            )
+        ],
+    ),
+    "zendesk": zendesk_mapping,
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
     "lastpass": lastpass_mapping,
@@ -796,8 +908,10 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "googleworkspace": googleworkspace_mapping,
     "slack": slack_mapping,
+    "notion": notion_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
+    "opsgenie": opsgenie_mapping,
     "workos": workos_useraccounts_mapping,
     "sentry": sentry_mapping,
     "subimage": subimage_mapping,

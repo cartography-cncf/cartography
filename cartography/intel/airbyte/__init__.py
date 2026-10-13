@@ -52,6 +52,7 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         common_job_parameters,
     )
 
+    orgs_without_users = []
     for organization in organizations:
         org_common_job_parameters = {
             "UPDATE_TAG": config.update_tag,
@@ -65,12 +66,14 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         )
         workspace_ids = [workspace["workspaceId"] for workspace in workspaces]
 
-        cartography.intel.airbyte.users.sync(
+        users_complete = cartography.intel.airbyte.users.sync(
             neo4j_session,
             api_client,
             organization["organizationId"],
             org_common_job_parameters,
         )
+        if not users_complete:
+            orgs_without_users.append(organization["organizationId"])
 
         cartography.intel.airbyte.sources.sync(
             neo4j_session,
@@ -102,4 +105,20 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
             organization["organizationId"],
             workspace_ids,
             org_common_job_parameters,
+        )
+
+    cartography.intel.airbyte.users.sync_own_workspace_permissions(
+        neo4j_session,
+        api_client,
+        config.update_tag,
+    )
+
+    if orgs_without_users:
+        logger.warning(
+            "Airbyte sync finished with incomplete identity coverage: users and "
+            "permissions were not refreshed for %d of %d organization(s): %s. "
+            "Their other resources were synced.",
+            len(orgs_without_users),
+            len(organizations),
+            ", ".join(orgs_without_users),
         )

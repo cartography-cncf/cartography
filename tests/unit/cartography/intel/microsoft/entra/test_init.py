@@ -146,3 +146,51 @@ def test_application_auth_allows_denied_directory_roles_and_runs_federation(
 
     # Assert
     federation.assert_awaited_once()
+
+
+def test_requested_syncs_run_only_the_selected_datasets(monkeypatch) -> None:
+    # Arrange
+    syncs = _mock_dataset_syncs(monkeypatch)
+    federation = AsyncMock()
+    monkeypatch.setattr(entra, "sync_entra_federation", federation)
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_client_id="client-id",
+        microsoft_client_secret="client-secret",
+        microsoft_requested_syncs="groups, federation",
+        update_tag=1234567890,
+    )
+
+    # Act
+    entra.start_entra_ingestion(MagicMock(), config)
+
+    # Assert
+    awaited = {name for name, sync in syncs.items() if sync.await_count}
+    assert awaited == {"sync_tenant", "sync_entra_groups"}
+    federation.assert_awaited_once()
+
+
+def test_requested_syncs_without_entra_datasets_still_sync_the_tenant(
+    monkeypatch,
+) -> None:
+    # Arrange
+    syncs = _mock_dataset_syncs(monkeypatch)
+    federation = AsyncMock()
+    monkeypatch.setattr(entra, "sync_entra_federation", federation)
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_client_id="client-id",
+        microsoft_client_secret="client-secret",
+        microsoft_requested_syncs="intune",
+        update_tag=1234567890,
+    )
+
+    # Act
+    entra.start_entra_ingestion(MagicMock(), config)
+
+    # Assert
+    awaited = {name for name, sync in syncs.items() if sync.await_count}
+    assert awaited == {"sync_tenant"}
+    federation.assert_not_awaited()

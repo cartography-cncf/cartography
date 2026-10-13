@@ -789,6 +789,69 @@ def test_failed_second_sync_preserves_last_known_good_findings(
     assert metadata["lastupdated"] == TEST_UPDATE_TAG
 
 
+def test_short_but_ended_fetch_loads_rows_and_skips_cleanup(
+    neo4j_session,
+    mocker,
+    caplog,
+):
+    # Arrange: a result set that changes during a long scan reports more rows
+    # than offset pagination returns before its empty end-of-results page.
+    state, query_mock = _patch_orca_api(mocker)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    original_vulnerabilities = check_nodes(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        ["id"],
+    )
+    retargeted_vulnerability = deepcopy(VULNERABILITIES[0])
+    retargeted_vulnerability["Inventory"] = _second_target_inventory()
+    state["Alert"] = []
+    state["VulnerabilityV2"] = [retargeted_vulnerability]
+    original_query = query_mock.side_effect
+
+    def overstate_vulnerability_count(session, api_endpoint, payload):
+        response = original_query(session, api_endpoint, payload)
+        if payload["query"]["models"] == ["VulnerabilityV2"]:
+            response["total_items"] = 10
+        return response
+
+    query_mock.side_effect = overstate_vulnerability_count
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert: the fetched row is loaded and nothing it missed is deleted.
+    current_vulnerabilities = check_nodes(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        ["id", "lastupdated"],
+    )
+    assert {row[0] for row in current_vulnerabilities} > {
+        row[0] for row in original_vulnerabilities
+    }
+    assert {row[1] for row in current_vulnerabilities} == {
+        TEST_UPDATE_TAG,
+        TEST_UPDATE_TAG + 1,
+    }
+    # The complete alerts feed is still cleaned up.
+    assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
+    assert "ended after 1 of 10 reported rows" in caplog.text
+    metadata = neo4j_session.run(
+        """
+        MATCH (n:ModuleSyncMetadata {id: $id})
+        RETURN n.lastupdated AS lastupdated
+        """,
+        id=_sync_metadata_id(ORGANIZATION_ID),
+    ).single()
+    assert metadata["lastupdated"] == TEST_UPDATE_TAG
+
+
 def test_identical_sync_is_idempotent_with_exact_counts(neo4j_session, mocker):
     # Arrange
     _patch_orca_api(mocker)

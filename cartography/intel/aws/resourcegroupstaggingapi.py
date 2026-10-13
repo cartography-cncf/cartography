@@ -1,5 +1,5 @@
+import json
 import logging
-from string import Template
 from typing import Any
 from typing import Dict
 from typing import List
@@ -7,18 +7,26 @@ from typing import List
 import boto3
 import neo4j
 
-from cartography.client.core.tx import execute_write_with_retry
+from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
 from cartography.helpers import batch
 from cartography.intel.aws.iam import get_role_tags
 from cartography.intel.aws.iam import get_user_tags
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.models.aws.resourcegroupstaggingapi.tag import (
+    AWSResourceToTagMatchLink,
+)
+from cartography.models.aws.resourcegroupstaggingapi.tag import AWSTagSchema
 from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
-from cartography.stats import get_stats_client
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.util import aws_handle_regions
+from cartography.util import load_resource_binary
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-stat_handler = get_stats_client(__name__)
 
 DEFAULT_CLEANUP_BATCH_SIZE = 1000
 
@@ -153,68 +161,24 @@ def get_tags(
     return resources
 
 
-INGEST_TAG_TEMPLATE = Template(
+def _build_tagged_matchlink(
+    label: str,
+    property: str,
+    region_property: str | None = None,
+) -> AWSResourceToTagMatchLink:
+    """Specialize the TAGGED MatchLink for one taggable resource label.
+
+    Region-scoped resource types (those with a ``region_property`` mapping) also
+    match on the synced region so that same-named resources in different regions
+    are not cross-tagged.
     """
-    UNWIND $TagData as tag_mapping
-        UNWIND tag_mapping.Tags as input_tag
-            MATCH
-            (a:AWSAccount{id:$Account})-[res:RESOURCE]->(resource:$resource_label{$property:tag_mapping.resource_id})
-            $region_filter
-            MERGE
-            (aws_tag:AWSTag:Tag{id:input_tag.Key + ":" + input_tag.Value})
-            ON CREATE SET aws_tag.firstseen = timestamp()
-
-            SET aws_tag.lastupdated = $UpdateTag,
-            aws_tag.key = input_tag.Key,
-            aws_tag.value =  input_tag.Value,
-            aws_tag._ont_source = 'aws'
-
-            MERGE (resource)-[r:TAGGED]->(aws_tag)
-            SET r.lastupdated = $UpdateTag,
-            r.firstseen = timestamp()
-    """,
-)
-
-
-def _build_ingest_tag_query(resource_type: str) -> str:
-    """Build the tag ingestion Cypher for a resource type.
-
-    Region-scoped resource types (those with a ``region_property`` mapping) get a
-    ``WHERE resource.<prop> = $Region`` predicate so that same-named resources in
-    different regions are not cross-tagged. The injected ``$Region`` is not
-    re-scanned by ``safe_substitute`` and is bound as a normal Cypher parameter.
-    """
-    mapping = TAG_RESOURCE_TYPE_MAPPINGS[resource_type]
-    region_property = mapping.get("region_property")
-    region_filter = (
-        f"WHERE resource.{region_property} = $Region" if region_property else ""
+    matcher = {property: PropertyRef("resource_id")}
+    if region_property:
+        matcher[region_property] = PropertyRef("Region", set_in_kwargs=True)
+    return AWSResourceToTagMatchLink(
+        source_node_label=label,
+        source_node_matcher=make_source_node_matcher(matcher),
     )
-    return INGEST_TAG_TEMPLATE.safe_substitute(
-        resource_label=mapping["label"],
-        property=mapping["property"],
-        region_filter=region_filter,
-    )
-
-
-def _load_tags_tx(
-    tx: neo4j.Transaction,
-    tag_data: Dict,
-    resource_type: str,
-    region: str,
-    current_aws_account_id: str,
-    aws_update_tag: int,
-) -> None:
-    if not tag_data:
-        return
-
-    query = _build_ingest_tag_query(resource_type)
-    tx.run(
-        query,
-        TagData=tag_data,
-        UpdateTag=aws_update_tag,
-        Region=region,
-        Account=current_aws_account_id,
-    ).consume()
 
 
 @timeit
@@ -229,15 +193,35 @@ def load_tags(
     if len(tag_data) == 0:
         # If there is no data to load, save some time.
         return
-    for tag_data_batch in batch(tag_data, size=100):
-        neo4j_session.execute_write(
-            _load_tags_tx,
-            tag_data=tag_data_batch,
-            resource_type=resource_type,
-            region=region,
-            current_aws_account_id=current_aws_account_id,
-            aws_update_tag=aws_update_tag,
-        )
+    mapping = TAG_RESOURCE_TYPE_MAPPINGS[resource_type]
+    region_property = mapping.get("region_property")
+
+    tags: Dict[str, Dict[str, str]] = {}
+    links: List[Dict[str, str]] = []
+    for tag_mapping in tag_data:
+        for tag in tag_mapping["Tags"]:
+            tag_id = f"{tag['Key']}:{tag['Value']}"
+            tags[tag_id] = {"id": tag_id, "key": tag["Key"], "value": tag["Value"]}
+            links.append({"resource_id": tag_mapping["resource_id"], "tag_id": tag_id})
+
+    # Tag nodes are shared across accounts that sync concurrently. Writing them
+    # in id order gives every writer the same lock order, which avoids most
+    # deadlock retries on the shared nodes.
+    load(
+        neo4j_session,
+        AWSTagSchema(),
+        sorted(tags.values(), key=lambda tag: tag["id"]),
+        lastupdated=aws_update_tag,
+    )
+    load_matchlinks(
+        neo4j_session,
+        _build_tagged_matchlink(mapping["label"], mapping["property"], region_property),
+        sorted(links, key=lambda link: (link["tag_id"], link["resource_id"])),
+        lastupdated=aws_update_tag,
+        Region=region,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
+    )
 
 
 @timeit
@@ -276,144 +260,60 @@ def _group_tag_data_by_resource_type(
     return grouped
 
 
-# Mapping of resource labels to their path to AWSAccount for cleanup
-# Most resources have a direct RESOURCE relationship, but some require traversal
-_RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
-    "AWSEC2Instance": "(:AWSEC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSNetworkInterface": (
-        "(:AWSNetworkInterface)-[:PART_OF_SUBNET]->"
-        "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
-    ),
-    "AWSEC2SecurityGroup": "(:AWSEC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSEC2Subnet": "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSVpc": "(:AWSVpc)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSESDomain": "(:AWSESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSRedshiftCluster": "(:AWSRedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSRDSCluster": "(:AWSRDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSRDSInstance": "(:AWSRDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSRDSSnapshot": "(:AWSRDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSDBSubnetGroup": "(:AWSDBSubnetGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSS3Bucket": "(:AWSS3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSRole": "(:AWSRole)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSUser": "(:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSGroup": "(:AWSGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSKMSKey": "(:AWSKMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSLambda": "(:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSDynamoDBTable": "(:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSAutoScalingGroup": "(:AWSAutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSEC2KeyPair": "(:AWSEC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSECRRepository": "(:AWSECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSTransitGateway": "(:AWSTransitGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSTransitGatewayAttachment": (
-        "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
-    ),
-    "AWSEBSVolume": "(:AWSEBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSElasticIPAddress": "(:AWSElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSECSCluster": "(:AWSECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSECSContainer": "(:AWSECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSECSContainerInstance": (
-        "(:AWSECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
-    ),
-    "AWSECSTask": "(:AWSECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSECSTaskDefinition": "(:AWSECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSEKSCluster": "(:AWSEKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSElasticacheCluster": "(:AWSElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSLoadBalancer": ("(:AWSLoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"),
-    "AWSLoadBalancerV2": "(:AWSLoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSEMRCluster": "(:AWSEMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSSecretsManagerSecret": (
-        "(:AWSSecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
-    ),
-    "AWSSQSQueue": "(:AWSSQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AWSInternetGateway": (
-        "(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
-    ),
-}
-
-
-def _run_cleanup_until_empty(
-    neo4j_session: neo4j.Session,
-    query: str,
-    batch_size: int = DEFAULT_CLEANUP_BATCH_SIZE,
-    **kwargs: Any,
-) -> int:
-    """Run a cleanup query in batches until no more items are deleted.
-
-    Returns the total number of items deleted.
-    """
-
-    def _cleanup_batch_tx(tx: neo4j.Transaction, query: str, **params: Any) -> int:
-        """Transaction function that runs a cleanup query and returns deletion count."""
-        result = tx.run(query, **params)
-        summary = result.consume()
-        stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
-        stat_handler.incr(
-            "relationships_deleted", summary.counters.relationships_deleted
-        )
-        return summary.counters.nodes_deleted + summary.counters.relationships_deleted
-
-    total_deleted = 0
-    while True:
-        deleted = execute_write_with_retry(
-            neo4j_session,
-            _cleanup_batch_tx,
-            query,
-            LIMIT_SIZE=batch_size,
-            **kwargs,
-        )
-        total_deleted += deleted
-        if deleted == 0:
-            break
-    return total_deleted
-
-
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    """Clean up stale AWSTag nodes and TAGGED relationships."""
+    """Clean up this account's stale TAGGED relationships.
+
+    AWSTag nodes are shared across accounts, so an account's cleanup only removes
+    its own stale relationships. Tag nodes are removed by `cleanup_orphan_tags()`
+    once every account has synced.
+    """
     cleanup_batch_size = common_job_parameters.get(
         "aws_tagging_api_cleanup_batch", DEFAULT_CLEANUP_BATCH_SIZE
     )
-    # Clean up tags and relationships for each resource type
-    for label, path in _RESOURCE_CLEANUP_PATHS.items():
-        # Delete stale tag nodes
-        _run_cleanup_until_empty(
-            neo4j_session,
-            f"""
-            MATCH (n:AWSTag)<-[:TAGGED]-{path}
-            WHERE n.lastupdated <> $UPDATE_TAG
-            WITH n LIMIT $LIMIT_SIZE
-            DETACH DELETE n
-            """,
-            batch_size=cleanup_batch_size,
-            AWS_ID=common_job_parameters["AWS_ID"],
-            UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        )
-        # Delete stale TAGGED relationships
-        _run_cleanup_until_empty(
-            neo4j_session,
-            f"""
-            MATCH (:AWSTag)<-[r:TAGGED]-{path}
-            WHERE r.lastupdated <> $UPDATE_TAG
-            WITH r LIMIT $LIMIT_SIZE
-            DELETE r
-            """,
-            batch_size=cleanup_batch_size,
-            AWS_ID=common_job_parameters["AWS_ID"],
-            UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        )
-
-    # Clean up orphaned tags (tags with no relationships)
-    _run_cleanup_until_empty(
+    for label in sorted({resource.label for resource in AWS_TAGGABLE_RESOURCES}):
+        GraphJob.from_matchlink(
+            AWSResourceToTagMatchLink(source_node_label=label),
+            "AWSAccount",
+            common_job_parameters["AWS_ID"],
+            common_job_parameters["UPDATE_TAG"],
+            iterationsize=cleanup_batch_size,
+        ).run(neo4j_session)
+    run_scoped_analysis_job(
+        "aws_tag_legacy_relationship_cleanup.json",
         neo4j_session,
-        """
-        MATCH (n:AWSTag)
-        WHERE NOT (n)--() AND n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        batch_size=cleanup_batch_size,
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        common_job_parameters,
     )
+
+
+@timeit
+def cleanup_orphan_tags(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """Delete AWSTag nodes that no relationship uses.
+
+    Tags are loaded for every resource the tagging API reports, and linked only to
+    resources already in the graph. This must run once, after every account's
+    `sync()`: an earlier run would delete tags that a later account is about to
+    link. Callers that run `_sync_one_account()` themselves must call this after
+    their account loop.
+    """
+    blob = json.load(
+        load_resource_binary(
+            "cartography.data.jobs.cleanup", "aws_tag_orphan_cleanup.json"
+        )
+    )
+    # Large tenants hold many tags, so the sweep honors the same batch setting as
+    # the per-account relationship cleanup.
+    batch_size = common_job_parameters.get(
+        "aws_tagging_api_cleanup_batch", DEFAULT_CLEANUP_BATCH_SIZE
+    )
+    for statement in blob["statements"]:
+        statement["iterationsize"] = batch_size
+    job = GraphJob.from_json(blob, "aws_tag_orphan_cleanup")
+    job.merge_parameters({"UPDATE_TAG": common_job_parameters["UPDATE_TAG"]})
+    job.run(neo4j_session)
 
 
 def _load_resource_type_tags(

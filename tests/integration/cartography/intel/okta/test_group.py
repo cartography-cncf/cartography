@@ -182,13 +182,14 @@ def test_sync_okta_groups_with_roles(
     common_job_parameters = _create_common_job_parameters()
 
     # Act
-    cartography.intel.okta.groups.sync_okta_groups(
+    roles_synced = cartography.intel.okta.groups.sync_okta_groups(
         okta_client,
         neo4j_session,
         common_job_parameters,
     )
 
     # Assert - Verify role was created
+    assert roles_synced is True
     expected_roles = {("role-001", "App Admin")}
     actual_roles = check_nodes(neo4j_session, "OktaGroupRole", ["id", "label"])
     assert actual_roles == expected_roles

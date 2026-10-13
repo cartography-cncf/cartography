@@ -17,10 +17,14 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from cartography.intel.snowflake.network_rules import get as get_network_rules
 from cartography.intel.snowflake.network_rules import get_schema_network_rules
+from cartography.intel.snowflake.stages import get as get_stages
+from cartography.intel.snowflake.tables import get as get_tables
+from cartography.intel.snowflake.tags import get as get_tags
 from cartography.intel.snowflake.util import account_host
 from cartography.intel.snowflake.util import hyphenated_account_id
 from cartography.intel.snowflake.util import is_sql_unavailable
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import list_schema_objects
 from cartography.intel.snowflake.util import normalize_account_id
 from cartography.intel.snowflake.util import parse_stage_url
 from cartography.intel.snowflake.util import sf_fqn
@@ -555,34 +559,33 @@ def test_network_rules_request_preserves_case_and_encoded_pagination():
     assert requested_paths == [first_path, next_path]
 
 
-def test_network_rules_400_preserves_readable_schemas(caplog):
+@pytest.mark.parametrize(
+    "walk, collection",
+    [
+        (get_network_rules, "network-rules"),
+        (get_stages, "stages"),
+        (get_tables, "tables"),
+    ],
+)
+def test_schema_listing_400_skips_only_that_schema(caplog, walk, collection):
     # Arrange
-    caplog.set_level(
-        logging.WARNING, logger="cartography.intel.snowflake.network_rules"
+    caplog.set_level(logging.WARNING, logger="cartography.intel.snowflake.util")
+    requested_paths = []
+    blocked_path = (
+        f"/api/v2/databases/MY_DB/schemas/%22airbyte_internal%22/{collection}"
     )
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if "blocked_schema" in self.path:
+            requested_paths.append(self.path)
+            if self.path == blocked_path:
                 _respond_json(
                     self,
-                    {
-                        "code": "002003",
-                        "message": "Network rules are unavailable for this schema.",
-                    },
+                    {"code": "002003", "message": "Schema is being rebuilt."},
                     status=400,
                 )
             else:
-                _respond_json(
-                    self,
-                    [
-                        {
-                            "name": "RULE_ONE",
-                            "database_name": "ExampleDB",
-                            "schema_name": "readable_schema",
-                        }
-                    ],
-                )
+                _respond_json(self, [{"name": "OBJ_ONE"}])
 
         def log_message(self, format, *args):
             pass
@@ -591,29 +594,65 @@ def test_network_rules_400_preserves_readable_schemas(caplog):
     client = _build_client(server.server_port)
     try:
         # Act
-        result, complete = get_network_rules(
+        result, complete = walk(
             client,
             [
-                {"database_name": "ExampleDB", "name": "blocked_schema"},
-                {"database_name": "ExampleDB", "name": "readable_schema"},
+                {"database_name": "MY_DB", "name": "airbyte_internal"},
+                {"database_name": "MY_DB", "name": "READABLE"},
             ],
         )
     finally:
         _shutdown(server)
 
     # Assert
-    assert result == [
-        {
-            "name": "RULE_ONE",
-            "database_name": "ExampleDB",
-            "schema_name": "readable_schema",
-        }
-    ]
+    assert [row["name"] for row in result] == ["OBJ_ONE"]
     assert complete is False
-    assert (
-        "Snowflake error 002003: Network rules are unavailable for this schema."
-        in caplog.text
-    )
+    assert requested_paths == [
+        blocked_path,
+        f"/api/v2/databases/MY_DB/schemas/READABLE/{collection}",
+    ]
+    assert "Snowflake error 002003: Schema is being rebuilt." in caplog.text
+
+
+def test_tags_400_skips_the_schema():
+    # Arrange
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            _respond_json(self, {"message": "Schema is being rebuilt."}, status=400)
+
+        def log_message(self, format, *args):
+            pass
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    try:
+        # Act
+        result = get_tags(client, "MY_DB", "airbyte_internal")
+    finally:
+        _shutdown(server)
+
+    # Assert
+    assert result is None
+
+
+@pytest.mark.parametrize("status", [401, 409])
+def test_schema_listing_still_fails_on_other_errors(status):
+    # Arrange
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            _respond_json(self, {"message": "boom"}, status=status)
+
+        def log_message(self, format, *args):
+            pass
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    try:
+        # Act / Assert
+        with pytest.raises(requests.HTTPError):
+            list_schema_objects(client, "MY_DB", "airbyte_internal", "tags")
+    finally:
+        _shutdown(server)
 
 
 def test_hyphenated_account_id_accepts_either_input_form():

@@ -32,6 +32,7 @@ CIS_AWS_CONTROL_TITLES = {
     "3.1.2": "Ensure MFA Delete is enabled on S3 buckets",
     "3.1.4": "Ensure that S3 is configured with 'Block Public Access' enabled",
     "3.2.1": "Ensure that encryption-at-rest is enabled for RDS instances",
+    "3.2.3": "Ensure that RDS instances are not publicly accessible",
     "4.1": "Ensure CloudTrail is enabled in all regions",
     "4.2": "Ensure CloudTrail log file validation is enabled",
     "4.4": "Ensure that server access logging is enabled on the CloudTrail S3 bucket",
