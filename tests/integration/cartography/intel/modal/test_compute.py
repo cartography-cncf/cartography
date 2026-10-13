@@ -157,18 +157,8 @@ def test_load_modal_apps(neo4j_session):
         (fx.TEST_APP_ID, TEST_ENVIRONMENT_ID),
         (fx.TEST_STOPPED_APP_ID, TEST_ENVIRONMENT_ID),
     }
-
-
-def test_modal_app_ontology_status_and_name_coalesce(neo4j_session):
-    """A stopped app must normalise to 'deleting', and an unnamed ephemeral app must fall
-    back to its description for the ontology name."""
-    # Arrange
-    _seed_tenancy(neo4j_session)
-
-    # Act
-    _sync_apps(neo4j_session)
-
-    # Assert
+    # A stopped app must normalise to 'deleting', and an unnamed ephemeral app must
+    # fall back to its description for the ontology name.
     result = neo4j_session.run(
         "MATCH (a:ModalApp) RETURN a.id AS id, a._ont_name AS name, a._ont_status AS status"
     )
@@ -230,6 +220,24 @@ def test_load_modal_functions_and_classes(neo4j_session):
         "HAS_METHOD",
     ) == {("Worker", "Worker.*")}
 
+    # Act: a complete second run in which the app now exposes only one function.
+    trimmed = {
+        fx.TEST_APP_ID: {
+            "functions": [fx.MODAL_APP_LAYOUTS[fx.TEST_APP_ID]["functions"][0]],
+            "classes": [],
+        },
+        fx.TEST_STOPPED_APP_ID: {"functions": [], "classes": []},
+    }
+    _sync_functions(
+        neo4j_session, apps, layouts=trimmed, update_tag=TEST_UPDATE_TAG + 1
+    )
+
+    # Assert: cleanup removes the functions and classes that were deleted.
+    assert check_nodes(neo4j_session, "ModalFunction", ["name"]) == {
+        ("plain_function",)
+    }
+    assert check_nodes(neo4j_session, "ModalClass", ["id"]) == set()
+
 
 def test_modal_function_partial_layout_skips_cleanup(neo4j_session):
     """If one app's layout cannot be read, cleanup must be skipped so functions we merely
@@ -248,31 +256,6 @@ def test_modal_function_partial_layout_skips_cleanup(neo4j_session):
 
     # Assert: the previously-seen functions survive rather than being wiped.
     assert len(check_nodes(neo4j_session, "ModalFunction", ["id"])) == 4
-
-
-def test_modal_function_cleanup_removes_deleted_when_complete(neo4j_session):
-    # Arrange
-    _seed_tenancy(neo4j_session)
-    apps = _sync_apps(neo4j_session)
-    _sync_functions(neo4j_session, apps)
-
-    # Act: a complete second run in which the app now exposes only one function.
-    trimmed = {
-        fx.TEST_APP_ID: {
-            "functions": [fx.MODAL_APP_LAYOUTS[fx.TEST_APP_ID]["functions"][0]],
-            "classes": [],
-        },
-        fx.TEST_STOPPED_APP_ID: {"functions": [], "classes": []},
-    }
-    _sync_functions(
-        neo4j_session, apps, layouts=trimmed, update_tag=TEST_UPDATE_TAG + 1
-    )
-
-    # Assert
-    assert check_nodes(neo4j_session, "ModalFunction", ["name"]) == {
-        ("plain_function",)
-    }
-    assert check_nodes(neo4j_session, "ModalClass", ["id"]) == set()
 
 
 def test_load_modal_images_and_tags(neo4j_session):
@@ -304,19 +287,8 @@ def test_load_modal_images_and_tags(neo4j_session):
         ("my-base-image:v1.2.0", fx.TEST_IMAGE_ID),
         ("other-image:latest", "im-2ndNamedImageXXXXXXXX"),
     }
-
-
-def test_modal_images_carry_no_ontology_image_labels(neo4j_session):
-    """Neither node claims the ontology image labels: Modal exposes no digest, so they could
-    never join a registry image and would pollute the RESOLVED_IMAGE analysis.
-    """
-    # Arrange
-    _seed_tenancy(neo4j_session)
-
-    # Act
-    _sync_images(neo4j_session)
-
-    # Assert
+    # Neither node claims the ontology image labels: Modal exposes no digest, so they
+    # could never join a registry image and would pollute the RESOLVED_IMAGE analysis.
     for label, forbidden in (("ModalImage", "Image"), ("ModalImageTag", "ImageTag")):
         records = list(
             neo4j_session.run(f"MATCH (n:{label}) RETURN labels(n) AS labels")
@@ -376,16 +348,7 @@ def test_load_modal_sandboxes_and_tunnels(neo4j_session):
         (f"{fx.TEST_SANDBOX_ID}/8080", fx.TEST_SANDBOX_ID),
         ("sb-JeuHHabrBlXBhVE3eHSTn5/9000", "sb-JeuHHabrBlXBhVE3eHSTn5"),
     }
-
-
-def test_modal_sandbox_tunnel_flags_cleartext_exposure(neo4j_session):
-    # Arrange
-    _seed_tenancy(neo4j_session)
-
-    # Act
-    _sync_sandboxes(neo4j_session)
-
-    # Assert
+    # The tunnel flags a cleartext endpoint.
     assert check_nodes(
         neo4j_session,
         "ModalSandboxTunnel",
@@ -394,16 +357,7 @@ def test_modal_sandbox_tunnel_flags_cleartext_exposure(neo4j_session):
         (8080, False, None),
         (9000, True, 9000),
     }
-
-
-def test_modal_sandbox_ontology_state_normalisation(neo4j_session):
-    # Arrange
-    _seed_tenancy(neo4j_session)
-
-    # Act
-    _sync_sandboxes(neo4j_session)
-
-    # Assert
+    # Sandbox state is normalised for the ontology.
     result = neo4j_session.run(
         "MATCH (s:ModalSandbox) RETURN s.id AS id, s._ont_state AS state, "
         "s._ont_namespace AS namespace"
@@ -461,19 +415,8 @@ def test_load_modal_tasks_and_clusters(neo4j_session):
     assert check_rels(
         neo4j_session, "ModalCluster", "id", "ModalApp", "id", "WORKLOAD_PARENT"
     ) == {(fx.TEST_CLUSTER_ID, fx.TEST_APP_ID)}
-
-
-def test_modal_task_ontology_status_is_running(neo4j_session):
-    """Modal only ever returns live tasks, so a task in the graph is running by
-    construction."""
-    # Arrange
-    _seed_tenancy(neo4j_session)
-    apps = _sync_apps(neo4j_session)
-
-    # Act
-    _sync_workloads(neo4j_session, apps)
-
-    # Assert
+    # Modal only ever returns live tasks, so a task in the graph is running by
+    # construction.
     result = neo4j_session.run(
         "MATCH (t:ModalTask) RETURN t.id AS id, t._ont_status AS status, "
         "t._ont_name AS name, t._ont_namespace AS namespace"

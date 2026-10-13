@@ -58,14 +58,14 @@ def _sync_findings(neo4j_session, mocker, data=None):
 
 
 def test_sync_findings(neo4j_session, mocker):
-    """Test that findings sync creates TenableFinding nodes with correct properties."""
+    """Test that one findings sync builds the expected Tenable finding graph."""
     # Arrange
     _load_assets(neo4j_session, mocker)
 
     # Act
     _sync_findings(neo4j_session, mocker)
 
-    # Assert
+    # Assert: findings sync creates TenableFinding nodes with correct properties.
     actual_nodes = check_nodes(
         neo4j_session,
         "TenableFinding",
@@ -77,16 +77,7 @@ def test_sync_findings(neo4j_session, mocker):
         (FINDING_ID_3, "info", 0, "OPEN", 0, "TCP", None),
     }
 
-
-def test_sync_findings_cve_fields(neo4j_session, mocker):
-    """Test that cve_id, cve_list and has_cve stay on the finding itself."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
+    # Assert: cve_id, cve_list and has_cve stay on the finding itself.
     # Finding with CVEs. The :CVE ontology label belongs to :TenableCve now, so the
     # finding must not carry it. cve_list is retained for backwards compatibility.
     record = neo4j_session.run(
@@ -109,16 +100,7 @@ def test_sync_findings_cve_fields(neo4j_session, mocker):
     assert record["cve_list"] == []
     assert record["has_cve"] == "false"
 
-
-def test_sync_cves(neo4j_session, mocker):
-    """Test that TenableCve nodes are created, deduplicated, and carry the CVE label."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
+    # Assert: TenableCve nodes are created, deduplicated, and carry the CVE label.
     assert check_nodes(neo4j_session, "TenableCve", ["id", "cve_id"]) == {
         (f"TNB|{cve_id}", cve_id) for cve_id in PLUGIN_1_CVES
     }
@@ -132,6 +114,169 @@ def test_sync_cves(neo4j_session, mocker):
     assert record["has_cve_label"] is True
     assert record["ontology_cve_id"] == CVE_ID_1
     assert record["ontology_source"] == "tenable"
+
+    # Assert: TenableFinding-[:HAS_CVE]->TenableCve covers every CVE, not just the first.
+    # FINDING_ID_1 fans out to all three CVEs; the CVE-less findings have none.
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenableFinding",
+        "id",
+        "TenableCve",
+        "id",
+        "HAS_CVE",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {(FINDING_ID_1, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
+
+    # Assert: TenablePlugin-[:HAS_CVE]->TenableCve relationships are created.
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenablePlugin",
+        "id",
+        "TenableCve",
+        "id",
+        "HAS_CVE",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {(PLUGIN_ID_1, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
+
+    # Assert: TenableFinding-[:AFFECTS]->TenableAsset relationships are created.
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenableFinding",
+        "id",
+        "TenableAsset",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        (FINDING_ID_1, ASSET_ID_1),
+        (FINDING_ID_2, ASSET_ID_2),
+        (FINDING_ID_3, ASSET_ID_1),
+    }
+
+    # Assert: TenablePlugin nodes are created and deduplicated.
+    actual_plugins = check_nodes(
+        neo4j_session,
+        "TenablePlugin",
+        ["id", "name", "family", "risk_factor", "cvss3_base_score"],
+    )
+    assert actual_plugins == {
+        (
+            PLUGIN_ID_1,
+            "Security Updates for Microsoft SharePoint Server 2016 (January 2022)",
+            "Windows : Microsoft Bulletins",
+            "high",
+            8.8,
+        ),
+        (
+            PLUGIN_ID_2,
+            "Missing or Permissive Content-Security-Policy frame-ancestors HTTP Response Header",
+            "CGI abuses",
+            "info",
+            None,
+        ),
+        (PLUGIN_ID_3, "Nessus Scan Information", "Settings", "none", None),
+    }
+
+    # cve_list is retained for backwards compatibility alongside the :HAS_CVE edges.
+    record = neo4j_session.run(
+        "MATCH (p:TenablePlugin {id: $id}) RETURN p.cve_list AS cve_list",
+        id=PLUGIN_ID_1,
+    ).single()
+    assert set(record["cve_list"]) == set(PLUGIN_1_CVES)
+
+    # Assert: TenableFinding-[:DETECTED_BY]->TenablePlugin relationships are created.
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenableFinding",
+        "id",
+        "TenablePlugin",
+        "id",
+        "DETECTED_BY",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        (FINDING_ID_1, PLUGIN_ID_1),
+        (FINDING_ID_2, PLUGIN_ID_2),
+        (FINDING_ID_3, PLUGIN_ID_3),
+    }
+
+    # Assert: TenableScan nodes are created, deduplicated, and linked to findings.
+    # FINDING_ID_1 and FINDING_ID_3 share SCAN_UUID_1, so only one scan node exists
+    actual_scans = check_nodes(neo4j_session, "TenableScan", ["id", "last_scan_target"])
+    assert actual_scans == {
+        (SCAN_UUID_1, "192.0.2.58"),
+        (SCAN_UUID_2, "192.0.2.58"),
+    }
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenableFinding",
+        "id",
+        "TenableScan",
+        "id",
+        "PART_OF_SCAN",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        (FINDING_ID_1, SCAN_UUID_1),
+        (FINDING_ID_2, SCAN_UUID_2),
+        (FINDING_ID_3, SCAN_UUID_1),
+    }
+
+    # Assert: TenableTenant-[:RESOURCE]->TenableFinding relationships are created.
+    actual_rels = check_rels(
+        neo4j_session,
+        "TenableTenant",
+        "id",
+        "TenableFinding",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+    assert actual_rels == {
+        (TENABLE_TENANT_ID, FINDING_ID_1),
+        (TENABLE_TENANT_ID, FINDING_ID_2),
+        (TENABLE_TENANT_ID, FINDING_ID_3),
+    }
+
+    # Assert: plugins, scans and CVEs have the RESOURCE edge used for cleanup.
+    assert check_rels(
+        neo4j_session,
+        "TenableTenant",
+        "id",
+        "TenablePlugin",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TENABLE_TENANT_ID, PLUGIN_ID_1),
+        (TENABLE_TENANT_ID, PLUGIN_ID_2),
+        (TENABLE_TENANT_ID, PLUGIN_ID_3),
+    }
+    assert check_rels(
+        neo4j_session,
+        "TenableTenant",
+        "id",
+        "TenableScan",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TENABLE_TENANT_ID, SCAN_UUID_1),
+        (TENABLE_TENANT_ID, SCAN_UUID_2),
+    }
+    assert check_rels(
+        neo4j_session,
+        "TenableTenant",
+        "id",
+        "TenableCve",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {(TENABLE_TENANT_ID, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
 
 
 def test_sync_cves_correlate_with_nvd_through_ontology(neo4j_session, mocker):
@@ -237,48 +382,6 @@ def test_sync_findings_with_a_cumulative_update_cve_list(neo4j_session, mocker):
         )
 
 
-def test_sync_findings_has_cve_rel(neo4j_session, mocker):
-    """Test that TenableFinding-[:HAS_CVE]->TenableCve covers every CVE, not just the first."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert: FINDING_ID_1 fans out to all three CVEs; the CVE-less findings have none.
-    actual_rels = check_rels(
-        neo4j_session,
-        "TenableFinding",
-        "id",
-        "TenableCve",
-        "id",
-        "HAS_CVE",
-        rel_direction_right=True,
-    )
-    assert actual_rels == {(FINDING_ID_1, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
-
-
-def test_sync_plugins_has_cve_rel(neo4j_session, mocker):
-    """Test that TenablePlugin-[:HAS_CVE]->TenableCve relationships are created."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
-    actual_rels = check_rels(
-        neo4j_session,
-        "TenablePlugin",
-        "id",
-        "TenableCve",
-        "id",
-        "HAS_CVE",
-        rel_direction_right=True,
-    )
-    assert actual_rels == {(PLUGIN_ID_1, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
-
-
 def test_sync_cves_cleanup(neo4j_session, mocker):
     """Test that stale TenableCve nodes are deleted after sync."""
     # Arrange
@@ -303,198 +406,6 @@ def test_sync_cves_cleanup(neo4j_session, mocker):
     assert check_nodes(neo4j_session, "TenableCve", ["id"]) == {
         (node_id,) for node_id in PLUGIN_1_CVE_NODE_IDS
     }
-
-
-def test_sync_findings_affects_asset_rel(neo4j_session, mocker):
-    """Test that TenableFinding-[:AFFECTS]->TenableAsset relationships are created."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
-    actual_rels = check_rels(
-        neo4j_session,
-        "TenableFinding",
-        "id",
-        "TenableAsset",
-        "id",
-        "AFFECTS",
-        rel_direction_right=True,
-    )
-    assert actual_rels == {
-        (FINDING_ID_1, ASSET_ID_1),
-        (FINDING_ID_2, ASSET_ID_2),
-        (FINDING_ID_3, ASSET_ID_1),
-    }
-
-
-def test_sync_plugins(neo4j_session, mocker):
-    """Test that TenablePlugin nodes are created and deduplicated."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
-    actual_plugins = check_nodes(
-        neo4j_session,
-        "TenablePlugin",
-        ["id", "name", "family", "risk_factor", "cvss3_base_score"],
-    )
-    assert actual_plugins == {
-        (
-            PLUGIN_ID_1,
-            "Security Updates for Microsoft SharePoint Server 2016 (January 2022)",
-            "Windows : Microsoft Bulletins",
-            "high",
-            8.8,
-        ),
-        (
-            PLUGIN_ID_2,
-            "Missing or Permissive Content-Security-Policy frame-ancestors HTTP Response Header",
-            "CGI abuses",
-            "info",
-            None,
-        ),
-        (PLUGIN_ID_3, "Nessus Scan Information", "Settings", "none", None),
-    }
-
-    # cve_list is retained for backwards compatibility alongside the :HAS_CVE edges.
-    record = neo4j_session.run(
-        "MATCH (p:TenablePlugin {id: $id}) RETURN p.cve_list AS cve_list",
-        id=PLUGIN_ID_1,
-    ).single()
-    assert set(record["cve_list"]) == set(PLUGIN_1_CVES)
-
-
-def test_sync_findings_detected_by_rel(neo4j_session, mocker):
-    """Test that TenableFinding-[:DETECTED_BY]->TenablePlugin relationships are created."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
-    actual_rels = check_rels(
-        neo4j_session,
-        "TenableFinding",
-        "id",
-        "TenablePlugin",
-        "id",
-        "DETECTED_BY",
-        rel_direction_right=True,
-    )
-    assert actual_rels == {
-        (FINDING_ID_1, PLUGIN_ID_1),
-        (FINDING_ID_2, PLUGIN_ID_2),
-        (FINDING_ID_3, PLUGIN_ID_3),
-    }
-
-
-def test_sync_scans(neo4j_session, mocker):
-    """Test that TenableScan nodes are created, deduplicated, and linked to findings."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
-    # FINDING_ID_1 and FINDING_ID_3 share SCAN_UUID_1, so only one scan node exists
-    actual_scans = check_nodes(neo4j_session, "TenableScan", ["id", "last_scan_target"])
-    assert actual_scans == {
-        (SCAN_UUID_1, "192.0.2.58"),
-        (SCAN_UUID_2, "192.0.2.58"),
-    }
-
-    actual_rels = check_rels(
-        neo4j_session,
-        "TenableFinding",
-        "id",
-        "TenableScan",
-        "id",
-        "PART_OF_SCAN",
-        rel_direction_right=True,
-    )
-    assert actual_rels == {
-        (FINDING_ID_1, SCAN_UUID_1),
-        (FINDING_ID_2, SCAN_UUID_2),
-        (FINDING_ID_3, SCAN_UUID_1),
-    }
-
-
-def test_sync_findings_tenant_resource_rel(neo4j_session, mocker):
-    """Test that TenableTenant-[:RESOURCE]->TenableFinding relationships are created."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
-    actual_rels = check_rels(
-        neo4j_session,
-        "TenableTenant",
-        "id",
-        "TenableFinding",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    )
-    assert actual_rels == {
-        (TENABLE_TENANT_ID, FINDING_ID_1),
-        (TENABLE_TENANT_ID, FINDING_ID_2),
-        (TENABLE_TENANT_ID, FINDING_ID_3),
-    }
-
-
-def test_sync_finding_subresources_have_tenant_ownership(neo4j_session, mocker):
-    """Test that plugins, scans and CVEs have the RESOURCE edge used for cleanup."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert
-    assert check_rels(
-        neo4j_session,
-        "TenableTenant",
-        "id",
-        "TenablePlugin",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {
-        (TENABLE_TENANT_ID, PLUGIN_ID_1),
-        (TENABLE_TENANT_ID, PLUGIN_ID_2),
-        (TENABLE_TENANT_ID, PLUGIN_ID_3),
-    }
-    assert check_rels(
-        neo4j_session,
-        "TenableTenant",
-        "id",
-        "TenableScan",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {
-        (TENABLE_TENANT_ID, SCAN_UUID_1),
-        (TENABLE_TENANT_ID, SCAN_UUID_2),
-    }
-    assert check_rels(
-        neo4j_session,
-        "TenableTenant",
-        "id",
-        "TenableCve",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {(TENABLE_TENANT_ID, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
 
 
 def test_sync_findings_cleanup(neo4j_session, mocker):

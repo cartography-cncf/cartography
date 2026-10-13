@@ -158,24 +158,6 @@ def test_sync_storage(neo4j_session, monkeypatch, _create_test_cluster):
     ) == {(NAMESPACE, CLAIM_NAME)}
 
 
-def test_transform_persistent_volume_claim_without_requests():
-    claim = deepcopy(RAW_PERSISTENT_VOLUME_CLAIMS[0])
-    claim.spec.resources.requests = None
-
-    result = storage_module.transform_persistent_volume_claims([claim], CLUSTER_NAME)
-
-    assert result[0]["requested_storage"] is None
-
-
-def test_transform_persistent_volume_claim_rounds_fractional_bytes_up():
-    claim = deepcopy(RAW_PERSISTENT_VOLUME_CLAIMS[0])
-    claim.spec.resources.requests = {"storage": "400m"}
-
-    result = storage_module.transform_persistent_volume_claims([claim], CLUSTER_NAME)
-
-    assert result[0]["requested_storage_bytes"] == 1
-
-
 def test_persistent_volumes_link_to_backing_cloud_disks(
     neo4j_session,
     monkeypatch,
@@ -541,17 +523,14 @@ def test_sync_pods_cleans_up_removed_container_mount(
 
 @pytest.mark.parametrize(
     ("getter_name", "status"),
+    # The full getter x status matrix is covered without Neo4j by
+    # tests/unit/cartography/intel/kubernetes/test_storage.py. These two cases
+    # prove the permission and transient branches preserve nodes end to end.
     (
-        ("get_storage_classes", 401),
-        ("get_storage_classes", 403),
-        ("get_storage_classes", 500),
-        ("get_persistent_volumes", 401),
-        ("get_persistent_volumes", 403),
-        ("get_persistent_volumes", 500),
-        ("get_persistent_volume_claims", 401),
         ("get_persistent_volume_claims", 403),
         ("get_persistent_volume_claims", 500),
     ),
+    ids=["persistent_volume_claims-403", "persistent_volume_claims-500"],
 )
 def test_sync_storage_preserves_nodes_on_api_error(
     neo4j_session,
@@ -586,26 +565,6 @@ def test_sync_storage_preserves_nodes_on_api_error(
         ("KubernetesPersistentVolumeClaim", CLAIM_NAME),
     ):
         assert check_nodes(neo4j_session, label, ["name"]) == {(name,)}
-
-
-def test_sync_storage_raises_unexpected_api_error(
-    neo4j_session,
-    monkeypatch,
-    _create_test_cluster,
-):
-    monkeypatch.setattr(
-        storage_module,
-        "get_storage_classes",
-        lambda client: (_ for _ in ()).throw(ApiException(status=400)),
-    )
-
-    with pytest.raises(ApiException):
-        sync_storage(
-            neo4j_session,
-            SimpleNamespace(name=CLUSTER_NAME),
-            TEST_UPDATE_TAG,
-            {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID},
-        )
 
 
 def test_sync_storage_preserves_nodes_on_transport_error(

@@ -561,56 +561,52 @@ def test_to_datetime_neo4j_datetime_fallback_default_timezone():
     assert result.tzinfo == timezone.utc
 
 
-def test_to_datetime_unsupported_type_raises_error():
+@pytest.mark.parametrize(
+    "value, type_name",
+    [
+        ("not a datetime", "str"),
+        (12345, "int"),
+    ],
+    ids=["str", "int"],
+)
+def test_to_datetime_unsupported_type_raises(value, type_name):
     """Test that unsupported types raise TypeError."""
-    with pytest.raises(TypeError, match="Cannot convert str to datetime"):
-        to_datetime("not a datetime")
+    with pytest.raises(TypeError, match=f"Cannot convert {type_name} to datetime"):
+        to_datetime(value)
 
 
-def test_to_datetime_unsupported_type_int_raises_error():
-    """Test that integer raises TypeError."""
-    with pytest.raises(TypeError, match="Cannot convert int to datetime"):
-        to_datetime(12345)
-
-
-def test_is_retryable_gcp_http_error_503():
-    """Test that HTTP 503 is identified as retryable."""
+@pytest.mark.parametrize(
+    "status_code, content, expected",
+    [
+        (429, b"Rate Limit Exceeded", True),
+        (500, b"Server Error", True),
+        (502, b"Server Error", True),
+        (503, b"Server Error", True),
+        (504, b"Server Error", True),
+        (400, b"Client Error", False),
+        (401, b"Client Error", False),
+        (403, b"Client Error", False),
+        (404, b"Client Error", False),
+    ],
+    ids=[
+        "429-True",
+        "500-True",
+        "502-True",
+        "503-True",
+        "504-True",
+        "400-False",
+        "401-False",
+        "403-False",
+        "404-False",
+    ],
+)
+def test_is_retryable_gcp_http_error_status(status_code, content, expected):
+    """Test that HTTP 429 and 5xx are retryable and other 4xx errors are not."""
     mock_resp = MagicMock()
-    mock_resp.status = 503
-    error = HttpError(mock_resp, b"Service Unavailable")
+    mock_resp.status = status_code
+    error = HttpError(mock_resp, content)
 
-    assert is_retryable_gcp_http_error(error) is True
-
-
-def test_is_retryable_gcp_http_error_429():
-    """Test that HTTP 429 (rate limit) is identified as retryable."""
-    mock_resp = MagicMock()
-    mock_resp.status = 429
-    error = HttpError(mock_resp, b"Rate Limit Exceeded")
-
-    assert is_retryable_gcp_http_error(error) is True
-
-
-def test_is_retryable_gcp_http_error_5xx():
-    """Test that HTTP 5xx errors are identified as retryable."""
-    for status_code in [500, 502, 503, 504]:
-        mock_resp = MagicMock()
-        mock_resp.status = status_code
-        error = HttpError(mock_resp, b"Server Error")
-        assert (
-            is_retryable_gcp_http_error(error) is True
-        ), f"Expected {status_code} to be retryable"
-
-
-def test_is_retryable_gcp_http_error_4xx_not_retryable():
-    """Test that HTTP 4xx errors (except 429) are NOT identified as retryable."""
-    for status_code in [400, 401, 403, 404]:
-        mock_resp = MagicMock()
-        mock_resp.status = status_code
-        error = HttpError(mock_resp, b"Client Error")
-        assert (
-            is_retryable_gcp_http_error(error) is False
-        ), f"Expected {status_code} to NOT be retryable"
+    assert is_retryable_gcp_http_error(error) is expected
 
 
 def test_is_retryable_gcp_http_error_non_http_error():

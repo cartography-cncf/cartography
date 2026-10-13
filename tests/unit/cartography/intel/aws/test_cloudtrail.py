@@ -23,14 +23,41 @@ def _client_error(code: str, message: str, status_code: int) -> ClientError:
     )
 
 
-def test_get_cloudtrail_trails_raises_transient_region_failure_on_describe_trails_failure():
+@pytest.mark.parametrize(
+    "describe_trails_error",
+    [
+        _client_error(
+            "ServiceUnavailable",
+            "Service Unavailable",
+            503,
+        ),
+        ConnectTimeoutError(
+            endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
+        ),
+        # Must surface as a transient failure so sync() skips cleanup instead of
+        # aws_handle_regions turning it into an empty result.
+        SSLError(
+            endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
+            error="certificate verify failed: certificate has expired",
+        ),
+        ConnectionClosedError(
+            endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
+            request=None,
+        ),
+    ],
+    ids=[
+        "service_unavailable_503",
+        "connect_timeout",
+        "ssl_error",
+        "connection_closed",
+    ],
+)
+def test_get_cloudtrail_trails_raises_transient_region_failure_on_describe_trails_failure(
+    describe_trails_error,
+):
     boto3_session = MagicMock()
     client = boto3_session.client.return_value
-    client.describe_trails.side_effect = _client_error(
-        "ServiceUnavailable",
-        "Service Unavailable",
-        503,
-    )
+    client.describe_trails.side_effect = describe_trails_error
 
     with pytest.raises(CloudTrailTransientRegionFailure):
         get_cloudtrail_trails(
@@ -92,55 +119,6 @@ def test_get_cloudtrail_trails_raises_non_retryable_client_error():
 
     with pytest.raises(ClientError):
         get_cloudtrail_trails_unwrapped(
-            boto3_session,
-            "us-east-1",
-            "123456789012",
-        )
-
-
-def test_get_cloudtrail_trails_raises_transient_region_failure_on_transport_timeout():
-    boto3_session = MagicMock()
-    client = boto3_session.client.return_value
-    client.describe_trails.side_effect = ConnectTimeoutError(
-        endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
-    )
-
-    with pytest.raises(CloudTrailTransientRegionFailure):
-        get_cloudtrail_trails(
-            boto3_session,
-            "us-east-1",
-            "123456789012",
-        )
-
-
-def test_get_cloudtrail_trails_raises_transient_region_failure_on_ssl_error():
-    boto3_session = MagicMock()
-    client = boto3_session.client.return_value
-    client.describe_trails.side_effect = SSLError(
-        endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
-        error="certificate verify failed: certificate has expired",
-    )
-
-    # Must surface as a transient failure so sync() skips cleanup instead of
-    # aws_handle_regions turning it into an empty result.
-    with pytest.raises(CloudTrailTransientRegionFailure):
-        get_cloudtrail_trails(
-            boto3_session,
-            "us-east-1",
-            "123456789012",
-        )
-
-
-def test_get_cloudtrail_trails_raises_transient_region_failure_on_connection_closed():
-    boto3_session = MagicMock()
-    client = boto3_session.client.return_value
-    client.describe_trails.side_effect = ConnectionClosedError(
-        endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
-        request=None,
-    )
-
-    with pytest.raises(CloudTrailTransientRegionFailure):
-        get_cloudtrail_trails(
             boto3_session,
             "us-east-1",
             "123456789012",

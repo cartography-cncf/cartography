@@ -17,450 +17,455 @@ GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD = [
 ]
 
 
-def test_admin_statements():
-    statement = [
-        {
-            "action": [
-                "*",
+@pytest.mark.parametrize(
+    "statements, permissions, resource_arn, expected",
+    [
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "*",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="admin_statements",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "*",
+                    ],
+                    "notaction": [
+                        "S3:GetObject",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_not_action_statement():
-    statement = [
-        {
-            "action": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (False, False),
+            id="not_action_statement",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "*",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
+                {
+                    "action": [
+                        "S3:GetObject",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Deny",
+                },
             ],
-            "notaction": [
-                "S3:GetObject",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (False, True),
+            id="deny_statement",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "S3:GetObject",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="single_permission",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "S3:GetObject",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_deny_statement():
-    statement = [
-        {
-            "action": [
-                "*",
+            ["S3:PutObject"],
+            "arn:aws:s3:::testbucket",
+            (False, False),
+            id="single_non_matching_permission",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "S3:GetObject",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject", "S3:PutObject", "S3:ListBuckets"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="multiple_permission",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "S3:GetObject",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-        {
-            "action": [
-                "S3:GetObject",
+            ["S3:PutObject", "S3:ListBuckets"],
+            "arn:aws:s3:::testbucket",
+            (False, False),
+            id="multiple_non_matching_permission",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "s3:Get*",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="single_permission_lower_case",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "s3:Get*",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::test*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Deny",
-        },
-    ]
-    assert (False, True) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_single_permission():
-    statement = [
-        {
-            "action": [
-                "S3:GetObject",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="single_permission_resource_allow",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "s3:Get*",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::nottest",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (False, False),
+            id="single_permission_resource_non_match",
+        ),
+        pytest.param(
+            # An object-level grant (arn:aws:s3:::my-bucket/*) should draw an edge to the
+            # bucket node (arn:aws:s3:::my-bucket). See issue #1639.
+            [
+                {
+                    "action": [
+                        "s3:GetObject",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::my-bucket/*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_single_non_matching_permission():
-    statement = [
-        {
-            "action": [
-                "S3:GetObject",
+            ["S3:GetObject"],
+            "arn:aws:s3:::my-bucket",
+            (True, False),
+            id="object_level_resource_matches_bucket",
+        ),
+        pytest.param(
+            # An object-level grant scoped to a key prefix (arn:aws:s3:::my-bucket/logs/*)
+            # should still draw an edge to the bucket node. See issue #1639.
+            [
+                {
+                    "action": [
+                        "s3:GetObject",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::my-bucket/logs/*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::my-bucket",
+            (True, False),
+            id="object_level_resource_prefix_grant_matches_bucket",
+        ),
+        pytest.param(
+            # In GovCloud, bucket and policy ARNs use the aws-us-gov partition. The
+            # object-level match must still draw the edge to the bucket node.
+            [
+                {
+                    "action": [
+                        "s3:GetObject",
+                    ],
+                    "resource": [
+                        "arn:aws-us-gov:s3:::my-bucket/*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:PutObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_multiple_permission():
-    statement = [
-        {
-            "action": [
-                "S3:GetObject",
+            ["S3:GetObject"],
+            "arn:aws-us-gov:s3:::my-bucket",
+            (True, False),
+            id="object_level_resource_matches_govcloud_bucket",
+        ),
+        pytest.param(
+            # A grant in one partition must never match a bucket in another partition.
+            [
+                {
+                    "action": [
+                        "s3:GetObject",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::my-bucket/*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws-us-gov:s3:::my-bucket",
+            (False, False),
+            id="object_level_resource_does_not_match_across_partitions",
+        ),
+        pytest.param(
+            # The trailing-slash match must not leak across buckets with a shared prefix.
+            [
+                {
+                    "action": [
+                        "s3:GetObject",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::my-bucket/*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject", "S3:PutObject", "S3:ListBuckets"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_multiple_non_matching_permission():
-    statement = [
-        {
-            "action": [
-                "S3:GetObject",
+            ["S3:GetObject"],
+            "arn:aws:s3:::my-bucket-other",
+            (False, False),
+            id="object_level_resource_does_not_match_other_bucket",
+        ),
+        pytest.param(
+            # The trailing-slash match must not apply to non-S3 resources: a grant on
+            # ".../PassableRole/*" targets a different role path, not an object under
+            # the role, so it must NOT match the parent role node.
+            [
+                {
+                    "action": [
+                        "iam:PassRole",
+                    ],
+                    "resource": [
+                        "arn:aws:iam::000000000000:role/PassableRole/*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["iam:PassRole"],
+            "arn:aws:iam::000000000000:role/PassableRole",
+            (False, False),
+            id="object_level_match_scoped_to_s3",
+        ),
+        pytest.param(
+            # A notresource scoped to objects (arn:aws:s3:::my-bucket/*) excludes the
+            # bucket *objects*, not the bucket ARN itself, so bucket-level permissions
+            # on the bucket node are still allowed by AWS and the edge must remain.
+            [
+                {
+                    "action": [
+                        "s3:Get*",
+                    ],
+                    "resource": ["*"],
+                    "notresource": [
+                        "arn:aws:s3:::my-bucket/*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:PutObject", "S3:ListBuckets"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_single_permission_lower_case():
-    statement = [
-        {
-            "action": [
-                "s3:Get*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::my-bucket",
+            (True, False),
+            id="object_level_notresource_does_not_exclude_bucket",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "s3:Get*",
+                    ],
+                    "resource": ["*"],
+                    "notresource": [
+                        "arn:aws:s3:::nottest",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="non_matching_notresource",
+        ),
+        pytest.param(
+            [
+                {
+                    "notaction": [
+                        "dynamodb:Query",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_single_permission_resource_allow():
-    statement = [
-        {
-            "action": [
-                "s3:Get*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="no_action_statement",
+        ),
+        pytest.param(
+            [
+                {
+                    "notaction": [
+                        "s3:*",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "arn:aws:s3:::test*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (False, False),
+            id="notaction_deny_without_allow",
+        ),
+        pytest.param(
+            [
+                {
+                    "notaction": [
+                        "s3.*",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_single_permission_resource_non_match():
-    statement = [
-        {
-            "action": [
-                "s3:Get*",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="notaction_malformed",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "s3.*",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::test",
+                    ],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "arn:aws:s3:::nottest",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (False, False),
+            id="resource_substring",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "s3:?et*",
+                    ],
+                    "resource": ["arn:aws:s3:::testbucke?"],
+                    "effect": "Allow",
+                },
             ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_object_level_resource_matches_bucket():
-    # An object-level grant (arn:aws:s3:::my-bucket/*) should draw an edge to the
-    # bucket node (arn:aws:s3:::my-bucket). See issue #1639.
-    statement = [
-        {
-            "action": [
-                "s3:GetObject",
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="single_comma",
+        ),
+        pytest.param(
+            [
+                {
+                    "action": [
+                        "s3:?et*",
+                    ],
+                    "resource": ["arn:aws:s3:::????bucket"],
+                    "effect": "Allow",
+                },
             ],
-            "resource": [
-                "arn:aws:s3:::my-bucket/*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::my-bucket",
-    )
-
-
-def test_object_level_resource_prefix_grant_matches_bucket():
-    # An object-level grant scoped to a key prefix (arn:aws:s3:::my-bucket/logs/*)
-    # should still draw an edge to the bucket node. See issue #1639.
-    statement = [
-        {
-            "action": [
-                "s3:GetObject",
-            ],
-            "resource": [
-                "arn:aws:s3:::my-bucket/logs/*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::my-bucket",
-    )
-
-
-def test_object_level_resource_matches_govcloud_bucket():
-    # In GovCloud, bucket and policy ARNs use the aws-us-gov partition. The
-    # object-level match must still draw the edge to the bucket node.
-    statement = [
-        {
-            "action": [
-                "s3:GetObject",
-            ],
-            "resource": [
-                "arn:aws-us-gov:s3:::my-bucket/*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws-us-gov:s3:::my-bucket",
-    )
-
-
-def test_object_level_resource_does_not_match_across_partitions():
-    # A grant in one partition must never match a bucket in another partition.
-    statement = [
-        {
-            "action": [
-                "s3:GetObject",
-            ],
-            "resource": [
-                "arn:aws:s3:::my-bucket/*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws-us-gov:s3:::my-bucket",
-    )
-
-
-def test_object_level_resource_does_not_match_other_bucket():
-    # The trailing-slash match must not leak across buckets with a shared prefix.
-    statement = [
-        {
-            "action": [
-                "s3:GetObject",
-            ],
-            "resource": [
-                "arn:aws:s3:::my-bucket/*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["S3:GetObject"],
-        "arn:aws:s3:::my-bucket-other",
-    )
-
-
-def test_object_level_match_scoped_to_s3():
-    # The trailing-slash match must not apply to non-S3 resources: a grant on
-    # ".../PassableRole/*" targets a different role path, not an object under
-    # the role, so it must NOT match the parent role node.
-    statement = [
-        {
-            "action": [
-                "iam:PassRole",
-            ],
-            "resource": [
-                "arn:aws:iam::000000000000:role/PassableRole/*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement,
-        ["iam:PassRole"],
-        "arn:aws:iam::000000000000:role/PassableRole",
-    )
-
-
-def test_object_level_notresource_does_not_exclude_bucket():
-    # A notresource scoped to objects (arn:aws:s3:::my-bucket/*) excludes the
-    # bucket *objects*, not the bucket ARN itself, so bucket-level permissions
-    # on the bucket node are still allowed by AWS and the edge must remain.
-    statements = [
-        {
-            "action": [
-                "s3:Get*",
-            ],
-            "resource": ["*"],
-            "notresource": [
-                "arn:aws:s3:::my-bucket/*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
+            ["S3:GetObject"],
+            "arn:aws:s3:::testbucket",
+            (True, False),
+            id="multiple_comma",
+        ),
+    ],
+)
+def test_evaluate_policy_for_permissions(
+    statements, permissions, resource_arn, expected
+):
+    # Act
+    result = permission_relationships.evaluate_policy_for_permissions(
         statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::my-bucket",
+        permissions,
+        resource_arn,
     )
 
-
-def test_non_matching_notresource():
-    statements = [
-        {
-            "action": [
-                "s3:Get*",
-            ],
-            "resource": ["*"],
-            "notresource": [
-                "arn:aws:s3:::nottest",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_no_action_statement():
-    statements = [
-        {
-            "notaction": [
-                "dynamodb:Query",
-            ],
-            "resource": [
-                "*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_notaction_deny_without_allow():
-    statements = [
-        {
-            "notaction": [
-                "s3:*",
-            ],
-            "resource": [
-                "*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_notaction_malformed():
-    statements = [
-        {
-            "notaction": [
-                "s3.*",
-            ],
-            "resource": [
-                "*",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_resource_substring():
-    statements = [
-        {
-            "action": [
-                "s3.*",
-            ],
-            "resource": [
-                "arn:aws:s3:::test",
-            ],
-            "effect": "Allow",
-        },
-    ]
-    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
+    # Assert
+    assert expected == result
 
 
 def test_full_policy_explicit_deny():
@@ -616,40 +621,6 @@ def test_full_multiple_principal():
             ["arn:aws:s3:::testbucket"],
             ["S3:GetObject"],
         ),
-    )
-
-
-def test_single_comma():
-    statements = [
-        {
-            "action": [
-                "s3:?et*",
-            ],
-            "resource": ["arn:aws:s3:::testbucke?"],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
-    )
-
-
-def test_multiple_comma():
-    statements = [
-        {
-            "action": [
-                "s3:?et*",
-            ],
-            "resource": ["arn:aws:s3:::????bucket"],
-            "effect": "Allow",
-        },
-    ]
-    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements,
-        ["S3:GetObject"],
-        "arn:aws:s3:::testbucket",
     )
 
 

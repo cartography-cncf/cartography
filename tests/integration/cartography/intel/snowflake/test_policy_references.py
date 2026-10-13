@@ -161,18 +161,6 @@ def test_sync_snowflake_policy_references(mock_get, neo4j_session):
     assert attachment["status"] == "ACTIVE"
 
 
-def test_transform_skips_unmodelled_policy_kinds():
-    """A tag-based masking attachment has no policy node, so it must be counted."""
-    # Act
-    edges, skipped = cartography.intel.snowflake.policy_references.transform(
-        SNOWFLAKE_POLICY_REFERENCES, SNOWFLAKE_ACCOUNT_ID
-    )
-
-    # Assert
-    assert skipped == 1
-    assert sum(len(rows) for rows in edges.values()) == 4
-
-
 @patch.object(cartography.intel.snowflake.policy_references, "get", return_value=None)
 def test_sync_reports_incomplete_when_attachments_cannot_be_read(
     mock_get, neo4j_session

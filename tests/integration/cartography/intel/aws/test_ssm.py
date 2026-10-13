@@ -51,24 +51,34 @@ def _ensure_local_neo4j_has_test_kms_keys(neo4j_session):
     "get_ec2_instances",
     return_value=DESCRIBE_INSTANCES["Reservations"],
 )
-def test_load_instance_information(mock_get_instances, neo4j_session):
-    # Arrange
-    # load account and instances, to be able to test relationships
+def test_load_instance_information_and_patches(mock_get_instances, neo4j_session):
+    # Arrange: load account and instances once, to be able to test relationships
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_load_instances(neo4j_session)
 
     # Act
-    data_list = cartography.intel.aws.ssm.transform_instance_information(
+    information_list = cartography.intel.aws.ssm.transform_instance_information(
         tests.data.aws.ssm.INSTANCE_INFORMATION,
     )
     cartography.intel.aws.ssm.load_instance_information(
         neo4j_session,
-        data_list,
+        information_list,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    patches_list = cartography.intel.aws.ssm.transform_instance_patches(
+        tests.data.aws.ssm.INSTANCE_PATCHES,
+    )
+    cartography.intel.aws.ssm.load_instance_patches(
+        neo4j_session,
+        patches_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
+    # Assert: instance information
     expected_nodes = {
         ("i-01", 1647233782, 1647233908, 1647232108),
         ("i-02", 1647233782, 1647233908, 1647232108),
@@ -112,30 +122,7 @@ def test_load_instance_information(mock_get_instances, neo4j_session):
     actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == {"i-02"}
 
-
-@patch.object(
-    cartography.intel.aws.ec2.instances,
-    "get_ec2_instances",
-    return_value=DESCRIBE_INSTANCES["Reservations"],
-)
-def test_load_instance_patches(mock_get_instances, neo4j_session):
-    # Arrange: load account and instances, to be able to test relationships
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    _ensure_load_instances(neo4j_session)
-
-    # Act
-    data_list = cartography.intel.aws.ssm.transform_instance_patches(
-        tests.data.aws.ssm.INSTANCE_PATCHES,
-    )
-    cartography.intel.aws.ssm.load_instance_patches(
-        neo4j_session,
-        data_list,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    # Assert
+    # Assert: instance patches
     expected_nodes = {
         (
             "i-01-test.x86_64:0:4.2.46-34.amzn2",
@@ -166,7 +153,6 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     }
     assert actual_nodes == expected_nodes
 
-    # Assert
     nodes = neo4j_session.run(
         """
         MATCH (:AWSEC2Instance{id: "i-01"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)
@@ -176,7 +162,6 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == {"i-01-test.x86_64:0:4.2.46-34.amzn2"}
 
-    # Assert
     nodes = neo4j_session.run(
         """
         MATCH (:AWSEC2Instance{id: "i-02"})-[:HAS_PATCH]->(n:AWSSSMInstancePatch)

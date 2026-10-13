@@ -5,6 +5,8 @@ Tests for the Dockerfile parser utility module.
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from cartography.intel.supply_chain import compute_command_similarity
 from cartography.intel.supply_chain import extract_layer_commands_from_history
 from cartography.intel.supply_chain import find_best_dockerfile_matches
@@ -17,55 +19,51 @@ from cartography.intel.supply_chain import parse_file
 # =============================================================================
 
 
-def test_normalize_empty_command():
-    assert normalize_command("") == ""
-    assert normalize_command(None) == ""
-
-
-def test_normalize_removes_shell_prefix():
-    cmd = "/bin/sh -c pip install flask"
-    assert normalize_command(cmd) == "pip install flask"
-
-
-def test_normalize_removes_instruction_prefix():
-    assert normalize_command("RUN pip install flask") == "pip install flask"
-    assert normalize_command("COPY . /app") == "copy_in /app"
-    assert normalize_command("ADD file.tar /opt") == "add_in /opt"
-
-
-def test_normalize_removes_buildkit_prefix():
-    cmd = "|1 VAR=value pip install flask"
-    assert normalize_command(cmd) == "pip install flask"
-
-
-def test_normalize_removes_buildkit_mount():
-    cmd = "--mount=type=cache,target=/root/.cache pip install flask"
-    assert normalize_command(cmd) == "pip install flask"
-
-
-def test_normalize_removes_nop_marker():
-    cmd = "#(nop) WORKDIR /app"
-    assert normalize_command(cmd) == "workdir /app"
-
-
-def test_normalize_oci_copy_history_to_destination():
-    cmd = "/bin/sh -c #(nop) COPY file:abc123 in /usr/local/bin/ "
-    assert normalize_command(cmd) == "copy_in /usr/local/bin/"
-
-
-def test_normalize_oci_add_history_to_destination():
-    cmd = "/bin/sh -c #(nop) ADD dir:abc123 in /scripts/ "
-    assert normalize_command(cmd) == "add_in /scripts/"
-
-
-def test_normalize_removes_inline_comments():
-    cmd = "apt-get install -y python3 # install python"
-    assert normalize_command(cmd) == "apt-get install -y python3"
-
-
-def test_normalize_whitespace():
-    cmd = "pip   install    flask   gunicorn"
-    assert normalize_command(cmd) == "pip install flask gunicorn"
+@pytest.mark.parametrize(
+    ("cmd", "expected"),
+    [
+        pytest.param("", "", id="empty"),
+        pytest.param(None, "", id="none"),
+        pytest.param(
+            "/bin/sh -c pip install flask", "pip install flask", id="shell_prefix"
+        ),
+        pytest.param("RUN pip install flask", "pip install flask", id="run_prefix"),
+        pytest.param("COPY . /app", "copy_in /app", id="copy_prefix"),
+        pytest.param("ADD file.tar /opt", "add_in /opt", id="add_prefix"),
+        pytest.param(
+            "|1 VAR=value pip install flask", "pip install flask", id="buildkit_prefix"
+        ),
+        pytest.param(
+            "--mount=type=cache,target=/root/.cache pip install flask",
+            "pip install flask",
+            id="buildkit_mount",
+        ),
+        pytest.param("#(nop) WORKDIR /app", "workdir /app", id="nop_marker"),
+        pytest.param(
+            "/bin/sh -c #(nop) COPY file:abc123 in /usr/local/bin/ ",
+            "copy_in /usr/local/bin/",
+            id="oci_copy",
+        ),
+        pytest.param(
+            "/bin/sh -c #(nop) ADD dir:abc123 in /scripts/ ",
+            "add_in /scripts/",
+            id="oci_add",
+        ),
+        pytest.param(
+            "apt-get install -y python3 # install python",
+            "apt-get install -y python3",
+            id="inline_comment",
+        ),
+        pytest.param(
+            "pip   install    flask   gunicorn",
+            "pip install flask gunicorn",
+            id="whitespace",
+        ),
+    ],
+)
+def test_normalize_command(cmd, expected):
+    # Act and assert
+    assert normalize_command(cmd) == expected
 
 
 # =============================================================================

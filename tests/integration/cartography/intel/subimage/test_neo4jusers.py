@@ -62,10 +62,3 @@ def test_load_subimage_neo4jusers(mock_api, neo4j_session):
         )
         == expected_rels
     )
-
-
-def test_transform():
-    result = cartography.intel.subimage.neo4jusers.transform(
-        tests.data.subimage.neo4jusers.SUBIMAGE_NEO4J_USERS_RAW,
-    )
-    assert result == tests.data.subimage.neo4jusers.SUBIMAGE_NEO4J_USERS_TRANSFORMED

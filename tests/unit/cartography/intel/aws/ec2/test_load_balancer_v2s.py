@@ -30,41 +30,25 @@ def test_get_loadbalancer_v2_data_raises_transient_region_failure_on_connect_tim
         load_balancer_v2s.get_loadbalancer_v2_data(boto3_session, "me-central-1")
 
 
-def test_sync_load_balancer_v2s_skips_cleanup_after_transient_region_failure(mocker):
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancer_v2s._migrate_legacy_loadbalancerv2_labels"
-    )
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancer_v2s.get_loadbalancer_v2_data",
-        side_effect=load_balancer_v2s.ELBV2TransientRegionFailure("temporary failure"),
-    )
-    cleanup = mocker.patch(
-        "cartography.intel.aws.ec2.load_balancer_v2s.cleanup_load_balancer_v2s"
-    )
-
-    load_balancer_v2s.sync_load_balancer_v2s(
-        MagicMock(),
-        MagicMock(),
-        ["me-central-1"],
-        "123456789012",
-        1,
-        {"AWS_ID": "123456789012", "UPDATE_TAG": 1},
-    )
-
-    cleanup.assert_not_called()
-
-
-def test_sync_load_balancer_v2s_skips_cleanup_after_retryable_client_error(mocker):
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancer_v2s._migrate_legacy_loadbalancerv2_labels"
-    )
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancer_v2s.get_loadbalancer_v2_data",
-        side_effect=_make_client_error(
+@pytest.mark.parametrize(
+    "side_effect",
+    [
+        load_balancer_v2s.ELBV2TransientRegionFailure("temporary failure"),
+        _make_client_error(
             "ServiceUnavailable",
             503,
             "DescribeLoadBalancers",
         ),
+    ],
+    ids=["transient_region_failure", "service_unavailable_503"],
+)
+def test_sync_load_balancer_v2s_skips_cleanup_after_region_failure(mocker, side_effect):
+    mocker.patch(
+        "cartography.intel.aws.ec2.load_balancer_v2s._migrate_legacy_loadbalancerv2_labels"
+    )
+    mocker.patch(
+        "cartography.intel.aws.ec2.load_balancer_v2s.get_loadbalancer_v2_data",
+        side_effect=side_effect,
     )
     cleanup = mocker.patch(
         "cartography.intel.aws.ec2.load_balancer_v2s.cleanup_load_balancer_v2s"

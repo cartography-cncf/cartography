@@ -100,30 +100,7 @@ def test_sync_datalake_filesystems(
     )
     assert actual_resource_rels == expected_resource_rels
 
-
-def test_load_datalake_tags(neo4j_session):
-    """
-    Test that tags are correctly loaded for Data Lake accounts.
-    """
-    # 1. Arrange
-    neo4j_session.run(
-        """
-        MERGE (sa:AzureStorageAccount{id: $sa_id})
-        SET sa.lastupdated = $update_tag
-        """,
-        sa_id=MOCK_STORAGE_ACCOUNTS[0]["id"],
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    # 2. Act
-    data_lake.load_datalake_tags(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        MOCK_STORAGE_ACCOUNTS,
-        TEST_UPDATE_TAG,
-    )
-
-    # 3. Assert: Check for tags
+    # Assert tags: Check for tags
     expected_tags = {
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:datalake",
@@ -133,7 +110,7 @@ def test_load_datalake_tags(neo4j_session):
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 
-    # 4. Assert: Check the relationship for the Data Lake account
+    # Assert tags: Check the relationship for the Data Lake account
     result = neo4j_session.run(
         """
         MATCH (sa:AzureStorageAccount{id: $sa_id})-[:TAGGED]->(t:AzureTag)

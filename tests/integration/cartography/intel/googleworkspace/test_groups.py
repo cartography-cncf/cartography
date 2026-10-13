@@ -1,4 +1,3 @@
-from copy import deepcopy
 from unittest.mock import patch
 
 import cartography.intel.googleworkspace.groups
@@ -23,58 +22,6 @@ COMMON_JOB_PARAMETERS = {
     "UPDATE_TAG": TEST_UPDATE_TAG,
     "CUSTOMER_ID": TEST_CUSTOMER_ID,
 }
-
-
-def _ensure_local_neo4j_has_test_groups(neo4j_session):
-    """Load test groups into Neo4j"""
-    # Transform and load groups
-    groups, group_member_rels, group_owner_rels = (
-        cartography.intel.googleworkspace.groups.transform_groups(
-            MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE,
-            MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL,
-        )
-    )
-
-    cartography.intel.googleworkspace.groups.load_googleworkspace_groups(
-        neo4j_session,
-        groups,
-        TEST_CUSTOMER_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    # Load group-to-group relationships
-    cartography.intel.googleworkspace.groups.load_googleworkspace_group_to_group_relationships(
-        neo4j_session,
-        group_member_rels,
-        group_owner_rels,
-        TEST_CUSTOMER_ID,
-        TEST_UPDATE_TAG,
-    )
-
-
-def test_transform_groups_infers_group_membership_when_type_missing():
-    groups = deepcopy(MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE)
-    group_memberships = deepcopy(MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL)
-    del group_memberships["groups/group-engineering"][2]["type"]
-
-    transformed_groups, group_member_relationships, group_owner_relationships = (
-        cartography.intel.googleworkspace.groups.transform_groups(
-            groups,
-            group_memberships,
-        )
-    )
-
-    assert {group["name"] for group in transformed_groups} == {
-        "groups/group-engineering",
-        "groups/group-operations",
-    }
-    assert group_owner_relationships == []
-    assert group_member_relationships == [
-        {
-            "parent_group_id": "groups/group-engineering",
-            "subgroup_email": "operations@simpson.corp",
-        },
-    ]
 
 
 @patch.object(

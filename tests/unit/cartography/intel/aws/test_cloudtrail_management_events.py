@@ -163,75 +163,65 @@ def test_transform_single_github_web_identity_role_event():
     assert assumption["last_used"] == "2024-01-15T12:15:30.789000"
 
 
-def test_transform_assume_role_events_with_null_request_parameters():
-    """Test that AssumeRole events with null requestParameters are gracefully skipped."""
-    # Arrange
-    events = ACCESS_DENIED_ASSUME_ROLE_CLOUDTRAIL_EVENTS
-
-    # Act - This should no longer crash and should skip events with null requestParameters
-    result = transform_assume_role_events_to_role_assumptions(events=events)
-
-    # Assert - Events with null requestParameters should be skipped, resulting in empty list
-    assert len(result) == 0
-
-
-def test_transform_saml_role_events_with_null_request_parameters():
-    """Test that AssumeRoleWithSAML events with null requestParameters are gracefully skipped."""
-    # Arrange
-    events = ACCESS_DENIED_SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS
-
-    # Act - This should no longer crash and should skip events with null requestParameters
-    result = transform_saml_role_events_to_role_assumptions(events=events)
-
-    # Assert - Events with null requestParameters should be skipped, resulting in empty list
-    assert len(result) == 0
-
-
-def test_transform_web_identity_role_events_with_null_request_parameters():
-    """Test that AssumeRoleWithWebIdentity events with null requestParameters are gracefully skipped."""
-    # Arrange
-    events = ACCESS_DENIED_WEB_IDENTITY_ASSUME_ROLE_CLOUDTRAIL_EVENTS
-
-    # Act - This should no longer crash and should skip events with null requestParameters
-    result = transform_web_identity_role_events_to_role_assumptions(events=events)
-
-    # Assert - Events with null requestParameters should be skipped, resulting in empty list
-    assert len(result) == 0
-
-
 @pytest.mark.parametrize(
-    "getter",
+    "transform_fn, events",
     [
-        get_assume_role_events,
-        get_saml_role_events,
-        get_web_identity_role_events,
+        pytest.param(
+            transform_assume_role_events_to_role_assumptions,
+            ACCESS_DENIED_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+            id="assume_role",
+        ),
+        pytest.param(
+            transform_saml_role_events_to_role_assumptions,
+            ACCESS_DENIED_SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+            id="saml",
+        ),
+        pytest.param(
+            transform_web_identity_role_events_to_role_assumptions,
+            ACCESS_DENIED_WEB_IDENTITY_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+            id="web_identity",
+        ),
     ],
 )
-def test_get_role_events_raise_transient_region_failure_on_503(getter):
-    boto3_session = MagicMock()
-    page_iterator = MagicMock()
-    page_iterator.__iter__ = MagicMock(
-        side_effect=ClientError(
-            {
-                "Error": {
-                    "Code": "ServiceUnavailable",
-                    "Message": "Service Unavailable",
-                },
-                "ResponseMetadata": {"HTTPStatusCode": 503},
+def test_transform_role_events_with_null_request_parameters(transform_fn, events):
+    """Test that AssumeRole, AssumeRoleWithSAML and AssumeRoleWithWebIdentity
+    events with null requestParameters are gracefully skipped."""
+    # Arrange - events come from the parametrized ACCESS_DENIED_* fixtures
+
+    # Act - This should no longer crash and should skip events with null requestParameters
+    result = transform_fn(events=events)
+
+    # Assert - Events with null requestParameters should be skipped, resulting in empty list
+    assert len(result) == 0
+
+
+def _service_unavailable_error() -> ClientError:
+    return ClientError(
+        {
+            "Error": {
+                "Code": "ServiceUnavailable",
+                "Message": "Service Unavailable",
             },
-            "LookupEvents",
-        )
-    )
-    boto3_session.client.return_value.get_paginator.return_value.paginate.return_value = (
-        page_iterator
+            "ResponseMetadata": {"HTTPStatusCode": 503},
+        },
+        "LookupEvents",
     )
 
-    with pytest.raises(CloudTrailTransientRegionFailure):
-        getter(boto3_session, "me-central-1", 24)
 
-    assert boto3_session.client.call_args.kwargs["config"] == get_botocore_config()
+def _read_timeout_error() -> ReadTimeoutError:
+    return ReadTimeoutError(
+        endpoint_url="https://cloudtrail.me-central-1.amazonaws.com/",
+        error="timeout",
+    )
 
 
+@pytest.mark.parametrize(
+    "make_error",
+    [
+        pytest.param(_service_unavailable_error, id="503"),
+        pytest.param(_read_timeout_error, id="read_timeout"),
+    ],
+)
 @pytest.mark.parametrize(
     "getter",
     [
@@ -240,21 +230,21 @@ def test_get_role_events_raise_transient_region_failure_on_503(getter):
         get_web_identity_role_events,
     ],
 )
-def test_get_role_events_raise_transient_region_failure_on_read_timeout(getter):
+def test_get_role_events_raise_transient_region_failure(getter, make_error):
+    # Arrange
     boto3_session = MagicMock()
     page_iterator = MagicMock()
-    page_iterator.__iter__ = MagicMock(
-        side_effect=ReadTimeoutError(
-            endpoint_url="https://cloudtrail.me-central-1.amazonaws.com/",
-            error="timeout",
-        )
-    )
+    page_iterator.__iter__ = MagicMock(side_effect=make_error())
     boto3_session.client.return_value.get_paginator.return_value.paginate.return_value = (
         page_iterator
     )
 
+    # Act and assert
     with pytest.raises(CloudTrailTransientRegionFailure):
         getter(boto3_session, "me-central-1", 24)
+
+    # Assert - the client is created with the shared botocore config
+    assert boto3_session.client.call_args.kwargs["config"] == get_botocore_config()
 
 
 def test_sync_assume_role_events_skips_cleanup_on_transient_region_failure(

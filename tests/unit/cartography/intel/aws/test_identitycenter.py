@@ -1,12 +1,14 @@
 from unittest.mock import MagicMock
 
 import botocore.exceptions
+import pytest
 
 from cartography.intel.aws.identitycenter import (
     _is_permission_set_sync_unsupported_error,
 )
 from cartography.intel.aws.identitycenter import get_permission_sets
 from cartography.intel.aws.identitycenter import get_user_permissionsets
+from cartography.intel.aws.identitycenter import PermissionSetSyncNotSupported
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 
 
@@ -95,61 +97,78 @@ def test_get_role_assignments_access_denied():
     )
 
 
-def test_is_permission_set_sync_unsupported_error():
-    """Test that we correctly identify the ValidationException for unsupported instances."""
+@pytest.mark.parametrize(
+    ("code", "message", "expected"),
+    [
+        # The ValidationException for unsupported instances is recognized.
+        pytest.param(
+            "ValidationException",
+            "The operation is not supported for this Identity Center instance",
+            True,
+            id="unsupported_instance",
+        ),
+        # The AWS account-instance specific unsupported wording is recognized.
+        pytest.param(
+            "ValidationException",
+            "This operation is not supported for account instances of IAM Identity Center.",
+            True,
+            id="account_instance_wording",
+        ),
+        # Other ValidationExceptions are not treated as unsupported instance errors.
+        pytest.param(
+            "ValidationException",
+            "Some other validation error",
+            False,
+            id="other_validation_error",
+        ),
+        # AccessDeniedException is not treated as an unsupported instance error.
+        pytest.param(
+            "AccessDeniedException",
+            "Access Denied",
+            False,
+            id="access_denied",
+        ),
+    ],
+)
+def test_is_permission_set_sync_unsupported_error(code, message, expected):
+    # Arrange
+    error = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": code,
+                "Message": message,
+            },
+        },
+        operation_name="ListPermissionSets",
+    )
+
+    # Act / Assert
+    assert _is_permission_set_sync_unsupported_error(error) is expected
+
+
+def test_get_permission_sets_raises_non_retryable_error_for_unsupported_instance():
     error = botocore.exceptions.ClientError(
         error_response={
             "Error": {
                 "Code": "ValidationException",
                 "Message": "The operation is not supported for this Identity Center instance",
-            },
+            }
         },
         operation_name="ListPermissionSets",
     )
 
-    assert _is_permission_set_sync_unsupported_error(error)
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_session.client.return_value = mock_client
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_paginator.paginate.side_effect = error
 
+    with pytest.raises(PermissionSetSyncNotSupported) as excinfo:
+        get_permission_sets(
+            mock_session,
+            "arn:aws:sso:::instance/ssoins-unsupported",
+            "us-east-1",
+        )
 
-def test_is_permission_set_sync_unsupported_error_for_account_instance_message():
-    """Test support for AWS account-instance specific unsupported error wording."""
-    error = botocore.exceptions.ClientError(
-        error_response={
-            "Error": {
-                "Code": "ValidationException",
-                "Message": "This operation is not supported for account instances of IAM Identity Center.",
-            },
-        },
-        operation_name="ListPermissionSets",
-    )
-
-    assert _is_permission_set_sync_unsupported_error(error)
-
-
-def test_is_permission_set_sync_unsupported_error_returns_false_for_other_errors():
-    """Test that other ValidationExceptions are not treated as unsupported instance errors."""
-    error = botocore.exceptions.ClientError(
-        error_response={
-            "Error": {
-                "Code": "ValidationException",
-                "Message": "Some other validation error",
-            },
-        },
-        operation_name="ListPermissionSets",
-    )
-
-    assert not _is_permission_set_sync_unsupported_error(error)
-
-
-def test_is_permission_set_sync_unsupported_error_returns_false_for_access_denied():
-    """Test that AccessDeniedException is not treated as unsupported instance error."""
-    error = botocore.exceptions.ClientError(
-        error_response={
-            "Error": {
-                "Code": "AccessDeniedException",
-                "Message": "Access Denied",
-            },
-        },
-        operation_name="ListPermissionSets",
-    )
-
-    assert not _is_permission_set_sync_unsupported_error(error)
+    assert excinfo.value.__cause__ is error

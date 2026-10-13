@@ -14,6 +14,7 @@ from cartography.intel.jira.access import transform
 from cartography.intel.jira.util import JiraClient
 from tests.data.jira.access import CLOUD_ID
 from tests.data.jira.access import OTHER_CLOUD_ID
+from tests.data.jira.client import api_client
 
 
 def response(payload, status=200):
@@ -483,3 +484,27 @@ def test_pagination_without_is_last_uses_total(mocker: MockerFixture) -> None:
     groups = client.pages("group/bulk")
     # Assert
     assert groups == [{"groupId": "1"}, {"groupId": "2"}]
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "value",
+    [pytest.param({}, id="empty_object"), pytest.param("", id="empty_string")],
+)
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "path, field",
+    [
+        pytest.param("project/100/roledetails", None, id="roledetails"),
+        pytest.param("project/100/role/10", "actors", id="actors"),
+        pytest.param("permissionscheme/500", "permissions", id="permissions"),
+    ],
+)
+def test_malformed_arrays_raise(path: str, field: str | None, value: object) -> None:
+    # Arrange
+    client, state = api_client()
+    if field is None:
+        state["responses"][path] = value
+    else:
+        state["responses"][path][field] = value
+    # Act and assert
+    with pytest.raises(ValueError, match="must be an array"):
+        transform(get(client), client.cloud_id)

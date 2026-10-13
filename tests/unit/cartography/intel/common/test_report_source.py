@@ -37,25 +37,68 @@ class _TestConfig(Config):
         self.azure_client_secret = azure_client_secret
 
 
-def test_parse_local_report_source_from_plain_path() -> None:
-    source = parse_report_source("./reports/trivy")
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        pytest.param(
+            "./reports/trivy",
+            LocalReportSource(path="./reports/trivy"),
+            id="local-plain",
+        ),
+        pytest.param(
+            r"C:\reports\syft",
+            LocalReportSource(path=r"C:\reports\syft"),
+            id="local-windows",
+        ),
+        pytest.param(
+            "s3://example-bucket/reports/trivy/",
+            S3ReportSource(
+                bucket="example-bucket",
+                prefix="reports/trivy/",
+            ),
+            id="s3",
+        ),
+        pytest.param(
+            "s3://example-bucket//reports/",
+            S3ReportSource(
+                bucket="example-bucket",
+                prefix="reports/",
+            ),
+            id="s3-leading-slash",
+        ),
+        pytest.param(
+            "S3://example-bucket/reports/trivy/",
+            S3ReportSource(
+                bucket="example-bucket",
+                prefix="reports/trivy/",
+            ),
+            id="s3-uppercase-scheme",
+        ),
+        pytest.param(
+            "gs://example-bucket/reports/syft",
+            GCSReportSource(
+                bucket="example-bucket",
+                prefix="reports/syft",
+            ),
+            id="gcs",
+        ),
+        pytest.param(
+            "azblob://acct/container/reports/aibom",
+            AzureBlobReportSource(
+                account_name="acct",
+                container_name="container",
+                prefix="reports/aibom",
+            ),
+            id="azblob",
+        ),
+    ],
+)
+def test_parse_report_source(raw, expected):
+    # Act
+    source = parse_report_source(raw)
 
-    assert source == LocalReportSource(path="./reports/trivy")
-
-
-def test_parse_local_report_source_from_windows_path() -> None:
-    source = parse_report_source(r"C:\reports\syft")
-
-    assert source == LocalReportSource(path=r"C:\reports\syft")
-
-
-def test_parse_s3_report_source() -> None:
-    source = parse_report_source("s3://example-bucket/reports/trivy/")
-
-    assert source == S3ReportSource(
-        bucket="example-bucket",
-        prefix="reports/trivy/",
-    )
+    # Assert
+    assert source == expected
 
 
 def test_build_s3_source_logs_leading_slash_normalization(caplog) -> None:
@@ -71,43 +114,6 @@ def test_parse_s3_report_source_without_prefix() -> None:
 
     assert source == S3ReportSource(bucket="example-bucket", prefix="")
     assert source.uri == "s3://example-bucket"
-
-
-def test_parse_s3_report_source_normalizes_leading_slash() -> None:
-    source = parse_report_source("s3://example-bucket//reports/")
-
-    assert source == S3ReportSource(
-        bucket="example-bucket",
-        prefix="reports/",
-    )
-
-
-def test_parse_report_source_accepts_uppercase_scheme() -> None:
-    source = parse_report_source("S3://example-bucket/reports/trivy/")
-
-    assert source == S3ReportSource(
-        bucket="example-bucket",
-        prefix="reports/trivy/",
-    )
-
-
-def test_parse_gcs_report_source() -> None:
-    source = parse_report_source("gs://example-bucket/reports/syft")
-
-    assert source == GCSReportSource(
-        bucket="example-bucket",
-        prefix="reports/syft",
-    )
-
-
-def test_parse_azblob_report_source() -> None:
-    source = parse_report_source("azblob://acct/container/reports/aibom")
-
-    assert source == AzureBlobReportSource(
-        account_name="acct",
-        container_name="container",
-        prefix="reports/aibom",
-    )
 
 
 def test_parse_report_source_rejects_unknown_scheme() -> None:

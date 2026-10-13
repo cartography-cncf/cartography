@@ -104,7 +104,7 @@ def _setup_spacelift_runs(
 @patch("cartography.intel.spacelift.ec2_ownership.get_ec2_ownership")
 @patch("cartography.intel.spacelift.runs.get_runs")
 @patch("cartography.intel.spacelift.runs.get_entities")
-def test_ec2_ownership_preserves_multiple_events(
+def test_ec2_ownership_sync_and_cleanup(
     mock_get_entities,
     mock_get_runs,
     mock_get_cloudtrail,
@@ -113,7 +113,8 @@ def test_ec2_ownership_preserves_multiple_events(
 ):
     """
     Test that multiple CloudTrail events from the same run to the same instance
-    are preserved as separate SpaceliftCloudTrailEvent nodes.
+    are preserved as separate SpaceliftCloudTrailEvent nodes, and that cleanup
+    removes stale SpaceliftCloudTrailEvent nodes on a later sync.
     """
     # Arrange
     mock_get_account.return_value = TEST_SPACELIFT_ACCOUNT_ID
@@ -193,40 +194,7 @@ def test_ec2_ownership_preserves_multiple_events(
         expected_affected_rels == actual_affected_rels
     ), f"Expected {expected_affected_rels} AFFECTED rels, got {actual_affected_rels}"
 
-
-@patch("cartography.intel.spacelift.account.get_account")
-@patch("cartography.intel.spacelift.ec2_ownership.get_ec2_ownership")
-@patch("cartography.intel.spacelift.runs.get_runs")
-@patch("cartography.intel.spacelift.runs.get_entities")
-def test_ec2_ownership_cleanup(
-    mock_get_entities,
-    mock_get_runs,
-    mock_get_cloudtrail,
-    mock_get_account,
-    neo4j_session,
-):
-    """
-    Test that cleanup removes stale SpaceliftCloudTrailEvent nodes and relationships.
-    """
-    # Arrange
-    mock_get_account.return_value = TEST_SPACELIFT_ACCOUNT_ID
-    mock_get_cloudtrail.return_value = CLOUDTRAIL_EC2_OWNERSHIP_DATA
-    mock_get_entities.return_value = []
-
-    _setup_test_infrastructure(neo4j_session)
-    _setup_spacelift_runs(neo4j_session, mock_get_runs, mock_get_entities)
-
-    aws_session = MagicMock()
-    sync_ec2_ownership(
-        neo4j_session,
-        aws_session,
-        TEST_S3_BUCKET,
-        TEST_S3_PREFIX,
-        TEST_UPDATE_TAG,
-        TEST_SPACELIFT_ACCOUNT_ID,
-    )
-
-    # Verify initial state
+    # Assert: Verify all four events are attached to the Spacelift account at the first tag
     result = neo4j_session.run(
         """
         MATCH (e:SpaceliftCloudTrailEvent)<-[:RESOURCE]-(a:SpaceliftAccount{id: $account_id})
@@ -239,12 +207,13 @@ def test_ec2_ownership_cleanup(
     initial_count = result.single()["count"]
     assert initial_count == 4
 
-    # Act: Second sync with only one event (simulating stale data)
+    # Arrange: Second sync returns only one event (simulating stale data)
     new_update_tag = TEST_UPDATE_TAG + 1
     mock_get_cloudtrail.return_value = [
         CLOUDTRAIL_EC2_OWNERSHIP_DATA[0]
     ]  # Only first event
 
+    # Act
     sync_ec2_ownership(
         neo4j_session,
         aws_session,
@@ -269,7 +238,7 @@ def test_ec2_ownership_cleanup(
         final_count == 1
     ), f"Expected 1 SpaceliftCloudTrailEvent after cleanup, got {final_count}"
 
-    # Verify that the remaining event is the correct one (first event)
+    # Assert: Verify that the remaining event is the correct one (first event)
     result = neo4j_session.run(
         """
         MATCH (e:SpaceliftCloudTrailEvent)

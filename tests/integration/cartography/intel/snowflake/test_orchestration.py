@@ -8,12 +8,13 @@ so they are covered here:
   rather than silently skipping the module;
 - the ordering of the fan-out, which is what lets edges resolve on the first pass;
 - the cleanup gate, which must NOT delete a surface this run could not read.
+
+The checks that need no graph live in
+tests/unit/cartography/intel/snowflake/test_orchestration.py.
 """
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
-
-import pytest
 
 import cartography.intel.snowflake
 import cartography.intel.snowflake.account
@@ -58,122 +59,6 @@ def test_module_is_skipped_when_no_credential_is_supplied(neo4j_session):
 
     # Assert
     assert check_nodes(neo4j_session, "SnowflakeAccount", ["id"]) == set()
-
-
-def test_both_credentials_together_is_an_error():
-    # Arrange: supplying both is ambiguous, so it must not silently pick one.
-    config = _config(snowflake_private_key="-----BEGIN PRIVATE KEY-----")
-
-    # Act + Assert
-    with pytest.raises(ValueError, match="ambiguously configured"):
-        cartography.intel.snowflake._build_client(config)
-
-
-def test_a_passphrase_without_a_private_key_is_an_error():
-    # Arrange: this is the shape of a typo'd env-var name, which must fail loudly
-    # rather than fall through to "not configured".
-    config = _config(
-        snowflake_pat=None,
-        snowflake_private_key=None,
-        snowflake_private_key_passphrase="hunter2",
-    )
-
-    # Act + Assert
-    with pytest.raises(ValueError, match="partially configured"):
-        cartography.intel.snowflake._build_client(config)
-
-
-def test_a_missing_user_is_an_error():
-    # Act + Assert
-    with pytest.raises(ValueError, match="without --snowflake-user"):
-        cartography.intel.snowflake._build_client(_config(snowflake_user=None))
-
-
-def test_account_id_is_normalized_from_the_url_form():
-    # Arrange: operators paste either separator; the graph must key on one form.
-    # Act
-    client = cartography.intel.snowflake._build_client(
-        _config(snowflake_account="springfield-nuclear")
-    )
-
-    # Assert
-    assert client.account_id == SNOWFLAKE_ACCOUNT_ID
-
-
-def test_parse_databases_normalizes_and_drops_blanks():
-    # Act
-    parsed = cartography.intel.snowflake._parse_databases(" springfield , ,monorail ")
-
-    # Assert: the operator's casing is preserved. Snowflake folds an unquoted
-    # identifier to uppercase but keeps the case of a quoted one, so upper-casing here
-    # would drop a database created as "springfield"; the membership test in
-    # databases._skip_walk_reason is case-insensitive instead.
-    assert parsed == {"springfield", "monorail"}
-    assert cartography.intel.snowflake._parse_databases(None) is None
-    assert cartography.intel.snowflake._parse_databases("") is None
-    assert cartography.intel.snowflake._parse_databases("  ,  ") is None
-
-
-def test_cleanup_skips_surfaces_that_could_not_be_read(neo4j_session):
-    # Arrange: two modules, one of which this run failed to read in full.
-    read_module = MagicMock()
-    read_module.__name__ = "cartography.intel.snowflake.roles"
-    unread_module = MagicMock()
-    unread_module.__name__ = "cartography.intel.snowflake.tables"
-
-    with patch.object(
-        cartography.intel.snowflake,
-        "_CLEANUP_ORDER",
-        (read_module, unread_module),
-    ):
-        # Act
-        cartography.intel.snowflake._cleanup(
-            neo4j_session,
-            {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID},
-            incomplete={"tables"},
-        )
-
-    # Assert: the surface that was read gets cleaned, and the one that was not is
-    # left alone. Cleaning it would delete inventory Cartography simply could not
-    # re-observe this run, which is worse than keeping it stale.
-    read_module.cleanup.assert_called_once()
-    unread_module.cleanup.assert_not_called()
-
-
-def test_an_unreadable_database_protects_every_schema_scoped_surface():
-    """A truncated schema list must suppress cleanup for everything below it.
-
-    When one database cannot be listed, its schemas never reach the object-level
-    syncs. Those syncs walk exactly the schemas they were handed, so they report
-    complete=True in good faith while holding none of that database's objects. Their
-    cleanup is account-scoped, so without this propagation it would delete the
-    unread database's tables, views and tasks as though they had been dropped.
-    """
-    # Arrange
-    surfaces = cartography.intel.snowflake._SCHEMA_SCOPED_SURFACES
-
-    # Assert the set actually spans the surfaces that walk the schema list, rather
-    # than being a stale hand-written list.
-    assert {"tables", "views", "tasks", "stages", "secrets", "streams"} <= surfaces
-    assert {"network_rules", "database_roles", "schemas"} <= surfaces
-    # Account-level surfaces do not walk schemas, so they are deliberately absent.
-    assert "warehouses" not in surfaces
-    assert "roles" not in surfaces
-    assert "users" not in surfaces
-
-    # Act + Assert the gate itself.
-    assert cartography.intel.snowflake.databases_and_schemas_complete(set()) is True
-    assert (
-        cartography.intel.snowflake.databases_and_schemas_complete({"warehouses"})
-        is True
-    )
-    assert (
-        cartography.intel.snowflake.databases_and_schemas_complete({"schemas"}) is False
-    )
-    assert (
-        cartography.intel.snowflake.databases_and_schemas_complete({"databases"})
-        is False
-    )
 
 
 def test_an_unreadable_database_does_not_delete_its_tables(neo4j_session):
@@ -303,44 +188,3 @@ def test_unreadable_managed_accounts_do_not_delete_previously_ingested_ones(
     assert check_nodes(neo4j_session, "SnowflakeManagedAccount", ["name"]) == {
         ("SHELBYVILLE_READER",)
     }
-
-
-def test_cleanup_order_covers_every_synced_module():
-    # Arrange: a module missing from the cleanup order would leak stale nodes
-    # forever, and one listed twice would run redundant jobs.
-    order = cartography.intel.snowflake._CLEANUP_ORDER
-    names = [module.__name__.rsplit(".", 1)[-1] for module in order]
-
-    # Assert no duplicates.
-    assert len(names) == len(set(names)), f"duplicated in cleanup order: {names}"
-
-    # Assert every module that participates in the fan-out is cleaned up.
-    expected = {
-        name
-        for group in (
-            cartography.intel.snowflake._SCHEMA_LEVEL_MODULES,
-            cartography.intel.snowflake._WORKLOAD_MODULES,
-            cartography.intel.snowflake._INTEGRATION_MODULES,
-        )
-        for name in (module.__name__.rsplit(".", 1)[-1] for module in group)
-    }
-    assert expected <= set(names), f"not cleaned up: {sorted(expected - set(names))}"
-
-
-def test_containment_parents_are_cleaned_after_their_children():
-    # Arrange: cleanup deletes nodes, so a parent must not be deleted while a child
-    # still hangs off it. Databases contain schemas, which contain tables.
-    names = [
-        module.__name__.rsplit(".", 1)[-1]
-        for module in cartography.intel.snowflake._CLEANUP_ORDER
-    ]
-
-    # Assert
-    assert names.index("tables") < names.index("schemas")
-    assert names.index("schemas") < names.index("databases")
-    assert names.index("database_roles") < names.index("databases")
-    # Roles and users are the target of grant edges, so they go late.
-    assert names.index("access_tokens") < names.index("users")
-    assert names.index("users") < names.index("roles")
-    # The account tenant is last: everything else hangs off it.
-    assert names[-1] == "account"

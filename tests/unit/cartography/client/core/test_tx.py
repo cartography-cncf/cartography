@@ -14,6 +14,7 @@ from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
 from cartography.client.core.tx import ensure_indexes_for_matchlinks
 from cartography.client.core.tx import execute_write_with_retry
+from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelProperties
@@ -23,6 +24,7 @@ from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from tests.data.graph.matchlink.iam_permissions import PrincipalToS3BucketPermissionRel
 
 
 @dataclass(frozen=True)
@@ -66,22 +68,29 @@ def _cartesian_product_rel_schema() -> PrincipalToS3BucketCartesianProductRel:
 # Tests for _is_retryable_client_error
 
 
-def test_entity_not_found_is_retryable():
-    """EntityNotFound errors should be retryable."""
-    exc = _create_client_error("Neo.ClientError.Statement.EntityNotFound")
-    assert _is_retryable_client_error(exc) is True
-
-
-def test_other_client_errors_not_retryable():
-    """Other ClientErrors should NOT be retryable."""
-    exc = _create_client_error("Neo.ClientError.Statement.SyntaxError")
-    assert _is_retryable_client_error(exc) is False
-
-
-def test_non_client_error_not_retryable():
-    """Non-ClientError exceptions should NOT be retryable."""
-    exc = ValueError("some error")
-    assert _is_retryable_client_error(exc) is False
+@pytest.mark.parametrize(
+    "exc,expected",
+    [
+        # EntityNotFound errors should be retryable.
+        (_create_client_error("Neo.ClientError.Statement.EntityNotFound"), True),
+        # Other ClientErrors should NOT be retryable.
+        (_create_client_error("Neo.ClientError.Statement.SyntaxError"), False),
+        # Non-ClientError exceptions should NOT be retryable.
+        (ValueError("some error"), False),
+        # A locally-created ClientError has no _neo4j_code (None) and should
+        # NOT be retryable.
+        (neo4j.exceptions.ClientError("Test error"), False),
+    ],
+    ids=[
+        "entity_not_found-True",
+        "syntax_error-False",
+        "value_error-False",
+        "client_error_no_code-False",
+    ],
+)
+def test_is_retryable_client_error(exc, expected):
+    # Act and assert
+    assert _is_retryable_client_error(exc) is expected
 
 
 # Tests for _entity_not_found_backoff_handler
@@ -392,6 +401,42 @@ def test_load_matchlinks_cartesian_product_requires_cleanup_kwargs():
         )
 
 
+def test_load_matchlinks_requires_cleanup_kwargs():
+    """
+    load_matchlinks() raises appropriate errors when required kwargs are missing,
+    before touching the Neo4j session.
+    """
+    # Arrange
+    rel_schema = PrincipalToS3BucketPermissionRel()
+    mock_session = MagicMock()
+
+    # Act and assert: missing _sub_resource_label - need non-empty list to avoid early return
+    with pytest.raises(
+        ValueError, match="Required kwarg '_sub_resource_label' not provided"
+    ):
+        load_matchlinks(
+            mock_session, rel_schema, [{"test": "data"}], _sub_resource_id="test"
+        )
+
+    # Act and assert: missing _sub_resource_id - need non-empty list to avoid early return
+    with pytest.raises(
+        ValueError, match="Required kwarg '_sub_resource_id' not provided"
+    ):
+        load_matchlinks(
+            mock_session, rel_schema, [{"test": "data"}], _sub_resource_label="test"
+        )
+
+    # Act and assert: missing both kwargs - should fail on first check (_sub_resource_label)
+    with pytest.raises(
+        ValueError, match="Required kwarg '_sub_resource_label' not provided"
+    ):
+        load_matchlinks(mock_session, rel_schema, [{"test": "data"}])
+
+    # Assert
+    mock_session.execute_write.assert_not_called()
+    mock_session.run.assert_not_called()
+
+
 def test_load_matchlinks_cartesian_product_batches_and_records_metrics(caplog):
     # Arrange
     rel_schema = _cartesian_product_rel_schema()
@@ -646,16 +691,6 @@ def test_network_errors_with_none_wait(mock_logger, mock_sleep):
     mock_sleep.assert_called_once_with(1.0)
 
 
-def test_client_error_with_none_code():
-    """Should handle ClientError with None code gracefully."""
-    # Create a ClientError without setting the code (simulates locally-created error)
-    exc = neo4j.exceptions.ClientError("Test error")
-    # Don't set _neo4j_code, so it defaults to None
-
-    # Should return False (not retryable)
-    assert _is_retryable_client_error(exc) is False
-
-
 @patch("cartography.client.core.tx.time.sleep")
 def test_network_errors_max_retries(mock_sleep):
     """Should raise network error after MAX_RETRIES attempts."""
@@ -793,22 +828,25 @@ def test_failed_index_query_is_retried_on_next_call():
 # Tests for _is_retryable_buffer_error
 
 
-def test_buffer_error_with_cannot_be_resized_is_retryable():
-    """BufferError with 'cannot be re-sized' should be retryable."""
-    exc = BufferError("Existing exports of data: object cannot be re-sized")
-    assert _is_retryable_buffer_error(exc) is True
-
-
-def test_buffer_error_without_cannot_be_resized_not_retryable():
-    """BufferError without 'cannot be re-sized' should NOT be retryable."""
-    exc = BufferError("some other buffer error")
-    assert _is_retryable_buffer_error(exc) is False
-
-
-def test_non_buffer_error_not_retryable_for_buffer_check():
-    """Non-BufferError exceptions should NOT be retryable for buffer error check."""
-    exc = ValueError("some error")
-    assert _is_retryable_buffer_error(exc) is False
+@pytest.mark.parametrize(
+    "exc,expected",
+    [
+        # BufferError with 'cannot be re-sized' should be retryable.
+        (BufferError("Existing exports of data: object cannot be re-sized"), True),
+        # BufferError without 'cannot be re-sized' should NOT be retryable.
+        (BufferError("some other buffer error"), False),
+        # Non-BufferError exceptions should NOT be retryable for the buffer check.
+        (ValueError("some error"), False),
+    ],
+    ids=[
+        "cannot_be_resized-True",
+        "other_buffer_error-False",
+        "value_error-False",
+    ],
+)
+def test_is_retryable_buffer_error(exc, expected):
+    # Act and assert
+    assert _is_retryable_buffer_error(exc) is expected
 
 
 # Tests for _buffer_error_backoff_handler

@@ -170,38 +170,7 @@ def test_sync_load_balancers(mock_get_lbs, neo4j_session):
         rel_direction_right=True,
     ) == {(frontend_ip_id, pip_id)}
 
-
-def test_load_load_balancer_tags(neo4j_session):
-    """
-    Test that tags are correctly loaded and linked to Azure Load Balancers.
-    """
-    # 1. Arrange: Create the prerequisite AzureSubscription node
-    neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
-        sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    # Transform the data first to include tags
-    transformed_lbs = load_balancer.transform_load_balancers(MOCK_LOAD_BALANCERS)
-
-    # Load Load Balancers so they exist to be tagged
-    load_balancer.load_load_balancers(
-        neo4j_session, transformed_lbs, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
-    )
-
-    # 2. Act: Load the tags
-    load_balancer.load_load_balancer_tags(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        transformed_lbs,
-        TEST_UPDATE_TAG,
-    )
-
-    # 3. Assert: Check for the 2 unique tags
+    # Assert tags: Check for the 2 unique tags
     expected_tags = {
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:load-balancer",
@@ -218,7 +187,7 @@ def test_load_load_balancer_tags(neo4j_session):
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 
-    # 4. Assert: Check the relationships
+    # Assert tags: Check the relationships
     lb_id = MOCK_LOAD_BALANCERS[0]["id"]
 
     expected_rels = {

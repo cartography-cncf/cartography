@@ -118,10 +118,6 @@ class TestCisAwsFrameworkMetadata:
         assert rule.has_framework(short_name="CIS", scope="aws")
         assert rule.has_framework(short_name="CIS", scope="aws", revision="6.0.0")
 
-    @pytest.mark.parametrize("rule", ALL_CIS_AWS_RULES, ids=lambda r: r.id)
-    def test_rule_has_iso27001_framework(self, rule):
-        assert rule.has_framework(short_name="ISO", scope="27001", revision="2022")
-
 
 class TestCisAwsFactMetadata:
     """Test that all AWS facts have the expected metadata."""

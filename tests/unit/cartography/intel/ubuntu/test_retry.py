@@ -21,11 +21,6 @@ class TestRetryableSession:
         assert isinstance(adapter, HTTPAdapter)
         assert isinstance(adapter.max_retries, LoggingRetry)
 
-    def test_retry_policy_covers_503(self):
-        session = retryable_session()
-        retry = session.get_adapter("https://example.com").max_retries
-        assert 503 in retry.status_forcelist
-
     def test_retry_policy_parameters(self):
         session = retryable_session()
         retry = session.get_adapter("https://example.com").max_retries

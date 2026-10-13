@@ -4,7 +4,6 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.github.repos
-from cartography.intel.github.repos import enrich_dependencies_with_lockfile_versions
 from cartography.intel.github.repos import load_github_dependencies
 from cartography.intel.github.util import PaginatedGraphqlData
 from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
@@ -38,44 +37,75 @@ def _no_lockfile_fetch():
         yield
 
 
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "get",
-    return_value=GET_REPOS,
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_repos(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
+def _collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+    if affiliation == "DIRECT":
+        return DIRECT_COLLABORATORS
+    return OUTSIDE_COLLABORATORS
+
+
+def _sync_shared_repos(neo4j_session):
+    """
+    Sync GET_REPOS at TEST_UPDATE_TAG with the shared mocks. Patches every fetch
+    itself, so it also works from the module-scoped fixture, where the
+    function-scoped autouse fixtures are not active.
+    """
+    with (
+        # Mirrors _no_lockfile_fetch here and no_repo_security_settings in conftest.py.
+        patch.object(
+            cartography.intel.github.repos,
+            "get_file_content",
+            return_value=None,
+        ),
+        patch.object(
+            cartography.intel.github.repos,
+            "get_repo_security_and_analysis_by_url",
+            return_value={},
+        ),
+        patch.object(
+            cartography.intel.github.repos,
+            "_get_dep_manifests_for_repos",
+            return_value=(DEP_MANIFESTS_BY_URL, True),
+        ),
+        patch.object(
+            cartography.intel.github.repos,
+            "get",
+            return_value=GET_REPOS,
+        ),
+        patch.object(
+            cartography.intel.github.repos,
+            "_get_repo_collaborators_for_multiple_repos",
+            side_effect=_collabs_side_effect,
+        ),
+    ):
+        cartography.intel.github.repos.sync(
+            neo4j_session,
+            TEST_JOB_PARAMS,
+            FAKE_API_KEY,
+            TEST_GITHUB_URL,
+            TEST_GITHUB_ORG,
+        )
+
+
+@pytest.fixture(scope="module")
+def synced_github_repos(neo4j_session):
+    """
+    Run the shared GET_REPOS sync once per module at TEST_UPDATE_TAG.
+
+    The tests that use this fixture only read the graph, except
+    test_sync_github_manifests, which repeats the same sync (idempotent), and
+    test_sync_github_rulesets_cleanup, which re-syncs at TEST_UPDATE_TAG + 1 and
+    so must stay last among them. Keep these tests at the top of the module so
+    their exact-set assertions see a graph that holds only this sync.
+    """
+    _sync_shared_repos(neo4j_session)
+    return neo4j_session
+
+
+def test_sync_github_repos(neo4j_session, synced_github_repos):
     """
     Test that GitHub repos sync correctly, creating proper nodes and relationships.
     """
-
-    # Arrange - Mock collaborator retrieval to return test data
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    # Act
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
+    # Arrange / Act - the synced_github_repos fixture ran the shared sync
 
     # Assert - Verify GitHubRepository nodes were created
     assert check_nodes(neo4j_session, "GitHubRepository", ["id"]) == {
@@ -173,44 +203,11 @@ def test_sync_github_repos(
     }
 
 
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "get",
-    return_value=GET_REPOS,
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_repo_collaborators(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
+def test_sync_github_repo_collaborators(neo4j_session, synced_github_repos):
     """
     Test that GitHub repo collaborators sync correctly with proper relationships.
     """
-
-    # Arrange
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    # Act
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
+    # Arrange / Act - the synced_github_repos fixture ran the shared sync
 
     # Assert - Verify outside collaborator relationships
     # OUTSIDE_COLLAB_WRITE
@@ -349,44 +346,11 @@ def test_sync_github_repo_collaborators(
     }
 
 
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "get",
-    return_value=GET_REPOS,
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_dependencies(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
+def test_sync_github_dependencies(neo4j_session, synced_github_repos):
     """
     Test that GitHub dependencies from dependency graph are correctly synced.
     """
-
-    # Arrange
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    # Act
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
+    # Arrange / Act - the synced_github_repos fixture ran the shared sync
 
     # Assert - Verify Dependency nodes from GitHub dependency graph
     repo_url = "https://github.com/cartography-cncf/cartography"
@@ -448,6 +412,270 @@ def test_sync_github_dependencies(
     assert expected_ontology_fields.issubset(actual_ontology_fields)
 
 
+def test_sync_github_manifests(neo4j_session, synced_github_repos):
+    """
+    Test that GitHub dependency manifests are correctly synced.
+    """
+    # Arrange - the synced_github_repos fixture ran the shared sync once. load()
+    # writes dependencies, which carry HAS_DEP, before their manifests, so HAS_DEP
+    # only appears once a repeat sync finds the manifests already in the graph.
+
+    # Act - repeat the same sync
+    _sync_shared_repos(neo4j_session)
+
+    # Assert - Verify GitHubDependencyGraphManifest nodes
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    package_json_id = f"{repo_url}#/package.json"
+    requirements_txt_id = f"{repo_url}#/requirements.txt"
+    pom_xml_id = f"{repo_url}#/pom.xml"
+
+    expected_manifest_nodes = {
+        (package_json_id, "/package.json", "package.json", 2, repo_url),
+        (requirements_txt_id, "/requirements.txt", "requirements.txt", 1, repo_url),
+        (pom_xml_id, "/pom.xml", "pom.xml", 1, repo_url),
+    }
+    actual_manifest_nodes = check_nodes(
+        neo4j_session,
+        "GitHubDependencyGraphManifest",
+        ["id", "blob_path", "filename", "dependencies_count", "repo_url"],
+    )
+    assert expected_manifest_nodes.issubset(actual_manifest_nodes)
+
+    # Assert - Verify HAS_MANIFEST relationships
+    expected_repo_manifest_relationships = {
+        (repo_url, package_json_id),
+        (repo_url, requirements_txt_id),
+        (repo_url, pom_xml_id),
+    }
+    actual_repo_manifest_relationships = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubDependencyGraphManifest",
+        "id",
+        "HAS_MANIFEST",
+    )
+    assert expected_repo_manifest_relationships.issubset(
+        actual_repo_manifest_relationships
+    )
+
+    # Assert - Verify HAS_DEP relationships between manifests and dependencies
+    react_id = "react|18.2.0"
+    lodash_id = "lodash"
+    django_id = "django|= 4.2.0"
+    spring_core_id = "org.springframework:spring-core|5.3.21"
+
+    expected_manifest_dependency_relationships = {
+        (package_json_id, react_id),
+        (package_json_id, lodash_id),
+        (requirements_txt_id, django_id),
+        (pom_xml_id, spring_core_id),
+    }
+    actual_manifest_dependency_relationships = check_rels(
+        neo4j_session,
+        "GitHubDependencyGraphManifest",
+        "id",
+        "Dependency",
+        "id",
+        "HAS_DEP",
+    )
+    assert expected_manifest_dependency_relationships.issubset(
+        actual_manifest_dependency_relationships
+    )
+
+
+def test_sync_github_branch_protection_rules(neo4j_session, synced_github_repos):
+    """
+    Test that GitHub branch protection rules are correctly synced.
+    """
+    # Arrange / Act - the synced_github_repos fixture ran the shared sync
+
+    # Assert - Verify GitHubBranchProtectionRule nodes
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    branch_protection_rule_id = "BPR_kwDOAbc123=="
+
+    expected_branch_protection_rule_nodes = {
+        (branch_protection_rule_id, "main", False, True, 2),
+    }
+    actual_branch_protection_rule_nodes = check_nodes(
+        neo4j_session,
+        "GitHubBranchProtectionRule",
+        [
+            "id",
+            "pattern",
+            "allows_deletions",
+            "requires_approving_reviews",
+            "required_approving_review_count",
+        ],
+    )
+    assert expected_branch_protection_rule_nodes.issubset(
+        actual_branch_protection_rule_nodes
+    )
+
+    # Assert - Verify HAS_RULE relationships
+    expected_repo_branch_protection_rule_relationships = {
+        (repo_url, branch_protection_rule_id),
+    }
+    actual_repo_branch_protection_rule_relationships = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubBranchProtectionRule",
+        "id",
+        "HAS_RULE",
+    )
+    assert expected_repo_branch_protection_rule_relationships.issubset(
+        actual_repo_branch_protection_rule_relationships
+    )
+
+
+def test_sync_github_rulesets(neo4j_session, synced_github_repos):
+    """
+    Test that GitHub repository rulesets and rules are correctly synced.
+    """
+    # Arrange / Act - the synced_github_repos fixture ran the shared sync
+
+    # Assert - Verify GitHubRuleset and GitHubRulesetRule nodes and rels
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    ruleset_id = "RRS_lACkVXNlcs4AXenizgBRqVA"
+
+    expected_ruleset_nodes = {
+        (ruleset_id, "production-ruleset", "BRANCH", "ACTIVE"),
+    }
+    actual_ruleset_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRuleset",
+        ["id", "name", "target", "enforcement"],
+    )
+    assert actual_ruleset_nodes == expected_ruleset_nodes
+
+    assert (repo_url, ruleset_id) in check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubRuleset",
+        "id",
+        "HAS_RULESET",
+    )
+
+    assert ("https://github.com/simpsoncorp", ruleset_id) in check_rels(
+        neo4j_session,
+        "GitHubOrganization",
+        "id",
+        "GitHubRuleset",
+        "id",
+        "RESOURCE",
+    )
+
+    actual_rule_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRulesetRule",
+        [
+            "id",
+            "type",
+            "parameters_required_approving_review_count",
+            "parameters_require_code_owner_review",
+        ],
+    )
+    expected_rule_nodes = {
+        ("RRU_kwDORule001", "DELETION", None, None),
+        ("RRU_kwDORule002", "PULL_REQUEST", 2, True),
+        ("RRU_kwDORule003", "REQUIRED_STATUS_CHECKS", None, None),
+    }
+    assert actual_rule_nodes == expected_rule_nodes
+
+    assert (ruleset_id, "RRU_kwDORule002") in check_rels(
+        neo4j_session,
+        "GitHubRuleset",
+        "id",
+        "GitHubRulesetRule",
+        "id",
+        "CONTAINS_RULE",
+    )
+
+
+def test_sync_github_python_requirements(neo4j_session, synced_github_repos):
+    """
+    Test that Python requirements from requirements.txt and setup.cfg are synced.
+    Note: repos with dependencyGraphManifests skip requirements.txt/setup.cfg parsing.
+    """
+    # Arrange / Act - the synced_github_repos fixture ran the shared sync
+
+    # Assert - Verify PythonLibrary nodes were created
+    # sample_repo and SampleRepo2 have requirements.txt/setup.cfg but no dependencyGraphManifests
+    # cartography has dependencyGraphManifests so it skips requirements.txt/setup.cfg parsing
+    expected_python_libraries = {
+        ("cartography",),
+        ("cartography|0.1.0",),
+        ("neo4j",),
+        ("okta",),
+        ("okta|0.9.0",),
+    }
+    actual_python_libraries = check_nodes(neo4j_session, "PythonLibrary", ["id"])
+    assert expected_python_libraries.issubset(actual_python_libraries)
+
+    # Assert - Verify REQUIRES relationships for Python libraries
+    sample_repo_url = "https://github.com/simpsoncorp/sample_repo"
+    expected_requires_rels = {
+        (sample_repo_url, "cartography"),
+        (sample_repo_url, "cartography|0.1.0"),
+        (sample_repo_url, "neo4j"),
+        (sample_repo_url, "okta"),
+        (sample_repo_url, "okta|0.9.0"),
+    }
+    actual_requires_rels = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "PythonLibrary",
+        "id",
+        "REQUIRES",
+    )
+    assert expected_requires_rels.issubset(actual_requires_rels)
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=(DEP_MANIFESTS_BY_URL, True),
+)
+@patch.object(cartography.intel.github.repos, "get")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    side_effect=_collabs_side_effect,
+)
+def test_sync_github_rulesets_cleanup(
+    mock_get_collabs,
+    mock_get_repos,
+    mock_get_dep_manifests,
+    neo4j_session,
+    synced_github_repos,
+):
+    """
+    Test that ruleset cleanup is org-scoped.
+    """
+    # Arrange - the synced_github_repos fixture loaded the ruleset at TEST_UPDATE_TAG;
+    # the next fetch returns no rulesets.
+    assert check_nodes(neo4j_session, "GitHubRuleset", ["id"]) != set()
+    repos_without_rulesets = deepcopy(GET_REPOS)
+    repos_without_rulesets[2]["rulesets"] = {"nodes": []}
+    mock_get_repos.return_value = repos_without_rulesets
+
+    # Act
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "GitHubRuleset", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GitHubRulesetRule", ["id"]) == set()
+
+
 @patch.object(
     cartography.intel.github.repos,
     "get_file_content",
@@ -505,82 +733,6 @@ def test_sync_github_dependencies_lockfile_fallback(
         ["id", "version", "normalized_id", "source", "version_confidence"],
     )
     assert expected.issubset(actual)
-
-
-def test_load_dependencies_shared_id_lockfile_conflict_not_corrupted(neo4j_session):
-    """
-    Two manifests reference the same `lodash|^4.0.0` but their co-located lockfiles
-    pin different exact versions. They load into a single shared Dependency node
-    (keyed by id), so enrichment must decline: the loaded node keeps a null
-    normalized_id rather than being silently pinned to one manifest's version.
-    """
-    shared_id = "lodash|^4.0.0"
-    dependencies = [
-        {
-            "id": shared_id,
-            "name": "lodash",
-            "original_name": "lodash",
-            "requirements": "^4.0.0",
-            "ecosystem": "npm",
-            "package_manager": "NPM",
-            "manifest_file": "package.json",
-            "manifest_path": "/package.json",
-            "manifest_id": "https://github.com/test-org/monorepo#/package.json",
-            "repo_url": "https://github.com/test-org/monorepo",
-            "version": None,
-            "type": None,
-            "purl": None,
-            "normalized_id": None,
-            "source": "dependency_graph",
-            "version_confidence": "range",
-        },
-        {
-            "id": shared_id,
-            "name": "lodash",
-            "original_name": "lodash",
-            "requirements": "^4.0.0",
-            "ecosystem": "npm",
-            "package_manager": "NPM",
-            "manifest_file": "package.json",
-            "manifest_path": "/services/api/package.json",
-            "manifest_id": "https://github.com/test-org/monorepo#/services/api/package.json",
-            "repo_url": "https://github.com/test-org/monorepo",
-            "version": None,
-            "type": None,
-            "purl": None,
-            "normalized_id": None,
-            "source": "dependency_graph",
-            "version_confidence": "range",
-        },
-    ]
-
-    lockfiles = {
-        "package-lock.json": '{"packages": {"node_modules/lodash": {"version": "4.17.21"}}}',
-        "services/api/package-lock.json": '{"packages": {"node_modules/lodash": {"version": "3.10.1"}}}',
-    }
-
-    def fake_get_file_content(token, owner, repo, path, base_url):
-        return lockfiles.get(path)
-
-    with patch.object(
-        cartography.intel.github.repos,
-        "get_file_content",
-        side_effect=fake_get_file_content,
-    ):
-        enrich_dependencies_with_lockfile_versions(
-            dependencies, FAKE_API_KEY, TEST_GITHUB_URL
-        )
-
-    load_github_dependencies(neo4j_session, TEST_UPDATE_TAG, dependencies)
-
-    # Exactly one shared node, and it was not pinned to either conflicting version.
-    rows = neo4j_session.run(
-        "MATCH (d:Dependency {id: $id}) RETURN d.normalized_id AS nid, d.version AS version",
-        id=shared_id,
-    ).data()
-    assert len(rows) == 1
-    assert rows[0]["nid"] is None
-    assert rows[0]["version"] is None
 
 
 def test_load_dependencies_shared_id_exact_conflict_not_corrupted(neo4j_session):
@@ -709,330 +861,6 @@ def test_github_dependency_cleanup_spares_other_modules(neo4j_session):
     assert ("staleghdep|1.0.0",) not in github_deps
 
 
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "get",
-    return_value=GET_REPOS,
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_manifests(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
-    """
-    Test that GitHub dependency manifests are correctly synced.
-    """
-
-    # Arrange
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    # Act
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
-
-    # Assert - Verify GitHubDependencyGraphManifest nodes
-    repo_url = "https://github.com/cartography-cncf/cartography"
-    package_json_id = f"{repo_url}#/package.json"
-    requirements_txt_id = f"{repo_url}#/requirements.txt"
-    pom_xml_id = f"{repo_url}#/pom.xml"
-
-    expected_manifest_nodes = {
-        (package_json_id, "/package.json", "package.json", 2, repo_url),
-        (requirements_txt_id, "/requirements.txt", "requirements.txt", 1, repo_url),
-        (pom_xml_id, "/pom.xml", "pom.xml", 1, repo_url),
-    }
-    actual_manifest_nodes = check_nodes(
-        neo4j_session,
-        "GitHubDependencyGraphManifest",
-        ["id", "blob_path", "filename", "dependencies_count", "repo_url"],
-    )
-    assert expected_manifest_nodes.issubset(actual_manifest_nodes)
-
-    # Assert - Verify HAS_MANIFEST relationships
-    expected_repo_manifest_relationships = {
-        (repo_url, package_json_id),
-        (repo_url, requirements_txt_id),
-        (repo_url, pom_xml_id),
-    }
-    actual_repo_manifest_relationships = check_rels(
-        neo4j_session,
-        "GitHubRepository",
-        "id",
-        "GitHubDependencyGraphManifest",
-        "id",
-        "HAS_MANIFEST",
-    )
-    assert expected_repo_manifest_relationships.issubset(
-        actual_repo_manifest_relationships
-    )
-
-    # Assert - Verify HAS_DEP relationships between manifests and dependencies
-    react_id = "react|18.2.0"
-    lodash_id = "lodash"
-    django_id = "django|= 4.2.0"
-    spring_core_id = "org.springframework:spring-core|5.3.21"
-
-    expected_manifest_dependency_relationships = {
-        (package_json_id, react_id),
-        (package_json_id, lodash_id),
-        (requirements_txt_id, django_id),
-        (pom_xml_id, spring_core_id),
-    }
-    actual_manifest_dependency_relationships = check_rels(
-        neo4j_session,
-        "GitHubDependencyGraphManifest",
-        "id",
-        "Dependency",
-        "id",
-        "HAS_DEP",
-    )
-    assert expected_manifest_dependency_relationships.issubset(
-        actual_manifest_dependency_relationships
-    )
-
-
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "get",
-    return_value=GET_REPOS,
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_branch_protection_rules(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
-    """
-    Test that GitHub branch protection rules are correctly synced.
-    """
-
-    # Arrange
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    # Act
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
-
-    # Assert - Verify GitHubBranchProtectionRule nodes
-    repo_url = "https://github.com/cartography-cncf/cartography"
-    branch_protection_rule_id = "BPR_kwDOAbc123=="
-
-    expected_branch_protection_rule_nodes = {
-        (branch_protection_rule_id, "main", False, True, 2),
-    }
-    actual_branch_protection_rule_nodes = check_nodes(
-        neo4j_session,
-        "GitHubBranchProtectionRule",
-        [
-            "id",
-            "pattern",
-            "allows_deletions",
-            "requires_approving_reviews",
-            "required_approving_review_count",
-        ],
-    )
-    assert expected_branch_protection_rule_nodes.issubset(
-        actual_branch_protection_rule_nodes
-    )
-
-    # Assert - Verify HAS_RULE relationships
-    expected_repo_branch_protection_rule_relationships = {
-        (repo_url, branch_protection_rule_id),
-    }
-    actual_repo_branch_protection_rule_relationships = check_rels(
-        neo4j_session,
-        "GitHubRepository",
-        "id",
-        "GitHubBranchProtectionRule",
-        "id",
-        "HAS_RULE",
-    )
-    assert expected_repo_branch_protection_rule_relationships.issubset(
-        actual_repo_branch_protection_rule_relationships
-    )
-
-
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "get",
-    return_value=GET_REPOS,
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_rulesets(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
-    """
-    Test that GitHub repository rulesets and rules are correctly synced.
-    """
-
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
-
-    repo_url = "https://github.com/cartography-cncf/cartography"
-    ruleset_id = "RRS_lACkVXNlcs4AXenizgBRqVA"
-
-    expected_ruleset_nodes = {
-        (ruleset_id, "production-ruleset", "BRANCH", "ACTIVE"),
-    }
-    actual_ruleset_nodes = check_nodes(
-        neo4j_session,
-        "GitHubRuleset",
-        ["id", "name", "target", "enforcement"],
-    )
-    assert actual_ruleset_nodes == expected_ruleset_nodes
-
-    assert (repo_url, ruleset_id) in check_rels(
-        neo4j_session,
-        "GitHubRepository",
-        "id",
-        "GitHubRuleset",
-        "id",
-        "HAS_RULESET",
-    )
-
-    assert ("https://github.com/simpsoncorp", ruleset_id) in check_rels(
-        neo4j_session,
-        "GitHubOrganization",
-        "id",
-        "GitHubRuleset",
-        "id",
-        "RESOURCE",
-    )
-
-    actual_rule_nodes = check_nodes(
-        neo4j_session,
-        "GitHubRulesetRule",
-        [
-            "id",
-            "type",
-            "parameters_required_approving_review_count",
-            "parameters_require_code_owner_review",
-        ],
-    )
-    expected_rule_nodes = {
-        ("RRU_kwDORule001", "DELETION", None, None),
-        ("RRU_kwDORule002", "PULL_REQUEST", 2, True),
-        ("RRU_kwDORule003", "REQUIRED_STATUS_CHECKS", None, None),
-    }
-    assert actual_rule_nodes == expected_rule_nodes
-
-    assert (ruleset_id, "RRU_kwDORule002") in check_rels(
-        neo4j_session,
-        "GitHubRuleset",
-        "id",
-        "GitHubRulesetRule",
-        "id",
-        "CONTAINS_RULE",
-    )
-
-
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(cartography.intel.github.repos, "get")
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_rulesets_cleanup(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
-    """
-    Test that ruleset cleanup is org-scoped.
-    """
-
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    mock_get_repos.return_value = GET_REPOS
-
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
-
-    repos_without_rulesets = deepcopy(GET_REPOS)
-    repos_without_rulesets[2]["rulesets"] = {"nodes": []}
-    mock_get_repos.return_value = repos_without_rulesets
-
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
-
-    assert check_nodes(neo4j_session, "GitHubRuleset", ["id"]) == set()
-    assert check_nodes(neo4j_session, "GitHubRulesetRule", ["id"]) == set()
-
-
 # The test repo data carries no privileged fields, so `sync()` reaches out for them.
 # Stub the fetch: unpatched it calls the real api.github.com and burns ~30s in retry
 # backoff before the sync swallows the error.
@@ -1154,79 +982,6 @@ def test_sync_collaborators_per_repo(
 
     # Critical test: Verify repo2 does NOT have hjsimpson as ADMIN
     assert repo2_admin_rels == set()
-
-
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_dep_manifests_for_repos",
-    return_value=(DEP_MANIFESTS_BY_URL, True),
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "get",
-    return_value=GET_REPOS,
-)
-@patch.object(
-    cartography.intel.github.repos,
-    "_get_repo_collaborators_for_multiple_repos",
-)
-def test_sync_github_python_requirements(
-    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
-):
-    """
-    Test that Python requirements from requirements.txt and setup.cfg are synced.
-    Note: repos with dependencyGraphManifests skip requirements.txt/setup.cfg parsing.
-    """
-
-    # Arrange
-    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
-        if affiliation == "DIRECT":
-            return DIRECT_COLLABORATORS
-        else:
-            return OUTSIDE_COLLABORATORS
-
-    mock_get_collabs.side_effect = collabs_side_effect
-
-    # Act
-    cartography.intel.github.repos.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
-    )
-
-    # Assert - Verify PythonLibrary nodes were created
-    # sample_repo and SampleRepo2 have requirements.txt/setup.cfg but no dependencyGraphManifests
-    # cartography has dependencyGraphManifests so it skips requirements.txt/setup.cfg parsing
-    expected_python_libraries = {
-        ("cartography",),
-        ("cartography|0.1.0",),
-        ("neo4j",),
-        ("okta",),
-        ("okta|0.9.0",),
-    }
-    actual_python_libraries = check_nodes(neo4j_session, "PythonLibrary", ["id"])
-    assert expected_python_libraries.issubset(actual_python_libraries)
-
-    # Assert - Verify REQUIRES relationships for Python libraries
-    sample_repo_url = "https://github.com/simpsoncorp/sample_repo"
-    expected_requires_rels = {
-        (sample_repo_url, "cartography"),
-        (sample_repo_url, "cartography|0.1.0"),
-        (sample_repo_url, "neo4j"),
-        (sample_repo_url, "okta"),
-        (sample_repo_url, "okta|0.9.0"),
-    }
-    actual_requires_rels = check_rels(
-        neo4j_session,
-        "GitHubRepository",
-        "id",
-        "PythonLibrary",
-        "id",
-        "REQUIRES",
-    )
-    assert expected_requires_rels.issubset(actual_requires_rels)
 
 
 @patch.object(

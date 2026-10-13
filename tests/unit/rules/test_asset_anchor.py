@@ -4,18 +4,17 @@ Validation for the affected-node anchor contract.
 Every ``Fact`` must expose an indexable ``(asset_label, id)`` anchor on the node
 it is about. ``Fact.__post_init__`` already fails construction (so the registry
 will not import) when ``asset_label`` is empty, ``asset_id_field`` is unset, or
-``asset_id_field`` is not returned by ``cypher_query``. On top of that hard
-failure, every fact's ``asset_id_field`` must:
-  * be a real field on the owning Rule's output model (the runner reads it via
-    ``getattr(finding, asset_id_field)``), and
-  * be returned by the fact's ``cypher_query`` (via a ``... AS <name>`` alias).
+``asset_id_field`` is not returned by ``cypher_query``; the negative tests in
+``test_model.py`` cover that construction-time validation. What it cannot check
+is the owning Rule's output model, so this module adds that every fact's
+``asset_id_field`` is a real field on it (the runner reads it via
+``getattr(finding, asset_id_field)``).
 """
 
 import pytest
 
 from cartography.rules.data.rules import RULES
 from cartography.rules.formatters import to_serializable
-from cartography.rules.spec.model import returned_aliases
 from cartography.rules.spec.result import FactResult
 
 # (rule_id, fact_id, rule, fact) for every fact in the registry.
@@ -24,24 +23,6 @@ _ALL_FACTS = [
     for rule in RULES.values()
     for fact in rule.facts
 ]
-
-
-@pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
-def test_asset_label_non_empty(rule_id, fact_id, rule, fact):
-    """Every fact must declare the Neo4j label of the node it is about."""
-    assert fact.asset_label, (
-        f"Rule '{rule_id}' fact '{fact_id}' has empty asset_label; declare the "
-        f"Neo4j node label the finding is about."
-    )
-
-
-@pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
-def test_asset_id_field_set(rule_id, fact_id, rule, fact):
-    """asset_label needs the id half of the anchor to be resolvable."""
-    assert fact.asset_id_field, (
-        f"Rule '{rule_id}' fact '{fact_id}' declares asset_label "
-        f"'{fact.asset_label}' but no asset_id_field."
-    )
 
 
 @pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
@@ -56,16 +37,6 @@ def test_asset_id_field_exists_on_output_model(rule_id, fact_id, rule, fact):
         f"Rule '{rule_id}' fact '{fact_id}' asset_id_field "
         f"'{fact.asset_id_field}' is not on output model "
         f"'{rule.output_model.__name__}'."
-    )
-
-
-@pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
-def test_asset_id_field_returned_by_query(rule_id, fact_id, rule, fact):
-    """asset_id_field must be returned (AS <name>) by the fact's cypher_query."""
-    aliases = returned_aliases(fact.cypher_query)
-    assert fact.asset_id_field in aliases, (
-        f"Rule '{rule_id}' fact '{fact_id}' asset_id_field "
-        f"'{fact.asset_id_field}' is not returned by its cypher_query."
     )
 
 

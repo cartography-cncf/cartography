@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 import requests
 
 import cartography.intel.tailscale.acls
@@ -66,28 +67,37 @@ def _setup_grants_test(neo4j_session):
     return grants, groups, devices
 
 
-@patch.object(
-    cartography.intel.tailscale.acls,
-    "get",
-    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get_device_posture_attributes",
-    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
-)
-def test_load_tailscale_grants(mock_attrs, mock_devices, mock_acls, neo4j_session):
+@pytest.fixture(scope="module")
+def synced_grants(neo4j_session):
+    """
+    Run the full tailnets/users/devices/ACLs/grants sync once for the module.
+    The tests below only read the resulting graph and do not mutate it.
+    """
+    with (
+        patch.object(
+            cartography.intel.tailscale.acls,
+            "get",
+            return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
+        ),
+        patch.object(
+            cartography.intel.tailscale.devices,
+            "get",
+            return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
+        ),
+        patch.object(
+            cartography.intel.tailscale.devices,
+            "get_device_posture_attributes",
+            return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
+        ),
+    ):
+        return _setup_grants_test(neo4j_session)
+
+
+def test_load_tailscale_grants(neo4j_session, synced_grants):
     """
     Ensure that grants get loaded with stable hash-based IDs and
     structural relationships are created.
     """
-    _setup_grants_test(neo4j_session)
-
     # Assert: 5 Grant nodes exist with stable hash IDs
     result = neo4j_session.run(
         "MATCH (g:TailscaleGrant) RETURN g.id AS id",
@@ -132,33 +142,11 @@ def test_load_tailscale_grants(mock_attrs, mock_devices, mock_acls, neo4j_sessio
     assert ("tag:byod", 2) in tag_rels
 
 
-@patch.object(
-    cartography.intel.tailscale.acls,
-    "get",
-    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get_device_posture_attributes",
-    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
-)
-def test_tailscale_grants_inherited_member_of(
-    mock_attrs,
-    mock_devices,
-    mock_acls,
-    neo4j_session,
-):
+def test_tailscale_grants_inherited_member_of(neo4j_session, synced_grants):
     """
     Ensure that INHERITED_MEMBER_OF relationships are created in the graph
     for transitive sub-group membership (P1.2).
     """
-    _setup_grants_test(neo4j_session)
-
     # group:employees has sub_groups: ["group:corp"]
     # group:corp members: mbsimpson@simpson.corp, hjsimpson@simpson.corp
     # So both users should have INHERITED_MEMBER_OF -> group:employees
@@ -180,32 +168,10 @@ def test_tailscale_grants_inherited_member_of(
     )
 
 
-@patch.object(
-    cartography.intel.tailscale.acls,
-    "get",
-    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get_device_posture_attributes",
-    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
-)
-def test_tailscale_grants_effective_user_access(
-    mock_attrs,
-    mock_devices,
-    mock_acls,
-    neo4j_session,
-):
+def test_tailscale_grants_effective_user_access(neo4j_session, synced_grants):
     """
     Ensure that effective user CAN_ACCESS relationships are resolved correctly.
     """
-    _setup_grants_test(neo4j_session)
-
     expected_user_access = {
         # hjsimpson via group:example -> tag:byod
         ("654321", "p892kg92CNTRL"),
@@ -232,33 +198,11 @@ def test_tailscale_grants_effective_user_access(
     )
 
 
-@patch.object(
-    cartography.intel.tailscale.acls,
-    "get",
-    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get_device_posture_attributes",
-    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
-)
-def test_tailscale_grants_device_to_device_access(
-    mock_attrs,
-    mock_devices,
-    mock_acls,
-    neo4j_session,
-):
+def test_tailscale_grants_device_to_device_access(neo4j_session, synced_grants):
     """
     Ensure that device-to-device CAN_ACCESS relationships are resolved
     when a tag is used as a grant source (P1.1).
     """
-    _setup_grants_test(neo4j_session)
-
     # Device-to-device CAN_ACCESS includes:
     # - Direct tag source: tag:byod -> * (p892kg92CNTRL -> all others)
     # - Propagated from user access: mbsimpson's devices (p892kg92CNTRL,
@@ -285,33 +229,11 @@ def test_tailscale_grants_device_to_device_access(
         assert src != dst
 
 
-@patch.object(
-    cartography.intel.tailscale.acls,
-    "get",
-    return_value=tests.data.tailscale.grants.TAILSCALE_ACL_FILE_WITH_GRANTS,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
-)
-@patch.object(
-    cartography.intel.tailscale.devices,
-    "get_device_posture_attributes",
-    return_value=tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES,
-)
-def test_tailscale_grants_granted_by_aggregation(
-    mock_attrs,
-    mock_devices,
-    mock_acls,
-    neo4j_session,
-):
+def test_tailscale_grants_granted_by_aggregation(neo4j_session, synced_grants):
     """
     Ensure that granted_by on CAN_ACCESS relationships aggregates
     multiple grant IDs when several grants give access to the same pair.
     """
-    _setup_grants_test(neo4j_session)
-
     # mbsimpson -> p892kg92CNTRL is granted by:
     # - the wildcard grant (src: mbsimpson, dst: *)
     # Note: the autogroup:member -> tag:byod grant has srcPosture so

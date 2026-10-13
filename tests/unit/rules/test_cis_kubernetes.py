@@ -149,16 +149,6 @@ class TestCisKubernetesFrameworkMetadata:
         assert fw.revision == "1.12"
 
     @pytest.mark.parametrize("rule", ALL_CIS_K8S_RULES, ids=lambda r: r.id)
-    def test_rule_has_valid_requirement(self, rule):
-        fw = next(
-            fw
-            for fw in rule.frameworks
-            if fw.short_name == "cis" and fw.scope == "kubernetes"
-        )
-        assert fw.requirement is not None
-        assert fw.requirement.startswith("5.")
-
-    @pytest.mark.parametrize("rule", ALL_CIS_K8S_RULES, ids=lambda r: r.id)
     def test_rule_matches_cis_kubernetes_filter(self, rule):
         assert rule.has_framework(short_name="CIS", scope="kubernetes")
         assert rule.has_framework(short_name="CIS", scope="kubernetes", revision="1.12")

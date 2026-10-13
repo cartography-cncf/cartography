@@ -3,6 +3,7 @@ from datetime import timezone
 from unittest import mock
 
 import botocore.exceptions
+import pytest
 
 import cartography.intel.aws.organizations
 from cartography.intel.aws.organizations import AWSOrganizationSyncStatus
@@ -381,11 +382,21 @@ def test_sync_aws_organization_second_call_returns_already_synced_result():
     assert mock_get_hierarchy.call_count == 1
 
 
-def test_sync_aws_organization_returns_not_in_org_result():
+@pytest.mark.parametrize(
+    ("error_code", "expected_status"),
+    [
+        ("AWSOrganizationsNotInUseException", AWSOrganizationSyncStatus.NOT_IN_ORG),
+        ("AccessDeniedException", AWSOrganizationSyncStatus.ACCESS_DENIED),
+    ],
+    ids=["not_in_org", "access_denied"],
+)
+def test_sync_aws_organization_returns_describe_error_result(
+    error_code, expected_status
+):
     # Arrange
     class FakeClient:
         def describe_organization(self):
-            raise _make_client_error("AWSOrganizationsNotInUseException")
+            raise _make_client_error(error_code)
 
     # Act
     result = cartography.intel.aws.organizations.sync_aws_organization(
@@ -397,28 +408,8 @@ def test_sync_aws_organization_returns_not_in_org_result():
     )
 
     # Assert
-    assert result.status == AWSOrganizationSyncStatus.NOT_IN_ORG
-    assert result.error_code == "AWSOrganizationsNotInUseException"
-
-
-def test_sync_aws_organization_returns_access_denied_result():
-    # Arrange
-    class FakeClient:
-        def describe_organization(self):
-            raise _make_client_error("AccessDeniedException")
-
-    # Act
-    result = cartography.intel.aws.organizations.sync_aws_organization(
-        mock.Mock(),
-        FakeClient(),
-        "111111111111",
-        1,
-        {"UPDATE_TAG": 1},
-    )
-
-    # Assert
-    assert result.status == AWSOrganizationSyncStatus.ACCESS_DENIED
-    assert result.error_code == "AccessDeniedException"
+    assert result.status == expected_status
+    assert result.error_code == error_code
 
 
 def test_sync_aws_organization_returns_incomplete_result_for_hierarchy_error():

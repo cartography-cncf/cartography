@@ -179,25 +179,6 @@ def test_plan_gated_team_wide_env_vars_skip_cleanup(
     assert (f"{TEST_ACCOUNT_ID}|{TEST_SITE_ID}|CARTO_SECRET",) in ids
 
 
-def test_env_var_transform_separates_the_two_scopes() -> None:
-    """
-    A team-wide FOO and a site-scoped FOO are different variables with different values, so they
-    must not collapse onto one node.
-    """
-    transformed = cartography.intel.netlify.envvars.transform_netlify_env_vars(
-        [
-            (None, {"key": "FOO", "is_secret": False, "values": []}),
-            (TEST_SITE_ID, {"key": "FOO", "is_secret": False, "values": []}),
-        ],
-        TEST_ACCOUNT_ID,
-    )
-    assert [v["id"] for v in transformed] == [
-        f"{TEST_ACCOUNT_ID}|_account|FOO",
-        f"{TEST_ACCOUNT_ID}|{TEST_SITE_ID}|FOO",
-    ]
-    assert [v["scope"] for v in transformed] == ["account", "site"]
-
-
 @patch.object(
     cartography.intel.netlify.buildhooks,
     "get_netlify_build_hooks",

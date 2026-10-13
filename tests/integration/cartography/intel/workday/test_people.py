@@ -25,27 +25,6 @@ def _ensure_local_neo4j_has_test_data(neo4j_session):
     _load_manager_relationships(neo4j_session, manager_relationships, TEST_UPDATE_TAG)
 
 
-def test_transform_people_data():
-    """Test that people data is transformed correctly"""
-    people_data, manager_relationships = _transform_people_data(
-        GET_WORKDAY_DIRECTORY_RESPONSE
-    )
-
-    # Check that we have 4 people
-    assert len(people_data) == 4
-
-    # Check that all people have source field
-    for person in people_data:
-        assert person["source"] == "WORKDAY"
-
-    # Check manager relationships
-    # emp001 -> emp003, emp002 -> emp003, emp003 -> emp004
-    assert len(manager_relationships) == 3
-    assert {"Employee_ID": "emp001", "Manager_ID": "emp003"} in manager_relationships
-    assert {"Employee_ID": "emp002", "Manager_ID": "emp003"} in manager_relationships
-    assert {"Employee_ID": "emp003", "Manager_ID": "emp004"} in manager_relationships
-
-
 def test_load_workday_people(neo4j_session):
     """Test that Workday people are loaded correctly into Neo4j"""
     # Arrange & Act

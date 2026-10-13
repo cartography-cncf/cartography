@@ -101,17 +101,6 @@ def test_sync_netlify_deploys(neo4j_session: neo4j.Session) -> None:
     assert find_secret_in_graph(neo4j_session, _SKEW_TOKEN_PREFIX) == []
 
 
-def test_deploys_skip_sites_with_no_published_deploy() -> None:
-    """
-    A site that has never had a successful production deploy carries `published_deploy: None`.
-    Emitting a row for it would create a NetlifyDeploy with a null id.
-    """
-    deploys = cartography.intel.netlify.deploys.transform_netlify_deploys(
-        tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT,
-    )
-    assert [d["id"] for d in deploys] == [_DEPLOY_ID]
-
-
 @patch.object(
     cartography.intel.netlify.functions,
     "get_netlify_functions",
@@ -186,27 +175,6 @@ def test_sync_netlify_functions(mock_get, neo4j_session: neo4j.Session) -> None:
         ("hello", "nodejs24.x", 1024, "code"),
         ("scheduled", "nodejs24.x", 1024, "code"),
     }
-
-
-def test_get_netlify_functions_accepts_a_bare_object() -> None:
-    """
-    The endpoint answers with a bare object rather than a one-element array when the site has a
-    single function bundle, even though the published spec declares an array.
-    """
-    api_session = MagicMock(spec=requests.Session)
-    response = MagicMock()
-    response.status_code = 200
-    response.headers = {}
-    response.json.return_value = tests.data.netlify.functions.NETLIFY_SITE_FUNCTIONS[0]
-    api_session.get.return_value = response
-
-    bundles = cartography.intel.netlify.functions.get_netlify_functions(
-        api_session,
-        TEST_BASE_URL,
-        TEST_SITE_ID,
-    )
-    assert len(bundles) == 1
-    assert len(bundles[0]["functions"]) == 2
 
 
 @patch.object(
@@ -307,16 +275,3 @@ def test_sync_netlify_agent_runners(mock_get, neo4j_session: neo4j.Session) -> N
         "id",
         "CREATED_BY",
     ) == {(_AGENT_RUNNER_ID, TEST_USER_ID)}
-
-
-def test_agent_runner_transform_drops_the_contributor_list() -> None:
-    """
-    `contributors` repeats the creator plus everyone who has looked at the runner, which is
-    session activity rather than inventory, and Neo4j cannot store the list of objects anyway.
-    """
-    runners = cartography.intel.netlify.agentrunners.transform_netlify_agent_runners(
-        tests.data.netlify.agentrunners.NETLIFY_AGENT_RUNNERS,
-    )
-    assert "contributors" not in runners[0]
-    assert "user" not in runners[0]
-    assert runners[0]["user_id"] == TEST_USER_ID

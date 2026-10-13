@@ -8,16 +8,6 @@ from cartography.intel.github.app_auth import make_credential
 from cartography.intel.github.app_auth import PatCredential
 
 
-def test_pat_get_token_returns_static_token() -> None:
-    cred = PatCredential("ghp_abc123")
-    assert cred.get_token() == "ghp_abc123"
-
-
-def test_pat_get_token_is_stable() -> None:
-    cred = PatCredential("ghp_abc123")
-    assert cred.get_token() == cred.get_token()
-
-
 @patch("cartography.intel.github.app_auth.requests.post")
 @patch("cartography.intel.github.app_auth.jwt.encode")
 def test_app_get_token_fetches_installation_token(
@@ -162,6 +152,8 @@ def test_make_credential_pat_config() -> None:
     cred = make_credential(auth_data)
     assert isinstance(cred, PatCredential)
     assert cred.get_token() == "ghp_abc123"
+    # The static PAT is returned unchanged on every call
+    assert cred.get_token() == cred.get_token()
 
 
 def test_make_credential_app_config() -> None:

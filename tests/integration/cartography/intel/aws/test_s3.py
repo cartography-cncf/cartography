@@ -62,6 +62,13 @@ def test_sync_s3(
         ("bucket-3", "bucket-3", None),
     }
 
+    # Assert - bucket ARNs use the commercial "aws" partition for us-east-1
+    assert check_nodes(neo4j_session, "AWSS3Bucket", ["id", "arn"]) == {
+        ("bucket-1", "arn:aws:s3:::bucket-1"),
+        ("bucket-2", "arn:aws:s3:::bucket-2"),
+        ("bucket-3", "arn:aws:s3:::bucket-3"),
+    }
+
     # Assert - Relationships (AWSAccount)-[RESOURCE]->(AWSS3Bucket)
     assert check_rels(
         neo4j_session,
@@ -555,7 +562,8 @@ def test_load_s3_bucket_logging(neo4j_session):
 
 @pytest.mark.parametrize(
     "region, partition",
-    [("us-east-1", "aws"), ("us-gov-west-1", "aws-us-gov")],
+    # The commercial ("us-east-1", "aws") case is covered by test_sync_s3.
+    [pytest.param("us-gov-west-1", "aws-us-gov", id="govcloud")],
 )
 @patch.object(cartography.intel.aws.s3, "_sync_s3_notifications")
 @patch.object(cartography.intel.aws.s3, "get_s3_bucket_details")

@@ -64,11 +64,19 @@ def test_sync_miradore(
     mock_organizations_get,
     neo4j_session,
 ):
+    """Sync one tenant and check the graph, then sync a second tenant with the very
+    same fixtures and check that the two stay isolated.
+
+    Miradore numbers items per tenant, so two sites share raw IDs like Device 1001.
+    The graph merges nodes on `id` alone, so an unscoped identity would make the second
+    sync overwrite the first tenant's properties and cross-wire its relationships, and
+    an unscoped cleanup would delete the first tenant's nodes.
+    """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
-    # Act
-    _sync_everything(neo4j_session)
+    # Act: sync the first tenant
+    _sync_everything(neo4j_session, TEST_SITE_NAME)
 
     # Assert: the tenant is created from the site name
     assert check_nodes(neo4j_session, "MiradoreTenant", ["id"]) == {(TEST_SITE_NAME,)}
@@ -243,39 +251,7 @@ def test_sync_miradore(
         (7003, 8002),
     }
 
-    # Cleanup
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-
-@patch.object(
-    cartography.intel.miradore.organizations, "get", return_value=ORGANIZATIONS
-)
-@patch.object(cartography.intel.miradore.locations, "get", return_value=LOCATIONS)
-@patch.object(cartography.intel.miradore.tags, "get", return_value=TAGS)
-@patch.object(
-    cartography.intel.miradore.config_profiles, "get", return_value=CONFIG_PROFILES
-)
-@patch.object(cartography.intel.miradore.users, "get", return_value=USERS)
-@patch.object(cartography.intel.miradore.devices, "get", return_value=DEVICES)
-def test_two_tenants_with_the_same_miradore_ids_stay_isolated(
-    mock_devices_get,
-    mock_users_get,
-    mock_config_profiles_get,
-    mock_tags_get,
-    mock_locations_get,
-    mock_organizations_get,
-    neo4j_session,
-):
-    """Miradore numbers items per tenant, so two sites share raw IDs like Device 1001.
-
-    The graph merges nodes on `id` alone, so an unscoped identity would make the second
-    sync overwrite the first tenant's properties and cross-wire its relationships.
-    """
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-    # Act: sync the very same fixtures under two different site names
-    _sync_everything(neo4j_session, TEST_SITE_NAME)
+    # Act: sync the very same fixtures under a second site name and a newer update tag
     _sync_everything(neo4j_session, OTHER_SITE_NAME, TEST_UPDATE_TAG + 1)
 
     # Assert: both tenants keep their own device nodes rather than merging into one
@@ -336,37 +312,8 @@ def test_two_tenants_with_the_same_miradore_ids_stay_isolated(
         ("southpark/2002", "southpark/1004"),
     }
 
-    # Cleanup
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-
-@patch.object(
-    cartography.intel.miradore.organizations, "get", return_value=ORGANIZATIONS
-)
-@patch.object(cartography.intel.miradore.locations, "get", return_value=LOCATIONS)
-@patch.object(cartography.intel.miradore.tags, "get", return_value=TAGS)
-@patch.object(
-    cartography.intel.miradore.config_profiles, "get", return_value=CONFIG_PROFILES
-)
-@patch.object(cartography.intel.miradore.users, "get", return_value=USERS)
-@patch.object(cartography.intel.miradore.devices, "get", return_value=DEVICES)
-def test_cleanup_is_scoped_to_the_tenant(
-    mock_devices_get,
-    mock_users_get,
-    mock_config_profiles_get,
-    mock_tags_get,
-    mock_locations_get,
-    mock_organizations_get,
-    neo4j_session,
-):
-    # Arrange: an unrelated tenant synced under a different update tag must survive
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    _sync_everything(neo4j_session, OTHER_SITE_NAME, TEST_UPDATE_TAG + 1)
-
-    # Act
-    _sync_everything(neo4j_session, TEST_SITE_NAME)
-
-    # Assert: this tenant's cleanup left the other tenant's devices in place
+    # Assert: the second tenant's cleanup is scoped to that tenant, so the first
+    # tenant's devices synced under a different update tag stay in place
     assert check_rels(
         neo4j_session,
         "MiradoreTenant",

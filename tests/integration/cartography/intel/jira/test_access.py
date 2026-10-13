@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from copy import deepcopy
-from unittest.mock import Mock
 
 import neo4j
 import pytest
@@ -8,14 +7,12 @@ import requests
 
 from cartography.intel.jira.access import resource_id
 from cartography.intel.jira.access import sync
-from cartography.intel.jira.util import JiraClient
 from cartography.intel.ontology.users import sync as sync_ontology_users
-from tests.data.jira.access import API_RESPONSES
 from tests.data.jira.access import CLOUD_ID
-from tests.data.jira.access import GROUPS
 from tests.data.jira.access import OTHER_CLOUD_ID
 from tests.data.jira.access import PROJECTS
 from tests.data.jira.access import USERS
+from tests.data.jira.client import api_client
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -27,37 +24,6 @@ def clean_graph(neo4j_session: neo4j.Session) -> Iterator[None]:
         yield
     finally:
         neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-
-def api_client(cloud_id=CLOUD_ID):
-    """Mock only the provider client boundary; exercise real orchestration and graph writes."""
-    client = Mock(spec=JiraClient)
-    client.cloud_id = cloud_id
-    state = {
-        "responses": deepcopy(API_RESPONSES),
-        "users": deepcopy(USERS),
-        "groups": deepcopy(GROUPS),
-        "projects": deepcopy(PROJECTS),
-        "memberships": {"group-1": deepcopy(USERS), "group-2": [deepcopy(USERS[0])]},
-        "admin": [deepcopy(GROUPS[1])],
-        "site-admin": [deepcopy(GROUPS[1])],
-    }
-
-    def pages(path, **params):
-        if path == "users/search":
-            return deepcopy(state["users"])
-        if path == "group/bulk":
-            return deepcopy(state[params.get("accessType", "groups")])
-        if path == "group/member":
-            assert params["includeInactiveUsers"] == "true"
-            return deepcopy(state["memberships"][params["groupId"]])
-        if path == "project/search":
-            return deepcopy(state["projects"])
-        raise AssertionError(path)
-
-    client.pages.side_effect = pages
-    client.get.side_effect = lambda path, **params: deepcopy(state["responses"][path])
-    return client, state
 
 
 def test_sync_access_graph_and_ontology(neo4j_session: neo4j.Session) -> None:
@@ -428,28 +394,29 @@ def test_nested_profiles_preserve_listed_user_fields(
     ) == {("user@example.com", "user-1")}
 
 
-@pytest.mark.parametrize("value", [{}, ""])  # type: ignore[misc]
 @pytest.mark.parametrize(  # type: ignore[misc]
     "path, field",
     [
-        ("project/100/roledetails", None),
-        ("project/100/role/10", "actors"),
-        ("permissionscheme/500", "permissions"),
+        pytest.param("project/100/roledetails", None, id="roledetails"),
+        pytest.param("project/100/role/10", "actors", id="actors"),
+        pytest.param("permissionscheme/500", "permissions", id="permissions"),
     ],
 )
 def test_malformed_arrays_preserve_previous_snapshot(
-    neo4j_session: neo4j.Session, path: str, field: str | None, value: object
+    neo4j_session: neo4j.Session, path: str, field: str | None
 ) -> None:
     # Arrange
+    # Other non-list payload shapes are covered per path by the unit test
+    # test_malformed_arrays_raise; here we prove the graph snapshot survives.
     client, state = api_client()
     sync(neo4j_session, client, 1)
     nodes = "MATCH (n) RETURN properties(n) AS props ORDER BY n.id"
     rels = "MATCH (a)-[r]->(b) RETURN a.id, type(r), b.id, properties(r) ORDER BY a.id, type(r), b.id"
     before = (neo4j_session.run(nodes).data(), neo4j_session.run(rels).data())
     if field is None:
-        state["responses"][path] = value
+        state["responses"][path] = {}
     else:
-        state["responses"][path][field] = value
+        state["responses"][path][field] = {}
     # Act and assert
     with pytest.raises(ValueError, match="must be an array"):
         sync(neo4j_session, client, 2)

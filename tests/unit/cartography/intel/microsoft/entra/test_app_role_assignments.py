@@ -29,47 +29,41 @@ def _make_neo4j_session_returning_sp(service_principal_id: str) -> MagicMock:
 
 
 @pytest.mark.asyncio
-async def test_get_app_role_assignments_skips_deleted_sp(caplog):
+@pytest.mark.parametrize(
+    "status, message, sp_id, app_id",
+    [
+        pytest.param(404, "not found", "sp-1", "app-1", id="not_found"),
+        pytest.param(410, "gone", "sp-2", "app-2", id="gone"),
+    ],
+)
+async def test_get_app_role_assignments_skips_deleted_sp(
+    caplog, status, message, sp_id, app_id
+):
     """
-    A 404 from Microsoft Graph when fetching appRoleAssignedTo for a service
-    principal that was deleted between list and fetch should be logged and
-    skipped, not re-raised. Otherwise a single deleted SP aborts the entire
+    A 404 (or 410 Gone) from Microsoft Graph when fetching appRoleAssignedTo for
+    a service principal that was deleted between list and fetch should be logged
+    and skipped, not re-raised. Otherwise a single deleted SP aborts the entire
     Entra sync.
     """
-    err = APIError("not found")
-    err.response_status_code = 404
+    # Arrange
+    err = APIError(message)
+    err.response_status_code = status
     client = _make_client_raising(err)
-    neo4j_session = _make_neo4j_session_returning_sp("sp-1")
+    neo4j_session = _make_neo4j_session_returning_sp(sp_id)
 
+    # Act
     with caplog.at_level(logging.WARNING):
         results = [
             x
             async for x in get_app_role_assignments_for_app(
-                client, neo4j_session, "tenant-1", "app-1"
+                client, neo4j_session, "tenant-1", app_id
             )
         ]
 
+    # Assert
     assert results == []
-    assert "sp-1" in caplog.text
-    assert "app-1" in caplog.text
-
-
-@pytest.mark.asyncio
-async def test_get_app_role_assignments_skips_gone_sp():
-    """410 Gone should also be treated as a deleted SP."""
-    err = APIError("gone")
-    err.response_status_code = 410
-    client = _make_client_raising(err)
-    neo4j_session = _make_neo4j_session_returning_sp("sp-2")
-
-    results = [
-        x
-        async for x in get_app_role_assignments_for_app(
-            client, neo4j_session, "tenant-1", "app-2"
-        )
-    ]
-
-    assert results == []
+    assert sp_id in caplog.text
+    assert app_id in caplog.text
 
 
 @pytest.mark.asyncio

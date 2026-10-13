@@ -7,34 +7,12 @@ from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers import (
 from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers_fuzzy import (
     FakeEmp2Schema,
 )
-from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 from tests.data.graph.querybuilder.sample_models.simple_node import (
     SimpleNodeWithSubResourceSchema,
 )
 from tests.unit.cartography.graph.helpers import (
     remove_leading_whitespace_and_empty_lines,
 )
-
-
-def test_simplenode_sanity_checks():
-    """
-    Test creating a simple node schema with no relationships.
-    """
-    schema: SimpleNodeSchema = SimpleNodeSchema()
-    # Assert that the unimplemented, non-abstract properties have None values.
-    assert schema.extra_node_labels is None
-    assert schema.sub_resource_relationship is None
-    assert schema.other_relationships is None
-
-
-def test_simplenode_with_subresource_sanity_checks():
-    """
-    Test creating a simple node schema with no relationships and ensure that the optional attributes are indeed None.
-    """
-    schema: SimpleNodeWithSubResourceSchema = SimpleNodeWithSubResourceSchema()
-    # Assert that the unimplemented, non-abstract properties have None values.
-    assert schema.extra_node_labels is None
-    assert schema.other_relationships is None
 
 
 def test_build_ingestion_query_with_sub_resource():

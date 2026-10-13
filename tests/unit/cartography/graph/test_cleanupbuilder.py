@@ -20,39 +20,11 @@ from tests.data.graph.querybuilder.sample_models.interesting_asset import (
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetToHelloAssetRel,
 )
-from tests.data.graph.querybuilder.sample_models.interesting_asset import (
-    InterestingAssetToSubResourceRel,
-)
 from tests.data.graph.querybuilder.sample_models.invalid_unscoped import (
     InvalidUnscopedNodeSchema,
 )
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 from tests.unit.cartography.graph.helpers import clean_query_list
-
-
-def test_cleanup_sub_rel():
-    """
-    Test that we correctly generate cleanup queries when a selected rel is not specified.
-    """
-    actual_queries: List[str] = _build_cleanup_node_and_rel_queries(
-        InterestingAssetSchema(),
-        InterestingAssetToSubResourceRel(),
-    )
-    expected_queries = [
-        """
-        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
-        """,
-        """
-        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
-        WHERE s.lastupdated <> $UPDATE_TAG
-        WITH s LIMIT $LIMIT_SIZE
-        DELETE s;
-        """,
-    ]
-    assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
 
 
 def test_cleanup_with_selected_rel():

@@ -1,5 +1,7 @@
 """Unit tests for the GitLab CI config YAML parser."""
 
+import pytest
+
 from cartography.intel.gitlab.ci_config_parser import _is_pinned
 from cartography.intel.gitlab.ci_config_parser import parse_ci_config
 from cartography.intel.gitlab.ci_config_parser import parse_lint_includes
@@ -150,20 +152,13 @@ def test_parse_trigger_rules_detects_schedule():
     assert "schedules" in parsed.trigger_rules
 
 
-def test_parse_empty_yaml_returns_empty():
-    parsed = parse_ci_config(PIPELINE_EMPTY)
-    assert parsed.includes == []
-    assert parsed.job_count == 0
-
-
-def test_parse_non_dict_yaml_returns_empty():
-    parsed = parse_ci_config(PIPELINE_NOT_A_DICT)
-    assert parsed.includes == []
-    assert parsed.job_count == 0
-
-
-def test_parse_bad_yaml_returns_empty():
-    parsed = parse_ci_config(PIPELINE_BAD_YAML)
+@pytest.mark.parametrize(
+    "yaml_text",
+    [PIPELINE_EMPTY, PIPELINE_NOT_A_DICT, PIPELINE_BAD_YAML],
+    ids=["empty", "not_a_dict", "bad_yaml"],
+)
+def test_parse_degenerate_yaml_returns_empty(yaml_text):
+    parsed = parse_ci_config(yaml_text)
     assert parsed.includes == []
     assert parsed.job_count == 0
 

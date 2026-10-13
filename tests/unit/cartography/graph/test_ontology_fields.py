@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.graph.querybuilder import _build_ontology_field_statement_coalesce
 from cartography.graph.querybuilder import _build_ontology_field_statement_equal_boolean
 from cartography.graph.querybuilder import (
@@ -313,197 +315,98 @@ def test_build_ontology_field_statement_or_boolean_missing_property_in_map():
     assert result == expected
 
 
-def test_build_ontology_field_statement_static_value_string():
+@pytest.mark.parametrize(
+    ("ontology_field", "extra", "expected"),
+    [
+        pytest.param(
+            "source",
+            {"value": "googleworkspace"},
+            'i._ont_source = "googleworkspace"',
+            id="string",
+        ),
+        pytest.param(
+            "is_verified",
+            {"value": True},
+            "i._ont_is_verified = true",
+            id="boolean",
+        ),
+        pytest.param(
+            "priority",
+            {"value": 10},
+            "i._ont_priority = 10",
+            id="number",
+        ),
+        # Quotes and backslashes are escaped inside the generated string literal.
+        pytest.param(
+            "description",
+            {"value": 'A "quoted" value'},
+            'i._ont_description = "A \\"quoted\\" value"',
+            id="string_with_quotes",
+        ),
+        pytest.param(
+            "path",
+            {"value": "C:\\Users\\test"},
+            'i._ont_path = "C:\\\\Users\\\\test"',
+            id="string_with_backslash",
+        ),
+        # A missing 'value' in extra returns None (and logs a warning).
+        pytest.param(
+            "source",
+            {},
+            None,
+            id="missing_value",
+        ),
+    ],
+)
+def test_build_ontology_field_statement_static_value(ontology_field, extra, expected):
     """
-    Test _build_ontology_field_statement_static_value function with a string value.
-    This function sets a static value for the ontology field.
+    Test _build_ontology_field_statement_static_value, which sets a static value for the ontology field.
     """
     # Arrange
     mapping_field = OntologyFieldMapping(
-        ontology_field="source",
+        ontology_field=ontology_field,
         node_field="",  # Not used for static_value
         special_handling="static_value",
-        extra={"value": "googleworkspace"},
+        extra=extra,
     )
 
     # Act
     result = _build_ontology_field_statement_static_value(mapping_field)
 
     # Assert
-    expected = 'i._ont_source = "googleworkspace"'
-    assert result == expected
+    if expected is None:
+        assert result is None
+    else:
+        assert result == expected
 
 
-def test_build_ontology_field_statement_static_value_boolean():
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # Double quotes are escaped with a leading backslash.
+        pytest.param('test"quote', 'test\\"quote', id="double_quotes"),
+        # Each backslash is doubled.
+        pytest.param("test\\path", "test\\\\path", id="backslashes"),
+        # Backslash is escaped first: test\\"both -> test\\\\"both
+        # Then quote is escaped: test\\\\"both -> test\\\\\\"both
+        pytest.param('test\\"both', 'test\\\\\\"both', id="both"),
+        pytest.param(
+            'say "hello" and "goodbye"',
+            'say \\"hello\\" and \\"goodbye\\"',
+            id="multiple_quotes",
+        ),
+        pytest.param("", "", id="empty"),
+        pytest.param("simple_string", "simple_string", id="no_special_chars"),
+    ],
+)
+def test_escape_cypher_string(raw, expected):
     """
-    Test _build_ontology_field_statement_static_value function with a boolean value.
-    """
-    # Arrange
-    mapping_field = OntologyFieldMapping(
-        ontology_field="is_verified",
-        node_field="",
-        special_handling="static_value",
-        extra={"value": True},
-    )
-
-    # Act
-    result = _build_ontology_field_statement_static_value(mapping_field)
-
-    # Assert
-    expected = "i._ont_is_verified = true"
-    assert result == expected
-
-
-def test_build_ontology_field_statement_static_value_number():
-    """
-    Test _build_ontology_field_statement_static_value function with a numeric value.
-    """
-    # Arrange
-    mapping_field = OntologyFieldMapping(
-        ontology_field="priority",
-        node_field="",
-        special_handling="static_value",
-        extra={"value": 10},
-    )
-
-    # Act
-    result = _build_ontology_field_statement_static_value(mapping_field)
-
-    # Assert
-    expected = "i._ont_priority = 10"
-    assert result == expected
-
-
-def test_build_ontology_field_statement_static_value_missing_value():
-    """
-    Test _build_ontology_field_statement_static_value function when 'value' is missing in extra.
-    Should return None and log a warning.
-    """
-    # Arrange
-    mapping_field = OntologyFieldMapping(
-        ontology_field="source",
-        node_field="",
-        special_handling="static_value",
-        extra={},  # Missing 'value'
-    )
-
-    # Act
-    result = _build_ontology_field_statement_static_value(mapping_field)
-
-    # Assert
-    assert result is None
-
-
-def test_escape_cypher_string_with_double_quotes():
-    """
-    Test _escape_cypher_string function with double quotes.
-    Double quotes should be escaped as \\"
+    Test _escape_cypher_string. Backslashes are escaped first, then double quotes.
     """
     # Act
-    result = _escape_cypher_string('test"quote')
+    result = _escape_cypher_string(raw)
 
     # Assert
-    assert result == 'test\\"quote'
-
-
-def test_escape_cypher_string_with_backslashes():
-    """
-    Test _escape_cypher_string function with backslashes.
-    Backslashes should be escaped as \\\\
-    """
-    # Act
-    result = _escape_cypher_string("test\\path")
-
-    # Assert
-    assert result == "test\\\\path"
-
-
-def test_escape_cypher_string_with_both():
-    """
-    Test _escape_cypher_string function with both backslashes and quotes.
-    Backslashes should be escaped first, then quotes.
-    """
-    # Act
-    result = _escape_cypher_string('test\\"both')
-
-    # Assert
-    # Backslash is escaped first: test\\"both -> test\\\\"both
-    # Then quote is escaped: test\\\\"both -> test\\\\\\"both
-    assert result == 'test\\\\\\"both'
-
-
-def test_escape_cypher_string_with_multiple_quotes():
-    """
-    Test _escape_cypher_string function with multiple double quotes.
-    """
-    # Act
-    result = _escape_cypher_string('say "hello" and "goodbye"')
-
-    # Assert
-    assert result == 'say \\"hello\\" and \\"goodbye\\"'
-
-
-def test_escape_cypher_string_empty():
-    """
-    Test _escape_cypher_string function with an empty string.
-    """
-    # Act
-    result = _escape_cypher_string("")
-
-    # Assert
-    assert result == ""
-
-
-def test_escape_cypher_string_no_special_chars():
-    """
-    Test _escape_cypher_string function with a string containing no special characters.
-    """
-    # Act
-    result = _escape_cypher_string("simple_string")
-
-    # Assert
-    assert result == "simple_string"
-
-
-def test_build_ontology_field_statement_static_value_string_with_quotes():
-    """
-    Test _build_ontology_field_statement_static_value with a string containing quotes.
-    This ensures the escaping is properly integrated.
-    """
-    # Arrange
-    mapping_field = OntologyFieldMapping(
-        ontology_field="description",
-        node_field="",
-        special_handling="static_value",
-        extra={"value": 'A "quoted" value'},
-    )
-
-    # Act
-    result = _build_ontology_field_statement_static_value(mapping_field)
-
-    # Assert
-    expected = 'i._ont_description = "A \\"quoted\\" value"'
-    assert result == expected
-
-
-def test_build_ontology_field_statement_static_value_string_with_backslash():
-    """
-    Test _build_ontology_field_statement_static_value with a string containing backslashes.
-    This ensures the escaping is properly integrated.
-    """
-    # Arrange
-    mapping_field = OntologyFieldMapping(
-        ontology_field="path",
-        node_field="",
-        special_handling="static_value",
-        extra={"value": "C:\\Users\\test"},
-    )
-
-    # Act
-    result = _build_ontology_field_statement_static_value(mapping_field)
-
-    # Assert
-    expected = 'i._ont_path = "C:\\\\Users\\\\test"'
     assert result == expected
 
 

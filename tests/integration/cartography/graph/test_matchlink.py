@@ -5,7 +5,6 @@ Tests the load_matchlinks() function and cleanup operations for relationship sch
 """
 
 import neo4j
-import pytest
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import load_matchlinks_cartesian_product
@@ -396,32 +395,3 @@ def test_scoped_matchlinks_do_not_cross_sub_resources(neo4j_session):
         {"account_ids": [TEST_SCOPED_ACCOUNT_1, TEST_SCOPED_ACCOUNT_2]},
     ).single()["rel_count"]
     assert cross_scope_count == 0
-
-
-def test_load_rels_missing_kwargs(neo4j_session):
-    """
-    Test that load_rels() raises appropriate errors when required kwargs are missing.
-    """
-    rel_schema = PrincipalToS3BucketPermissionRel()
-
-    # Test missing _sub_resource_label - need non-empty list to avoid early return
-    with pytest.raises(
-        ValueError, match="Required kwarg '_sub_resource_label' not provided"
-    ):
-        load_matchlinks(
-            neo4j_session, rel_schema, [{"test": "data"}], _sub_resource_id="test"
-        )
-
-    # Test missing _sub_resource_id - need non-empty list to avoid early return
-    with pytest.raises(
-        ValueError, match="Required kwarg '_sub_resource_id' not provided"
-    ):
-        load_matchlinks(
-            neo4j_session, rel_schema, [{"test": "data"}], _sub_resource_label="test"
-        )
-
-    # Test missing both kwargs - should fail on first check (_sub_resource_label)
-    with pytest.raises(
-        ValueError, match="Required kwarg '_sub_resource_label' not provided"
-    ):
-        load_matchlinks(neo4j_session, rel_schema, [{"test": "data"}])

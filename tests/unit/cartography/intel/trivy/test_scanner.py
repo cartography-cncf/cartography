@@ -64,22 +64,62 @@ def test_prepare_trivy_data_matches_filesystem_root_directory():
     assert prepared == (trivy_data, None, ["snapshot-api"])
 
 
+@pytest.mark.parametrize(
+    "page, expected_keys",
+    [
+        pytest.param(
+            {
+                "Contents": [
+                    {
+                        "Key": "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:latest.json"
+                    },
+                    {
+                        "Key": "scan-results/123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json"
+                    },
+                    {"Key": "scan-results/some-other-file.txt"},  # Should be ignored
+                ]
+            },
+            [
+                "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:latest.json",
+                "scan-results/123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json",
+            ],
+            id="mixed_json_and_txt",
+        ),
+        pytest.param(
+            {
+                "Contents": [
+                    {"Key": "scan-results/some-other-image:latest.json"},
+                    {"Key": "scan-results/another-image:v1.0.json"},
+                ]
+            },
+            [
+                "scan-results/some-other-image:latest.json",
+                "scan-results/another-image:v1.0.json",
+            ],
+            id="non_ecr_json",
+        ),
+        pytest.param(
+            {
+                "Contents": [
+                    {
+                        "Key": "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com%2Fmy-repo%3Alatest.json"
+                    },
+                ]
+            },
+            [
+                "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com%2Fmy-repo%3Alatest.json"
+            ],
+            id="url_encoded",
+        ),
+        pytest.param({}, [], id="empty_page"),  # No Contents key
+    ],
+)
 @patch("boto3.Session")
-def test_list_s3_scan_results_basic_match(mock_boto3_session):
-    """Test basic S3 object listing with matching ECR images."""
+def test_get_json_files_in_s3(mock_boto3_session, page, expected_keys):
+    """Test S3 object listing returns only the JSON keys in the prefix."""
     # Arrange
     mock_boto3_session.return_value.client.return_value.get_paginator.return_value.paginate.return_value = [
-        {
-            "Contents": [
-                {
-                    "Key": "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:latest.json"
-                },
-                {
-                    "Key": "scan-results/123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json"
-                },
-                {"Key": "scan-results/some-other-file.txt"},  # Should be ignored
-            ]
-        }
+        page
     ]
 
     # Act
@@ -90,107 +130,7 @@ def test_list_s3_scan_results_basic_match(mock_boto3_session):
     )
 
     # Assert
-    assert len(result) == 2
-    expected_keys = {
-        "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:latest.json",
-        "scan-results/123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json",
-    }
-    assert result == expected_keys
-
-    assert mock_boto3_session.return_value.client.call_count == 1
-    assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
-    mock_boto3_session.return_value.client.return_value.get_paginator.assert_called_once_with(
-        "list_objects_v2"
-    )
-    mock_boto3_session.return_value.client.return_value.get_paginator.return_value.paginate.assert_called_once_with(
-        Bucket="my-bucket", Prefix="scan-results"
-    )
-
-
-@patch("boto3.Session")
-def test_list_s3_scan_results_no_matches(mock_boto3_session):
-    """Test S3 object listing when no ECR images match."""
-    # Arrange
-    mock_boto3_session.return_value.client.return_value.get_paginator.return_value.paginate.return_value = [
-        {
-            "Contents": [
-                {"Key": "scan-results/some-other-image:latest.json"},
-                {"Key": "scan-results/another-image:v1.0.json"},
-            ]
-        }
-    ]
-
-    # Act
-    result = get_json_files_in_s3(
-        s3_bucket="my-bucket",
-        s3_prefix="scan-results",
-        boto3_session=mock_boto3_session.return_value,
-    )
-
-    # Assert
-    assert len(result) == 2
-    expected_keys = [
-        "scan-results/some-other-image:latest.json",
-        "scan-results/another-image:v1.0.json",
-    ]
-    assert sorted(result) == sorted(expected_keys)
-
-    assert mock_boto3_session.return_value.client.call_count == 1
-    assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
-    mock_boto3_session.return_value.client.return_value.get_paginator.assert_called_once_with(
-        "list_objects_v2"
-    )
-    mock_boto3_session.return_value.client.return_value.get_paginator.return_value.paginate.assert_called_once_with(
-        Bucket="my-bucket", Prefix="scan-results"
-    )
-
-
-@patch("boto3.Session")
-def test_list_s3_scan_results_empty_s3_response(mock_boto3_session):
-    """Test S3 object listing when S3 bucket is empty."""
-    # Arrange
-    mock_boto3_session.return_value.client.return_value.get_paginator.return_value.paginate.return_value = [
-        {}
-    ]  # No Contents key
-
-    # Act
-    result = get_json_files_in_s3(
-        s3_bucket="my-bucket",
-        s3_prefix="scan-results",
-        boto3_session=mock_boto3_session.return_value,
-    )
-
-    # Assert
-    assert len(result) == 0
-
-
-@patch("boto3.Session")
-def test_list_s3_scan_results_with_url_encoding(mock_boto3_session):
-    """Test S3 object listing with URL-encoded image URIs."""
-    # Arrange
-    mock_boto3_session.return_value.client.return_value.get_paginator.return_value.paginate.return_value = [
-        {
-            "Contents": [
-                {
-                    "Key": "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com%2Fmy-repo%3Alatest.json"
-                },
-            ]
-        }
-    ]
-
-    # Act
-    result = get_json_files_in_s3(
-        s3_bucket="my-bucket",
-        s3_prefix="scan-results",
-        boto3_session=mock_boto3_session.return_value,
-    )
-
-    # Assert
-    assert len(result) == 1
-    expected_keys = [
-        "scan-results/123456789012.dkr.ecr.us-east-1.amazonaws.com%2Fmy-repo%3Alatest.json"
-    ]
-    assert sorted(result) == sorted(expected_keys)
+    assert result == set(expected_keys)
 
     assert mock_boto3_session.return_value.client.call_count == 1
     assert mock_boto3_session.return_value.client.call_args.args[0] == "s3"
@@ -379,11 +319,28 @@ def test_sync_single_image_from_s3_read_error(mock_boto3_session):
     )
 
 
+@pytest.mark.parametrize(
+    "side_effect, expected_exc, match",
+    [
+        pytest.param(
+            KeyError("Missing required field"), KeyError, None, id="key_error"
+        ),
+        pytest.param(
+            Exception("Database connection failed"),
+            Exception,
+            "Database connection failed",
+            id="generic_error",
+        ),
+    ],
+)
 @patch("cartography.intel.trivy.scanner.sync_single_image")
 @patch("boto3.Session")
-def test_sync_single_image_from_s3_transform_error(
+def test_sync_single_image_from_s3_propagates_sync_errors(
     mock_boto3_session,
     mock_sync_single_image,
+    side_effect,
+    expected_exc,
+    match,
 ):
     # Arrange
     mock_neo4j_session = MagicMock()
@@ -411,60 +368,11 @@ def test_sync_single_image_from_s3_transform_error(
         "Body": mock_response_body
     }
 
-    # Mock transformation error in sync_single_image
-    mock_sync_single_image.side_effect = KeyError("Missing required field")
+    # Mock an error raised by sync_single_image
+    mock_sync_single_image.side_effect = side_effect
 
     # Act & Assert
-    with pytest.raises(KeyError):
-        sync_single_image_from_s3(
-            mock_neo4j_session,
-            image_uri,
-            update_tag,
-            s3_bucket,
-            s3_object_key,
-            mock_boto3_session.return_value,
-        )
-
-    mock_sync_single_image.assert_called_once()
-
-
-@patch("cartography.intel.trivy.scanner.sync_single_image")
-@patch("boto3.Session")
-def test_sync_single_image_from_s3_load_error(
-    mock_boto3_session,
-    mock_sync_single_image,
-):
-    # Arrange
-    mock_neo4j_session = MagicMock()
-
-    image_uri = "111222333444.dkr.ecr.ca-central-1.amazonaws.com/api:v3.0.0-beta"
-    update_tag = 99999
-    s3_bucket = "trivy-scan-results"
-    s3_object_key = f"{image_uri}.json"
-
-    # Mock successful S3 read
-    mock_scan_data = {
-        "Results": [{"Target": "api", "Vulnerabilities": []}],
-        "Metadata": {
-            "RepoDigests": [
-                f"{image_uri.split(':')[0]}@sha256:beta123abc456beta123abc456beta123abc456beta123abc456beta123abc456"
-            ]
-        },
-    }
-
-    mock_response_body = MagicMock()
-    mock_response_body.read.return_value.decode.return_value = json.dumps(
-        mock_scan_data
-    )
-    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
-        "Body": mock_response_body
-    }
-
-    # Mock load error in sync_single_image
-    mock_sync_single_image.side_effect = Exception("Database connection failed")
-
-    # Act & Assert
-    with pytest.raises(Exception, match="Database connection failed"):
+    with pytest.raises(expected_exc, match=match):
         sync_single_image_from_s3(
             mock_neo4j_session,
             image_uri,

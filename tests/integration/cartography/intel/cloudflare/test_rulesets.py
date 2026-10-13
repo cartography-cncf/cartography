@@ -110,6 +110,17 @@ def test_load_cloudflare_rulesets(
     # applies to. The managed ruleset is deployed twice and keeps its API ID in
     # both nodes; the account's own entry point, listed in the zone too, is only
     # deployed at the account level.
+    # This exact set also proves that a ruleset merely available at a scope is not
+    # reported as running there. The listing returns the Cloudflare-provided
+    # rulesets in every account and zone, the account-level rulesets a zone may
+    # deploy, and custom rulesets that nothing references; only an enabled
+    # `execute` rule in a phase entry point deploys one. So:
+    # - the OWASP core ruleset has no node anywhere: it is listed in both scopes,
+    #   and the only rule referencing it is disabled;
+    # - the account's own entry point is not duplicated as a zone deployment,
+    #   even though the zone listing carries it;
+    # - the account-level custom bot ruleset is deployed only where an enabled
+    #   rule executes it, which is the zone, and never at the account level.
     expected_nodes = {
         (
             ACCOUNT_WAF_DEPLOYMENT,
@@ -375,95 +386,6 @@ def test_load_cloudflare_rulesets(
             "requests": 10,
         },
     ]
-
-
-@patch.object(
-    cartography.intel.cloudflare.rulesets,
-    "get_ruleset_rules",
-    side_effect=_fake_ruleset_rules,
-)
-@patch.object(
-    cartography.intel.cloudflare.rulesets,
-    "get_rulesets",
-    side_effect=_fake_rulesets,
-)
-@patch("cloudflare.Cloudflare")
-def test_cloudflare_rulesets_only_ingests_the_deployed_ones(
-    mock_cloudflare, mock_rulesets, mock_rules, neo4j_session
-):
-    """
-    Ensure that a ruleset which is merely available at a scope is not reported as
-    running there. The listing returns the Cloudflare-provided rulesets in every
-    account and zone, the account-level rulesets a zone may deploy, and custom
-    rulesets that nothing references; only an enabled `execute` rule in a phase
-    entry point deploys one
-    """
-
-    # Arrange
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "account_id": ACCOUNT_ID,
-    }
-    _ensure_local_neo4j_has_test_accounts(neo4j_session)
-    _ensure_local_neo4j_has_test_zones(neo4j_session)
-
-    # Act
-    cartography.intel.cloudflare.rulesets.sync(
-        neo4j_session,
-        mock_cloudflare,
-        common_job_parameters,
-        ACCOUNT_ID,
-        tests.data.cloudflare.zones.CLOUDFLARE_ZONES,
-    )
-
-    # Assert the OWASP core ruleset has no node anywhere: it is listed in both
-    # scopes, and the only rule referencing it is disabled
-    result = neo4j_session.run(
-        """
-        MATCH (r:CloudflareRuleset {ruleset_id: $ruleset_id})
-        RETURN r.id AS id
-        """,
-        ruleset_id=OWASP_RULESET_ID,
-    )
-    assert [dict(record) for record in result] == []
-
-    # Assert the account's own entry point was not duplicated as a zone deployment,
-    # even though the zone listing carries it
-    result = neo4j_session.run(
-        """
-        MATCH (r:CloudflareRuleset {ruleset_id: $ruleset_id})
-        RETURN r.id AS id
-        """,
-        ruleset_id=ACCOUNT_WAF_RULESET_ID,
-    )
-    assert [record["id"] for record in result] == [ACCOUNT_WAF_DEPLOYMENT]
-
-    # Assert the account-level custom ruleset is deployed only where an enabled
-    # rule executes it, which is the zone, and never at the account level
-    result = neo4j_session.run(
-        """
-        MATCH (r:CloudflareRuleset {ruleset_id: $ruleset_id})
-        RETURN r.id AS id
-        """,
-        ruleset_id=BOT_RULESET_ID,
-    )
-    assert [record["id"] for record in result] == [ZONE_BOT_DEPLOYMENT]
-
-    # Assert no zone claims a ruleset it does not run
-    assert check_rels(
-        neo4j_session,
-        "CloudflareRuleset",
-        "id",
-        "CloudflareZone",
-        "id",
-        "HAS_RULESET",
-        rel_direction_right=False,
-    ) == {
-        (ZONE_FIREWALL_DEPLOYMENT, ZONE_ID),
-        (ZONE_CACHE_DEPLOYMENT, ZONE_ID),
-        (ZONE_MANAGED_DEPLOYMENT, ZONE_ID),
-        (ZONE_BOT_DEPLOYMENT, ZONE_ID),
-    }
 
 
 @patch.object(

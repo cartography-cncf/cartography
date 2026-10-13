@@ -248,6 +248,12 @@ def test_fact_rejects_asset_id_field_only_bound_in_intermediate_with():
         Fact(**_fact_kwargs(cypher_query=query))
 
 
+def test_fact_rejects_empty_identity_fields():
+    """A fact must declare at least one field forming the finding's identity."""
+    with pytest.raises(ValueError, match="non-empty identity_fields"):
+        Fact(**_fact_kwargs(identity_fields=()))
+
+
 def test_fact_rejects_identity_field_not_returned_by_query():
     """An identity a consumer cannot read from the output is not an identity."""
     with pytest.raises(ValueError, match="cypher_query does not return"):

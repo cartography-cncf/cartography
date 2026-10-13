@@ -23,7 +23,12 @@ class TestGetGkeClustersCurrentStateSemantics:
     the graph reflects only the currently visible state.
     """
 
-    def test_returns_empty_dict_on_forbidden(self):
+    @pytest.mark.parametrize(
+        "category",
+        ["forbidden", "api_disabled", "billing_disabled"],
+        ids=["forbidden", "api_disabled", "billing_disabled"],
+    )
+    def test_returns_empty_dict_on_handled_error(self, category):
         mock_container = MagicMock()
         with (
             patch(
@@ -32,35 +37,7 @@ class TestGetGkeClustersCurrentStateSemantics:
             ),
             patch(
                 "cartography.intel.gcp.gke.classify_gcp_http_error",
-                return_value="forbidden",
-            ),
-        ):
-            assert get_gke_clusters(mock_container, "test-project") == {}
-
-    def test_returns_empty_dict_on_api_disabled(self):
-        mock_container = MagicMock()
-        with (
-            patch(
-                "cartography.intel.gcp.gke.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.gke.classify_gcp_http_error",
-                return_value="api_disabled",
-            ),
-        ):
-            assert get_gke_clusters(mock_container, "test-project") == {}
-
-    def test_returns_empty_dict_on_billing_disabled(self):
-        mock_container = MagicMock()
-        with (
-            patch(
-                "cartography.intel.gcp.gke.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.gke.classify_gcp_http_error",
-                return_value="billing_disabled",
+                return_value=category,
             ),
         ):
             assert get_gke_clusters(mock_container, "test-project") == {}

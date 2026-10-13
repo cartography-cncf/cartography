@@ -107,19 +107,7 @@ def test_load_modal_secrets(neo4j_session):
         "display_name",
         "CREATED_BY",
     ) == {("e2e-secret", "alice")}
-
-
-def test_modal_secret_stores_no_value(neo4j_session):
-    """Modal returns no secret values through any read API, so no property may carry one."""
-    # Arrange
-    _seed(neo4j_session)
-
-    # Act
-    _run_sync(
-        cartography.intel.modal.secrets, "list_secrets", fx.MODAL_SECRETS, extra=({},)
-    )(neo4j_session)
-
-    # Assert
+    # Modal returns no secret values through any read API, so no property may carry one.
     keys = set()
     for record in neo4j_session.run("MATCH (s:ModalSecret) RETURN keys(s) AS ks"):
         keys.update(record["ks"])
@@ -158,24 +146,8 @@ def test_load_modal_volumes_and_nfs(neo4j_session):
         "display_name",
         "CREATED_BY",
     ) == {("e2e-volume", "alice"), ("model-weights", "bob")}
-
-
-def test_modal_storage_ontology_filestorage_mapping(neo4j_session):
-    """Both volume kinds must surface as FileStorage with a normalised name."""
-    # Arrange
-    _seed(neo4j_session)
-
-    # Act
-    _run_sync(
-        cartography.intel.modal.volumes, "list_volumes", fx.MODAL_VOLUMES, extra=({},)
-    )(neo4j_session)
-    _run_sync(cartography.intel.modal.nfs, "list_nfs", fx.MODAL_NETWORK_FILE_SYSTEMS)(
-        neo4j_session
-    )
-
-    # Assert
-    # labels() order is not guaranteed, so pick the Modal label explicitly rather than
-    # indexing into it.
+    # Both volume kinds must surface as FileStorage with a normalised name. labels() order
+    # is not guaranteed, so pick the Modal label explicitly rather than indexing into it.
     rows = {
         (r["provider_label"], r["name"])
         for r in neo4j_session.run(
@@ -278,30 +250,8 @@ def test_load_modal_domains_and_dns_records(neo4j_session):
         ("api.example.com", TEST_WORKSPACE_ID),
         ("broken.example.com", TEST_WORKSPACE_ID),
     }
-
-
-def test_modal_dns_records_are_not_labelled_dnsrecord(neo4j_session):
-    """These are records Modal asks you to create, not observed DNS state, so labelling them
-    DNSRecord would feed the DNS linking analysis entries that may not exist anywhere.
-    """
-    # Arrange
-    _seed(neo4j_session)
-
-    # Act
-    with patch.object(
-        cartography.intel.modal.domains,
-        "list_domains",
-        return_value=(fx.MODAL_DOMAINS, True),
-    ):
-        asyncio.run(
-            cartography.intel.modal.domains.sync(
-                neo4j_session,
-                MagicMock(),
-                {"UPDATE_TAG": TEST_UPDATE_TAG, "WORKSPACE_ID": TEST_WORKSPACE_ID},
-            )
-        )
-
-    # Assert
+    # These are records Modal asks you to create, not observed DNS state, so labelling them
+    # DNSRecord would feed the DNS linking analysis entries that may not exist anywhere.
     for record in neo4j_session.run(
         "MATCH (r:ModalDomainDNSRecord) RETURN labels(r) AS labels"
     ):

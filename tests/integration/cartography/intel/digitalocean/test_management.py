@@ -18,59 +18,6 @@ def _ensure_local_neo4j_has_account_data(neo4j_session):
     )
 
 
-def test_transform_and_load_projects(neo4j_session):
-    _ensure_local_neo4j_has_account_data(neo4j_session)
-
-    projects_res = tests.data.digitalocean.management.PROJECTS_RESPONSE
-    test_project = projects_res.get("projects", [])[0]
-    account_id = "test-account-uuid"
-
-    mock_client = MagicMock()
-    mock_client.projects.list.return_value = (
-        tests.data.digitalocean.management.PROJECTS_RESPONSE
-    )
-    mock_client.projects.list_resources.return_value = (
-        tests.data.digitalocean.management.PROJECT_RESOURCES_RESPONSE
-    )
-
-    cartography.intel.digitalocean.management.sync(
-        neo4j_session,
-        mock_client,
-        account_id,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": account_id},
-    )
-
-    # Check the projects nodes
-    assert check_nodes(
-        neo4j_session,
-        "DOProject",
-        ["id", "name", "owner_uuid"],
-    ) == {
-        (
-            test_project.get("id"),
-            test_project.get("name"),
-            test_project.get("owner_uuid"),
-        ),
-    }
-
-    # Check the projects relationships
-    assert check_rels(
-        neo4j_session,
-        "DOProject",
-        "id",
-        "DOAccount",
-        "id",
-        "RESOURCE",
-        rel_direction_right=False,
-    ) == {
-        (
-            test_project.get("id"),
-            account_id,
-        ),
-    }
-
-
 def test_transform_and_load_projects_paginated(neo4j_session):
     _ensure_local_neo4j_has_account_data(neo4j_session)
 

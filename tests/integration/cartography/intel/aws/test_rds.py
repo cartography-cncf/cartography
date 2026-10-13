@@ -49,147 +49,6 @@ def _create_test_subnets(neo4j_session):
         )
 
 
-def test_load_rds_clusters_basic(neo4j_session):
-    """Test that we successfully load RDS cluster nodes to the graph"""
-    # Transform the data first
-    transformed_data = cartography.intel.aws.rds.transform_rds_clusters(
-        DESCRIBE_DBCLUSTERS_RESPONSE["DBClusters"]
-    )
-    cartography.intel.aws.rds.load_rds_clusters(
-        neo4j_session,
-        transformed_data,
-        "us-east1",
-        "1234",
-        TEST_UPDATE_TAG,
-    )
-    query = """MATCH(rds:AWSRDSCluster) RETURN rds.id, rds.arn, rds.storage_encrypted"""
-    nodes = neo4j_session.run(query)
-
-    actual_nodes = {
-        (n["rds.id"], n["rds.arn"], n["rds.storage_encrypted"]) for n in nodes
-    }
-    expected_nodes = {
-        (
-            "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
-            "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
-            True,
-        ),
-    }
-    assert actual_nodes == expected_nodes
-
-    # Transform the data first
-    transformed_data = cartography.intel.aws.rds.transform_rds_instances(
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"], "us-east1", "1234"
-    )
-    cartography.intel.aws.rds.load_rds_instances(
-        neo4j_session,
-        transformed_data,
-        "us-east1",
-        "1234",
-        TEST_UPDATE_TAG,
-    )
-
-    # Fetch relationships
-    result = neo4j_session.run(
-        """
-        MATCH (r:AWSRDSInstance)-[:IS_CLUSTER_MEMBER_OF]->(c:AWSRDSCluster)
-        RETURN r.db_cluster_identifier, c.db_cluster_identifier;
-        """,
-    )
-    expected = {
-        (
-            "some-prod-db-iad",
-            "some-prod-db-iad",
-        ),
-    }
-
-    actual = {
-        (r["r.db_cluster_identifier"], r["c.db_cluster_identifier"]) for r in result
-    }
-
-    assert actual == expected
-
-    # Cleanup to not interfere with other rds tests
-    result = neo4j_session.run(
-        """
-        MATCH (r:AWSRDSInstance)
-        DETACH DELETE r
-        """,
-    )
-
-
-@patch.object(cartography.intel.aws.rds, "aws_paginate")
-@patch.object(cartography.intel.aws.rds, "create_boto3_client")
-def test_get_rds_snapshot_data_only_checks_manual_snapshots(
-    mock_create_client,
-    mock_aws_paginate,
-):
-    client = MagicMock()
-    mock_create_client.return_value = client
-    mock_aws_paginate.return_value = [
-        {
-            "DBSnapshotIdentifier": "manual-snapshot",
-            "SnapshotType": "manual",
-        },
-        {
-            "DBSnapshotIdentifier": "automated-snapshot",
-            "SnapshotType": "automated",
-        },
-    ]
-    client.describe_db_snapshot_attributes.return_value = {
-        "DBSnapshotAttributesResult": {
-            "DBSnapshotAttributes": [
-                {
-                    "AttributeName": "restore",
-                    "AttributeValues": ["all"],
-                },
-            ],
-        },
-    }
-
-    snapshots = cartography.intel.aws.rds.get_rds_snapshot_data(
-        MagicMock(),
-        TEST_REGION,
-    )
-
-    assert snapshots[0]["Public"] is True
-    assert snapshots[1]["Public"] is False
-    client.describe_db_snapshot_attributes.assert_called_once_with(
-        DBSnapshotIdentifier="manual-snapshot",
-    )
-
-
-def test_load_rds_instances_basic(neo4j_session):
-    """Test that we successfully load RDS instance nodes to the graph"""
-    # Transform the data first
-    transformed_data = cartography.intel.aws.rds.transform_rds_instances(
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"], "us-east1", "1234"
-    )
-    cartography.intel.aws.rds.load_rds_instances(
-        neo4j_session,
-        transformed_data,
-        "us-east1",
-        "1234",
-        TEST_UPDATE_TAG,
-    )
-    query = (
-        """MATCH(rds:AWSRDSInstance) RETURN rds.id, rds.arn, rds.storage_encrypted"""
-    )
-    nodes = neo4j_session.run(query)
-
-    actual_nodes = {
-        (n["rds.id"], n["rds.arn"], n["rds.storage_encrypted"]) for n in nodes
-    }
-    expected_nodes = {
-        (
-            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
-            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
-            True,
-        ),
-    }
-    assert actual_nodes == expected_nodes
-
-
 def test_load_rds_snapshots_basic(neo4j_session):
     """Test that we successfully load RDS snapshots to the graph"""
     # Transform the data first
@@ -327,18 +186,36 @@ def test_sync_rds_comprehensive(
 
     # Assert
     assert check_nodes(
-        neo4j_session, "AWSRDSCluster", ["id", "db_cluster_identifier"]
+        neo4j_session,
+        "AWSRDSCluster",
+        ["id", "arn", "db_cluster_identifier", "storage_encrypted"],
     ) == {
         (
             "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
+            "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
             "some-prod-db-iad",
+            True,
         ),
     }, "RDS clusters don't exist"
 
     assert check_nodes(
-        neo4j_session, "AWSRDSInstance", ["id", "db_instance_identifier"]
+        neo4j_session,
+        "AWSRDSInstance",
+        [
+            "id",
+            "arn",
+            "db_instance_identifier",
+            "db_cluster_identifier",
+            "storage_encrypted",
+        ],
     ) == {
-        ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "some-prod-db-iad-0"),
+        (
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "some-prod-db-iad-0",
+            "some-prod-db-iad",
+            True,
+        ),
     }, "RDS instances don't exist"
 
     assert check_nodes(

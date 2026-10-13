@@ -4,11 +4,12 @@ import re
 import unittest.mock
 from typing import get_args
 
+import pytest
 import typer
 
 import cartography.cli
-from tests.integration import settings
 
+NEO4J_URI = "bolt://localhost:7687"
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
@@ -16,50 +17,153 @@ def strip_ansi(value: str) -> str:
     return ANSI_ESCAPE_RE.sub("", value)
 
 
+@pytest.fixture(autouse=True)
+def _restore_cartography_log_level():
+    # CLI.main() sets the "cartography" logger level (DEBUG for -d, INFO by
+    # default). Restore it so later caplog-based tests are order-independent.
+    logger = logging.getLogger("cartography")
+    original_level = logger.level
+    yield
+    logger.setLevel(original_level)
+
+
 def test_cli():
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")
-    cli.main(["--neo4j-uri", settings.get("NEO4J_URL")])
+    cli.main(["--neo4j-uri", NEO4J_URI])
     sync.run.assert_called_once()
 
 
-def test_cli_neo4j_liveness_check_timeout():
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-    cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--neo4j-liveness-check-timeout",
-            "60",
-        ],
-    )
-    sync.run.assert_called_once()
-    config = sync.run.call_args[0][1]
-    assert config.neo4j_liveness_check_timeout == 60
-
-
-def test_cli_aws_ssm_public_parameter_prefix_allowlist_sets_config():
+@pytest.mark.parametrize(
+    "extra_args, field, expected",
+    [
+        pytest.param(
+            ["--neo4j-liveness-check-timeout", "60"],
+            "neo4j_liveness_check_timeout",
+            60,
+            id="liveness_timeout",
+        ),
+        pytest.param(
+            [
+                "--aws-ssm-public-parameter-prefix-allowlist",
+                "/aws/service/bottlerocket/",
+            ],
+            "aws_ssm_public_parameter_prefix_allowlist",
+            "/aws/service/bottlerocket/",
+            id="ssm_prefix_allowlist",
+        ),
+        pytest.param(
+            [
+                "--microsoft-tenant-id",
+                "tenant-id",
+                "--microsoft-delegated-auth",
+                "--microsoft-requested-syncs",
+                "users,groups",
+            ],
+            "microsoft_requested_syncs",
+            "users,groups",
+            id="microsoft_requested_syncs",
+        ),
+        pytest.param(
+            ["--azure-requested-syncs", "rbac,compute"],
+            "azure_requested_syncs",
+            "rbac,compute",
+            id="azure_requested_syncs",
+        ),
+        pytest.param(
+            ["--trivy-source", "gs://example-bucket/reports/trivy/"],
+            "trivy_source",
+            "gs://example-bucket/reports/trivy/",
+            id="trivy_source",
+        ),
+        pytest.param(
+            ["--bbot-source", "azblob://example-account/reports/bbot/"],
+            "bbot_source",
+            "azblob://example-account/reports/bbot/",
+            id="bbot_source",
+        ),
+    ],
+)
+def test_cli_flag_sets_config(extra_args, field, expected):
     # Arrange
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")
 
     # Act
-    cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--aws-ssm-public-parameter-prefix-allowlist",
-            "/aws/service/bottlerocket/",
-        ],
-    )
+    cli.main(["--neo4j-uri", NEO4J_URI, *extra_args])
 
     # Assert
     sync.run.assert_called_once()
     config = sync.run.call_args[0][1]
-    assert (
-        config.aws_ssm_public_parameter_prefix_allowlist == "/aws/service/bottlerocket/"
-    )
+    assert getattr(config, field) == expected
+
+
+@pytest.mark.parametrize(
+    "extra_args, expected_exit",
+    [
+        # expected_exit=None means "any non-zero exit code".
+        pytest.param(
+            ["--azure-requested-syncs", "rbac,virtual_machines"],
+            None,
+            id="unknown_azure_requested_sync",
+        ),
+        pytest.param(
+            ["--microsoft-requested-syncs", "users,devices"],
+            None,
+            id="unknown_microsoft_requested_sync",
+        ),
+        pytest.param(
+            [
+                "--microsoft-tenant-id",
+                "tenant-id",
+                "--microsoft-client-id",
+                "client-id",
+                "--microsoft-delegated-auth",
+            ],
+            1,
+            id="delegated_with_app_creds",
+        ),
+        pytest.param(
+            ["--microsoft-delegated-auth"],
+            1,
+            id="delegated_without_tenant",
+        ),
+        pytest.param(
+            [
+                "--microsoft-tenant-id",
+                "tenant-id",
+                "--entra-client-id",
+                "client-id",
+            ],
+            1,
+            id="mixed_microsoft_entra",
+        ),
+        pytest.param(
+            [
+                "--trivy-source",
+                "s3://example-bucket/reports/trivy/",
+                "--trivy-results-dir",
+                "/tmp/trivy-results",
+            ],
+            1,
+            id="mixed_trivy_source",
+        ),
+    ],
+)
+def test_cli_rejects_invalid_args(extra_args, expected_exit):
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    exit_code = cli.main(["--neo4j-uri", NEO4J_URI, *extra_args])
+
+    # Assert
+    if expected_exit is None:
+        assert exit_code != 0
+    else:
+        assert exit_code == expected_exit
+    sync.run.assert_not_called()
 
 
 def test_cli_wiz_options_set_config():
@@ -82,7 +186,7 @@ def test_cli_wiz_options_set_config():
             cli.main(
                 [
                     "--neo4j-uri",
-                    settings.get("NEO4J_URL"),
+                    NEO4J_URI,
                     "--selected-modules",
                     "wiz",
                     "--wiz-graphql-url",
@@ -124,7 +228,7 @@ def test_cli_microsoft_credentials_set_config():
         cli.main(
             [
                 "--neo4j-uri",
-                settings.get("NEO4J_URL"),
+                NEO4J_URI,
                 "--microsoft-tenant-id",
                 "tenant-id",
                 "--microsoft-client-id",
@@ -154,7 +258,7 @@ def test_cli_microsoft_delegated_auth_sets_config():
     cli.main(
         [
             "--neo4j-uri",
-            settings.get("NEO4J_URL"),
+            NEO4J_URI,
             "--microsoft-tenant-id",
             "tenant-id",
             "--microsoft-delegated-auth",
@@ -170,130 +274,6 @@ def test_cli_microsoft_delegated_auth_sets_config():
     assert config.microsoft_client_secret is None
 
 
-def test_cli_microsoft_requested_syncs_set_config():
-    # Arrange
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    # Act
-    cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--microsoft-tenant-id",
-            "tenant-id",
-            "--microsoft-delegated-auth",
-            "--microsoft-requested-syncs",
-            "users,groups",
-        ],
-    )
-
-    # Assert
-    sync.run.assert_called_once()
-    config = sync.run.call_args[0][1]
-    assert config.microsoft_requested_syncs == "users,groups"
-
-
-def test_cli_azure_requested_syncs_set_config():
-    # Arrange
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    # Act
-    cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--azure-requested-syncs",
-            "rbac,compute",
-        ],
-    )
-
-    # Assert
-    sync.run.assert_called_once()
-    config = sync.run.call_args[0][1]
-    assert config.azure_requested_syncs == "rbac,compute"
-
-
-def test_cli_rejects_unknown_azure_requested_sync():
-    # Arrange
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    # Act
-    exit_code = cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--azure-requested-syncs",
-            "rbac,virtual_machines",
-        ],
-    )
-
-    # Assert
-    assert exit_code != 0
-    sync.run.assert_not_called()
-
-
-def test_cli_rejects_unknown_microsoft_requested_sync():
-    # Arrange
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    # Act
-    exit_code = cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--microsoft-requested-syncs",
-            "users,devices",
-        ],
-    )
-
-    # Assert
-    assert exit_code != 0
-    sync.run.assert_not_called()
-
-
-def test_cli_rejects_delegated_auth_with_application_credentials():
-    # Arrange
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    # Act
-    exit_code = cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--microsoft-tenant-id",
-            "tenant-id",
-            "--microsoft-client-id",
-            "client-id",
-            "--microsoft-delegated-auth",
-        ],
-    )
-
-    # Assert
-    assert exit_code == 1
-    sync.run.assert_not_called()
-
-
-def test_cli_rejects_delegated_auth_without_tenant():
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    exit_code = cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--microsoft-delegated-auth",
-        ],
-    )
-
-    assert exit_code == 1
-    sync.run.assert_not_called()
-
-
 def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
     # Arrange
     sync = unittest.mock.MagicMock()
@@ -305,7 +285,7 @@ def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
             cli.main(
                 [
                     "--neo4j-uri",
-                    settings.get("NEO4J_URL"),
+                    NEO4J_URI,
                     "--entra-tenant-id",
                     "tenant-id",
                     "--entra-client-id",
@@ -325,28 +305,6 @@ def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
     assert config.entra_client_id == "client-id"
     assert config.entra_client_secret == "secret"
     assert caplog.text.count("DEPRECATED: --entra-tenant-id") == 1
-
-
-def test_cli_rejects_mixed_microsoft_and_entra_credentials():
-    # Arrange
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    # Act
-    exit_code = cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--microsoft-tenant-id",
-            "tenant-id",
-            "--entra-client-id",
-            "client-id",
-        ],
-    )
-
-    # Assert
-    assert exit_code == 1
-    sync.run.assert_not_called()
 
 
 def test_cli_selected_modules_microsoft_help_shows_microsoft_options(capsys):
@@ -403,7 +361,7 @@ def test_cli_version(capsys):
 def test_cli_debug_alias():
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")
-    cli.main(["-d", "--neo4j-uri", settings.get("NEO4J_URL")])
+    cli.main(["-d", "--neo4j-uri", NEO4J_URI])
     sync.run.assert_called_once()
 
 
@@ -485,45 +443,6 @@ def test_cli_handles_typer_exit_code_zero():
     assert exit_code == 0
 
 
-def test_cli_trivy_source_sets_config():
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--trivy-source",
-            "gs://example-bucket/reports/trivy/",
-        ],
-    )
-
-    sync.run.assert_called_once()
-    config = sync.run.call_args[0][1]
-    assert config.trivy_source == "gs://example-bucket/reports/trivy/"
-
-
-def test_cli_bbot_source_sets_config():
-    # Arrange
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    # Act
-    cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--bbot-source",
-            "azblob://example-account/reports/bbot/",
-        ],
-    )
-
-    # Assert
-    sync.run.assert_called_once()
-    config = sync.run.call_args[0][1]
-    assert config.bbot_source == "azblob://example-account/reports/bbot/"
-
-
 def test_cli_trivy_legacy_results_dir_sets_source(caplog):
     sync = unittest.mock.MagicMock()
     cli = cartography.cli.CLI(sync, "test")
@@ -532,7 +451,7 @@ def test_cli_trivy_legacy_results_dir_sets_source(caplog):
         cli.main(
             [
                 "--neo4j-uri",
-                settings.get("NEO4J_URL"),
+                NEO4J_URI,
                 "--trivy-results-dir",
                 "/tmp/trivy-results",
             ],
@@ -553,7 +472,7 @@ def test_cli_trivy_legacy_s3_flags_preserve_config_fields(caplog):
         cli.main(
             [
                 "--neo4j-uri",
-                settings.get("NEO4J_URL"),
+                NEO4J_URI,
                 "--trivy-s3-bucket",
                 "example-bucket",
                 "--trivy-s3-prefix",
@@ -567,22 +486,3 @@ def test_cli_trivy_legacy_s3_flags_preserve_config_fields(caplog):
     assert config.trivy_s3_bucket == "example-bucket"
     assert config.trivy_s3_prefix == "reports/trivy/"
     assert caplog.text.count("DEPRECATED: --trivy-s3-bucket/--trivy-s3-prefix") == 1
-
-
-def test_cli_rejects_mixed_trivy_source_flags():
-    sync = unittest.mock.MagicMock()
-    cli = cartography.cli.CLI(sync, "test")
-
-    exit_code = cli.main(
-        [
-            "--neo4j-uri",
-            settings.get("NEO4J_URL"),
-            "--trivy-source",
-            "s3://example-bucket/reports/trivy/",
-            "--trivy-results-dir",
-            "/tmp/trivy-results",
-        ],
-    )
-
-    assert exit_code == 1
-    sync.run.assert_not_called()

@@ -16,58 +16,6 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def test_permission_relationships_file_arguments():
-    """
-    Test that we correctly read arguments for --permission-relationships-file
-    """
-    from cartography.config import Config
-
-    # Test the correct field is set in the Cartography config object
-    fname = "/some/test/file.yaml"
-    config = Config(
-        neo4j_uri="bolt://thisdoesnotmatter:1234",
-        permission_relationships_file=fname,
-    )
-    assert config.permission_relationships_file == fname
-
-    # Test the default value
-    config_default = Config(neo4j_uri="bolt://thisdoesnotmatter:1234")
-    assert config_default.permission_relationships_file is None
-
-
-def test_permission_relationships_file_cli():
-    """
-    Test that CLI correctly passes --permission-relationships-file to Config
-    """
-    from cartography.cli import CLI
-
-    captured_config = None
-
-    def capture_run_with_config(sync, config):
-        nonlocal captured_config
-        captured_config = config
-
-    # Test custom file path
-    with mock.patch(
-        "cartography.sync.run_with_config", side_effect=capture_run_with_config
-    ):
-        cli = CLI(prog="cartography")
-        cli.main(["--permission-relationships-file", "/some/test/file.yaml"])
-    assert captured_config.permission_relationships_file == "/some/test/file.yaml"
-
-    # Test default value
-    captured_config = None
-    with mock.patch(
-        "cartography.sync.run_with_config", side_effect=capture_run_with_config
-    ):
-        cli = CLI(prog="cartography")
-        cli.main([])
-    assert (
-        captured_config.permission_relationships_file
-        == "cartography/data/permission_relationships.yaml"
-    )
-
-
 def _create_base_account(neo4j_session):
     neo4j_session.run("MERGE (a:AWSAccount{id:$AccountId})", AccountId=TEST_ACCOUNT_ID)
     # Hack to create the root principal node since we're not calling the full sync() function in this test.

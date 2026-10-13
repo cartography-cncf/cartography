@@ -81,39 +81,7 @@ def test_sync_app_services(mock_get, neo4j_session):
     )
     assert actual_rels == expected_rels
 
-
-def test_load_app_service_tags(neo4j_session):
-    """
-    Test that we can correctly sync Azure App Service tags.
-    """
-    # Arrange: Create the prerequisite AzureSubscription node
-    neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
-        sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    transformed_apps = app_service.transform_app_services(MOCK_APP_SERVICES)
-
-    app_service.load_app_services(
-        neo4j_session,
-        transformed_apps,
-        TEST_SUBSCRIPTION_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    # Act: Load the tags
-    app_service.load_app_service_tags(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        transformed_apps,
-        TEST_UPDATE_TAG,
-    )
-
-    # Assert: Check for the 2 unique tags
+    # Assert tags: Check for the 2 unique tags
     expected_tags = {
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:app-service",
@@ -122,7 +90,7 @@ def test_load_app_service_tags(neo4j_session):
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 
-    # Assert: Check the relationship
+    # Assert tags: Check the relationship
     expected_rels = {
         (
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-test-app-service",

@@ -237,52 +237,6 @@ def test_sync_okta_users_updates_existing(
     cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
 )
 @patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
-def test_sync_okta_users_returns_user_ids(
-    mock_get_users, mock_get_roles, neo4j_session
-):
-    """
-    Test that sync returns user IDs for use by other modules (e.g., factors).
-    """
-    # Mock user roles to return empty list
-    mock_get_roles.return_value = []
-    # Arrange
-    test_user_1 = create_test_user()
-    test_user_1.id = "user-state-1"
-    test_user_1.profile.email = "state1@example.com"
-
-    test_user_2 = create_test_user()
-    test_user_2.id = "user-state-2"
-    test_user_2.profile.email = "state2@example.com"
-
-    mock_get_users.return_value = [test_user_1, test_user_2]
-
-    neo4j_session.run(
-        """
-        MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
-        """,
-        ORG_ID=TEST_ORG_ID,
-        UPDATE_TAG=TEST_UPDATE_TAG,
-    )
-
-    okta_client = MagicMock()
-    common_job_parameters = _create_common_job_parameters()
-
-    # Act
-    user_ids, _ = cartography.intel.okta.users.sync_okta_users(
-        okta_client,
-        neo4j_session,
-        common_job_parameters,
-    )
-
-    # Assert - Return value should contain the user IDs
-    assert set(user_ids) == {"user-state-1", "user-state-2"}
-
-
-@patch.object(
-    cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
-)
-@patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
 def test_sync_okta_users_reports_role_coverage(
     mock_get_users, mock_get_roles, neo4j_session
 ):

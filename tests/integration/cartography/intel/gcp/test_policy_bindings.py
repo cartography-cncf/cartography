@@ -1,8 +1,6 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from google.api_core.exceptions import PermissionDenied
-
 import cartography.intel.gcp.crm.folders
 import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
@@ -809,42 +807,3 @@ def test_cleanup_applies_to_relationships_across_target_labels(neo4j_session):
         )
     }
     assert remaining_relationships == {"cleanup-current-bucket"}
-
-
-@patch.object(
-    cartography.intel.gcp.policy_bindings,
-    "get_policy_bindings",
-    side_effect=PermissionDenied(
-        "Missing cloudasset.assets.analyzeIamPolicy permission"
-    ),
-)
-def test_sync_gcp_policy_bindings_permission_denied(
-    mock_get_policy_bindings,
-    neo4j_session,
-):
-    """
-    Test that policy bindings sync handles PermissionDenied gracefully.
-    When the user lacks org-level cloudasset.viewer role, sync should return a
-    skipped status and not raise an exception.
-    """
-    # Arrange
-    _create_test_project(neo4j_session)
-    mock_asset_client = MagicMock()
-
-    # Act
-    result = cartography.intel.gcp.policy_bindings.sync(
-        neo4j_session,
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-        COMMON_JOB_PARAMS,
-        mock_asset_client,
-        {},
-    )
-
-    # Assert
-    # Sync should return a skipped status and not raise an exception.
-    assert (
-        result.status
-        == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
-    )
-    mock_get_policy_bindings.assert_called_once()

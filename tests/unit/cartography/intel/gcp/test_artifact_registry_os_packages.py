@@ -46,73 +46,63 @@ def proto_message_to_dict(monkeypatch):
     )
 
 
-def test_get_apt_artifacts_uses_packages_and_versions():
-    client = _make_os_package_client("curl", "7.88.1")
+@pytest.mark.parametrize(
+    "getter,package_name,version_name,expected_version_name,expected_versions_parent",
+    [
+        (
+            get_apt_artifacts,
+            "curl",
+            "7.88.1",
+            "projects/test-project/locations/us-east1/repositories/repo/packages/curl/versions/7.88.1",
+            "projects/test-project/locations/us-east1/repositories/repo/packages/curl",
+        ),
+        (
+            get_yum_artifacts,
+            "bash",
+            "5.2.26",
+            "projects/test-project/locations/us-east1/repositories/repo/packages/bash/versions/5.2.26",
+            "projects/test-project/locations/us-east1/repositories/repo/packages/bash",
+        ),
+        (
+            get_go_modules,
+            "example.com/foo",
+            "v1.2.3",
+            "projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo/versions/v1.2.3",
+            "projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo",
+        ),
+    ],
+    ids=["apt", "yum", "go"],
+)
+def test_get_os_package_artifacts_uses_packages_and_versions(
+    getter,
+    package_name,
+    version_name,
+    expected_version_name,
+    expected_versions_parent,
+):
+    # Arrange
+    client = _make_os_package_client(package_name, version_name)
 
-    artifacts = get_apt_artifacts(
+    # Act
+    artifacts = getter(
         client,
         "projects/test-project/locations/us-east1/repositories/repo",
     )
 
+    # Assert
     assert artifacts == [
         {
-            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/curl/versions/7.88.1",
+            "name": expected_version_name,
             "createTime": "2024-01-06T00:00:00Z",
             "updateTime": "2024-01-06T00:00:00Z",
-            "packageName": "curl",
+            "packageName": package_name,
         }
     ]
     client.list_packages.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo",
     )
     client.list_versions.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo/packages/curl",
-    )
-
-
-def test_get_yum_artifacts_uses_packages_and_versions():
-    client = _make_os_package_client("bash", "5.2.26")
-    artifacts = get_yum_artifacts(
-        client,
-        "projects/test-project/locations/us-east1/repositories/repo",
-    )
-
-    assert artifacts == [
-        {
-            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/bash/versions/5.2.26",
-            "createTime": "2024-01-06T00:00:00Z",
-            "updateTime": "2024-01-06T00:00:00Z",
-            "packageName": "bash",
-        }
-    ]
-    client.list_packages.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo",
-    )
-    client.list_versions.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo/packages/bash",
-    )
-
-
-def test_get_go_modules_uses_packages_and_versions():
-    client = _make_os_package_client("example.com/foo", "v1.2.3")
-    modules = get_go_modules(
-        client,
-        "projects/test-project/locations/us-east1/repositories/repo",
-    )
-
-    assert modules == [
-        {
-            "name": "projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo/versions/v1.2.3",
-            "createTime": "2024-01-06T00:00:00Z",
-            "updateTime": "2024-01-06T00:00:00Z",
-            "packageName": "example.com/foo",
-        }
-    ]
-    client.list_packages.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo",
-    )
-    client.list_versions.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo",
+        parent=expected_versions_parent,
     )
 
 

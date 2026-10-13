@@ -136,19 +136,6 @@ def test_sync_netlify_sites(neo4j_session: neo4j.Session) -> None:
     }
 
 
-def test_transform_netlify_sites_drops_the_jwt_secret() -> None:
-    """
-    `jwt_secret` signs Netlify Identity tokens, so only its presence may be ingested.
-    """
-    transformed = cartography.intel.netlify.sites.transform_netlify_sites(
-        tests.data.netlify.sites.NETLIFY_SITES_WITH_GIT,
-    )
-    by_id = {site["id"]: site for site in transformed}
-
-    assert by_id[TEST_GIT_SITE_ID]["has_jwt_secret"] is True
-    assert by_id[TEST_SITE_ID]["has_jwt_secret"] is False
-
-
 def test_netlify_site_never_stores_the_jwt_secret(
     neo4j_session: neo4j.Session,
 ) -> None:

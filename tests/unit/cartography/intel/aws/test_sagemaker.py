@@ -19,75 +19,66 @@ def _client_error(code: str, message: str, status_code: int) -> ClientError:
     )
 
 
-def test_get_notebook_instances_raises_transient_region_failure_on_timeout(mocker):
-    boto3_session = MagicMock()
+def _patch_notebook_client_raising(mocker, error: Exception) -> None:
     client = MagicMock()
-    client.get_paginator.return_value.paginate.side_effect = ConnectTimeoutError(
-        endpoint_url="https://api.sagemaker.me-south-1.amazonaws.com",
-    )
+    client.get_paginator.return_value.paginate.side_effect = error
     mocker.patch(
         "cartography.intel.aws.sagemaker.notebook_instances.create_boto3_client",
         return_value=client,
     )
 
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(
+            ConnectTimeoutError(
+                endpoint_url="https://api.sagemaker.me-south-1.amazonaws.com",
+            ),
+            id="connect_timeout",
+        ),
+        pytest.param(
+            _client_error("ServiceUnavailable", "Service unavailable", 503),
+            id="service_unavailable",
+        ),
+    ],
+)
+def test_get_notebook_instances_raises_transient_region_failure(mocker, error):
+    # Arrange
+    boto3_session = MagicMock()
+    _patch_notebook_client_raising(mocker, error)
+
+    # Act and assert
     with pytest.raises(SageMakerTransientRegionFailure):
         notebook_instances.get_notebook_instances(boto3_session, "me-south-1")
 
 
-def test_get_notebook_instances_raises_transient_region_failure_on_retryable_client_error(
-    mocker,
-):
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(
+            _client_error("AccessDeniedException", "Access denied", 403),
+            id="access_denied",
+        ),
+        pytest.param(
+            _client_error(
+                "UnknownOperationException",
+                "This operation is not supported in this region.",
+                400,
+            ),
+            id="unsupported_region",
+        ),
+    ],
+)
+def test_get_notebook_instances_returns_empty_list(mocker, error):
+    # Arrange
     boto3_session = MagicMock()
-    client = MagicMock()
-    client.get_paginator.return_value.paginate.side_effect = _client_error(
-        "ServiceUnavailable",
-        "Service unavailable",
-        503,
-    )
-    mocker.patch(
-        "cartography.intel.aws.sagemaker.notebook_instances.create_boto3_client",
-        return_value=client,
-    )
+    _patch_notebook_client_raising(mocker, error)
 
-    with pytest.raises(SageMakerTransientRegionFailure):
-        notebook_instances.get_notebook_instances(boto3_session, "me-south-1")
-
-
-def test_get_notebook_instances_returns_empty_list_on_access_denied(mocker):
-    boto3_session = MagicMock()
-    client = MagicMock()
-    client.get_paginator.return_value.paginate.side_effect = _client_error(
-        "AccessDeniedException",
-        "Access denied",
-        403,
-    )
-    mocker.patch(
-        "cartography.intel.aws.sagemaker.notebook_instances.create_boto3_client",
-        return_value=client,
-    )
-
+    # Act
     result = notebook_instances.get_notebook_instances(boto3_session, "me-south-1")
 
-    assert result == []
-
-
-def test_get_notebook_instances_returns_empty_list_on_unsupported_region_error(
-    mocker,
-):
-    boto3_session = MagicMock()
-    client = MagicMock()
-    client.get_paginator.return_value.paginate.side_effect = _client_error(
-        "UnknownOperationException",
-        "This operation is not supported in this region.",
-        400,
-    )
-    mocker.patch(
-        "cartography.intel.aws.sagemaker.notebook_instances.create_boto3_client",
-        return_value=client,
-    )
-
-    result = notebook_instances.get_notebook_instances(boto3_session, "me-south-1")
-
+    # Assert
     assert result == []
 
 

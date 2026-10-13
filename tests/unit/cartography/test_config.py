@@ -6,73 +6,59 @@ import pytest
 from cartography.config import Config
 
 
-def test_aws_organization_account_ids_preserves_config_positional_compatibility() -> (
-    None
-):
-    parameters = list(inspect.signature(Config.__init__).parameters)
-
-    assert parameters.index("aws_organization_account_ids") > parameters.index(
-        "_warn_on_legacy_report_source",
-    )
-    assert parameters.index("microsoft_tenant_id") > parameters.index(
-        "aws_organization_account_ids",
-    )
-    assert parameters.index("microsoft_client_id") > parameters.index(
-        "microsoft_tenant_id",
-    )
-    assert parameters.index("microsoft_client_secret") > parameters.index(
-        "microsoft_client_id",
-    )
-
-
-def test_bbot_source_preserves_config_positional_compatibility() -> None:
-    parameters = list(inspect.signature(Config.__init__).parameters)
-
-    assert parameters.index("bbot_source") > parameters.index("netlify_base_url")
-
-
-def test_orca_config_is_appended_for_positional_compatibility() -> None:
+@pytest.mark.parametrize(
+    "later,earlier",
+    [
+        pytest.param(
+            "aws_organization_account_ids",
+            "_warn_on_legacy_report_source",
+            id="aws_org_ids_after_warn_legacy",
+        ),
+        pytest.param(
+            "microsoft_tenant_id",
+            "aws_organization_account_ids",
+            id="ms_tenant_after_aws_org_ids",
+        ),
+        pytest.param(
+            "microsoft_client_id",
+            "microsoft_tenant_id",
+            id="ms_client_id_after_ms_tenant",
+        ),
+        pytest.param(
+            "microsoft_client_secret",
+            "microsoft_client_id",
+            id="ms_secret_after_ms_client_id",
+        ),
+        pytest.param("bbot_source", "netlify_base_url", id="bbot_after_netlify"),
+        pytest.param(
+            "orca_api_endpoint",
+            "gcp_exclude_org_root_projects",
+            id="orca_endpoint_after_gcp_exclude_root",
+        ),
+        pytest.param(
+            "orca_api_token",
+            "orca_api_endpoint",
+            id="orca_token_after_orca_endpoint",
+        ),
+        pytest.param(
+            "microsoft_delegated_auth",
+            "orca_api_token",
+            id="ms_delegated_after_orca_token",
+        ),
+        pytest.param(
+            "notion_config",
+            "zendesk_oauth_token",
+            id="notion_after_zendesk_token",
+        ),
+    ],
+)
+def test_config_positional_order(later, earlier):
     # Act
     parameters = list(inspect.signature(Config.__init__).parameters)
 
-    # Assert
-    assert parameters.index("orca_api_endpoint") > parameters.index(
-        "gcp_exclude_org_root_projects",
-    )
-    assert parameters.index("orca_api_token") > parameters.index("orca_api_endpoint")
-
-
-def test_microsoft_delegated_auth_is_appended_for_positional_compatibility() -> None:
-    # Act
-    parameters = list(inspect.signature(Config.__init__).parameters)
-
-    # Assert
-    assert parameters.index("microsoft_delegated_auth") > parameters.index(
-        "orca_api_token",
-    )
-
-
-def test_notion_config_is_appended_for_positional_compatibility() -> None:
-    # Act
-    parameters = list(inspect.signature(Config.__init__).parameters)
-
-    # Assert
-    assert parameters.index("notion_config") > parameters.index(
-        "zendesk_oauth_token",
-    )
-
-
-def test_config_stores_orca_credentials() -> None:
-    # Act
-    config = Config(
-        neo4j_uri="bolt://localhost:7687",
-        orca_api_endpoint="https://api.orcasecurity.io",
-        orca_api_token="secret-token",
-    )
-
-    # Assert
-    assert config.orca_api_endpoint == "https://api.orcasecurity.io"
-    assert config.orca_api_token == "secret-token"
+    # Assert: new arguments are appended after existing ones so positional
+    # callers keep working.
+    assert parameters.index(later) > parameters.index(earlier)
 
 
 def test_zoom_preserves_existing_positional_config_arguments() -> None:

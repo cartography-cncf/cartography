@@ -262,28 +262,33 @@ def test_sync_refreshes_page_omitted_from_search_but_still_public(neo4j_session)
     ) == {("workspace-1/page-public", "workspace-1/person-1")}
 
 
-def test_sync_expires_page_omitted_from_search_and_not_found(neo4j_session):
+@pytest.mark.parametrize(
+    ("lookup_payload", "lookup_status_code"),
+    [
+        pytest.param(
+            {"object": "error", "code": "object_not_found"},
+            404,
+            id="not_found_404",
+        ),
+        pytest.param(
+            {**PUBLIC_PAGE, "public_url": None},
+            200,
+            id="unpublished",
+        ),
+    ],
+)
+def test_sync_expires_page_omitted_from_search(
+    neo4j_session,
+    lookup_payload,
+    lookup_status_code,
+):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
     # Act
     _sync_public_page_then_omit_it(
         neo4j_session,
-        _response({"object": "error", "code": "object_not_found"}, 404),
-    )
-
-    # Assert
-    assert check_nodes(neo4j_session, "NotionPage", ["id"]) == set()
-
-
-def test_sync_expires_page_omitted_from_search_and_unpublished(neo4j_session):
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-    # Act
-    _sync_public_page_then_omit_it(
-        neo4j_session,
-        _response({**PUBLIC_PAGE, "public_url": None}),
+        _response(lookup_payload, lookup_status_code),
     )
 
     # Assert

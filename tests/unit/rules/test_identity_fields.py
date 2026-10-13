@@ -1,19 +1,18 @@
 """
 Validation for the stable finding-identity contract.
 
-``Fact.identity_fields`` is required (no default), so a Fact that omits it fails
-to construct and the rule registry will not import. On top of that hard failure,
-every declared identity field must:
-  * be non-empty,
-  * exist on the owning Rule's output model, and
-  * be returned by the Fact's ``cypher_query`` (via a ``... AS <name>`` alias).
+``Fact.identity_fields`` is required (no default), and ``Fact.__post_init__``
+fails construction (so the rule registry will not import) when it is empty or
+when the Fact's ``cypher_query`` does not return each field (via a
+``... AS <name>`` alias); the negative tests in ``test_model.py`` cover that
+construction-time validation. What it cannot check is the owning Rule's output
+model, so this module adds that every declared identity field exists on it.
 """
 
 import pytest
 
 from cartography.rules.data.rules import RULES
 from cartography.rules.formatters import to_serializable
-from cartography.rules.spec.model import returned_aliases
 from cartography.rules.spec.result import FactResult
 
 # (rule_id, fact_id, rule, fact) for every fact in the registry.
@@ -25,15 +24,6 @@ _ALL_FACTS = [
 
 
 @pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
-def test_identity_fields_non_empty(rule_id, fact_id, rule, fact):
-    """Every fact must declare at least one identity field."""
-    assert fact.identity_fields, (
-        f"Rule '{rule_id}' fact '{fact_id}' has empty identity_fields; "
-        f"declare the field(s) forming the finding's stable logical identity."
-    )
-
-
-@pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
 def test_identity_fields_exist_on_output_model(rule_id, fact_id, rule, fact):
     """identity_fields must be real fields on the rule's output model."""
     model_fields = set(rule.output_model.model_fields)
@@ -42,17 +32,6 @@ def test_identity_fields_exist_on_output_model(rule_id, fact_id, rule, fact):
             f"Rule '{rule_id}' fact '{fact_id}' lists identity field "
             f"'{field}' that is not on output model "
             f"'{rule.output_model.__name__}'."
-        )
-
-
-@pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
-def test_identity_fields_returned_by_query(rule_id, fact_id, rule, fact):
-    """identity_fields must be returned (AS <name>) by the fact's cypher_query."""
-    aliases = returned_aliases(fact.cypher_query)
-    for field in fact.identity_fields:
-        assert field in aliases, (
-            f"Rule '{rule_id}' fact '{fact_id}' lists identity field "
-            f"'{field}' that is not returned by its cypher_query."
         )
 
 

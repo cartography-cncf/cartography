@@ -2,6 +2,8 @@ import json
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.gitlab.container_images
 import cartography.intel.gitlab.container_repository_tags
 import cartography.intel.trivy
@@ -58,6 +60,59 @@ def _create_test_org(neo4j_session):
     )
 
 
+@pytest.fixture(scope="module")
+def gitlab_images(neo4j_session):
+    """
+    Sync the GitLab prerequisite graph (org, container images and repository
+    tags) once for the module. Trivy syncs and cleanup only touch Trivy nodes
+    and their relationships, so the GitLab graph is identical for every test.
+    """
+    _create_test_org(neo4j_session)
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
+    }
+
+    # Sync GitLab container images
+    with patch.object(
+        cartography.intel.gitlab.container_images,
+        "get_container_images",
+        return_value=(
+            GET_CONTAINER_IMAGES_RESPONSE,
+            GET_CONTAINER_MANIFEST_LISTS_RESPONSE,
+        ),
+    ):
+        cartography.intel.gitlab.container_images.sync_container_images(
+            neo4j_session,
+            "https://gitlab.example.com",
+            "fake-token",
+            TEST_ORG_ID,
+            TEST_REPOSITORIES,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    # Sync GitLab container repository tags to enable tag-based matching
+    with patch.object(
+        cartography.intel.gitlab.container_repository_tags,
+        "get_all_container_repository_tags",
+        return_value=GET_CONTAINER_REPOSITORY_TAGS_RESPONSE,
+    ):
+        cartography.intel.gitlab.container_repository_tags.sync_container_repository_tags(
+            neo4j_session,
+            "https://gitlab.example.com",
+            "fake-token",
+            TEST_ORG_ID,
+            [],  # repositories - not used since we're mocking get_all_container_repository_tags
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    return common_job_parameters
+
+
 @patch(
     "builtins.open",
     new_callable=mock_open,
@@ -67,58 +122,19 @@ def _create_test_org(neo4j_session):
     "cartography.intel.common.object_store.LocalReportReader.list_reports",
     return_value=[ReportRef(uri="/tmp/scan.json", name="scan.json")],
 )
-@patch.object(
-    cartography.intel.gitlab.container_repository_tags,
-    "get_all_container_repository_tags",
-    return_value=GET_CONTAINER_REPOSITORY_TAGS_RESPONSE,
-)
-@patch.object(
-    cartography.intel.gitlab.container_images,
-    "get_container_images",
-    return_value=(GET_CONTAINER_IMAGES_RESPONSE, GET_CONTAINER_MANIFEST_LISTS_RESPONSE),
-)
 def test_sync_trivy_gitlab(
-    mock_get_images,
-    mock_get_tags,
     mock_list_dir_scan_results,
     mock_file_open,
     neo4j_session,
+    gitlab_images,
 ):
     """
     Ensure that Trivy scan results create relationships to GitLabContainerImage nodes.
     Tests both tag-based matching (RepoTags) and digest-based matching (RepoDigests).
     """
-    # Arrange - clean up and create GitLab organization
+    # Arrange - clean up Trivy data; GitLab images and tags come from the fixture
     _cleanup_trivy_data(neo4j_session)
-    _create_test_org(neo4j_session)
-
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "org_id": TEST_ORG_ID,
-        "gitlab_url": TEST_GITLAB_URL,
-    }
-
-    # First sync GitLab container images
-    cartography.intel.gitlab.container_images.sync_container_images(
-        neo4j_session,
-        "https://gitlab.example.com",
-        "fake-token",
-        TEST_ORG_ID,
-        TEST_REPOSITORIES,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Sync GitLab container repository tags to enable tag-based matching
-    cartography.intel.gitlab.container_repository_tags.sync_container_repository_tags(
-        neo4j_session,
-        "https://gitlab.example.com",
-        "fake-token",
-        TEST_ORG_ID,
-        [],  # repositories - not used since we're mocking get_all_container_repository_tags
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
+    common_job_parameters = gitlab_images
 
     # Act - sync Trivy results
     sync_trivy_from_dir(
@@ -166,55 +182,6 @@ def test_sync_trivy_gitlab(
     assert_trivy_package_extended_fields(neo4j_session)
 
 
-def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
-    """Helper to sync GitLab container images and tags for tests."""
-    _cleanup_trivy_data(neo4j_session)
-    _create_test_org(neo4j_session)
-
-    common_job_parameters = {
-        "UPDATE_TAG": update_tag,
-        "org_id": TEST_ORG_ID,
-        "gitlab_url": TEST_GITLAB_URL,
-    }
-
-    # Sync GitLab container images
-    with patch.object(
-        cartography.intel.gitlab.container_images,
-        "get_container_images",
-        return_value=(
-            GET_CONTAINER_IMAGES_RESPONSE,
-            GET_CONTAINER_MANIFEST_LISTS_RESPONSE,
-        ),
-    ):
-        cartography.intel.gitlab.container_images.sync_container_images(
-            neo4j_session,
-            "https://gitlab.example.com",
-            "fake-token",
-            TEST_ORG_ID,
-            TEST_REPOSITORIES,
-            TEST_UPDATE_TAG,
-            common_job_parameters,
-        )
-
-    # Sync GitLab container repository tags
-    with patch.object(
-        cartography.intel.gitlab.container_repository_tags,
-        "get_all_container_repository_tags",
-        return_value=GET_CONTAINER_REPOSITORY_TAGS_RESPONSE,
-    ):
-        cartography.intel.gitlab.container_repository_tags.sync_container_repository_tags(
-            neo4j_session,
-            "https://gitlab.example.com",
-            "fake-token",
-            TEST_ORG_ID,
-            [],
-            TEST_UPDATE_TAG,
-            common_job_parameters,
-        )
-
-    return common_job_parameters
-
-
 @patch(
     "builtins.open",
     new_callable=mock_open,
@@ -228,6 +195,7 @@ def test_sync_trivy_gitlab_multiarch_child_amd64(
     mock_list_dir_scan_results,
     mock_file_open,
     neo4j_session,
+    gitlab_images,
 ):
     """
     Test Trivy scan of a platform-specific child image (linux/amd64).
@@ -235,7 +203,9 @@ def test_sync_trivy_gitlab_multiarch_child_amd64(
     Verifies that findings link to the child image digest,
     and that the child is correctly related to its parent manifest list.
     """
-    common_job_parameters = _sync_gitlab_data(neo4j_session)
+    # Arrange - clean up Trivy data; GitLab images and tags come from the fixture
+    _cleanup_trivy_data(neo4j_session)
+    common_job_parameters = gitlab_images
 
     # Act - sync Trivy results for amd64 child
     sync_trivy_from_dir(
@@ -296,6 +266,7 @@ def test_sync_trivy_gitlab_multiarch_child_arm64(
     mock_list_dir_scan_results,
     mock_file_open,
     neo4j_session,
+    gitlab_images,
 ):
     """
     Test Trivy scan of a platform-specific child image (linux/arm64).
@@ -303,7 +274,9 @@ def test_sync_trivy_gitlab_multiarch_child_arm64(
     Verifies that findings link to the arm64 child image digest,
     demonstrating platform-specific vulnerability tracking.
     """
-    common_job_parameters = _sync_gitlab_data(neo4j_session)
+    # Arrange - clean up Trivy data; GitLab images and tags come from the fixture
+    _cleanup_trivy_data(neo4j_session)
+    common_job_parameters = gitlab_images
 
     # Act - sync Trivy results for arm64 child
     sync_trivy_from_dir(
@@ -362,6 +335,7 @@ def test_sync_trivy_gitlab_multi_repo_digests(
     mock_list_dir_scan_results,
     mock_file_open,
     neo4j_session,
+    gitlab_images,
 ):
     """
     Test Trivy scan with multiple RepoDigests entries.
@@ -369,7 +343,9 @@ def test_sync_trivy_gitlab_multi_repo_digests(
     Verifies that the first RepoDigests entry is selected for digest extraction,
     ensuring consistent behavior when images are pushed to multiple registries.
     """
-    common_job_parameters = _sync_gitlab_data(neo4j_session)
+    # Arrange - clean up Trivy data; GitLab images and tags come from the fixture
+    _cleanup_trivy_data(neo4j_session)
+    common_job_parameters = gitlab_images
 
     # Act - sync Trivy results with multiple RepoDigests
     sync_trivy_from_dir(

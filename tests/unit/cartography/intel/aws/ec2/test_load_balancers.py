@@ -30,41 +30,33 @@ def test_get_loadbalancer_data_raises_transient_region_failure_on_connect_timeou
         load_balancers.get_loadbalancer_data(boto3_session, "me-south-1")
 
 
-def test_sync_load_balancers_skips_cleanup_after_transient_region_failure(mocker):
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancers._migrate_legacy_loadbalancer_labels"
-    )
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancers.get_loadbalancer_data",
-        side_effect=load_balancers.ELBTransientRegionFailure("temporary failure"),
-    )
-    cleanup = mocker.patch(
-        "cartography.intel.aws.ec2.load_balancers.cleanup_load_balancers"
-    )
-
-    load_balancers.sync_load_balancers(
-        MagicMock(),
-        MagicMock(),
-        ["me-south-1"],
-        "123456789012",
-        1,
-        {},
-    )
-
-    cleanup.assert_not_called()
-
-
-def test_sync_load_balancers_skips_cleanup_after_retryable_client_error(mocker):
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancers._migrate_legacy_loadbalancer_labels"
-    )
-    mocker.patch(
-        "cartography.intel.aws.ec2.load_balancers.get_loadbalancer_data",
-        side_effect=_make_client_error(
-            "ServiceUnavailable",
-            503,
-            "DescribeLoadBalancers",
+@pytest.mark.parametrize(
+    ("side_effect", "region"),
+    [
+        (
+            load_balancers.ELBTransientRegionFailure("temporary failure"),
+            "me-south-1",
         ),
+        (
+            _make_client_error(
+                "ServiceUnavailable",
+                503,
+                "DescribeLoadBalancers",
+            ),
+            "me-central-1",
+        ),
+    ],
+    ids=["transient_region_failure", "service_unavailable_503"],
+)
+def test_sync_load_balancers_skips_cleanup_after_region_failure(
+    mocker, side_effect, region
+):
+    mocker.patch(
+        "cartography.intel.aws.ec2.load_balancers._migrate_legacy_loadbalancer_labels"
+    )
+    mocker.patch(
+        "cartography.intel.aws.ec2.load_balancers.get_loadbalancer_data",
+        side_effect=side_effect,
     )
     cleanup = mocker.patch(
         "cartography.intel.aws.ec2.load_balancers.cleanup_load_balancers"
@@ -73,7 +65,7 @@ def test_sync_load_balancers_skips_cleanup_after_retryable_client_error(mocker):
     load_balancers.sync_load_balancers(
         MagicMock(),
         MagicMock(),
-        ["me-central-1"],
+        [region],
         "123456789012",
         1,
         {},

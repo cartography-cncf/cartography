@@ -5,6 +5,8 @@ from unittest.mock import MagicMock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.aws.ecr
 import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_report_reader
@@ -141,19 +143,29 @@ def _build_report_without_component(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(AIBOM_REPORT).encode("utf-8"),
 )
 @patch(
     "cartography.intel.common.object_store.LocalReportReader.list_reports",
     return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
 )
-def test_sync_aibom_happy_path(
+def test_sync_aibom_happy_path_and_cleanup(
     mock_json_files,
     mock_file_open,
     neo4j_session,
 ):
+    # Arrange
     _seed_single_platform_graph(neo4j_session)
+    trimmed_report = _build_report_without_component(
+        AIBOM_REPORT,
+        component_bucket="secret",
+        component_name="vault-secret",
+    )
+    mock_file_open.return_value.read.side_effect = [
+        json.dumps(AIBOM_REPORT).encode("utf-8"),
+        json.dumps(trimmed_report).encode("utf-8"),
+    ]
 
+    # Act: first snapshot
     sync_aibom_from_report_reader(
         neo4j_session,
         LocalReportReader("/tmp"),
@@ -161,6 +173,7 @@ def test_sync_aibom_happy_path(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    # Assert: happy path
     assert check_nodes(
         neo4j_session,
         "AIBOMSource",
@@ -280,39 +293,7 @@ def test_sync_aibom_happy_path(
         },
     ]
 
-
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-)
-@patch(
-    "cartography.intel.common.object_store.LocalReportReader.list_reports",
-    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
-)
-def test_sync_aibom_cleanup_removes_stale_components_after_second_snapshot(
-    mock_json_files,
-    mock_file_open,
-    neo4j_session,
-):
-    # Arrange
-    _seed_single_platform_graph(neo4j_session)
-    trimmed_report = _build_report_without_component(
-        AIBOM_REPORT,
-        component_bucket="secret",
-        component_name="vault-secret",
-    )
-    mock_file_open.return_value.read.side_effect = [
-        json.dumps(AIBOM_REPORT).encode("utf-8"),
-        json.dumps(trimmed_report).encode("utf-8"),
-    ]
-
-    # Act
-    sync_aibom_from_report_reader(
-        neo4j_session,
-        LocalReportReader("/tmp"),
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    # Act: second snapshot without vault-secret
     sync_aibom_from_report_reader(
         neo4j_session,
         LocalReportReader("/tmp"),
@@ -320,7 +301,7 @@ def test_sync_aibom_cleanup_removes_stale_components_after_second_snapshot(
         {"UPDATE_TAG": TEST_UPDATE_TAG_2},
     )
 
-    # Assert
+    # Assert: stale components are cleaned up
     component_nodes = check_nodes(
         neo4j_session,
         "AIBOMComponent",
@@ -349,6 +330,25 @@ def test_sync_aibom_cleanup_removes_stale_components_after_second_snapshot(
     assert len(has_component_rels) == expected_component_count
 
 
+@pytest.mark.parametrize(
+    ("seed_fn", "url", "label", "prop"),
+    [
+        pytest.param(
+            _seed_github_repository,
+            TEST_GITHUB_REPO_URL,
+            "GitHubRepository",
+            "url",
+            id="github",
+        ),
+        pytest.param(
+            _seed_gitlab_project,
+            TEST_GITLAB_PROJECT_URL,
+            "GitLabProject",
+            "web_url",
+            id="gitlab",
+        ),
+    ],
+)
 @patch(
     "builtins.open",
     new_callable=mock_open,
@@ -357,69 +357,20 @@ def test_sync_aibom_cleanup_removes_stale_components_after_second_snapshot(
     "cartography.intel.common.object_store.LocalReportReader.list_reports",
     return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
 )
-def test_sync_aibom_skips_ambiguous_type_name_relationship_endpoints(
+def test_sync_aibom_links_components_to_repository(
     mock_json_files,
     mock_file_open,
     neo4j_session,
+    seed_fn,
+    url,
+    label,
+    prop,
 ):
     # Arrange
-    _seed_single_platform_graph(neo4j_session)
-    ambiguous_report = copy.deepcopy(AIBOM_REPORT)
-    source_data = ambiguous_report["aibom_analysis"]["sources"][TEST_SOURCE_KEY]
-    # Add a duplicate model endpoint (same source/type/name) with different
-    # identity fields so fallback type/name resolution becomes ambiguous.
-    source_data["components"]["model"].append(
-        {
-            **copy.deepcopy(source_data["components"]["model"][0]),
-            "file_path": "/tmp/ambiguous_model.py",
-            "line_number": 4242,
-        },
-    )
-    mock_file_open.return_value.read.return_value = json.dumps(ambiguous_report).encode(
-        "utf-8",
-    )
-
-    # Act
-    sync_aibom_from_report_reader(
-        neo4j_session,
-        LocalReportReader("/tmp"),
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
-    # Assert
-    assert (
-        check_rels(
-            neo4j_session,
-            "AIBOMComponent",
-            "name",
-            "AIBOMComponent",
-            "name",
-            "USES_MODEL",
-            rel_direction_right=True,
-        )
-        == set()
-    )
-
-
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(build_repo_anchored_report(TEST_GITHUB_REPO_URL)).encode(
-        "utf-8"
-    ),
-)
-@patch(
-    "cartography.intel.common.object_store.LocalReportReader.list_reports",
-    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
-)
-def test_sync_aibom_links_components_to_github_repository(
-    mock_json_files,
-    mock_file_open,
-    neo4j_session,
-):
-    # Arrange
-    _seed_github_repository(neo4j_session)
+    seed_fn(neo4j_session)
+    mock_file_open.return_value.read.return_value = json.dumps(
+        build_repo_anchored_report(url),
+    ).encode("utf-8")
 
     # Act
     sync_aibom_from_report_reader(
@@ -435,7 +386,7 @@ def test_sync_aibom_links_components_to_github_repository(
         "AIBOMSource",
         ["source_key"],
     ) == {
-        (TEST_GITHUB_REPO_URL,),
+        (url,),
     }
 
     component_nodes = check_nodes(
@@ -450,88 +401,20 @@ def test_sync_aibom_links_components_to_github_repository(
         neo4j_session,
         "AIBOMSource",
         "source_key",
-        "GitHubRepository",
-        "url",
+        label,
+        prop,
         "SCANNED_REPOSITORY",
         rel_direction_right=True,
     ) == {
-        (TEST_GITHUB_REPO_URL, TEST_GITHUB_REPO_URL),
+        (url, url),
     }
 
     detected_in_rels = check_rels(
         neo4j_session,
         "AIBOMComponent",
         "name",
-        "GitHubRepository",
-        "url",
-        "DETECTED_IN",
-        rel_direction_right=True,
-    )
-    assert len(detected_in_rels) == len(component_nodes)
-
-
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(build_repo_anchored_report(TEST_GITLAB_PROJECT_URL)).encode(
-        "utf-8"
-    ),
-)
-@patch(
-    "cartography.intel.common.object_store.LocalReportReader.list_reports",
-    return_value=[ReportRef(uri="/tmp/aibom.json", name="aibom.json")],
-)
-def test_sync_aibom_links_components_to_gitlab_project(
-    mock_json_files,
-    mock_file_open,
-    neo4j_session,
-):
-    # Arrange
-    _seed_gitlab_project(neo4j_session)
-
-    # Act
-    sync_aibom_from_report_reader(
-        neo4j_session,
-        LocalReportReader("/tmp"),
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
-    # Assert
-    assert check_nodes(
-        neo4j_session,
-        "AIBOMSource",
-        ["source_key"],
-    ) == {
-        (TEST_GITLAB_PROJECT_URL,),
-    }
-
-    component_nodes = check_nodes(
-        neo4j_session,
-        "AIBOMComponent",
-        ["name"],
-    )
-    assert component_nodes is not None
-    assert len(component_nodes) > 0
-
-    assert check_rels(
-        neo4j_session,
-        "AIBOMSource",
-        "source_key",
-        "GitLabProject",
-        "web_url",
-        "SCANNED_REPOSITORY",
-        rel_direction_right=True,
-    ) == {
-        (TEST_GITLAB_PROJECT_URL, TEST_GITLAB_PROJECT_URL),
-    }
-
-    detected_in_rels = check_rels(
-        neo4j_session,
-        "AIBOMComponent",
-        "name",
-        "GitLabProject",
-        "web_url",
+        label,
+        prop,
         "DETECTED_IN",
         rel_direction_right=True,
     )

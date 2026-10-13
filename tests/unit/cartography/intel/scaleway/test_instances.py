@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+import pytest
 from scaleway.instance.v1 import Server
 
 from cartography.intel.scaleway.instances.instances import transform_instances
@@ -28,37 +29,20 @@ def test_transform_instances_with_data():
     assert instance["volumes_id"] == ["7c37b328-247c-4668-8ee1-701a3a3cc2e4"]
 
 
-def test_transform_instances_no_public_ips():
-    """Test transform when public_ips is None or empty."""
-    server_no_ips = _make_server(public_ips=None)
-    result = transform_instances([server_no_ips])
+@pytest.mark.parametrize(
+    "field,value,out_key",
+    [
+        ("public_ips", None, "public_ips"),
+        ("public_ips", [], "public_ips"),
+        ("volumes", None, "volumes_id"),
+        ("private_nics", None, "private_nics"),
+    ],
+    ids=["public_ips_none", "public_ips_empty", "volumes_none", "private_nics_none"],
+)
+def test_transform_instances_missing_collection_field(field, value, out_key):
+    """Test transform yields [] when a collection field on the server is None or empty."""
+    server = _make_server(**{field: value})
+    result = transform_instances([server])
 
     instance = result["0681c477-fbb9-4820-b8d6-0eef10cfcd6d"][0]
-    assert instance["public_ips"] == []
-
-
-def test_transform_instances_empty_public_ips():
-    """Test transform when public_ips is an empty list."""
-    server_empty_ips = _make_server(public_ips=[])
-    result = transform_instances([server_empty_ips])
-
-    instance = result["0681c477-fbb9-4820-b8d6-0eef10cfcd6d"][0]
-    assert instance["public_ips"] == []
-
-
-def test_transform_instances_no_volumes():
-    """Test transform when volumes is None or empty."""
-    server_no_volumes = _make_server(volumes=None)
-    result = transform_instances([server_no_volumes])
-
-    instance = result["0681c477-fbb9-4820-b8d6-0eef10cfcd6d"][0]
-    assert instance["volumes_id"] == []
-
-
-def test_transform_instances_no_private_nics():
-    """Test transform when private_nics is None."""
-    server_no_nics = _make_server(private_nics=None)
-    result = transform_instances([server_no_nics])
-
-    instance = result["0681c477-fbb9-4820-b8d6-0eef10cfcd6d"][0]
-    assert instance["private_nics"] == []
+    assert instance[out_key] == []

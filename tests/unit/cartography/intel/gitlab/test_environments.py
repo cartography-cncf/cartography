@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
 import requests
 
 from cartography.intel.gitlab.environments import get_environments
@@ -55,59 +56,59 @@ def _linked_ids(transformed):
     return {env["name"]: env["linked_variable_ids"] for env in transformed}
 
 
-def test_transform_environments_exact_scope_match():
-    raw_envs = _envs([(1, "production")])
-    variables = _vars([("v1", "DB_URL", "production"), ("v2", "DB_URL", "staging")])
+@pytest.mark.parametrize(
+    "env_specs,var_specs,expected",
+    [
+        (
+            [(1, "production")],
+            [("v1", "DB_URL", "production"), ("v2", "DB_URL", "staging")],
+            {"production": ["v1"]},
+        ),
+        (
+            [(1, "production"), (2, "staging")],
+            [("v1", "FEATURE_FLAG", "*")],
+            {"production": ["v1"], "staging": ["v1"]},
+        ),
+        (
+            [(1, "production"), (2, "staging")],
+            [
+                ("v1", "DB_URL", "production"),
+                ("v2", "DB_URL", "staging"),
+                ("v3", "FEATURE_FLAG", "*"),
+            ],
+            {
+                "production": ["v1", "v3"],
+                "staging": ["v2", "v3"],
+            },
+        ),
+        (
+            [(1, "production")],
+            [("v1", "X", "staging")],
+            {"production": []},
+        ),
+        # v1 has scope 'production/*' — GitLab expands it at runtime, but we don't.
+        (
+            [(1, "production/web")],
+            [("v1", "X", "production/*")],
+            {"production/web": []},
+        ),
+    ],
+    ids=["exact", "wildcard", "mixed", "no_match", "glob_not_expanded"],
+)
+def test_transform_environments_links_variables_by_scope(
+    env_specs, var_specs, expected
+):
+    # Arrange
+    raw_envs = _envs(env_specs)
+    variables = _vars(var_specs)
+
+    # Act
     transformed = transform_environments(
         raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
     )
-    assert _linked_ids(transformed) == {"production": ["v1"]}
 
-
-def test_transform_environments_wildcard_scope_links_all_envs():
-    raw_envs = _envs([(1, "production"), (2, "staging")])
-    variables = _vars([("v1", "FEATURE_FLAG", "*")])
-    transformed = transform_environments(
-        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
-    )
-    assert _linked_ids(transformed) == {"production": ["v1"], "staging": ["v1"]}
-
-
-def test_transform_environments_mixed_exact_and_wildcard():
-    raw_envs = _envs([(1, "production"), (2, "staging")])
-    variables = _vars(
-        [
-            ("v1", "DB_URL", "production"),
-            ("v2", "DB_URL", "staging"),
-            ("v3", "FEATURE_FLAG", "*"),
-        ]
-    )
-    transformed = transform_environments(
-        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
-    )
-    assert _linked_ids(transformed) == {
-        "production": ["v1", "v3"],
-        "staging": ["v2", "v3"],
-    }
-
-
-def test_transform_environments_no_matching_variable():
-    raw_envs = _envs([(1, "production")])
-    variables = _vars([("v1", "X", "staging")])
-    transformed = transform_environments(
-        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
-    )
-    assert _linked_ids(transformed) == {"production": []}
-
-
-def test_transform_environments_glob_pattern_does_not_match():
-    """v1 has scope 'production/*' — GitLab expands it at runtime, but we don't."""
-    raw_envs = _envs([(1, "production/web")])
-    variables = _vars([("v1", "X", "production/*")])
-    transformed = transform_environments(
-        raw_envs, TEST_PROJECT_ID, TEST_GITLAB_URL, variables
-    )
-    assert _linked_ids(transformed) == {"production/web": []}
+    # Assert
+    assert _linked_ids(transformed) == expected
 
 
 @patch("cartography.intel.gitlab.environments.get_paginated")

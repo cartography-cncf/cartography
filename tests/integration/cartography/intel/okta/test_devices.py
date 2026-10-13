@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
 from okta.models.device_list import DeviceList
 
 import cartography.intel.okta.devices
@@ -201,26 +200,3 @@ def test_sync_okta_devices_skips_insufficient_permissions(
 
     # Assert
     assert check_nodes(neo4j_session, "OktaDevice", ["id"]) == {("stale-device",)}
-
-
-@patch.object(
-    cartography.intel.okta.devices,
-    "_get_okta_devices",
-    new_callable=AsyncMock,
-)
-def test_sync_okta_devices_reraises_other_api_errors(
-    mock_get_devices, neo4j_session
-) -> None:
-    # Arrange
-    mock_get_devices.side_effect = OktaApiError(
-        "list_devices",
-        SimpleNamespace(error_code="E0000007"),
-    )
-
-    # Act and assert
-    with pytest.raises(OktaApiError):
-        cartography.intel.okta.devices.sync_okta_devices(
-            MagicMock(),
-            neo4j_session,
-            _common_job_parameters(),
-        )

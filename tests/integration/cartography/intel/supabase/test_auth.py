@@ -59,9 +59,11 @@ def _patch_auth_endpoints(func):
 
 
 @_patch_auth_endpoints
-def test_load_supabase_auth_config(mock_get, mock_sso, mock_tpa, neo4j_session):
+def test_sync_supabase_auth(mock_get, mock_sso, mock_tpa, neo4j_session):
     """
-    Ensure the curated auth config subset is loaded and attached to its project.
+    Ensure auth.sync() loads the curated auth config subset (dropping secrets),
+    the SAML SSO providers and the third-party OIDC issuers, attaches them to
+    their project, and labels both provider kinds as IdentityProvider.
     """
     # Arrange
     api_session = requests.Session()
@@ -75,7 +77,7 @@ def test_load_supabase_auth_config(mock_get, mock_sso, mock_tpa, neo4j_session):
         _common_job_parameters(),
     )
 
-    # Assert
+    # Assert - the curated auth config subset is loaded and attached to its project
     assert check_nodes(neo4j_session, "SupabaseAuthConfig", ["id"]) == {
         (f"{TEST_PROJECT_REF}/auth",),
     }
@@ -115,28 +117,8 @@ def test_load_supabase_auth_config(mock_get, mock_sso, mock_tpa, neo4j_session):
         rel_direction_right=False,
     ) == {(f"{TEST_PROJECT_REF}/auth", TEST_PROJECT_REF)}
 
-
-@_patch_auth_endpoints
-def test_supabase_auth_config_drops_secrets(
-    mock_get, mock_sso, mock_tpa, neo4j_session
-):
-    """
-    Ensure only the curated allowlist is ingested: the captcha secret, SMTP
-    password, hook secrets and test OTP present in the response must not land.
-    """
-    # Arrange
-    api_session = requests.Session()
-    _ensure_local_neo4j_has_test_organizations(neo4j_session)
-    _ensure_local_neo4j_has_test_projects(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.auth.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
-
-    # Assert
+    # Assert - only the curated allowlist is ingested: the captcha secret, SMTP
+    # password, hook secrets and test OTP present in the response must not land.
     record = neo4j_session.run(
         """
         MATCH (a:SupabaseAuthConfig {id: $id})
@@ -148,25 +130,7 @@ def test_supabase_auth_config_drops_secrets(
     ).single()
     assert record["forbidden"] == []
 
-
-@_patch_auth_endpoints
-def test_load_supabase_sso_providers(mock_get, mock_sso, mock_tpa, neo4j_session):
-    """
-    Ensure SAML providers are loaded with their routed domains.
-    """
-    # Arrange
-    api_session = requests.Session()
-    _ensure_local_neo4j_has_test_organizations(neo4j_session)
-    _ensure_local_neo4j_has_test_projects(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.auth.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
-
-    # Assert
+    # Assert - SAML providers are loaded with their routed domains
     assert check_nodes(neo4j_session, "SupabaseSSOProvider", ["id", "entity_id"]) == {
         ("sso-provider-1", "https://idp.simpson.corp/saml/metadata")
     }
@@ -193,25 +157,7 @@ def test_load_supabase_sso_providers(mock_get, mock_sso, mock_tpa, neo4j_session
         rel_direction_right=False,
     ) == {("sso-provider-1", TEST_PROJECT_REF)}
 
-
-@_patch_auth_endpoints
-def test_load_supabase_third_party_auth(mock_get, mock_sso, mock_tpa, neo4j_session):
-    """
-    Ensure external OIDC issuers the project trusts are loaded.
-    """
-    # Arrange
-    api_session = requests.Session()
-    _ensure_local_neo4j_has_test_organizations(neo4j_session)
-    _ensure_local_neo4j_has_test_projects(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.auth.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
-
-    # Assert
+    # Assert - external OIDC issuers the project trusts are loaded
     assert check_nodes(
         neo4j_session,
         "SupabaseThirdPartyAuthIntegration",
@@ -234,26 +180,8 @@ def test_load_supabase_third_party_auth(mock_get, mock_sso, mock_tpa, neo4j_sess
         rel_direction_right=False,
     ) == {("tpa-firebase-1", TEST_PROJECT_REF)}
 
-
-@_patch_auth_endpoints
-def test_supabase_auth_ontology_labels(mock_get, mock_sso, mock_tpa, neo4j_session):
-    """
-    Ensure both provider kinds carry the IdentityProvider semantic label with the
-    right protocol and issuer.
-    """
-    # Arrange
-    api_session = requests.Session()
-    _ensure_local_neo4j_has_test_organizations(neo4j_session)
-    _ensure_local_neo4j_has_test_projects(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.auth.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
-
-    # Assert
+    # Assert - both provider kinds carry the IdentityProvider semantic label with
+    # the right protocol and issuer.
     sso = neo4j_session.run(
         """
         MATCH (p:SupabaseSSOProvider:IdentityProvider {id: 'sso-provider-1'})

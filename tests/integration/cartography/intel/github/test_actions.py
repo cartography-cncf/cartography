@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.actions
 from tests.data.github.actions import GET_ENV_SECRETS_PRODUCTION
 from tests.data.github.actions import GET_ENV_SECRETS_STAGING
@@ -37,83 +39,84 @@ def _ensure_repo_exists(neo4j_session):
     )
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_org_secrets(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
-    """Test that organization-level secrets are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
+@pytest.fixture(scope="module")
+def synced_github_actions(neo4j_session):
+    """
+    Run the shared GitHub Actions sync once per module, with no workflow content.
 
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    The tests that use this fixture only read the graph. Keep them above
+    test_sync_github_actions_workflow_parsing so their exact-set assertions see
+    a graph that holds only this sync.
+    """
+    with (
+        patch.object(
+            cartography.intel.github.actions,
+            "get_org_secrets",
+            return_value=GET_ORG_SECRETS,
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_org_variables",
+            return_value=GET_ORG_VARIABLES,
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_repo_workflows",
+            return_value=GET_REPO_WORKFLOWS,
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_repo_environments",
+            return_value=GET_REPO_ENVIRONMENTS,
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_repo_secrets",
+            return_value=GET_REPO_SECRETS,
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_repo_variables",
+            return_value=GET_REPO_VARIABLES,
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_env_secrets",
+            side_effect=lambda *args, **kwargs: (
+                GET_ENV_SECRETS_PRODUCTION
+                if args[4] == "production"
+                else GET_ENV_SECRETS_STAGING
+            ),
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_env_variables",
+            side_effect=lambda *args, **kwargs: (
+                GET_ENV_VARIABLES_PRODUCTION
+                if args[4] == "production"
+                else GET_ENV_VARIABLES_STAGING
+            ),
+        ),
+        patch.object(
+            cartography.intel.github.actions,
+            "get_workflow_content",
+            return_value=None,
+        ),
+    ):
+        _ensure_repo_exists(neo4j_session)
+        cartography.intel.github.actions.sync(
+            neo4j_session,
+            TEST_JOB_PARAMS,
+            FAKE_API_KEY,
+            TEST_GITHUB_URL,
+            TEST_ORGANIZATION,
+        )
+    return neo4j_session
+
+
+def test_sync_github_actions_org_secrets(neo4j_session, synced_github_actions):
+    """Test that organization-level secrets are synced correctly."""
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify org-level secrets were created with correct properties
     assert check_nodes(
@@ -179,83 +182,9 @@ def test_sync_github_actions_org_secrets(
     }.issubset(org_secret_rels)
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_org_variables(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
+def test_sync_github_actions_org_variables(neo4j_session, synced_github_actions):
     """Test that organization-level variables are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
-
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify org-level variables were created
     expected_org_variables = {
@@ -278,83 +207,9 @@ def test_sync_github_actions_org_variables(
     assert expected_org_variables.issubset(actual_variables)
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_workflows(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
+def test_sync_github_actions_workflows(neo4j_session, synced_github_actions):
     """Test that repository workflows are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
-
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify workflow nodes were created
     assert check_nodes(
@@ -396,83 +251,9 @@ def test_sync_github_actions_workflows(
     }
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_environments(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
+def test_sync_github_actions_environments(neo4j_session, synced_github_actions):
     """Test that repository environments are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
-
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify environment nodes were created
     assert check_nodes(neo4j_session, "GitHubEnvironment", ["id", "name"]) == {
@@ -509,83 +290,9 @@ def test_sync_github_actions_environments(
     }
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_repo_secrets(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
+def test_sync_github_actions_repo_secrets(neo4j_session, synced_github_actions):
     """Test that repository-level secrets are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
-
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify repo-level secrets were created
     expected_repo_secrets = {
@@ -626,83 +333,9 @@ def test_sync_github_actions_repo_secrets(
     }
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_repo_variables(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
+def test_sync_github_actions_repo_variables(neo4j_session, synced_github_actions):
     """Test that repository-level variables are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
-
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify repo-level variables were created
     expected_repo_variables = {
@@ -725,83 +358,9 @@ def test_sync_github_actions_repo_variables(
     assert expected_repo_variables.issubset(actual_variables)
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_env_secrets(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
+def test_sync_github_actions_env_secrets(neo4j_session, synced_github_actions):
     """Test that environment-level secrets are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
-
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify environment-level secrets were created
     expected_env_secrets = {
@@ -842,83 +401,9 @@ def test_sync_github_actions_env_secrets(
     }
 
 
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_secrets",
-    return_value=GET_ORG_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_org_variables",
-    return_value=GET_ORG_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_workflows",
-    return_value=GET_REPO_WORKFLOWS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_environments",
-    return_value=GET_REPO_ENVIRONMENTS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_secrets",
-    return_value=GET_REPO_SECRETS,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_repo_variables",
-    return_value=GET_REPO_VARIABLES,
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_secrets",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_SECRETS_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_SECRETS_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_env_variables",
-    side_effect=lambda *args, **kwargs: (
-        GET_ENV_VARIABLES_PRODUCTION
-        if args[4] == "production"
-        else GET_ENV_VARIABLES_STAGING
-    ),
-)
-@patch.object(
-    cartography.intel.github.actions,
-    "get_workflow_content",
-    return_value=None,
-)
-def test_sync_github_actions_env_variables(
-    mock_workflow_content,
-    mock_env_variables,
-    mock_env_secrets,
-    mock_repo_variables,
-    mock_repo_secrets,
-    mock_repo_environments,
-    mock_repo_workflows,
-    mock_org_variables,
-    mock_org_secrets,
-    neo4j_session,
-):
+def test_sync_github_actions_env_variables(neo4j_session, synced_github_actions):
     """Test that environment-level variables are synced correctly."""
-    # Arrange
-    _ensure_repo_exists(neo4j_session)
-
-    # Act
-    cartography.intel.github.actions.sync(
-        neo4j_session,
-        TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_ORGANIZATION,
-    )
+    # Arrange / Act - the synced_github_actions fixture ran the shared sync
 
     # Assert - Verify environment-level variables were created
     expected_env_variables = {

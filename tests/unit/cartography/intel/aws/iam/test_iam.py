@@ -1,4 +1,5 @@
 import datetime
+from unittest import mock
 from unittest.mock import MagicMock
 
 from botocore.exceptions import ClientError
@@ -596,3 +597,41 @@ def test_get_account_authorization_details_resumes_page_after_throttle(mocker):
         c.kwargs.get("Marker")
         for c in client.get_account_authorization_details.call_args_list
     ] == [None, "page-2", "page-2"]
+
+
+def test_permission_relationships_file_cli():
+    """
+    Test that CLI correctly passes --permission-relationships-file to Config
+    """
+    from cartography.cli import CLI
+    from cartography.config import Config
+
+    captured_config = None
+
+    def capture_run_with_config(sync, config):
+        nonlocal captured_config
+        captured_config = config
+
+    # Test custom file path
+    with mock.patch(
+        "cartography.sync.run_with_config", side_effect=capture_run_with_config
+    ):
+        cli = CLI(prog="cartography")
+        cli.main(["--permission-relationships-file", "/some/test/file.yaml"])
+    assert captured_config.permission_relationships_file == "/some/test/file.yaml"
+
+    # Test default value
+    captured_config = None
+    with mock.patch(
+        "cartography.sync.run_with_config", side_effect=capture_run_with_config
+    ):
+        cli = CLI(prog="cartography")
+        cli.main([])
+    assert (
+        captured_config.permission_relationships_file
+        == "cartography/data/permission_relationships.yaml"
+    )
+
+    # Test the Config default when constructed directly (not via the CLI)
+    config_default = Config(neo4j_uri="bolt://thisdoesnotmatter:1234")
+    assert config_default.permission_relationships_file is None

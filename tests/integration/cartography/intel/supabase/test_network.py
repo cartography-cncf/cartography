@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 import requests
 
 import cartography.intel.supabase.network
@@ -40,31 +41,40 @@ def _arrange(neo4j_session):
     _ensure_local_neo4j_has_test_databases(neo4j_session)
 
 
-@patch.object(
-    cartography.intel.supabase.network,
-    "get_custom_hostname",
-    return_value=tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME,
-)
-@patch.object(
-    cartography.intel.supabase.network,
-    "get",
-    return_value=tests.data.supabase.network.SUPABASE_POOLERS,
-)
-def test_load_supabase_poolers(mock_get, mock_get_hostname, neo4j_session):
+@pytest.fixture(scope="module")
+def synced_supabase_network(neo4j_session):
+    """
+    Sync SUPABASE_POOLERS and SUPABASE_CUSTOM_HOSTNAME once per module at
+    TEST_UPDATE_TAG. The tests that use it only read the graph; keep them ahead
+    of the later-tag tests below, whose cleanups remove these nodes.
+    """
+    _arrange(neo4j_session)
+    with (
+        patch.object(
+            cartography.intel.supabase.network,
+            "get",
+            return_value=tests.data.supabase.network.SUPABASE_POOLERS,
+        ),
+        patch.object(
+            cartography.intel.supabase.network,
+            "get_custom_hostname",
+            return_value=tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME,
+        ),
+    ):
+        cartography.intel.supabase.network.sync(
+            neo4j_session,
+            requests.Session(),
+            _common_job_parameters(),
+        )
+    return neo4j_session
+
+
+def test_load_supabase_poolers(neo4j_session, synced_supabase_network):
     """
     Ensure the connection pooler is loaded and linked both to its project and to
     the database it fronts.
     """
-    # Arrange
-    api_session = requests.Session()
-    _arrange(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.network.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
+    # Arrange / Act - the synced_supabase_network fixture ran the shared sync
 
     # Assert
     assert check_nodes(
@@ -107,34 +117,14 @@ def test_load_supabase_poolers(mock_get, mock_get_hostname, neo4j_session):
     }
 
 
-@patch.object(
-    cartography.intel.supabase.network,
-    "get_custom_hostname",
-    return_value=tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME,
-)
-@patch.object(
-    cartography.intel.supabase.network,
-    "get",
-    return_value=tests.data.supabase.network.SUPABASE_POOLERS,
-)
 def test_supabase_pooler_drops_connection_string(
-    mock_get,
-    mock_get_hostname,
     neo4j_session,
+    synced_supabase_network,
 ):
     """
     Ensure the credential-bearing pooler connection strings are not ingested.
     """
-    # Arrange
-    api_session = requests.Session()
-    _arrange(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.network.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
+    # Arrange / Act - the synced_supabase_network fixture ran the shared sync
 
     # Assert
     record = neo4j_session.run(
@@ -148,31 +138,12 @@ def test_supabase_pooler_drops_connection_string(
     assert record["forbidden"] == []
 
 
-@patch.object(
-    cartography.intel.supabase.network,
-    "get_custom_hostname",
-    return_value=tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME,
-)
-@patch.object(
-    cartography.intel.supabase.network,
-    "get",
-    return_value=tests.data.supabase.network.SUPABASE_POOLERS,
-)
-def test_load_supabase_custom_hostname(mock_get, mock_get_hostname, neo4j_session):
+def test_load_supabase_custom_hostname(neo4j_session, synced_supabase_network):
     """
     Ensure the custom hostname is loaded with its TLS status and points at the
     project it fronts.
     """
-    # Arrange
-    api_session = requests.Session()
-    _arrange(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.network.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
+    # Arrange / Act - the synced_supabase_network fixture ran the shared sync
 
     # Assert
     assert check_nodes(
@@ -197,6 +168,27 @@ def test_load_supabase_custom_hostname(mock_get, mock_get_hostname, neo4j_sessio
         "POINTS_TO",
         rel_direction_right=True,
     ) == {(f"{TEST_PROJECT_REF}/api.simpson.corp", TEST_PROJECT_REF)}
+
+
+def test_supabase_custom_hostname_ontology_labels(
+    neo4j_session,
+    synced_supabase_network,
+):
+    """
+    Ensure the DNSRecord semantic label and its _ont_* properties are applied.
+    """
+    # Arrange / Act - the synced_supabase_network fixture ran the shared sync
+
+    # Assert
+    record = neo4j_session.run(
+        """
+        MATCH (h:SupabaseCustomHostname:DNSRecord {hostname: 'api.simpson.corp'})
+        RETURN h._ont_name AS name, h._ont_type AS type, h._ont_source AS source
+        """,
+    ).single()
+    assert record["name"] == "api.simpson.corp"
+    assert record["type"] == "CNAME"
+    assert record["source"] == "supabase"
 
 
 @patch.object(
@@ -285,44 +277,3 @@ def test_supabase_network_unavailable_keeps_existing_inventory(neo4j_session):
     assert (
         check_nodes(neo4j_session, "SupabaseCustomHostname", ["id"]) == hostnames_before
     )
-
-
-@patch.object(
-    cartography.intel.supabase.network,
-    "get_custom_hostname",
-    return_value=tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME,
-)
-@patch.object(
-    cartography.intel.supabase.network,
-    "get",
-    return_value=tests.data.supabase.network.SUPABASE_POOLERS,
-)
-def test_supabase_custom_hostname_ontology_labels(
-    mock_get,
-    mock_get_hostname,
-    neo4j_session,
-):
-    """
-    Ensure the DNSRecord semantic label and its _ont_* properties are applied.
-    """
-    # Arrange
-    api_session = requests.Session()
-    _arrange(neo4j_session)
-
-    # Act
-    cartography.intel.supabase.network.sync(
-        neo4j_session,
-        api_session,
-        _common_job_parameters(),
-    )
-
-    # Assert
-    record = neo4j_session.run(
-        """
-        MATCH (h:SupabaseCustomHostname:DNSRecord {hostname: 'api.simpson.corp'})
-        RETURN h._ont_name AS name, h._ont_type AS type, h._ont_source AS source
-        """,
-    ).single()
-    assert record["name"] == "api.simpson.corp"
-    assert record["type"] == "CNAME"
-    assert record["source"] == "supabase"

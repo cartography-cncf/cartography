@@ -11,34 +11,37 @@ from cartography.intel.aws import codebuild_supply_chain
 from tests.data.aws.codebuild import GET_PROJECTS
 
 
-def test_get_all_codebuild_projects_endpoint_connection_error():
-    """Ensure EndpointConnectionError is handled gracefully."""
+@pytest.mark.parametrize(
+    ("exception", "region"),
+    [
+        (
+            EndpointConnectionError(
+                endpoint_url="https://codebuild.mx-central-1.amazonaws.com"
+            ),
+            "mx-central-1",
+        ),
+        (
+            ConnectTimeoutError(
+                endpoint_url="https://codebuild.ca-west-1.amazonaws.com"
+            ),
+            "ca-west-1",
+        ),
+    ],
+    ids=["endpoint_connection_error", "connect_timeout"],
+)
+def test_get_all_codebuild_projects_connection_error(exception, region):
+    """Ensure EndpointConnectionError and ConnectTimeoutError are handled gracefully."""
     # Arrange
     boto3_session = MagicMock()
     paginator = boto3_session.client.return_value.get_paginator.return_value
-    paginator.paginate.side_effect = EndpointConnectionError(
-        endpoint_url="https://codebuild.mx-central-1.amazonaws.com"
-    )
+    paginator.paginate.side_effect = exception
 
     # Act
-    result = codebuild.get_all_codebuild_projects(boto3_session, "mx-central-1")
+    result = codebuild.get_all_codebuild_projects(boto3_session, region)
 
     # Assert that we return nothing. In AWS region processing, endpoint connection
     # failures are often about service availability in that region, not client/server
     # network issues
-    assert result == []
-
-
-def test_get_all_codebuild_projects_connect_timeout_error():
-    """Ensure ConnectTimeoutError is handled gracefully."""
-    boto3_session = MagicMock()
-    paginator = boto3_session.client.return_value.get_paginator.return_value
-    paginator.paginate.side_effect = ConnectTimeoutError(
-        endpoint_url="https://codebuild.ca-west-1.amazonaws.com"
-    )
-
-    result = codebuild.get_all_codebuild_projects(boto3_session, "ca-west-1")
-
     assert result == []
 
 

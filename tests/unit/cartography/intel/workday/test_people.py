@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from cartography.intel.workday.people import _transform_people_data
 from cartography.intel.workday.people import get_workday_directory
+from tests.data.workday.people import GET_WORKDAY_DIRECTORY_RESPONSE
 
 
 def test_transform_people_data_basic():
@@ -55,6 +56,28 @@ def test_transform_people_data_basic():
     assert len(manager_relationships) == 1
     assert manager_relationships[0]["Employee_ID"] == "emp001"
     assert manager_relationships[0]["Manager_ID"] == "emp002"
+
+
+def test_transform_people_data_fixture():
+    """Test that the shared Workday directory fixture is transformed correctly"""
+    # Act
+    people_data, manager_relationships = _transform_people_data(
+        GET_WORKDAY_DIRECTORY_RESPONSE
+    )
+
+    # Assert - Check that we have 4 people
+    assert len(people_data) == 4
+
+    # Check that all people have source field
+    for person in people_data:
+        assert person["source"] == "WORKDAY"
+
+    # Check manager relationships
+    # emp001 -> emp003, emp002 -> emp003, emp003 -> emp004
+    assert len(manager_relationships) == 3
+    assert {"Employee_ID": "emp001", "Manager_ID": "emp003"} in manager_relationships
+    assert {"Employee_ID": "emp002", "Manager_ID": "emp003"} in manager_relationships
+    assert {"Employee_ID": "emp003", "Manager_ID": "emp004"} in manager_relationships
 
 
 def test_transform_people_data_prevents_self_reporting():

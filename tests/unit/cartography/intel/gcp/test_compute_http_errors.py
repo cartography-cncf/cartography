@@ -292,44 +292,6 @@ class TestGetGcpRegionalForwardingRulesHttpErrors:
 
 
 class TestGetGcpVpnGatewaysHttpErrors:
-    @pytest.mark.parametrize(
-        "error",
-        [
-            _make_http_error(403, reason="forbidden", message="Permission denied"),
-            _make_http_error(
-                403,
-                reason="accessNotConfigured",
-                message="Compute Engine API has not been used in project",
-            ),
-            _make_http_error(404, reason="notFound", message="Project not found"),
-            _make_http_error(400, reason="invalid", message="Invalid request"),
-        ],
-    )
-    def test_returns_empty_incomplete_for_expected_skip_categories(self, error):
-        """
-        A whole-call 403 on vpnGateways.aggregatedList (e.g. identity has
-        compute.zones.list but not compute.vpnGateways.list) must not abort the
-        project sync; return ([], incomplete=True) so cleanup is suppressed.
-        """
-        mock_compute = MagicMock()
-        mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
-            _make_request(error=error)
-        )
-
-        assert get_gcp_vpn_gateways("test-project", mock_compute) == ([], True)
-
-    def test_returns_empty_incomplete_for_forbidden_during_request_creation(self):
-        mock_compute = MagicMock()
-        mock_compute.vpnGateways.return_value.aggregatedList.side_effect = (
-            _make_http_error(
-                403,
-                reason="forbidden",
-                message="Required 'compute.vpnGateways.list' permission",
-            )
-        )
-
-        assert get_gcp_vpn_gateways("test-project", mock_compute) == ([], True)
-
     def test_aggregates_items_across_region_scopes(self):
         mock_compute = MagicMock()
         mock_compute.vpnGateways.return_value.aggregatedList.return_value = _make_request(
@@ -348,57 +310,6 @@ class TestGetGcpVpnGatewaysHttpErrors:
 
         assert items == [{"name": "gw-a"}, {"name": "gw-b"}]
         assert incomplete is False
-
-    def test_scope_error_keeps_partial_data_and_marks_incomplete(self):
-        """With returnPartialSuccess, failed scopes carry an `error` entry."""
-        mock_compute = MagicMock()
-        mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
-            _make_request(
-                response={
-                    "items": {
-                        "regions/us-central1": {"vpnGateways": [{"name": "gw-a"}]},
-                        "regions/europe-west1": {
-                            "error": {"errors": [{"message": "Location unavailable"}]}
-                        },
-                    }
-                }
-            )
-        )
-        mock_compute.vpnGateways.return_value.aggregatedList_next.return_value = None
-
-        items, incomplete = get_gcp_vpn_gateways("test-project", mock_compute)
-
-        assert items == [{"name": "gw-a"}]
-        assert incomplete is True
-
-    def test_non_benign_scope_warning_marks_incomplete(self):
-        """
-        A scope warning other than NO_RESULTS_ON_PAGE (e.g. UNREACHABLE) means
-        the region's data is missing; the result must be marked incomplete so
-        cleanup does not delete that region's gateways.
-        """
-        mock_compute = MagicMock()
-        mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
-            _make_request(
-                response={
-                    "items": {
-                        "regions/us-central1": {"vpnGateways": [{"name": "gw-a"}]},
-                        "regions/europe-west1": {
-                            "warning": {
-                                "code": "UNREACHABLE",
-                                "message": "The region could not be reached.",
-                            }
-                        },
-                    }
-                }
-            )
-        )
-        mock_compute.vpnGateways.return_value.aggregatedList_next.return_value = None
-
-        items, incomplete = get_gcp_vpn_gateways("test-project", mock_compute)
-
-        assert items == [{"name": "gw-a"}]
-        assert incomplete is True
 
     def test_timeout_mid_pagination_keeps_partial_data_and_marks_incomplete(self):
         mock_compute = MagicMock()
@@ -421,40 +332,6 @@ class TestGetGcpVpnGatewaysHttpErrors:
         assert items == [{"name": "gw-a"}]
         assert incomplete is True
 
-    def test_reraises_unexpected_http_errors(self):
-        mock_compute = MagicMock()
-        mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
-            _make_request(error=_make_http_error(418, message="Unexpected response"))
-        )
-
-        with pytest.raises(HttpError):
-            get_gcp_vpn_gateways("test-project", mock_compute)
-
-    def test_sync_skips_cleanup_on_forbidden(self):
-        mock_compute = MagicMock()
-        mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
-            _make_request(
-                error=_make_http_error(
-                    403,
-                    reason="forbidden",
-                    message="Required 'compute.vpnGateways.list' permission",
-                )
-            )
-        )
-
-        with patch(
-            "cartography.intel.gcp.compute.cleanup_gcp_vpn_gateways",
-        ) as mock_cleanup:
-            sync_gcp_vpn_gateways(
-                MagicMock(),
-                mock_compute,
-                "test-project",
-                123,
-                {"PROJECT_ID": "test-project", "UPDATE_TAG": 123},
-            )
-
-        mock_cleanup.assert_not_called()
-
     def test_sync_runs_cleanup_when_complete(self):
         mock_compute = MagicMock()
         mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
@@ -476,110 +353,203 @@ class TestGetGcpVpnGatewaysHttpErrors:
         mock_cleanup.assert_called_once()
 
 
-class TestGetGcpVpnTunnelsHttpErrors:
+_VPN_GETTER_PARAMS = pytest.mark.parametrize(
+    "getter,api_attr,items_key,perm_message",
+    [
+        pytest.param(
+            get_gcp_vpn_gateways,
+            "vpnGateways",
+            "vpnGateways",
+            "Required 'compute.vpnGateways.list' permission",
+            id="gateways",
+        ),
+        pytest.param(
+            get_gcp_vpn_tunnels,
+            "vpnTunnels",
+            "vpnTunnels",
+            "Required 'compute.vpnTunnels.list' permission",
+            id="tunnels",
+        ),
+    ],
+)
+
+
+class TestGcpVpnAggregatedListHttpErrors:
+    """
+    Both VPN getters share _get_gcp_vpn_aggregated, so these error-handling
+    tests are parametrized over gateways and tunnels.
+    """
+
+    @_VPN_GETTER_PARAMS
     @pytest.mark.parametrize(
         "error",
         [
-            _make_http_error(403, reason="forbidden", message="Permission denied"),
-            _make_http_error(
-                403,
-                reason="accessNotConfigured",
-                message="Compute Engine API has not been used in project",
+            pytest.param(
+                _make_http_error(403, reason="forbidden", message="Permission denied"),
+                id="forbidden",
             ),
-            _make_http_error(404, reason="notFound", message="Project not found"),
-            _make_http_error(400, reason="invalid", message="Invalid request"),
+            pytest.param(
+                _make_http_error(
+                    403,
+                    reason="accessNotConfigured",
+                    message="Compute Engine API has not been used in project",
+                ),
+                id="access_not_configured",
+            ),
+            pytest.param(
+                _make_http_error(404, reason="notFound", message="Project not found"),
+                id="not_found",
+            ),
+            pytest.param(
+                _make_http_error(400, reason="invalid", message="Invalid request"),
+                id="invalid",
+            ),
         ],
     )
-    def test_returns_empty_incomplete_for_expected_skip_categories(self, error):
+    def test_returns_empty_incomplete_for_expected_skip_categories(
+        self, getter, api_attr, items_key, perm_message, error
+    ):
+        """
+        A whole-call 403 on aggregatedList (e.g. identity has
+        compute.zones.list but not compute.vpnGateways.list) must not abort the
+        project sync; return ([], incomplete=True) so cleanup is suppressed.
+        """
+        # Arrange
         mock_compute = MagicMock()
-        mock_compute.vpnTunnels.return_value.aggregatedList.return_value = (
-            _make_request(error=error)
+        api = getattr(mock_compute, api_attr)
+        api.return_value.aggregatedList.return_value = _make_request(error=error)
+
+        # Act / Assert
+        assert getter("test-project", mock_compute) == ([], True)
+
+    @_VPN_GETTER_PARAMS
+    def test_returns_empty_incomplete_for_forbidden_during_request_creation(
+        self, getter, api_attr, items_key, perm_message
+    ):
+        # Arrange
+        mock_compute = MagicMock()
+        api = getattr(mock_compute, api_attr)
+        api.return_value.aggregatedList.side_effect = _make_http_error(
+            403,
+            reason="forbidden",
+            message=perm_message,
         )
 
-        assert get_gcp_vpn_tunnels("test-project", mock_compute) == ([], True)
+        # Act / Assert
+        assert getter("test-project", mock_compute) == ([], True)
 
-    def test_returns_empty_incomplete_for_forbidden_during_request_creation(self):
+    @_VPN_GETTER_PARAMS
+    def test_scope_error_keeps_partial_data_and_marks_incomplete(
+        self, getter, api_attr, items_key, perm_message
+    ):
+        """With returnPartialSuccess, failed scopes carry an `error` entry."""
+        # Arrange
         mock_compute = MagicMock()
-        mock_compute.vpnTunnels.return_value.aggregatedList.side_effect = (
-            _make_http_error(
+        api = getattr(mock_compute, api_attr)
+        api.return_value.aggregatedList.return_value = _make_request(
+            response={
+                "items": {
+                    "regions/us-central1": {items_key: [{"name": "res-a"}]},
+                    "regions/europe-west1": {
+                        "error": {"errors": [{"message": "Location unavailable"}]}
+                    },
+                }
+            }
+        )
+        api.return_value.aggregatedList_next.return_value = None
+
+        # Act
+        items, incomplete = getter("test-project", mock_compute)
+
+        # Assert
+        assert items == [{"name": "res-a"}]
+        assert incomplete is True
+
+    @_VPN_GETTER_PARAMS
+    def test_non_benign_scope_warning_marks_incomplete(
+        self, getter, api_attr, items_key, perm_message
+    ):
+        """
+        A scope warning other than NO_RESULTS_ON_PAGE (e.g. UNREACHABLE) means
+        the region's data is missing; the result must be marked incomplete so
+        cleanup does not delete that region's resources.
+        """
+        # Arrange
+        mock_compute = MagicMock()
+        api = getattr(mock_compute, api_attr)
+        api.return_value.aggregatedList.return_value = _make_request(
+            response={
+                "items": {
+                    "regions/us-central1": {items_key: [{"name": "res-a"}]},
+                    "regions/europe-west1": {
+                        "warning": {
+                            "code": "UNREACHABLE",
+                            "message": "The region could not be reached.",
+                        }
+                    },
+                }
+            }
+        )
+        api.return_value.aggregatedList_next.return_value = None
+
+        # Act
+        items, incomplete = getter("test-project", mock_compute)
+
+        # Assert
+        assert items == [{"name": "res-a"}]
+        assert incomplete is True
+
+    @_VPN_GETTER_PARAMS
+    def test_reraises_unexpected_http_errors(
+        self, getter, api_attr, items_key, perm_message
+    ):
+        # Arrange
+        mock_compute = MagicMock()
+        api = getattr(mock_compute, api_attr)
+        api.return_value.aggregatedList.return_value = _make_request(
+            error=_make_http_error(418, message="Unexpected response")
+        )
+
+        # Act / Assert
+        with pytest.raises(HttpError):
+            getter("test-project", mock_compute)
+
+    @pytest.mark.parametrize(
+        "sync_fn,api_attr,cleanup_patch_path,perm_message",
+        [
+            pytest.param(
+                sync_gcp_vpn_gateways,
+                "vpnGateways",
+                "cartography.intel.gcp.compute.cleanup_gcp_vpn_gateways",
+                "Required 'compute.vpnGateways.list' permission",
+                id="gateways",
+            ),
+            pytest.param(
+                sync_gcp_vpn_tunnels,
+                "vpnTunnels",
+                "cartography.intel.gcp.compute.cleanup_gcp_vpn_tunnels",
+                "Required 'compute.vpnTunnels.list' permission",
+                id="tunnels",
+            ),
+        ],
+    )
+    def test_sync_skips_cleanup_on_forbidden(
+        self, sync_fn, api_attr, cleanup_patch_path, perm_message
+    ):
+        # Arrange
+        mock_compute = MagicMock()
+        api = getattr(mock_compute, api_attr)
+        api.return_value.aggregatedList.return_value = _make_request(
+            error=_make_http_error(
                 403,
                 reason="forbidden",
-                message="Required 'compute.vpnTunnels.list' permission",
+                message=perm_message,
             )
         )
 
-        assert get_gcp_vpn_tunnels("test-project", mock_compute) == ([], True)
-
-    def test_scope_error_keeps_partial_data_and_marks_incomplete(self):
-        mock_compute = MagicMock()
-        mock_compute.vpnTunnels.return_value.aggregatedList.return_value = (
-            _make_request(
-                response={
-                    "items": {
-                        "regions/us-central1": {"vpnTunnels": [{"name": "tun-a"}]},
-                        "regions/europe-west1": {
-                            "error": {"errors": [{"message": "Location unavailable"}]}
-                        },
-                    }
-                }
-            )
-        )
-        mock_compute.vpnTunnels.return_value.aggregatedList_next.return_value = None
-
-        items, incomplete = get_gcp_vpn_tunnels("test-project", mock_compute)
-
-        assert items == [{"name": "tun-a"}]
-        assert incomplete is True
-
-    def test_non_benign_scope_warning_marks_incomplete(self):
-        mock_compute = MagicMock()
-        mock_compute.vpnTunnels.return_value.aggregatedList.return_value = (
-            _make_request(
-                response={
-                    "items": {
-                        "regions/us-central1": {"vpnTunnels": [{"name": "tun-a"}]},
-                        "regions/europe-west1": {
-                            "warning": {
-                                "code": "UNREACHABLE",
-                                "message": "The region could not be reached.",
-                            }
-                        },
-                    }
-                }
-            )
-        )
-        mock_compute.vpnTunnels.return_value.aggregatedList_next.return_value = None
-
-        items, incomplete = get_gcp_vpn_tunnels("test-project", mock_compute)
-
-        assert items == [{"name": "tun-a"}]
-        assert incomplete is True
-
-    def test_reraises_unexpected_http_errors(self):
-        mock_compute = MagicMock()
-        mock_compute.vpnTunnels.return_value.aggregatedList.return_value = (
-            _make_request(error=_make_http_error(418, message="Unexpected response"))
-        )
-
-        with pytest.raises(HttpError):
-            get_gcp_vpn_tunnels("test-project", mock_compute)
-
-    def test_sync_skips_cleanup_on_forbidden(self):
-        mock_compute = MagicMock()
-        mock_compute.vpnTunnels.return_value.aggregatedList.return_value = (
-            _make_request(
-                error=_make_http_error(
-                    403,
-                    reason="forbidden",
-                    message="Required 'compute.vpnTunnels.list' permission",
-                )
-            )
-        )
-
-        with patch(
-            "cartography.intel.gcp.compute.cleanup_gcp_vpn_tunnels",
-        ) as mock_cleanup:
-            sync_gcp_vpn_tunnels(
+        # Act
+        with patch(cleanup_patch_path) as mock_cleanup:
+            sync_fn(
                 MagicMock(),
                 mock_compute,
                 "test-project",
@@ -587,6 +557,7 @@ class TestGetGcpVpnTunnelsHttpErrors:
                 {"PROJECT_ID": "test-project", "UPDATE_TAG": 123},
             )
 
+        # Assert
         mock_cleanup.assert_not_called()
 
 

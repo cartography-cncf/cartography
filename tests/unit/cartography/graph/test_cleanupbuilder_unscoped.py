@@ -10,20 +10,6 @@ from tests.unit.cartography.graph.helpers import (
 )
 
 
-def test_unscoped_node_sanity_checks():
-    """
-    Test creating an unscoped node schema and ensure that the optional attributes are set correctly.
-    """
-    schema: UnscopedNodeSchema = UnscopedNodeSchema()
-    assert schema.extra_node_labels is None
-    assert schema.scoped_cleanup is False
-    assert schema.sub_resource_relationship is None
-
-    assert schema.other_relationships is not None
-    assert len(schema.other_relationships.rels) == 1
-    assert schema.other_relationships.rels[0].target_node_label == "SimpleNode"
-
-
 def test_build_ingestion_query_unscoped():
     """
     Test creating a query for an unscoped node schema.

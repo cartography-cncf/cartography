@@ -85,9 +85,13 @@ def _run_sync(neo4j_session, monkeypatch):
     )
 
 
-def test_workload_nodes(neo4j_session, _create_test_cluster, monkeypatch):
+def test_sync_workloads_and_pods_graph(
+    neo4j_session, _create_test_cluster, monkeypatch
+):
+    # Arrange / Act: one workload + pod sync; every check below is read-only.
     _run_sync(neo4j_session, monkeypatch)
 
+    # Assert: controller nodes and their ontology labels.
     assert check_nodes(neo4j_session, "KubernetesDeployment", ["name"]) == {("web",)}
     assert check_nodes(neo4j_session, "KubernetesReplicaSet", ["name"]) == {("web-rs",)}
     assert check_nodes(neo4j_session, "KubernetesStatefulSet", ["name"]) == {("db",)}
@@ -110,10 +114,7 @@ def test_workload_nodes(neo4j_session, _create_test_cluster, monkeypatch):
     }
     assert ("web-rs",) not in check_nodes(neo4j_session, "ComputeService", ["name"])
 
-
-def test_ownerreferences_edges(neo4j_session, _create_test_cluster, monkeypatch):
-    _run_sync(neo4j_session, monkeypatch)
-
+    # Assert: raw ownerReferences edges.
     # Raw ownerReference chain through the (collapsed) ReplicaSet.
     assert check_rels(
         neo4j_session,
@@ -132,12 +133,7 @@ def test_ownerreferences_edges(neo4j_session, _create_test_cluster, monkeypatch)
         "OWNED_BY",
     ) == {("web-rs", "web")}
 
-
-def test_pod_workload_parent_collapses_replicaset(
-    neo4j_session, _create_test_cluster, monkeypatch
-):
-    _run_sync(neo4j_session, monkeypatch)
-
+    # Assert: pod WORKLOAD_PARENT collapses the ReplicaSet.
     # Pod skips the ReplicaSet and points straight at the Deployment.
     assert check_rels(
         neo4j_session,
@@ -172,12 +168,7 @@ def test_pod_workload_parent_collapses_replicaset(
         "WORKLOAD_PARENT",
     ) == {("report-pod", "report-123"), ("migrate-pod", "migrate")}
 
-
-def test_controller_workload_parent_up_the_chain(
-    neo4j_session, _create_test_cluster, monkeypatch
-):
-    _run_sync(neo4j_session, monkeypatch)
-
+    # Assert: controller WORKLOAD_PARENT up the chain.
     # Job owned by a CronJob points at it; standalone Job falls back to namespace.
     assert check_rels(
         neo4j_session,
@@ -216,6 +207,19 @@ def test_controller_workload_parent_up_the_chain(
             rel_direction_right=False,
         )
         assert rels, f"expected {label} -> namespace WORKLOAD_PARENT edge"
+
+    # Assert: only the bare pod resolves to the namespace.
+    # A pod with no controller keeps its namespace WORKLOAD_PARENT (no regression);
+    # controlled pods do NOT get a namespace WORKLOAD_PARENT edge.
+    pod_to_namespace = check_rels(
+        neo4j_session,
+        "KubernetesPod",
+        "name",
+        "KubernetesNamespace",
+        "name",
+        "WORKLOAD_PARENT",
+    )
+    assert pod_to_namespace == {("bare-pod", workload_data.NAMESPACE)}
 
 
 def test_forbidden_workload_list_preserves_nodes(
@@ -328,21 +332,3 @@ def test_forbidden_workloads_pods_fall_back_to_namespace(
         ("migrate-pod", ns),
         ("bare-pod", ns),
     }
-
-
-def test_bare_pod_still_resolves_to_namespace(
-    neo4j_session, _create_test_cluster, monkeypatch
-):
-    _run_sync(neo4j_session, monkeypatch)
-
-    # A pod with no controller keeps its namespace WORKLOAD_PARENT (no regression);
-    # controlled pods do NOT get a namespace WORKLOAD_PARENT edge.
-    pod_to_namespace = check_rels(
-        neo4j_session,
-        "KubernetesPod",
-        "name",
-        "KubernetesNamespace",
-        "name",
-        "WORKLOAD_PARENT",
-    )
-    assert pod_to_namespace == {("bare-pod", workload_data.NAMESPACE)}

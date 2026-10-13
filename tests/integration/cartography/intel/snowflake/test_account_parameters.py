@@ -3,7 +3,6 @@ from unittest.mock import patch
 import cartography.intel.snowflake.account_parameters
 from tests.data.snowflake.account import SNOWFLAKE_ACCOUNT_ID
 from tests.data.snowflake.account_parameters import SNOWFLAKE_ACCOUNT_PARAMETERS
-from tests.data.snowflake.account_parameters import SNOWFLAKE_NETWORK_POLICY_PARAMETERS
 from tests.integration.cartography.intel.snowflake.test_account import (
     _ensure_local_neo4j_has_test_account,
 )
@@ -80,23 +79,6 @@ def test_sync_snowflake_account_parameters(mock_get, mock_policy, neo4j_session)
             SNOWFLAKE_ACCOUNT_ID,
         ),
     }
-
-
-def test_get_account_network_policy_reads_the_filtered_listing(mocker):
-    """The account-level policy is only stated by the NETWORK_POLICY parameter."""
-    # Arrange
-    client = build_test_client()
-    client.run_sql = mocker.Mock(return_value=SNOWFLAKE_NETWORK_POLICY_PARAMETERS)
-
-    # Act
-    network_policy = (
-        cartography.intel.snowflake.account_parameters.get_account_network_policy(
-            client
-        )
-    )
-
-    # Assert
-    assert network_policy == "PLANT_PERIMETER"
 
 
 @patch.object(

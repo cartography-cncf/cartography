@@ -24,7 +24,12 @@ class TestGetDnsZonesCurrentStateSemantics:
     the graph reflects only the currently visible state.
     """
 
-    def test_returns_empty_list_on_forbidden(self):
+    @pytest.mark.parametrize(
+        "category",
+        ["forbidden", "api_disabled", "billing_disabled"],
+        ids=["forbidden", "api_disabled", "billing_disabled"],
+    )
+    def test_returns_empty_list_on_access_error(self, category):
         mock_dns = MagicMock()
         with (
             patch(
@@ -33,35 +38,7 @@ class TestGetDnsZonesCurrentStateSemantics:
             ),
             patch(
                 "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="forbidden",
-            ),
-        ):
-            assert get_dns_zones(mock_dns, "test-project") == []
-
-    def test_returns_empty_list_on_api_disabled(self):
-        mock_dns = MagicMock()
-        with (
-            patch(
-                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="api_disabled",
-            ),
-        ):
-            assert get_dns_zones(mock_dns, "test-project") == []
-
-    def test_returns_empty_list_on_billing_disabled(self):
-        mock_dns = MagicMock()
-        with (
-            patch(
-                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="billing_disabled",
+                return_value=category,
             ),
         ):
             assert get_dns_zones(mock_dns, "test-project") == []
@@ -90,7 +67,12 @@ class TestGetDnsRrsCurrentStateSemantics:
     the cleanup step to remove stale record sets from the graph.
     """
 
-    def test_returns_empty_list_on_forbidden(self):
+    @pytest.mark.parametrize(
+        "category",
+        ["forbidden", "api_disabled", "billing_disabled"],
+        ids=["forbidden", "api_disabled", "billing_disabled"],
+    )
+    def test_returns_empty_list_on_access_error(self, category):
         mock_dns = MagicMock()
         zones = [{"id": "zone-1"}]
         with (
@@ -100,37 +82,7 @@ class TestGetDnsRrsCurrentStateSemantics:
             ),
             patch(
                 "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="forbidden",
-            ),
-        ):
-            assert get_dns_rrs(mock_dns, zones, "test-project") == []
-
-    def test_returns_empty_list_on_api_disabled(self):
-        mock_dns = MagicMock()
-        zones = [{"id": "zone-1"}]
-        with (
-            patch(
-                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="api_disabled",
-            ),
-        ):
-            assert get_dns_rrs(mock_dns, zones, "test-project") == []
-
-    def test_returns_empty_list_on_billing_disabled(self):
-        mock_dns = MagicMock()
-        zones = [{"id": "zone-1"}]
-        with (
-            patch(
-                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="billing_disabled",
+                return_value=category,
             ),
         ):
             assert get_dns_rrs(mock_dns, zones, "test-project") == []

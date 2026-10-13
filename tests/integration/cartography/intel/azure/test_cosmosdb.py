@@ -603,28 +603,7 @@ def test_sync_cosmosdb_accounts(
         ),
     }
 
-
-def test_load_database_account_tags(neo4j_session):
-    """
-    Test that tags are correctly loaded and linked to Cosmos DB accounts.
-    """
-    # 1. Arrange: Load the database accounts first
-    cartography.intel.azure.cosmosdb.load_database_account_data(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_DATABASE_ACCOUNTS,
-        TEST_UPDATE_TAG,
-    )
-
-    # 2. Act: Load the tags
-    cartography.intel.azure.cosmosdb.load_database_account_tags(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_DATABASE_ACCOUNTS,
-        TEST_UPDATE_TAG,
-    )
-
-    # 3. Assert: Check that the AzureTag nodes exist
+    # Assert tags: Check that the AzureTag nodes exist
     expected_tags = {
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:cosmosdb",
@@ -634,7 +613,7 @@ def test_load_database_account_tags(neo4j_session):
     actual_tags = {n["t.id"] for n in nodes}
     assert actual_tags == expected_tags
 
-    # 4. Assert: Check the relationships
+    # Assert tags: Check the relationships
     expected_rels = {
         (da1, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
         (da1, f"{TEST_SUBSCRIPTION_ID}|service:cosmosdb"),

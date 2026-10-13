@@ -17,148 +17,6 @@ TEST_UPDATE_TAG = 123456789
 CLUSTER_ARN = "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster"
 
 
-def test_load_ecs_clusters(neo4j_session, *args):
-    data = tests.data.aws.ecs.GET_ECS_CLUSTERS
-    cartography.intel.aws.ecs.load_ecs_clusters(
-        neo4j_session,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSCluster",
-        ["id", "name", "status"],
-    ) == {
-        (
-            CLUSTER_ARN,
-            "test_cluster",
-            "ACTIVE",
-        ),
-    }
-
-
-def test_load_ecs_container_instances(neo4j_session, *args):
-    cartography.intel.aws.ecs.load_ecs_clusters(
-        neo4j_session,
-        tests.data.aws.ecs.GET_ECS_CLUSTERS,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-    # Create AWSEC2Instance node so the IS_INSTANCE relationship can be created
-    neo4j_session.run(
-        """
-        MERGE (i:AWSEC2Instance{id: $InstanceId})
-        ON CREATE SET i.firstseen = timestamp()
-        SET i.lastupdated = $aws_update_tag
-        """,
-        InstanceId="i-00000000000000000",
-        aws_update_tag=TEST_UPDATE_TAG,
-    )
-    data = tests.data.aws.ecs.GET_ECS_CONTAINER_INSTANCES
-    cartography.intel.aws.ecs.load_ecs_container_instances(
-        neo4j_session,
-        CLUSTER_ARN,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSContainerInstance",
-        ["id", "ec2_instance_id", "status", "version"],
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
-            "i-00000000000000000",
-            "ACTIVE",
-            100000,
-        ),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AWSECSCluster",
-        "id",
-        "AWSECSContainerInstance",
-        "id",
-        "HAS_CONTAINER_INSTANCE",
-        rel_direction_right=True,
-    ) == {
-        (
-            CLUSTER_ARN,
-            "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
-        ),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AWSECSContainerInstance",
-        "id",
-        "AWSEC2Instance",
-        "id",
-        "IS_INSTANCE",
-        rel_direction_right=True,
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
-            "i-00000000000000000",
-        ),
-    }
-
-
-def test_load_ecs_services(neo4j_session, *args):
-    cartography.intel.aws.ecs.load_ecs_clusters(
-        neo4j_session,
-        tests.data.aws.ecs.GET_ECS_CLUSTERS,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-    data = tests.data.aws.ecs.GET_ECS_SERVICES
-    cartography.intel.aws.ecs.load_ecs_services(
-        neo4j_session,
-        CLUSTER_ARN,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSService",
-        ["id", "name", "cluster_arn", "status"],
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
-            "test_service",
-            "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
-            "ACTIVE",
-        ),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AWSECSCluster",
-        "id",
-        "AWSECSService",
-        "id",
-        "HAS_SERVICE",
-        rel_direction_right=True,
-    ) == {
-        (
-            CLUSTER_ARN,
-            "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
-        ),
-    }
-
-
 def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
     # Seed AWSAccount and ECS cluster
     neo4j_session.run(
@@ -216,90 +74,6 @@ def test_load_ecs_services_target_group_registrations(neo4j_session, *args):
     )
     assert records[0]["container_name"] == "test_container"
     assert records[0]["container_port"] == 8080
-
-
-def test_load_ecs_tasks(neo4j_session, *args):
-    # Arrange
-    data = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS)
-    data = cartography.intel.aws.ecs.transform_ecs_tasks(data)
-    containers = cartography.intel.aws.ecs._get_containers_from_tasks(data)
-
-    # Act
-    cartography.intel.aws.ecs.load_ecs_tasks(
-        neo4j_session,
-        CLUSTER_ARN,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-    cartography.intel.aws.ecs.load_ecs_containers(
-        neo4j_session,
-        containers,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    # Assert
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSTask",
-        ["id", "task_definition_arn", "cluster_arn", "group"],
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
-            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
-            "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
-            "service:test_service",
-        ),
-    }
-
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSContainer",
-        ["id", "name", "image", "image_digest"],
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",  # noqa:E501
-            "test-task_container",
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-image:latest",
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        ),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AWSECSTask",
-        "id",
-        "AWSECSContainer",
-        "id",
-        "HAS_CONTAINER",
-        rel_direction_right=True,
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
-            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
-        ),
-    }
-
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSContainer",
-        [
-            "id",
-            "architecture",
-            "architecture_normalized",
-            "architecture_source",
-        ],
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
-            "x86_64",
-            "amd64",
-            "runtime_api_exact",
-        ),
-    }
 
 
 def test_load_ecs_tasks_with_live_redacted_payload(neo4j_session):
@@ -512,71 +286,6 @@ def test_transform_ecs_tasks(neo4j_session):
         (
             "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
             "eni-00000000000000000",
-        ),
-    }
-
-
-def test_load_ecs_task_definitions(neo4j_session, *args):
-    # Arrange
-    data = tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS
-    container_defs = (
-        cartography.intel.aws.ecs._get_container_defs_from_task_definitions(data)
-    )
-
-    # Act
-    cartography.intel.aws.ecs.load_ecs_task_definitions(
-        neo4j_session,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-    cartography.intel.aws.ecs.load_ecs_container_definitions(
-        neo4j_session,
-        container_defs,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    # Assert
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSTaskDefinition",
-        ["id", "family", "status", "revision"],
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
-            "test_family",
-            "ACTIVE",
-            4,
-        ),
-    }
-
-    assert check_nodes(
-        neo4j_session,
-        "AWSECSContainerDefinition",
-        ["id", "name", "image"],
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0-test",
-            "test",
-            "test/test:latest",
-        ),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AWSECSTaskDefinition",
-        "id",
-        "AWSECSContainerDefinition",
-        "id",
-        "HAS_CONTAINER_DEFINITION",
-        rel_direction_right=True,
-    ) == {
-        (
-            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
-            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0-test",
         ),
     }
 
@@ -1014,38 +723,59 @@ def test_sync_ecs_comprehensive(
     assert check_nodes(
         neo4j_session,
         "AWSECSTask",
-        ["id", "task_definition_arn", "cluster_arn"],
+        ["id", "task_definition_arn", "cluster_arn", "group"],
     ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
             "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
+            "service:test_service",
         ),
     }, "ECSTasks"
 
     assert check_nodes(
         neo4j_session,
         "AWSECSTaskDefinition",
-        ["id", "family", "status"],
+        ["id", "family", "status", "revision"],
     ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
             "test_family",
             "ACTIVE",
+            4,
         ),
     }, "ECSTaskDefinitions"
 
     assert check_nodes(
         neo4j_session,
         "AWSECSContainer",
-        ["id", "name", "image"],
+        ["id", "name", "image", "image_digest"],
     ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
             "test-task_container",
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-image:latest",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
     }, "ECSContainers"
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSECSContainer",
+        [
+            "id",
+            "architecture",
+            "architecture_normalized",
+            "architecture_source",
+        ],
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+            "x86_64",
+            "amd64",
+            "runtime_api_exact",
+        ),
+    }, "ECSContainer architecture"
 
     assert check_nodes(
         neo4j_session,
@@ -1062,24 +792,26 @@ def test_sync_ecs_comprehensive(
     assert check_nodes(
         neo4j_session,
         "AWSECSContainerInstance",
-        ["id", "ec2_instance_id", "status"],
+        ["id", "ec2_instance_id", "status", "version"],
     ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
             "i-00000000000000000",
             "ACTIVE",
+            100000,
         ),
     }, "ECSContainerInstances"
 
     assert check_nodes(
         neo4j_session,
         "AWSECSService",
-        ["id", "name", "cluster_arn"],
+        ["id", "name", "cluster_arn", "status"],
     ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
             "test_service",
             "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
+            "ACTIVE",
         ),
     }, "ECSServices"
 

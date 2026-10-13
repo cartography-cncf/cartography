@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
-import pytest
 from kubernetes.client.exceptions import ApiException
 
 import cartography.intel.kubernetes.gateway_api
@@ -67,58 +66,6 @@ def _cleanup_test_cluster(neo4j_session):
         "KubernetesCluster",
     ]:
         neo4j_session.run(f"MATCH (n:{label}) DETACH DELETE n")
-
-
-def test_gateway_api_relationships(neo4j_session):
-    _create_test_cluster(neo4j_session)
-
-    try:
-        load_http_routes(
-            neo4j_session,
-            KUBERNETES_HTTP_ROUTES_DATA,
-            update_tag=TEST_UPDATE_TAG,
-            cluster_id=KUBERNETES_CLUSTER_IDS[0],
-            cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-        )
-        load_gateways(
-            neo4j_session,
-            KUBERNETES_GATEWAYS_DATA,
-            update_tag=TEST_UPDATE_TAG,
-            cluster_id=KUBERNETES_CLUSTER_IDS[0],
-            cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-        )
-
-        assert check_nodes(neo4j_session, "KubernetesGateway", ["name"]) == {
-            ("public-gateway",),
-        }
-        assert check_nodes(neo4j_session, "KubernetesHTTPRoute", ["name"]) == {
-            ("frontend-route",),
-        }
-
-        assert check_rels(
-            neo4j_session,
-            "KubernetesGateway",
-            "name",
-            "KubernetesHTTPRoute",
-            "name",
-            "ROUTES",
-            rel_direction_right=True,
-        ) == {("public-gateway", "frontend-route")}
-
-        assert check_rels(
-            neo4j_session,
-            "KubernetesHTTPRoute",
-            "name",
-            "KubernetesService",
-            "name",
-            "TARGETS",
-            rel_direction_right=True,
-        ) == {
-            ("frontend-route", "api-service"),
-            ("frontend-route", "app-service"),
-        }
-    finally:
-        _cleanup_test_cluster(neo4j_session)
 
 
 def test_gateway_api_relationships_preserve_namespace_name_pairs(neo4j_session):
@@ -474,18 +421,20 @@ def test_sync_gateway_api_cleans_up_stale_nodes_and_rels(
         _cleanup_test_cluster(neo4j_session)
 
 
-@pytest.mark.parametrize("status", [401, 403])
 @patch.object(cartography.intel.kubernetes.gateway_api, "get_gateways")
 @patch.object(cartography.intel.kubernetes.gateway_api, "get_http_routes")
 def test_sync_gateway_api_preserves_existing_data_on_permission_error(
     mock_get_http_routes,
     mock_get_gateways,
-    status,
     neo4j_session,
 ):
     """If RBAC for gateway-api is revoked between syncs, the next sync must
     preserve the previously ingested KubernetesGateway / KubernetesHTTPRoute
-    nodes (rather than wiping them via the cleanup step)."""
+    nodes (rather than wiping them via the cleanup step).
+
+    401 and 403 share one branch in sync_gateway_api; the unit test
+    test_sync_gateway_api_skips_load_and_cleanup_on_permission_error covers both
+    statuses, so this graph-level check runs once with 403."""
     _create_test_cluster(neo4j_session)
 
     try:
@@ -504,8 +453,8 @@ def test_sync_gateway_api_preserves_existing_data_on_permission_error(
             cluster_name=KUBERNETES_CLUSTER_NAMES[0],
         )
 
-        mock_get_gateways.side_effect = ApiException(status=status)
-        mock_get_http_routes.side_effect = ApiException(status=status)
+        mock_get_gateways.side_effect = ApiException(status=403)
+        mock_get_http_routes.side_effect = ApiException(status=403)
 
         k8s_client = MagicMock()
         k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]

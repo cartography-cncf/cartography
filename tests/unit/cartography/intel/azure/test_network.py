@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.intel.azure.network import transform_network_interfaces
 from cartography.intel.azure.network import transform_network_security_rules
 from cartography.intel.azure.network import transform_public_ip_addresses
@@ -5,9 +7,10 @@ from cartography.intel.azure.network import transform_subnets
 from cartography.intel.azure.network import transform_virtual_networks
 
 
-def test_transform_public_ip_addresses_handles_flattened_fields():
-    data = transform_public_ip_addresses(
-        [
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(
             {
                 "id": "public-ip-1",
                 "name": "my-public-ip-1",
@@ -15,23 +18,9 @@ def test_transform_public_ip_addresses_handles_flattened_fields():
                 "ip_address": "20.10.30.40",
                 "public_ip_allocation_method": "Static",
             },
-        ],
-    )
-
-    assert data == [
-        {
-            "id": "public-ip-1",
-            "name": "my-public-ip-1",
-            "location": "eastus",
-            "ip_address": "20.10.30.40",
-            "public_ip_allocation_method": "Static",
-        },
-    ]
-
-
-def test_transform_public_ip_addresses_handles_nested_properties_fields():
-    data = transform_public_ip_addresses(
-        [
+            id="flattened",
+        ),
+        pytest.param(
             {
                 "id": "public-ip-1",
                 "name": "my-public-ip-1",
@@ -41,9 +30,15 @@ def test_transform_public_ip_addresses_handles_nested_properties_fields():
                     "public_ip_allocation_method": "Static",
                 },
             },
-        ],
-    )
+            id="nested_properties",
+        ),
+    ],
+)
+def test_transform_public_ip_addresses_handles_payload_shapes(raw):
+    # Act
+    data = transform_public_ip_addresses([raw])
 
+    # Assert
     assert data == [
         {
             "id": "public-ip-1",

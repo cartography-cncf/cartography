@@ -22,223 +22,192 @@ from cartography.intel.gcp.util import summarize_gcp_http_error
 class TestIsApiDisabledError:
     """Tests for is_api_disabled_error() function."""
 
-    def test_api_not_used_with_reason_field(self):
-        """Test detection via reason='accessNotConfigured'."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "Cloud Functions API has not been used in project 123",
-                    "errors": [{"reason": "accessNotConfigured", "domain": "global"}],
+    @pytest.mark.parametrize(
+        "body,raw,expected",
+        [
+            # Detection via reason='accessNotConfigured'.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Cloud Functions API has not been used in project 123",
+                        "errors": [
+                            {"reason": "accessNotConfigured", "domain": "global"}
+                        ],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is True
-
-    def test_service_disabled_reason(self):
-        """Test detection via reason='SERVICE_DISABLED'."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "Bigtable Admin API is disabled",
-                    "errors": [{"reason": "SERVICE_DISABLED", "domain": "global"}],
+                None,
+                True,
+            ),
+            # Detection via reason='SERVICE_DISABLED'.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Bigtable Admin API is disabled",
+                        "errors": [{"reason": "SERVICE_DISABLED", "domain": "global"}],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is True
-
-    def test_permission_denied_with_forbidden_reason(self):
-        """Test that reason='forbidden' returns False (IAM issue, not API disabled)."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "Permission denied on resource",
-                    "errors": [{"reason": "forbidden", "domain": "global"}],
+                None,
+                True,
+            ),
+            # reason='forbidden' is an IAM issue, not API disabled.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Permission denied on resource",
+                        "errors": [{"reason": "forbidden", "domain": "global"}],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is False
-
-    def test_insufficient_permissions_reason(self):
-        """Test that reason='insufficientPermissions' returns False."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "User lacks required permissions",
-                    "errors": [
-                        {
-                            "reason": "insufficientPermissions",
-                            "domain": "iam.googleapis.com",
-                        }
-                    ],
+                None,
+                False,
+            ),
+            # reason='insufficientPermissions' is not API disabled.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "User lacks required permissions",
+                        "errors": [
+                            {
+                                "reason": "insufficientPermissions",
+                                "domain": "iam.googleapis.com",
+                            }
+                        ],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is False
-
-    def test_iam_permission_denied_reason(self):
-        """Test that reason='IAM_PERMISSION_DENIED' returns False."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "IAM permission denied",
-                    "errors": [
-                        {
-                            "reason": "IAM_PERMISSION_DENIED",
-                            "domain": "iam.googleapis.com",
-                        }
-                    ],
+                None,
+                False,
+            ),
+            # reason='IAM_PERMISSION_DENIED' is not API disabled.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "IAM permission denied",
+                        "errors": [
+                            {
+                                "reason": "IAM_PERMISSION_DENIED",
+                                "domain": "iam.googleapis.com",
+                            }
+                        ],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is False
-
-    def test_fallback_to_message_pattern_api_not_used(self):
-        """Test fallback to message pattern when no errors array."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "Cloud Run API has not been used in project 123 before or it is disabled",
+                None,
+                False,
+            ),
+            # Fallback to message pattern when there is no errors array.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Cloud Run API has not been used in project 123 before or it is disabled",
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is True
-
-    def test_fallback_to_message_pattern_is_not_enabled(self):
-        """Test fallback for 'is not enabled' message pattern."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "message": "Bigtable Admin API is not enabled",
+                None,
+                True,
+            ),
+            # Fallback for 'is not enabled' message pattern.
+            (
+                {
+                    "error": {
+                        "message": "Bigtable Admin API is not enabled",
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is True
-
-    def test_fallback_to_message_pattern_it_is_disabled(self):
-        """Test fallback for 'it is disabled' message pattern."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "message": "Cloud SQL Admin API has not been used before or it is disabled",
+                None,
+                True,
+            ),
+            # Fallback for 'it is disabled' message pattern.
+            (
+                {
+                    "error": {
+                        "message": "Cloud SQL Admin API has not been used before or it is disabled",
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is True
-
-    def test_generic_permission_denied_no_api_keywords(self):
-        """Test that generic permission denied without API keywords returns False."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "message": "user@example.com does not have storage.buckets.list access",
+                None,
+                True,
+            ),
+            # Generic permission denied without API keywords.
+            (
+                {
+                    "error": {
+                        "message": "user@example.com does not have storage.buckets.list access",
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is False
-
-    def test_malformed_json_response(self):
-        """Test handling of non-JSON response content."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error = HttpError(mock_resp, b"Invalid JSON response")
-        assert is_api_disabled_error(error) is False
-
-    def test_empty_error_object(self):
-        """Test handling of empty error object."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps({"error": {}}).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is False
-
-    def test_missing_error_key(self):
-        """Test handling of response without 'error' key."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps({"status": "FAILED"}).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is False
-
-    def test_empty_errors_array_with_message(self):
-        """Test fallback to message when errors array is empty."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "Cloud Run API is not enabled",
-                    "errors": [],
+                None,
+                False,
+            ),
+            # Non-JSON response content.
+            (None, b"Invalid JSON response", False),
+            # Empty error object.
+            ({"error": {}}, None, False),
+            # Response without 'error' key.
+            ({"status": "FAILED"}, None, False),
+            # Fallback to message when errors array is empty.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Cloud Run API is not enabled",
+                        "errors": [],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is True
-
-    def test_unknown_reason_falls_back_to_message(self):
-        """Test that unknown reason falls back to message pattern check."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "Some API is not enabled",
-                    "errors": [{"reason": "unknownReason", "domain": "global"}],
+                None,
+                True,
+            ),
+            # Unknown reason falls back to message pattern check.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Some API is not enabled",
+                        "errors": [{"reason": "unknownReason", "domain": "global"}],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is True
-
-    def test_unknown_reason_no_matching_message(self):
-        """Test that unknown reason with non-matching message returns False."""
-        mock_resp = MagicMock()
-        mock_resp.status = 403
-        error_content = json.dumps(
-            {
-                "error": {
-                    "code": 403,
-                    "message": "Some other error occurred",
-                    "errors": [{"reason": "unknownReason", "domain": "global"}],
+                None,
+                True,
+            ),
+            # Unknown reason with non-matching message.
+            (
+                {
+                    "error": {
+                        "code": 403,
+                        "message": "Some other error occurred",
+                        "errors": [{"reason": "unknownReason", "domain": "global"}],
+                    },
                 },
-            }
-        ).encode("utf-8")
-        error = HttpError(mock_resp, error_content)
-        assert is_api_disabled_error(error) is False
+                None,
+                False,
+            ),
+        ],
+        ids=[
+            "api_not_used_with_reason_field",
+            "service_disabled_reason",
+            "permission_denied_with_forbidden_reason",
+            "insufficient_permissions_reason",
+            "iam_permission_denied_reason",
+            "fallback_to_message_pattern_api_not_used",
+            "fallback_to_message_pattern_is_not_enabled",
+            "fallback_to_message_pattern_it_is_disabled",
+            "generic_permission_denied_no_api_keywords",
+            "malformed_json_response",
+            "empty_error_object",
+            "missing_error_key",
+            "empty_errors_array_with_message",
+            "unknown_reason_falls_back_to_message",
+            "unknown_reason_no_matching_message",
+        ],
+    )
+    def test_is_api_disabled_error(self, body, raw, expected):
+        # Arrange
+        error = _make_http_error(403, body, raw)
+
+        # Act
+        result = is_api_disabled_error(error)
+
+        # Assert
+        assert result is expected
 
 
 class TestGetErrorReason:

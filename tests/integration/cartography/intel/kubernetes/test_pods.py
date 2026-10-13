@@ -101,7 +101,7 @@ def _create_test_cluster(neo4j_session):
     )
 
 
-def test_load_pods(neo4j_session, _create_test_cluster):
+def test_load_pods_and_containers(neo4j_session, _create_test_cluster):
     # Act
     load_pods(
         neo4j_session,
@@ -110,8 +110,15 @@ def test_load_pods(neo4j_session, _create_test_cluster):
         cluster_id=KUBERNETES_CLUSTER_IDS[0],
         cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
+    load_containers(
+        neo4j_session,
+        KUBERNETES_CONTAINER_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
 
-    # Assert
+    # Assert: pod nodes
     expected_nodes = {("my-pod",), ("my-service-pod",)}
     assert check_nodes(neo4j_session, "KubernetesPod", ["name"]) == expected_nodes
     expected_service_account_names = {
@@ -125,17 +132,6 @@ def test_load_pods(neo4j_session, _create_test_cluster):
             ["name", "service_account_name"],
         )
         == expected_service_account_names
-    )
-
-
-def test_load_pod_relationships(neo4j_session, _create_test_cluster):
-    # Act
-    load_pods(
-        neo4j_session,
-        KUBERNETES_PODS_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Assert: Expect pods to be in the correct namespace
@@ -172,17 +168,6 @@ def test_load_pod_relationships(neo4j_session, _create_test_cluster):
         == expected_rels
     )
 
-
-def test_bare_pod_workload_parent_namespace(neo4j_session, _create_test_cluster):
-    # Act
-    load_pods(
-        neo4j_session,
-        KUBERNETES_PODS_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-    )
-
     # Assert: bare pods (no controller) still resolve WORKLOAD_PARENT to their
     # namespace (no regression from the controller work).
     expected_rels = {
@@ -201,27 +186,7 @@ def test_bare_pod_workload_parent_namespace(neo4j_session, _create_test_cluster)
         == expected_rels
     )
 
-
-def test_load_pod_containers(neo4j_session, _create_test_cluster):
-    # Arrange
-    load_pods(
-        neo4j_session,
-        KUBERNETES_PODS_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-    )
-
-    # Act
-    load_containers(
-        neo4j_session,
-        KUBERNETES_CONTAINER_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-    )
-
-    # Assert
+    # Assert: container nodes
     expected_nodes = {("my-pod-container",), ("my-service-pod-container",)}
     assert check_nodes(neo4j_session, "KubernetesContainer", ["name"]) == expected_nodes
     expected_pull_policies = {
@@ -235,26 +200,6 @@ def test_load_pod_containers(neo4j_session, _create_test_cluster):
             ["name", "image_pull_policy"],
         )
         == expected_pull_policies
-    )
-
-
-def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):
-    # Arrange
-    load_pods(
-        neo4j_session,
-        KUBERNETES_PODS_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-    )
-
-    # Act
-    load_containers(
-        neo4j_session,
-        KUBERNETES_CONTAINER_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Assert: Expect containers to be in the correct pod
@@ -289,6 +234,28 @@ def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):
             "CONTAINS",
         )
         == expected_rels
+    )
+
+    # Assert: Verify that resource fields are stored correctly for my-pod-container
+    expected_nodes = {("my-pod-container", "128Mi", "100m", "256Mi", "500m")}
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesContainer",
+            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
+        )
+        >= expected_nodes
+    )
+
+    # Assert: Verify resource fields for my-service-pod-container
+    expected_nodes = {("my-service-pod-container", "64Mi", "50m", "128Mi", "200m")}
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesContainer",
+            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
+        )
+        >= expected_nodes
     )
 
 
@@ -432,48 +399,6 @@ def test_pod_cleanup(neo4j_session, _create_test_cluster):
     # Assert: Expect that the pods were deleted
     assert check_nodes(neo4j_session, "KubernetesPod", ["name"]) == set()
     assert check_nodes(neo4j_session, "KubernetesContainer", ["name"]) == set()
-
-
-def test_load_container_resources(neo4j_session, _create_test_cluster):
-    # Arrange
-    load_pods(
-        neo4j_session,
-        KUBERNETES_PODS_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-    )
-
-    # Act
-    load_containers(
-        neo4j_session,
-        KUBERNETES_CONTAINER_DATA,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=KUBERNETES_CLUSTER_IDS[0],
-        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
-    )
-
-    # Assert: Verify that resource fields are stored correctly for my-pod-container
-    expected_nodes = {("my-pod-container", "128Mi", "100m", "256Mi", "500m")}
-    assert (
-        check_nodes(
-            neo4j_session,
-            "KubernetesContainer",
-            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
-        )
-        >= expected_nodes
-    )
-
-    # Assert: Verify resource fields for my-service-pod-container
-    expected_nodes = {("my-service-pod-container", "64Mi", "50m", "128Mi", "200m")}
-    assert (
-        check_nodes(
-            neo4j_session,
-            "KubernetesContainer",
-            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
-        )
-        >= expected_nodes
-    )
 
 
 def test_load_pod_to_secret_relationships(neo4j_session, _create_test_cluster):

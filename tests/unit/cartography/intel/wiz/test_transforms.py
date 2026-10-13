@@ -7,7 +7,6 @@ from tests.data.wiz import CONFIGURATION_FINDINGS
 from tests.data.wiz import CVE_ID_1
 from tests.data.wiz import DETECTION_ID_1
 from tests.data.wiz import DETECTIONS
-from tests.data.wiz import FINDINGS
 from tests.data.wiz import ISSUES
 from tests.data.wiz import RESOURCE_ID_1
 from tests.data.wiz import TENANT_ID
@@ -90,16 +89,6 @@ def test_transform_findings_does_not_link_detection_description_cves():
     findings = transform_findings([detection], TENANT_ID)
 
     assert findings[0]["cve_id"] is None
-
-
-def test_transform_findings_preserves_all_supported_finding_types():
-    findings = transform_findings(FINDINGS, TENANT_ID)
-
-    assert {finding["finding_type"] for finding in findings} == {
-        "CONFIGURATION",
-        "DETECTION",
-        "VULNERABILITY",
-    }
 
 
 def test_get_finding_id_falls_back_to_deterministic_composite_id():

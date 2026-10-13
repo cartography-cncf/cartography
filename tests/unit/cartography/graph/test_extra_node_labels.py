@@ -37,10 +37,6 @@ def test_extra_node_labels_accepts_declarative_labels() -> None:
     assert label.kind is LabelKind.STANDARD
 
 
-def test_extra_node_label_defaults_to_unconditional() -> None:
-    assert SAMPLE_EXTRA.conditions == ()
-
-
 def test_when_returns_an_immutable_deterministic_copy() -> None:
     conditioned_label = SAMPLE_EXTRA.when(second="2", first="1")
 

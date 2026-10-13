@@ -62,7 +62,9 @@ def test_conditional_labels_applied_based_on_conditions(neo4j_session):
         REGISTRY_ID="registry-1",
     )
 
-    # Assert: Verify unconditional "Resource" label is on all nodes
+    # Assert: Verify unconditional "Resource" label is on all nodes. Together with the exact id
+    # lists below, this proves an IMAGE row carries ContainerImage, Resource and Image
+    # and none of the other conditional image-type labels.
     result = neo4j_session.run(
         "MATCH (n:ContainerImage:Resource) RETURN count(n) AS count"
     )
@@ -163,7 +165,8 @@ def test_conditional_labels_with_multiple_conditions(neo4j_session):
     )
     assert result.single()["count"] == 4
 
-    # Assert: "Critical" label only on severity="critical" nodes
+    # Assert: "Critical" label only on severity="critical" nodes. The exact id lists below also
+    # prove that the low-severity CVE-2024-0004 gets neither Critical nor Urgent.
     result = neo4j_session.run(
         "MATCH (n:Vulnerability:Critical) RETURN n.id AS id ORDER BY n.id"
     )
@@ -181,29 +184,6 @@ def test_conditional_labels_with_multiple_conditions(neo4j_session):
     )
     labels = set(result.single()["labels"])
     assert "Critical" in labels
-    assert "Urgent" not in labels
-
-
-def test_conditional_labels_not_applied_when_conditions_not_met(neo4j_session):
-    """
-    Test that conditional labels are NOT applied when conditions are not met.
-    """
-    # Act: Load vulnerabilities
-    load(
-        neo4j_session,
-        VulnerabilitySchema(),
-        VULNERABILITIES,
-        lastupdated=1,
-    )
-
-    # Assert: Low severity vulnerability has no Critical or Urgent labels
-    result = neo4j_session.run(
-        "MATCH (n:Vulnerability{id: 'CVE-2024-0004'}) RETURN labels(n) AS labels"
-    )
-    labels = set(result.single()["labels"])
-    assert "Vulnerability" in labels
-    assert "SecurityFinding" in labels  # Unconditional label
-    assert "Critical" not in labels
     assert "Urgent" not in labels
 
 
@@ -323,46 +303,6 @@ def test_conditional_labels_without_sub_resource(neo4j_session):
         "MATCH (n:ContainerImage:ImageAttestation) RETURN n.id AS id"
     )
     assert [r["id"] for r in result] == ["sha256:def456"]
-
-
-def test_all_labels_present_on_node(neo4j_session):
-    """
-    Test that a node has all expected labels: primary, unconditional extra, and conditional.
-    """
-    # Arrange: Create the container registry
-    neo4j_session.run(MERGE_CONTAINER_REGISTRY_QUERY)
-
-    # Act: Load a single image
-    load(
-        neo4j_session,
-        ContainerImageSchema(),
-        [
-            {
-                "id": "test-img",
-                "digest": "sha256:test",
-                "image_type": "IMAGE",
-                "repository": "test",
-            }
-        ],
-        lastupdated=1,
-        REGISTRY_ID="registry-1",
-    )
-
-    # Assert: Node has all expected labels
-    result = neo4j_session.run(
-        "MATCH (n:ContainerImage{id: 'test-img'}) RETURN labels(n) AS labels"
-    )
-    labels = set(result.single()["labels"])
-
-    # Primary label
-    assert "ContainerImage" in labels
-    # Unconditional extra label
-    assert "Resource" in labels
-    # Conditional label (matches image_type="IMAGE")
-    assert "Image" in labels
-    # Should NOT have other conditional labels
-    assert "ImageAttestation" not in labels
-    assert "ImageManifestList" not in labels
 
 
 def test_label_declared_twice_ors_its_conditions(neo4j_session):

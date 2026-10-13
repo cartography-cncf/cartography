@@ -259,27 +259,35 @@ def test_get_published_cves_per_year(mock_call_cves_api: Mock, mock_session: Ses
     assert cves == expected_cves
 
 
-def test_get_primary_metric_returns_primary_when_present():
-    metrics = [
-        {"type": "Secondary", "source": "a"},
-        {"type": "Primary", "source": "b"},
-    ]
-    assert _get_primary_metric(metrics) == {"type": "Primary", "source": "b"}
+@pytest.mark.parametrize(
+    "metrics,expected",
+    [
+        pytest.param(
+            [
+                {"type": "Secondary", "source": "a"},
+                {"type": "Primary", "source": "b"},
+            ],
+            {"type": "Primary", "source": "b"},
+            id="primary-present",
+        ),
+        pytest.param(
+            [
+                {"type": "Secondary", "source": "a"},
+                {"type": "Secondary", "source": "b"},
+            ],
+            {"type": "Secondary", "source": "a"},
+            id="fallback-first",
+        ),
+        # NVD can return a CVSS version key mapped to an empty list; falling back to
+        # metrics[0] would raise IndexError and abort the whole CVE sync.
+        pytest.param([], None, id="empty-list"),
+        pytest.param(None, None, id="none"),
+    ],
+)
+def test_get_primary_metric(metrics, expected):
+    result = _get_primary_metric(metrics)
 
-
-def test_get_primary_metric_falls_back_to_first_when_no_primary():
-    metrics = [
-        {"type": "Secondary", "source": "a"},
-        {"type": "Secondary", "source": "b"},
-    ]
-    assert _get_primary_metric(metrics) == {"type": "Secondary", "source": "a"}
-
-
-def test_get_primary_metric_returns_none_for_empty_list():
-    # NVD can return a CVSS version key mapped to an empty list; falling back to
-    # metrics[0] would raise IndexError and abort the whole CVE sync.
-    assert _get_primary_metric([]) is None
-
-
-def test_get_primary_metric_returns_none_for_none():
-    assert _get_primary_metric(None) is None
+    if expected is None:
+        assert result is None
+    else:
+        assert result == expected

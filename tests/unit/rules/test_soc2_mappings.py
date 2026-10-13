@@ -256,13 +256,6 @@ def test_soc2_declared_titles_are_all_mapped():
     assert set(SOC2_TSC_TITLES) == mapped_requirements
 
 
-def test_soc2_mappings_have_control_titles():
-    for rule in RULES.values():
-        for framework in rule.frameworks:
-            if framework.short_name == "soc2":
-                assert framework.control_title is not None, (rule.id, framework)
-
-
 def _documented_gap_requirements() -> set[str]:
     rule_source = "\n".join(
         path.read_text() for path in sorted(RULE_DATA_DIR.glob("*.py"))

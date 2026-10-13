@@ -1,5 +1,7 @@
 import copy
 
+import pytest
+
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
@@ -102,7 +104,14 @@ def _run_k8s_lb_analysis(neo4j_session, common_job_parameters):
         run_typed_analysis_job(job, neo4j_session, common_job_parameters)
 
 
-def test_k8s_lb_expose_via_service(neo4j_session):
+@pytest.fixture(scope="module")
+def default_exposure_graph(neo4j_session):
+    """
+    Seed the default exposure graph once and run the k8s compute and LB exposure jobs.
+
+    The LB jobs only add EXPOSE relationships, so they do not change the
+    exposed_internet properties set by the compute jobs.
+    """
     case = build_exposure_test_data()
     _seed_exposure_graph(neo4j_session, case=case)
 
@@ -113,7 +122,14 @@ def test_k8s_lb_expose_via_service(neo4j_session):
 
     _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
     _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
+    return case
 
+
+def test_k8s_lb_expose_via_service(neo4j_session, default_exposure_graph):
+    # Arrange / Act: default_exposure_graph seeds the graph and runs the analysis jobs
+    case = default_exposure_graph
+
+    # Assert
     result = neo4j_session.run(
         "MATCH (lb:AWSLoadBalancerV2)-[:EXPOSE]->(pod:KubernetesPod) "
         "WHERE lb.id IN $lbs AND pod.id IN $pods "
@@ -139,17 +155,11 @@ def test_k8s_lb_expose_via_service(neo4j_session):
     }
 
 
-def test_k8s_asset_exposure_properties(neo4j_session):
-    case = build_exposure_test_data()
-    _seed_exposure_graph(neo4j_session, case=case)
+def test_k8s_asset_exposure_properties(neo4j_session, default_exposure_graph):
+    # Arrange / Act: default_exposure_graph seeds the graph and runs the analysis jobs
+    case = default_exposure_graph
 
-    common_job_parameters = {
-        "UPDATE_TAG": case["update_tag"],
-        "CLUSTER_ID": case["cluster_id"],
-    }
-
-    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
-
+    # Assert
     result = neo4j_session.run(
         "MATCH (svc:KubernetesService{id: $svc_id}) "
         "RETURN svc.exposed_internet AS exposed",

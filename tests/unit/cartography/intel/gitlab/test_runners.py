@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
 import requests
 
 from cartography.intel.gitlab.runners import _list_runners_tolerant
@@ -95,15 +96,10 @@ def test_list_runners_tolerant_propagates_other_errors(mock_get_paginated):
         pass
 
 
+@pytest.mark.parametrize("status", [403, 404], ids=["forbidden", "not_found"])
 @patch("cartography.intel.gitlab.runners.get_single")
-def test_get_runner_details_returns_none_on_403(mock_get_single):
-    mock_get_single.side_effect = _http_error(403)
-    assert get_runner_details(TEST_GITLAB_URL, "tok", 1) is None
-
-
-@patch("cartography.intel.gitlab.runners.get_single")
-def test_get_runner_details_returns_none_on_404(mock_get_single):
-    mock_get_single.side_effect = _http_error(404)
+def test_get_runner_details_returns_none_on_tolerated_error(mock_get_single, status):
+    mock_get_single.side_effect = _http_error(status)
     assert get_runner_details(TEST_GITLAB_URL, "tok", 1) is None
 
 

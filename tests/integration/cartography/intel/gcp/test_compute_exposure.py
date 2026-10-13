@@ -85,7 +85,19 @@ def _sync_exposure_entities(neo4j_session, common_job_parameters: dict) -> None:
     "get_gcp_instance_responses",
     return_value=INSTANCE_RESPONSES,
 )
-def test_sync_gcp_compute_exposure_entities_and_relationships(
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_global_forwarding_rules",
+    return_value=GLOBAL_FORWARDING_RULES_RESPONSE,
+)
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_regional_forwarding_rules",
+    return_value=REGIONAL_FORWARDING_RULES_RESPONSE,
+)
+def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
+    mock_get_regional_forwarding_rules,
+    mock_get_global_forwarding_rules,
     mock_get_instances,
     mock_get_backend_services,
     mock_get_cloud_armor,
@@ -98,6 +110,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
+        "LIMIT_SIZE": 1000,
     }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
     cartography.intel.gcp.compute.sync_gcp_instances(
@@ -108,11 +121,9 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
-
-    # Act
     _sync_exposure_entities(neo4j_session, common_job_parameters)
 
-    # Assert
+    # Assert: exposure entities and their relationships are loaded
     assert check_nodes(
         neo4j_session,
         "GCPBackendService",
@@ -198,69 +209,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         ),
     }
 
-
-@patch.object(
-    cartography.intel.gcp.instancegroup,
-    "get_gcp_zonal_instance_groups",
-    return_value=INSTANCE_GROUP_RESPONSES,
-)
-@patch.object(
-    cartography.intel.gcp.instancegroup,
-    "get_gcp_regional_instance_groups",
-    return_value=[],
-)
-@patch.object(
-    cartography.intel.gcp.cloud_armor,
-    "get_gcp_cloud_armor_policies",
-    return_value=CLOUD_ARMOR_RESPONSE,
-)
-@patch.object(
-    cartography.intel.gcp.backendservice,
-    "get_gcp_global_backend_services",
-    return_value=BACKEND_SERVICE_RESPONSE,
-)
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_instance_responses",
-    return_value=INSTANCE_RESPONSES,
-)
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_global_forwarding_rules",
-    return_value=GLOBAL_FORWARDING_RULES_RESPONSE,
-)
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_regional_forwarding_rules",
-    return_value=REGIONAL_FORWARDING_RULES_RESPONSE,
-)
-def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
-    mock_get_regional_forwarding_rules,
-    mock_get_global_forwarding_rules,
-    mock_get_instances,
-    mock_get_backend_services,
-    mock_get_cloud_armor,
-    mock_get_regional_igs,
-    mock_get_zonal_igs,
-    neo4j_session,
-):
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "PROJECT_ID": TEST_PROJECT_ID,
-        "LIMIT_SIZE": 1000,
-    }
-    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    cartography.intel.gcp.compute.sync_gcp_instances(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        None,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-    _sync_exposure_entities(neo4j_session, common_job_parameters)
+    # Arrange: forwarding rules feed the exposure analysis jobs
     cartography.intel.gcp.compute.sync_gcp_forwarding_rules(
         neo4j_session,
         MagicMock(),

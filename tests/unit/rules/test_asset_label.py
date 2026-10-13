@@ -4,7 +4,8 @@ Validation for the ``Fact.asset_label`` half of the affected-node anchor.
 ``Fact.__post_init__`` already fails construction (so the registry will not
 import) when ``asset_label`` is empty, when the fact's ``cypher_query`` never
 binds a variable to the declared label, or when ``asset_id_field`` is not
-projected off that variable. What it cannot check without importing
+projected off that variable; the negative tests in ``test_model.py`` cover that
+construction-time validation. What it cannot check without importing
 ``cartography.models`` is whether the label is one the data model actually
 writes, which is what this module adds: a fact anchored on a label no schema
 produces can never be resolved by a consumer.
@@ -13,7 +14,6 @@ produces can never be resolved by a consumer.
 import pytest
 
 from cartography.rules.data.rules import RULES
-from cartography.rules.spec.model import validate_anchor
 from tests.utils import all_graph_labels
 
 # Labels written by legacy handwritten Cypher rather than by a node schema, so
@@ -45,16 +45,3 @@ def test_asset_label_is_written_by_the_data_model(rule_id, fact_id, fact):
         f"'{fact.asset_label}', which no CartographyNodeSchema writes as a "
         f"primary or extra label."
     )
-
-
-@pytest.mark.parametrize("rule_id, fact_id, fact", _ALL_FACTS)
-def test_asset_anchor_describes_one_node(rule_id, fact_id, fact):
-    """The label and the anchor id must belong to the same query variable.
-
-    Enforced at construction time too; kept here so the contract is visible
-    alongside the other anchor tests and reported per fact.
-    """
-    err = validate_anchor(fact.cypher_query, fact.asset_label, fact.asset_id_field)
-    assert (
-        err is None
-    ), f"Rule '{rule_id}' fact '{fact_id}' failed validate_anchor: {err}."

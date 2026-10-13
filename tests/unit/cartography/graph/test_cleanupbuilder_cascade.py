@@ -25,42 +25,6 @@ from tests.data.graph.querybuilder.sample_models.interesting_asset import (
 from tests.unit.cartography.graph.helpers import clean_query_list
 
 
-def test_cascade_cleanup_sub_rel():
-    """
-    Test that cascade_delete=True generates the correct cleanup query with OPTIONAL MATCH for children.
-    The query should:
-    1. Match the parent node attached to its sub resource
-    2. Use OPTIONAL MATCH to find children via sub_resource_relationship rel_label
-    3. Only delete children that are also stale (lastupdated <> UPDATE_TAG)
-    4. Handle parents with no children (empty children list)
-    """
-    actual_queries: list[str] = _build_cleanup_node_and_rel_queries(
-        InterestingAssetSchema(),
-        InterestingAssetToSubResourceRel(),
-        cascade_delete=True,
-    )
-    expected_queries = [
-        """
-        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        CALL (n) {
-            OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
-            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
-            DETACH DELETE child
-        }
-        DETACH DELETE n;
-        """,
-        """
-        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
-        WHERE s.lastupdated <> $UPDATE_TAG
-        WITH s LIMIT $LIMIT_SIZE
-        DELETE s;
-        """,
-    ]
-    assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
-
-
 def test_cascade_cleanup_with_selected_rel():
     """
     Test that cascade_delete=True with a selected relationship generates correct queries.

@@ -1,9 +1,14 @@
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
+import pytest
 from okta.models.device_list import DeviceList
 
+import cartography.intel.okta.devices
+from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.devices import _get_okta_devices
 from cartography.intel.okta.devices import _transform_okta_devices
 from tests.data.okta.devices import DEVICES
@@ -82,3 +87,26 @@ def test_get_okta_devices_expands_user_summary() -> None:
         after=None,
         expand="userSummary",
     )
+
+
+@patch.object(
+    cartography.intel.okta.devices,
+    "_get_okta_devices",
+    new_callable=AsyncMock,
+)
+def test_sync_okta_devices_reraises_other_api_errors(mock_get_devices) -> None:
+    # Arrange
+    mock_get_devices.side_effect = OktaApiError(
+        "list_devices",
+        SimpleNamespace(error_code="E0000007"),
+    )
+    neo4j_session = MagicMock()
+
+    # Act and assert
+    with pytest.raises(OktaApiError):
+        cartography.intel.okta.devices.sync_okta_devices(
+            MagicMock(),
+            neo4j_session,
+            {"UPDATE_TAG": 123456789, "OKTA_ORG_ID": "test-okta-org-id"},
+        )
+    assert not neo4j_session.method_calls

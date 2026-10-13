@@ -13,17 +13,6 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
-    repo_data = tests.data.aws.ecr.DESCRIBE_REPOSITORIES
-    cartography.intel.aws.ecr.load_ecr_repositories(
-        neo4j_session,
-        repo_data["repositories"],
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-
 def _mock_get_ecr_repository_images(_boto3_session, _region, repository_name):
     """Return image data based on repository name, not call order.
 
@@ -64,18 +53,26 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     )
 
     # Assert ECR repositories exist
-    assert check_nodes(neo4j_session, "AWSECRRepository", ["id", "name"]) == {
+    assert check_nodes(
+        neo4j_session, "AWSECRRepository", ["id", "arn", "name", "uri"]
+    ) == {
         (
             "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
+            "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
             "example-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
         ),
         (
             "arn:aws:ecr:us-east-1:000000000000:repository/sample-repository",
+            "arn:aws:ecr:us-east-1:000000000000:repository/sample-repository",
             "sample-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository",
         ),
         (
             "arn:aws:ecr:us-east-1:000000000000:repository/test-repository",
+            "arn:aws:ecr:us-east-1:000000000000:repository/test-repository",
             "test-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
         ),
     }
 
@@ -275,24 +272,6 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     neo4j_session.run("MATCH (n) detach delete n")
 
 
-def test_load_ecr_repositories(neo4j_session):
-    _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
-
-    expected_nodes = {
-        "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
-        "arn:aws:ecr:us-east-1:000000000000:repository/sample-repository",
-        "arn:aws:ecr:us-east-1:000000000000:repository/test-repository",
-    }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (r:AWSECRRepository) RETURN r.arn;
-        """,
-    )
-    actual_nodes = {n["r.arn"] for n in nodes}
-    assert actual_nodes == expected_nodes
-
-
 def test_cleanup_repositories(neo4j_session):
     """
     Ensure that after the cleanup job runs, all AWSECRRepository nodes
@@ -369,103 +348,6 @@ def test_cleanup_repositories(neo4j_session):
 
     # Assert
     assert expected_nodes == actual_nodes
-
-
-def test_load_ecr_repository_images(neo4j_session):
-    """
-    Ensure the connection (:AWSECRRepository)-[:REPO_IMAGE]->(:AWSECRRepositoryImage) exists.
-    """
-    _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
-
-    data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
-    repo_images_list, ecr_images_list = (
-        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
-    )
-    cartography.intel.aws.ecr.load_ecr_repository_images(
-        neo4j_session,
-        repo_images_list,
-        ecr_images_list,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    # Tuples of form (repo ARN, image tag)
-    expected_nodes = {
-        (
-            "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
-            "1",
-        ),
-        (
-            "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
-            "latest",
-        ),
-        (
-            "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
-            "2",
-        ),
-    }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (repo:AWSECRRepository{id:"arn:aws:ecr:us-east-1:000000000000:repository/example-repository"})
-        -[:REPO_IMAGE]->(image:AWSECRRepositoryImage)
-        RETURN repo.arn, image.tag;
-        """,
-    )
-    actual_nodes = {(n["repo.arn"], n["image.tag"]) for n in nodes}
-    assert actual_nodes == expected_nodes
-
-
-def test_load_ecr_images(neo4j_session):
-    """
-    Ensure the connection (:AWSECRRepositoryImage)-[:IMAGE]->(:AWSECRImage) exists.
-    A single AWSECRImage may be referenced by many ECRRepositoryImages.
-    """
-    _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
-
-    data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
-    repo_images_list, ecr_images_list = (
-        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
-    )
-    cartography.intel.aws.ecr.load_ecr_repository_images(
-        neo4j_session,
-        repo_images_list,
-        ecr_images_list,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    # Tuples of form (repo image ARN, image SHA)
-    expected_nodes = {
-        (
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890",
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        ),
-        (
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:1",
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        ),
-        (
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        ),
-        (
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        ),
-    }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (repo_image:AWSECRRepositoryImage)-[:IMAGE]->
-        (image:AWSECRImage{digest:"sha256:0000000000000000000000000000000000000000000000000000000000000000"})
-        RETURN repo_image.id, image.digest;
-        """,
-    )
-    actual_nodes = {(n["repo_image.id"], n["image.digest"]) for n in nodes}
-    assert actual_nodes == expected_nodes
 
 
 @patch.object(

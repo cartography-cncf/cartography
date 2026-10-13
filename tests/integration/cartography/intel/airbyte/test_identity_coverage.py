@@ -8,6 +8,11 @@ import cartography.intel.airbyte
 import cartography.intel.airbyte.users
 from cartography.config import Config
 from tests.data.airbyte import multi_org
+from tests.data.airbyte.fake_api import FakeAirbyteAPI
+from tests.data.airbyte.fake_api import FORBIDDEN_DETAIL
+from tests.data.airbyte.fake_api import make_client
+from tests.data.airbyte.fake_api import TEST_ACCESS_TOKEN
+from tests.data.airbyte.fake_api import TEST_CLIENT_SECRET
 from tests.data.airbyte.multi_org import ALPHA_USER
 from tests.data.airbyte.multi_org import APP_OWNER
 from tests.data.airbyte.multi_org import BETA_USER
@@ -20,11 +25,6 @@ from tests.data.airbyte.multi_org import permission
 from tests.data.airbyte.multi_org import SHARED_USER
 from tests.data.airbyte.multi_org import WS_ALPHA
 from tests.data.airbyte.multi_org import WS_BETA
-from tests.integration.cartography.intel.airbyte.fake_api import FakeAirbyteAPI
-from tests.integration.cartography.intel.airbyte.fake_api import FORBIDDEN_DETAIL
-from tests.integration.cartography.intel.airbyte.fake_api import make_client
-from tests.integration.cartography.intel.airbyte.fake_api import TEST_ACCESS_TOKEN
-from tests.integration.cartography.intel.airbyte.fake_api import TEST_CLIENT_SECRET
 
 
 def _run(neo4j_session, api: FakeAirbyteAPI, update_tag: int) -> None:
@@ -295,38 +295,3 @@ def test_denial_of_other_endpoints_still_fails(neo4j_session, api):
     # Act and assert
     with pytest.raises(requests.HTTPError):
         _run(neo4j_session, api, 2)
-
-
-@pytest.mark.parametrize(
-    "method,uri,result,expected",
-    [
-        # AirbyteClient.get() exchanges the token first, inside the same call.
-        ("POST", "/applications/token", 401, requests.HTTPError),
-        ("POST", "/applications/token", 403, requests.HTTPError),
-        ("GET", "/users", 401, requests.HTTPError),
-        ("GET", "/permissions", 429, requests.HTTPError),
-        ("GET", "/users", 503, requests.HTTPError),
-        (
-            "GET",
-            "/permissions",
-            requests.ConnectionError("reset"),
-            requests.ConnectionError,
-        ),
-        ("GET", "/users", (200, b"<html>gateway</html>"), requests.JSONDecodeError),
-    ],
-)
-def test_failures_other_than_an_identity_denial_are_raised(
-    neo4j_session, method, uri, result, expected
-):
-    # Arrange
-    api = FakeAirbyteAPI()
-    api.fail(method, uri, result)
-
-    # Act and assert
-    with pytest.raises(expected):
-        cartography.intel.airbyte.users.sync(
-            neo4j_session,
-            make_client(api),
-            ORG_ALPHA,
-            {"UPDATE_TAG": 1, "ORG_ID": ORG_ALPHA},
-        )

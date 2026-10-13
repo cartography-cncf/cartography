@@ -255,42 +255,12 @@ def test_sync_gcp_subnets(mock_get_vpcs, mock_get_subnets, neo4j_session):
     "get_gcp_instance_responses",
     return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
 )
-def test_gcp_subnet_stub_not_labeled_subnet(mock_get_instances, neo4j_session):
-    """Regression: GCP subnet stubs created by the instance path only know
-    partial_uri, so they must NOT carry the Subnet semantic label. Otherwise
-    cross-cloud (:Subnet) queries would return nameless GCP subnet nodes (no
-    _ont_name/_ont_cidr_block/_ont_region) until a full subnet sync runs."""
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "PROJECT_ID": TEST_PROJECT_ID,
-    }
-    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-
-    # Act - sync instances only; this creates GCPSubnet stub nodes without full
-    # subnet data.
-    cartography.intel.gcp.compute.sync_gcp_instances(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        None,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Assert - stub subnet nodes exist, but none carry the Subnet label.
-    assert check_nodes(neo4j_session, "GCPSubnet", ["id"]) != set()
-    assert check_nodes(neo4j_session, "Subnet", ["id"]) == set()
-
-
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_instance_responses",
-    return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
-)
 def test_sync_gcp_instances(mock_get_instances, neo4j_session):
-    """Test sync_gcp_instances() loads instances and creates relationships."""
+    """Test sync_gcp_instances() loads instances and creates relationships.
+
+    Instances are synced alone (no subnet or IAM sync), which also covers the
+    subnet-stub labeling regression and the compute-only selective-sync caveat.
+    """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     common_job_parameters = {
@@ -300,7 +270,8 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
     # Create project first - required for RESOURCE relationship with data model
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
-    # Act
+    # Act - sync instances only; this creates GCPSubnet stub nodes without full
+    # subnet data, and no IAM sync runs beforehand.
     cartography.intel.gcp.compute.sync_gcp_instances(
         neo4j_session,
         MagicMock(),
@@ -464,6 +435,45 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
         ),
     }
 
+    # Assert - Regression: GCP subnet stubs created by the instance path only
+    # know partial_uri, so they must NOT carry the Subnet semantic label.
+    # Otherwise cross-cloud (:Subnet) queries would return nameless GCP subnet
+    # nodes (no _ont_name/_ont_cidr_block/_ont_region) until a full subnet sync
+    # runs. Stub subnet nodes exist, but none carry the Subnet label.
+    assert check_nodes(neo4j_session, "GCPSubnet", ["id"]) != set()
+    assert check_nodes(neo4j_session, "Subnet", ["id"]) == set()
+
+    # Assert - Selective-sync caveat: with `--gcp-requested-syncs compute`, IAM
+    # does not run, so no GCPServiceAccount exists and no RUNS_AS edge is
+    # created. The service_account_email property is still populated on the
+    # instance.
+    assert check_nodes(
+        neo4j_session,
+        "GCPInstance",
+        ["id", "service_account_email"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "my-svc-account@developer.gserviceaccount.com",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPInstance",
+            "id",
+            "GCPServiceAccount",
+            "email",
+            "RUNS_AS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
 
 @patch.object(
     cartography.intel.gcp.compute,
@@ -599,64 +609,6 @@ def test_iam_then_compute_creates_runs_as(
             "my-svc-account@developer.gserviceaccount.com",
         ),
     }
-
-
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_instance_responses",
-    return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
-)
-def test_compute_alone_creates_no_runs_as(mock_get_instances, neo4j_session):
-    """Selective-sync caveat: with `--gcp-requested-syncs compute`, IAM does not
-    run, so no GCPServiceAccount exists and no RUNS_AS edge is created. The
-    service_account_email property is still populated on the instance."""
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "PROJECT_ID": TEST_PROJECT_ID,
-    }
-    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-
-    # Act - compute only, no IAM sync beforehand
-    cartography.intel.gcp.compute.sync_gcp_instances(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        None,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Assert - property populated even though IAM did not run
-    assert check_nodes(
-        neo4j_session,
-        "GCPInstance",
-        ["id", "service_account_email"],
-    ) == {
-        (
-            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
-            "my-svc-account@developer.gserviceaccount.com",
-        ),
-        (
-            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
-            "my-svc-account@developer.gserviceaccount.com",
-        ),
-    }
-
-    # Assert - no RUNS_AS edge, since the service account node does not exist
-    assert (
-        check_rels(
-            neo4j_session,
-            "GCPInstance",
-            "id",
-            "GCPServiceAccount",
-            "email",
-            "RUNS_AS",
-            rel_direction_right=True,
-        )
-        == set()
-    )
 
 
 @patch.object(
@@ -1033,7 +985,8 @@ def test_sync_gcp_forwarding_rules_with_relationships(
     return_value=tests.data.gcp.compute.VPC_RESPONSE,
 )
 def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_session):
-    """Test sync_gcp_firewall_rules() loads firewalls and creates relationships."""
+    """Test sync_gcp_firewall_rules() loads firewalls, IpRule/IpRange nodes,
+    TARGET_TAG relationships and the related edges."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     common_job_parameters = {
@@ -1135,47 +1088,6 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
         ),
     }
 
-
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_firewall_ingress_rules",
-    return_value=tests.data.gcp.compute.LIST_FIREWALLS_RESPONSE,
-)
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_vpcs",
-    return_value=tests.data.gcp.compute.VPC_RESPONSE,
-)
-def test_sync_gcp_firewall_rules_with_ip_rules(
-    mock_get_vpcs, mock_get_firewalls, neo4j_session
-):
-    """Test that firewalls create IpRule and IpRange nodes with proper relationships."""
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "PROJECT_ID": TEST_PROJECT_ID,
-    }
-    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-
-    # Pre-load VPCs
-    cartography.intel.gcp.compute.sync_gcp_vpcs(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Act
-    cartography.intel.gcp.compute.sync_gcp_firewall_rules(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
     # Assert - IpRule nodes created (checking SSH rule as example)
     ip_rules = check_nodes(
         neo4j_session,
@@ -1224,47 +1136,6 @@ def test_sync_gcp_firewall_rules_with_ip_rules(
         "projects/project-abc/global/firewalls/default-allow-ssh/allow/22tcp",
         "projects/project-abc/global/firewalls/default-allow-ssh",
     ) in allowed_by_rels
-
-
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_firewall_ingress_rules",
-    return_value=tests.data.gcp.compute.LIST_FIREWALLS_RESPONSE,
-)
-@patch.object(
-    cartography.intel.gcp.compute,
-    "get_gcp_vpcs",
-    return_value=tests.data.gcp.compute.VPC_RESPONSE,
-)
-def test_sync_gcp_firewall_rules_with_target_tags(
-    mock_get_vpcs, mock_get_firewalls, neo4j_session
-):
-    """Test that firewalls with target tags create TARGET_TAG relationships."""
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "PROJECT_ID": TEST_PROJECT_ID,
-    }
-    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-
-    # Pre-load VPCs
-    cartography.intel.gcp.compute.sync_gcp_vpcs(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Act
-    cartography.intel.gcp.compute.sync_gcp_firewall_rules(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
 
     # Assert - Firewall to NetworkTag TARGET_TAG relationship (custom-port-incoming has targetTags: ["test"])
     assert check_rels(
@@ -1613,52 +1484,6 @@ def test_sync_gcp_vpc_peerings_both_sides(neo4j_session):
         rel_direction_right=True,
     ) >= {
         ("project-def", "projects/project-def/global/networks/vpc-b"),
-    }
-
-
-def test_sync_gcp_vpc_peerings_cleanup(neo4j_session):
-    """Test that peerings removed from the VPC response are deleted on the next sync."""
-    # Arrange - sync once with peerings present
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "PROJECT_ID": TEST_PROJECT_ID,
-    }
-    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    with patch.object(
-        cartography.intel.gcp.compute,
-        "get_gcp_vpcs",
-        return_value=tests.data.gcp.compute.VPC_PEERING_RESPONSE,
-    ):
-        cartography.intel.gcp.compute.sync_gcp_vpcs(
-            neo4j_session,
-            MagicMock(),
-            TEST_PROJECT_ID,
-            TEST_UPDATE_TAG,
-            common_job_parameters,
-        )
-    assert check_nodes(neo4j_session, "GCPVpcPeering", ["id"]) != set()
-
-    # Act - sync again with the peerings removed at a later update tag
-    new_tag = TEST_UPDATE_TAG + 1
-    common_job_parameters["UPDATE_TAG"] = new_tag
-    with patch.object(
-        cartography.intel.gcp.compute,
-        "get_gcp_vpcs",
-        return_value=tests.data.gcp.compute.VPC_PEERING_RESPONSE_NO_PEERINGS,
-    ):
-        cartography.intel.gcp.compute.sync_gcp_vpcs(
-            neo4j_session,
-            MagicMock(),
-            TEST_PROJECT_ID,
-            new_tag,
-            common_job_parameters,
-        )
-
-    # Assert - peering nodes are deleted; the VPC itself remains
-    assert check_nodes(neo4j_session, "GCPVpcPeering", ["id"]) == set()
-    assert check_nodes(neo4j_session, "GCPVpc", ["id"]) >= {
-        ("projects/project-abc/global/networks/vpc-a",),
     }
 
 

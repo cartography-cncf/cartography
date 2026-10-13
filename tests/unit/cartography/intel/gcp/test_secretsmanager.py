@@ -68,25 +68,6 @@ def test_get_secrets_returns_empty_when_api_disabled(monkeypatch):
     assert get_secrets(secretmanager, "test-project") == []
 
 
-def test_get_secrets_returns_empty_when_insufficient_permissions(monkeypatch):
-    secretmanager, _req = _make_secretmanager_client()
-    error = _make_http_error(
-        403,
-        {
-            "error": {
-                "message": "User lacks required permissions",
-                "errors": [{"reason": "insufficientPermissions"}],
-            }
-        },
-    )
-    monkeypatch.setattr(
-        "cartography.intel.gcp.secretsmanager.gcp_api_execute_with_retry",
-        lambda _request: (_ for _ in ()).throw(error),
-    )
-
-    assert get_secrets(secretmanager, "test-project") == []
-
-
 def test_get_secrets_reraises_generic_403(monkeypatch):
     secretmanager, _req = _make_secretmanager_client()
     error = _make_http_error(

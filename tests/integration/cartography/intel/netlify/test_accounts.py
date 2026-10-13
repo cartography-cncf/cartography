@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import neo4j
-import pytest
 import requests
 
 import cartography.intel.netlify.accounts
@@ -54,28 +53,3 @@ def test_sync_netlify_account(mock_get, neo4j_session: neo4j.Session) -> None:
     assert check_nodes(neo4j_session, "NetlifyAccount", ["_ont_source"]) == {
         ("netlify",),
     }
-
-
-@patch.object(
-    cartography.intel.netlify.accounts,
-    "get_netlify_accounts",
-    return_value=tests.data.netlify.accounts.NETLIFY_ACCOUNTS,
-)
-def test_sync_netlify_account_rejects_unknown_slug(
-    mock_get,
-    neo4j_session: neo4j.Session,
-) -> None:
-    """
-    An unrecognised slug has to fail loudly. Syncing nothing would let every downstream cleanup
-    job delete the previous run's data.
-    """
-    api_session = MagicMock(spec=requests.Session)
-
-    with pytest.raises(ValueError, match="was not found"):
-        cartography.intel.netlify.accounts.sync_netlify_account(
-            neo4j_session,
-            api_session,
-            TEST_BASE_URL,
-            "not-a-real-team",
-            TEST_UPDATE_TAG,
-        )

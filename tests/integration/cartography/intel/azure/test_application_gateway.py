@@ -266,40 +266,7 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
     assert path_rule_props["bp"] is None
     assert path_rule_props["bport"] is None
 
-
-def test_load_application_gateway_tags(neo4j_session):
-    """
-    Test that tags are correctly loaded and linked to Azure Application Gateways.
-    """
-    # 1. Arrange: Create the prerequisite AzureSubscription node
-    neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
-        sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    # Transform the data first to include tags
-    transformed_ags = application_gateways.transform_application_gateways(
-        MOCK_APPLICATION_GATEWAYS,
-    )
-
-    # Load Application Gateways so they exist to be tagged
-    application_gateways.load_application_gateways(
-        neo4j_session, transformed_ags, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
-    )
-
-    # 2. Act: Load the tags
-    application_gateways.load_application_gateway_tags(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        transformed_ags,
-        TEST_UPDATE_TAG,
-    )
-
-    # 3. Assert: Check for the 2 unique tags
+    # Assert tags: Check for the 2 unique tags
     expected_tags = {
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:application-gateway",
@@ -316,7 +283,7 @@ def test_load_application_gateway_tags(neo4j_session):
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 
-    # 4. Assert: Check the relationships
+    # Assert tags: Check the relationships
     ag_id = MOCK_APPLICATION_GATEWAYS[0]["id"]
 
     expected_rels = {

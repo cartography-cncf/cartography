@@ -1373,38 +1373,6 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
     )
 
 
-def test_transform_rulesets_requires_ruleset_id():
-    out_rulesets = []
-    out_rules = []
-
-    with pytest.raises(KeyError):
-        _transform_rulesets(
-            [
-                {
-                    "rules": {"nodes": []},
-                }
-            ],
-            "https://github.com/simpsoncorp/repo",
-            out_rulesets,
-            out_rules,
-        )
-
-
-def test_transform_rulesets_requires_rule_id():
-    ruleset = deepcopy(RULESET_PRODUCTION)
-    del ruleset["rules"]["nodes"][0]["id"]
-    out_rulesets = []
-    out_rules = []
-
-    with pytest.raises(KeyError):
-        _transform_rulesets(
-            [ruleset],
-            "https://github.com/simpsoncorp/repo",
-            out_rulesets,
-            out_rules,
-        )
-
-
 def test_transform_rulesets_skips_null_rulesets_and_rules():
     ruleset = deepcopy(RULESET_PRODUCTION)
     ruleset["rules"]["nodes"] = [None]

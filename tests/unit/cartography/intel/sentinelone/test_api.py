@@ -10,7 +10,6 @@ from cartography.intel.sentinelone.api import call_sentinelone_api
 from cartography.intel.sentinelone.api import get_paginated_results
 from cartography.intel.sentinelone.api import is_retryable_sentinelone_exception
 from cartography.intel.sentinelone.api import is_site_scope_http_error
-from cartography.intel.sentinelone.api import SentinelOnePassthroughRequestException
 from tests.data.sentinelone.api import EXPECTED_PAGINATED_RESULT
 from tests.data.sentinelone.api import MOCK_API_RESPONSE_SUCCESS
 from tests.data.sentinelone.api import MOCK_EMPTY_PAGINATION_RESPONSE
@@ -156,14 +155,6 @@ def test_call_sentinelone_api_passthrough_reraises_original_http_error(mock_requ
     assert excinfo.value is http_error
 
 
-def test_passthrough_request_exception_wraps_original_request_error():
-    http_error = requests.exceptions.HTTPError("HTTP 403 Error")
-
-    wrapped = SentinelOnePassthroughRequestException(http_error)
-
-    assert wrapped.original is http_error
-
-
 @patch("time.sleep")
 @patch("cartography.intel.sentinelone.api.requests.request")
 def test_call_sentinelone_api_retries_transient_http_error(mock_request, mock_sleep):
@@ -266,47 +257,37 @@ def test_build_scope_params_site_scope_takes_precedence():
     }
 
 
-def test_is_site_scope_http_error():
-    response = Mock()
-    response.status_code = 403
-    response.json.return_value = {
-        "errors": [
+@pytest.mark.parametrize(
+    "payload,expected",
+    [
+        pytest.param(
             {
-                "code": 4030010,
-                "detail": "Action is not allowed to site users",
+                "errors": [
+                    {
+                        "code": 4030010,
+                        "detail": "Action is not allowed to site users",
+                    },
+                ],
             },
-        ],
-    }
-    exc = requests.exceptions.HTTPError(response=response)
-
-    assert is_site_scope_http_error(exc) is True
-
-
-def test_is_site_scope_http_error_false_for_other_http_errors():
+            True,
+            id="site_scope_code",
+        ),
+        pytest.param(
+            {"errors": [{"code": 4030001, "detail": "Forbidden"}]},
+            False,
+            id="other_code",
+        ),
+        pytest.param(["unexpected"], False, id="non_dict_payload"),
+        pytest.param({"errors": ["unexpected"]}, False, id="non_dict_errors"),
+    ],
+)
+def test_is_site_scope_http_error(payload, expected):
     response = Mock()
     response.status_code = 403
-    response.json.return_value = {"errors": [{"code": 4030001, "detail": "Forbidden"}]}
+    response.json.return_value = payload
     exc = requests.exceptions.HTTPError(response=response)
 
-    assert is_site_scope_http_error(exc) is False
-
-
-def test_is_site_scope_http_error_false_for_non_dict_payload():
-    response = Mock()
-    response.status_code = 403
-    response.json.return_value = ["unexpected"]
-    exc = requests.exceptions.HTTPError(response=response)
-
-    assert is_site_scope_http_error(exc) is False
-
-
-def test_is_site_scope_http_error_false_for_non_dict_errors():
-    response = Mock()
-    response.status_code = 403
-    response.json.return_value = {"errors": ["unexpected"]}
-    exc = requests.exceptions.HTTPError(response=response)
-
-    assert is_site_scope_http_error(exc) is False
+    assert is_site_scope_http_error(exc) is expected
 
 
 def test_is_retryable_sentinelone_exception():

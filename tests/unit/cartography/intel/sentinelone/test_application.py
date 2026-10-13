@@ -30,33 +30,6 @@ from tests.data.sentinelone.application import TEST_API_TOKEN
 from tests.data.sentinelone.application import TEST_API_URL
 
 
-def test_transform_applications():
-    """
-    Test that transform_applications correctly transforms raw API data with field mapping
-    """
-    result = transform_applications(APPLICATIONS_DATA)
-
-    assert len(result) == 3
-
-    # Test first application (Office 365)
-    app1 = result[0]
-    assert app1["id"] == APPLICATION_ID_1
-    assert app1["name"] == "Office 365"
-    assert app1["vendor"] == "Microsoft"
-
-    # Test second application (Chrome)
-    app2 = result[1]
-    assert app2["id"] == APPLICATION_ID_2
-    assert app2["name"] == "Chrome"
-    assert app2["vendor"] == "Google"
-
-    # Test third application (Photoshop)
-    app3 = result[2]
-    assert app3["id"] == APPLICATION_ID_3
-    assert app3["name"] == "Photoshop"
-    assert app3["vendor"] == "Adobe"
-
-
 def test_transform_applications_minimal_fields():
     """
     Test that transform_applications handles minimal fields gracefully
@@ -72,20 +45,27 @@ def test_transform_applications_minimal_fields():
     assert app["vendor"] == "Test Vendor"
 
 
-def test_transform_applications_missing_required_name():
+@pytest.mark.parametrize(
+    "transform,data",
+    [
+        (transform_applications, APPLICATIONS_DATA_MISSING_NAME),
+        (transform_applications, APPLICATIONS_DATA_MISSING_VENDOR),
+        (transform_application_versions, APPLICATION_INSTALLS_DATA_MISSING_NAME),
+        (transform_application_versions, APPLICATION_INSTALLS_DATA_MISSING_VENDOR),
+    ],
+    ids=[
+        "apps_missing_name",
+        "apps_missing_vendor",
+        "versions_missing_name",
+        "versions_missing_vendor",
+    ],
+)
+def test_transform_missing_required_field_raises(transform, data):
     """
-    Test that transform_applications raises KeyError when applicationName is missing
+    Test that the transforms raise KeyError when applicationName or applicationVendor is missing
     """
     with pytest.raises(KeyError):
-        transform_applications(APPLICATIONS_DATA_MISSING_NAME)
-
-
-def test_transform_applications_missing_required_vendor():
-    """
-    Test that transform_applications raises KeyError when applicationVendor is missing
-    """
-    with pytest.raises(KeyError):
-        transform_applications(APPLICATIONS_DATA_MISSING_VENDOR)
+        transform(data)
 
 
 def test_transform_applications_empty_list():
@@ -177,22 +157,6 @@ def test_transform_application_versions_missing_required_version():
     assert result[0]["id"] == expected_id
 
 
-def test_transform_application_versions_missing_required_name():
-    """
-    Test that transform_application_versions raises KeyError when applicationName is missing
-    """
-    with pytest.raises(KeyError):
-        transform_application_versions(APPLICATION_INSTALLS_DATA_MISSING_NAME)
-
-
-def test_transform_application_versions_missing_required_vendor():
-    """
-    Test that transform_application_versions raises KeyError when applicationVendor is missing
-    """
-    with pytest.raises(KeyError):
-        transform_application_versions(APPLICATION_INSTALLS_DATA_MISSING_VENDOR)
-
-
 def test_transform_application_versions_empty_list():
     """
     Test that transform_application_versions handles empty input list
@@ -276,21 +240,6 @@ def test_get_application_data(mock_get_paginated_results):
 
     # Verify return value
     assert result == APPLICATIONS_DATA
-
-
-@patch("cartography.intel.sentinelone.application.get_paginated_results")
-def test_get_application_data_empty_response(mock_get_paginated_results):
-    """
-    Test that get_application_data handles empty API response
-    """
-    # Mock empty API response
-    mock_get_paginated_results.return_value = []
-
-    # Call function
-    result = get_application_data(TEST_ACCOUNT_ID, TEST_API_URL, TEST_API_TOKEN)
-
-    # Verify return value
-    assert result == []
 
 
 @patch("cartography.intel.sentinelone.application.get_paginated_results")

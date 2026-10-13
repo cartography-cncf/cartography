@@ -662,6 +662,44 @@ def test_sync_skips_load_and_cleanup_on_rate_limit_retry_exhaustion(
     )
 
 
+@patch.object(
+    policy_bindings,
+    "get_policy_bindings",
+    side_effect=PermissionDenied(
+        "Missing cloudasset.assets.analyzeIamPolicy permission"
+    ),
+)
+def test_sync_returns_skipped_on_permission_denied(mock_get_policy_bindings):
+    """
+    Test that policy bindings sync handles PermissionDenied gracefully.
+    When the user lacks org-level cloudasset.viewer role, sync should return a
+    skipped status, not raise an exception, and not touch the graph.
+    """
+    # Arrange
+    neo4j_session = MagicMock()
+    mock_asset_client = MagicMock()
+
+    # Act
+    result = policy_bindings.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        mock_asset_client,
+        {},
+    )
+
+    # Assert
+    # Sync should return a skipped status and not raise an exception.
+    assert (
+        result.status
+        == policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
+    )
+    mock_get_policy_bindings.assert_called_once()
+    neo4j_session.run.assert_not_called()
+    neo4j_session.execute_write.assert_not_called()
+
+
 @patch("cartography.intel.gcp.build_asset_client")
 @patch("cartography.intel.gcp.build_client")
 @patch("cartography.intel.gcp.permission_relationships.sync")

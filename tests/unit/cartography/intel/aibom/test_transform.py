@@ -142,3 +142,11 @@ def test_transform_aibom_component_payloads_skips_ambiguous_type_name_fallback()
     # Assert
     agent_payload = _get_component_payload_by_name(component_payloads, "Agent")
     assert agent_payload["uses_model_component_ids"] == []
+    # Both duplicate model components are still emitted, each with its own id.
+    model_payload_ids = [
+        component_payload["id"]
+        for component_payload in component_payloads
+        if component_payload["name"] == "gpt-5.2"
+    ]
+    assert len(model_payload_ids) == 2
+    assert len(set(model_payload_ids)) == 2

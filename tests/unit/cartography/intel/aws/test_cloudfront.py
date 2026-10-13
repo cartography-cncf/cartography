@@ -2,39 +2,33 @@
 Unit tests for AWS CloudFront intel module.
 """
 
+import pytest
+
 from cartography.intel.aws import cloudfront
 from tests.data.aws import cloudfront as test_data
 
 
-def test_extract_s3_bucket_name_standard():
-    """Test extracting S3 bucket name from standard S3 domain."""
-    assert (
-        cloudfront._extract_s3_bucket_name("my-bucket.s3.amazonaws.com") == "my-bucket"
-    )
-
-
-def test_extract_s3_bucket_name_regional():
-    """Test extracting S3 bucket name from regional S3 domain."""
-    assert (
-        cloudfront._extract_s3_bucket_name("my-bucket.s3.us-east-1.amazonaws.com")
-        == "my-bucket"
-    )
-
-
-def test_extract_s3_bucket_name_website():
-    """Test extracting S3 bucket name from S3 website domain."""
-    assert (
-        cloudfront._extract_s3_bucket_name(
-            "my-bucket.s3-website-us-east-1.amazonaws.com"
-        )
-        == "my-bucket"
-    )
-
-
-def test_extract_s3_bucket_name_non_s3():
-    """Test that non-S3 domains return None."""
-    assert cloudfront._extract_s3_bucket_name("origin.backend.example.com") is None
-    assert cloudfront._extract_s3_bucket_name("api.example.com") is None
+@pytest.mark.parametrize(
+    "domain, expected",
+    [
+        pytest.param("my-bucket.s3.amazonaws.com", "my-bucket", id="standard"),
+        pytest.param(
+            "my-bucket.s3.us-east-1.amazonaws.com", "my-bucket", id="regional"
+        ),
+        pytest.param(
+            "my-bucket.s3-website-us-east-1.amazonaws.com", "my-bucket", id="website"
+        ),
+        pytest.param("origin.backend.example.com", None, id="non_s3_origin"),
+        pytest.param("api.example.com", None, id="non_s3_api"),
+    ],
+)
+def test_extract_s3_bucket_name(domain, expected):
+    """Test extracting the S3 bucket name from S3 domains; non-S3 domains return None."""
+    result = cloudfront._extract_s3_bucket_name(domain)
+    if expected is None:
+        assert result is None
+    else:
+        assert result == expected
 
 
 def test_transform_cloudfront_distributions_basic():
