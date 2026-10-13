@@ -283,6 +283,7 @@ def sync(
 ) -> bool:
     """Load Orca vulnerabilities and return whether the fetch is safe to clean up."""
     seen_ids: set[str] = set()
+    row_count = 0
     cross_page_duplicates = 0
     progress = api.PaginationProgress()
     for page in api.iter_serving_layer_pages(
@@ -293,6 +294,7 @@ def sync(
         result_name="vulnerabilities",
         progress=progress,
     ):
+        row_count += len(page)
         vulnerabilities = transform(page, organization_id)
         new_vulnerabilities = [
             vulnerability
@@ -320,7 +322,7 @@ def sync(
         "Loaded %d Orca vulnerability findings from %d rows; skipped %d "
         "findings repeated across pages.",
         len(seen_ids),
-        progress.fetched_rows,
+        row_count,
         cross_page_duplicates,
     )
     return progress.complete

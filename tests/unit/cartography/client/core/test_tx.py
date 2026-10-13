@@ -781,6 +781,35 @@ def test_run_index_query_retries_transient_error_raised_on_consume(mock_sleep):
     assert mock_session.run.call_count == 2
 
 
+def test_run_index_query_does_not_retry_client_error_raised_on_consume():
+    failing = MagicMock()
+    failing.consume.side_effect = _create_client_error(
+        "Neo.ClientError.Statement.SyntaxError",
+        "Invalid syntax",
+    )
+    mock_session = MagicMock()
+    mock_session.run.return_value = failing
+
+    with pytest.raises(neo4j.exceptions.ClientError):
+        _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
+
+    assert mock_session.run.call_count == 1
+
+
+@patch("time.sleep")
+def test_run_index_query_gives_up_after_bounded_retries(mock_sleep):
+    transient = MagicMock()
+    transient.consume.side_effect = neo4j.exceptions.TransientError("busy")
+    mock_session = MagicMock()
+    mock_session.run.return_value = transient
+
+    with pytest.raises(neo4j.exceptions.TransientError):
+        _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
+
+    assert mock_session.run.call_count == 5
+    assert mock_sleep.call_count == 4
+
+
 # Tests for ensure_indexes_for_matchlinks / _run_index_queries
 
 
@@ -816,6 +845,24 @@ def test_failed_index_query_is_retried_on_next_call():
     _run_index_queries(session, ["CREATE INDEX IF NOT EXISTS q"])
 
     # Assert: the failure was not cached as done.
+    assert session.run.call_count == 2
+
+
+def test_index_query_failing_on_consume_is_not_cached():
+    # Arrange
+    failing = MagicMock()
+    failing.consume.side_effect = _create_client_error(
+        "Neo.ClientError.Statement.SyntaxError", "boom"
+    )
+    session = MagicMock()
+    session.run.side_effect = [failing, MagicMock()]
+
+    # Act
+    with pytest.raises(neo4j.exceptions.ClientError):
+        _run_index_queries(session, ["CREATE INDEX IF NOT EXISTS q"])
+    _run_index_queries(session, ["CREATE INDEX IF NOT EXISTS q"])
+
+    # Assert: an error that only surfaces on consume keeps the query uncached.
     assert session.run.call_count == 2
 
 
