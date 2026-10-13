@@ -10,6 +10,7 @@ from cartography.rules.data.rules.guardduty_active_threat import (
 from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS
 from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE
 from tests.data.aws.guardduty import GET_DETECTOR_DETAILS
+from tests.data.aws.guardduty import GET_ECS_RUNTIME_FINDINGS
 from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import GET_SAMPLE_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
@@ -687,6 +688,60 @@ def test_sync_guardduty_aws_api_call_remote_account_without_matching_node(
     )
 
     mock_get_findings.assert_called()
+
+
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detectors",
+    return_value=LIST_DETECTORS["DetectorIds"],
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detector_details",
+    return_value=GET_DETECTOR_DETAILS,
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_findings",
+    return_value=GET_ECS_RUNTIME_FINDINGS["Findings"],
+)
+def test_sync_guardduty_ecs_runtime_finding(
+    mock_get_findings,
+    mock_get_detector_details,
+    mock_get_detectors,
+    neo4j_session,
+):
+    boto3_session = MagicMock()
+    update_tag = 987654326
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, update_tag)
+    cluster_arn = "arn:aws:ecs:us-east-1:123456789012:cluster/test-ecs-cluster"
+    neo4j_session.run(
+        """
+        MERGE (cluster:AWSECSCluster {id: $cluster_arn})
+        SET cluster.lastupdated = $update_tag
+        """,
+        cluster_arn=cluster_arn,
+        update_tag=update_tag,
+    )
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        update_tag,
+        {"UPDATE_TAG": update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AWSGuardDutyFinding",
+        "id",
+        "AWSECSCluster",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("e1c5678901234abcdef5678901234abcd", cluster_arn)}
 
 
 @patch.object(

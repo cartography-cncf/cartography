@@ -89,6 +89,11 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="ARN of the EKS cluster linked to this `AWSGuardDutyFinding` node.",
     )
+    ecs_cluster_arn: PropertyRef = PropertyRef(
+        "ecs_cluster_arn",
+        extra_index=True,
+        description="ARN of the ECS cluster linked to this `AWSGuardDutyFinding` node.",
+    )
     access_key_id: PropertyRef = PropertyRef(
         "access_key_id",
         extra_index=True,
@@ -303,6 +308,24 @@ class GuardDutyFindingToEKSClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingToECSClusterRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToECSClusterRel(CartographyRelSchema):
+    target_node_label: str = "AWSECSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ecs_cluster_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToECSClusterRelRelProperties = (
+        GuardDutyFindingToECSClusterRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -394,6 +417,7 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
             GuardDutyFindingTriggeredByAWSAccountRel(),
             GuardDutyFindingToEC2InstanceRel(),
             GuardDutyFindingToEKSClusterRel(),
+            GuardDutyFindingToECSClusterRel(),
             GuardDutyFindingToS3BucketRel(),
             GuardDutyFindingToAccountAccessKeyRel(),
             GuardDutyFindingToAWSUserRel(),

@@ -5,6 +5,7 @@ import pytest
 from cartography.intel.aws.guardduty import _severity_label
 from cartography.intel.aws.guardduty import transform_findings
 from tests.data.aws.guardduty import EXPECTED_TRANSFORM_RESULTS
+from tests.data.aws.guardduty import GET_ECS_RUNTIME_FINDINGS
 from tests.data.aws.guardduty import GET_FINDINGS
 
 TEST_UPDATE_TAG = 123456789
@@ -38,6 +39,16 @@ def test_transform_findings():
     # Expected EKS Cluster (Kubernetes) finding
     expected_eks_finding = EXPECTED_TRANSFORM_RESULTS[4]
     assert transformed[4] == expected_eks_finding
+
+
+def test_transform_findings_extracts_ecs_cluster_arn():
+    (finding,) = transform_findings(GET_ECS_RUNTIME_FINDINGS["Findings"])
+    assert finding["resource_type"] == "ECSCluster"
+    assert (
+        finding["ecs_cluster_arn"]
+        == "arn:aws:ecs:us-east-1:123456789012:cluster/test-ecs-cluster"
+    )
+    assert finding["eks_cluster_arn"] is None
 
 
 def test_transform_findings_extracts_sample_flag():
