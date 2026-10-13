@@ -21,6 +21,11 @@ The token must cover the entire organization. Partial account, business-unit,
 or asset access isn't supported because cleanup requires a complete snapshot.
 `VulnerabilityV2` results must include `Inventory.AssetUniqueId`.
 
+Orca's result counts can drift while a long sync pages through a changing
+result set. If a feed reaches the end of its results more than 1% short of the
+reported count, Cartography loads what it fetched, logs a warning, and skips
+stale-node cleanup and sync metadata for that run, so missed findings are kept.
+
 ## Configure Cartography
 
 Set `--orca-api-endpoint` to your regional HTTPS API origin without `/api` or a

@@ -187,14 +187,17 @@ def sync(
     api_endpoint: str,
     organization_id: str,
     update_tag: int,
-) -> None:
+) -> bool:
+    """Load Orca alerts and return whether the fetch is safe to clean up."""
     seen_ids: set[str] = set()
+    progress = api.PaginationProgress()
     for page in api.iter_serving_layer_pages(
         session,
         api_endpoint,
         build_query(),
         page_size=PAGE_SIZE,
         result_name="alerts",
+        progress=progress,
     ):
         alerts = transform(page, organization_id)
         page_ids = {alert["id"] for alert in alerts}
@@ -202,6 +205,7 @@ def sync(
             raise RuntimeError("Orca alerts response contained duplicate identities")
         seen_ids.update(page_ids)
         load_alerts(neo4j_session, alerts, organization_id, update_tag)
+    return progress.complete
 
 
 def cleanup(
