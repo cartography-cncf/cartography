@@ -15,25 +15,56 @@ STORE_DURATIONS_ENV_VAR = "CARTOGRAPHY_STORE_SHARD_DURATIONS"
 _file_durations: defaultdict[str, float] = defaultdict(float)
 
 
-def pytest_collection_modifyitems(config, items):
+_shard_assignment_key = pytest.StashKey[dict[str, int]]()
+
+
+def _shard_assignment(config, total: int) -> dict[str, int]:
+    """Assign every test file under the paths pytest was given to a shard.
+
+    Built from the file system, not from collected items, so files outside the shard
+    are skipped before they are imported: collecting the whole integration suite in
+    every shard would cost each one the full import time.
+    """
+    if _shard_assignment_key not in config.stash:
+        files: set[str] = set()
+        for arg in config.args:
+            path = config.invocation_params.dir / arg.split("::")[0]
+            if path.is_dir():
+                # pytest's default `python_files` patterns, which this repo uses.
+                candidates = [*path.rglob("test_*.py"), *path.rglob("*_test.py")]
+            else:
+                candidates = [path]
+            files.update(
+                c.resolve().relative_to(config.rootpath).as_posix() for c in candidates
+            )
+        config.stash[_shard_assignment_key] = sharding.assign_shards(
+            files,
+            sharding.load_durations(),
+            total,
+        )
+    return config.stash[_shard_assignment_key]
+
+
+def pytest_ignore_collect(collection_path, config):
+    shard = sharding.selected_shard()
+    if shard is None or not collection_path.is_file():
+        return None
+    index, total = shard
+    relpath = collection_path.resolve().relative_to(config.rootpath).as_posix()
+    assigned = _shard_assignment(config, total).get(relpath)
+    if assigned is not None and assigned != index:
+        return True
+    return None
+
+
+def pytest_report_header(config):
     shard = sharding.selected_shard()
     if shard is None:
-        return
+        return None
     index, total = shard
-
-    def relpath(item):
-        return item.path.relative_to(config.rootpath).as_posix()
-
-    assignment = sharding.assign_shards(
-        (relpath(item) for item in items),
-        sharding.load_durations(),
-        total,
-    )
-    selected = [item for item in items if assignment[relpath(item)] == index]
-    deselected = [item for item in items if assignment[relpath(item)] != index]
-    if deselected:
-        config.hook.pytest_deselected(items=deselected)
-        items[:] = selected
+    assignment = _shard_assignment(config, total)
+    mine = sum(1 for assigned in assignment.values() if assigned == index)
+    return f"shard {index}/{total}: {mine} of {len(assignment)} test files"
 
 
 def _is_xdist_worker(config) -> bool:
