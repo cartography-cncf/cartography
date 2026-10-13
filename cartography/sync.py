@@ -89,6 +89,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cve": _LazyStage("cartography.intel.cve", "start_cve_ingestion"),
         "oci": _LazyStage("cartography.intel.oci", "start_oci_ingestion"),
         "okta": _LazyStage("cartography.intel.okta", "start_okta_ingestion"),
+        "notion": _LazyStage("cartography.intel.notion", "start_notion_ingestion"),
         "openai": _LazyStage("cartography.intel.openai", "start_openai_ingestion"),
         "github": _LazyStage("cartography.intel.github", "start_github_ingestion"),
         "gitlab": _LazyStage("cartography.intel.gitlab", "start_gitlab_ingestion"),
@@ -103,9 +104,11 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.salesforce", "start_salesforce_ingestion"
         ),
         "kubernetes": _LazyStage("cartography.intel.kubernetes", "start_k8s_ingestion"),
+        "zoom": _LazyStage("cartography.intel.zoom", "start_zoom_ingestion"),
         "jumpcloud": _LazyStage(
             "cartography.intel.jumpcloud", "start_jumpcloud_ingestion"
         ),
+        "jira": _LazyStage("cartography.intel.jira", "start_jira_ingestion"),
         "lastpass": _LazyStage(
             "cartography.intel.lastpass", "start_lastpass_ingestion"
         ),
@@ -127,6 +130,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "jamf": _LazyStage("cartography.intel.jamf", "start_jamf_ingestion"),
         "pagerduty": _LazyStage(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
+        ),
+        "opsgenie": _LazyStage(
+            "cartography.intel.opsgenie", "start_opsgenie_ingestion"
         ),
         "bbot": _LazyStage("cartography.intel.bbot", "start_bbot_ingestion"),
         "docker_scout": _LazyStage(
@@ -175,6 +181,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "snowflake": _LazyStage(
             "cartography.intel.snowflake", "start_snowflake_ingestion"
         ),
+        "zendesk": _LazyStage("cartography.intel.zendesk", "start_zendesk_ingestion"),
         "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
         "analysis": _LazyStage("cartography.intel.analysis", "run"),

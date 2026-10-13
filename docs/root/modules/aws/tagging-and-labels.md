@@ -18,6 +18,21 @@ resource's model schema. A shared declarative catalog drives both runtime
 matching and generated schema documentation so the supported relationships
 remain consistent.
 
+Because the id is only `{key}:{value}`, one `AWSTag` node is shared by every
+account whose resources carry that tag. Each `TAGGED` relationship records the
+account that owns it, so an account's sync only removes its own stale `TAGGED`
+relationships.
+
+A tag on a resource that is not in the graph is still loaded, but it has no
+`TAGGED` relationship. Once every account has synced, a single sweep removes
+every `AWSTag` node that no relationship uses, except tags stamped by a newer
+sync running against the same graph. It runs in batches of
+`aws_tagging_api_cleanup_batch`. The sweep is skipped if any
+account fails, so it never removes tags that the failed account would have
+linked. Callers that run `_sync_one_account()` for each account themselves must
+call `cartography.intel.aws.resourcegroupstaggingapi.cleanup_orphan_tags()`
+after their account loop.
+
 The authoritative mapping is `AWS_TAGGABLE_RESOURCES` in
 `cartography/models/aws_tagging.py`. The current supported source labels are:
 

@@ -9,12 +9,14 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.securityhub import SecurityHubSchema
+from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
+@aws_handle_regions
 def get_hub(boto3_session: boto3.session.Session) -> dict:
     client = create_boto3_client(boto3_session, "securityhub")
     try:

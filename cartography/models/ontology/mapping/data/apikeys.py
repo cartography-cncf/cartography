@@ -307,7 +307,31 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+zendesk_mapping = OntologyMapping(
+    module_name="zendesk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZendeskAPIToken",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="description", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="updated_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="last_used_at", node_field="last_used"
+                ),
+            ],
+        ),
+    ],
+)
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zendesk": zendesk_mapping,
     "anthropic": anthropic_mapping,
     "github": github_mapping,
     "openai": openai_mapping,
@@ -319,6 +343,27 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "railway": railway_mapping,
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "okta": OntologyMapping(
+        module_name="okta",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="OktaApiToken",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="created_at", node_field="created"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="expires_at", node_field="expires_at"
+                    ),
+                    # last_used_at: Not available. Okta only exposes expiresAt,
+                    # which it extends by tokenWindow on each use.
+                ],
+            ),
+        ],
+    ),
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[

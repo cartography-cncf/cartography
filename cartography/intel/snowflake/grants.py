@@ -20,6 +20,7 @@ import requests
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake import account_usage
+from cartography.intel.snowflake import inherited_grants
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -382,14 +383,34 @@ def cleanup(
     neo4j_session: neo4j.Session,
     account_id: str,
     update_tag: int,
+    *,
+    object_grants_complete: bool,
+    role_assignments_complete: bool,
+    inherited_grants_complete: bool,
 ) -> None:
-    GraphJob.from_matchlink(
-        SnowflakeGrantMatchLink(), "SnowflakeAccount", account_id, update_tag
-    ).run(neo4j_session)
-    for matchlink in _ROLE_EDGE_MATCHLINKS.values():
+    if object_grants_complete:
         GraphJob.from_matchlink(
-            matchlink, "SnowflakeAccount", account_id, update_tag
+            SnowflakeGrantMatchLink(), "SnowflakeAccount", account_id, update_tag
         ).run(neo4j_session)
+    else:
+        logger.warning(
+            "Skipping Snowflake object grant cleanup: coverage is incomplete."
+        )
+    if inherited_grants_complete:
+        inherited_grants.cleanup(neo4j_session, account_id, update_tag)
+    else:
+        logger.warning(
+            "Skipping Snowflake inherited grant cleanup: coverage is incomplete."
+        )
+    if role_assignments_complete:
+        for matchlink in _ROLE_EDGE_MATCHLINKS.values():
+            GraphJob.from_matchlink(
+                matchlink, "SnowflakeAccount", account_id, update_tag
+            ).run(neo4j_session)
+    else:
+        logger.warning(
+            "Skipping Snowflake role assignment cleanup: coverage is incomplete."
+        )
 
 
 @timeit
@@ -400,36 +421,24 @@ def _walk_rest(
 ) -> tuple[
     dict[str, list[dict[str, Any]]],
     dict[str, list[dict[str, Any]]],
-    bool,
 ]:
     """Read every grant through the per-role REST endpoints.
 
     Two requests per account role and two per database role, so this is the
     expensive path as well as the incomplete one: it only sees what the collector's
     role can see. It exists for accounts where ``ACCOUNT_USAGE`` is not readable.
-
-    The third return value says whether every request *succeeded*, which is not the
-    same as whether the result is complete: a role the collector cannot see is absent
-    from the role list in the first place, so no request is ever made for it. It is
-    reported only so the caller can log the difference between "some reads were
-    refused" and "the reads worked but cannot be trusted to be exhaustive".
     """
     grants_by_role: dict[str, list[dict[str, Any]]] = {}
     grants_of_by_role: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    all_requests_succeeded = True
 
     for role in roles:
         name = role["name"]
         grants = get_role_grants(client, name)
-        if grants is None:
-            all_requests_succeeded = False
-        else:
+        if grants is not None:
             grants_by_role[name] = grants
 
         grants_of = get_role_grants_of(client, name)
-        if grants_of is None:
-            all_requests_succeeded = False
-        else:
+        if grants_of is not None:
             grants_of_by_role[name].extend(grants_of)
 
     # Database roles carry their own privileges and their own hierarchy, and they are
@@ -441,20 +450,16 @@ def _walk_rest(
         role_name = database_role["name"]
 
         database_grants = get_database_role_grants(client, database_name, role_name)
-        if database_grants is None:
-            all_requests_succeeded = False
-        else:
+        if database_grants is not None:
             grants_by_role[qualified_name] = database_grants
 
         database_grants_of = get_database_role_grants_of(
             client, database_name, role_name
         )
-        if database_grants_of is None:
-            all_requests_succeeded = False
-        else:
+        if database_grants_of is not None:
             grants_of_by_role[qualified_name].extend(database_grants_of)
 
-    return grants_by_role, grants_of_by_role, all_requests_succeeded
+    return grants_by_role, grants_of_by_role
 
 
 @timeit
@@ -466,21 +471,20 @@ def sync(
     database_roles: list[dict[str, Any]],
     common_job_parameters: dict,
     use_account_usage: bool = True,
-) -> bool:
+) -> tuple[bool, bool, bool]:
     """Materialise every grant, role assignment and role-hierarchy edge.
 
     Runs last, after every principal and grantable object is in the graph, so the
     edges resolve on the first pass.
 
-    Two queries against ``ACCOUNT_USAGE`` replace the per-role REST walk when the
+    Two grant queries replace the per-role REST walk when the
     views are readable. That is both complete, because the views are account-wide
     rather than visibility-filtered, and dramatically cheaper: the REST path issues
     two requests per role, which on a large account is thousands of paginated calls.
 
-    Returns whether the grant graph is known to be complete. On the REST path a role
-    the collector cannot see produces no rows and no error, so completeness cannot be
-    established and the caller skips grant cleanup rather than deleting edges that are
-    still valid.
+    Returns completeness for object grants, role assignments, and inherited grants.
+    On the REST path a role the collector cannot see produces no rows and no error,
+    so the caller skips grant cleanup rather than deleting still-valid edges.
     """
     account_id = client.account_id
     database_role_names = {role["qualified_name"] for role in database_roles}
@@ -493,21 +497,26 @@ def sync(
     )
 
     if grants_to_roles is not None and grants_to_users is not None:
-        grants_by_role, grants_of_by_role = account_usage.split_grants(
+        grants_by_role, grants_of_by_role, inherited_rows = account_usage.split_grants(
             grants_to_roles, grants_to_users
         )
-        complete = True
+        inherited_grants_complete = inherited_grants.load_grants(
+            neo4j_session,
+            inherited_rows,
+            account_id,
+            common_job_parameters["UPDATE_TAG"],
+        )
+        object_grants_complete = role_assignments_complete = True
         logger.info(
-            "Read %d Snowflake grant rows and %d role assignment rows from "
+            "Read %d Snowflake direct grant rows, %d inherited grant rows, and %d role assignment rows from "
             "ACCOUNT_USAGE for account %s.",
-            len(grants_to_roles),
+            len(grants_to_roles) - len(inherited_rows),
+            len(inherited_rows),
             len(grants_to_users),
             account_id,
         )
     else:
-        grants_by_role, grants_of_by_role, complete = _walk_rest(
-            client, roles, database_roles
-        )
+        grants_by_role, grants_of_by_role = _walk_rest(client, roles, database_roles)
         logger.warning(
             "Reading Snowflake grants through the per-role object API because "
             "ACCOUNT_USAGE is not readable. This only sees grants visible to the "
@@ -516,7 +525,8 @@ def sync(
         )
         # A partial REST walk cannot be told apart from a complete one, so it never
         # claims completeness even when every request happened to succeed.
-        complete = False
+        object_grants_complete = role_assignments_complete = False
+        inherited_grants_complete = False
 
     grants, unmodelled = transform_grants(
         grants_by_role, database_role_names, account_id
@@ -541,9 +551,4 @@ def sync(
         neo4j_session, role_edges, account_id, common_job_parameters["UPDATE_TAG"]
     )
 
-    if not complete:
-        logger.warning(
-            "The Snowflake grant graph is not known to be complete; skipping grant "
-            "cleanup so still-valid edges are not deleted.",
-        )
-    return complete
+    return object_grants_complete, role_assignments_complete, inherited_grants_complete

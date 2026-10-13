@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.arns import build_arn
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.ec2.volumes import EBSVolumeSchema
 from cartography.util import aws_handle_regions
@@ -49,6 +50,7 @@ def transform_volumes(
                 "volume",
                 volume_id,
                 region,
+                get_partition(region),
             ),
             "AvailabilityZone": volume.get("AvailabilityZone"),
             "CreateTime": volume.get("CreateTime"),

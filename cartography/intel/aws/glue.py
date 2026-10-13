@@ -5,6 +5,11 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectionClosedError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import ReadTimeoutError
+from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -17,6 +22,59 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+class GlueTransientRegionFailure(Exception):
+    pass
+
+
+def _is_retryable_glue_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code", "")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code
+        in {
+            "InternalFailure",
+            "InternalServerException",
+            "RequestLimitExceeded",
+            "RequestThrottled",
+            "RequestTimeout",
+            "RequestTimeoutException",
+            "ServiceUnavailable",
+            "ServiceUnavailableException",
+            "Throttling",
+            "ThrottlingException",
+            "TooManyRequestsException",
+        }
+        or status_code in _RETRYABLE_HTTP_STATUS_CODES
+    )
+
+
+def _paginate_glue(
+    paginator: Any, result_key: str, operation: str
+) -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    try:
+        for page in paginator.paginate():
+            items.extend(page.get(result_key, []))
+    except ClientError as error:
+        if _is_retryable_glue_error(error):
+            raise GlueTransientRegionFailure(
+                f"AWS SDK retries were exhausted for transient {operation} failure"
+            ) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise GlueTransientRegionFailure(
+            f"Encountered a transient regional Glue endpoint failure while calling {operation}"
+        ) from error
+    return items
+
 
 @timeit
 @aws_handle_regions
@@ -27,11 +85,7 @@ def get_glue_connections(
         boto3_session, "glue", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("get_connections")
-    connections = []
-    for page in paginator.paginate():
-        connections.extend(page.get("ConnectionList", []))
-
-    return connections
+    return _paginate_glue(paginator, "ConnectionList", "GetConnections")
 
 
 @timeit
@@ -41,10 +95,7 @@ def get_glue_jobs(boto3_session: boto3.Session, region: str) -> List[Dict[str, A
         boto3_session, "glue", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("get_jobs")
-    jobs = []
-    for page in paginator.paginate():
-        jobs.extend(page.get("Jobs", []))
-    return jobs
+    return _paginate_glue(paginator, "Jobs", "GetJobs")
 
 
 def transform_glue_job(jobs: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
@@ -154,29 +205,43 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    cleanup_safe = True
     for region in regions:
         logger.info(
             f"Syncing Glue for region '{region}' in account '{current_aws_account_id}'.",
         )
+        try:
+            connections = get_glue_connections(boto3_session, region)
+            jobs = get_glue_jobs(boto3_session, region)
+        except GlueTransientRegionFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping Glue sync for account %s in region %s after transient Glue failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
 
-        connections = get_glue_connections(boto3_session, region)
-        transformed_connections = transform_glue_connections(connections, region)
         load_glue_connections(
             neo4j_session,
-            transformed_connections,
+            transform_glue_connections(connections, region),
             region,
             current_aws_account_id,
             update_tag,
         )
-
-        jobs = get_glue_jobs(boto3_session, region)
-        transformed_jobs = transform_glue_job(jobs, region)
         load_glue_jobs(
             neo4j_session,
-            transformed_jobs,
+            transform_glue_job(jobs, region),
             region,
             current_aws_account_id,
             update_tag,
         )
 
-    cleanup(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping Glue cleanup for account %s because one or more regions had transient Glue failures. Preserving last-known-good Glue state.",
+            current_aws_account_id,
+        )

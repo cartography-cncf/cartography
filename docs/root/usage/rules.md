@@ -303,6 +303,7 @@ The short name alone matches every scope and revision of that framework, so
 | `iso:27001:2022` | ISO/IEC 27001:2022 Annex A |
 | `soc2:tsc:2022` | AICPA SOC 2 Trust Services Criteria |
 | `nist:ai-rmf:1.0` | NIST AI Risk Management Framework |
+| `stig:okta:v1r2` | DISA Okta Identity as a Service (IDaaS) STIG |
 
 `cartography-rules frameworks` prints the live state: every scope, its revisions,
 how many rules map to it, and each mapped control with its title.

@@ -2,6 +2,9 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
+from cartography.config import Config
+from cartography.intel.azure.resources import RESOURCE_FUNCTIONS
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,3 +81,29 @@ def get_resource_group_from_id(resource_id: str) -> str:
     parts = resource_id.lower().split("/")
     rg_index = parts.index("resourcegroups")
     return parts[rg_index + 1]
+
+
+def parse_and_validate_azure_requested_syncs(azure_requested_syncs: str) -> list[str]:
+    validated_resources: list[str] = []
+    for resource in azure_requested_syncs.split(","):
+        resource = resource.strip()
+
+        if resource in RESOURCE_FUNCTIONS:
+            validated_resources.append(resource)
+        else:
+            valid_syncs = ", ".join(RESOURCE_FUNCTIONS)
+            raise ValueError(
+                "Error parsing `azure-requested-syncs`. You specified "
+                f'"{azure_requested_syncs}". Please check that your string is '
+                'formatted properly. Example valid input looks like "rbac,compute" '
+                'or "storage, sql". Our full list of valid values is: '
+                f"{valid_syncs}.",
+            )
+    return validated_resources
+
+
+def requested_azure_syncs(config: Config) -> set[str] | None:
+    """Return the requested Azure resources, or None to sync everything."""
+    if not config.azure_requested_syncs:
+        return None
+    return set(parse_and_validate_azure_requested_syncs(config.azure_requested_syncs))
