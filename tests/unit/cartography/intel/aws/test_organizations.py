@@ -10,6 +10,7 @@ from tests.data.aws.organizations import TEST_ORGANIZATION
 from tests.data.aws.organizations import TEST_ORGANIZATION_ACCOUNTS
 from tests.data.aws.organizations import TEST_ORGANIZATION_ROOTS
 from tests.data.aws.organizations import TEST_ORGANIZATIONAL_UNITS
+from tests.data.aws.organizations import TEST_SERVICE_CONTROL_POLICIES
 
 
 def test_sync_defaults_account_partitions_for_legacy_callers():
@@ -195,6 +196,70 @@ def test_transform_aws_organizational_units_preserves_parent_fields():
     ]
 
 
+def test_transform_service_control_policies_scopes_ids_and_splits_targets():
+    # Act
+    policies, statements = (
+        cartography.intel.aws.organizations.transform_service_control_policies(
+            TEST_SERVICE_CONTROL_POLICIES,
+            "o-exampleorgid",
+        )
+    )
+
+    # Assert
+    assert [
+        (
+            policy["id"],
+            policy["target_root_ids"],
+            policy["target_ou_ids"],
+            policy["target_account_ids"],
+        )
+        for policy in policies
+    ] == [
+        (
+            "o-exampleorgid/p-FullAWSAccess",
+            ["o-exampleorgid/r-exam"],
+            ["o-exampleorgid/ou-exam-a1b2c3d4"],
+            ["111111111111"],
+        ),
+        (
+            "o-exampleorgid/p-examregion",
+            [],
+            ["o-exampleorgid/ou-exam-a1b2c3d4"],
+            ["444444444444"],
+        ),
+    ]
+    assert [
+        (statement["id"], statement["policy_id"], statement.get("Condition"))
+        for statement in statements
+    ] == [
+        (
+            "o-exampleorgid/p-FullAWSAccess/statement/1",
+            "o-exampleorgid/p-FullAWSAccess",
+            None,
+        ),
+        (
+            "o-exampleorgid/p-examregion/statement/DenyOutsideApprovedRegions",
+            "o-exampleorgid/p-examregion",
+            '[{"StringNotEquals": {"aws:RequestedRegion": ["us-east-1", "us-west-2"]}}]',
+        ),
+    ]
+
+
+def test_get_service_control_policies_for_sync_skips_consolidated_billing_orgs():
+    # Arrange
+    client = mock.Mock()
+
+    # Act
+    result = cartography.intel.aws.organizations._get_service_control_policies_for_sync(
+        client,
+        {**TEST_ORGANIZATION, "FeatureSet": "CONSOLIDATED_BILLING"},
+    )
+
+    # Assert
+    assert result is None
+    client.get_paginator.assert_not_called()
+
+
 def test_paginate_aws_organizations_flattens_pages():
     # Arrange
     class FakePaginator:
@@ -238,6 +303,11 @@ def test_sync_aws_organization_returns_synced_result():
             cartography.intel.aws.organizations,
             "get_aws_organization_hierarchy",
             return_value=([TEST_ORGANIZATION_ROOTS[0]], [], TEST_ORGANIZATION_ACCOUNTS),
+        ),
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "_get_service_control_policies_for_sync",
+            return_value=None,
         ),
         mock.patch.object(
             cartography.intel.aws.organizations,
@@ -329,6 +399,11 @@ def test_sync_aws_organization_second_call_returns_already_synced_result():
             "get_aws_organization_hierarchy",
             return_value=([TEST_ORGANIZATION_ROOTS[0]], [], TEST_ORGANIZATION_ACCOUNTS),
         ) as mock_get_hierarchy,
+        mock.patch.object(
+            cartography.intel.aws.organizations,
+            "_get_service_control_policies_for_sync",
+            return_value=None,
+        ),
         mock.patch.object(
             cartography.intel.aws.organizations,
             "load_aws_account_nodes_from_organization",

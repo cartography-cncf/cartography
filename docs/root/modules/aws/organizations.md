@@ -59,6 +59,45 @@ RETURN account.org_id, account.id, account.name, account.state, account.status
 ORDER BY account.org_id, account.name
 ```
 
+### Service control policies
+
+When the organization has all features enabled, Cartography syncs its service
+control policies (SCPs) as `AWSServiceControlPolicy` nodes. Each policy keeps
+its raw policy document in `content`, and each statement in that document is an
+`AWSServiceControlPolicyStatement` node. AWS managed policies such as
+`FullAWSAccess` have the same ID in every organization, so policy IDs use
+`{org_id}/{policy_id}`.
+
+```cypher
+(:AWSOrganization)-[:RESOURCE]->(:AWSServiceControlPolicy)
+(:AWSServiceControlPolicy)-[:APPLIES_TO]->(:AWSOrganizationRoot)
+(:AWSServiceControlPolicy)-[:APPLIES_TO]->(:AWSOrganizationalUnit)
+(:AWSServiceControlPolicy)-[:APPLIES_TO]->(:AWSAccount)
+(:AWSServiceControlPolicy)-[:STATEMENT]->(:AWSServiceControlPolicyStatement)
+```
+
+`APPLIES_TO` is the direct attachment. An account is also governed by every
+SCP attached to its parent OUs and root.
+
+Find the SCPs that govern each account, directly or through its parents:
+
+```cypher
+MATCH (account:AWSAccount)-[:PARENT*0..]->(target)<-[:APPLIES_TO]-(scp:AWSServiceControlPolicy)
+RETURN account.id, account.name, collect(DISTINCT scp.name) AS service_control_policies
+ORDER BY account.name
+```
+
+Find deny statements that restrict regions:
+
+```cypher
+MATCH (scp:AWSServiceControlPolicy)-[:STATEMENT]->(statement:AWSServiceControlPolicyStatement)
+WHERE statement.effect = 'Deny'
+  AND statement.condition CONTAINS 'aws:RequestedRegion'
+RETURN scp.org_id, scp.name, statement.sid, statement.condition
+```
+
+Cartography does not yet evaluate SCPs when it computes effective permissions.
+
 ### Failure-safe cleanup
 
 Cartography cleans up Organizations hierarchy data only after successfully
@@ -66,8 +105,12 @@ enumerating the complete hierarchy. If the Organizations API is unavailable,
 access is denied, or enumeration is incomplete, cleanup is skipped so that a
 transient failure does not erase the previously known hierarchy.
 
-Organizations cleanup removes stale placement metadata, roots, OUs, and
-hierarchy relationships. It does not delete `AWSAccount` nodes or their
+If the hierarchy syncs but the service control policies cannot be enumerated,
+for example because a delegated administrator is not allowed to read policies,
+Cartography keeps the previously synced policies and skips policy cleanup.
+
+Organizations cleanup removes stale placement metadata, roots, OUs, service
+control policies, and hierarchy relationships. It does not delete `AWSAccount` nodes or their
 account-scoped resources when accounts move, leave the organization, or become
 inactive.
 
