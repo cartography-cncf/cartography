@@ -35,8 +35,10 @@ object hangs off its domain through a `RESOURCE` relationship. Built-in
 principals keep the domain-prefixed identifiers SharpHound emits, such as
 `EXAMPLE.LOCAL-S-1-5-32-544` for the domain's Administrators group.
 
-Each BloodHound edge kind becomes its own relationship type so that path
-queries can follow specific abuse primitives:
+Each supported BloodHound edge kind becomes its own relationship type so that
+path queries can follow specific edges. This release imports the membership,
+containment, GPO-link and trust edges below; ACL, host-access and delegation
+edges are not imported yet.
 
 | BloodHound edge | Cartography relationship |
 |---|---|

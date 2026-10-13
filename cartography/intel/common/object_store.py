@@ -41,7 +41,9 @@ class ReportReader(Protocol):
 
     Memory: read_bytes() loads the full object into memory. Reports are
     expected to fit comfortably in RAM (typical scan outputs are <10 MB). Use
-    download_report() for reports that may not fit in memory.
+    download_report() for reports that may not fit in memory: readers with a
+    download_to() method (local, S3, GCS, Azure Blob) stream to a file, while
+    other readers such as ListedReportReader still fall back to read_bytes().
     """
 
     source_uri: str
