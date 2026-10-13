@@ -174,6 +174,44 @@ def test_sync_imports_host_and_delegation_edges(neo4j_session, tmp_path):
     assert local_accounts == 0
 
 
+def test_gpo_assigned_rdp_honors_computer_user_rights(neo4j_session, tmp_path):
+    # Arrange
+    data = fixture.collection()
+    data["ous"][0]["GPOChanges"]["RemoteDesktopUsers"] = [
+        {"ObjectIdentifier": fixture.SVC_SID, "ObjectType": "User"},
+    ]
+    archive = fixture.write_zip(tmp_path / "20261012143015_x.zip", data)
+
+    # Act
+    _sync(neo4j_session, archive)
+
+    # Assert
+    # WS01's user rights grant the logon right to Alice only.
+    assert _rels(neo4j_session, "CAN_RDP", "ADComputer") == {
+        (fixture.ALICE_SID, fixture.WS01_SID),
+    }
+
+
+def test_gpo_assigned_rdp_without_user_rights(neo4j_session, tmp_path):
+    # Arrange
+    data = fixture.collection()
+    data["computers"][0]["UserRights"] = []
+    data["ous"][0]["GPOChanges"]["RemoteDesktopUsers"] = [
+        {"ObjectIdentifier": fixture.SVC_SID, "ObjectType": "User"},
+    ]
+    archive = fixture.write_zip(tmp_path / "20261012143015_x.zip", data)
+
+    # Act
+    _sync(neo4j_session, archive)
+
+    # Assert
+    assert (fixture.SVC_SID, fixture.WS01_SID) in _rels(
+        neo4j_session,
+        "CAN_RDP",
+        "ADComputer",
+    )
+
+
 def test_placeholders_for_principals_outside_the_import(neo4j_session, tmp_path):
     # Arrange
     archive = fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip")
@@ -298,6 +336,9 @@ def test_unreachable_computer_keeps_host_edges(neo4j_session, tmp_path):
     computer["UserRights"] = []
     for name in ("Sessions", "PrivilegedSessions", "RegistrySessions"):
         computer[name] = {"Collected": False, "FailureReason": None, "Results": []}
+    # Dropping the GPO assignment does not prove svc_app left the group: a
+    # policy that only adds members leaves them behind. Without host data the
+    # edge is kept until SharpHound reads the computer's local groups again.
     data["ous"][0]["GPOChanges"]["LocalAdmins"] = []
 
     # Act

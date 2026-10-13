@@ -481,6 +481,13 @@ def load_edges(
                 continue
             domain_sid = object_domain_sid(validated.data_type, obj)
             for kind, row in iter_edges(validated.data_type, obj, validated.provenance):
+                # GPO-assigned Remote Desktop Users members are declared on the
+                # domain or OU, so the computer's user rights apply here.
+                if kind == CAN_RDP and not collection.allows_rdp(
+                    row["source_id"],
+                    row["target_id"],
+                ):
+                    continue
                 batcher.add(kind, domain_sid, row)
     batcher.flush()
 

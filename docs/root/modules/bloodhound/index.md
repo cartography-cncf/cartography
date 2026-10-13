@@ -193,8 +193,9 @@ RETURN u
 ### Permission edges
 
 Permission edges come from the access control entries (ACEs) SharpHound
-collects on every object. Each carries `is_inherited`, which is true only when
-every ACE granting the right was inherited from a parent container. Rights the
+collects on every object. Each ACE-derived edge carries `is_inherited`, which
+is true only when every ACE granting the right was inherited from a parent
+container; the derived `DC_SYNC` edge does not. Rights the
 module does not import are counted in the sync log. An object's rights over
 itself and ACEs granted to `OWNER RIGHTS` (`S-1-3-4`) produce no edge.
 
@@ -216,7 +217,8 @@ Management Users (RID 580) groups, as SharpHound read them from the computer
 and as group policy assigns them to the computers it applies to. Local accounts
 have no AD object and are skipped. When SharpHound collected the computer's user
 rights, `CAN_RDP` also requires the remote interactive logon right, either held
-by the Remote Desktop Users group or by the member itself.
+by the Remote Desktop Users group or by the member itself. This applies to
+members assigned by group policy too.
 
 `HAS_SESSION` merges the session, privileged session and registry session
 lists. Standalone `sessions` files are not imported.
@@ -269,4 +271,6 @@ SID history edges need `ObjectProps`.
 
 SharpHound cannot reach every computer. When a computer's output holds no
 local group or session data, its existing host access edges of that kind are
-kept rather than removed.
+kept rather than removed. For a computer SharpHound did reach, the local group
+membership it read is authoritative: a group policy assignment that does not
+show up in it is removed with the next import that collected local groups.

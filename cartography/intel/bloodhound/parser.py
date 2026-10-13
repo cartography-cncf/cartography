@@ -246,6 +246,14 @@ class ValidatedCollection:
     uncollected_hosts: dict[tuple[str, str], set[str]] = field(
         default_factory=lambda: defaultdict(set),
     )
+    # Computer ID -> principals holding the remote interactive logon right, for
+    # computers where membership of Remote Desktop Users does not grant it.
+    rdp_logon_grantees: dict[str, set[str]] = field(default_factory=dict)
+
+    def allows_rdp(self, principal_id: str, computer_id: str) -> bool:
+        """Whether the computer's collected user rights let the principal RDP."""
+        grantees = self.rdp_logon_grantees.get(computer_id)
+        return grantees is None or principal_id in grantees
 
     def files_of(self, *data_types: str) -> list[ValidatedFile]:
         return [f for f in self.files if f.data_type in data_types]
@@ -655,6 +663,18 @@ def _rdp_logon_grantees(obj: dict[str, Any]) -> set[str] | None:
     return None
 
 
+def rdp_logon_restriction(oid: str, obj: dict[str, Any]) -> set[str] | None:
+    """Principals allowed to RDP to a computer by its collected user rights.
+
+    None when user rights were not collected, or when Remote Desktop Users
+    holds the remote interactive logon right, so membership alone suffices.
+    """
+    grantees = _rdp_logon_grantees(obj)
+    if grantees is None or f"{oid}-555" in grantees:
+        return None
+    return grantees
+
+
 def _local_group_edges(
     oid: str,
     obj: dict[str, Any],
@@ -664,8 +684,8 @@ def _local_group_edges(
     # Membership of Remote Desktop Users only allows RDP when the group also
     # holds the remote interactive logon right. When user rights were collected
     # and the group lacks it, only members granted the right directly qualify.
-    grantees = _rdp_logon_grantees(obj)
-    if grantees is not None and f"{oid}-555" not in grantees and CAN_RDP in members:
+    grantees = rdp_logon_restriction(oid, obj)
+    if grantees is not None and CAN_RDP in members:
         members[CAN_RDP] = {
             principal_id: principal_type
             for principal_id, principal_type in members[CAN_RDP].items()
@@ -867,6 +887,7 @@ def validate_collection(
             collection.referenced_principals.setdefault(principal_id, label)
         for key, computer_ids in result.uncollected_hosts.items():
             collection.uncollected_hosts[key].update(computer_ids)
+        collection.rdp_logon_grantees.update(result.rdp_logon_grantees)
         for target_id, target_name in result.trust_targets.items():
             collection.trust_targets.setdefault(target_id, target_name)
         for domain_sid in result.domain_sids:
@@ -941,6 +962,7 @@ class _FileResult:
     uncollected_hosts: dict[tuple[str, str], set[str]] = field(
         default_factory=lambda: defaultdict(set),
     )
+    rdp_logon_grantees: dict[str, set[str]] = field(default_factory=dict)
 
 
 def _record_references(
@@ -1032,6 +1054,9 @@ def _validate_file(
             if data_type == COMPUTERS:
                 for kind in uncollected_host_edges(obj):
                     result.uncollected_hosts[(kind, domain_sid)].add(oid)
+                grantees = rdp_logon_restriction(oid, obj)
+                if grantees is not None:
+                    result.rdp_logon_grantees[oid] = grantees
         except (KeyError, TypeError, ValueError, AttributeError) as exc:
             raise BloodHoundImportError(
                 f"Malformed {data_type} object #{count} in {file.source_uri}: {exc!r}",
