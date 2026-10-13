@@ -81,10 +81,16 @@ SCP attached to its parent OUs and root. Only active accounts are placed in the
 hierarchy, so the inherited results below cover active accounts; suspended and
 closed accounts show only SCPs attached to them directly.
 
+SCPs do not affect the organization's management account, even when they are
+attached to the root or to the management account itself. Exclude it when
+asking which accounts a policy governs.
+
 Find the SCPs that govern each account, directly or through its parents:
 
 ```cypher
 MATCH (account:AWSAccount)-[:PARENT*0..]->(target)<-[:APPLIES_TO]-(scp:AWSServiceControlPolicy)
+MATCH (org:AWSOrganization {id: scp.org_id})
+WHERE account.id <> org.management_account_id
 RETURN account.id, account.name, collect(DISTINCT scp.name) AS service_control_policies
 ORDER BY account.name
 ```
@@ -110,6 +116,10 @@ transient failure does not erase the previously known hierarchy.
 If the hierarchy syncs but the service control policies cannot be enumerated,
 for example because a delegated administrator is not allowed to read policies,
 Cartography keeps the previously synced policies and skips policy cleanup.
+Policies are read with the same account that synced the hierarchy, which is the
+management account when it is among the synced accounts. Cartography does not
+retry other accounts for policies alone, to avoid repeated denied Organizations
+calls from member accounts.
 
 Organizations cleanup removes stale placement metadata, roots, OUs, service
 control policies, and hierarchy relationships. It does not delete `AWSAccount` nodes or their

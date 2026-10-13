@@ -1045,15 +1045,30 @@ def test_sync_aws_organization_service_control_policies(neo4j_session):
         for record in neo4j_session.run(
             """
             MATCH (account:AWSAccount)-[:PARENT*0..]->(target)
-                <-[:APPLIES_TO]-(:AWSServiceControlPolicy)
+                <-[:APPLIES_TO]-(scp:AWSServiceControlPolicy)
                 -[:STATEMENT]->(statement:AWSServiceControlPolicyStatement)
-            WHERE statement.effect = 'Deny'
+            MATCH (org:AWSOrganization {id: scp.org_id})
+            WHERE account.id <> org.management_account_id
+              AND statement.effect = 'Deny'
               AND statement.condition CONTAINS 'aws:RequestedRegion'
             RETURN DISTINCT account.id AS account_id
             """,
         )
     }
     assert restricted_accounts == {"222222222222", "444444444444"}
+    governed_by_full_aws_access = {
+        record["account_id"]
+        for record in neo4j_session.run(
+            """
+            MATCH (account:AWSAccount)-[:PARENT*0..]->(target)
+                <-[:APPLIES_TO]-(scp:AWSServiceControlPolicy {name: 'FullAWSAccess'})
+            MATCH (org:AWSOrganization {id: scp.org_id})
+            WHERE account.id <> org.management_account_id
+            RETURN DISTINCT account.id AS account_id
+            """,
+        )
+    }
+    assert governed_by_full_aws_access == {"222222222222", "444444444444"}
 
 
 def test_sync_aws_organization_cleans_up_stale_service_control_policies(
