@@ -59,8 +59,12 @@ group membership.
 - Each import needs `domains`, `users`, `groups` and `computers` data. `ous`,
   `gpos` and `containers` are imported when present. Certificate services data
   is skipped.
-- Each domain may appear in only one collection per source. To refresh a
-  domain, replace its archive rather than adding a second one beside it.
+- A source may hold several collections, for example one archive per
+  scheduled run. For each domain only the newest collection, by SharpHound's
+  timestamp prefix, is imported and older ones are skipped, so new archives
+  can be added beside old ones and a bucket lifecycle rule can expire them.
+  Loose JSON files belong to the same collection when they share a directory
+  and timestamp prefix.
 - Archives and JSON files are streamed, so large forests do not need to fit in
   memory. Archives from object stores are downloaded to a temporary directory
   first.

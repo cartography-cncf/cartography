@@ -457,3 +457,34 @@ def test_duplicate_domain_records_are_merged(neo4j_session, tmp_path):
         fixture.DOMAIN_NAME,
         "2016",
     ) in check_nodes(neo4j_session, "ADDomain", ["id", "name", "functionallevel"])
+
+
+def test_source_with_several_runs_imports_the_newest(neo4j_session, tmp_path):
+    # Arrange
+    fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip")
+    data = fixture.collection()
+    data["users"] = [
+        u for u in data["users"] if u["ObjectIdentifier"] != fixture.SVC_SID
+    ]
+    fixture.write_zip(
+        tmp_path / "20261013090000_BloodHound.zip",
+        data,
+        timestamp="20261013090000",
+    )
+
+    # Act
+    _sync(neo4j_session, tmp_path)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "ADUser",
+        ["id", "collected_at"],
+    ) >= {(fixture.ALICE_SID, "2026-10-13T09:00:00")}
+    # svc_app is only in the older run. The newer run still references it, so
+    # it is a placeholder rather than an imported user.
+    assert (fixture.SVC_SID, False) in check_nodes(
+        neo4j_session,
+        "ADUser",
+        ["id", "collected"],
+    )

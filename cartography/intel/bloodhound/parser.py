@@ -857,6 +857,7 @@ def validate_collection(
     collected_at = (
         parse_collected_at(collected_at_override) if collected_at_override else None
     )
+    files = select_latest_collections(files, collected_at)
     collection = ValidatedCollection()
     type_sources: dict[tuple[str, str], str] = {}
     referenced_domains: dict[str, str] = {}
@@ -896,7 +897,7 @@ def validate_collection(
             if previous is not None:
                 raise BloodHoundImportError(
                     f"Domain {domain_sid} has {validated.data_type} in both {previous} "
-                    f"and {file.source_uri}. Import one collection per domain.",
+                    f"and {file.source_uri} with the same collection time. Remove one.",
                 )
             type_sources[key] = file.source_uri
             referenced_domains.setdefault(domain_sid, file.source_uri)
@@ -950,6 +951,90 @@ def validate_collection(
             ", ".join(unreported_methods),
         )
     return collection
+
+
+def _read_domain_ids(file: CollectionFile) -> set[str]:
+    try:
+        return {object_id(obj) for obj in iter_objects(file) if isinstance(obj, dict)}
+    except (ValueError, *_READ_ERRORS) as exc:
+        raise BloodHoundImportError(
+            f"Failed to read {file.source_uri}: {exc}",
+        ) from exc
+
+
+def _collection_domains(files: list[CollectionFile]) -> set[str]:
+    """SIDs of the domains a collection's domains file describes."""
+    named = [f for f in files if f.source_uri.lower().endswith("domains.json")]
+    candidates = named or files
+    domains: set[str] = set()
+    for file in candidates:
+        if not named:
+            try:
+                meta = read_meta(file)
+            except _READ_ERRORS as exc:
+                raise BloodHoundImportError(
+                    f"Failed to read {file.source_uri}: {exc}",
+                ) from exc
+            if not isinstance(meta, dict) or meta.get("type") != DOMAINS:
+                continue
+        domains |= _read_domain_ids(file)
+    return domains
+
+
+def select_latest_collections(
+    files: list[CollectionFile],
+    collected_at_override: str | None = None,
+) -> list[CollectionFile]:
+    """Keep only the newest collection of each domain in the source.
+
+    A source can hold several SharpHound runs, for example one archive per
+    weekly run. For each domain only the files of its newest run are imported,
+    so customers can keep adding archives and expire old ones with a bucket
+    lifecycle rule. When runs cannot be ordered (no timestamps, or the same
+    timestamp) every file is kept and validation reports the overlap.
+    """
+    groups: dict[str, list[CollectionFile]] = defaultdict(list)
+    for file in files:
+        groups[file.collection_id].append(file)
+    if len(groups) < 2:
+        return files
+
+    times: dict[str, str] = {}
+    for collection_id, group in groups.items():
+        stamps = {collected_at_override or f.collected_at for f in group}
+        if None in stamps:
+            return files
+        times[collection_id] = max(s for s in stamps if s is not None)
+
+    domains = {cid: _collection_domains(group) for cid, group in groups.items()}
+    newest: dict[str, str] = {}
+    for collection_id, domain_sids in domains.items():
+        for domain_sid in domain_sids:
+            current = newest.get(domain_sid)
+            if current is None or times[collection_id] > times[current]:
+                newest[domain_sid] = collection_id
+
+    selected: list[CollectionFile] = []
+    for collection_id, group in groups.items():
+        superseded = {
+            d for d in domains[collection_id] if times[newest[d]] > times[collection_id]
+        }
+        if not superseded:
+            selected.extend(group)
+            continue
+        if superseded != domains[collection_id]:
+            raise BloodHoundImportError(
+                f"{collection_id} is the newest collection of some of its domains "
+                f"but older than another collection of {', '.join(sorted(superseded))}. "
+                "Collect those domains together or separately, not both.",
+            )
+        logger.info(
+            "Skipping BloodHound collection %s from %s: a newer collection of "
+            "its domains is in the source.",
+            collection_id,
+            times[collection_id],
+        )
+    return selected
 
 
 @dataclass

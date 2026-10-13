@@ -148,14 +148,11 @@ def test_validate_collection_rejects_malformed_edge(tmp_path):
 
 def test_validate_collection_rejects_duplicate_domain(tmp_path):
     # Arrange
-    fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip")
-    fixture.write_zip(
-        tmp_path / "20261013090000_BloodHound.zip",
-        timestamp="20261013090000",
-    )
+    fixture.write_zip(tmp_path / "a" / "20261012143015_BloodHound.zip")
+    fixture.write_zip(tmp_path / "b" / "20261012143015_BloodHound.zip")
 
     # Act and assert
-    with pytest.raises(BloodHoundImportError, match="Import one collection per domain"):
+    with pytest.raises(BloodHoundImportError, match="same collection time"):
         _validate(tmp_path)
 
 
@@ -712,3 +709,108 @@ def test_validate_collection_skips_placeholder_for_filtered_gpo_rdp(tmp_path):
     assert outsider not in collection.referenced_principals
     assert not collection.allows_rdp(outsider, fixture.WS01_SID)
     assert collection.allows_rdp(fixture.ALICE_SID, fixture.WS01_SID)
+
+
+def _partner_data():
+    sid = fixture.PARTNER_SID
+    return {
+        "domains": [
+            {
+                "ObjectIdentifier": sid,
+                "Properties": {"name": fixture.PARTNER_NAME, "domainsid": sid},
+                "Aces": [],
+                "IsDeleted": False,
+                "Trusts": [],
+            },
+        ],
+        "users": [
+            {
+                "ObjectIdentifier": fixture.PARTNER_USER_SID,
+                "Properties": {"name": "MIGRATED", "domainsid": sid},
+                "Aces": [],
+                "IsDeleted": False,
+            },
+        ],
+        "groups": [],
+        "computers": [],
+    }
+
+
+def test_validate_collection_imports_newest_collection_per_domain(tmp_path):
+    # Arrange
+    fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip")
+    fixture.write_zip(
+        tmp_path / "20261013090000_BloodHound.zip",
+        timestamp="20261013090000",
+    )
+
+    # Act
+    collection = _validate(tmp_path)
+
+    # Assert
+    assert {f.provenance.collected_at for f in collection.files} == {
+        "2026-10-13T09:00:00",
+    }
+    assert len(collection.files) == 7
+
+
+def test_validate_collection_keeps_collections_of_other_domains(tmp_path):
+    # Arrange
+    fixture.write_zip(tmp_path / "20261012143015_example.zip")
+    fixture.write_zip(
+        tmp_path / "20261013090000_partner.zip",
+        _partner_data(),
+        timestamp="20261013090000",
+    )
+
+    # Act
+    collection = _validate(tmp_path)
+
+    # Assert
+    assert set(collection.domains) == {fixture.DOMAIN_SID, fixture.PARTNER_SID}
+
+
+def test_validate_collection_selects_newest_loose_json(tmp_path):
+    # Arrange
+    for timestamp in ("20261012143015", "20261013090000"):
+        for data_type, objects in fixture.collection().items():
+            (tmp_path / f"{timestamp}_{data_type}.json").write_text(
+                json.dumps(fixture.document(data_type, objects)),
+            )
+
+    # Act
+    collection = _validate(tmp_path)
+
+    # Assert
+    assert {f.provenance.collected_at for f in collection.files} == {
+        "2026-10-13T09:00:00",
+    }
+
+
+def test_validate_collection_rejects_partly_superseded_collection(tmp_path):
+    # Arrange
+    both = fixture.collection()
+    for data_type, objects in _partner_data().items():
+        both[data_type] = both[data_type] + objects
+    fixture.write_zip(tmp_path / "20261012143015_forest.zip", both)
+    fixture.write_zip(
+        tmp_path / "20261013090000_example.zip",
+        timestamp="20261013090000",
+    )
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="newest collection of some"):
+        _validate(tmp_path)
+
+
+def test_validate_collection_cannot_order_runs_with_one_override(tmp_path):
+    # Arrange
+    fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip")
+    fixture.write_zip(
+        tmp_path / "20261013090000_BloodHound.zip",
+        timestamp="20261013090000",
+    )
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="same collection time"):
+        _validate(tmp_path, "2026-10-14T00:00:00")
