@@ -15,9 +15,6 @@ GET_SPOTLIGHT_VULNERABILITIES = [
                 },
             },
         ],
-        "app": {
-            "product_name_version": "e2fsprogs 1.42.9-12.amzn2.0.2",
-        },
         "cve": {
             "id": "CVE-2019-5094",
             "base_score": 6.7,
@@ -49,7 +46,6 @@ GET_SPOTLIGHT_VULNERABILITIES = [
             "platform": "Linux",
         },
         "remediation": {
-            "ids": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
             "entities": [
                 {
                     "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

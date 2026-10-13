@@ -1,10 +1,11 @@
 import json
 import logging
+from collections.abc import Callable
+from collections.abc import Iterator
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
 from typing import Any
-from typing import Callable
 
 from dateutil.parser import isoparse
 from kubernetes import config
@@ -353,11 +354,41 @@ def k8s_paginate(
     :return: A list of all resources returned by the list function
     """
     all_resources = []
+    for page in k8s_paginate_pages(
+        list_func,
+        raise_on_forbidden=raise_on_forbidden,
+        raise_on_error=raise_on_error,
+        **kwargs,
+    ):
+        all_resources.extend(page)
+
+    logger.debug(
+        "Completed pagination for %s: retrieved %s resources",
+        list_func.__name__,
+        len(all_resources),
+    )
+    return all_resources
+
+
+def k8s_paginate_pages(
+    list_func: Callable,
+    raise_on_forbidden: bool = False,
+    raise_on_error: bool = False,
+    **kwargs: Any,
+) -> Iterator[list[Any]]:
+    """
+    Lazily yield each page of a paginated Kubernetes list call.
+
+    Same semantics as ``k8s_paginate``, but lets the caller transform and drop each page
+    before the next one is fetched. Use this for high-cardinality resources (e.g. pods):
+    the deserialized client models are an order of magnitude larger than the transformed
+    dicts, so holding every page at once can exhaust memory on large clusters.
+    """
     continue_token = None
     limit = kwargs.pop("limit", 100)
     function_name = list_func.__name__
 
-    logger.debug(f"Starting pagination for {function_name} with limit {limit}.")
+    logger.debug("Starting pagination for %s with limit %s.", function_name, limit)
 
     while True:
         try:
@@ -365,31 +396,6 @@ def k8s_paginate(
                 response = list_func(limit=limit, _continue=continue_token, **kwargs)
             else:
                 response = list_func(limit=limit, **kwargs)
-
-            # Check if items exists on the response
-            if not hasattr(response, "items"):
-                logger.warning(
-                    f"Response from {function_name} does not contain 'items' attribute."
-                )
-                break
-
-            items_count = len(response.items)
-            all_resources.extend(response.items)
-
-            logger.debug(f"Retrieved {items_count} {function_name} resources")
-
-            # Check if metadata exists on the response
-            if not hasattr(response, "metadata"):
-                logger.warning(
-                    f"Response from {function_name} does not contain 'metadata' attribute."
-                )
-                break
-
-            continue_token = response.metadata._continue
-            if not continue_token:
-                logger.debug(f"No more {function_name} resources to retrieve.")
-                break
-
         except ApiException as e:
             is_forbidden = e.status in (401, 403)
             # 401/403 re-raise quietly so the caller can log a permission-specific
@@ -398,13 +404,34 @@ def k8s_paginate(
             if is_forbidden and (raise_on_forbidden or raise_on_error):
                 raise
             logger.error(
-                f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
+                "Kubernetes API error retrieving %s resources. %s: %s - %s",
+                function_name,
+                e,
+                e.status,
+                e.reason,
             )
             if raise_on_error:
                 raise
-            break
+            return
 
-    logger.debug(
-        f"Completed pagination for {function_name}: retrieved {len(all_resources)} resources"
-    )
-    return all_resources
+        # Check if items exists on the response
+        if not hasattr(response, "items"):
+            logger.warning(
+                "Response from %s does not contain 'items' attribute.", function_name
+            )
+            return
+
+        logger.debug("Retrieved %s %s resources", len(response.items), function_name)
+        yield response.items
+
+        # Check if metadata exists on the response
+        if not hasattr(response, "metadata"):
+            logger.warning(
+                "Response from %s does not contain 'metadata' attribute.", function_name
+            )
+            return
+
+        continue_token = response.metadata._continue
+        if not continue_token:
+            logger.debug("No more %s resources to retrieve.", function_name)
+            return

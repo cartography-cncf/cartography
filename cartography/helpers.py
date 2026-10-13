@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_BATCH_SIZE = 1000
 
 
+def normalize_email_for_matching(value: str | None) -> str | None:
+    """Use the same Unicode whitespace and case policy on both sides of identity joins."""
+    return (value or "").strip().lower() or None
+
+
 def backoff_handler(details: Dict) -> None:
     """
     Log backoff retry attempts for monitoring and debugging.

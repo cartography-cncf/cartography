@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import random
 import time
 from datetime import datetime
 from datetime import timedelta
@@ -12,6 +13,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import requests
+from dateutil.parser import isoparse
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
@@ -32,6 +34,19 @@ _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
 # HTTP status codes that are safe to retry with exponential backoff
 _TRANSIENT_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
+
+
+# Add up to +25% so concurrent retries do not hit GitHub in lockstep.
+_RETRY_JITTER_RATIO = 0.25
+
+
+def sleep_with_jitter(delay: float) -> None:
+    """
+    Sleep for `delay` seconds plus jitter. A delay of 0 skips the sleep entirely.
+    """
+    if delay <= 0:
+        return
+    time.sleep(delay * (1 + random.random() * _RETRY_JITTER_RATIO))
 
 
 class PaginatedGraphqlData(NamedTuple):
@@ -80,20 +95,22 @@ def _get_rate_limit_reset_sleep_seconds(response: requests.Response) -> int | No
     return max(0, int(sleep_duration.total_seconds()))
 
 
-def _get_retry_sleep_seconds_for_http_error(
+def get_retry_sleep_seconds_for_http_error(
     err: requests.exceptions.HTTPError,
     retry: int,
-) -> int:
-    """
-    Return a retry delay for HTTP errors, honoring GitHub rate-limit guidance for 403/429.
-    """
+) -> int | None:
+    """Return a retry delay, or None for a non-retryable HTTP error."""
     response = err.response
     default_sleep_seconds: int = int(2**retry)
     if response is None:
-        return int(default_sleep_seconds)
+        return None
 
     if response.status_code not in (403, 429):
-        return int(default_sleep_seconds)
+        return (
+            default_sleep_seconds
+            if response.status_code in _TRANSIENT_STATUS_CODES
+            else None
+        )
 
     retry_after = response.headers.get("retry-after")
     if retry_after:
@@ -107,21 +124,26 @@ def _get_retry_sleep_seconds_for_http_error(
         return reset_sleep_seconds
 
     message = _extract_error_message(response).lower()
-    if "secondary rate limit" in message or "abuse detection" in message:
-        # GitHub recommends waiting at least one minute before retrying.
-        return int(max(60, default_sleep_seconds))
+    if (
+        response.status_code == 429
+        or response.headers.get("x-ratelimit-remaining") == "0"
+        or retry_after is not None
+        or "secondary rate limit" in message
+        or "abuse detection" in message
+    ):
+        # Without a reset or Retry-After, GitHub requires at least a minute,
+        # increasing exponentially if the secondary limit persists.
+        return int(60 * 2 ** (retry - 1))
 
-    return int(default_sleep_seconds)
+    return None
 
 
-def handle_rate_limit_sleep(token: str) -> None:
-    """
-    Check the remaining rate limit and sleep if remaining is below threshold
-    :param token: The Github API token as string.
-    """
+def handle_rate_limit_sleep(token: Any, api_url: str) -> None:
+    """Wait for the configured instance's GraphQL budget to reset when low."""
     response = requests.get(
-        "https://api.github.com/rate_limit",
+        f"{rest_api_base_url(api_url)}/rate_limit",
         headers={"Authorization": f"Bearer {_resolve_token(token)}"},
+        timeout=_TIMEOUT,
     )
     response.raise_for_status()
     response_json = response.json()
@@ -138,7 +160,7 @@ def handle_rate_limit_sleep(token: str) -> None:
         f"Github graphql ratelimit has {remaining} remaining and is under threshold {threshold},"
         f" sleeping until reset at {reset_at} for {sleep_duration}",
     )
-    time.sleep(sleep_duration.total_seconds())
+    time.sleep(max(0, sleep_duration.total_seconds()))
 
 
 def call_github_api(query: str, variables: str, token: str, api_url: str) -> dict:
@@ -246,7 +268,7 @@ def fetch_all(
         try:
             # In the future, we may use also use the rateLimit object from the graphql response.
             # But we still need at least one call to the REST endpoint in case the graphql remaining is already 0
-            handle_rate_limit_sleep(token)
+            handle_rate_limit_sleep(token, api_url)
             resp = fetch_page(token, api_url, organization, query, cursor, **kwargs)
             retry = 0
         except requests.exceptions.Timeout as err:
@@ -284,7 +306,10 @@ def fetch_all(
         elif retry > 0:
             sleep_seconds = 2**retry
             if isinstance(exc, requests.exceptions.HTTPError):
-                sleep_seconds = _get_retry_sleep_seconds_for_http_error(exc, retry)
+                retry_delay = get_retry_sleep_seconds_for_http_error(exc, retry)
+                if retry_delay is None:
+                    raise exc
+                sleep_seconds = retry_delay
                 response = exc.response
                 status_code = (
                     response.status_code if response is not None else "unknown"
@@ -304,7 +329,7 @@ def fetch_all(
                     sleep_seconds,
                     message,
                 )
-            time.sleep(sleep_seconds)
+            sleep_with_jitter(sleep_seconds)
             continue
 
         if "data" not in resp:
@@ -344,7 +369,7 @@ def fetch_all(
                 null_resource_retry,
                 retries,
             )
-            time.sleep(2**null_resource_retry)
+            sleep_with_jitter(2**null_resource_retry)
             continue
 
         # Successful non-null resource; reset null-resource retry counter.
@@ -580,6 +605,103 @@ def fetch_all_rest_api_pages(
                     break
 
     return results
+
+
+def parse_github_timestamp(value: str | None) -> datetime | None:
+    """
+    Parse an RFC 3339 timestamp as GitHub returns it, such as
+    ``2024-01-02T03:04:05Z``, into a timezone-aware datetime so Neo4j stores a
+    native temporal value. A missing value is None; a malformed value, a value
+    of another type, or one without a UTC offset raises, so a change in
+    GitHub's format is never mistaken for an absent field.
+    """
+    if value is None or value == "":
+        return None
+    parsed = isoparse(value)
+    if parsed.tzinfo is None:
+        raise ValueError(f"GitHub timestamp {value!r} has no UTC offset")
+    return parsed
+
+
+# GitHub answers 403 or 404 when the credential lacks the permission or scope for
+# a resource, and 422 when a feature cannot be read, such as Copilot billing on an
+# organization with a payment problem. Callers treat these as "unavailable" and
+# let every other failure propagate.
+UNAVAILABLE_STATUSES = (403, 404, 422)
+
+
+def _unavailable_status(
+    err: requests.exceptions.HTTPError,
+    unavailable: tuple[int, ...],
+) -> int | None:
+    """Return the status when it means the resource is unavailable, else re-raise."""
+    status = err.response.status_code if err.response is not None else None
+    if status not in unavailable:
+        raise err
+    return status
+
+
+def fetch_all_rest_api_pages_or_none(
+    token: str,
+    base_url: str,
+    endpoint: str,
+    result_key: str,
+    description: str,
+    unavailable: tuple[int, ...] = UNAVAILABLE_STATUSES,
+    **kwargs: Any,
+) -> list[dict[str, Any]] | None:
+    """
+    Fetch all pages like ``fetch_all_rest_api_pages``, but return None when GitHub
+    reports the listing as unavailable to the credential. Other failures propagate,
+    so a transient error never looks like an empty or denied listing.
+
+    :param description: Human-readable name of the listing for the log message.
+    :param unavailable: HTTP statuses that mean "unavailable" rather than failure.
+    """
+    try:
+        return fetch_all_rest_api_pages(
+            token,
+            base_url,
+            endpoint,
+            result_key,
+            raise_on_status=unavailable,
+            **kwargs,
+        )
+    except requests.exceptions.HTTPError as err:
+        status = _unavailable_status(err, unavailable)
+        logger.warning(
+            "Skipping GitHub %s (%s): HTTP %s. The credential may lack the "
+            "required permission, or the feature is not enabled.",
+            description,
+            endpoint,
+            status,
+        )
+        return None
+
+
+def call_github_rest_api_or_none(
+    endpoint: str,
+    token: str,
+    api_url: str,
+    description: str,
+    unavailable: tuple[int, ...] = UNAVAILABLE_STATUSES,
+) -> dict[str, Any] | None:
+    """
+    Call ``call_github_rest_api`` and return None when GitHub reports the resource
+    as unavailable to the credential. Other failures propagate.
+    """
+    try:
+        return call_github_rest_api(endpoint, token, api_url)
+    except requests.exceptions.HTTPError as err:
+        status = _unavailable_status(err, unavailable)
+        logger.warning(
+            "Skipping GitHub %s (%s): HTTP %s. The credential may lack the "
+            "required permission, or the feature is not enabled.",
+            description,
+            endpoint,
+            status,
+        )
+        return None
 
 
 def call_github_rest_api(

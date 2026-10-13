@@ -192,6 +192,58 @@ def test_permission_evaluation_relationships_render_permissions_without_source()
     assert "Evaluated permissions: `S3:GetObject`" in generated
 
 
+def test_azure_data_permissions_render_separately_from_permissions():
+    # Arrange
+    definition = PermissionRelationshipDefinition(
+        provider="azure",
+        source_label="EntraUser",
+        target_label="AzureStorageAccount",
+        relationship_name="CAN_READ",
+        permissions=("Microsoft.Storage/storageAccounts/listKeys/action",),
+        config_path="cartography/data/azure_permission_relationships.yaml",
+        data_permissions=(
+            "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+        ),
+    )
+    node = Node(
+        label="AzureStorageAccount",
+        descriptions=(),
+        extra_labels=(),
+        conditional_labels=(),
+        properties=(),
+        modules=("azure",),
+        schemas=(),
+    )
+    relationship = Relationship(
+        source_label="EntraUser",
+        label="CAN_READ",
+        target_label="AzureStorageAccount",
+        direction=LinkDirection.OUTWARD,
+        descriptions=("Allows an Entra user to read data in a storage account.",),
+        properties=(),
+        modules=("azure",),
+        origins=("permission_evaluation",),
+        schemas=(),
+        analysis_jobs=(),
+        permission_relationships=(definition,),
+    )
+    model = DataModel(
+        nodes=(node,),
+        relationships=(relationship,),
+        permission_relationships=(definition,),
+    )
+
+    # Act
+    generated = render_module_schema(model, "azure")
+
+    # Assert
+    assert (
+        "Evaluated permissions: `Microsoft.Storage/storageAccounts/listKeys/action`; "
+        "data plane only: "
+        "`Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read`"
+    ) in generated
+
+
 def test_ontology_and_cross_module_relationships_are_duplicated_in_module_docs():
     # Arrange
     node = Node(

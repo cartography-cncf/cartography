@@ -16,12 +16,7 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     cartography.intel.crowdstrike.spotlight,
     "get_spotlight_vulnerabilities",
-    return_value=GET_SPOTLIGHT_VULNERABILITIES,
-)
-@patch.object(
-    cartography.intel.crowdstrike.spotlight,
-    "get_spotlight_vulnerability_ids",
-    return_value=[["dummy-id"]],
+    return_value=[GET_SPOTLIGHT_VULNERABILITIES],
 )
 @patch.object(cartography.intel.crowdstrike.endpoints, "Hosts")
 @patch.object(
@@ -34,7 +29,6 @@ def test_sync_spotlight_vulnerabilities(
     mock_host_ids,
     mock_hosts,
     mock_hosts_cls,
-    mock_vuln_ids,
     mock_vulns,
     mock_spotlight_cls,
     neo4j_session,
@@ -65,14 +59,20 @@ def test_sync_spotlight_vulnerabilities(
 
     # Verify CrowdstrikeSpotlightVulnerability nodes
     assert check_nodes(
-        neo4j_session, "CrowdstrikeSpotlightVulnerability", ["id", "cve_id", "status"]
+        neo4j_session,
+        "CrowdstrikeSpotlightVulnerability",
+        ["id", "cve_id", "status", "app_product_name_version"],
     ) == {
         (
             "00000000000000000000000000000000_00000000000000000000000000000000",
             "CVE-2019-5094",
             "open",
+            "e2fsprogs 1.42.9-12.amzn2.0.2",
         ),
     }
+    assert neo4j_session.run(
+        "MATCH (v:CrowdstrikeSpotlightVulnerability) RETURN v.remediation_ids AS ids",
+    ).single()["ids"] == ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
     # Verify CVE nodes
     assert check_nodes(
@@ -142,11 +142,6 @@ def test_sync_spotlight_vulnerabilities(
     cartography.intel.crowdstrike.spotlight,
     "get_spotlight_vulnerabilities",
 )
-@patch.object(
-    cartography.intel.crowdstrike.spotlight,
-    "get_spotlight_vulnerability_ids",
-    return_value=[["dummy-id"]],
-)
 @patch.object(cartography.intel.crowdstrike.endpoints, "Hosts")
 @patch.object(
     cartography.intel.crowdstrike.endpoints, "get_hosts", return_value=GET_HOSTS
@@ -158,7 +153,6 @@ def test_cleanup_drops_orphan_crowdstrike_cves(
     mock_host_ids,
     mock_hosts,
     mock_hosts_cls,
-    mock_vuln_ids,
     mock_vulns,
     mock_spotlight_cls,
     neo4j_session,
@@ -172,7 +166,7 @@ def test_cleanup_drops_orphan_crowdstrike_cves(
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
 
     # First run: spotlight returns the vulnerability
-    mock_vulns.return_value = GET_SPOTLIGHT_VULNERABILITIES
+    mock_vulns.return_value = [GET_SPOTLIGHT_VULNERABILITIES]
     cartography.intel.crowdstrike.endpoints.sync_hosts(
         neo4j_session, TEST_UPDATE_TAG, authorization
     )

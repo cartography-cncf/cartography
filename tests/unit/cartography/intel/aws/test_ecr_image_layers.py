@@ -169,6 +169,37 @@ def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
     }
 
 
+def test_extract_ci_label_provenance_reads_codebuild_variables():
+    config_json = {
+        "config": {
+            "Labels": {
+                "CODEBUILD_SOURCE_REPO_URL": "https://github.com/ExampleOrg/service.git",
+                "CODEBUILD_RESOLVED_SOURCE_VERSION": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+    }
+
+
+def test_extract_ci_label_provenance_prefers_circleci_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "CODEBUILD_SOURCE_REPO_URL": "https://github.com/ExampleOrg/other.git",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+    }
+
+
 def test_extract_circleci_label_provenance_ignores_empty_or_missing_labels():
     config_json = {
         "config": {

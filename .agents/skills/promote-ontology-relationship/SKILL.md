@@ -38,7 +38,7 @@ Whichever you pick, the canonical label/direction must match the `RelConstraint`
 2. **Pick the canonical verb to fit the abstraction, not one provider.** The label applies to the abstract semantic pair (e.g. `UserAccount -> PermissionRole`), which spans many providers. Prefer a neutral verb (`HAS_ROLE`, not `ASSUME_ROLE`, when the target generalises IAM roles, permission sets, and SaaS roles). Reserve action verbs (`ASSUMES`) for workload-identity/runtime semantics.
 3. **Backward compatibility is mandatory.** Never rename in place. The old edge keeps being created (whitelisted) until v1.0.0 so existing queries/rules keep working.
 4. **Run the guard test to discover collisions**: do not assume you found every edge by reading code. `test_ontology_rel_constraints.py` will list every offending rel (wrong label or reverse direction). Decide per edge: migrate (parallel + deprecate) or whitelist (distinct semantic).
-5. **Docs: replace the deprecated relation, do not just annotate it.** In the module `schema.md`, the old edge must be **removed entirely** (bullet + cypher block + mermaid line) and replaced by the canonical one. Do NOT keep it with an inline `(DEPRECATED: ...)` marker: that is the mistake the original `WORKLOAD_PARENT` migration made, and it leaves the duplicate documented. The class stays in code (whitelisted) but is no longer advertised. Add the canonical edge to the ontology `schema.md`.
+5. **Docs are generated, do not hand-edit `schema.md`.** Module and ontology schema pages are built from the data model. The canonical edge reaches the ontology page through `constraints.py` and the model. The generator has no deprecation marker, so a relationship still declared in the model is still rendered. Update model docstrings and descriptions that name the old label, then build the docs to check the result.
 6. **Decouple internal queries from the deprecated label.** If any analysis job / intel query traverses the old label, switch it to the canonical one (both edges exist, so it is equivalent and survives the v1.0.0 removal).
 7. **One commit per canonical edge.** `--signoff`. No internal ticket or client references in committed text.
 
@@ -142,17 +142,12 @@ Re-run until green. Add the needed imports to `constraints.py` (isort will order
 
 ### Step 7: Update documentation
 
-**Module `schema.md`** (`docs/root/modules/<provider>/schema.md`): **remove** the deprecated edge and document only the canonical one.
+Module and ontology `schema.md` pages are generated from the data model at docs build time. Do not create, hand-edit, or commit them.
 
-- Delete the relationship bullet, its cypher fenced block, **and** its line in the module's mermaid diagram. Do not leave an inline `(DEPRECATED: ...)` note: the deprecated edge must disappear from the doc entirely.
-- The same edge is usually documented in **both endpoints' sections** (e.g. once under the source node, once under the target node) and sometimes in a catch-all list. Grep every occurrence:
-  ```bash
-  grep -rn "OLD_LABEL\|<SrcNode>.*<DstNode>" docs/root/modules/<provider>/schema.md
-  ```
-- **Do not remove a same-label edge that is a different, non-deprecated relationship.** Cross-check against `LEGACY_REL_WHITELIST`: only the exact `(src, label, dst)` triples you deprecated are removed. Example from the `WORKLOAD_PARENT` cleanup: `(:AWSECSService)-[:HAS_TASK]->(:AWSECSTask)` was removed, but `(:AWSECSContainerInstance)-[:HAS_TASK]->(:AWSECSTask)` (same `HAS_TASK` label, not deprecated) was kept. Likewise the Kubernetes namespace catch-all kept `CONTAINS` to `Secret`/`Service`/`Role` and only dropped `Pod`/`Container`.
-- Reword surrounding prose/notes to the canonical label.
-
-**Ontology `schema.md`** (`docs/root/modules/ontology/schema.md`): add the edge to the top mermaid diagram (`UA -- HAS_ROLE --> PR`) and to the prose under the `dst` semantic-label section.
+- Give the canonical relationship schema a docstring, and reword any node or relationship docstrings and `PropertyRef` descriptions that still name the old label.
+- The canonical edge appears on the ontology page once it is declared in the model and in `constraints.py`.
+- The generator has no deprecation marker: the deprecated edge stays listed while its relationship schema is declared. Do not annotate it inline with `(DEPRECATED: ...)`.
+- Build with `uv run ./docs/build.sh` and check the generated module and ontology pages.
 
 ### Step 8: Decouple internal queries
 

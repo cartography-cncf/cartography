@@ -398,6 +398,10 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # person still in another team, so the team links are MatchLinks (same reasoning as
     # RailwayUser and GitHubUser).
     "NetlifyUser",
+    # An Airbyte user can belong to several organizations. Anchoring the identity to
+    # one organization would let that organization's cleanup delete a user, and
+    # edges, that another organization still references (same reasoning as NetlifyUser).
+    "AirbyteUser",
     # A Railway user can belong to several workspaces, and project members need not be
     # members of the workspace at all. Anchoring the identity to one workspace would let
     # that workspace's cleanup DETACH DELETE a user still referenced by another, so the

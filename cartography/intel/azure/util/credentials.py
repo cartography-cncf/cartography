@@ -7,7 +7,17 @@ from azure.identity import AzureCliCredential
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource.subscriptions import SubscriptionClient
 
+from cartography.intel.common.access_token import AZURE_RESOURCE_MANAGER
+from cartography.intel.common.access_token import log_token_lifetime
+from cartography.intel.common.access_token import make_static_credential
+
 logger = logging.getLogger(__name__)
+
+
+def _first_subscription_id(credential: Any) -> Optional[str]:
+    subscription_client = SubscriptionClient(credential)
+    subscription = next(subscription_client.subscriptions.list(), None)
+    return subscription.subscription_id if subscription else None
 
 
 def _get_tenant_id_from_token(credential: Any) -> str:
@@ -95,3 +105,27 @@ class Authenticator:
                 e,
             )
             return None
+
+    def authenticate_access_token(self, access_token: str) -> Credentials:
+        """
+        Authenticate with a pre-issued Azure Resource Manager access token, such as
+        a signed-in user's delegated ``user_impersonation`` token. The token is
+        validated up front so a Microsoft Graph token or an expired token fails
+        with a clear message instead of a generic 401 from the first ARM call.
+        """
+        credential, claims = make_static_credential(
+            access_token,
+            AZURE_RESOURCE_MANAGER,
+        )
+        log_token_lifetime(AZURE_RESOURCE_MANAGER, claims)
+        subscription_id = _first_subscription_id(credential)
+        if not subscription_id:
+            raise RuntimeError(
+                "No Azure subscriptions found. Ensure the identity behind the "
+                "access token has a role such as Reader on at least one subscription.",
+            )
+        return Credentials(
+            credential=credential,
+            tenant_id=claims.tenant_id,
+            subscription_id=subscription_id,
+        )

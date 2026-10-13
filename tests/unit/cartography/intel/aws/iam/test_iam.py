@@ -342,3 +342,257 @@ def test_get_saml_providers_access_denied_returns_empty_list():
     # transform_policy_data feeds the same [] fallback from sibling getters.
     transformed = transform_policy_data([], PolicyType.inline.value)
     assert transformed.statements_by_policy_id == {}
+
+
+def _mock_iam_resource_with_shared_policy(mocker, role_policy_arns):
+    roles = {}
+    for role_name, policy_arns in role_policy_arns.items():
+        role = mocker.Mock()
+        role.attached_policies.all.return_value = [
+            mocker.Mock(arn=arn) for arn in policy_arns
+        ]
+        roles[role_name] = role
+
+    resource_client = mocker.Mock()
+    resource_client.meta.client.exceptions.NoSuchEntityException = type(
+        "NoSuchEntityException", (Exception,), {}
+    )
+    resource_client.Role.side_effect = lambda name: roles[name]
+
+    def make_policy(arn):
+        policy = mocker.Mock()
+        policy.default_version.document = {"Statement": [{"Sid": arn}]}
+        return policy
+
+    resource_client.Policy.side_effect = make_policy
+    session = mocker.Mock()
+    session.resource.return_value = resource_client
+    return session, resource_client
+
+
+def test_get_role_managed_policy_data_fetches_each_policy_once(mocker):
+    shared_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+    own_arn = "arn:aws:iam::000000000000:policy/role-b-policy"
+    session, resource_client = _mock_iam_resource_with_shared_policy(
+        mocker,
+        {"role-a": [shared_arn], "role-b": [shared_arn, own_arn]},
+    )
+    role_list = [
+        {"RoleName": "role-a", "Arn": "arn:aws:iam::000000000000:role/role-a"},
+        {"RoleName": "role-b", "Arn": "arn:aws:iam::000000000000:role/role-b"},
+    ]
+
+    result = iam.get_role_managed_policy_data(session, role_list)
+
+    assert result == {
+        "arn:aws:iam::000000000000:role/role-a": {
+            shared_arn: [{"Sid": shared_arn}],
+        },
+        "arn:aws:iam::000000000000:role/role-b": {
+            shared_arn: [{"Sid": shared_arn}],
+            own_arn: [{"Sid": own_arn}],
+        },
+    }
+    assert [c.args[0] for c in resource_client.Policy.call_args_list] == [
+        shared_arn,
+        own_arn,
+    ]
+
+
+def test_get_role_managed_policy_data_retry_reuses_fetched_policies(mocker):
+    mocker.patch("time.sleep")
+    first_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+    throttled_arn = "arn:aws:iam::000000000000:policy/role-b-policy"
+    session, resource_client = _mock_iam_resource_with_shared_policy(
+        mocker,
+        {"role-a": [first_arn], "role-b": [throttled_arn]},
+    )
+    make_policy = resource_client.Policy.side_effect
+    throttled_once = []
+
+    def throttle_first_lookup_of_second_policy(arn):
+        if arn == throttled_arn and not throttled_once:
+            throttled_once.append(arn)
+            raise ClientError(
+                {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
+                "GetPolicy",
+            )
+        return make_policy(arn)
+
+    resource_client.Policy.side_effect = throttle_first_lookup_of_second_policy
+    role_list = [
+        {"RoleName": "role-a", "Arn": "arn:aws:iam::000000000000:role/role-a"},
+        {"RoleName": "role-b", "Arn": "arn:aws:iam::000000000000:role/role-b"},
+    ]
+
+    result = iam.get_role_managed_policy_data(
+        session, role_list, policy_statement_cache={}
+    )
+
+    assert set(result) == {
+        "arn:aws:iam::000000000000:role/role-a",
+        "arn:aws:iam::000000000000:role/role-b",
+    }
+    assert [c.args[0] for c in resource_client.Policy.call_args_list] == [
+        first_arn,
+        throttled_arn,
+        throttled_arn,
+    ]
+
+
+def _gaad_policy(arn, statements, extra_versions=0):
+    versions = [
+        {
+            "VersionId": f"v{i}",
+            "IsDefaultVersion": False,
+            "Document": {"Statement": [{"Sid": "old"}]},
+        }
+        for i in range(extra_versions)
+    ]
+    versions.append(
+        {
+            "VersionId": "vdefault",
+            "IsDefaultVersion": True,
+            "Document": {"Statement": statements},
+        }
+    )
+    return {"Arn": arn, "PolicyVersionList": versions}
+
+
+SHARED_POLICY_ARN = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+LOCAL_POLICY_ARN = "arn:aws:iam::000000000000:policy/local"
+UNATTACHED_POLICY_ARN = "arn:aws:iam::000000000000:policy/unattached"
+USER_ARN = "arn:aws:iam::000000000000:user/alice"
+GROUP_ARN = "arn:aws:iam::000000000000:group/admins"
+EMPTY_GROUP_ARN = "arn:aws:iam::000000000000:group/empty"
+ROLE_ARN = "arn:aws:iam::000000000000:role/app"
+
+GAAD_PAGE_1 = {
+    "UserDetailList": [
+        {
+            "Arn": USER_ARN,
+            "GroupList": ["admins"],
+            "UserPolicyList": [
+                {"PolicyName": "inline-user", "PolicyDocument": {"Statement": "u"}}
+            ],
+            "AttachedManagedPolicies": [{"PolicyArn": SHARED_POLICY_ARN}],
+        }
+    ],
+    "GroupDetailList": [
+        {
+            "Arn": GROUP_ARN,
+            "GroupName": "admins",
+            "GroupPolicyList": [],
+            "AttachedManagedPolicies": [{"PolicyArn": SHARED_POLICY_ARN}],
+        },
+        {
+            "Arn": EMPTY_GROUP_ARN,
+            "GroupName": "empty",
+            "GroupPolicyList": [],
+            "AttachedManagedPolicies": [],
+        },
+    ],
+    "RoleDetailList": [],
+    "Policies": [_gaad_policy(SHARED_POLICY_ARN, ["shared"], extra_versions=3)],
+    "IsTruncated": True,
+    "Marker": "page-2",
+}
+GAAD_PAGE_2 = {
+    "UserDetailList": [],
+    "GroupDetailList": [],
+    "RoleDetailList": [
+        {
+            "Arn": ROLE_ARN,
+            "RolePolicyList": [
+                {"PolicyName": "inline-role", "PolicyDocument": {"Statement": "r"}}
+            ],
+            "AttachedManagedPolicies": [
+                {"PolicyArn": SHARED_POLICY_ARN},
+                {"PolicyArn": LOCAL_POLICY_ARN},
+            ],
+        }
+    ],
+    "Policies": [
+        _gaad_policy(LOCAL_POLICY_ARN, ["local"]),
+        _gaad_policy(UNATTACHED_POLICY_ARN, ["unattached"]),
+    ],
+    "IsTruncated": False,
+}
+
+
+def _gaad_session(mocker, pages):
+    client = mocker.Mock()
+    client.get_account_authorization_details.side_effect = pages
+    resource_client = mocker.Mock()
+    session = mocker.Mock()
+    session.client.return_value = client
+    session.resource.return_value = resource_client
+    return session, client, resource_client
+
+
+def test_get_account_authorization_details_builds_policy_maps(mocker):
+    session, client, resource_client = _gaad_session(mocker, [GAAD_PAGE_1, GAAD_PAGE_2])
+    cache: dict = {}
+
+    details = iam.get_account_authorization_details(session, cache)
+
+    assert details.user_inline_policies == {USER_ARN: {"inline-user": "u"}}
+    assert details.user_managed_policies == {USER_ARN: {SHARED_POLICY_ARN: ["shared"]}}
+    assert details.group_inline_policies == {GROUP_ARN: {}, EMPTY_GROUP_ARN: {}}
+    assert details.group_managed_policies == {
+        GROUP_ARN: {SHARED_POLICY_ARN: ["shared"]},
+        EMPTY_GROUP_ARN: {},
+    }
+    assert details.group_memberships == {GROUP_ARN: [USER_ARN], EMPTY_GROUP_ARN: []}
+    assert details.role_inline_policies == {ROLE_ARN: {"inline-role": "r"}}
+    assert details.role_managed_policies == {
+        ROLE_ARN: {SHARED_POLICY_ARN: ["shared"], LOCAL_POLICY_ARN: ["local"]}
+    }
+    # Only default versions are kept, and nothing is fetched per policy.
+    assert cache[SHARED_POLICY_ARN] == ["shared"]
+    resource_client.Policy.assert_not_called()
+    assert [
+        c.kwargs.get("Marker")
+        for c in client.get_account_authorization_details.call_args_list
+    ] == [None, "page-2"]
+
+
+def test_get_account_authorization_details_fetches_policy_missing_from_snapshot(
+    mocker,
+):
+    page = {**GAAD_PAGE_2, "Policies": []}
+    session, _, resource_client = _gaad_session(mocker, [page])
+    fetched = mocker.Mock()
+    fetched.default_version.document = {"Statement": ["fetched"]}
+    resource_client.Policy.return_value = fetched
+
+    details = iam.get_account_authorization_details(session)
+
+    assert details.role_managed_policies[ROLE_ARN][LOCAL_POLICY_ARN] == ["fetched"]
+
+
+def test_get_account_authorization_details_returns_none_without_permission(mocker):
+    denied = ClientError(
+        {"Error": {"Code": "AccessDenied", "Message": "not authorized"}},
+        "GetAccountAuthorizationDetails",
+    )
+    session, _, _ = _gaad_session(mocker, [denied])
+
+    assert iam.get_account_authorization_details(session) is None
+
+
+def test_get_account_authorization_details_resumes_page_after_throttle(mocker):
+    mocker.patch("time.sleep")
+    throttled = ClientError(
+        {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
+        "GetAccountAuthorizationDetails",
+    )
+    session, client, _ = _gaad_session(mocker, [GAAD_PAGE_1, throttled, GAAD_PAGE_2])
+
+    details = iam.get_account_authorization_details(session)
+
+    assert ROLE_ARN in details.role_managed_policies
+    assert [
+        c.kwargs.get("Marker")
+        for c in client.get_account_authorization_details.call_args_list
+    ] == [None, "page-2", "page-2"]
