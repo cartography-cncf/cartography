@@ -150,20 +150,12 @@ def load_domains(
     collection: ValidatedCollection,
     update_tag: int,
 ) -> None:
-    # A collection can describe the same domain more than once, for example a
-    # partial record without a name next to the full one. Merge them so the
-    # result does not depend on file order.
-    merged: dict[str, dict[str, Any]] = {}
-    for validated in collection.files_of(DOMAINS):
-        for obj in iter_objects(validated.file):
-            if is_deleted(obj):
-                continue
-            row = transform_node(DOMAINS, obj, validated.provenance)
-            existing = merged.setdefault(row["id"], row)
-            for key, value in row.items():
-                if existing.get(key) is None:
-                    existing[key] = value
-    load(neo4j_session, ADDomainSchema(), list(merged.values()), lastupdated=update_tag)
+    load(
+        neo4j_session,
+        ADDomainSchema(),
+        list(collection.domain_rows.values()),
+        lastupdated=update_tag,
+    )
     load_trust_target_placeholders(neo4j_session, collection, update_tag)
 
 

@@ -435,3 +435,18 @@ def test_validate_collection_merges_duplicate_domain_records(tmp_path):
 
     # Assert
     assert collection.domains == {fixture.DOMAIN_SID: fixture.DOMAIN_NAME}
+
+
+def test_validate_collection_rejects_conflicting_domain_records(tmp_path):
+    # Arrange
+    data = fixture.collection()
+    conflicting = {
+        **data["domains"][0],
+        "Properties": {**data["domains"][0]["Properties"], "functionallevel": "2012"},
+    }
+    data["domains"].append(conflicting)
+    archive = fixture.write_zip(tmp_path / "a.zip", data)
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="conflicting functionallevel"):
+        _validate(archive)

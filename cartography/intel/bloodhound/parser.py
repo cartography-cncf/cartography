@@ -165,6 +165,8 @@ class ValidatedCollection:
     domains: dict[str, str | None] = field(default_factory=dict)
     # Domain SID -> name, for every domain an imported domain has a trust with.
     trust_targets: dict[str, str | None] = field(default_factory=dict)
+    # Domain SID -> merged node row for every imported domain.
+    domain_rows: dict[str, dict[str, Any]] = field(default_factory=dict)
     # (data type, domain SID) pairs with at least one object, live or deleted, in
     # the import.
     collected_types: set[tuple[str, str]] = field(default_factory=set)
@@ -295,6 +297,37 @@ def _optional_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+_PROVENANCE_FIELDS = frozenset({"source_uri", "collected_at", "collector_version"})
+
+
+def merge_domain_row(
+    rows: dict[str, dict[str, Any]],
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    """Merge a repeated record of the same domain into ``rows``.
+
+    A collection can describe one domain more than once, for example a partial
+    record without a name next to the full one. Missing values are filled in;
+    two different non-empty values for the same property are rejected, so the
+    result never depends on record order.
+    """
+    existing = rows.setdefault(row["id"], dict(row))
+    if existing is row or existing == row:
+        return existing
+    for key, value in row.items():
+        if value is None or key in _PROVENANCE_FIELDS:
+            continue
+        current = existing.get(key)
+        if current is None:
+            existing[key] = value
+        elif current != value:
+            raise ValueError(
+                f"domain {row['id']} has conflicting {key} values "
+                f"{current!r} and {value!r}",
+            )
+    return existing
 
 
 def transform_node(
@@ -481,9 +514,8 @@ def validate_collection(
         if not result.domain_sids:
             empty_files.append(result)
         collection.files.append(validated)
-        for domain_sid, domain_name in result.domains.items():
-            if domain_name or domain_sid not in collection.domains:
-                collection.domains[domain_sid] = domain_name
+        collection.domains.update(result.domains)
+        collection.domain_rows.update(result.domain_rows)
         for target_id, target_name in result.trust_targets.items():
             collection.trust_targets.setdefault(target_id, target_name)
         for domain_sid in result.domain_sids:
@@ -548,6 +580,7 @@ class _FileResult:
     domain_sids: set[str] = field(default_factory=set)
     domains: dict[str, str | None] = field(default_factory=dict)
     trust_targets: dict[str, str | None] = field(default_factory=dict)
+    domain_rows: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 def _validate_file(
@@ -616,9 +649,8 @@ def _validate_file(
                 continue
             node = transform_node(data_type, obj, provenance)
             if data_type == DOMAINS:
-                result.domains[node["id"]] = node["name"] or result.domains.get(
-                    node["id"],
-                )
+                merged = merge_domain_row(result.domain_rows, node)
+                result.domains[node["id"]] = merged["name"]
                 result.trust_targets.update(trust_targets(obj))
             for _ in iter_edges(data_type, obj, provenance):
                 pass
