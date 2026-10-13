@@ -27,7 +27,11 @@ class SpaceliftUserNodeProperties(CartographyNodeProperties):
     )
     name: PropertyRef = PropertyRef("name", description="User display name.")
     user_type: PropertyRef = PropertyRef(
-        "user_type", description="Type of Spacelift user, such as human or machine."
+        "user_type",
+        description=(
+            "Type of Spacelift user: `human` when the run's `triggeredBy` field is an "
+            "email address, otherwise `system`."
+        ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

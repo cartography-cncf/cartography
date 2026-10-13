@@ -23,6 +23,8 @@ from datetime import timedelta
 from datetime import timezone
 from typing import Any
 from urllib.parse import quote
+from urllib.parse import urljoin
+from urllib.parse import urlsplit
 
 import jwt
 import requests
@@ -42,8 +44,8 @@ _RETRYABLE_STATUS_CODES = (429, 500, 502, 503, 504)
 _JWT_LIFETIME = timedelta(minutes=59)
 _JWT_RENEW_MARGIN = timedelta(minutes=5)
 
-# A request that runs longer than roughly 45 seconds returns 202 + Location
-# instead of a body. Poll that URL until it resolves.
+# Long-running requests return 202 with a polling URL in the Location header
+# (object API) or the statementStatusUrl JSON field (SQL API).
 _ASYNC_POLL_INTERVAL_SECONDS = 2
 _ASYNC_POLL_MAX_SECONDS = 900
 
@@ -202,7 +204,7 @@ def _quote_identifier(part: str) -> str:
     is_bare_identifier = (part[:1].isalpha() or part[:1] == "_") and part.replace(
         "_", "A"
     ).replace("$", "A").isalnum()
-    if is_bare_identifier and part.isupper():
+    if part.isascii() and is_bare_identifier and part.isupper():
         return part
     return '"' + part.replace('"', '""') + '"'
 
@@ -219,19 +221,15 @@ def sf_fqn(*parts: str) -> str:
 
 
 def sf_path_segment(name: str) -> str:
-    """Percent-encode a Snowflake object name for use as one REST path segment.
+    """Preserve a stored object's name as one REST identifier path segment.
 
-    A quoted Snowflake identifier may legally contain characters that are
-    structural in a URL, so a name like ``my/db`` or ``prod?1`` interpolated raw
-    would address a different endpoint than intended. Every character outside the
-    unreserved set is escaped, including ``/``, so the name always stays a single
-    segment.
-
-    Deliberately not ``sf_fqn``: the REST path wants the *raw* Snowflake name,
-    not the dotted quoted form. ``sf_fqn`` would embed literal double quotes,
-    which Snowflake answers with a 404 for any database that needs quoting.
+    REST path parameters resolve SQL identifiers, so case-sensitive names need
+    identifier quoting before URL encoding. Escaping slashes keeps the entire
+    identifier in one path segment. Verified against schema and network-rule
+    listings; Snowflake's REST Identifier contract requires these quotes:
+    https://github.com/snowflakedb/snowflake-rest-api-specs/blob/main/specifications/common.yaml
     """
-    return quote(name, safe="")
+    return quote(sf_fqn(name), safe="")
 
 
 def untag_image_path(reference: str | None) -> str | None:
@@ -280,6 +278,11 @@ def parse_stage_url(url: str | None) -> tuple[str | None, str | None]:
     return scheme, (netloc or None)
 
 
+# Statuses on which a listing scoped to one schema skips that schema rather than
+# failing the sync. See ``list_schema_objects`` for why 400 belongs here.
+SCHEMA_LISTING_SKIPPABLE_STATUSES = (400, 403, 404)
+
+
 def skip_or_raise_http(error: requests.HTTPError, *skippable_statuses: int) -> None:
     """Re-raise an HTTP error unless its status is an expected, skippable one.
 
@@ -315,7 +318,7 @@ def warn_unavailable(resource: str, reason: str) -> None:
     )
 
 
-def _http_error_detail(error: requests.HTTPError) -> str:
+def http_error_detail(error: requests.HTTPError) -> str:
     """Return Snowflake's own error message for a failed request, if it sent one.
 
     Snowflake puts a numeric ``code`` and a human ``message`` in the JSON body
@@ -461,17 +464,48 @@ class SnowflakeClient:
 
     # -- object API ---------------------------------------------------------
 
+    def _send(self, method: str, url: str, **kwargs: Any) -> requests.Response:
+        # Redirect responses are not API data and must not bypass the origin guard.
+        url = self._absolute(url)
+        for _ in range(self._session.max_redirects + 1):
+            self._apply_auth()
+            response = self._session.request(
+                method,
+                url,
+                timeout=_TIMEOUT,
+                allow_redirects=False,
+                **kwargs,
+            )
+            if not response.is_redirect:
+                if 300 <= response.status_code < 400:
+                    raise requests.HTTPError(
+                        "Snowflake returned a redirect without a Location header",
+                        response=response,
+                    )
+                return response
+            target = self._absolute(urljoin(response.url, response.headers["Location"]))
+            response.close()
+            if response.status_code in (302, 303) and method != "HEAD":
+                method = "GET"
+            elif response.status_code == 301 and method == "POST":
+                method = "GET"
+            if response.status_code not in (307, 308):
+                kwargs.pop("json", None)
+                kwargs.pop("data", None)
+            kwargs.pop("params", None)
+            url = target
+        raise requests.TooManyRedirects("Snowflake API exceeded the redirect limit")
+
     def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
         """Issue one request, resolving Snowflake's 202 async handshake."""
-        self._apply_auth()
-        response = self._session.request(method, url, timeout=_TIMEOUT, **kwargs)
+        response = self._send(method, url, **kwargs)
         if response.status_code == 202:
             response = self._await_async(response)
         response.raise_for_status()
         return response
 
     def _await_async(self, response: requests.Response) -> requests.Response:
-        """Poll a 202 response's ``Location`` until the result is ready.
+        """Poll an object or SQL API 202 response until the result is ready.
 
         Snowflake answers 202 for any request that outlives its synchronous
         budget (roughly 45 seconds), on both the object and SQL surfaces. The
@@ -480,9 +514,17 @@ class SnowflakeClient:
         """
         location = response.headers.get("Location")
         if not location:
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            location = (
+                body.get("statementStatusUrl") if isinstance(body, dict) else None
+            )
+        if not location:
             raise SnowflakeSqlError(
-                "Snowflake returned 202 without a Location header; cannot poll "
-                "for the result.",
+                "Snowflake returned 202 without a Location header or "
+                "statementStatusUrl; cannot poll for the result.",
             )
         url = self._absolute(location)
         deadline = time.monotonic() + _ASYNC_POLL_MAX_SECONDS
@@ -493,16 +535,40 @@ class SnowflakeClient:
                     f"{_ASYNC_POLL_MAX_SECONDS}s: {url}",
                 )
             time.sleep(_ASYNC_POLL_INTERVAL_SECONDS)
-            self._apply_auth()
-            polled = self._session.get(url, timeout=_TIMEOUT)
+            polled = self._send("GET", url)
             if polled.status_code != 202:
                 return polled
 
     def _absolute(self, url: str) -> str:
         """Resolve a possibly-relative API URL against the account host."""
-        if url.startswith("http://") or url.startswith("https://"):
-            return url
-        return f"{self.host}{url}"
+        resolved = urljoin(f"{self.host}/", url)
+        target = urlsplit(resolved)
+        origin = urlsplit(self.host)
+        default_ports = {"http": 80, "https": 443}
+        if (
+            (
+                target.scheme,
+                target.hostname,
+                (
+                    target.port
+                    if target.port is not None
+                    else default_ports.get(target.scheme)
+                ),
+            )
+            != (
+                origin.scheme,
+                origin.hostname,
+                (
+                    origin.port
+                    if origin.port is not None
+                    else default_ports.get(origin.scheme)
+                ),
+            )
+            or target.username is not None
+            or target.password is not None
+        ):
+            raise ValueError("Snowflake API URL must use the configured account origin")
+        return resolved
 
     def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         """GET one object endpoint and return the parsed JSON body."""
@@ -591,7 +657,7 @@ class SnowflakeClient:
             # distinguish "Standard edition has no masking policies" from a real
             # failure, so re-raise with the message attached.
             raise SnowflakeSqlError(
-                f"{_http_error_detail(error)} (statement: {statement})",
+                f"{http_error_detail(error)} (statement: {statement})",
             ) from error
         body = response.json()
         metadata = body.get("resultSetMetaData") or {}
@@ -629,3 +695,40 @@ class SnowflakeClient:
             if key:
                 properties[str(key).lower()] = row.get("property_value")
         return properties
+
+
+def list_schema_objects(
+    client: SnowflakeClient,
+    database_name: str,
+    schema_name: str,
+    collection: str,
+) -> list[dict[str, Any]] | None:
+    """List one schema-scoped object collection, or None when it cannot be read.
+
+    A 403 or 404 means the role cannot see the schema. Snowflake also answers 400
+    intermittently for a schema whose objects are being dropped and recreated
+    underneath the listing, as ELT tools do with their internal schemas (for
+    example Airbyte's ``airbyte_internal``). Any of these skips the schema for this
+    collection only; the caller marks its walk incomplete and skips cleanup, so the
+    next run picks the objects back up instead of one schema failing the whole sync.
+
+    A 400 is not retried: it is also how Snowflake reports a schema that stays
+    unlistable, where a retry only adds a round trip per schema per collection, and
+    skipping costs no more than one run's freshness for that schema.
+    """
+    try:
+        return client.list_all(
+            f"/api/v2/databases/{sf_path_segment(database_name)}"
+            f"/schemas/{sf_path_segment(schema_name)}/{collection}",
+        )
+    except requests.HTTPError as error:
+        skip_or_raise_http(error, *SCHEMA_LISTING_SKIPPABLE_STATUSES)
+        logger.warning(
+            "Cannot list %s of Snowflake schema %s.%s (%s); they will be missing "
+            "from the graph and their cleanup is skipped.",
+            collection,
+            database_name,
+            schema_name,
+            http_error_detail(error),
+        )
+        return None

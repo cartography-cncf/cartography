@@ -1,8 +1,75 @@
 from unittest.mock import MagicMock
 
 import pytest
+from botocore.exceptions import ClientError
+from botocore.exceptions import EndpointConnectionError
 
 from cartography.intel.aws import bedrock
+
+
+@pytest.mark.parametrize(
+    "error_code",
+    ["InternalServerException", "InternalServerErrorException"],
+)
+def test_get_knowledge_bases_raises_transient_region_failure_for_server_errors(
+    error_code,
+):
+    # Arrange
+    boto3_session = MagicMock()
+    error = ClientError(
+        {
+            "Error": {
+                "Code": error_code,
+                "Message": "The server encountered an internal error",
+            }
+        },
+        "ListKnowledgeBases",
+    )
+    paginator = boto3_session.client.return_value.get_paginator.return_value
+    paginator.paginate.side_effect = error
+
+    # Act and assert
+    with pytest.raises(
+        bedrock.knowledge_bases.BedrockKnowledgeBaseTransientRegionFailure
+    ) as failure:
+        bedrock.knowledge_bases.get_knowledge_bases(boto3_session, "us-east-1")
+
+    assert failure.value.__cause__ is error
+    boto3_session.client.assert_called_once()
+
+
+def test_get_knowledge_bases_raises_transient_region_failure_for_endpoint_errors():
+    # Arrange
+    boto3_session = MagicMock()
+    error = EndpointConnectionError(endpoint_url="https://bedrock-agent.example")
+    boto3_session.client.side_effect = error
+
+    # Act and assert
+    with pytest.raises(
+        bedrock.knowledge_bases.BedrockKnowledgeBaseTransientRegionFailure
+    ) as failure:
+        bedrock.knowledge_bases.get_knowledge_bases(boto3_session, "us-east-1")
+
+    assert failure.value.__cause__ is error
+    boto3_session.client.assert_called_once()
+
+
+def test_get_knowledge_bases_preserves_access_denied_region_handling():
+    # Arrange
+    boto3_session = MagicMock()
+    boto3_session.client.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "Access denied",
+            }
+        },
+        "ListKnowledgeBases",
+    )
+
+    # Act and assert
+    assert bedrock.knowledge_bases.get_knowledge_bases(boto3_session, "us-east-1") == []
+    boto3_session.client.assert_called_once()
 
 
 @pytest.mark.parametrize("agent_regions", [[], ["ap-southeast-4", "us-west-2"]])

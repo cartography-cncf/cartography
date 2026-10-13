@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.network_acl_rules import EC2NetworkAclEgressRuleSchema
@@ -54,12 +55,13 @@ def transform_network_acl_data(
     network_acls = []
     inbound_rules = []
     outbound_rules = []
+    partition = get_partition(region)
 
     for network_acl in data_list:
         network_acl_id = network_acl["NetworkAclId"]
         base_network_acl = {
             "Id": network_acl_id,
-            "Arn": f"arn:aws:ec2:{region}:{current_aws_account_id}:network-acl/{network_acl_id}",
+            "Arn": f"arn:{partition}:ec2:{region}:{current_aws_account_id}:network-acl/{network_acl_id}",
             "IsDefault": network_acl["IsDefault"],
             "VpcId": network_acl["VpcId"],
             "OwnerId": network_acl["OwnerId"],

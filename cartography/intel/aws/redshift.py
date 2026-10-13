@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.redshift import RedshiftClusterSchema
 from cartography.util import aws_handle_regions
@@ -34,7 +35,7 @@ def _make_redshift_cluster_arn(
     cluster_identifier: str,
 ) -> str:
     """Cluster ARN format: https://docs.aws.amazon.com/redshift/latest/mgmt/redshift-iam-access-control-overview.html"""
-    return f"arn:aws:redshift:{region}:{aws_account_id}:cluster:{cluster_identifier}"
+    return f"arn:{get_partition(region)}:redshift:{region}:{aws_account_id}:cluster:{cluster_identifier}"
 
 
 def transform_redshift_cluster_data(

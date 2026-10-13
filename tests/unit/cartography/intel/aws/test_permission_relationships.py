@@ -261,6 +261,47 @@ def test_object_level_resource_prefix_grant_matches_bucket():
     )
 
 
+def test_object_level_resource_matches_govcloud_bucket():
+    # In GovCloud, bucket and policy ARNs use the aws-us-gov partition. The
+    # object-level match must still draw the edge to the bucket node.
+    statement = [
+        {
+            "action": [
+                "s3:GetObject",
+            ],
+            "resource": [
+                "arn:aws-us-gov:s3:::my-bucket/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
+        statement,
+        ["S3:GetObject"],
+        "arn:aws-us-gov:s3:::my-bucket",
+    )
+
+
+def test_object_level_resource_does_not_match_across_partitions():
+    # A grant in one partition must never match a bucket in another partition.
+    statement = [
+        {
+            "action": [
+                "s3:GetObject",
+            ],
+            "resource": [
+                "arn:aws:s3:::my-bucket/*",
+            ],
+            "effect": "Allow",
+        },
+    ]
+    assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
+        statement,
+        ["S3:GetObject"],
+        "arn:aws-us-gov:s3:::my-bucket",
+    )
+
+
 def test_object_level_resource_does_not_match_other_bucket():
     # The trailing-slash match must not leak across buckets with a shared prefix.
     statement = [

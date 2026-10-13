@@ -69,3 +69,37 @@ GET_PROJECTS = [
         },
     },
 ]
+
+FRONTEND_BUILD_UUID = "3f1c2b7e-8d4a-4c1e-9b2a-6e5f7d8c9a01"
+FRONTEND_PREVIOUS_BUILD_UUID = "a7d9e0f1-2b3c-4d5e-8f90-1a2b3c4d5e6f"
+FRONTEND_REVISION = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+FRONTEND_PREVIOUS_REVISION = "9c1185a5c5e9fc54612808977ee8f548b2258d31"
+
+GET_BUILDS = [
+    {
+        "id": f"frontend-build:{FRONTEND_BUILD_UUID}",
+        "arn": f"arn:aws:codebuild:eu-west-1:123456789012:build/frontend-build:{FRONTEND_BUILD_UUID}",
+        "buildNumber": 42,
+        "buildStatus": "SUCCEEDED",
+        "projectName": "frontend-build",
+        "sourceVersion": "main",
+        "resolvedSourceVersion": FRONTEND_REVISION,
+        "source": {
+            "type": "GITHUB",
+            "location": "https://github.com/example/frontend.git",
+        },
+    },
+    {
+        "id": f"frontend-build:{FRONTEND_PREVIOUS_BUILD_UUID}",
+        "arn": f"arn:aws:codebuild:eu-west-1:123456789012:build/frontend-build:{FRONTEND_PREVIOUS_BUILD_UUID}",
+        "buildNumber": 41,
+        "buildStatus": "SUCCEEDED",
+        "projectName": "frontend-build",
+        "sourceVersion": "main",
+        "resolvedSourceVersion": FRONTEND_PREVIOUS_REVISION,
+        "source": {
+            "type": "GITHUB",
+            "location": "https://github.com/example/frontend.git",
+        },
+    },
+]

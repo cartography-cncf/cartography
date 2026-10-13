@@ -1,3 +1,6 @@
+from cartography.rules.data.rules.aws_admin_users_with_access_keys import (
+    aws_admin_users_with_access_keys,
+)
 from cartography.rules.data.rules.cis_4_0_gcp import (
     gcp_bigquery_datasets_publicly_accessible,
 )
@@ -138,6 +141,9 @@ from cartography.rules.data.rules.cis_aws_networking import (
     aws_ipv6_remote_administration_ports_open_to_internet,
 )
 from cartography.rules.data.rules.cis_aws_storage import aws_rds_encryption_at_rest
+from cartography.rules.data.rules.cis_aws_storage import (
+    aws_rds_instances_publicly_accessible,
+)
 from cartography.rules.data.rules.cis_aws_storage import aws_s3_block_public_access
 from cartography.rules.data.rules.cis_aws_storage import aws_s3_bucket_mfa_delete
 from cartography.rules.data.rules.cis_google_workspace import (
@@ -254,6 +260,21 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
 )
 from cartography.rules.data.rules.device_security_posture_gaps import device_update_gaps
 from cartography.rules.data.rules.eol_software import eol_software
+from cartography.rules.data.rules.github_security_configuration import (
+    github_actions_permissive_policy,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_app_sensitive_permissions,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_organization_security_settings,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_secret_scanning_disabled,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_webhook_insecure_delivery,
+)
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
 from cartography.rules.data.rules.iam_role_external_account_trust import (
     iam_role_external_account_trust,
@@ -279,6 +300,50 @@ from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitiv
 from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_inventory
 from cartography.rules.data.rules.nist_ai_rmf import aibom_coverage_gaps
 from cartography.rules.data.rules.object_storage_public import object_storage_public
+from cartography.rules.data.rules.okta_stig import (
+    okta_admin_console_idle_timeout_too_long,
+)
+from cartography.rules.data.rules.okta_stig import okta_admin_console_mfa_not_required
+from cartography.rules.data.rules.okta_stig import (
+    okta_admin_console_phishing_resistant_not_required,
+)
+from cartography.rules.data.rules.okta_stig import okta_anonymizer_blocklist_missing
+from cartography.rules.data.rules.okta_stig import okta_api_token_owned_by_super_admin
+from cartography.rules.data.rules.okta_stig import okta_api_token_without_network_zone
+from cartography.rules.data.rules.okta_stig import okta_app_policy_without_network_zones
+from cartography.rules.data.rules.okta_stig import okta_dashboard_mfa_not_required
+from cartography.rules.data.rules.okta_stig import (
+    okta_dashboard_phishing_resistant_not_required,
+)
+from cartography.rules.data.rules.okta_stig import (
+    okta_global_session_idle_timeout_too_long,
+)
+from cartography.rules.data.rules.okta_stig import okta_global_session_lifetime_too_long
+from cartography.rules.data.rules.okta_stig import (
+    okta_global_session_persistent_cookies,
+)
+from cartography.rules.data.rules.okta_stig import (
+    okta_global_session_without_network_zones,
+)
+from cartography.rules.data.rules.okta_stig import okta_inactive_users_not_disabled
+from cartography.rules.data.rules.okta_stig import (
+    okta_password_common_password_check_disabled,
+)
+from cartography.rules.data.rules.okta_stig import okta_password_history_too_short
+from cartography.rules.data.rules.okta_stig import (
+    okta_password_lockout_threshold_too_high,
+)
+from cartography.rules.data.rules.okta_stig import okta_password_lowercase_not_required
+from cartography.rules.data.rules.okta_stig import okta_password_max_age_too_long
+from cartography.rules.data.rules.okta_stig import okta_password_min_age_too_short
+from cartography.rules.data.rules.okta_stig import okta_password_min_length_too_short
+from cartography.rules.data.rules.okta_stig import okta_password_number_not_required
+from cartography.rules.data.rules.okta_stig import okta_password_symbol_not_required
+from cartography.rules.data.rules.okta_stig import okta_password_uppercase_not_required
+from cartography.rules.data.rules.okta_stig import okta_system_log_not_streamed
+from cartography.rules.data.rules.okta_stig import (
+    okta_verify_fips_compliance_not_required,
+)
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
@@ -320,9 +385,17 @@ from cartography.rules.data.rules.unpinned_github_actions import unpinned_github
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
+from cartography.rules.data.rules.zoom_security_review import zoom_security_review
 
 # Rule registry - all available rules
 RULES = {
+    zoom_security_review.id: zoom_security_review,
+    # GitHub Rules
+    github_secret_scanning_disabled.id: github_secret_scanning_disabled,
+    github_organization_security_settings.id: github_organization_security_settings,
+    github_actions_permissive_policy.id: github_actions_permissive_policy,
+    github_app_sensitive_permissions.id: github_app_sensitive_permissions,
+    github_webhook_insecure_delivery.id: github_webhook_insecure_delivery,
     # Databricks Rules
     databricks_pat_never_expires.id: databricks_pat_never_expires,
     databricks_ip_access_list_allows_all.id: databricks_ip_access_list_allows_all,
@@ -340,6 +413,7 @@ RULES = {
     aws_s3_bucket_mfa_delete.id: aws_s3_bucket_mfa_delete,
     aws_s3_block_public_access.id: aws_s3_block_public_access,
     aws_rds_encryption_at_rest.id: aws_rds_encryption_at_rest,
+    aws_rds_instances_publicly_accessible.id: aws_rds_instances_publicly_accessible,
     # CIS AWS Logging Rules (Section 4)
     aws_cloudtrail_multi_region.id: aws_cloudtrail_multi_region,
     aws_cloudtrail_log_file_validation.id: aws_cloudtrail_log_file_validation,
@@ -369,6 +443,7 @@ RULES = {
     device_update_gaps.id: device_update_gaps,
     eol_software.id: eol_software,
     iam_role_external_account_trust.id: iam_role_external_account_trust,
+    aws_admin_users_with_access_keys.id: aws_admin_users_with_access_keys,
     identity_administration_privileges.id: identity_administration_privileges,
     identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
@@ -445,6 +520,33 @@ RULES = {
     googleworkspace_super_admin_accounts_used_for_daily_admin.id: googleworkspace_super_admin_accounts_used_for_daily_admin,
     googleworkspace_users_without_enforced_2sv.id: googleworkspace_users_without_enforced_2sv,
     googleworkspace_admins_without_enforced_2sv.id: googleworkspace_admins_without_enforced_2sv,
+    # DISA Okta IDaaS STIG Rules
+    okta_inactive_users_not_disabled.id: okta_inactive_users_not_disabled,
+    okta_verify_fips_compliance_not_required.id: okta_verify_fips_compliance_not_required,
+    okta_global_session_idle_timeout_too_long.id: okta_global_session_idle_timeout_too_long,
+    okta_global_session_lifetime_too_long.id: okta_global_session_lifetime_too_long,
+    okta_global_session_persistent_cookies.id: okta_global_session_persistent_cookies,
+    okta_global_session_without_network_zones.id: okta_global_session_without_network_zones,
+    okta_admin_console_idle_timeout_too_long.id: okta_admin_console_idle_timeout_too_long,
+    okta_dashboard_phishing_resistant_not_required.id: okta_dashboard_phishing_resistant_not_required,
+    okta_admin_console_phishing_resistant_not_required.id: okta_admin_console_phishing_resistant_not_required,
+    okta_admin_console_mfa_not_required.id: okta_admin_console_mfa_not_required,
+    okta_dashboard_mfa_not_required.id: okta_dashboard_mfa_not_required,
+    okta_password_lockout_threshold_too_high.id: okta_password_lockout_threshold_too_high,
+    okta_password_min_length_too_short.id: okta_password_min_length_too_short,
+    okta_password_uppercase_not_required.id: okta_password_uppercase_not_required,
+    okta_password_lowercase_not_required.id: okta_password_lowercase_not_required,
+    okta_password_number_not_required.id: okta_password_number_not_required,
+    okta_password_symbol_not_required.id: okta_password_symbol_not_required,
+    okta_password_min_age_too_short.id: okta_password_min_age_too_short,
+    okta_password_max_age_too_long.id: okta_password_max_age_too_long,
+    okta_password_common_password_check_disabled.id: okta_password_common_password_check_disabled,
+    okta_password_history_too_short.id: okta_password_history_too_short,
+    okta_system_log_not_streamed.id: okta_system_log_not_streamed,
+    okta_api_token_without_network_zone.id: okta_api_token_without_network_zone,
+    okta_api_token_owned_by_super_admin.id: okta_api_token_owned_by_super_admin,
+    okta_anonymizer_blocklist_missing.id: okta_anonymizer_blocklist_missing,
+    okta_app_policy_without_network_zones.id: okta_app_policy_without_network_zones,
     # CIS Kubernetes Benchmark v1.12 Rules
     kubernetes_cluster_admin_role_usage.id: kubernetes_cluster_admin_role_usage,
     kubernetes_roles_grant_secret_access.id: kubernetes_roles_grant_secret_access,
