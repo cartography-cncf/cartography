@@ -85,21 +85,26 @@ jobs:
       matrix:
         codec: [python, rust]
         # Keep in step with SHARD_TOTAL below and in the integration-tests job.
-        shard: [0, 1, 2, 3, 4, 5]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
     env:
-      SHARD_TOTAL: 6
-      # Neo4j is started as the first step below so it pulls and boots while
-      # dependencies install; the test fixtures use it instead of starting their own.
+      SHARD_TOTAL: 8
+      # Neo4j is started in the background by the first step, so its image pull and boot
+      # overlap checkout, install and collection; the test fixtures wait for it.
       NEO4J_URL: bolt://localhost:7687
     steps:
-      - name: Start Neo4j
-        run: >-
-          docker run --detach --name neo4j --publish 7687:7687
-          --env NEO4J_AUTH=none
-          --env NEO4J_server_memory_heap_initial__size=512m
-          --env NEO4J_server_memory_heap_max__size=2g
-          --env NEO4J_server_memory_pagecache_size=512m
-          neo4j:5-community
+      - name: Start Neo4j in the background
+        # Only the pull runs in the background; the container itself starts detached, so
+        # no client stays attached to it. The log is printed below if a later step fails.
+        run: |
+          (
+            docker pull neo4j:5-community &&
+            docker run --detach --name neo4j --publish 7687:7687 \
+              --env NEO4J_AUTH=none \
+              --env NEO4J_server_memory_heap_initial__size=512m \
+              --env NEO4J_server_memory_heap_max__size=2g \
+              --env NEO4J_server_memory_pagecache_size=512m \
+              neo4j:5-community
+          ) > "$RUNNER_TEMP/neo4j-start.log" 2>&1 &
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -137,6 +142,11 @@ jobs:
         # A single shard covers only part of the code, so the coverage threshold is
         # enforced on the combined data in the integration-tests job instead.
         run: make test_integration PYTEST_COV_FLAGS="--cov=cartography --cov-report= --cov-fail-under=0"
+      - name: Show Neo4j startup output
+        if: failure()
+        run: |
+          cat "$RUNNER_TEMP/neo4j-start.log" || true
+          docker logs neo4j 2>&1 | tail -100 || true
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: integration-${{ matrix.codec }}-${{ matrix.shard }}
@@ -164,7 +174,7 @@ jobs:
         codec: [python, rust]
     name: ${{ matrix.codec == 'rust' && 'integration-tests-rust' || 'integration-tests' }}
     env:
-      SHARD_TOTAL: 6
+      SHARD_TOTAL: 8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
