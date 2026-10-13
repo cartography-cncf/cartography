@@ -89,6 +89,11 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="ARN of the EKS cluster linked to this `AWSGuardDutyFinding` node.",
     )
+    ecs_cluster_arn: PropertyRef = PropertyRef(
+        "ecs_cluster_arn",
+        extra_index=True,
+        description="ARN of the ECS cluster linked to this `AWSGuardDutyFinding` node.",
+    )
     access_key_id: PropertyRef = PropertyRef(
         "access_key_id",
         extra_index=True,
@@ -210,6 +215,27 @@ class GuardDutyFindingToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingToMemberAWSAccountRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# RESOURCE points at the account that listed the finding, which for a delegated
+# GuardDuty administrator includes its members' findings. MEMBER points at the
+# account the finding is actually in, matching AWSInspectorFinding.
+@dataclass(frozen=True)
+class GuardDutyFindingToMemberAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("accountid")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER"
+    properties: GuardDutyFindingToMemberAWSAccountRelRelProperties = (
+        GuardDutyFindingToMemberAWSAccountRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -278,6 +304,24 @@ class GuardDutyFindingToEKSClusterRel(CartographyRelSchema):
     rel_label: str = "AFFECTS"
     properties: GuardDutyFindingToEKSClusterRelRelProperties = (
         GuardDutyFindingToEKSClusterRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToECSClusterRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToECSClusterRel(CartographyRelSchema):
+    target_node_label: str = "AWSECSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ecs_cluster_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: GuardDutyFindingToECSClusterRelRelProperties = (
+        GuardDutyFindingToECSClusterRelRelProperties()
     )
 
 
@@ -368,10 +412,12 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            GuardDutyFindingToMemberAWSAccountRel(),
             GuardDutyFindingToGuardDutyDetectorRel(),
             GuardDutyFindingTriggeredByAWSAccountRel(),
             GuardDutyFindingToEC2InstanceRel(),
             GuardDutyFindingToEKSClusterRel(),
+            GuardDutyFindingToECSClusterRel(),
             GuardDutyFindingToS3BucketRel(),
             GuardDutyFindingToAccountAccessKeyRel(),
             GuardDutyFindingToAWSUserRel(),
