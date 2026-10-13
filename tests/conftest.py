@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -71,9 +72,37 @@ def _is_xdist_worker(config) -> bool:
     return hasattr(config, "workerinput")
 
 
+# Seconds spent setting up session-scoped fixtures (the Neo4j container, say) during
+# each file's tests. That cost lands in whichever file happens to run first, and it is
+# paid once per job wherever it lands, so it must not count towards that file's weight.
+_session_setup_by_file: defaultdict[str, float] = defaultdict(float)
+_current_file: str | None = None
+
+
+def pytest_runtest_logstart(nodeid, location):
+    global _current_file
+    _current_file = Path(location[0]).as_posix()
+
+
+class _SessionFixtureTimer:
+    # Registered as a plugin rather than defined here as a conftest hook: conftest hooks
+    # only see nodes under their directory, and session fixtures run on the Session node.
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_fixture_setup(self, fixturedef, request):
+        start = time.perf_counter()
+        yield
+        if fixturedef.scope == "session" and _current_file is not None:
+            _session_setup_by_file[_current_file] += time.perf_counter() - start
+
+
+def pytest_configure(config):
+    if os.environ.get(STORE_DURATIONS_ENV_VAR):
+        config.pluginmanager.register(_SessionFixtureTimer(), "session-fixture-timer")
+
+
 def pytest_runtest_logreport(report):
     if os.environ.get(STORE_DURATIONS_ENV_VAR):
-        _file_durations[report.location[0]] += report.duration
+        _file_durations[Path(report.location[0]).as_posix()] += report.duration
 
 
 @pytest.hookimpl(trylast=True)
@@ -83,7 +112,10 @@ def pytest_sessionfinish(session):
     if path and _file_durations and not _is_xdist_worker(session.config):
         Path(path).write_text(
             json.dumps(
-                {f: round(d, 2) for f, d in sorted(_file_durations.items())},
+                {
+                    f: round(max(d - _session_setup_by_file[f], 0.0), 2)
+                    for f, d in sorted(_file_durations.items())
+                },
                 indent=2,
             )
             + "\n",

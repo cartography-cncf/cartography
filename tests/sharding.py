@@ -8,7 +8,8 @@ per-file durations stored in ``DURATIONS_FILE``. A file with no stored duration
 between refreshes of that file.
 
 Set ``CARTOGRAPHY_TEST_SHARD`` to ``<index>/<total>`` (0-based index) to select a
-shard. Refresh the stored durations with ``python -m tests.update_shard_durations``.
+shard. Refresh the stored durations with
+``python -m tests.update_shard_durations shard-durations-*.json``.
 """
 
 import json

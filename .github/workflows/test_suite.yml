@@ -147,9 +147,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # One result per codec, under the job names branch protection already requires. Each
-  # fails unless every shard passed, combines the shards' coverage, and enforces the
-  # coverage threshold from setup.cfg on the whole suite.
+  # One result per codec, under the job names branch protection already requires. A
+  # shard uploads its artifact only as its last step, after its tests pass, so each job
+  # gates on its own codec's artifacts: it fails unless all of that codec's shards
+  # passed, and a failure in the other codec does not fail it. It then combines the
+  # shards' coverage and enforces the coverage threshold from setup.cfg on the whole suite.
   integration-tests:
     # Run even when a shard fails, so the required check reports failure instead of
     # being skipped (a skipped required check counts as passing).
@@ -164,11 +166,6 @@ jobs:
     env:
       SHARD_TOTAL: 6
     steps:
-      - name: Require every shard to pass
-        if: needs.integration-shard.result != 'success'
-        run: |
-          echo "One or more integration shards did not pass: ${{ needs.integration-shard.result }}"
-          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -182,9 +179,9 @@ jobs:
         env:
           CODEC: ${{ matrix.codec }}
         run: |
-          found=$(ls .coverage."$CODEC"-* | wc -l)
+          found=$(ls .coverage."$CODEC"-* 2>/dev/null | wc -l)
           if [ "$found" -ne "$SHARD_TOTAL" ]; then
-            echo "Expected $SHARD_TOTAL shards of coverage data, found $found"
+            echo "Only $found of $SHARD_TOTAL $CODEC shards passed and uploaded their data"
             exit 1
           fi
           coverage_version=$(uv export --frozen --dev --no-hashes | sed -n 's/^coverage==\([^ ;]*\).*/\1/p')

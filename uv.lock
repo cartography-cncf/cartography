@@ -971,7 +971,7 @@ dev = [
     { name = "black", specifier = ">=26.0.0" },
     { name = "moto", specifier = ">=5.0.0" },
     { name = "pre-commit", specifier = ">=4.0.0" },
-    { name = "pytest", specifier = ">=6.2.4" },
+    { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-mock", specifier = ">=3.15.0" },

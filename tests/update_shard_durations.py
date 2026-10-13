@@ -14,6 +14,11 @@ from tests.sharding import DURATIONS_FILE
 
 
 def main(paths: list[str]) -> None:
+    if not paths:
+        # Writing an empty mapping would throw away every stored weight.
+        raise SystemExit(
+            "usage: python -m tests.update_shard_durations shard-durations-*.json"
+        )
     merged: dict[str, float] = {}
     for path in paths:
         for test_file, seconds in json.loads(Path(path).read_text()).items():
