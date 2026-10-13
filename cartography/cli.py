@@ -694,6 +694,7 @@ class CLI:
                 typer.Option(
                     "--aws-tagging-api-cleanup-batch",
                     help="Batch size for Resource Groups Tagging API cleanup (AWSTag nodes). Default: 1000.",
+                    min=1,
                     rich_help_panel=PANEL_AWS,
                     hidden=PANEL_AWS not in visible_panels,
                 ),
