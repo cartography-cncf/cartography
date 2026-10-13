@@ -81,7 +81,9 @@ management account or a delegated administrator account. Grant
 `organizations:Describe*` and `organizations:List*` permissions. The managed
 `SecurityAudit` policy includes these actions, but member accounts cannot call
 hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and
-`ListOrganizationalUnitsForParent`.
+`ListOrganizationalUnitsForParent`. Service control policy ingestion also calls
+`ListPolicies`, `DescribePolicy`, and `ListTargetsForPolicy`. A delegated
+administrator needs a delegation policy that allows these actions.
 
 ## Optional Permissions
 
