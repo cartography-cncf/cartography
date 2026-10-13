@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.rds.cluster import RDSClusterSchema
 from cartography.models.aws.rds.event_subscription import RDSEventSubscriptionSchema
@@ -214,12 +215,10 @@ def _get_db_subnet_group_arn(
     Return an ARN for the DB subnet group name by concatenating the account name and region.
     This is done to avoid another AWS API call since the describe_db_instances boto call does not return the DB subnet
     group ARN.
-    Form is arn:aws:rds:{region}:{account-id}:subgrp:{subnet-group-name}
+    Form is arn:{partition}:rds:{region}:{account-id}:subgrp:{subnet-group-name}
     as per https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
     """
-    return (
-        f"arn:aws:rds:{region}:{current_aws_account_id}:subgrp:{db_subnet_group_name}"
-    )
+    return f"arn:{get_partition(region)}:rds:{region}:{current_aws_account_id}:subgrp:{db_subnet_group_name}"
 
 
 def transform_rds_clusters(data: List[Dict]) -> List[Dict]:

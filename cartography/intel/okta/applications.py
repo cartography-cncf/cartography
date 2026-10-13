@@ -12,6 +12,8 @@ from okta.models.application import Application as OktaApplication
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import is_resource_not_found_error
+from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.application import OktaApplicationSchema
 from cartography.models.okta.reply_uri import OktaReplyUriSchema
 from cartography.util import timeit
@@ -24,13 +26,13 @@ def sync_okta_applications(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> set[str]:
     """
     Sync Okta applications
     :param okta_client: An Okta client object
     :param neo4j_session: Session with Neo4j server
     :param common_job_parameters: Settings used by all Okta modules
-    :return: Nothing
+    :return: IDs of the synced applications
     """
 
     logger.info("Syncing Okta applications")
@@ -43,6 +45,7 @@ def sync_okta_applications(
     reply_uris = _transform_okta_reply_uris(applications)
     _load_okta_reply_uris(neo4j_session, reply_uris, common_job_parameters)
     _cleanup_okta_reply_uris(neo4j_session, common_job_parameters)
+    return {application.id for application in applications}
 
 
 @timeit
@@ -326,17 +329,36 @@ def _transform_okta_applications(
             json.dumps(hide.to_dict()) if hide else None
         )
         transformed_applications.append(application_props)
-        # Add user assignments
-        app_users = asyncio.run(
-            _get_application_assigned_users(okta_client, okta_application.id)
-        )
+        # Add user assignments. An app can disappear between list_applications
+        # and these follow-up calls; skip enrichment for that id and continue.
+        try:
+            app_users = asyncio.run(
+                _get_application_assigned_users(okta_client, okta_application.id)
+            )
+        except OktaApiError as exc:
+            if is_resource_not_found_error(exc):
+                logger.warning(
+                    "Okta application %s was deleted during sync; skipping its assignments",
+                    okta_application.id,
+                )
+                continue
+            raise
         for app_user in app_users:
             match_app = {**application_props, "user_id": app_user}
             transformed_applications.append(match_app)
         # Add group assignments
-        app_groups = asyncio.run(
-            _get_application_assigned_groups(okta_client, okta_application.id)
-        )
+        try:
+            app_groups = asyncio.run(
+                _get_application_assigned_groups(okta_client, okta_application.id)
+            )
+        except OktaApiError as exc:
+            if is_resource_not_found_error(exc):
+                logger.warning(
+                    "Okta application %s was deleted during sync; skipping its assignments",
+                    okta_application.id,
+                )
+                continue
+            raise
         for app_group in app_groups:
             match_app = {**application_props, "group_id": app_group}
             transformed_applications.append(match_app)

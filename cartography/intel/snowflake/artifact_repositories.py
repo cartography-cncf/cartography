@@ -4,15 +4,13 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import list_schema_objects
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
-from cartography.intel.snowflake.util import sf_path_segment
-from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.artifact_repository import (
     SnowflakeArtifactRepositorySchema,
@@ -29,14 +27,9 @@ def get(
     schema_name: str,
 ) -> list[dict[str, Any]] | None:
     """Artifact repositories in one schema, or None when the schema is not readable."""
-    try:
-        return client.list_all(
-            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}"
-            "/artifact-repositories",
-        )
-    except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
-        return None
+    return list_schema_objects(
+        client, database_name, schema_name, "artifact-repositories"
+    )
 
 
 def transform(

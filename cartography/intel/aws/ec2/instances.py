@@ -12,6 +12,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.auto_scaling_groups import (
@@ -121,6 +122,7 @@ def transform_ec2_instances(
     network_interface_list = []
     instance_ebs_volumes_list = []
     ipv6_address_list = []
+    partition = get_partition(region)
 
     for reservation in reservations:
         reservation_id = reservation["ReservationId"]
@@ -163,7 +165,7 @@ def transform_ec2_instances(
             instance_list.append(
                 {
                     "InstanceId": instance_id,
-                    "Arn": f"arn:aws:ec2:{region}:{current_aws_account_id}:instance/{instance_id}",
+                    "Arn": f"arn:{partition}:ec2:{region}:{current_aws_account_id}:instance/{instance_id}",
                     "ReservationId": reservation_id,
                     "PublicDnsName": instance.get("PublicDnsName"),
                     "PublicIpAddress": instance.get("PublicIpAddress"),
@@ -209,9 +211,7 @@ def transform_ec2_instances(
 
             if instance.get("KeyName"):
                 key_name = instance["KeyName"]
-                key_pair_arn = (
-                    f"arn:aws:ec2:{region}:{current_aws_account_id}:key-pair/{key_name}"
-                )
+                key_pair_arn = f"arn:{partition}:ec2:{region}:{current_aws_account_id}:key-pair/{key_name}"
                 keypair_list.append(
                     {
                         "KeyPairArn": key_pair_arn,

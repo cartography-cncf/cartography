@@ -4,6 +4,7 @@ from typing import List
 from typing import Optional
 from unittest.mock import patch
 
+import cartography.intel.github.organizations
 import cartography.intel.github.repos
 import cartography.intel.github.teams
 import cartography.intel.github.users
@@ -54,12 +55,21 @@ class GithubSeed(Seed):
         self._seed_teams()
 
     def _seed_users(self) -> None:
+        user_data, owners_data, org_data = (
+            cartography.intel.github.users.get_organization(
+                API_KEY, GITHUB_URL, GITHUB_ORG
+            )
+        )
+        # The organization settings sync writes the organization node.
+        cartography.intel.github.organizations.load_organization(
+            self.neo4j_session, org_data, self.update_tag
+        )
         cartography.intel.github.users.sync(
             self.neo4j_session,
             {"UPDATE_TAG": self.update_tag},
-            API_KEY,
-            GITHUB_URL,
-            GITHUB_ORG,
+            user_data,
+            owners_data,
+            org_data,
         )
 
     def _seed_repos(self) -> None:

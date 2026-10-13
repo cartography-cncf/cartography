@@ -256,7 +256,17 @@ def test_sync_load_balancer_v2_expose(mock_get_loadbalancer_v2_data, neo4j_sessi
     # Create AWSEC2PrivateIp nodes (normally created by ec2:network_interface)
     for ip in ["10.0.0.50", "10.0.0.51"]:
         neo4j_session.run(
-            "MERGE (ip:AWSEC2PrivateIp{id: $ip}) SET ip.lastupdated = $tag, ip.private_ip_address = $ip",
+            """
+            MERGE (ip:AWSEC2PrivateIp{id: $ip})
+            SET ip.lastupdated = $tag, ip.private_ip_address = $ip
+            MERGE (eni:AWSNetworkInterface {id: 'eni-' + $ip})
+            SET eni.region = $region
+            MERGE (eni)-[:PRIVATE_IP_ADDRESS]->(ip)
+            MERGE (subnet:AWSEC2Subnet {id: 'subnet-ip-targets'})
+            SET subnet.vpc_id = 'vpc-12345678'
+            MERGE (eni)-[:PART_OF_SUBNET]->(subnet)
+            """,
+            region=TEST_REGION,
             ip=ip,
             tag=TEST_UPDATE_TAG,
         )

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from kiota_abstractions.api_error import APIError
+from msgraph.generated.models.user_collection_response import UserCollectionResponse
 
 import cartography.intel.microsoft.entra.users
 import cartography.intel.microsoft.o365
@@ -19,6 +20,7 @@ from cartography.intel.microsoft.o365.license_details import sync_user_license_d
 from cartography.intel.microsoft.o365.licenses import cleanup_licenses
 from cartography.intel.microsoft.o365.licenses import cleanup_service_plans
 from cartography.intel.microsoft.o365.licenses import sync_licenses
+from tests.data.microsoft.entra.users import MOCK_ENTRA_USERS
 from tests.data.microsoft.entra.users import TEST_TENANT_ID
 from tests.data.microsoft.o365.licenses import make_subscribed_skus
 from tests.data.microsoft.o365.licenses import MOCK_SUBSCRIBED_SKUS
@@ -40,12 +42,13 @@ TEST_UPDATE_TAG_2 = 1234567891
 TEST_TENANT_ID_B = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
 
-async def _mock_get_users(client):
-    """Mock async generator for get_users."""
-    from tests.data.microsoft.entra.users import MOCK_ENTRA_USERS
-
-    for user in MOCK_ENTRA_USERS:
-        yield user
+def _mock_graph_client(*args, **kwargs):
+    """Return a Graph client serving the synthetic Entra user page."""
+    client = MagicMock()
+    client.users.get = AsyncMock(
+        return_value=UserCollectionResponse(value=MOCK_ENTRA_USERS),
+    )
+    return client
 
 
 def _setup_tenant_and_users(neo4j_session, tenant_id=TEST_TENANT_ID):
@@ -69,8 +72,8 @@ def _make_config(update_tag: int) -> Config:
 
 @patch.object(
     cartography.intel.microsoft.entra.users,
-    "get_users",
-    side_effect=_mock_get_users,
+    "GraphServiceClient",
+    side_effect=_mock_graph_client,
 )
 @patch.object(
     cartography.intel.microsoft.o365.licenses,
@@ -88,7 +91,7 @@ def _make_config(update_tag: int) -> Config:
 async def test_sync_o365_licenses(
     mock_get_user_licenses,
     mock_get_skus,
-    mock_get_users,
+    mock_graph_client,
     neo4j_session,
 ):
     """End-to-end sync test driving the real sync_* functions."""
@@ -263,8 +266,8 @@ def test_start_o365_ingestion_403_skips_gracefully(
 )
 @patch.object(
     cartography.intel.microsoft.entra.users,
-    "get_users",
-    side_effect=_mock_get_users,
+    "GraphServiceClient",
+    side_effect=_mock_graph_client,
 )
 @patch.object(
     cartography.intel.microsoft.o365.licenses,
@@ -280,7 +283,7 @@ def test_start_o365_ingestion_403_skips_gracefully(
 def test_start_o365_ingestion_pagination_failure_preserves_stale_edges(
     mock_get_user_licenses,
     mock_get_skus,
-    mock_get_users,
+    mock_graph_client,
     mock_create_client,
     neo4j_session,
 ):
@@ -341,11 +344,11 @@ def test_start_o365_ingestion_pagination_failure_preserves_stale_edges(
 
 @patch.object(
     cartography.intel.microsoft.entra.users,
-    "get_users",
-    side_effect=_mock_get_users,
+    "GraphServiceClient",
+    side_effect=_mock_graph_client,
 )
 @pytest.mark.asyncio
-async def test_multi_tenant_cleanup_isolation(mock_get_users, neo4j_session):
+async def test_multi_tenant_cleanup_isolation(mock_graph_client, neo4j_session):
     """Cleanup of Tenant A does not delete Tenant B's licenses or service plans."""
     # -- Tenant A setup --
     _setup_tenant_and_users(neo4j_session, TEST_TENANT_ID)

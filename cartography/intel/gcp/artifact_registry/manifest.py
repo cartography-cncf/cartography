@@ -219,7 +219,9 @@ def transform_manifests(
 
     for entry in manifest_entries:
         digest = entry.get("digest", "")
-        platform = entry.get("platform", {})
+        # Registry manifest lists nest platform fields under "platform"; the
+        # dockerImages API returns them at the top level of each imageManifests entry.
+        platform = entry.get("platform") or entry
 
         transformed.append(
             {
@@ -227,8 +229,9 @@ def transform_manifests(
                 "type": "image",
                 "architecture": platform.get("architecture"),
                 "os": platform.get("os"),
-                "os_version": platform.get("os.version"),
-                "os_features": platform.get("os.features"),
+                "os_version": platform.get("os.version") or platform.get("osVersion"),
+                "os_features": platform.get("os.features")
+                or platform.get("osFeatures"),
                 "variant": platform.get("variant"),
                 "media_type": entry.get("mediaType"),
                 "parent_digest": parent_digest,

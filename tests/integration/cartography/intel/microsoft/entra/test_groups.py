@@ -7,7 +7,7 @@ from msgraph.generated.models.o_data_errors.main_error import MainError
 from msgraph.generated.models.o_data_errors.o_data_error import ODataError
 
 import cartography.intel.microsoft.entra.groups
-from cartography.intel.microsoft.entra.groups import get_group_members
+from cartography.intel.microsoft.entra.groups import get_group_member_pages
 from cartography.intel.microsoft.entra.groups import sync_entra_groups
 from cartography.intel.microsoft.entra.users import load_tenant
 from cartography.intel.microsoft.entra.users import load_users
@@ -53,8 +53,9 @@ class MockGroupMembersRequestBuilder:
         self.next_page_calls = 0
         self.expired_token_raised = False
 
-    async def get(self):
+    async def get(self, request_configuration=None):
         self.first_page_calls += 1
+        self.request_configuration = request_configuration
         return self.first_page
 
     def with_url(self, next_link):
@@ -95,16 +96,15 @@ class MockGraphClient:
         self.groups = MockGroupsRequestBuilder(members_builder)
 
 
-def mock_get_group_members_side_effect(
-    client, group_id: str
-) -> tuple[list[str], list[str]]:
+async def mock_get_group_member_pages_side_effect(client, group_id: str):
     """
-    Mock side effect function to return member user IDs and subgroup IDs for a given group.
+    Mock side effect yielding one page of member user IDs and subgroup IDs for a given group.
     """
     members = MOCK_GROUP_MEMBERS[group_id]
     user_ids = [o.id for o in members if o.odata_type == "#microsoft.graph.user"]
     group_ids = [o.id for o in members if o.odata_type == "#microsoft.graph.group"]
-    return user_ids, group_ids
+    if user_ids or group_ids:
+        yield user_ids, group_ids
 
 
 def mock_get_group_owners_side_effect(client, group_id: str) -> list[str]:
@@ -120,7 +120,7 @@ def mock_get_group_owners_side_effect(client, group_id: str) -> list[str]:
 
 
 @pytest.mark.asyncio
-async def test_get_group_members_restarts_after_expired_page_token():
+async def test_get_group_member_pages_restarts_after_expired_page_token():
     first_page = MockPage(
         [
             MOCK_GROUP_MEMBERS["11111111-1111-1111-1111-111111111111"][0],
@@ -136,22 +136,32 @@ async def test_get_group_members_restarts_after_expired_page_token():
     members_builder = MockGroupMembersRequestBuilder(first_page, second_page)
     client = MockGraphClient(members_builder)
 
-    user_ids, group_ids = await get_group_members(
-        client,
-        "11111111-1111-1111-1111-111111111111",
-    )
-
-    assert user_ids == [
-        "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
-        "11dca63b-cb03-4e53-bb75-fa8060285550",
+    pages = [
+        page
+        async for page in get_group_member_pages(
+            client,
+            "11111111-1111-1111-1111-111111111111",
+        )
     ]
-    assert group_ids == ["22222222-2222-2222-2222-222222222222"]
+
+    # The restart re-yields the first page; the group load is an idempotent MERGE.
+    assert pages == [
+        (["ae4ac864-4433-4ba6-96a6-20f8cffdadcb"], []),
+        (["ae4ac864-4433-4ba6-96a6-20f8cffdadcb"], []),
+        (
+            ["11dca63b-cb03-4e53-bb75-fa8060285550"],
+            ["22222222-2222-2222-2222-222222222222"],
+        ),
+    ]
+    query = members_builder.request_configuration.query_parameters
+    assert query.select == ["id"]
+    assert query.top == 999
     assert members_builder.first_page_calls == 2
     assert members_builder.next_page_calls == 2
 
 
 @pytest.mark.asyncio
-async def test_get_group_members_does_not_restart_expired_page_token_forever():
+async def test_get_group_member_pages_does_not_restart_expired_page_token_forever():
     first_page = MockPage(
         [
             MOCK_GROUP_MEMBERS["11111111-1111-1111-1111-111111111111"][0],
@@ -167,27 +177,30 @@ async def test_get_group_members_does_not_restart_expired_page_token_forever():
     client = MockGraphClient(members_builder)
 
     with pytest.raises(ODataError):
-        await get_group_members(
+        async for _ in get_group_member_pages(
             client,
             "11111111-1111-1111-1111-111111111111",
-        )
+        ):
+            pass
 
     assert members_builder.first_page_calls == 6
     assert members_builder.next_page_calls == 6
 
 
 @pytest.mark.asyncio
-async def test_get_group_members_returns_empty_for_missing_first_page():
+async def test_get_group_member_pages_yields_nothing_for_missing_first_page():
     members_builder = MockGroupMembersRequestBuilder(None, MockPage([]))
     client = MockGraphClient(members_builder)
 
-    user_ids, group_ids = await get_group_members(
-        client,
-        "11111111-1111-1111-1111-111111111111",
-    )
+    pages = [
+        page
+        async for page in get_group_member_pages(
+            client,
+            "11111111-1111-1111-1111-111111111111",
+        )
+    ]
 
-    assert user_ids == []
-    assert group_ids == []
+    assert pages == []
     assert members_builder.first_page_calls == 1
     assert members_builder.next_page_calls == 0
 
@@ -205,9 +218,8 @@ async def _mock_get_entra_groups(client):
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
-    "get_group_members",
-    new_callable=AsyncMock,
-    side_effect=mock_get_group_members_side_effect,
+    "get_group_member_pages",
+    side_effect=mock_get_group_member_pages_side_effect,
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
@@ -224,7 +236,7 @@ async def test_sync_entra_groups(
     load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
     load_users(
         neo4j_session,
-        list(transform_users(MOCK_ENTRA_USERS)),
+        list(transform_users(MOCK_ENTRA_USERS, activity_available=True)),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
     )
@@ -342,16 +354,14 @@ def mock_get_group_owners_404_side_effect(client, group_id: str) -> list[str]:
     return mock_get_group_owners_side_effect(client, group_id)
 
 
-def mock_get_group_members_404_side_effect(
-    client,
-    group_id: str,
-) -> tuple[list[str], list[str]]:
-    """Return members for valid groups, raise 404 for the deleted group."""
+async def mock_get_group_member_pages_404_side_effect(client, group_id: str):
+    """Yield members for valid groups, raise 404 for the deleted group."""
     if group_id == MOCK_DELETED_GROUP.id:
         err = APIError("not found")
         err.response_status_code = 404
         raise err
-    return mock_get_group_members_side_effect(client, group_id)
+    async for page in mock_get_group_member_pages_side_effect(client, group_id):
+        yield page
 
 
 @patch.object(
@@ -361,9 +371,8 @@ def mock_get_group_members_404_side_effect(
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
-    "get_group_members",
-    new_callable=AsyncMock,
-    side_effect=mock_get_group_members_404_side_effect,
+    "get_group_member_pages",
+    side_effect=mock_get_group_member_pages_404_side_effect,
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
@@ -383,7 +392,7 @@ async def test_sync_entra_groups_skips_404(
     load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
     load_users(
         neo4j_session,
-        list(transform_users(MOCK_ENTRA_USERS)),
+        list(transform_users(MOCK_ENTRA_USERS, activity_available=True)),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
     )
