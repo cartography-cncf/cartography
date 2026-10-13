@@ -9,7 +9,7 @@ between refreshes of that file.
 
 Set ``CARTOGRAPHY_TEST_SHARD`` to ``<index>/<total>`` (0-based index) to select a
 shard. The stored durations are rebuilt monthly by the "Refresh shard durations"
-workflow; to do it by hand, download a Test Suite run's `integration-python-*`
+workflow; to do it by hand, download a Test Suite run's `shard-durations-python-*`
 artifacts and run ``python -m tests.update_shard_durations shard-durations-*.json``.
 """
 

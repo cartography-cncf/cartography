@@ -163,12 +163,18 @@ jobs:
         run: |
           cat "$RUNNER_TEMP/neo4j-start.log" || true
           docker logs neo4j 2>&1 | tail -100 || true
+      # Kept longer than the monthly "Refresh shard durations" interval, so a quiet
+      # month on master still leaves a run to rebuild the weights from. The file is tiny.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: shard-durations-${{ matrix.codec }}-${{ matrix.shard }}
+          path: shard-durations-${{ matrix.codec }}-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 35
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: integration-${{ matrix.codec }}-${{ matrix.shard }}
-          path: |
-            .coverage.${{ matrix.codec }}-${{ matrix.shard }}
-            shard-durations-${{ matrix.codec }}-${{ matrix.shard }}.json
+          path: .coverage.${{ matrix.codec }}-${{ matrix.shard }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7

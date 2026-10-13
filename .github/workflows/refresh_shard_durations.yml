@@ -2,10 +2,10 @@ name: Refresh shard durations
 # The integration suite is split across CI jobs by the per-file durations in
 # tests/shard_durations.json (see tests/sharding.py). Test files that are added or
 # change speed slowly unbalance the split, so once a month this rebuilds the file
-# from the durations the latest green master run uploaded. If it changed, the result
-# is pushed to a branch and a tracking issue links to it: GitHub Actions may not open
-# pull requests in this repository, and a maintainer opening the PR also gets CI and
-# the DCO check to run on it as usual.
+# from the durations the latest green master run uploaded (kept for 35 days). If it
+# changed, the result is pushed to a branch and a tracking issue links to it: GitHub
+# Actions may not open pull requests in this repository, and a maintainer opening the
+# PR also gets CI and the DCO check to run on it as usual.
 on:
   schedule:
     - cron: "0 6 1 * *"
@@ -40,7 +40,7 @@ jobs:
           fi
           echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
           # One codec is enough: both run the same files, and the merge sums its inputs.
-          gh run download "$run_id" --pattern 'integration-python-*' --dir "$RUNNER_TEMP/artifacts"
+          gh run download "$run_id" --pattern 'shard-durations-python-*' --dir "$RUNNER_TEMP/artifacts"
           expected=$(sed -n 's/^ *SHARD_TOTAL: *\([0-9]*\).*/\1/p' .github/workflows/test_suite.yml | head -1)
           found=$(ls "$RUNNER_TEMP"/artifacts/*/shard-durations-python-*.json | wc -l)
           if [ "$found" -ne "$expected" ]; then
