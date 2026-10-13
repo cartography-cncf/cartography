@@ -73,11 +73,12 @@ aws_guardduty_active_threat = Fact(
     ORDER BY f.severity DESC, f.eventlastseen DESC
     """,
     cypher_visual_query=f"""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
+    MATCH (f:AWSGuardDutyFinding)
     WHERE f.severity >= 7
       AND coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
+    OPTIONAL MATCH (a:AWSAccount)-[:MEMBER]->(f)
     RETURN *
     """,
     # Denominator: all live AWSGuardDutyFinding nodes (unarchived, non-sample). The
@@ -132,7 +133,7 @@ guardduty_active_threat = Rule(
         "stride:elevation_of_privilege",
     ),
     facts=(aws_guardduty_active_threat,),
-    version="0.2.0",
+    version="0.2.1",
     frameworks=(
         iso27001_annex_a("8.16"),
         soc2_tsc("CC7.2"),

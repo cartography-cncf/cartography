@@ -273,6 +273,22 @@ def test_sync_guardduty_findings(
         # Note: MEDIUM severity finding excluded
     }
 
+    # Assert - Check that findings are connected to the account they are in
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSGuardDutyFinding",
+        "id",
+        "MEMBER",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "74b1234567890abcdef1234567890abcdef"),
+        (TEST_ACCOUNT_ID, "96d3456789012cdef3456789012cdef01"),
+        (TEST_ACCOUNT_ID, "a7e4567890123def4567890123def45670"),
+        (TEST_ACCOUNT_ID, "b8f5678901234abcdef5678901234abcdef"),
+    }
+
     # Assert - Check that HIGH severity findings have the Risk label
     assert check_nodes(neo4j_session, "Risk", ["id"]) == {
         ("74b1234567890abcdef1234567890abcdef",),
@@ -696,8 +712,9 @@ def test_rule_reports_delegated_admin_findings_once(
 ):
     """
     A delegated administrator lists its members' findings, so syncing both accounts
-    attaches each member finding to both. The rule still reports each finding once,
-    attributed to the account it is in rather than the one that listed it.
+    attaches each member finding to both by RESOURCE. MEMBER points only at the
+    account the finding is in, and the rule reports each finding once, attributed
+    to that account rather than the one that listed it.
     """
     neo4j_session.run("MATCH (f:AWSGuardDutyFinding) DETACH DELETE f")
     boto3_session = MagicMock()
@@ -724,6 +741,15 @@ def test_rule_reports_delegated_admin_findings_once(
         sorted(row["accounts"]) == sorted([TEST_ACCOUNT_ID, ADMIN_ACCOUNT_ID])
         for row in parents
     )
+
+    members = neo4j_session.run(
+        """
+        MATCH (a:AWSAccount)-[:MEMBER]->(f:AWSGuardDutyFinding)
+        RETURN f.id AS id, collect(a.id) AS accounts
+        """
+    ).data()
+    assert len(members) == len(parents)
+    assert all(row["accounts"] == [TEST_ACCOUNT_ID] for row in members)
 
     rows = neo4j_session.run(aws_guardduty_active_threat.cypher_query).data()
     finding_ids = [row["finding_id"] for row in rows]
