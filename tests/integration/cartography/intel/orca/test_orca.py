@@ -478,7 +478,7 @@ def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
         _config(TEST_UPDATE_TAG),
     )
     closed_alert = deepcopy(ALERTS[0])
-    closed_alert["data"]["Status"] = {"value": "CLOSE"}
+    closed_alert["data"]["Status"] = {"value": "closed"}
     state["Alert"] = [closed_alert, deepcopy(ALERTS[1])]
 
     # Act
@@ -528,8 +528,8 @@ def test_sync_with_only_terminal_alerts_is_complete_and_cleans_up(
         _config(TEST_UPDATE_TAG),
     )
     terminal_alerts = deepcopy(ALERTS)
-    terminal_alerts[0]["data"]["Status"] = {"value": "CLOSE"}
-    terminal_alerts[1]["data"]["Status"] = {"value": "dismiss"}
+    terminal_alerts[0]["data"]["Status"] = {"value": "closed"}
+    terminal_alerts[1]["data"]["Status"] = {"value": "dismissed"}
     state["Alert"] = terminal_alerts
 
     # Act

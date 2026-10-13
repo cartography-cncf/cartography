@@ -139,7 +139,7 @@ def test_alert_transform_normalizes_identifiers_and_timestamps() -> None:
 
 @pytest.mark.parametrize(
     "status",
-    ["CLOSE", "close", "DISMISS", "dismiss"],
+    ["closed", "dismissed", " Closed ", "DISMISSED", "close", "dismiss"],
 )  # type: ignore[misc]
 def test_alert_transform_skips_terminal_statuses(status: str) -> None:
     # Arrange

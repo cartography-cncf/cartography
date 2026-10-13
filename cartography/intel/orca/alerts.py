@@ -24,9 +24,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
-# Orca's terminal workflow statuses. Missing and unrecognized statuses are
-# retained so that an unexpected value never silently drops an alert.
-TERMINAL_STATUSES = frozenset({"close", "dismiss"})
+# The Serving Layer reports terminal alerts as "closed" and "dismissed"; "close"
+# and "dismiss" are the status-change verbs. Missing and unrecognized statuses
+# are retained so that an unexpected value never silently drops an alert.
+TERMINAL_STATUSES = frozenset({"closed", "dismissed", "close", "dismiss"})
 # Each deleted alert removes ~23 index entries; smaller batches keep cleanup
 # transactions from delaying other sessions waiting on causal bookmarks.
 CLEANUP_ITERATION_SIZE = 2000
