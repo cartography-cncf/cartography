@@ -1,3 +1,5 @@
+import pytest
+
 import cartography.intel.gcp.policy_bindings
 import cartography.intel.gcp.workload_identity
 import tests.data.gcp.workload_identity as wif_data
@@ -113,7 +115,12 @@ def test_transform_providers_classifies_x509_provider():
     assert transformed[0]["oidcIssuerUri"] is None
 
 
-def test_transform_bindings_extracts_wif_pools():
+@pytest.mark.parametrize(
+    "wif_member",
+    wif_data.WIF_BINDING_MEMBERS,
+    ids=["principal", "principalSet"],
+)
+def test_transform_bindings_extracts_wif_pools(wif_member):
     """
     The policy binding transformer should extract the pool resource name from
     both ``principal://`` and ``principalSet://`` URIs and skip the per-subject
@@ -134,7 +141,7 @@ def test_transform_bindings_extracts_wif_pools():
                                     "role": "roles/iam.workloadIdentityUser",
                                     "members": [
                                         "serviceAccount:sa@example.iam.gserviceaccount.com",
-                                        *wif_data.WIF_BINDING_MEMBERS,
+                                        wif_member,
                                     ],
                                 },
                             ],

@@ -20,3 +20,6 @@ def test_get_account_network_policy_reads_the_filtered_listing(mocker):
 
     # Assert
     assert network_policy == "PLANT_PERIMETER"
+    client.run_sql.assert_called_once_with(
+        "SHOW PARAMETERS LIKE '%NETWORK_POLICY%' IN ACCOUNT"
+    )

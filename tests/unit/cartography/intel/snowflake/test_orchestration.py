@@ -5,6 +5,8 @@ cleanup ordering constants. The Neo4j-backed entry-point tests live in
 tests/integration/cartography/intel/snowflake/test_orchestration.py.
 """
 
+import importlib
+import pkgutil
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -161,16 +163,18 @@ def test_cleanup_order_covers_every_synced_module():
     # Assert no duplicates.
     assert len(names) == len(set(names)), f"duplicated in cleanup order: {names}"
 
-    # Assert every module that participates in the fan-out is cleaned up.
-    expected = {
-        name
-        for group in (
-            cartography.intel.snowflake._SCHEMA_LEVEL_MODULES,
-            cartography.intel.snowflake._WORKLOAD_MODULES,
-            cartography.intel.snowflake._INTEGRATION_MODULES,
+    # Assert every Snowflake module that defines a cleanup() is in the order. Grant
+    # edges are the exception: grants.cleanup() removes them after the grant syncs,
+    # gated on their completeness, outside the module order.
+    grant_modules = {"grants", "account_grants", "inherited_grants"}
+    expected = set()
+    for module_info in pkgutil.iter_modules(cartography.intel.snowflake.__path__):
+        module = importlib.import_module(
+            f"cartography.intel.snowflake.{module_info.name}"
         )
-        for name in (module.__name__.rsplit(".", 1)[-1] for module in group)
-    }
+        if callable(getattr(module, "cleanup", None)):
+            expected.add(module_info.name)
+    expected -= grant_modules
     assert expected <= set(names), f"not cleaned up: {sorted(expected - set(names))}"
 
 

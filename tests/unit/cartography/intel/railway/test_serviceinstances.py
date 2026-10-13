@@ -20,6 +20,8 @@ def test_unverified_custom_domain_alone_is_not_exposure():
                                             "customDomains": [
                                                 {
                                                     "id": "cd-1",
+                                                    # Live, so only `verified` decides.
+                                                    "syncStatus": "ACTIVE",
                                                     "status": {"verified": False},
                                                 },
                                             ],
