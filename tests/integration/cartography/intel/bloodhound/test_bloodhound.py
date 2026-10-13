@@ -353,3 +353,64 @@ def test_sync_reads_archives_from_object_store(neo4j_session, tmp_path):
         (fixture.ALICE_SID, f"{ref.uri}!20261012143015_users.json"),
         (fixture.SVC_SID, f"{ref.uri}!20261012143015_users.json"),
     }
+
+
+def test_omitted_files_keep_their_edges(neo4j_session, tmp_path):
+    # Arrange
+    first = fixture.write_zip(tmp_path / "first" / "20261012143015_BloodHound.zip")
+    _sync(neo4j_session, first)
+    data = fixture.collection()
+    del data["ous"]
+    del data["containers"]
+    second = fixture.write_zip(
+        tmp_path / "second" / "20261013090000_BloodHound.zip",
+        data,
+        timestamp="20261013090000",
+    )
+
+    # Act
+    _sync(neo4j_session, second, NEXT_UPDATE_TAG)
+
+    # Assert
+    contains = check_rels(
+        neo4j_session,
+        "ADObject",
+        "id",
+        "ADObject",
+        "id",
+        "CONTAINS",
+    )
+    assert (fixture.WORKSTATIONS_OU, fixture.WS01_SID) in contains
+    assert (fixture.USERS_CONTAINER, fixture.ALICE_SID) in contains
+    assert (fixture.DEFAULT_GPO, fixture.WORKSTATIONS_OU) in check_rels(
+        neo4j_session,
+        "ADGPO",
+        "id",
+        "ADObject",
+        "id",
+        "GP_LINK",
+    )
+    assert check_nodes(neo4j_session, "ADOU", ["id", "lastupdated"]) == {
+        (fixture.WORKSTATIONS_OU, TEST_UPDATE_TAG),
+    }
+
+
+def test_empty_file_removes_stale_objects_of_its_type(neo4j_session, tmp_path):
+    # Arrange
+    first = fixture.write_zip(tmp_path / "first" / "20261012143015_BloodHound.zip")
+    _sync(neo4j_session, first)
+    data = fixture.collection()
+    data["gpos"] = []
+    data["domains"][0]["Links"] = []
+    data["ous"][0]["Links"] = []
+    second = fixture.write_zip(
+        tmp_path / "second" / "20261013090000_BloodHound.zip",
+        data,
+        timestamp="20261013090000",
+    )
+
+    # Act
+    _sync(neo4j_session, second, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert check_nodes(neo4j_session, "ADGPO", ["id"]) == set()

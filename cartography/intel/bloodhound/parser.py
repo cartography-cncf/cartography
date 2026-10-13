@@ -451,6 +451,7 @@ def validate_collection(
     type_sources: dict[tuple[str, str], str] = {}
     referenced_domains: dict[str, str] = {}
     unreported_methods: list[str] = []
+    empty_files: list[_FileResult] = []
 
     for file in files:
         try:
@@ -466,6 +467,8 @@ def validate_collection(
         validated = result.file
         if result.methods == 0:
             unreported_methods.append(file.source_uri)
+        if not result.domain_sids:
+            empty_files.append(result)
         collection.files.append(validated)
         collection.domains.update(result.domains)
         for target_id, target_name in result.trust_targets.items():
@@ -484,6 +487,24 @@ def validate_collection(
             collection.domain_methods[domain_sid] = (
                 collection.domain_methods.get(domain_sid, 0) | result.methods
             )
+
+    # An empty file names no domain. With a single domain in the import it can
+    # only describe that domain, so it marks the type as collected and lets
+    # cleanup remove the domain's previous objects of that type. With several
+    # domains it is ambiguous and the existing data is kept.
+    if len(collection.domains) == 1:
+        (only_domain,) = collection.domains
+        for result in empty_files:
+            collection.collected_types.add((result.file.data_type, only_domain))
+            collection.domain_methods[only_domain] = (
+                collection.domain_methods.get(only_domain, 0) | result.methods
+            )
+    elif empty_files:
+        logger.warning(
+            "Keeping existing data for empty BloodHound files in a multi-domain "
+            "import: %s",
+            ", ".join(r.file.provenance.source_uri for r in empty_files),
+        )
 
     present_types = {f.data_type for f in collection.files}
     missing = sorted(REQUIRED_TYPES - present_types)

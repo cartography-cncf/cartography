@@ -96,15 +96,30 @@ _NODE_SCHEMAS: dict[str, CartographyNodeSchema] = {
 class EdgeKind:
     schema: CartographyRelSchema
     # The edge kind is only cleaned up for a domain when one of these
-    # collection methods ran for it.
+    # collection methods ran for it...
     methods: CollectionMethod
+    # ...and the import holds that domain's data for every type that declares
+    # this edge kind, so no edge is removed because its input was left out.
+    source_types: tuple[str, ...]
 
 
 EDGE_KINDS: dict[str, EdgeKind] = {
-    MEMBER_OF: EdgeKind(ADMemberOfMatchLink(), CollectionMethod.GROUP),
-    CONTAINS: EdgeKind(ADContainsMatchLink(), CollectionMethod.CONTAINER),
-    GP_LINK: EdgeKind(ADGPLinkMatchLink(), CollectionMethod.CONTAINER),
-    TRUSTED_BY: EdgeKind(ADTrustedByMatchLink(), CollectionMethod.TRUSTS),
+    MEMBER_OF: EdgeKind(
+        ADMemberOfMatchLink(),
+        CollectionMethod.GROUP,
+        (USERS, GROUPS, COMPUTERS),
+    ),
+    CONTAINS: EdgeKind(
+        ADContainsMatchLink(),
+        CollectionMethod.CONTAINER,
+        (DOMAINS, OUS, CONTAINERS),
+    ),
+    GP_LINK: EdgeKind(
+        ADGPLinkMatchLink(),
+        CollectionMethod.CONTAINER,
+        (DOMAINS, OUS),
+    ),
+    TRUSTED_BY: EdgeKind(ADTrustedByMatchLink(), CollectionMethod.TRUSTS, (DOMAINS,)),
 }
 
 
@@ -265,9 +280,17 @@ def cleanup(
                 continue
             GraphJob.from_node_schema(schema, parameters).run(neo4j_session)
         for kind, edge_kind in EDGE_KINDS.items():
-            if not collection.was_collected(domain_sid, edge_kind.methods):
+            missing_types = [
+                data_type
+                for data_type in edge_kind.source_types
+                if (data_type, domain_sid) not in collection.collected_types
+            ]
+            if missing_types or not collection.was_collected(
+                domain_sid,
+                edge_kind.methods,
+            ):
                 logger.info(
-                    "Keeping existing %s edges of %s: not collected in this import.",
+                    "Keeping existing %s edges of %s: not fully collected in this import.",
                     kind,
                     domain_sid,
                 )
