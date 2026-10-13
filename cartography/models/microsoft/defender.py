@@ -54,6 +54,7 @@ class DefenderMachineNodeProperties(CartographyNodeProperties):
     )
     aad_device_id_normalized: PropertyRef = PropertyRef(
         "aad_device_id_normalized",
+        extra_index=True,
         description="Lowercase aadDeviceId used for inventory joins; empty and all-zero IDs are excluded.",
     )
     is_aad_joined: PropertyRef = PropertyRef(

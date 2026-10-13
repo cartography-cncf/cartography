@@ -51,5 +51,5 @@ def start_microsoft_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         start_intune_ingestion(neo4j_session, config)
     if requested is None or "o365" in requested:
         start_o365_ingestion(neo4j_session, config)
-    if requested is None or "defender" in requested:
+    if config.microsoft_defender and (requested is None or "defender" in requested):
         start_defender_ingestion(neo4j_session, config)

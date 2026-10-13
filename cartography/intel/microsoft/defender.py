@@ -1,11 +1,11 @@
 import logging
-from datetime import datetime
 from typing import Any
 from urllib.parse import urlsplit
 
 import neo4j
 import requests
 from azure.core.credentials import TokenCredential
+from dateutil.parser import isoparse
 from requests.adapters import HTTPAdapter
 
 from cartography.client.core.tx import load
@@ -178,7 +178,8 @@ def _parse_timestamps(record: dict[str, Any], fields: tuple[str, ...]) -> None:
         if value is None or value == "":
             continue
         try:
-            parsed = datetime.fromisoformat(value)
+            # RFC 3339 allows lowercase t/z, which fromisoformat rejects.
+            parsed = isoparse(value)
             if parsed.tzinfo is None:
                 raise ValueError("Expected a timezone in the provider timestamp")
             record[field] = parsed

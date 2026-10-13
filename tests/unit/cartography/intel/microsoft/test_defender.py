@@ -207,6 +207,20 @@ def test_optional_timestamps_are_native_and_bad_metadata_keeps_inventory() -> No
     assert alert["lastUpdateDateTime"] is None
 
 
+@pytest.mark.parametrize(
+    "value",
+    ["2026-09-17t09:00:00z", "2026-09-17T09:00:00.0000000Z"],
+)
+def test_rfc3339_timestamps_parse(value):
+    # Act
+    machine = defender.transform_machines(
+        [{"id": "machine", "lastSeen": value}], TENANT_ID
+    )[0]
+
+    # Assert
+    assert machine["lastSeen"] == datetime(2026, 9, 17, 9, tzinfo=timezone.utc)
+
+
 def test_repeated_machine_records_fail_instead_of_looping_on_ignored_skip():
     # Arrange
     session = MagicMock()
@@ -274,6 +288,7 @@ def test_missing_entra_ids_do_not_join_unregistered_intune_devices(aad_device_id
 
     # Assert
     assert result[0]["aadDeviceId"] is None
+    assert result[0]["aad_device_id_normalized"] is None
 
 
 def test_cross_tenant_alert_fails():
