@@ -181,6 +181,27 @@ def test_alert_transform_retains_alert_without_status() -> None:
     assert [alert["status"] for alert in result] == [None]
 
 
+def test_alert_cleanup_uses_bounded_iteration_size(mocker) -> None:
+    # Arrange
+    from_node_schema = mocker.patch(
+        "cartography.intel.orca.alerts.GraphJob.from_node_schema",
+    )
+    neo4j_session = mocker.MagicMock()
+
+    # Act
+    alerts.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": 12345, "ORCA_ORGANIZATION_ID": ORGANIZATION_ID},
+    )
+
+    # Assert
+    assert (
+        from_node_schema.call_args.kwargs["iterationsize"]
+        == alerts.CLEANUP_ITERATION_SIZE
+    )
+    from_node_schema.return_value.run.assert_called_once_with(neo4j_session)
+
+
 def test_alert_transform_reports_missing_alert_id() -> None:
     # Arrange
     raw = deepcopy(ALERTS[0])
@@ -591,26 +612,5 @@ def test_vulnerability_cleanup_uses_bounded_iteration_size(mocker) -> None:
     assert (
         from_node_schema.call_args.kwargs["iterationsize"]
         == vulnerabilities.CLEANUP_ITERATION_SIZE
-    )
-    from_node_schema.return_value.run.assert_called_once_with(neo4j_session)
-
-
-def test_alert_cleanup_uses_bounded_iteration_size(mocker) -> None:
-    # Arrange
-    from_node_schema = mocker.patch(
-        "cartography.intel.orca.alerts.GraphJob.from_node_schema",
-    )
-    neo4j_session = mocker.MagicMock()
-
-    # Act
-    alerts.cleanup(
-        neo4j_session,
-        {"UPDATE_TAG": 12345, "ORCA_ORGANIZATION_ID": ORGANIZATION_ID},
-    )
-
-    # Assert
-    assert (
-        from_node_schema.call_args.kwargs["iterationsize"]
-        == alerts.CLEANUP_ITERATION_SIZE
     )
     from_node_schema.return_value.run.assert_called_once_with(neo4j_session)

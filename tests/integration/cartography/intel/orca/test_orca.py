@@ -457,84 +457,6 @@ def test_cve_metadata_enriches_orca_vulnerability_finding(
     ) == {(CVE_ID_1, CVE_ID_1)}
 
 
-def test_complete_sync_cleans_stale_findings_and_retargets_alert_context(
-    neo4j_session,
-    mocker,
-):
-    # Arrange
-    state, _ = _patch_orca_api(mocker)
-    cartography.intel.orca.start_orca_ingestion(
-        neo4j_session,
-        _config(TEST_UPDATE_TAG),
-    )
-    retargeted_alert = deepcopy(ALERTS[0])
-    retargeted_alert["Inventory"] = _second_target_inventory()
-    state["Alert"] = [retargeted_alert]
-    state["VulnerabilityV2"] = []
-
-    # Act
-    cartography.intel.orca.start_orca_ingestion(
-        neo4j_session,
-        _config(TEST_UPDATE_TAG + 1),
-    )
-
-    # Assert
-    assert check_nodes(
-        neo4j_session,
-        "OrcaAlert",
-        [
-            "id",
-            "target_orca_inventory_id",
-            "target_orca_asset_unique_id",
-            "target_provider_id",
-            "target_arn",
-            "target_cloud_provider",
-            "target_cloud_account_id",
-            "target_region",
-            "target_name",
-            "target_type",
-        ],
-    ) == {
-        (
-            f"orca:{ORGANIZATION_ID}:{ALERT_ID_1}",
-            INVENTORY_ID_2,
-            ASSET_UNIQUE_ID_2,
-            PROVIDER_ID_2,
-            None,
-            "azure",
-            "subscription-1",
-            "westus2",
-            "synthetic-storage",
-            "AzureStorageAccount",
-        ),
-    }
-    assert (
-        check_nodes(
-            neo4j_session,
-            "OrcaVulnerabilityFinding",
-            ["id"],
-        )
-        == set()
-    )
-    assert check_rels(
-        neo4j_session,
-        "OrcaOrganization",
-        "id",
-        "OrcaAlert",
-        "orca_id",
-        "RESOURCE",
-    ) == {(ORGANIZATION_ID, ALERT_ID_1)}
-    assert _affects_count(neo4j_session) == 0
-    metadata = neo4j_session.run(
-        """
-        MATCH (n:ModuleSyncMetadata {id: $id})
-        RETURN n.lastupdated AS lastupdated
-        """,
-        id=_sync_metadata_id(ORGANIZATION_ID),
-    ).single()
-    assert metadata["lastupdated"] == TEST_UPDATE_TAG + 1
-
-
 def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
     neo4j_session,
     mocker,
@@ -618,6 +540,84 @@ def test_sync_with_only_terminal_alerts_is_complete_and_cleans_up(
 
     # Assert
     assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
+    metadata = neo4j_session.run(
+        """
+        MATCH (n:ModuleSyncMetadata {id: $id})
+        RETURN n.lastupdated AS lastupdated
+        """,
+        id=_sync_metadata_id(ORGANIZATION_ID),
+    ).single()
+    assert metadata["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
+def test_complete_sync_cleans_stale_findings_and_retargets_alert_context(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    state, _ = _patch_orca_api(mocker)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    retargeted_alert = deepcopy(ALERTS[0])
+    retargeted_alert["Inventory"] = _second_target_inventory()
+    state["Alert"] = [retargeted_alert]
+    state["VulnerabilityV2"] = []
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "OrcaAlert",
+        [
+            "id",
+            "target_orca_inventory_id",
+            "target_orca_asset_unique_id",
+            "target_provider_id",
+            "target_arn",
+            "target_cloud_provider",
+            "target_cloud_account_id",
+            "target_region",
+            "target_name",
+            "target_type",
+        ],
+    ) == {
+        (
+            f"orca:{ORGANIZATION_ID}:{ALERT_ID_1}",
+            INVENTORY_ID_2,
+            ASSET_UNIQUE_ID_2,
+            PROVIDER_ID_2,
+            None,
+            "azure",
+            "subscription-1",
+            "westus2",
+            "synthetic-storage",
+            "AzureStorageAccount",
+        ),
+    }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "OrcaVulnerabilityFinding",
+            ["id"],
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaAlert",
+        "orca_id",
+        "RESOURCE",
+    ) == {(ORGANIZATION_ID, ALERT_ID_1)}
+    assert _affects_count(neo4j_session) == 0
     metadata = neo4j_session.run(
         """
         MATCH (n:ModuleSyncMetadata {id: $id})
