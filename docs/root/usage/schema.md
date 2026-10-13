@@ -35,6 +35,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Azure](../modules/azure/schema.md)
 - [BBOT](../modules/bbot/schema.md)
 - [Bigfix](../modules/bigfix/schema.md)
+- [BloodHound](../modules/bloodhound/schema.md)
 - [Circleci](../modules/circleci/schema.md)
 - [Cloudflare](../modules/cloudflare/schema.md)
 - [Crowdstrike](../modules/crowdstrike/schema.md)

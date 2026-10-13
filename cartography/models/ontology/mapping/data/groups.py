@@ -424,7 +424,29 @@ zoom_mapping = OntologyMapping(
     ],
 )
 
+# BloodHound (Active Directory)
+bloodhound_mapping = OntologyMapping(
+    module_name="bloodhound",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ADGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                # email: not collected by SharpHound
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "bloodhound": bloodhound_mapping,
     "zoom": zoom_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,

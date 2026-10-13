@@ -369,7 +369,24 @@ okta_mapping = OntologyMapping(
     ],
 )
 
+bloodhound_mapping = OntologyMapping(
+    module_name="bloodhound",
+    nodes=[
+        # AD has no serial number, so computer accounts only link to devices
+        # another source created, matching on host name.
+        OntologyNodeMapping(
+            node_label="ADComputer",
+            eligible_for_source=False,
+            fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
+                OntologyFieldMapping(ontology_field="os", node_field="operatingsystem"),
+            ],
+        ),
+    ],
+)
+
 DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "bloodhound": bloodhound_mapping,
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
     "huntress": huntress_mapping,

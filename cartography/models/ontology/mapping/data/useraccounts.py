@@ -836,7 +836,32 @@ zendesk_mapping = OntologyMapping(
     ],
 )
 
+bloodhound_mapping = OntologyMapping(
+    module_name="bloodhound",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ADUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="username", node_field="samaccountname"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="fullname", node_field="displayname"
+                ),
+                OntologyFieldMapping(ontology_field="active", node_field="enabled"),
+                # lastactivity: AD reports lastlogontimestamp in epoch seconds and it
+                # lags by up to 14 days, so it is left on the node only.
+                # has_mfa: not an AD attribute.
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "bloodhound": bloodhound_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

@@ -135,6 +135,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.opsgenie", "start_opsgenie_ingestion"
         ),
         "bbot": _LazyStage("cartography.intel.bbot", "start_bbot_ingestion"),
+        "bloodhound": _LazyStage(
+            "cartography.intel.bloodhound", "start_bloodhound_ingestion"
+        ),
         "docker_scout": _LazyStage(
             "cartography.intel.docker_scout", "start_docker_scout_ingestion"
         ),

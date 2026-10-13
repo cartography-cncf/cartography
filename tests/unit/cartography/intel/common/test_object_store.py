@@ -1,3 +1,4 @@
+import io
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -5,8 +6,10 @@ from unittest.mock import patch
 import pytest
 
 from cartography.intel.common.object_store import AzureBlobContainerReader
+from cartography.intel.common.object_store import download_report
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import GCSBucketReader
+from cartography.intel.common.object_store import ListedReportReader
 from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import read_json_report
@@ -293,3 +296,93 @@ def test_read_json_report_reports_source_on_parse_error() -> None:
 
     with pytest.raises(ObjectStoreError, match=ref.uri):
         read_json_report(reader, ref)
+
+
+def test_download_report_streams_local_file(tmp_path) -> None:
+    report = tmp_path / "findings.zip"
+    report.write_bytes(b"hello")
+    ref = ReportRef(str(report), "findings.zip")
+    out = io.BytesIO()
+
+    download_report(LocalReportReader(str(tmp_path)), ref, out)
+
+    assert out.getvalue() == b"hello"
+
+
+def test_download_report_streams_s3_object() -> None:
+    session = MagicMock()
+    ref = ReportRef("s3://example-bucket/reports/a.zip", "reports/a.zip")
+    out = io.BytesIO()
+
+    download_report(S3BucketReader(session, "example-bucket", "reports/"), ref, out)
+
+    session.client.return_value.download_fileobj.assert_called_once_with(
+        "example-bucket",
+        "reports/a.zip",
+        out,
+    )
+
+
+def test_download_report_wraps_s3_errors() -> None:
+    from botocore.exceptions import ClientError
+
+    session = MagicMock()
+    session.client.return_value.download_fileobj.side_effect = ClientError(
+        {"Error": {"Code": "NoSuchKey", "Message": "not found"}},
+        "GetObject",
+    )
+    ref = ReportRef("s3://example-bucket/reports/a.zip", "reports/a.zip")
+
+    with pytest.raises(ObjectStoreError, match=ref.uri):
+        download_report(
+            S3BucketReader(session, "example-bucket", "reports/"),
+            ref,
+            io.BytesIO(),
+        )
+
+
+@patch("google.cloud.storage.Client")
+@patch("cartography.intel.gcp.clients.get_gcp_credentials")
+def test_download_report_streams_gcs_blob(
+    _mock_get_gcp_credentials,
+    mock_storage_client_cls,
+) -> None:
+    fake_client = MagicMock()
+    mock_storage_client_cls.return_value = fake_client
+    ref = ReportRef("gs://example-bucket/reports/a.zip", "reports/a.zip")
+    out = io.BytesIO()
+
+    download_report(GCSBucketReader("example-bucket", "reports/"), ref, out)
+
+    fake_client.bucket.return_value.blob.assert_called_once_with("reports/a.zip")
+    fake_client.bucket.return_value.blob.return_value.download_to_file.assert_called_once_with(
+        out,
+    )
+
+
+@patch("azure.storage.blob.BlobServiceClient")
+def test_download_report_streams_azure_blob(mock_blob_service_client_cls) -> None:
+    fake_service_client = MagicMock()
+    mock_blob_service_client_cls.return_value = fake_service_client
+    ref = ReportRef("azblob://acct/container/reports/a.zip", "reports/a.zip")
+    out = io.BytesIO()
+
+    download_report(
+        AzureBlobContainerReader("acct", "container", "reports/", object()),
+        ref,
+        out,
+    )
+
+    fake_service_client.get_blob_client.return_value.download_blob.return_value.readinto.assert_called_once_with(
+        out,
+    )
+
+
+def test_download_report_falls_back_to_read_bytes() -> None:
+    ref = ReportRef("memory://a.zip", "a.zip")
+    reader = ListedReportReader("memory://", [ref], lambda _ref: b"hello")
+    out = io.BytesIO()
+
+    download_report(reader, ref, out)
+
+    assert out.getvalue() == b"hello"

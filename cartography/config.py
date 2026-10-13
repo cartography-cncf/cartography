@@ -565,6 +565,13 @@ class Config:
     :param zendesk_subdomain: Zendesk account subdomain, e.g. acme. Optional.
     :type zendesk_oauth_token: str
     :param zendesk_oauth_token: OAuth access token used to authenticate Zendesk ingestion. Optional.
+    :type bloodhound_source: str
+    :param bloodhound_source: Report source locator for BloodHound CE collector output (zip archives
+        or JSON files). Accepts local paths, s3://bucket/prefix, gs://bucket/prefix, or
+        azblob://account/container/prefix. Optional.
+    :type bloodhound_collected_at: str
+    :param bloodhound_collected_at: ISO 8601 collection time to record on imported BloodHound data,
+        overriding the timestamp in SharpHound file names. Optional.
     """
 
     def __init__(
@@ -815,6 +822,8 @@ class Config:
         opsgenie_api_key=None,
         opsgenie_api_url="https://api.opsgenie.com",
         opsgenie_request_timeout=60,
+        bloodhound_source=None,
+        bloodhound_collected_at=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1128,6 +1137,15 @@ class Config:
         self.orca_api_token = orca_api_token
         self.zendesk_subdomain = zendesk_subdomain
         self.zendesk_oauth_token = zendesk_oauth_token
+        self.bloodhound_source = _resolve_report_source_config(
+            module="bloodhound",
+            source=bloodhound_source,
+            local_path=None,
+            s3_bucket=None,
+            s3_prefix=None,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
+        self.bloodhound_collected_at = bloodhound_collected_at
         self.opsgenie_api_key = opsgenie_api_key
         self.opsgenie_api_url = opsgenie_api_url
         self.opsgenie_request_timeout = opsgenie_request_timeout

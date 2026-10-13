@@ -1,8 +1,10 @@
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
 from typing import Any
+from typing import BinaryIO
 from typing import Callable
 from typing import Iterable
 from typing import Protocol
@@ -38,7 +40,8 @@ class ReportReader(Protocol):
     that depend on a specific order must sort explicitly.
 
     Memory: read_bytes() loads the full object into memory. Reports are
-    expected to fit comfortably in RAM (typical scan outputs are <10 MB).
+    expected to fit comfortably in RAM (typical scan outputs are <10 MB). Use
+    download_report() for reports that may not fit in memory.
     """
 
     source_uri: str
@@ -126,6 +129,15 @@ class LocalReportReader(_BaseReader):
                 "Failed to read local report", source=ref.uri
             ) from exc
 
+    def download_to(self, ref: ReportRef, fileobj: BinaryIO) -> None:
+        try:
+            with open(ref.uri, "rb") as file_pointer:
+                shutil.copyfileobj(file_pointer, fileobj)
+        except OSError as exc:
+            raise ObjectStoreError(
+                "Failed to read local report", source=ref.uri
+            ) from exc
+
 
 class ListedReportReader(_BaseReader):
     def __init__(
@@ -203,6 +215,22 @@ class S3BucketReader(_BaseReader):
         finally:
             body.close()
 
+    def download_to(self, ref: ReportRef, fileobj: BinaryIO) -> None:
+        from botocore.exceptions import BotoCoreError
+        from botocore.exceptions import ClientError
+
+        expected_prefix = f"s3://{self._bucket}/"
+        if not ref.uri.startswith(expected_prefix):
+            raise ObjectStoreError(
+                f"Ref does not belong to S3 bucket {self._bucket!r}",
+                source=ref.uri,
+            )
+
+        try:
+            self._client.download_fileobj(self._bucket, ref.name, fileobj)
+        except (BotoCoreError, ClientError) as exc:
+            raise ObjectStoreError("Failed to read S3 report", source=ref.uri) from exc
+
 
 class GCSBucketReader(_BaseReader):
     def __init__(
@@ -251,6 +279,21 @@ class GCSBucketReader(_BaseReader):
             bucket = self._client.bucket(self._bucket)
             blob = bucket.blob(ref.name)
             return blob.download_as_bytes()
+        except google_exceptions.GoogleAPIError as exc:
+            raise ObjectStoreError("Failed to read GCS report", source=ref.uri) from exc
+
+    def download_to(self, ref: ReportRef, fileobj: BinaryIO) -> None:
+        from google.api_core import exceptions as google_exceptions
+
+        expected_prefix = f"gs://{self._bucket}/"
+        if not ref.uri.startswith(expected_prefix):
+            raise ObjectStoreError(
+                f"Ref does not belong to GCS bucket {self._bucket!r}",
+                source=ref.uri,
+            )
+
+        try:
+            self._client.bucket(self._bucket).blob(ref.name).download_to_file(fileobj)
         except google_exceptions.GoogleAPIError as exc:
             raise ObjectStoreError("Failed to read GCS report", source=ref.uri) from exc
 
@@ -320,6 +363,43 @@ class AzureBlobContainerReader(_BaseReader):
             raise ObjectStoreError(
                 "Failed to read Azure Blob report", source=ref.uri
             ) from exc
+
+    def download_to(self, ref: ReportRef, fileobj: BinaryIO) -> None:
+        from azure.core import exceptions as azure_exceptions
+
+        expected_prefix = f"azblob://{self._account_name}/{self._container_name}/"
+        if not ref.uri.startswith(expected_prefix):
+            raise ObjectStoreError(
+                f"Ref does not belong to Azure container {self._account_name}/{self._container_name}",
+                source=ref.uri,
+            )
+
+        try:
+            blob_client = self._client.get_blob_client(
+                container=self._container_name,
+                blob=ref.name,
+            )
+            blob_client.download_blob().readinto(fileobj)
+        except azure_exceptions.AzureError as exc:
+            raise ObjectStoreError(
+                "Failed to read Azure Blob report", source=ref.uri
+            ) from exc
+
+
+def download_report(
+    reader: ReportReader,
+    ref: ReportRef,
+    fileobj: BinaryIO,
+) -> None:
+    """Stream one report into ``fileobj`` without holding it in memory.
+
+    Readers that cannot stream fall back to read_bytes().
+    """
+    download_to = getattr(reader, "download_to", None)
+    if download_to is not None:
+        download_to(ref, fileobj)
+        return
+    fileobj.write(reader.read_bytes(ref))
 
 
 def filter_report_refs(

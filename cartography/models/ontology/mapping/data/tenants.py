@@ -854,7 +854,25 @@ zendesk_mapping = OntologyMapping(
     ],
 )
 
+# BloodHound (Active Directory)
+bloodhound_mapping = OntologyMapping(
+    module_name="bloodhound",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ADDomain",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="domain", node_field="name"),
+                # status: AD domains have no lifecycle state.
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "bloodhound": bloodhound_mapping,
     "jira": OntologyMapping(
         module_name="jira",
         nodes=[

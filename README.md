@@ -99,6 +99,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [AIBOM](https://docs.cartography.dev/modules/aibom/index.html) - AI component detections linked to ECR images
 - [Anthropic](https://docs.cartography.dev/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://docs.cartography.dev/modules/bigfix/index.html) - Computers
+- [BloodHound](https://docs.cartography.dev/modules/bloodhound/index.html) - Active Directory domains, users, groups, computers, OUs, GPOs, containers and attack-path edges imported from SharpHound CE output
 - [Cloudflare](https://docs.cartography.dev/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
 - [Crowdstrike Falcon](https://docs.cartography.dev/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
 - [DigitalOcean](https://docs.cartography.dev/modules/digitalocean/index.html)

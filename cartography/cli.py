@@ -79,6 +79,7 @@ PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DATABRICKS = "Databricks Options"
 PANEL_BBOT = "BBOT Options"
+PANEL_BLOODHOUND = "BloodHound Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
@@ -154,6 +155,7 @@ MODULE_PANELS = {
     "airbyte": PANEL_AIRBYTE,
     "databricks": PANEL_DATABRICKS,
     "bbot": PANEL_BBOT,
+    "bloodhound": PANEL_BLOODHOUND,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
@@ -2027,6 +2029,27 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # BloodHound Options
+            # =================================================================
+            bloodhound_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--bloodhound-source",
+                    help="BloodHound CE collector output (SharpHound zip archives or JSON files). Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_BLOODHOUND,
+                    hidden=PANEL_BLOODHOUND not in visible_panels,
+                ),
+            ] = None,
+            bloodhound_collected_at: Annotated[
+                str | None,
+                typer.Option(
+                    "--bloodhound-collected-at",
+                    help="ISO 8601 collection time to record on imported BloodHound data. Required only when file names lack SharpHound's timestamp prefix.",
+                    rich_help_panel=PANEL_BLOODHOUND,
+                    hidden=PANEL_BLOODHOUND not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Zendesk Options
             # =================================================================
             zendesk_subdomain: Annotated[
@@ -3670,6 +3693,13 @@ class CLI:
                 s3_bucket=None,
                 s3_prefix=None,
             )
+            resolved_bloodhound_source = _resolve_report_source_option(
+                module="bloodhound",
+                source=bloodhound_source,
+                local_path=None,
+                s3_bucket=None,
+                s3_prefix=None,
+            )
             zendesk_oauth_token = None
             if zendesk_oauth_token_env_var:
                 zendesk_oauth_token = os.environ.get(zendesk_oauth_token_env_var)
@@ -3732,6 +3762,8 @@ class CLI:
 
             if resolved_bbot_source:
                 logger.debug("BBOT source: %s", resolved_bbot_source)
+            if resolved_bloodhound_source:
+                logger.debug("BloodHound source: %s", resolved_bloodhound_source)
             if resolved_docker_scout_source:
                 logger.debug("Docker Scout source: %s", resolved_docker_scout_source)
             if resolved_trivy_source:
@@ -4090,6 +4122,8 @@ class CLI:
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
                 bbot_source=bbot_source,
+                bloodhound_source=bloodhound_source,
+                bloodhound_collected_at=bloodhound_collected_at,
                 zendesk_subdomain=zendesk_subdomain,
                 zendesk_oauth_token=zendesk_oauth_token,
                 snowflake_account=snowflake_account,
