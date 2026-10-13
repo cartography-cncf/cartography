@@ -8,8 +8,9 @@ per-file durations stored in ``DURATIONS_FILE``. A file with no stored duration
 between refreshes of that file.
 
 Set ``CARTOGRAPHY_TEST_SHARD`` to ``<index>/<total>`` (0-based index) to select a
-shard. Refresh the stored durations with
-``python -m tests.update_shard_durations shard-durations-*.json``.
+shard. The stored durations are rebuilt monthly by the "Refresh shard durations"
+workflow; to do it by hand, download a Test Suite run's `integration-python-*`
+artifacts and run ``python -m tests.update_shard_durations shard-durations-*.json``.
 """
 
 import json

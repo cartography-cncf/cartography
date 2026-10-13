@@ -1,0 +1,76 @@
+name: Refresh shard durations
+# The integration suite is split across CI jobs by the per-file durations in
+# tests/shard_durations.json (see tests/sharding.py). Test files that are added or
+# change speed slowly unbalance the split, so once a month this rebuilds the file
+# from the durations the latest green master run uploaded. If it changed, the result
+# is pushed to a branch and a tracking issue links to it: GitHub Actions may not open
+# pull requests in this repository, and a maintainer opening the PR also gets CI and
+# the DCO check to run on it as usual.
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  refresh:
+    if: github.repository == 'cartography-cncf/cartography'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # download the Test Suite run's artifacts
+      contents: write # push the refresh branch
+      issues: write # open or update the tracking issue
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: automation/refresh-shard-durations
+      ISSUE_TITLE: Refresh integration shard durations
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Download the latest green master run's shard durations
+        run: |
+          run_id=$(gh run list --workflow test_suite.yml --branch master --event push \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$run_id" ]; then
+            echo "No successful Test Suite run on master to read durations from."
+            exit 1
+          fi
+          echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
+          # One codec is enough: both run the same files, and the merge sums its inputs.
+          gh run download "$run_id" --pattern 'integration-python-*' --dir "$RUNNER_TEMP/artifacts"
+          expected=$(sed -n 's/^ *SHARD_TOTAL: *\([0-9]*\).*/\1/p' .github/workflows/test_suite.yml | head -1)
+          found=$(ls "$RUNNER_TEMP"/artifacts/*/shard-durations-python-*.json | wc -l)
+          if [ "$found" -ne "$expected" ]; then
+            echo "Expected $expected shard duration files from run $run_id, found $found."
+            exit 1
+          fi
+      - name: Rebuild tests/shard_durations.json
+        run: python -m tests.update_shard_durations "$RUNNER_TEMP"/artifacts/*/shard-durations-python-*.json
+      - name: Push the refresh branch and point the tracking issue at it
+        run: |
+          if git diff --quiet -- tests/shard_durations.json; then
+            echo "Stored durations are already current."
+            exit 0
+          fi
+          git switch --create "$BRANCH"
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --signoff --message "ci: refresh shard durations from Test Suite run $RUN_ID" \
+            -- tests/shard_durations.json
+          git push --force origin "$BRANCH"
+
+          compare="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/master...$BRANCH?expand=1"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$RUN_ID"
+          body="The integration shard weights in \`tests/shard_durations.json\` were rebuilt from [Test Suite run $RUN_ID]($run_url) and pushed to \`$BRANCH\`.
+
+          [Open a pull request]($compare) to apply them. The change only moves test files between CI shards; it does not change which tests run."
+          issue=$(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" \
+            --json number,title --jq "map(select(.title == \"$ISSUE_TITLE\"))[0].number // empty")
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body "$body"
+          else
+            gh issue create --title "$ISSUE_TITLE" --body "$body"
+          fi
