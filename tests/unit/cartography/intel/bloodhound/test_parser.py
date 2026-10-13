@@ -693,3 +693,22 @@ def test_validate_collection_records_referenced_principals(tmp_path):
     assert fixture.WS01_LOCAL_ADMIN_SID not in collection.referenced_principals
     assert "S-1-3-4" not in collection.referenced_principals
     assert dict(collection.uncollected_hosts) == {}
+
+
+def test_validate_collection_skips_placeholder_for_filtered_gpo_rdp(tmp_path):
+    # Arrange
+    outsider = f"{fixture.PARTNER_SID}-1600"
+    data = fixture.collection()
+    data["ous"][0]["GPOChanges"]["RemoteDesktopUsers"] = [
+        {"ObjectIdentifier": outsider, "ObjectType": "User"},
+    ]
+    archive = fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip", data)
+
+    # Act
+    collection = _validate(archive)
+
+    # Assert
+    # WS01's user rights grant the logon right to Alice only.
+    assert outsider not in collection.referenced_principals
+    assert not collection.allows_rdp(outsider, fixture.WS01_SID)
+    assert collection.allows_rdp(fixture.ALICE_SID, fixture.WS01_SID)
