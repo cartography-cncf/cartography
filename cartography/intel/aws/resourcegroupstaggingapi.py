@@ -6,7 +6,6 @@ from typing import List
 import boto3
 import neo4j
 
-from cartography.client.aws.resourcegroupstaggingapi import get_existing_resource_ids
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
@@ -22,6 +21,7 @@ from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.util import aws_handle_regions
+from cartography.util import run_cleanup_job
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
@@ -194,21 +194,10 @@ def load_tags(
         return
     mapping = TAG_RESOURCE_TYPE_MAPPINGS[resource_type]
     region_property = mapping.get("region_property")
-    existing_resource_ids = get_existing_resource_ids(
-        neo4j_session,
-        resource_ids=list({tag_mapping["resource_id"] for tag_mapping in tag_data}),
-        label=mapping["label"],
-        property=mapping["property"],
-        region_property=region_property,
-        region=region,
-        aws_account_id=current_aws_account_id,
-    )
 
     tags: Dict[str, Dict[str, str]] = {}
     links: List[Dict[str, str]] = []
     for tag_mapping in tag_data:
-        if tag_mapping["resource_id"] not in existing_resource_ids:
-            continue
         for tag in tag_mapping["Tags"]:
             tag_id = f"{tag['Key']}:{tag['Value']}"
             tags[tag_id] = {"id": tag_id, "key": tag["Key"], "value": tag["Value"]}
@@ -269,10 +258,11 @@ def _group_tag_data_by_resource_type(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    """Clean up this account's stale TAGGED relationships, then orphaned AWSTag nodes.
+    """Clean up this account's stale TAGGED relationships.
 
     AWSTag nodes are shared across accounts, so an account's cleanup only removes
-    its own stale relationships. A tag node is deleted once nothing uses it.
+    its own stale relationships. Tag nodes are removed by `cleanup_orphan_tags()`
+    once every account has synced.
     """
     cleanup_batch_size = common_job_parameters.get(
         "aws_tagging_api_cleanup_batch", DEFAULT_CLEANUP_BATCH_SIZE
@@ -286,6 +276,26 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
             iterationsize=cleanup_batch_size,
         ).run(neo4j_session)
     run_scoped_analysis_job(
+        "aws_tag_legacy_relationship_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+
+@timeit
+def cleanup_orphan_tags(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """Delete AWSTag nodes that no relationship uses.
+
+    Tags are loaded for every resource the tagging API reports, and linked only to
+    resources already in the graph. This must run once, after every account's
+    `sync()`: an earlier run would delete tags that a later account is about to
+    link. Callers that run `_sync_one_account()` themselves must call this after
+    their account loop.
+    """
+    run_cleanup_job(
         "aws_tag_orphan_cleanup.json",
         neo4j_session,
         common_job_parameters,

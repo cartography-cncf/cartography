@@ -341,6 +341,7 @@ def test_cleanup_keeps_tag_shared_with_another_account(neo4j_session):
         _instance_tagging_response(ACCOUNT_A, "i-a", [("team", "core")]),
         second_sync,
     )
+    rgta.cleanup_orphan_tags(neo4j_session, {"UPDATE_TAG": second_sync})
 
     # Assert - the shared tag survives with B's relationship; A's is gone
     assert check_nodes(neo4j_session, "AWSTag", ["id"]) == {
@@ -363,7 +364,9 @@ def test_cleanup_keeps_tag_shared_with_another_account(neo4j_session):
 
 def test_cleanup_removes_tag_no_resource_uses(neo4j_session):
     """
-    A tag node is deleted once the last resource that used it drops it.
+    A tag node is deleted once the last resource that used it drops it. The
+    per-account sync only removes the stale relationship; the node is removed by
+    the end-of-run orphan sweep.
     """
     # Arrange
     neo4j_session.run(
@@ -381,15 +384,16 @@ def test_cleanup_removes_tag_no_resource_uses(neo4j_session):
     # Act
     _load_instance(neo4j_session, "i-a", ACCOUNT_A, 2)
     _sync_instance_tags(neo4j_session, ACCOUNT_A, [], 2)
+    rgta.cleanup_orphan_tags(neo4j_session, {"UPDATE_TAG": 2})
 
     # Assert
     assert check_nodes(neo4j_session, "AWSTag", ["id"]) == set()
 
 
-def test_sync_skips_tags_of_resources_missing_from_graph(neo4j_session):
+def test_orphan_sweep_removes_tag_of_resource_missing_from_graph(neo4j_session):
     """
-    The tagging API reports resources whose own sync did not load them. Tags are
-    only created for resources that exist in the graph.
+    The tagging API reports resources whose own sync did not load them. Their tags
+    are loaded but never linked, and the end-of-run sweep removes them.
     """
     # Arrange
     neo4j_session.run(
@@ -401,11 +405,73 @@ def test_sync_skips_tags_of_resources_missing_from_graph(neo4j_session):
         ACCOUNT_A, "i-a", [("env", "prod")]
     ) + _instance_tagging_response(ACCOUNT_A, "i-missing", [("team", "core")])
 
-    # Act
+    # Act - the account sync loads both tags but links only the existing resource's
     _sync_instance_tags(neo4j_session, ACCOUNT_A, tagging_response, 1)
 
     # Assert
+    assert check_nodes(neo4j_session, "AWSTag", ["id"]) == {
+        ("env:prod",),
+        ("team:core",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2Instance",
+        "id",
+        "AWSTag",
+        "id",
+        "TAGGED",
+        rel_direction_right=True,
+    ) == {("i-a", "env:prod")}
+
+    # Act - the end-of-run sweep
+    rgta.cleanup_orphan_tags(neo4j_session, {"UPDATE_TAG": 1})
+
+    # Assert - the unlinked tag is removed even though this sync wrote it
     assert check_nodes(neo4j_session, "AWSTag", ["id"]) == {("env:prod",)}
+
+
+def test_orphan_sweep_keeps_linked_tags(neo4j_session):
+    """
+    The sweep ignores lastupdated and must never delete a tag that a relationship
+    uses, including one last written by an earlier sync.
+    """
+    # Arrange - account A was last synced at 1, account B syncs at 2
+    neo4j_session.run(
+        "MATCH (n) WHERE n:AWSTag OR n:AWSEC2Instance DETACH DELETE n",
+    )
+    for account_id, instance_id, update_tag, tags in (
+        (ACCOUNT_A, "i-a", 1, [("env", "prod")]),
+        (ACCOUNT_B, "i-b", 2, [("team", "core")]),
+    ):
+        create_test_account(neo4j_session, account_id, update_tag)
+        _load_instance(neo4j_session, instance_id, account_id, update_tag)
+        _sync_instance_tags(
+            neo4j_session,
+            account_id,
+            _instance_tagging_response(account_id, instance_id, tags),
+            update_tag,
+        )
+
+    # Act
+    rgta.cleanup_orphan_tags(neo4j_session, {"UPDATE_TAG": 2})
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSTag", ["id", "lastupdated"]) == {
+        ("env:prod", 1),
+        ("team:core", 2),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2Instance",
+        "id",
+        "AWSTag",
+        "id",
+        "TAGGED",
+        rel_direction_right=True,
+    ) == {
+        ("i-a", "env:prod"),
+        ("i-b", "team:core"),
+    }
 
 
 def test_cleanup_removes_stale_relationships_written_before_matchlinks(
@@ -413,7 +479,8 @@ def test_cleanup_removes_stale_relationships_written_before_matchlinks(
 ):
     """
     TAGGED relationships written before AWSTag moved to the data model carry no
-    _sub_resource_id. They must still be cleaned up once stale.
+    _sub_resource_id. The account sync must still remove them once stale, which
+    leaves the tag for the end-of-run sweep.
     """
     # Arrange - a pre-existing relationship without MatchLink scoping properties
     neo4j_session.run(
@@ -434,6 +501,23 @@ def test_cleanup_removes_stale_relationships_written_before_matchlinks(
     # Act
     _load_instance(neo4j_session, "i-a", ACCOUNT_A, 2)
     _sync_instance_tags(neo4j_session, ACCOUNT_A, [], 2)
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSEC2Instance",
+            "id",
+            "AWSTag",
+            "id",
+            "TAGGED",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+    # Act
+    rgta.cleanup_orphan_tags(neo4j_session, {"UPDATE_TAG": 2})
 
     # Assert
     assert check_nodes(neo4j_session, "AWSTag", ["id"]) == set()

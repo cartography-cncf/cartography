@@ -1134,9 +1134,13 @@ def test_start_aws_ingestion_passes_organization_account_ids(
 )
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
 def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_mode(
     mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
     mock_perform_analysis,
     mock_sync_one,
     mock_sync_organizations_for_accounts,
@@ -1171,6 +1175,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     assert mock_sync_one.call_count == 2
     assert mock_sync_organizations_for_accounts.call_count == 1
     assert mock_run_cleanup_job.call_count == 0
+    assert mock_cleanup_orphan_tags.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
 
@@ -1184,9 +1189,13 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
 )
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
 def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
     mock_perform_analysis,
     mock_sync_one,
     mock_sync_organizations_for_accounts,
@@ -1218,6 +1227,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     assert mock_sync_one.call_count == 1
     assert mock_sync_organizations_for_accounts.call_count == 1
     assert mock_run_cleanup_job.call_count == 0
+    assert mock_cleanup_orphan_tags.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
 
@@ -1231,9 +1241,13 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
 )
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
 def test_start_aws_ingestion_does_cleanup(
     mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
     mock_perform_analysis,
     mock_sync_one,
     mock_sync_organizations_for_accounts,
@@ -1260,7 +1274,51 @@ def test_start_aws_ingestion_does_cleanup(
     # Assert
     assert mock_perform_analysis.call_count == 1
     assert mock_run_cleanup_job.call_count == 1
+    assert mock_cleanup_orphan_tags.call_count == 1
     assert mock_sync_organizations_for_accounts.call_count == 1
+
+
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
+@mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job")
+def test_start_aws_ingestion_skips_tag_orphan_cleanup_without_tagging_sync(
+    mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
+    mock_perform_analysis,
+    mock_sync_one,
+    mock_sync_organizations_for_accounts,
+    mock_get_aws_account,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    # Arrange
+    mock_boto3.return_value.region_name = "us-east-1"
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_requested_syncs="ec2:instance",
+    )
+    mock_get_aws_account.return_value = {"test_profile": "test_account"}
+
+    # Act
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    # Assert
+    assert mock_run_cleanup_job.call_count == 1
+    assert mock_cleanup_orphan_tags.call_count == 0
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
