@@ -13,15 +13,21 @@ logging.getLogger("neo4j").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-def _wait_for_neo4j(uri: str, timeout_seconds: int = 60) -> None:
-    """Block until Neo4j accepts Bolt connections."""
+def _wait_for_neo4j(uri: str, timeout_seconds: int = 180) -> None:
+    """Block until Neo4j answers a query on its default database.
+
+    A successful Bolt handshake is not enough: Neo4j accepts connections while the
+    default database is still starting, and the first query then fails. The overall
+    deadline is long because in CI the container may still be pulling its image when
+    this starts; each attempt gives up quickly so a slow boot does not eat it.
+    """
     deadline = time.monotonic() + timeout_seconds
     last_error = None
 
     while time.monotonic() < deadline:
-        driver = neo4j.GraphDatabase.driver(uri)
+        driver = neo4j.GraphDatabase.driver(uri, connection_timeout=5)
         try:
-            driver.verify_connectivity()
+            driver.execute_query("RETURN 1")
             return
         # This branch only executes if the container is still booting.
         except Exception as exc:  # pragma: no cover
