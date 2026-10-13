@@ -19,13 +19,18 @@ def _wait_for_neo4j(uri: str, timeout_seconds: int = 180) -> None:
     A successful Bolt handshake is not enough: Neo4j accepts connections while the
     default database is still starting, and the first query then fails. The overall
     deadline is long because in CI the container may still be pulling its image when
-    this starts; each attempt gives up quickly so a slow boot does not eat it.
+    this starts. Each attempt gives up quickly (no driver-side retries, 5s to connect)
+    and this loop does the retrying, so the deadline is what bounds the wait.
     """
     deadline = time.monotonic() + timeout_seconds
     last_error = None
 
     while time.monotonic() < deadline:
-        driver = neo4j.GraphDatabase.driver(uri, connection_timeout=5)
+        driver = neo4j.GraphDatabase.driver(
+            uri,
+            connection_timeout=5,
+            max_transaction_retry_time=0,
+        )
         try:
             driver.execute_query("RETURN 1")
             return
