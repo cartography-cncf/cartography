@@ -797,14 +797,15 @@ def test_rule_reports_delegated_admin_findings_once(
         for row in parents
     )
 
-    members = neo4j_session.run(
-        """
-        MATCH (a:AWSAccount)-[:MEMBER]->(f:AWSGuardDutyFinding)
-        RETURN f.id AS id, collect(a.id) AS accounts
-        """
-    ).data()
-    assert len(members) == len(parents)
-    assert all(row["accounts"] == [TEST_ACCOUNT_ID] for row in members)
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSGuardDutyFinding",
+        "id",
+        "MEMBER",
+        rel_direction_right=True,
+    ) == {(TEST_ACCOUNT_ID, row["id"]) for row in parents}
 
     rows = neo4j_session.run(aws_guardduty_active_threat.cypher_query).data()
     finding_ids = [row["finding_id"] for row in rows]
