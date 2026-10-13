@@ -18,6 +18,11 @@ resource's model schema. A shared declarative catalog drives both runtime
 matching and generated schema documentation so the supported relationships
 remain consistent.
 
+Because the id is only `{key}:{value}`, one `AWSTag` node is shared by every
+account whose resources carry that tag. Each `TAGGED` relationship records the
+account that owns it, so an account's sync only removes its own stale `TAGGED`
+relationships. An `AWSTag` node is removed once no relationship uses it.
+
 The authoritative mapping is `AWS_TAGGABLE_RESOURCES` in
 `cartography/models/aws_tagging.py`. The current supported source labels are:
 
