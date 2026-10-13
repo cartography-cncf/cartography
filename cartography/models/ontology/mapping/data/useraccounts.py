@@ -852,8 +852,8 @@ bloodhound_mapping = OntologyMapping(
                     ontology_field="fullname", node_field="displayname"
                 ),
                 OntologyFieldMapping(ontology_field="active", node_field="enabled"),
-                # lastactivity: AD reports lastlogontimestamp in epoch seconds and it
-                # lags by up to 14 days, so it is left on the node only.
+                # lastactivity: lastlogontimestamp lags by up to 14 days, so it is
+                # left on the node only.
                 # has_mfa: not an AD attribute.
             ],
         ),

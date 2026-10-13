@@ -165,7 +165,8 @@ class ValidatedCollection:
     domains: dict[str, str | None] = field(default_factory=dict)
     # Domain SID -> name, for every domain an imported domain has a trust with.
     trust_targets: dict[str, str | None] = field(default_factory=dict)
-    # (data type, domain SID) pairs with at least one object in the import.
+    # (data type, domain SID) pairs with at least one object, live or deleted, in
+    # the import.
     collected_types: set[tuple[str, str]] = field(default_factory=set)
     # Domain SID -> OR of meta.methods over the files holding its objects.
     domain_methods: dict[str, int] = field(default_factory=dict)
@@ -195,6 +196,20 @@ def _json_stream(file: CollectionFile) -> Iterator[IO[bytes]]:
 def read_meta(file: CollectionFile) -> Any:
     with _json_stream(file) as fp:
         return next(ijson.items(fp, "meta", use_float=True), None)
+
+
+def has_data_array(file: CollectionFile) -> bool:
+    """Whether the document has a top-level ``data`` array.
+
+    SharpHound writes ``data`` first, so this stops after a few events.
+    """
+    with _json_stream(file) as fp:
+        events = ijson.parse(fp, use_float=True)
+        for prefix, event, value in events:
+            if prefix == "" and event == "map_key" and value == "data":
+                _, next_event, _ = next(events)
+                return next_event == "start_array"
+    return False
 
 
 def iter_objects(file: CollectionFile) -> Iterator[dict[str, Any]]:
@@ -250,6 +265,27 @@ def _enum_name(value: Any, names: tuple[str, ...], field_name: str) -> str:
     raise ValueError(f"unrecognized {field_name} {value!r}")
 
 
+_EPOCH_PROPERTIES = frozenset(
+    {"whencreated", "lastlogon", "lastlogontimestamp", "pwdlastset"},
+)
+
+
+def _epoch_to_datetime(value: Any) -> datetime.datetime | None:
+    """Convert SharpHound's epoch seconds to a UTC datetime.
+
+    SharpHound writes 0 or -1 for "never".
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        return None
+    if seconds <= 0:
+        return None
+    return datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+
+
 def _optional_int(value: Any) -> int | None:
     try:
         return int(value)
@@ -272,13 +308,18 @@ def transform_node(
         **provenance.as_dict(),
     }
     for name in _COMMON_PROPERTIES + _TYPE_PROPERTIES[data_type]:
-        node[name] = props.get(name)
+        value = props.get(name)
+        node[name] = _epoch_to_datetime(value) if name in _EPOCH_PROPERTIES else value
 
     if data_type == DOMAINS:
         node["forest_root_id"] = _upper(obj.get("ForestRootIdentifier"))
         node["collected"] = True
     elif data_type in (USERS, COMPUTERS):
         node["primarygroupsid"] = _upper(obj.get("PrimaryGroupSID"))
+        if not node["sidhistory"]:
+            node["sidhistory"] = (
+                _typed_principal_ids(obj.get("HasSIDHistory"), "HasSIDHistory") or None
+            )
         node["unconstraineddelegation"] = obj.get(
             "UnconstrainedDelegation",
             props.get("unconstraineddelegation"),
@@ -486,6 +527,10 @@ def _validate_file(
             "BloodHound collector output.",
         )
     data_type = meta.get("type")
+    if not isinstance(data_type, str) or not data_type:
+        raise BloodHoundImportError(
+            f"{file.source_uri} has no data type in its meta block.",
+        )
     if data_type not in NODE_TYPES:
         logger.info(
             "Skipping BloodHound %s data in %s: not supported by this module.",
@@ -511,9 +556,19 @@ def _validate_file(
         collected_at=collected_at,
         collector_version=meta.get("collectorversion"),
     )
+    methods = meta.get("methods", 0)
+    if isinstance(methods, bool) or not isinstance(methods, int) or methods < 0:
+        raise BloodHoundImportError(
+            f"{file.source_uri} has an invalid collection-method mask {methods!r}.",
+        )
+    if not has_data_array(file):
+        raise BloodHoundImportError(
+            f"{file.source_uri} has no data array. The file is truncated or is not "
+            "BloodHound collector output.",
+        )
     result = _FileResult(
         file=ValidatedFile(file, data_type, provenance),
-        methods=_optional_int(meta.get("methods")) or 0,
+        methods=methods,
     )
 
     count = 0
@@ -522,9 +577,9 @@ def _validate_file(
         try:
             if not isinstance(obj, dict):
                 raise ValueError("data entries must be objects")
+            result.domain_sids.add(object_domain_sid(data_type, obj))
             if is_deleted(obj):
                 continue
-            result.domain_sids.add(object_domain_sid(data_type, obj))
             node = transform_node(data_type, obj, provenance)
             if data_type == DOMAINS:
                 result.domains[node["id"]] = node["name"]

@@ -864,7 +864,7 @@ bloodhound_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="domain", node_field="name"),
+                OntologyFieldMapping(ontology_field="domain", node_field="domain"),
                 # status: AD domains have no lifecycle state.
             ],
         ),

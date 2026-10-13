@@ -38,15 +38,15 @@ class ADComputerNodeProperties(ADObjectNodeProperties):
     )
     lastlogon: PropertyRef = PropertyRef(
         "lastlogon",
-        description="Last logon on the queried DC, in epoch seconds. Not replicated.",
+        description="Last logon on the queried DC (UTC). Not replicated.",
     )
     lastlogontimestamp: PropertyRef = PropertyRef(
         "lastlogontimestamp",
-        description="Replicated last logon time, in epoch seconds. Lags by up to 14 days.",
+        description="Replicated last logon time (UTC). Lags by up to 14 days.",
     )
     pwdlastset: PropertyRef = PropertyRef(
         "pwdlastset",
-        description="Time the machine password was last set, in epoch seconds.",
+        description="Time the machine password was last set (UTC).",
     )
     serviceprincipalnames: PropertyRef = PropertyRef(
         "serviceprincipalnames",

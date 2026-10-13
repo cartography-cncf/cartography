@@ -1,3 +1,4 @@
+import datetime
 import json
 from pathlib import Path
 
@@ -288,3 +289,101 @@ def test_iter_edges_trust_direction(direction, expected):
     for row in trusts:
         assert row["trust_type"] == "External"
         assert row["same_forest"] is False
+
+
+def _replace_member(tmp_path, data_type: str, document: dict) -> Path:
+    data = fixture.collection()
+    data.pop(data_type)
+    return fixture.write_zip(
+        tmp_path / "a.zip",
+        data,
+        raw_members={
+            f"20261012143015_{data_type}.json": json.dumps(document).encode(),
+        },
+    )
+
+
+def test_validate_collection_rejects_missing_data_array(tmp_path):
+    # Arrange
+    archive = _replace_member(
+        tmp_path,
+        "ous",
+        {"meta": fixture.document("ous", [])["meta"]},
+    )
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="no data array"):
+        _validate(archive)
+
+
+def test_validate_collection_rejects_missing_type(tmp_path):
+    # Arrange
+    document = fixture.document("ous", fixture.collection()["ous"])
+    del document["meta"]["type"]
+    archive = _replace_member(tmp_path, "ous", document)
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="no data type"):
+        _validate(archive)
+
+
+@pytest.mark.parametrize("methods", ["all", -1, 1.5, True])
+def test_validate_collection_rejects_invalid_methods(tmp_path, methods):
+    # Arrange
+    document = fixture.document("ous", fixture.collection()["ous"])
+    document["meta"]["methods"] = methods
+    archive = _replace_member(tmp_path, "ous", document)
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="collection-method mask"):
+        _validate(archive)
+
+
+def test_deleted_objects_count_toward_collected_scope(tmp_path):
+    # Arrange
+    data = fixture.collection()
+    data["gpos"][0]["IsDeleted"] = True
+    archive = fixture.write_zip(tmp_path / "a.zip", data)
+
+    # Act
+    collection = _validate(archive)
+
+    # Assert
+    assert ("gpos", fixture.DOMAIN_SID) in collection.collected_types
+
+
+def test_zip_without_timestamp_prefix_requires_override(tmp_path):
+    # Arrange
+    archive = fixture.write_zip(tmp_path / "BloodHound.zip", timestamp="custom")
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="--bloodhound-collected-at"):
+        _validate(archive)
+
+
+def test_transform_node_converts_epoch_seconds():
+    # Arrange
+    alice = fixture.collection()["users"][0]
+    alice["Properties"]["lastlogon"] = -1
+
+    # Act
+    node = transform_node("users", alice, PROVENANCE)
+
+    # Assert
+    assert node["whencreated"] == datetime.datetime(
+        2023, 11, 14, 22, 13, 20, tzinfo=datetime.timezone.utc
+    )
+    assert node["lastlogon"] is None
+
+
+def test_transform_node_falls_back_to_typed_sid_history():
+    # Arrange
+    alice = fixture.collection()["users"][0]
+    old_sid = f"{fixture.PARTNER_SID}-2001"
+    alice["HasSIDHistory"] = [{"ObjectIdentifier": old_sid, "ObjectType": "User"}]
+
+    # Act
+    node = transform_node("users", alice, PROVENANCE)
+
+    # Assert
+    assert node["sidhistory"] == [old_sid]

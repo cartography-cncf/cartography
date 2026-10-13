@@ -55,7 +55,7 @@ class ADObjectNodeProperties(CartographyNodeProperties):
     )
     whencreated: PropertyRef = PropertyRef(
         "whencreated",
-        description="Creation time, in epoch seconds.",
+        description="Creation time (UTC).",
     )
     isaclprotected: PropertyRef = PropertyRef(
         "isaclprotected",

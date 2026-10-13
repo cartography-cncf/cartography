@@ -58,13 +58,6 @@ def timestamp_from_filename(name: str) -> str | None:
     return parsed.isoformat()
 
 
-def _timestamp_from_zip_info(info: zipfile.ZipInfo) -> str | None:
-    try:
-        return datetime.datetime(*info.date_time).isoformat()
-    except ValueError:
-        return None
-
-
 def _local_path(
     reader: ReportReader,
     ref: ReportRef,
@@ -114,8 +107,7 @@ def open_collection(reader: ReportReader) -> Iterator[list[CollectionFile]]:
                             source_uri=f"{ref.uri}!{info.filename}",
                             open=partial(archive.open, info),
                             collected_at=timestamp_from_filename(info.filename)
-                            or timestamp_from_filename(ref.name)
-                            or _timestamp_from_zip_info(info),
+                            or timestamp_from_filename(ref.name),
                         ),
                     )
             elif lowered.endswith(".json"):

@@ -25,7 +25,7 @@ and other sources of AD data, update the same nodes:
 | `ADDomain` | Domain SID | `Tenant` |
 | `ADUser` | SID | `UserAccount` |
 | `ADGroup` | SID | `UserGroup` |
-| `ADComputer` | SID | Linked to a canonical `Device` by host name |
+| `ADComputer` | SID | Linked to a canonical `Device` by host name when the ontology module runs |
 | `ADOU` | GUID | |
 | `ADGPO` | GUID | |
 | `ADContainer` | GUID | |
@@ -45,6 +45,10 @@ queries can follow specific abuse primitives:
 | `GPLink` | `(:ADGPO)-[:GP_LINK]->(:ADObject)` |
 | `TrustedBy`, `SameForestTrust`, `CrossForestTrust` | `(:ADDomain)-[:TRUSTED_BY]->(:ADDomain)` |
 
+Object properties holding times, such as `whencreated` and
+`lastlogontimestamp`, are stored as UTC datetimes; SharpHound's "never" values
+are left empty.
+
 `MEMBER_OF` includes primary group membership. `TRUSTED_BY` runs from the
 trusted domain to the trusting domain, the direction in which access flows,
 and records whether both domains are in the same forest. A domain that only
@@ -53,25 +57,30 @@ set to `false` until its own data is imported.
 
 ## Provenance
 
-Every node and relationship records where it came from:
+Every node and relationship read from collector output records where it came
+from. Placeholder domains created for trust targets have none of these
+properties.
 
 - `source_uri`: the file it was read from. For a zip archive this is
   `<archive URI>!<member name>`.
 - `collected_at`: when SharpHound collected it, taken from the timestamp prefix
-  SharpHound puts on its file names. SharpHound writes the collector host's
-  local time without a time zone, and Cartography stores it as written.
+  SharpHound puts on its file names and stored as an ISO 8601 string such as
+  `2026-10-12T14:30:15`. SharpHound uses the collector host's local time with
+  no time zone, so the value has no offset.
 - `collector_version`: the SharpHound version.
 
 ## Import behavior
 
-An import is all or nothing:
+An import never deletes data unless it completes:
 
 1. Every file is streamed and checked before anything is written. A truncated
    or malformed file, an unsupported format version, or missing domain data
-   fails the import with an error that names the file.
-2. Nodes, then relationships, are written in batches.
-3. Stale data is removed only after the whole import succeeded, and only for
-   the domains in the import. Importing one forest never removes another.
+   fails the import with an error that names the file, and nothing is written.
+2. Nodes, then relationships, are written in batches. These writes are not one
+   transaction: if a write fails part way, the rows already written stay, but
+   nothing from the previous import is removed.
+3. Stale data is removed only after every write succeeded, and only for the
+   domains in the import. Importing one forest never removes another.
 
 Clean-up also respects what SharpHound collected. Each relationship kind is
 only cleaned up when the collection method that produces it ran (for example,
