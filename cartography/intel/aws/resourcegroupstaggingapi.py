@@ -204,16 +204,19 @@ def load_tags(
             tags[tag_id] = {"id": tag_id, "key": tag["Key"], "value": tag["Value"]}
             links.append({"resource_id": tag_mapping["resource_id"], "tag_id": tag_id})
 
+    # Tag nodes are shared across accounts that sync concurrently. Writing them
+    # in id order gives every writer the same lock order, which avoids most
+    # deadlock retries on the shared nodes.
     load(
         neo4j_session,
         AWSTagSchema(),
-        list(tags.values()),
+        sorted(tags.values(), key=lambda tag: tag["id"]),
         lastupdated=aws_update_tag,
     )
     load_matchlinks(
         neo4j_session,
         _build_tagged_matchlink(mapping["label"], mapping["property"], region_property),
-        links,
+        sorted(links, key=lambda link: (link["tag_id"], link["resource_id"])),
         lastupdated=aws_update_tag,
         Region=region,
         _sub_resource_label="AWSAccount",
