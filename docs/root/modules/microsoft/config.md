@@ -136,7 +136,8 @@ Add `--microsoft-defender` to the command above to include Defender. Machine
 inventory requests use pages of up to 10,000 records; Microsoft documents limits
 of 100 machine requests per minute and 1,500 per hour. Alerts use Graph
 `/v1.0/security/alerts_v2` with
-`serviceSource eq 'microsoftDefenderForEndpoint' and status ne 'resolved'`, pages
+`serviceSource eq 'microsoftDefenderForEndpoint'`, one query each for the
+unresolved statuses `new` and `inProgress`, pages
 of 100, and `@odata.nextLink` pagination. Requests retry HTTP 429 and transient 5xx
 responses up to five times and cap each `Retry-After` delay at eight seconds.
 Each collection is limited to 10,000 pages; exceeding that limit aborts the

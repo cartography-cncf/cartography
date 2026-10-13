@@ -38,6 +38,7 @@ def _api_session(machines, alerts):
     session.get.side_effect = [
         _response({"value": machines}),
         _response({"value": alerts}),
+        _response({"value": []}),
     ]
     return session
 

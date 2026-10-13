@@ -55,9 +55,12 @@ def test_alert_pagination_keeps_provider_cursor_and_uses_graph_scope():
     # Arrange
     session = MagicMock()
     next_link = defender.ALERTS_URL + "?$skiptoken=next"
+    in_progress = {**ALERTS[0], "id": "alert-2", "status": "inProgress"}
     session.get.side_effect = [
         _response({"value": ALERTS, "@odata.nextLink": next_link}),
         _response({"value": []}),
+        # The first alert changed status between queries; it is returned once.
+        _response({"value": [in_progress, {**ALERTS[0], "status": "inProgress"}]}),
     ]
     credential = MagicMock()
 
@@ -65,13 +68,20 @@ def test_alert_pagination_keeps_provider_cursor_and_uses_graph_scope():
     result = defender.get_alerts(session, credential)
 
     # Assert
-    assert result == ALERTS
-    assert session.get.call_args_list[0].kwargs["params"] == {
-        "$top": 100,
-        "$filter": "serviceSource eq 'microsoftDefenderForEndpoint' and status ne 'resolved'",
-    }
-    assert session.get.call_args.args == (next_link,)
-    assert session.get.call_args.kwargs["params"] is None
+    assert [alert["id"] for alert in result] == [ALERTS[0]["id"], "alert-2"]
+    params = [call.kwargs["params"] for call in session.get.call_args_list]
+    assert params == [
+        {
+            "$top": 100,
+            "$filter": "serviceSource eq 'microsoftDefenderForEndpoint' and status eq 'new'",
+        },
+        None,
+        {
+            "$top": 100,
+            "$filter": "serviceSource eq 'microsoftDefenderForEndpoint' and status eq 'inProgress'",
+        },
+    ]
+    assert session.get.call_args_list[1].args == (next_link,)
     assert credential.get_token.call_args.args == (defender.GRAPH_SCOPE,)
 
 

@@ -25,7 +25,7 @@ ALERTS = [
         "serviceSource": "microsoftDefenderForEndpoint",
         "detectionSource": "antivirus",
         "createdDateTime": "2026-09-17T09:00:00Z",
-        "categories": ["Execution"],
+        "category": "Execution",
         "mitreTechniques": ["T1059"],
         "evidence": [
             {

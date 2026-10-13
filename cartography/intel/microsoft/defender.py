@@ -26,9 +26,8 @@ ALERTS_URL = "https://graph.microsoft.com/v1.0/security/alerts_v2"
 MDE_SCOPE = "https://api.securitycenter.microsoft.com/.default"
 GRAPH_SCOPE = "https://graph.microsoft.com/.default"
 MACHINE_PAGE_SIZE = 10000
-ALERT_FILTER = (
-    "serviceSource eq 'microsoftDefenderForEndpoint' and status ne 'resolved'"
-)
+# alerts_v2 documents only `eq` filters, so each unresolved status is queried separately.
+UNRESOLVED_ALERT_STATUSES = ("new", "inProgress")
 
 
 def create_session() -> requests.Session:
@@ -133,13 +132,24 @@ def get_machines(
 def get_alerts(
     session: requests.Session, credential: TokenCredential
 ) -> list[dict[str, Any]]:
-    return get_collection(
-        session,
-        credential,
-        ALERTS_URL,
-        GRAPH_SCOPE,
-        {"$top": 100, "$filter": ALERT_FILTER},
-    )
+    alerts: dict[str, dict[str, Any]] = {}
+    for status in UNRESOLVED_ALERT_STATUSES:
+        for alert in get_collection(
+            session,
+            credential,
+            ALERTS_URL,
+            GRAPH_SCOPE,
+            {
+                "$top": 100,
+                "$filter": (
+                    "serviceSource eq 'microsoftDefenderForEndpoint' "
+                    f"and status eq '{status}'"
+                ),
+            },
+        ):
+            # An alert whose status changes between queries can appear in both.
+            alerts[alert["id"]] = alert
+    return list(alerts.values())
 
 
 def transform_machines(

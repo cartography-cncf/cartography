@@ -176,8 +176,8 @@ class DefenderAlertNodeProperties(CartographyNodeProperties):
     detection_source: PropertyRef = PropertyRef(
         "detectionSource", description="Detection source that produced the alert."
     )
-    categories: PropertyRef = PropertyRef(
-        "categories", description="MITRE ATT&CK categories of suspicious activity."
+    category: PropertyRef = PropertyRef(
+        "category", description="MITRE ATT&CK category of the suspicious activity."
     )
     threat_family_name: PropertyRef = PropertyRef(
         "threatFamilyName", description="Threat family identified in the alert."
