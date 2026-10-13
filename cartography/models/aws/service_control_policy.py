@@ -127,7 +127,7 @@ class AWSServiceControlPolicySchema(CartographyNodeSchema):
 class AWSServiceControlPolicyStatementNodeProperties(AWSPolicyStatementNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="The statement ID, formatted as `{AWSServiceControlPolicy.id}/statement/{Sid}`, or `{AWSServiceControlPolicy.id}/statement/{index}` when the statement has no Sid.",
+        description="The statement ID, formatted as `{AWSServiceControlPolicy.id}/statement/{Sid}`, or `{AWSServiceControlPolicy.id}/statement/index-{position}` when the statement has no Sid, where `position` is the 1-based position of the statement in the policy.",
     )
 
 

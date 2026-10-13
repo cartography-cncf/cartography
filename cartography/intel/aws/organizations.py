@@ -334,12 +334,29 @@ def transform_service_control_policies(
         )
         if policy.get("Content"):
             statements.extend(
-                _transform_policy_statements(
+                _transform_service_control_policy_statements(
                     json.loads(policy["Content"]).get("Statement", []),
                     policy_id,
                 )
             )
     return transformed_policies, statements
+
+
+def _transform_service_control_policy_statements(
+    raw_statements: Any,
+    policy_id: str,
+) -> list[dict[str, Any]]:
+    if not isinstance(raw_statements, list):
+        raw_statements = [raw_statements]
+    statements = _transform_policy_statements(raw_statements, policy_id)
+    for index, (raw_statement, statement) in enumerate(
+        zip(raw_statements, statements),
+        start=1,
+    ):
+        # Sids are alphanumeric, so "index-N" cannot collide with a Sid such as "1".
+        statement_key = raw_statement.get("Sid") or f"index-{index}"
+        statement["id"] = f"{policy_id}/statement/{statement_key}"
+    return statements
 
 
 def get_aws_organization_hierarchy(
@@ -646,9 +663,10 @@ def _get_service_control_policies_for_sync(
     organization: dict[str, Any],
 ) -> list[dict[str, Any]] | None:
     """
-    Return None when the policies could not be enumerated, so the caller skips
-    both load and cleanup and keeps the last complete set of policies. A
-    delegated administrator can often read the hierarchy but not the policies.
+    Return None when access to the policies is denied, so the caller skips both
+    load and cleanup and keeps the last complete set of policies. A delegated
+    administrator can often read the hierarchy but not the policies. Other
+    errors propagate so the caller treats the organization sync as incomplete.
     """
     if organization.get("FeatureSet") != "ALL":
         logger.debug(
@@ -659,6 +677,8 @@ def _get_service_control_policies_for_sync(
     try:
         return get_service_control_policies(organizations_client)
     except botocore.exceptions.ClientError as e:
+        if not _is_access_denied_error(e):
+            raise
         logger.warning(
             "Unable to enumerate service control policies for AWS Organization %s; keeping previously synced "
             "policies. AWS Organizations error code: %s.",
@@ -818,10 +838,23 @@ def sync_aws_organization(
             organization_id=organization_id,
         )
 
-    service_control_policies = _get_service_control_policies_for_sync(
-        organizations_client,
-        organization,
-    )
+    try:
+        service_control_policies = _get_service_control_policies_for_sync(
+            organizations_client,
+            organization,
+        )
+    except botocore.exceptions.ClientError as e:
+        result = get_aws_organization_sync_result_from_client_error(
+            current_aws_account_id,
+            e,
+            organization_id=organization_id,
+        )
+        logger.warning(
+            "Unable to enumerate service control policies for AWS Organization %s; skipping AWS Organizations sync.",
+            organization_id,
+            exc_info=True,
+        )
+        return result
 
     organization_accounts = transform_aws_organization_accounts(
         raw_accounts,

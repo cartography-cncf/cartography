@@ -1013,7 +1013,7 @@ def test_sync_aws_organization_service_control_policies(neo4j_session):
         )
     }
     assert statements == {
-        ("o-exampleorgid/p-FullAWSAccess/statement/1", "Allow", ("*",), ()),
+        ("o-exampleorgid/p-FullAWSAccess/statement/index-1", "Allow", ("*",), ()),
         (
             "o-exampleorgid/p-examregion/statement/DenyOutsideApprovedRegions",
             "Deny",
@@ -1032,7 +1032,7 @@ def test_sync_aws_organization_service_control_policies(neo4j_session):
     ) == {
         (
             "o-exampleorgid/p-FullAWSAccess",
-            "o-exampleorgid/p-FullAWSAccess/statement/1",
+            "o-exampleorgid/p-FullAWSAccess/statement/index-1",
         ),
         (
             "o-exampleorgid/p-examregion",
@@ -1084,7 +1084,7 @@ def test_sync_aws_organization_cleans_up_stale_service_control_policies(
         "AWSServiceControlPolicyStatement",
         ["id"],
     ) == {
-        ("o-exampleorgid/p-FullAWSAccess/statement/1",),
+        ("o-exampleorgid/p-FullAWSAccess/statement/index-1",),
     }
     applies_to = {
         (record["policy_id"], record["target_id"])
@@ -1151,4 +1151,50 @@ def test_sync_aws_organization_denied_service_control_policies_preserves_prior_p
     ) == {
         ("o-exampleorgid/p-FullAWSAccess", "111111111111"),
         ("o-exampleorgid/p-examregion", "444444444444"),
+    }
+
+
+def test_sync_aws_organization_failed_service_control_policies_skips_org_sync(
+    neo4j_session,
+):
+    """
+    An SCP error other than access denied means enumeration is incomplete, so
+    the whole organization sync is skipped and prior data is kept.
+    """
+    # Arrange
+    _sync_organization(neo4j_session, _make_organizations_client())
+    error = botocore.exceptions.ClientError(
+        {"Error": {"Code": "ServiceException", "Message": "unavailable"}},
+        "ListTargetsForPolicy",
+    )
+    failing_client = _make_organizations_client(
+        paginator_errors={"list_targets_for_policy": error},
+    )
+
+    # Act
+    result = _sync_organization(
+        neo4j_session,
+        failing_client,
+        TEST_SECOND_UPDATE_TAG,
+    )
+
+    # Assert
+    assert (
+        result.status
+        == cartography.intel.aws.organizations.AWSOrganizationSyncStatus.INCOMPLETE
+    )
+    assert check_nodes(
+        neo4j_session,
+        "AWSOrganizationRoot",
+        ["id", "lastupdated"],
+    ) == {
+        ("o-exampleorgid/r-exam", TEST_UPDATE_TAG),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        ["id", "lastupdated"],
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess", TEST_UPDATE_TAG),
+        ("o-exampleorgid/p-examregion", TEST_UPDATE_TAG),
     }

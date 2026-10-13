@@ -233,7 +233,7 @@ def test_transform_service_control_policies_scopes_ids_and_splits_targets():
         for statement in statements
     ] == [
         (
-            "o-exampleorgid/p-FullAWSAccess/statement/1",
+            "o-exampleorgid/p-FullAWSAccess/statement/index-1",
             "o-exampleorgid/p-FullAWSAccess",
             None,
         ),
@@ -242,6 +242,33 @@ def test_transform_service_control_policies_scopes_ids_and_splits_targets():
             "o-exampleorgid/p-examregion",
             '[{"StringNotEquals": {"aws:RequestedRegion": ["us-east-1", "us-west-2"]}}]',
         ),
+    ]
+
+
+def test_transform_service_control_policies_index_ids_do_not_collide_with_sids():
+    # Arrange
+    policy = {
+        "Id": "p-examcollide",
+        "Content": (
+            '{"Version":"2012-10-17","Statement":['
+            '{"Effect":"Deny","Action":"s3:*","Resource":"*"},'
+            '{"Sid":"1","Effect":"Deny","Action":"ec2:*","Resource":"*"}]}'
+        ),
+        "Targets": [],
+    }
+
+    # Act
+    _, statements = (
+        cartography.intel.aws.organizations.transform_service_control_policies(
+            [policy],
+            "o-exampleorgid",
+        )
+    )
+
+    # Assert
+    assert [(statement["id"], statement["Action"]) for statement in statements] == [
+        ("o-exampleorgid/p-examcollide/statement/index-1", ["s3:*"]),
+        ("o-exampleorgid/p-examcollide/statement/1", ["ec2:*"]),
     ]
 
 

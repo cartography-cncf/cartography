@@ -77,7 +77,9 @@ its raw policy document in `content`, and each statement in that document is an
 ```
 
 `APPLIES_TO` is the direct attachment. An account is also governed by every
-SCP attached to its parent OUs and root.
+SCP attached to its parent OUs and root. Only active accounts are placed in the
+hierarchy, so the inherited results below cover active accounts; suspended and
+closed accounts show only SCPs attached to them directly.
 
 Find the SCPs that govern each account, directly or through its parents:
 
