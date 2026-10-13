@@ -11,6 +11,7 @@ from tests.data.aws.organizations import TEST_ORGANIZATION
 from tests.data.aws.organizations import TEST_ORGANIZATION_ACCOUNTS
 from tests.data.aws.organizations import TEST_ORGANIZATION_ROOTS
 from tests.data.aws.organizations import TEST_ORGANIZATIONAL_UNITS
+from tests.data.aws.organizations import TEST_SERVICE_CONTROL_POLICIES
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -28,6 +29,8 @@ def cleanup_aws_organization_test_data(neo4j_session):
             OR n:AWSOrganization
             OR n:AWSOrganizationRoot
             OR n:AWSOrganizationalUnit
+            OR n:AWSServiceControlPolicy
+            OR n:AWSServiceControlPolicyStatement
         DETACH DELETE n
         """,
     )
@@ -40,6 +43,8 @@ def cleanup_aws_organization_test_data(neo4j_session):
             OR n:AWSOrganization
             OR n:AWSOrganizationRoot
             OR n:AWSOrganizationalUnit
+            OR n:AWSServiceControlPolicy
+            OR n:AWSServiceControlPolicyStatement
         DETACH DELETE n
         """,
     )
@@ -64,15 +69,30 @@ class FakeOrganizationsClient:
         organizational_units=None,
         accounts_for_parent=None,
         paginator_errors=None,
+        service_control_policies=None,
     ):
         self.organization = organization
         self.roots = roots or []
         self.organizational_units = organizational_units or {}
         self.accounts_for_parent = accounts_for_parent or {}
         self.paginator_errors = paginator_errors or {}
+        self.service_control_policies = service_control_policies or []
 
     def describe_organization(self):
         return {"Organization": self.organization}
+
+    def describe_policy(self, PolicyId):
+        policy = next(
+            policy
+            for policy in self.service_control_policies
+            if policy["Id"] == PolicyId
+        )
+        summary = {
+            key: value
+            for key, value in policy.items()
+            if key not in {"Content", "Targets"}
+        }
+        return {"Policy": {"PolicySummary": summary, "Content": policy["Content"]}}
 
     def get_paginator(self, name):
         if name == "list_roots":
@@ -92,7 +112,39 @@ class FakeOrganizationsClient:
                 "Accounts",
                 self.paginator_errors.get(name),
             )
+        if name == "list_policies":
+            summaries = [
+                {
+                    key: value
+                    for key, value in policy.items()
+                    if key not in {"Content", "Targets"}
+                }
+                for policy in self.service_control_policies
+            ]
+            return FakeOrganizationsPaginator(
+                [{"Policies": summaries[:1]}, {"Policies": summaries[1:]}],
+                self.paginator_errors.get(name),
+            )
+        if name == "list_targets_for_policy":
+            return FakeOrganizationsPolicyTargetsPaginator(
+                self.service_control_policies,
+                self.paginator_errors.get(name),
+            )
         raise ValueError(f"unexpected paginator: {name}")
+
+
+class FakeOrganizationsPolicyTargetsPaginator:
+    def __init__(self, policies, error=None):
+        self.targets_by_policy_id = {
+            policy["Id"]: policy["Targets"] for policy in policies
+        }
+        self.error = error
+
+    def paginate(self, **kwargs):
+        if self.error:
+            raise self.error
+        targets = self.targets_by_policy_id[kwargs["PolicyId"]]
+        return [{"Targets": targets[:1]}, {"Targets": targets[1:]}]
 
 
 class FakeOrganizationsParentPaginator:
@@ -112,6 +164,7 @@ def _make_organizations_client(
     organizational_units=None,
     accounts_for_parent=None,
     paginator_errors=None,
+    service_control_policies=None,
 ):
     return FakeOrganizationsClient(
         TEST_ORGANIZATION,
@@ -119,11 +172,16 @@ def _make_organizations_client(
         organizational_units or TEST_ORGANIZATIONAL_UNITS,
         accounts_for_parent or TEST_ACCOUNTS_FOR_PARENT,
         paginator_errors,
+        (
+            TEST_SERVICE_CONTROL_POLICIES
+            if service_control_policies is None
+            else service_control_policies
+        ),
     )
 
 
 def _sync_organization(neo4j_session, client, update_tag=TEST_UPDATE_TAG):
-    cartography.intel.aws.organizations.sync_aws_organization(
+    return cartography.intel.aws.organizations.sync_aws_organization(
         neo4j_session,
         client,
         "111111111111",
@@ -172,11 +230,21 @@ def _make_second_organization_client_with_colliding_root_and_ou_ids():
     for units in organizational_units.values():
         for unit in units:
             unit["Arn"] = unit["Arn"].replace("o-exampleorgid", "o-otherorgid")
+    full_aws_access = deepcopy(TEST_SERVICE_CONTROL_POLICIES[0])
+    full_aws_access["Targets"] = [
+        {
+            "TargetId": "r-exam",
+            "Arn": "arn:aws:organizations::555555555555:root/o-otherorgid/r-exam",
+            "Name": "Root",
+            "Type": "ROOT",
+        },
+    ]
     return FakeOrganizationsClient(
         organization,
         roots,
         organizational_units,
         accounts_for_parent,
+        service_control_policies=[full_aws_access],
     )
 
 
@@ -193,6 +261,7 @@ def test_sync_aws_accounts(neo4j_session):
         accounts,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws" for account_id in accounts.values()},
     )
 
     # Assert
@@ -243,6 +312,7 @@ def test_sync_aws_accounts_removes_stale_foreign_flag(neo4j_session):
         {account_name: account_id},
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws"},
     )
 
     # Assert
@@ -596,6 +666,18 @@ def test_sync_aws_organization_scopes_root_and_ou_ids_by_organization(
         ("o-exampleorgid/r-exam", "o-exampleorgid"),
         ("o-otherorgid/r-exam", "o-otherorgid"),
     }
+    assert check_rels(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        "id",
+        "AWSOrganizationRoot",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess", "o-exampleorgid/r-exam"),
+        ("o-otherorgid/p-FullAWSAccess", "o-otherorgid/r-exam"),
+    }
 
 
 def test_sync_aws_organization_moves_account_between_parents(neo4j_session):
@@ -716,6 +798,7 @@ def test_sync_aws_organization_cleanup_preserves_configured_account_scope(
         TEST_ACCOUNTS,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws" for account_id in TEST_ACCOUNTS.values()},
     )
     _sync_organization(neo4j_session, _make_organizations_client())
     organizational_units_without_nested_ou = {
@@ -800,3 +883,333 @@ def test_sync_aws_organization_cleans_ous_before_stale_roots(neo4j_session):
         ).single()["rel_count"]
         == 0
     )
+
+
+def test_sync_aws_organization_govcloud_root_principals(neo4j_session):
+    """
+    In AWS GovCloud (US), organization ARNs use the aws-us-gov partition, and so must the
+    root principals of the member accounts. Trust policies name them that way.
+    """
+    # Arrange
+    gov_organization = deepcopy(TEST_ORGANIZATION)
+    gov_organization["Arn"] = gov_organization["Arn"].replace(
+        "arn:aws:", "arn:aws-us-gov:", 1
+    )
+    organizations_client = FakeOrganizationsClient(
+        gov_organization,
+        TEST_ORGANIZATION_ROOTS,
+        TEST_ORGANIZATIONAL_UNITS,
+        TEST_ACCOUNTS_FOR_PARENT,
+    )
+
+    # Act
+    _sync_organization(neo4j_session, organizations_client)
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSRootPrincipal", ["arn"]) == {
+        ("arn:aws-us-gov:iam::111111111111:root",),
+        ("arn:aws-us-gov:iam::222222222222:root",),
+        ("arn:aws-us-gov:iam::444444444444:root",),
+    }
+
+
+def test_sync_aws_organization_service_control_policies(neo4j_session):
+    # Arrange
+    organizations_client = _make_organizations_client()
+
+    # Act
+    _sync_organization(neo4j_session, organizations_client)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        ["id", "policy_id", "name", "aws_managed", "org_id"],
+    ) == {
+        (
+            "o-exampleorgid/p-FullAWSAccess",
+            "p-FullAWSAccess",
+            "FullAWSAccess",
+            True,
+            "o-exampleorgid",
+        ),
+        (
+            "o-exampleorgid/p-examregion",
+            "p-examregion",
+            "DenyUnapprovedRegions",
+            False,
+            "o-exampleorgid",
+        ),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        ["id", "content"],
+    ) == {
+        (
+            f"o-exampleorgid/{policy['Id']}",
+            policy["Content"],
+        )
+        for policy in TEST_SERVICE_CONTROL_POLICIES
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSOrganization",
+        "id",
+        "AWSServiceControlPolicy",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("o-exampleorgid", "o-exampleorgid/p-FullAWSAccess"),
+        ("o-exampleorgid", "o-exampleorgid/p-examregion"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        "id",
+        "AWSOrganizationRoot",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {("o-exampleorgid/p-FullAWSAccess", "o-exampleorgid/r-exam")}
+    assert check_rels(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        "id",
+        "AWSOrganizationalUnit",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess", "o-exampleorgid/ou-exam-a1b2c3d4"),
+        ("o-exampleorgid/p-examregion", "o-exampleorgid/ou-exam-a1b2c3d4"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        "id",
+        "AWSAccount",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess", "111111111111"),
+        ("o-exampleorgid/p-examregion", "444444444444"),
+    }
+    statements = {
+        (
+            record["id"],
+            record["effect"],
+            tuple(record["action"] or []),
+            tuple(record["notaction"] or []),
+        )
+        for record in neo4j_session.run(
+            """
+            MATCH (statement:AWSServiceControlPolicyStatement)
+            RETURN statement.id AS id, statement.effect AS effect,
+                   statement.action AS action, statement.notaction AS notaction
+            """,
+        )
+    }
+    assert statements == {
+        ("o-exampleorgid/p-FullAWSAccess/statement/index-1", "Allow", ("*",), ()),
+        (
+            "o-exampleorgid/p-examregion/statement/DenyOutsideApprovedRegions",
+            "Deny",
+            (),
+            ("iam:*", "organizations:*", "sts:*"),
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        "id",
+        "AWSServiceControlPolicyStatement",
+        "id",
+        "STATEMENT",
+        rel_direction_right=True,
+    ) == {
+        (
+            "o-exampleorgid/p-FullAWSAccess",
+            "o-exampleorgid/p-FullAWSAccess/statement/index-1",
+        ),
+        (
+            "o-exampleorgid/p-examregion",
+            "o-exampleorgid/p-examregion/statement/DenyOutsideApprovedRegions",
+        ),
+    }
+    # The region restriction is queryable from an account through its OU.
+    restricted_accounts = {
+        record["account_id"]
+        for record in neo4j_session.run(
+            """
+            MATCH (account:AWSAccount)-[:PARENT*0..]->(target)
+                <-[:APPLIES_TO]-(scp:AWSServiceControlPolicy)
+                -[:STATEMENT]->(statement:AWSServiceControlPolicyStatement)
+            MATCH (org:AWSOrganization {id: scp.org_id})
+            WHERE account.id <> org.management_account_id
+              AND statement.effect = 'Deny'
+              AND statement.condition CONTAINS 'aws:RequestedRegion'
+            RETURN DISTINCT account.id AS account_id
+            """,
+        )
+    }
+    assert restricted_accounts == {"222222222222", "444444444444"}
+    governed_by_full_aws_access = {
+        record["account_id"]
+        for record in neo4j_session.run(
+            """
+            MATCH (account:AWSAccount)-[:PARENT*0..]->(target)
+                <-[:APPLIES_TO]-(scp:AWSServiceControlPolicy {name: 'FullAWSAccess'})
+            MATCH (org:AWSOrganization {id: scp.org_id})
+            WHERE account.id <> org.management_account_id
+            RETURN DISTINCT account.id AS account_id
+            """,
+        )
+    }
+    assert governed_by_full_aws_access == {"222222222222", "444444444444"}
+
+
+def test_sync_aws_organization_cleans_up_stale_service_control_policies(
+    neo4j_session,
+):
+    # Arrange
+    _sync_organization(neo4j_session, _make_organizations_client())
+    full_aws_access_on_root_only = deepcopy(TEST_SERVICE_CONTROL_POLICIES[0])
+    full_aws_access_on_root_only["Targets"] = full_aws_access_on_root_only["Targets"][
+        :1
+    ]
+
+    # Act
+    _sync_organization(
+        neo4j_session,
+        _make_organizations_client(
+            service_control_policies=[full_aws_access_on_root_only],
+        ),
+        TEST_SECOND_UPDATE_TAG,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSServiceControlPolicy", ["id"]) == {
+        ("o-exampleorgid/p-FullAWSAccess",),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceControlPolicyStatement",
+        ["id"],
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess/statement/index-1",),
+    }
+    applies_to = {
+        (record["policy_id"], record["target_id"])
+        for record in neo4j_session.run(
+            """
+            MATCH (policy:AWSServiceControlPolicy)-[:APPLIES_TO]->(target)
+            RETURN policy.id AS policy_id, target.id AS target_id
+            """,
+        )
+    }
+    assert applies_to == {
+        ("o-exampleorgid/p-FullAWSAccess", "o-exampleorgid/r-exam"),
+    }
+
+
+def test_sync_aws_organization_denied_service_control_policies_preserves_prior_policies(
+    neo4j_session,
+):
+    """
+    A delegated administrator can often read the hierarchy but not the policies.
+    The hierarchy still syncs, and the last complete set of policies is kept.
+    """
+    # Arrange
+    _sync_organization(neo4j_session, _make_organizations_client())
+    error = botocore.exceptions.ClientError(
+        {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
+        "ListPolicies",
+    )
+    denied_client = _make_organizations_client(
+        paginator_errors={"list_policies": error},
+    )
+
+    # Act
+    result = _sync_organization(neo4j_session, denied_client, TEST_SECOND_UPDATE_TAG)
+
+    # Assert
+    assert (
+        result.status
+        == cartography.intel.aws.organizations.AWSOrganizationSyncStatus.SYNCED
+    )
+    assert check_nodes(
+        neo4j_session,
+        "AWSOrganizationRoot",
+        ["id", "lastupdated"],
+    ) == {
+        ("o-exampleorgid/r-exam", TEST_SECOND_UPDATE_TAG),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        ["id", "lastupdated"],
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess", TEST_UPDATE_TAG),
+        ("o-exampleorgid/p-examregion", TEST_UPDATE_TAG),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        "id",
+        "AWSAccount",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess", "111111111111"),
+        ("o-exampleorgid/p-examregion", "444444444444"),
+    }
+
+
+def test_sync_aws_organization_failed_service_control_policies_skips_org_sync(
+    neo4j_session,
+):
+    """
+    An SCP error other than access denied means enumeration is incomplete, so
+    the whole organization sync is skipped and prior data is kept.
+    """
+    # Arrange
+    _sync_organization(neo4j_session, _make_organizations_client())
+    error = botocore.exceptions.ClientError(
+        {"Error": {"Code": "ServiceException", "Message": "unavailable"}},
+        "ListTargetsForPolicy",
+    )
+    failing_client = _make_organizations_client(
+        paginator_errors={"list_targets_for_policy": error},
+    )
+
+    # Act
+    result = _sync_organization(
+        neo4j_session,
+        failing_client,
+        TEST_SECOND_UPDATE_TAG,
+    )
+
+    # Assert
+    assert (
+        result.status
+        == cartography.intel.aws.organizations.AWSOrganizationSyncStatus.INCOMPLETE
+    )
+    assert check_nodes(
+        neo4j_session,
+        "AWSOrganizationRoot",
+        ["id", "lastupdated"],
+    ) == {
+        ("o-exampleorgid/r-exam", TEST_UPDATE_TAG),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AWSServiceControlPolicy",
+        ["id", "lastupdated"],
+    ) == {
+        ("o-exampleorgid/p-FullAWSAccess", TEST_UPDATE_TAG),
+        ("o-exampleorgid/p-examregion", TEST_UPDATE_TAG),
+    }

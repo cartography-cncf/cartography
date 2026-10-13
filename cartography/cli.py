@@ -64,6 +64,8 @@ PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
+PANEL_JIRA = "Jira Options"
+PANEL_OPSGENIE = "Opsgenie Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
 PANEL_DUO = "Duo Options"
@@ -92,10 +94,12 @@ PANEL_ORCA = "Orca Security Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
+PANEL_NOTION = "Notion Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
+PANEL_ZOOM = "Zoom Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
@@ -105,6 +109,7 @@ PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
 PANEL_SNOWFLAKE = "Snowflake Options"
+PANEL_ZENDESK = "Zendesk Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -131,8 +136,11 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
+    "zoom": PANEL_ZOOM,
+    "opsgenie": PANEL_OPSGENIE,
     "jumpcloud": PANEL_JUMPCLOUD,
     "socketdev": PANEL_SOCKETDEV,
+    "jira": PANEL_JIRA,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -162,6 +170,7 @@ MODULE_PANELS = {
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
+    "notion": PANEL_NOTION,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
@@ -172,6 +181,7 @@ MODULE_PANELS = {
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
     "snowflake": PANEL_SNOWFLAKE,
+    "zendesk": PANEL_ZENDESK,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -254,6 +264,18 @@ def _resolve_report_source_option(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+
+
+def _read_access_token_env_var(product: str, env_var: str) -> str:
+    logger.debug(
+        "Reading access token for %s from environment variable %s", product, env_var
+    )
+    access_token = os.environ.get(env_var)
+    if not access_token:
+        raise typer.BadParameter(
+            f"Environment variable {env_var} is not set or is empty."
+        )
+    return access_token
 
 
 def _resolve_microsoft_credential_options(
@@ -672,6 +694,7 @@ class CLI:
                 typer.Option(
                     "--aws-tagging-api-cleanup-batch",
                     help="Batch size for Resource Groups Tagging API cleanup (AWSTag nodes). Default: 1000.",
+                    min=1,
                     rich_help_panel=PANEL_AWS,
                     hidden=PANEL_AWS not in visible_panels,
                 ),
@@ -755,6 +778,32 @@ class CLI:
                     hidden=PANEL_AZURE not in visible_panels,
                 ),
             ] = None,
+            azure_access_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--azure-access-token-env-var",
+                    help=(
+                        "Environment variable name containing an Azure Resource "
+                        "Manager access token, such as a signed-in user's "
+                        "delegated token. Cannot be combined with --azure-sp-auth."
+                    ),
+                    rich_help_panel=PANEL_AZURE,
+                    hidden=PANEL_AZURE not in visible_panels,
+                ),
+            ] = None,
+            azure_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--azure-requested-syncs",
+                    help=(
+                        "Comma-separated list of Azure resources to sync. "
+                        'Example: "rbac,compute". See '
+                        "cartography.intel.azure.resources for full list."
+                    ),
+                    rich_help_panel=PANEL_AZURE,
+                    hidden=PANEL_AZURE not in visible_panels,
+                ),
+            ] = None,
             azure_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -806,6 +855,32 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = False,
+            microsoft_access_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-access-token-env-var",
+                    help=(
+                        "EXPERIMENTAL: environment variable name containing a "
+                        "Microsoft Graph access token, such as a signed-in user's "
+                        "delegated token. Implies --microsoft-delegated-auth."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            microsoft_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-requested-syncs",
+                    help=(
+                        "Comma-separated list of Microsoft resources to sync. "
+                        'Example: "users,groups". See '
+                        "cartography.intel.microsoft.resources for full list."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
             # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
@@ -978,6 +1053,18 @@ class CLI:
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),
             ] = 30,
+            # =================================================================
+            # Notion Options
+            # =================================================================
+            notion_config_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--notion-config-env-var",
+                    help="Environment variable name containing Base64 encoded Notion config.",
+                    rich_help_panel=PANEL_NOTION,
+                    hidden=PANEL_NOTION not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # GitLab Options
             # =================================================================
@@ -1277,6 +1364,37 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Opsgenie Options
+            # =================================================================
+            opsgenie_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--opsgenie-api-key-env-var",
+                    help="Environment variable name containing the Opsgenie API key.",
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = None,
+            opsgenie_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--opsgenie-api-url",
+                    help="Opsgenie API base URL.",
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = "https://api.opsgenie.com",
+            opsgenie_request_timeout: Annotated[
+                int,
+                typer.Option(
+                    "--opsgenie-request-timeout",
+                    help="Timeout in seconds for Opsgenie API requests.",
+                    min=1,
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = 60,
+            # =================================================================
             # GSuite Options
             # =================================================================
             gsuite_auth_method: Annotated[
@@ -1319,6 +1437,45 @@ class CLI:
                 ),
             ] = "GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS",
             # =================================================================
+            # Jira Options
+            # =================================================================
+            jira_cloud_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--jira-cloud-id",
+                    help="Jira Cloud site ID (UUID).",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = None,
+            jira_email: Annotated[
+                str | None,
+                typer.Option(
+                    "--jira-email",
+                    help="Email address of the Jira API-token owner.",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = None,
+            jira_api_token_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--jira-api-token-env-var",
+                    help="Environment variable containing the Jira API token.",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = "JIRA_API_TOKEN",
+            jira_site_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--jira-site-url",
+                    help="HTTPS *.atlassian.net origin for an unscoped API token; omit for scoped tokens.",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # LastPass Options
             # =================================================================
             lastpass_cid_env_var: Annotated[
@@ -1339,6 +1496,66 @@ class CLI:
                     hidden=PANEL_LASTPASS not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Zoom Options
+            # =================================================================
+            zoom_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-account-id",
+                    help="Zoom account ID for server-to-server OAuth.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-id",
+                    help="Zoom server-to-server OAuth client ID.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-secret-env-var",
+                    help="Environment variable containing the Zoom OAuth client secret.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = "ZOOM_CLIENT_SECRET",
+            zoom_sections: Annotated[
+                str,
+                typer.Option(
+                    "--zoom-sections",
+                    help="Optional comma-separated Zoom inventories: groups,roles,settings,apps,meetings,recordings,client_versions. Users always sync.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = "",
+            zoom_lookback_days: Annotated[
+                int,
+                typer.Option(
+                    "--zoom-lookback-days",
+                    min=1,
+                    max=30,
+                    help="UTC days of recordings to inventory (1-30).",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = 7,
+            zoom_request_limit: Annotated[
+                int,
+                typer.Option(
+                    "--zoom-request-limit",
+                    min=1,
+                    help="Maximum logical Zoom GET requests per sync; retries of one request count once. Optional sections that reach it keep prior data.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = 100000,
             # =================================================================
             # JumpCloud Options
             # =================================================================
@@ -1807,6 +2024,27 @@ class CLI:
                     help="BBOT report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
                     rich_help_panel=PANEL_BBOT,
                     hidden=PANEL_BBOT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Zendesk Options
+            # =================================================================
+            zendesk_subdomain: Annotated[
+                str | None,
+                typer.Option(
+                    "--zendesk-subdomain",
+                    help="Zendesk subdomain, e.g. acme for acme.zendesk.com.",
+                    rich_help_panel=PANEL_ZENDESK,
+                    hidden=PANEL_ZENDESK not in visible_panels,
+                ),
+            ] = None,
+            zendesk_oauth_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--zendesk-oauth-token-env-var",
+                    help="Environment variable name containing the Zendesk OAuth access token used to authenticate ingestion.",
+                    rich_help_panel=PANEL_ZENDESK,
+                    hidden=PANEL_ZENDESK not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2856,6 +3094,22 @@ class CLI:
 
                 parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
 
+            # Validate Azure options
+            if azure_requested_syncs:
+                from cartography.intel.azure.util.common import (
+                    parse_and_validate_azure_requested_syncs,
+                )
+
+                parse_and_validate_azure_requested_syncs(azure_requested_syncs)
+
+            # Validate Microsoft options
+            if microsoft_requested_syncs:
+                from cartography.intel.microsoft.util import (
+                    parse_and_validate_microsoft_requested_syncs,
+                )
+
+                parse_and_validate_microsoft_requested_syncs(microsoft_requested_syncs)
+
             # Read Azure client secret
             azure_client_secret = None
             if azure_sp_auth and azure_client_secret_env_var:
@@ -2864,6 +3118,24 @@ class CLI:
                     azure_client_secret_env_var,
                 )
                 azure_client_secret = os.environ.get(azure_client_secret_env_var)
+
+            azure_access_token = None
+            if azure_access_token_env_var:
+                if azure_sp_auth:
+                    raise typer.BadParameter(
+                        "--azure-access-token-env-var cannot be combined with "
+                        "--azure-sp-auth.",
+                    )
+                azure_access_token = _read_access_token_env_var(
+                    "Azure", azure_access_token_env_var
+                )
+
+            microsoft_access_token = None
+            if microsoft_access_token_env_var:
+                microsoft_access_token = _read_access_token_env_var(
+                    "Microsoft", microsoft_access_token_env_var
+                )
+                microsoft_delegated_auth = True
 
             (
                 microsoft_tenant_id,
@@ -2911,6 +3183,15 @@ class CLI:
                     github_config_env_var,
                 )
                 github_config = os.environ.get(github_config_env_var)
+
+            # Read Notion config
+            notion_config = None
+            if notion_config_env_var:
+                logger.debug(
+                    "Reading config for Notion from environment variable %s",
+                    notion_config_env_var,
+                )
+                notion_config = os.environ.get(notion_config_env_var)
 
             # Read DigitalOcean token
             digitalocean_token = None
@@ -3023,6 +3304,14 @@ class CLI:
                     pagerduty_api_key_env_var,
                 )
                 pagerduty_api_key = os.environ.get(pagerduty_api_key_env_var)
+
+            opsgenie_api_key = None
+            if opsgenie_api_key_env_var:
+                logger.debug(
+                    "Reading API key for Opsgenie from environment variable %s",
+                    opsgenie_api_key_env_var,
+                )
+                opsgenie_api_key = os.environ.get(opsgenie_api_key_env_var)
 
             # Read CrowdStrike credentials
             crowdstrike_client_id = None
@@ -3381,6 +3670,9 @@ class CLI:
                 s3_bucket=None,
                 s3_prefix=None,
             )
+            zendesk_oauth_token = None
+            if zendesk_oauth_token_env_var:
+                zendesk_oauth_token = os.environ.get(zendesk_oauth_token_env_var)
             snowflake_pat = None
             if snowflake_pat_env_var:
                 logger.debug(
@@ -3643,11 +3935,15 @@ class CLI:
                 azure_tenant_id=azure_tenant_id,
                 azure_client_id=azure_client_id,
                 azure_client_secret=azure_client_secret,
+                azure_access_token=azure_access_token,
                 azure_subscription_id=azure_subscription_id,
+                azure_requested_syncs=azure_requested_syncs,
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
                 microsoft_delegated_auth=microsoft_delegated_auth,
+                microsoft_requested_syncs=microsoft_requested_syncs,
+                microsoft_access_token=microsoft_access_token,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
@@ -3658,6 +3954,7 @@ class CLI:
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
+                notion_config=notion_config,
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
@@ -3694,6 +3991,9 @@ class CLI:
                 statsd_port=statsd_port,
                 pagerduty_api_key=pagerduty_api_key,
                 pagerduty_request_timeout=pagerduty_request_timeout,
+                opsgenie_api_key=opsgenie_api_key,
+                opsgenie_api_url=opsgenie_api_url,
+                opsgenie_request_timeout=opsgenie_request_timeout,
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
@@ -3706,9 +4006,23 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                zoom_sections=zoom_sections,
+                zoom_lookback_days=zoom_lookback_days,
+                zoom_request_limit=zoom_request_limit,
+                zoom_account_id=zoom_account_id,
+                zoom_client_id=zoom_client_id,
+                zoom_client_secret=(
+                    os.environ.get(zoom_client_secret_env_var)
+                    if zoom_client_secret_env_var
+                    else None
+                ),
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
                 socketdev_token=socketdev_token,
+                jira_cloud_id=jira_cloud_id,
+                jira_email=jira_email,
+                jira_api_token=os.environ.get(jira_api_token_env_var),
+                jira_site_url=jira_site_url,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
@@ -3776,6 +4090,8 @@ class CLI:
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
                 bbot_source=bbot_source,
+                zendesk_subdomain=zendesk_subdomain,
+                zendesk_oauth_token=zendesk_oauth_token,
                 snowflake_account=snowflake_account,
                 snowflake_user=snowflake_user,
                 snowflake_pat=snowflake_pat,

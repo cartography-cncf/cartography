@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 from typing import Mapping
 
@@ -21,7 +22,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 APP_NODE_BATCH_SIZE = 100
-APP_RELATIONSHIP_BATCH_SIZE = 500
+APP_RELATIONSHIP_BATCH_SIZE = 5000
 APPINVAGGREGATE_REPORT_NAME = "AppInvAggregate"
 APPINVRAWDATA_REPORT_NAME = "AppInvRawData"
 APPINVAGGREGATE_COLUMNS = [
@@ -109,6 +110,7 @@ def load_detected_app_nodes(
         neo4j_session,
         IntuneDetectedAppSchema(),
         apps,
+        batch_size=APP_NODE_BATCH_SIZE,
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
@@ -117,7 +119,7 @@ def load_detected_app_nodes(
 @timeit
 def load_detected_app_relationships(
     neo4j_session: neo4j.Session,
-    app_relationships: list[dict[str, str]],
+    app_relationships: Iterable[dict[str, str]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -125,6 +127,7 @@ def load_detected_app_relationships(
         neo4j_session,
         IntuneManagedDeviceToDetectedAppMatchLink(),
         app_relationships,
+        batch_size=APP_RELATIONSHIP_BATCH_SIZE,
         lastupdated=update_tag,
         _sub_resource_label="EntraTenant",
         _sub_resource_id=tenant_id,
@@ -155,12 +158,12 @@ def cleanup_detected_app_relationships(
     ).run(neo4j_session)
 
 
-def build_detected_app_export_rows(
-    aggregate_rows: Sequence[Mapping[str, str | None]],
-    raw_rows: Sequence[Mapping[str, str | None]],
-) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+def build_detected_app_nodes(
+    aggregate_rows: Iterable[Mapping[str, str | None]],
+    raw_rows: Iterable[Mapping[str, str | None]],
+) -> list[dict[str, Any]]:
     """
-    Build node and relationship payloads from the Intune discovered-app exports.
+    Build app node payloads from the Intune discovered-app exports.
 
     Intune does not guarantee that AppInvAggregate and AppInvRawData have the same
     keyset. In live tenant data, some apps are present only in aggregate and some
@@ -171,6 +174,9 @@ def build_detected_app_export_rows(
     Aggregate is still the preferred node source because it carries ApplicationId
     and the report-level device count. Raw is used to backfill app nodes that are
     missing from aggregate and to supply a distinct-device fallback count.
+
+    AppInvRawData has one row per (device, app) pair, so device ids are only
+    collected for apps whose count cannot come from aggregate.
     """
     aggregate_apps_by_id: dict[str, dict[str, Any]] = {}
     for row in aggregate_rows:
@@ -179,36 +185,34 @@ def build_detected_app_export_rows(
 
     raw_apps_by_id: dict[str, dict[str, Any]] = {}
     raw_device_ids_by_app_id: dict[str, set[str]] = defaultdict(set)
-    relationships: list[dict[str, str]] = []
-    seen_relationships: set[tuple[str, str]] = set()
     for row in raw_rows:
         relationship = transform_detected_app_relationship(row)
-        pair = (relationship["app_id"], relationship["device_id"])
-        if pair in seen_relationships:
-            continue
-        seen_relationships.add(pair)
-        relationships.append(relationship)
-        raw_device_ids_by_app_id[relationship["app_id"]].add(relationship["device_id"])
-        raw_apps_by_id.setdefault(
-            relationship["app_id"],
-            transform_detected_app_from_raw(row),
-        )
-
-    apps: list[dict[str, Any]] = []
-    for app_id in sorted(aggregate_apps_by_id.keys() | raw_apps_by_id.keys()):
+        app_id = relationship["app_id"]
         aggregate_app = aggregate_apps_by_id.get(app_id)
-        raw_app = raw_apps_by_id.get(app_id)
-        raw_device_count = len(raw_device_ids_by_app_id.get(app_id, ()))
-        apps.append(
-            _merge_detected_app_payloads(
-                app_id,
-                aggregate_app=aggregate_app,
-                raw_app=raw_app,
-                raw_device_count=raw_device_count,
-            ),
-        )
+        if aggregate_app is None or aggregate_app["device_count"] is None:
+            raw_device_ids_by_app_id[app_id].add(relationship["device_id"])
+        if app_id not in raw_apps_by_id:
+            raw_apps_by_id[app_id] = transform_detected_app_from_raw(row)
 
-    return apps, relationships
+    return [
+        _merge_detected_app_payloads(
+            app_id,
+            aggregate_app=aggregate_apps_by_id.get(app_id),
+            raw_app=raw_apps_by_id.get(app_id),
+            raw_device_count=len(raw_device_ids_by_app_id.get(app_id, ())),
+        )
+        for app_id in sorted(aggregate_apps_by_id.keys() | raw_apps_by_id.keys())
+    ]
+
+
+def iter_detected_app_relationships(
+    raw_rows: Iterable[Mapping[str, str | None]],
+) -> Iterator[dict[str, str]]:
+    # Duplicate (device, app) rows are not deduplicated here: the matchlink
+    # MERGE is idempotent, and a seen-set over every pair would hold the whole
+    # report in memory.
+    for row in raw_rows:
+        yield transform_detected_app_relationship(row)
 
 
 def _merge_detected_app_payloads(
@@ -263,81 +267,32 @@ async def sync_detected_apps(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    aggregate_report = await get_detected_app_aggregate_rows(client)
-    _validate_report_columns(
-        aggregate_report.fieldnames,
-        APPINVAGGREGATE_COLUMNS,
-        APPINVAGGREGATE_REPORT_NAME,
-    )
-
-    raw_report = await get_detected_app_raw_rows(client)
-    _validate_report_columns(
-        raw_report.fieldnames,
-        APPINVRAWDATA_COLUMNS,
-        APPINVRAWDATA_REPORT_NAME,
-    )
-
-    apps, relationships = build_detected_app_export_rows(
-        aggregate_report.rows,
-        raw_report.rows,
-    )
-
-    app_relationships_batch: list[dict[str, str]] = []
-    app_nodes_batch: list[dict[str, Any]] = []
-    app_count = 0
-    for app in apps:
-        app_nodes_batch.append(app)
-        if len(app_nodes_batch) >= APP_NODE_BATCH_SIZE:
-            load_detected_app_nodes(
-                neo4j_session,
-                app_nodes_batch,
-                tenant_id,
-                update_tag,
-            )
-            app_count += len(app_nodes_batch)
-            logger.info("sync_detected_apps: loaded %d app nodes so far", app_count)
-            app_nodes_batch.clear()
-
-    if app_nodes_batch:
-        load_detected_app_nodes(
-            neo4j_session,
-            app_nodes_batch,
-            tenant_id,
-            update_tag,
+    with await get_detected_app_aggregate_rows(client) as aggregate_report:
+        _validate_report_columns(
+            aggregate_report.fieldnames,
+            APPINVAGGREGATE_COLUMNS,
+            APPINVAGGREGATE_REPORT_NAME,
         )
-        app_count += len(app_nodes_batch)
+        aggregate_rows = list(aggregate_report.rows)
 
-    relationship_count = 0
-    for relationship in relationships:
-        app_relationships_batch.append(relationship)
-        if len(app_relationships_batch) >= APP_RELATIONSHIP_BATCH_SIZE:
-            load_detected_app_relationships(
-                neo4j_session,
-                app_relationships_batch,
-                tenant_id,
-                update_tag,
-            )
-            relationship_count += len(app_relationships_batch)
-            logger.info(
-                "sync_detected_apps: loaded %d HAS_APP relationships so far",
-                relationship_count,
-            )
-            app_relationships_batch.clear()
-
-    if app_relationships_batch:
+    with await get_detected_app_raw_rows(client) as raw_report:
+        _validate_report_columns(
+            raw_report.fieldnames,
+            APPINVRAWDATA_COLUMNS,
+            APPINVRAWDATA_REPORT_NAME,
+        )
+        # Matchlinks only attach to existing nodes, so every app node, including
+        # raw-only apps, must be loaded before the relationship pass.
+        apps = build_detected_app_nodes(aggregate_rows, raw_report.rows)
+        load_detected_app_nodes(neo4j_session, apps, tenant_id, update_tag)
         load_detected_app_relationships(
             neo4j_session,
-            app_relationships_batch,
+            iter_detected_app_relationships(raw_report.rows),
             tenant_id,
             update_tag,
         )
-        relationship_count += len(app_relationships_batch)
 
-    logger.info(
-        "sync_detected_apps: finished - %d apps and %d HAS_APP relationships",
-        len(apps),
-        relationship_count,
-    )
+    logger.info("sync_detected_apps: finished - %d apps", len(apps))
 
     cleanup_detected_app_nodes(neo4j_session, common_job_parameters)
     cleanup_detected_app_relationships(neo4j_session, common_job_parameters)

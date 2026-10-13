@@ -22,6 +22,7 @@ from cartography.analysis.aws.s3.analysis import AWS_S3ACL_ANALYSIS
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.s3.acl import S3AclSchema
@@ -486,6 +487,7 @@ def _merge_bucket_details(
     bucket_data: Dict,
     s3_details_iter: Generator[Any, Any, Any],
     aws_account_id: str,
+    partition: str,
 ) -> Dict[str, Any]:
     """
     Merge basic bucket data with details (policy, encryption, versioning, etc.)
@@ -511,7 +513,7 @@ def _merge_bucket_details(
         buckets_by_name[bucket["Name"]] = {
             "Name": bucket["Name"],
             "Region": bucket["Region"],
-            "Arn": "arn:aws:s3:::" + bucket["Name"],
+            "Arn": f"arn:{partition}:s3:::" + bucket["Name"],
             "CreationDate": str(bucket["CreationDate"]),
         }
 
@@ -681,6 +683,7 @@ def load_s3_details(
     bucket_data: Dict,
     aws_account_id: str,
     update_tag: int,
+    partition: str,
 ) -> None:
     """
     Merge bucket details with basic bucket data and load using composite schemas.
@@ -689,7 +692,12 @@ def load_s3_details(
     so if a fetch fails for one group, we skip loading that group for this sync.
     """
     # Merge all bucket data into separate lists per property group
-    merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)
+    merged_data = _merge_bucket_details(
+        bucket_data,
+        s3_details_iter,
+        aws_account_id,
+        partition,
+    )
 
     # cleanup existing policy properties set on S3 Buckets
     run_cleanup_job(
@@ -1405,6 +1413,7 @@ def sync(
         bucket_data,
         current_aws_account_id,
         update_tag,
+        get_account_partition(regions, boto3_session.region_name),
     )
     cleanup_s3_buckets(neo4j_session, common_job_parameters)
     cleanup_s3_bucket_acl_and_policy(neo4j_session, common_job_parameters)

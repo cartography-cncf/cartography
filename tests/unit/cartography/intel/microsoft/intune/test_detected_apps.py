@@ -8,8 +8,9 @@ import pytest
 import cartography.intel.microsoft.intune.detected_apps
 from cartography.intel.microsoft.intune.detected_apps import APPINVAGGREGATE_COLUMNS
 from cartography.intel.microsoft.intune.detected_apps import APPINVRAWDATA_COLUMNS
+from cartography.intel.microsoft.intune.detected_apps import build_detected_app_nodes
 from cartography.intel.microsoft.intune.detected_apps import (
-    build_detected_app_export_rows,
+    iter_detected_app_relationships,
 )
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.reports import ExportedReportRows
@@ -17,11 +18,13 @@ from tests.data.microsoft.intune.detected_apps import MOCK_DETECTED_APP_AGGREGAT
 from tests.data.microsoft.intune.detected_apps import MOCK_DETECTED_APP_RAW_ROWS
 
 
-def test_build_detected_app_export_rows_unions_both_reports():
-    apps, relationships = build_detected_app_export_rows(
+def test_build_detected_app_nodes_unions_both_reports():
+    raw_rows = cast(list[dict[str, str | None]], MOCK_DETECTED_APP_RAW_ROWS)
+    apps = build_detected_app_nodes(
         cast(list[dict[str, str | None]], MOCK_DETECTED_APP_AGGREGATE_ROWS),
-        cast(list[dict[str, str | None]], MOCK_DETECTED_APP_RAW_ROWS),
+        raw_rows,
     )
+    relationships = list(iter_detected_app_relationships(raw_rows))
 
     assert apps == [
         {

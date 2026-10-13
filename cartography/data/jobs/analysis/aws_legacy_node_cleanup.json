@@ -1,0 +1,137 @@
+{
+  "name": "AWS legacy node cleanup",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model AccountAccessKey nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:AccountAccessKey) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model AWSCidrBlock:AWSIpv4CidrBlock nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:AWSCidrBlock:AWSIpv4CidrBlock) WHERE size(labels(n)) = 2 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model AWSPolicy nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:AWSPolicy) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model AWSPolicyStatement nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:AWSPolicyStatement) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model EC2PrivateIp nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:EC2PrivateIp) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model EC2Subnet nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:EC2Subnet) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model ECSContainer nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:ECSContainer) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model ECSContainerDefinition nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:ECSContainerDefinition) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model ECSService nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:ECSService) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model ECSTask nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:ECSTask) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model ECSTaskDefinition nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:ECSTaskDefinition) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model ELBV2Listener:Endpoint nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:ELBV2Listener:Endpoint) WHERE size(labels(n)) = 2 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model IpPermissionEgress:IpRule nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:IpPermissionEgress:IpRule) WHERE size(labels(n)) = 2 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model IpPermissionInbound:IpRule nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:IpPermissionInbound:IpRule) WHERE size(labels(n)) = 2 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model IpRange nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:IpRange) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model KMSAlias nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:KMSAlias) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model NameServer nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:NameServer) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model NetworkInterface nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:NetworkInterface) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model S3Acl nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:S3Acl) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Pre-data-model S3PolicyStatement nodes with no account edge, which the label migration cannot reach.",
+      "query": "MATCH (n:S3PolicyStatement) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Principals owned only by an out-of-scope AWSAccount written before load() stamped _module_name. Any account a current sync still references is re-stamped by load(), so these are unreachable.",
+      "query": "MATCH (a:AWSAccount) WHERE a._module_name IS NULL AND coalesce(a.inscope, false) = false AND a.lastupdated <> $UPDATE_TAG AND NOT EXISTS { MATCH (a)--(m) WHERE m._module_name IS NOT NULL } MATCH (a)-[:RESOURCE]->(child:AWSPrincipal) WHERE child._module_name IS NULL AND NOT EXISTS { MATCH (other:AWSAccount)-[:RESOURCE]->(child) WHERE other <> a } WITH child LIMIT $LIMIT_SIZE DETACH DELETE child",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. The out-of-scope AWSAccount stubs themselves.",
+      "query": "MATCH (a:AWSAccount) WHERE a._module_name IS NULL AND coalesce(a.inscope, false) = false AND a.lastupdated <> $UPDATE_TAG AND NOT EXISTS { MATCH (a)--(m) WHERE m._module_name IS NOT NULL } WITH a LIMIT $LIMIT_SIZE DETACH DELETE a",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

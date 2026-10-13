@@ -33,10 +33,13 @@ def get_vertex_ai_locations(
     project_id: str,
 ) -> list[str] | None:
     """
-    Gets all available Vertex AI locations for a project.
+    Gets candidate Vertex AI locations for a project from the service.
 
-    We trust the service's reported location list instead of maintaining a
-    client-side allowlist, which can drift behind newly launched regions.
+    Discovery still trusts locations.list for newly launched regions. Callers
+    then intersect with ``VERTEX_AI_SUPPORTED_LOCATIONS`` via
+    ``filter_locations_to_supported_vertex_locations`` (same shape as AWS
+    ``filter_regions_to_supported_service_regions``), and soft-skip any
+    remaining MethodNotImplemented/404 regional GAPIC failures.
     """
     try:
         req = aiplatform.projects().locations().list(name=f"projects/{project_id}")

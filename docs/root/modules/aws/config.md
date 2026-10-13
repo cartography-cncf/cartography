@@ -81,7 +81,9 @@ management account or a delegated administrator account. Grant
 `organizations:Describe*` and `organizations:List*` permissions. The managed
 `SecurityAudit` policy includes these actions, but member accounts cannot call
 hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and
-`ListOrganizationalUnitsForParent`.
+`ListOrganizationalUnitsForParent`. Service control policy ingestion also calls
+`ListPolicies`, `DescribePolicy`, and `ListTargetsForPolicy`. A delegated
+administrator needs a delegation policy that allows these actions.
 
 ## Optional Permissions
 
@@ -96,6 +98,13 @@ the corresponding data.
 - ECR pull through cache rule ingestion requires
   `ecr:DescribePullThroughCacheRules`.
 - AWS Glue connection ingestion requires `glue:GetConnections`.
+- Confirming the CodeBuild build named by an ECR image's build ID tag requires
+  `codebuild:BatchGetBuilds`, which `SecurityAudit` does not grant. Without it,
+  images are still linked to their source through CodeBuild labels on the image
+  or the same-named CodeBuild project, but no build-confirmed edges are created.
+  When the build lookup is attempted and denied, build-confirmed edges from
+  earlier syncs are left in place. See
+  [Build provenance from CodeBuild](container-images.md#build-provenance-from-codebuild).
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
   `AWSPublicSSMParameter` nodes represent shared regional catalog data and are
@@ -194,6 +203,25 @@ AWS retry environment variables for clients configured by Cartography.
 To avoid `InvalidToken` errors when assuming roles across regions, add
 `sts_regional_endpoints = regional` to the AWS config file or set
 `AWS_STS_REGIONAL_ENDPOINTS=regional`.
+
+### AWS GovCloud (US) and Other Partitions
+
+Cartography supports accounts in AWS GovCloud (US). Set a GovCloud region,
+for example `us-gov-west-1`, on each profile or with `AWS_DEFAULT_REGION`.
+`AWS_DEFAULT_REGION` overrides the profile's region. Without a GovCloud
+region, boto3 sends the account discovery and IAM calls to the commercial
+endpoints, and GovCloud credentials fail there.
+
+When the AWS sync builds an ARN itself, it uses the partition of the regions it
+syncs, for example `aws-us-gov`. These ARNs then match the ARNs that AWS
+returns. All regions in `--aws-regions` must be in one partition, so sync each
+partition in a separate run. `--aws-regions` applies to every account in the
+run, so when you use it with `--aws-sync-all-profiles`, give each partition its
+own AWS config file. Use the GovCloud form of the managed policy ARN, for
+example `arn:aws-us-gov:iam::aws:policy/SecurityAudit`.
+
+CloudFront is not available in AWS GovCloud (US), so Cartography skips the
+`cloudfront` sync for GovCloud accounts.
 
 ## Troubleshooting
 

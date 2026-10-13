@@ -1,5 +1,6 @@
 import logging
 import time
+import weakref
 from functools import partial
 from itertools import chain
 from typing import Any
@@ -724,6 +725,24 @@ def load_graph_data(
     return loaded
 
 
+# Index queries already run on each session. `CREATE INDEX IF NOT EXISTS` is idempotent, but
+# every call is still a schema round trip, and `load()` / `load_matchlinks()` issue them on every
+# call, so a sync that loads one schema per region or account would otherwise repeat them
+# hundreds of times. Keyed weakly by session so the cache goes away with the session.
+_indexes_ensured_by_session: "weakref.WeakKeyDictionary[neo4j.Session, set[str]]" = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _run_index_queries(neo4j_session: neo4j.Session, queries: list[str]) -> None:
+    ensured = _indexes_ensured_by_session.setdefault(neo4j_session, set())
+    for query in queries:
+        if query in ensured:
+            continue
+        _run_index_query_with_retry(neo4j_session, query)
+        ensured.add(query)
+
+
 def ensure_indexes(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
@@ -767,7 +786,7 @@ def ensure_indexes(
             raise ValueError(
                 'Query provided to `ensure_indexes()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        _run_index_query_with_retry(neo4j_session, query)
+    _run_index_queries(neo4j_session, queries)
 
 
 def ensure_indexes_for_matchlinks(
@@ -804,7 +823,7 @@ def ensure_indexes_for_matchlinks(
             raise ValueError(
                 'Query provided to `ensure_indexes_for_matchlinks()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        _run_index_query_with_retry(neo4j_session, query)
+    _run_index_queries(neo4j_session, queries)
 
 
 def load(

@@ -28,6 +28,7 @@ from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
 from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
+from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
@@ -42,6 +43,7 @@ from cartography.util import timeit
 
 from . import ec2
 from . import organizations
+from . import resourcegroupstaggingapi
 from . import ssm as ssm_intel
 from .resources import RESOURCE_FUNCTIONS
 
@@ -282,6 +284,20 @@ def _resolve_aws_ssm_public_parameter_prefix_allowlist(
     if env_value is not None:
         return env_value
     return ""
+
+
+def _get_account_partition(
+    boto3_session: boto3.Session,
+    regions: list[str] | None,
+) -> str:
+    """
+    Return the AWS partition of an account, for example "aws-us-gov" for GovCloud.
+
+    It matches the partition that the account sync uses for synthesized ARNs: the partition of the
+    regions to sync or, when the regions are discovered, of the session's configured region.
+    Without a region, botocore resolves the account's endpoints in "aws".
+    """
+    return get_account_partition(regions or [], boto3_session.region_name)
 
 
 def _get_boto3_session_for_profile(
@@ -628,7 +644,24 @@ def _sync_multiple_accounts(
     use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
-    organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
+    # Each account's root principal ARN must use the partition of its credentials, for example
+    # "aws-us-gov" for GovCloud.
+    account_partitions = {
+        account_id: _get_account_partition(
+            boto3.Session(
+                **({"profile_name": profile_name} if use_explicit_profile else {})
+            ),
+            regions,
+        )
+        for profile_name, account_id in accounts.items()
+    }
+    organizations.sync(
+        neo4j_session,
+        accounts,
+        sync_tag,
+        common_job_parameters,
+        account_partitions,
+    )
     _sync_aws_organizations_for_accounts(
         neo4j_session,
         accounts,
@@ -700,6 +733,15 @@ def _sync_multiple_accounts(
             neo4j_session,
             common_job_parameters,
         )
+        # AWSTag nodes are shared across accounts, so unlinked ones can only be removed once
+        # every account has linked its tags. This is skipped when an account failed in
+        # best-effort mode (the raise above), so tags that account would have linked survive
+        # and any true orphans are removed on the next fully successful sync.
+        if "resourcegroupstaggingapi" in aws_requested_syncs:
+            resourcegroupstaggingapi.cleanup_orphan_tags(
+                neo4j_session,
+                common_job_parameters,
+            )
         return True
     return False
 
@@ -759,6 +801,16 @@ def _perform_aws_analysis(
     run_analysis_and_ensure_deps(
         "aws_ip_node_label_migration.json",
         {"ec2:security_group"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    # DEPRECATED: cleanup for pre-data-model AWS nodes with no sub-resource edge,
+    # which no module's cleanup reaches; remove in v1.0.0 with AWS_LABEL_MIGRATIONS.
+    run_analysis_and_ensure_deps(
+        "aws_legacy_node_cleanup.json",
+        set(),
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,

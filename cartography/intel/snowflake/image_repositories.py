@@ -19,7 +19,10 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake.util import http_error_detail
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import list_schema_objects
+from cartography.intel.snowflake.util import SCHEMA_LISTING_SKIPPABLE_STATUSES
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
 from cartography.intel.snowflake.util import sf_path_segment
@@ -40,20 +43,7 @@ def get_schema_image_repositories(
     schema_name: str,
 ) -> list[dict[str, Any]] | None:
     """Image repositories of one schema, or None when the schema is not readable."""
-    try:
-        return client.list_all(
-            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}"
-            "/image-repositories",
-        )
-    except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
-        logger.warning(
-            "Cannot list image repositories of Snowflake schema %s.%s (permission "
-            "denied); they will be missing from the graph.",
-            database_name,
-            schema_name,
-        )
-        return None
+    return list_schema_objects(client, database_name, schema_name, "image-repositories")
 
 
 @timeit
@@ -70,13 +60,14 @@ def get_repository_images(
             f"/image-repositories/{sf_path_segment(repository_name)}/images",
         )
     except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
+        skip_or_raise_http(error, *SCHEMA_LISTING_SKIPPABLE_STATUSES)
         logger.warning(
-            "Cannot list images of Snowflake image repository %s.%s.%s (permission "
-            "denied); they will be missing from the graph.",
+            "Cannot list images of Snowflake image repository %s.%s.%s (%s); they "
+            "will be missing from the graph.",
             database_name,
             schema_name,
             repository_name,
+            http_error_detail(error),
         )
         return None
 
