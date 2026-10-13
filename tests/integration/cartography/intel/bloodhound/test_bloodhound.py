@@ -414,3 +414,26 @@ def test_empty_file_removes_stale_objects_of_its_type(neo4j_session, tmp_path):
 
     # Assert
     assert check_nodes(neo4j_session, "ADGPO", ["id"]) == set()
+
+
+def test_duplicate_domain_records_are_merged(neo4j_session, tmp_path):
+    # Arrange: a partial record without a name after the full one.
+    data = fixture.collection()
+    data["domains"].append(
+        {
+            **data["domains"][0],
+            "Properties": {"domainsid": fixture.DOMAIN_SID},
+            "Trusts": [],
+        },
+    )
+    archive = fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip", data)
+
+    # Act
+    _sync(neo4j_session, archive)
+
+    # Assert
+    assert (
+        fixture.DOMAIN_SID,
+        fixture.DOMAIN_NAME,
+        "2016",
+    ) in check_nodes(neo4j_session, "ADDomain", ["id", "name", "functionallevel"])

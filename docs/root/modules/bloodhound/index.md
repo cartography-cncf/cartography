@@ -87,6 +87,5 @@ An import never deletes data unless it completes:
 Clean-up also respects what SharpHound collected. Each relationship kind is
 only cleaned up when the collection method that produces it ran (for example,
 `TRUSTED_BY` needs the `Trusts` method) and the import holds every file type
-that declares it (for example, `CONTAINS` needs `domains`, `ous` and
-`containers`). A narrower SharpHound run, or an import missing a file, does not
+that declares it (for example, `GP_LINK` needs `domains` and `ous`). A narrower SharpHound run, or an import missing a file, does not
 delete relationships it did not look for.

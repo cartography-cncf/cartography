@@ -366,6 +366,13 @@ def iter_edges(
         if primary_group:
             yield MEMBER_OF, _edge(oid, primary_group, provenance)
 
+    # Current SharpHound records containment on the child (ContainedBy) and
+    # leaves ChildObjects empty; older output fills ChildObjects instead.
+    parent = obj.get("ContainedBy")
+    if parent is not None:
+        if not isinstance(parent, dict):
+            raise ValueError("ContainedBy must be an object")
+        yield CONTAINS, _edge(object_id(parent), oid, provenance)
     if data_type in (DOMAINS, OUS, CONTAINERS):
         for child_id in _typed_principal_ids(obj.get("ChildObjects"), "ChildObjects"):
             yield CONTAINS, _edge(oid, child_id, provenance)
@@ -474,7 +481,9 @@ def validate_collection(
         if not result.domain_sids:
             empty_files.append(result)
         collection.files.append(validated)
-        collection.domains.update(result.domains)
+        for domain_sid, domain_name in result.domains.items():
+            if domain_name or domain_sid not in collection.domains:
+                collection.domains[domain_sid] = domain_name
         for target_id, target_name in result.trust_targets.items():
             collection.trust_targets.setdefault(target_id, target_name)
         for domain_sid in result.domain_sids:
@@ -607,7 +616,9 @@ def _validate_file(
                 continue
             node = transform_node(data_type, obj, provenance)
             if data_type == DOMAINS:
-                result.domains[node["id"]] = node["name"]
+                result.domains[node["id"]] = node["name"] or result.domains.get(
+                    node["id"],
+                )
                 result.trust_targets.update(trust_targets(obj))
             for _ in iter_edges(data_type, obj, provenance):
                 pass

@@ -399,3 +399,39 @@ def test_validate_collection_rejects_malformed_epoch(tmp_path, value):
     # Act and assert
     with pytest.raises(BloodHoundImportError, match="Malformed users object #1"):
         _validate(archive)
+
+
+def test_iter_edges_derives_contains_from_contained_by():
+    # Arrange: current SharpHound leaves ChildObjects empty.
+    data = fixture.collection()
+    for data_type in ("domains", "ous", "containers"):
+        for obj in data[data_type]:
+            obj["ChildObjects"] = []
+
+    # Act
+    contains = {
+        (row["source_id"], row["target_id"])
+        for data_type, objects in data.items()
+        for obj in objects
+        for kind, row in iter_edges(data_type, obj, PROVENANCE)
+        if kind == "CONTAINS"
+    }
+
+    # Assert
+    assert (fixture.WORKSTATIONS_OU, fixture.WS01_SID) in contains
+    assert (fixture.USERS_CONTAINER, fixture.ALICE_SID) in contains
+    assert (fixture.DOMAIN_SID, fixture.WORKSTATIONS_OU) in contains
+
+
+def test_validate_collection_merges_duplicate_domain_records(tmp_path):
+    # Arrange
+    data = fixture.collection()
+    partial = {**data["domains"][0], "Properties": {"domainsid": fixture.DOMAIN_SID}}
+    data["domains"].append(partial)
+    archive = fixture.write_zip(tmp_path / "a.zip", data)
+
+    # Act
+    collection = _validate(archive)
+
+    # Assert
+    assert collection.domains == {fixture.DOMAIN_SID: fixture.DOMAIN_NAME}
