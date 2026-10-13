@@ -43,14 +43,21 @@ def test_sync_imports_nodes(neo4j_session, tmp_path):
         "RETURN count(n) AS c",
     ).single()["c"]
     assert mismatched == 0
-    assert check_nodes(neo4j_session, "ADUser", ["id", "samaccountname"]) == {
-        (fixture.ALICE_SID, "alice"),
-        (fixture.SVC_SID, "svc_app"),
+    # Principals from the trusted domain are placeholders.
+    assert check_nodes(
+        neo4j_session,
+        "ADUser",
+        ["id", "samaccountname", "collected"],
+    ) == {
+        (fixture.ALICE_SID, "alice", True),
+        (fixture.SVC_SID, "svc_app", True),
+        (fixture.PARTNER_USER_SID, None, False),
     }
-    assert check_nodes(neo4j_session, "ADGroup", ["id"]) == {
-        (fixture.DOMAIN_USERS_SID,),
-        (fixture.DOMAIN_COMPUTERS_SID,),
-        (fixture.HELPDESK_SID,),
+    assert check_nodes(neo4j_session, "ADGroup", ["id", "collected"]) == {
+        (fixture.DOMAIN_USERS_SID, True),
+        (fixture.DOMAIN_COMPUTERS_SID, True),
+        (fixture.HELPDESK_SID, True),
+        (fixture.PARTNER_ADMINS_SID, False),
     }
     assert check_nodes(neo4j_session, "ADComputer", ["id", "hostname"]) == {
         (fixture.WS01_SID, "WS01"),
@@ -236,6 +243,7 @@ def test_failed_import_keeps_previous_graph(neo4j_session, tmp_path):
     assert check_nodes(neo4j_session, "ADUser", ["id", "lastupdated"]) == {
         (fixture.ALICE_SID, TEST_UPDATE_TAG),
         (fixture.SVC_SID, TEST_UPDATE_TAG),
+        (fixture.PARTNER_USER_SID, TEST_UPDATE_TAG),
     }
     assert check_nodes(neo4j_session, "ADGroup", ["lastupdated"]) == {
         (TEST_UPDATE_TAG,),
@@ -363,6 +371,7 @@ def test_sync_reads_archives_from_object_store(neo4j_session, tmp_path):
     assert check_nodes(neo4j_session, "ADUser", ["id", "source_uri"]) == {
         (fixture.ALICE_SID, f"{ref.uri}!20261012143015_users.json"),
         (fixture.SVC_SID, f"{ref.uri}!20261012143015_users.json"),
+        (fixture.PARTNER_USER_SID, None),
     }
 
 

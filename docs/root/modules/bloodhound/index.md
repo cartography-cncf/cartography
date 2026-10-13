@@ -68,10 +68,32 @@ conventions, so BloodHound queries translate mechanically:
 | `GPLink` | `(:ADGPO)-[:GP_LINK]->(:ADObject)` |
 | `SameForestTrust` | `(:ADDomain)-[:SAME_FOREST_TRUST]->(:ADDomain)` |
 | `CrossForestTrust` | `(:ADDomain)-[:CROSS_FOREST_TRUST]->(:ADDomain)` |
+| `GenericAll` | `(:ADObject)-[:GENERIC_ALL]->(:ADObject)` |
+| `GenericWrite` | `(:ADObject)-[:GENERIC_WRITE]->(:ADObject)` |
+| `WriteDacl` | `(:ADObject)-[:WRITE_DACL]->(:ADObject)` |
+| `WriteOwner` | `(:ADObject)-[:WRITE_OWNER]->(:ADObject)` |
+| `Owns` | `(:ADObject)-[:OWNS]->(:ADObject)` |
+| `ForceChangePassword` | `(:ADObject)-[:FORCE_CHANGE_PASSWORD]->(:ADObject)` |
+| `AddMember` | `(:ADObject)-[:ADD_MEMBER]->(:ADObject)` |
+| `AllExtendedRights` | `(:ADObject)-[:ALL_EXTENDED_RIGHTS]->(:ADObject)` |
+| `AddKeyCredentialLink` | `(:ADObject)-[:ADD_KEY_CREDENTIAL_LINK]->(:ADObject)` |
+| `ReadLAPSPassword` | `(:ADObject)-[:READ_LAPS_PASSWORD]->(:ADObject)` |
+| `ReadGMSAPassword` | `(:ADObject)-[:READ_GMSA_PASSWORD]->(:ADObject)` |
+| `AddSelf` | `(:ADObject)-[:ADD_SELF]->(:ADObject)` |
+| `WriteSPN` | `(:ADObject)-[:WRITE_SPN]->(:ADObject)` |
+| `DCSync` | `(:ADObject)-[:DC_SYNC]->(:ADDomain)` |
+| `AdminTo` | `(:ADObject)-[:ADMIN_TO]->(:ADComputer)` |
+| `CanRDP` | `(:ADObject)-[:CAN_RDP]->(:ADComputer)` |
+| `CanPSRemote` | `(:ADObject)-[:CAN_PS_REMOTE]->(:ADComputer)` |
+| `HasSession` | `(:ADComputer)-[:HAS_SESSION]->(:ADUser)` |
+| `AllowedToDelegate` | `(:ADObject)-[:ALLOWED_TO_DELEGATE]->(:ADObject)` |
+| `AllowedToAct` | `(:ADObject)-[:ALLOWED_TO_ACT]->(:ADComputer)` |
+| `HasSIDHistory` | `(:ADObject)-[:HAS_SID_HISTORY]->(:ADObject)` |
 
-This release imports the edges above. ACL, host-access and delegation edges
-are not imported yet. Cartography does not compute BloodHound CE's Tier Zero
-tags (`system_tags`, `highvalue`).
+Other BloodHound edges, including certificate services (ADCS), `ExecuteDCOM`,
+`SQLAdmin` and edges BloodHound CE only computes in post-processing such as
+`CoerceToTGT`, are not imported. Cartography does not compute BloodHound CE's
+Tier Zero tags (`system_tags`, `highvalue`).
 
 Example queries, BloodHound first, then Cartography:
 
@@ -105,6 +127,44 @@ MATCH p = (:GPO {name: $gpo})-[:GPLink]->()-[:Contains*1..]->(:Computer) RETURN 
 MATCH p = (:ADGPO {name: $gpo})-[:GP_LINK]->()-[:CONTAINS*1..]->(:ADComputer) RETURN p
 ```
 
+Shortest attack paths from enabled users to Domain Admins:
+
+```cypher
+MATCH p = shortestPath((u:User {enabled: true})-[:MemberOf|AdminTo|HasSession|GenericAll|GenericWrite|WriteDacl|WriteOwner|Owns|ForceChangePassword|AddMember|AllExtendedRights*1..]->(g:Group))
+WHERE g.objectid ENDS WITH '-512'
+RETURN p
+```
+
+```cypher
+MATCH p = shortestPath((u:ADUser {enabled: true})-[:MEMBER_OF|ADMIN_TO|HAS_SESSION|GENERIC_ALL|GENERIC_WRITE|WRITE_DACL|WRITE_OWNER|OWNS|FORCE_CHANGE_PASSWORD|ADD_MEMBER|ALL_EXTENDED_RIGHTS*1..]->(g:ADGroup))
+WHERE g.objectid ENDS WITH '-512'
+RETURN p
+```
+
+Principals that can DCSync, directly or through group membership:
+
+```cypher
+MATCH p = (n)-[:MemberOf*0..]->()-[:DCSync]->(d:Domain) RETURN p
+```
+
+```cypher
+MATCH p = (n:ADObject)-[:MEMBER_OF*0..]->()-[:DC_SYNC]->(d:ADDomain) RETURN p
+```
+
+Computers where Domain Admins have sessions:
+
+```cypher
+MATCH p = (c:Computer)-[:HasSession]->(u:User)-[:MemberOf*1..]->(g:Group)
+WHERE g.objectid ENDS WITH '-512'
+RETURN p
+```
+
+```cypher
+MATCH p = (c:ADComputer)-[:HAS_SESSION]->(u:ADUser)-[:MEMBER_OF*1..]->(g:ADGroup)
+WHERE g.objectid ENDS WITH '-512'
+RETURN p
+```
+
 Domain trusts:
 
 ```cypher
@@ -130,11 +190,52 @@ WHERE u.pwdlastset < datetime() - duration('P365D')
 RETURN u
 ```
 
+### Permission edges
+
+Permission edges come from the access control entries (ACEs) SharpHound
+collects on every object. Each carries `is_inherited`, which is true only when
+every ACE granting the right was inherited from a parent container. Rights the
+module does not import are counted in the sync log. An object's rights over
+itself and ACEs granted to `OWNER RIGHTS` (`S-1-3-4`) produce no edge.
+
+`OWNS` and `WRITE_OWNER` are imported as collected. BloodHound CE later drops
+some of them in post-processing, when the domain enforces
+`BlockOwnerImplicitRights` or `OWNER RIGHTS` ACEs limit what the owner can do;
+Cartography does not.
+
+`DC_SYNC` is derived when one principal holds both `GetChanges` and
+`GetChangesAll` on the domain object. BloodHound CE also counts principals that
+hold the two rights through different groups; Cartography only derives the
+edge for a principal holding both, so follow `MEMBER_OF` to find its members.
+
+### Host access edges
+
+`ADMIN_TO`, `CAN_RDP` and `CAN_PS_REMOTE` come from the members of a computer's
+local Administrators (RID 544), Remote Desktop Users (RID 555) and Remote
+Management Users (RID 580) groups, as SharpHound read them from the computer
+and as group policy assigns them to the computers it applies to. Local accounts
+have no AD object and are skipped. When SharpHound collected the computer's user
+rights, `CAN_RDP` also requires the remote interactive logon right, either held
+by the Remote Desktop Users group or by the member itself.
+
+`HAS_SESSION` merges the session, privileged session and registry session
+lists. Standalone `sessions` files are not imported.
+
+### Placeholders
+
+Edges often reference principals outside the import, for example a group from
+a trusted domain named in an ACE. When SharpHound records the principal as a
+user, group or computer, Cartography creates a placeholder `ADUser`, `ADGroup`
+or `ADComputer` with `collected` set to `false`, keyed by the principal's SID,
+as BloodHound CE does. Placeholders have no `RESOURCE` relationship and no
+provenance. Importing the principal's own domain later fills in the same node
+and sets `collected` to `true`, and a placeholder is removed once no
+relationship references it.
+
 ## Provenance
 
 Every node and relationship read from collector output records where it came
-from. Placeholder domains created for trust targets have none of these
-properties.
+from. Placeholder domains and principals have none of these properties.
 
 - `source_uri`: the file it was read from. For a zip archive this is
   `<archive URI>!<member name>`.
@@ -161,4 +262,11 @@ Clean-up also respects what SharpHound collected. Each relationship kind is
 only cleaned up when the collection method that produces it ran (for example,
 the trust relationships need the `Trusts` method) and the import holds every file type
 that declares it (for example, `GP_LINK` needs `domains` and `ous`). A narrower SharpHound run, or an import missing a file, does not
-delete relationships it did not look for.
+delete relationships it did not look for. Permission edges need the `ACL`
+method; local group edges need `LocalAdmin`, `RDP` or `PSRemote`, or
+`GPOLocalGroup`; `HAS_SESSION` needs `Session` or `LoggedOn`; delegation and
+SID history edges need `ObjectProps`.
+
+SharpHound cannot reach every computer. When a computer's output holds no
+local group or session data, its existing host access edges of that kind are
+kept rather than removed.

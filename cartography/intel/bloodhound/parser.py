@@ -11,6 +11,8 @@ import enum
 import logging
 import zipfile
 import zlib
+from collections import Counter
+from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -44,6 +46,69 @@ CONTAINS = "CONTAINS"
 GP_LINK = "GP_LINK"
 SAME_FOREST_TRUST = "SAME_FOREST_TRUST"
 CROSS_FOREST_TRUST = "CROSS_FOREST_TRUST"
+
+GENERIC_ALL = "GENERIC_ALL"
+GENERIC_WRITE = "GENERIC_WRITE"
+WRITE_DACL = "WRITE_DACL"
+WRITE_OWNER = "WRITE_OWNER"
+OWNS = "OWNS"
+FORCE_CHANGE_PASSWORD = "FORCE_CHANGE_PASSWORD"
+ADD_MEMBER = "ADD_MEMBER"
+ALL_EXTENDED_RIGHTS = "ALL_EXTENDED_RIGHTS"
+ADD_KEY_CREDENTIAL_LINK = "ADD_KEY_CREDENTIAL_LINK"
+READ_LAPS_PASSWORD = "READ_LAPS_PASSWORD"
+READ_GMSA_PASSWORD = "READ_GMSA_PASSWORD"
+ADD_SELF = "ADD_SELF"
+WRITE_SPN = "WRITE_SPN"
+DC_SYNC = "DC_SYNC"
+ADMIN_TO = "ADMIN_TO"
+CAN_RDP = "CAN_RDP"
+CAN_PS_REMOTE = "CAN_PS_REMOTE"
+HAS_SESSION = "HAS_SESSION"
+ALLOWED_TO_DELEGATE = "ALLOWED_TO_DELEGATE"
+ALLOWED_TO_ACT = "ALLOWED_TO_ACT"
+HAS_SID_HISTORY = "HAS_SID_HISTORY"
+
+# ACE right name -> relationship. Rights not listed here are counted and logged.
+ACL_RIGHTS: dict[str, str] = {
+    "GenericAll": GENERIC_ALL,
+    "GenericWrite": GENERIC_WRITE,
+    "WriteDacl": WRITE_DACL,
+    "WriteOwner": WRITE_OWNER,
+    "Owns": OWNS,
+    "ForceChangePassword": FORCE_CHANGE_PASSWORD,
+    "AddMember": ADD_MEMBER,
+    "AllExtendedRights": ALL_EXTENDED_RIGHTS,
+    "AddKeyCredentialLink": ADD_KEY_CREDENTIAL_LINK,
+    "ReadLAPSPassword": READ_LAPS_PASSWORD,
+    "ReadGMSAPassword": READ_GMSA_PASSWORD,
+    "AddSelf": ADD_SELF,
+    "WriteSPN": WRITE_SPN,
+}
+# A principal holding both replication rights on a domain can DCSync it.
+_DCSYNC_RIGHTS = frozenset({"GetChanges", "GetChangesAll"})
+# OWNER RIGHTS stands for whoever owns the object; it is not a principal.
+_OWNER_RIGHTS_SID = "S-1-3-4"
+
+# Local group RID -> relationship to the computer that holds the group.
+_LOCAL_GROUP_EDGES = {"544": ADMIN_TO, "555": CAN_RDP, "580": CAN_PS_REMOTE}
+_GPO_LOCAL_GROUP_EDGES = {
+    "LocalAdmins": ADMIN_TO,
+    "RemoteDesktopUsers": CAN_RDP,
+    "PSRemoteUsers": CAN_PS_REMOTE,
+}
+_RDP_LOGON_RIGHT = "SeRemoteInteractiveLogonRight"
+_SESSION_LISTS = ("Sessions", "PrivilegedSessions", "RegistrySessions")
+# Accounts local to one computer, which have no AD object.
+_LOCAL_PRINCIPAL_TYPES = frozenset({"LocalUser", "LocalGroup"})
+
+# BloodHound object type -> label of the placeholder created for a principal
+# that an edge references but the import does not contain.
+PLACEHOLDER_LABELS: dict[str, str] = {
+    "User": "ADUser",
+    "Group": "ADGroup",
+    "Computer": "ADComputer",
+}
 
 _BOM = b"\xef\xbb\xbf"
 _READ_ERRORS = (
@@ -174,6 +239,13 @@ class ValidatedCollection:
     collected_types: set[tuple[str, str]] = field(default_factory=set)
     # Domain SID -> OR of meta.methods over the files holding its objects.
     domain_methods: dict[str, int] = field(default_factory=dict)
+    # Principal ID -> placeholder label, for every principal an edge references.
+    referenced_principals: dict[str, str] = field(default_factory=dict)
+    # (edge kind, domain SID) -> computers whose host data for that edge kind
+    # was not collected, so their existing edges are kept.
+    uncollected_hosts: dict[tuple[str, str], set[str]] = field(
+        default_factory=lambda: defaultdict(set),
+    )
 
     def files_of(self, *data_types: str) -> list[ValidatedFile]:
         return [f for f in self.files if f.data_type in data_types]
@@ -350,9 +422,9 @@ def transform_node(
         value = props.get(name)
         node[name] = _epoch_to_datetime(value) if name in _EPOCH_PROPERTIES else value
 
+    node["collected"] = True
     if data_type == DOMAINS:
         node["forest_root_id"] = _upper(obj.get("ForestRootIdentifier"))
-        node["collected"] = True
     elif data_type in (USERS, COMPUTERS):
         node["primarygroupsid"] = _upper(obj.get("PrimaryGroupSID"))
         if not node["sidhistory"]:
@@ -388,18 +460,24 @@ def iter_edges(
     data_type: str,
     obj: dict[str, Any],
     provenance: Provenance,
+    skipped_rights: Counter[str] | None = None,
 ) -> Iterator[tuple[str, dict[str, Any]]]:
-    """Yield ``(edge kind, row)`` for every relationship declared by one object."""
+    """Yield ``(edge kind, row)`` for every relationship declared by one object.
+
+    A row's ``source_type`` or ``target_type`` holds the BloodHound object type
+    of an endpoint other than the object itself, when the output records it.
+    ACE rights that map to no relationship are counted in ``skipped_rights``.
+    """
     oid = object_id(obj)
 
     if data_type == GROUPS:
-        for member_id in _typed_principal_ids(obj.get("Members"), "Members"):
-            yield MEMBER_OF, _edge(member_id, oid, provenance)
+        for member_id, member_type in _typed_principals(obj.get("Members"), "Members"):
+            yield MEMBER_OF, _edge(member_id, oid, provenance, source_type=member_type)
 
     if data_type in (USERS, COMPUTERS):
         primary_group = _upper(obj.get("PrimaryGroupSID"))
         if primary_group:
-            yield MEMBER_OF, _edge(oid, primary_group, provenance)
+            yield MEMBER_OF, _edge(oid, primary_group, provenance, target_type="Group")
 
     # Current SharpHound records containment on the child (ContainedBy) and
     # leaves ChildObjects empty; older output fills ChildObjects instead.
@@ -407,10 +485,18 @@ def iter_edges(
     if parent is not None:
         if not isinstance(parent, dict):
             raise ValueError("ContainedBy must be an object")
-        yield CONTAINS, _edge(object_id(parent), oid, provenance)
+        yield CONTAINS, _edge(
+            object_id(parent),
+            oid,
+            provenance,
+            source_type=parent.get("ObjectType"),
+        )
     if data_type in (DOMAINS, OUS, CONTAINERS):
-        for child_id in _typed_principal_ids(obj.get("ChildObjects"), "ChildObjects"):
-            yield CONTAINS, _edge(oid, child_id, provenance)
+        for child_id, child_type in _typed_principals(
+            obj.get("ChildObjects"),
+            "ChildObjects",
+        ):
+            yield CONTAINS, _edge(oid, child_id, provenance, target_type=child_type)
 
     if data_type in (DOMAINS, OUS):
         for link in obj.get("Links") or []:
@@ -422,10 +508,257 @@ def iter_edges(
                     provenance,
                     enforced=bool(link.get("IsEnforced")),
                 )
+        yield from _gpo_local_group_edges(obj, provenance)
 
     if data_type == DOMAINS:
         for trust in obj.get("Trusts") or []:
             yield from _trust_edges(oid, trust, provenance)
+
+    yield from _ace_edges(data_type, oid, obj, provenance, skipped_rights)
+
+    if data_type in (USERS, COMPUTERS):
+        for target_id, target_type in _typed_principals(
+            obj.get("AllowedToDelegate"),
+            "AllowedToDelegate",
+        ):
+            yield ALLOWED_TO_DELEGATE, _edge(
+                oid,
+                target_id,
+                provenance,
+                target_type=target_type,
+            )
+        for target_id, target_type in _typed_principals(
+            obj.get("HasSIDHistory"),
+            "HasSIDHistory",
+        ):
+            yield HAS_SID_HISTORY, _edge(
+                oid,
+                target_id,
+                provenance,
+                target_type=target_type,
+            )
+
+    if data_type == COMPUTERS:
+        for actor_id, actor_type in _typed_principals(
+            obj.get("AllowedToAct"),
+            "AllowedToAct",
+        ):
+            yield ALLOWED_TO_ACT, _edge(
+                actor_id, oid, provenance, source_type=actor_type
+            )
+        yield from _local_group_edges(oid, obj, provenance)
+        yield from _session_edges(oid, obj, provenance)
+
+
+def _typed_principals(value: Any, field_name: str) -> list[tuple[str, str | None]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list")
+    return [(object_id(item), item.get("ObjectType")) for item in value]
+
+
+def _is_owner_rights(principal_id: str) -> bool:
+    return principal_id == _OWNER_RIGHTS_SID or principal_id.endswith(
+        f"-{_OWNER_RIGHTS_SID}",
+    )
+
+
+def _ace_edges(
+    data_type: str,
+    oid: str,
+    obj: dict[str, Any],
+    provenance: Provenance,
+    skipped_rights: Counter[str] | None,
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    aces = obj.get("Aces")
+    if aces is None:
+        return
+    if not isinstance(aces, list):
+        raise ValueError("Aces must be a list")
+    # (kind, principal) -> whether every ACE granting it is inherited, so a
+    # right granted both directly and by inheritance reads as direct.
+    granted: dict[tuple[str, str], bool] = {}
+    principal_types: dict[str, str | None] = {}
+    replication: dict[str, set[str]] = defaultdict(set)
+    for ace in aces:
+        principal_id = _upper(ace["PrincipalSID"])
+        right = ace["RightName"]
+        # SharpHound lists an object's rights over itself and rights held by
+        # OWNER RIGHTS; neither grants another principal anything.
+        if (
+            principal_id is None
+            or principal_id == oid
+            or _is_owner_rights(principal_id)
+        ):
+            continue
+        principal_types.setdefault(principal_id, ace.get("PrincipalType"))
+        kind = ACL_RIGHTS.get(right)
+        if kind is not None:
+            inherited = bool(ace.get("IsInherited"))
+            key = (kind, principal_id)
+            granted[key] = granted.get(key, True) and inherited
+        elif data_type == DOMAINS and right in _DCSYNC_RIGHTS:
+            replication[principal_id].add(right)
+        elif skipped_rights is not None:
+            skipped_rights[str(right)] += 1
+    for (kind, principal_id), inherited in granted.items():
+        yield kind, _edge(
+            principal_id,
+            oid,
+            provenance,
+            is_inherited=inherited,
+            source_type=principal_types[principal_id],
+        )
+    for principal_id, rights in replication.items():
+        if rights == _DCSYNC_RIGHTS:
+            yield DC_SYNC, _edge(
+                principal_id,
+                oid,
+                provenance,
+                source_type=principal_types[principal_id],
+            )
+
+
+def _local_group_members(obj: dict[str, Any]) -> dict[str, dict[str, str | None]]:
+    """Edge kind -> {principal ID: type} for the collected local groups of a computer."""
+    members: dict[str, dict[str, str | None]] = {}
+    for group in obj.get("LocalGroups") or []:
+        if not group.get("Collected"):
+            continue
+        rid = object_id(group).rsplit("-", 1)[-1]
+        kind = _LOCAL_GROUP_EDGES.get(rid)
+        if kind is None:
+            continue
+        principals = members.setdefault(kind, {})
+        for member_id, member_type in _typed_principals(
+            group.get("Results"), "Results"
+        ):
+            if member_type not in _LOCAL_PRINCIPAL_TYPES:
+                principals[member_id] = member_type
+    return members
+
+
+def _rdp_logon_grantees(obj: dict[str, Any]) -> set[str] | None:
+    """Principals granted remote interactive logon, or None when not collected."""
+    for user_right in obj.get("UserRights") or []:
+        if user_right.get("Privilege") == _RDP_LOGON_RIGHT and user_right.get(
+            "Collected",
+        ):
+            return {
+                principal_id
+                for principal_id, _ in _typed_principals(
+                    user_right.get("Results"),
+                    "Results",
+                )
+            }
+    return None
+
+
+def _local_group_edges(
+    oid: str,
+    obj: dict[str, Any],
+    provenance: Provenance,
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    members = _local_group_members(obj)
+    # Membership of Remote Desktop Users only allows RDP when the group also
+    # holds the remote interactive logon right. When user rights were collected
+    # and the group lacks it, only members granted the right directly qualify.
+    grantees = _rdp_logon_grantees(obj)
+    if grantees is not None and f"{oid}-555" not in grantees and CAN_RDP in members:
+        members[CAN_RDP] = {
+            principal_id: principal_type
+            for principal_id, principal_type in members[CAN_RDP].items()
+            if principal_id in grantees
+        }
+    for kind, principals in members.items():
+        for principal_id, principal_type in principals.items():
+            yield kind, _edge(principal_id, oid, provenance, source_type=principal_type)
+
+
+def _gpo_local_group_edges(
+    obj: dict[str, Any],
+    provenance: Provenance,
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    """Local group membership that GPOs linked to a domain or OU push to computers."""
+    changes = obj.get("GPOChanges")
+    if not changes:
+        return
+    if not isinstance(changes, dict):
+        raise ValueError("GPOChanges must be an object")
+    computers = _typed_principal_ids(
+        changes.get("AffectedComputers"),
+        "AffectedComputers",
+    )
+    for field_name, kind in _GPO_LOCAL_GROUP_EDGES.items():
+        for member_id, member_type in _typed_principals(
+            changes.get(field_name),
+            field_name,
+        ):
+            if member_type in _LOCAL_PRINCIPAL_TYPES:
+                continue
+            for computer_id in computers:
+                yield kind, _edge(
+                    member_id,
+                    computer_id,
+                    provenance,
+                    source_type=member_type,
+                    target_type="Computer",
+                )
+
+
+def _session_edges(
+    oid: str,
+    obj: dict[str, Any],
+    provenance: Provenance,
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    seen: set[tuple[str, str]] = set()
+    for list_name in _SESSION_LISTS:
+        sessions = obj.get(list_name) or {}
+        if not sessions.get("Collected"):
+            continue
+        for session in sessions.get("Results") or []:
+            computer_id = _upper(session.get("ComputerSID")) or oid
+            user_id = _upper(session["UserSID"])
+            if user_id is None or (computer_id, user_id) in seen:
+                continue
+            seen.add((computer_id, user_id))
+            yield HAS_SESSION, _edge(
+                computer_id,
+                user_id,
+                provenance,
+                source_type=None if computer_id == oid else "Computer",
+                target_type="User",
+            )
+
+
+def uncollected_host_edges(obj: dict[str, Any]) -> list[str]:
+    """Host edge kinds a computer's output holds no data for.
+
+    SharpHound cannot reach every computer. Its existing edges of these kinds
+    are kept rather than cleaned up.
+    """
+    collected_rids = {
+        object_id(group).rsplit("-", 1)[-1]
+        for group in obj.get("LocalGroups") or []
+        if group.get("Collected")
+    }
+    kinds = [
+        kind for rid, kind in _LOCAL_GROUP_EDGES.items() if rid not in collected_rids
+    ]
+    if not any((obj.get(name) or {}).get("Collected") for name in _SESSION_LISTS):
+        kinds.append(HAS_SESSION)
+    return kinds
+
+
+def placeholder_domain(principal_id: str) -> dict[str, str | None]:
+    """Domain properties derivable from a principal identifier alone."""
+    if principal_id.startswith("S-1-5-21-") and principal_id.count("-") == 7:
+        return {"domainsid": principal_id.rsplit("-", 1)[0], "domain": None}
+    prefix, sep, _ = principal_id.partition("-S-1-")
+    if sep:
+        return {"domainsid": None, "domain": prefix}
+    return {"domainsid": None, "domain": None}
 
 
 def _trust_edges(
@@ -509,10 +842,11 @@ def validate_collection(
     referenced_domains: dict[str, str] = {}
     unreported_methods: list[str] = []
     empty_files: list[_FileResult] = []
+    skipped_rights: Counter[str] = Counter()
 
     for file in files:
         try:
-            result = _validate_file(file, collected_at)
+            result = _validate_file(file, collected_at, skipped_rights)
         except BloodHoundImportError:
             raise
         except _READ_ERRORS as exc:
@@ -529,6 +863,10 @@ def validate_collection(
         collection.files.append(validated)
         collection.domains.update(result.domains)
         collection.domain_rows.update(result.domain_rows)
+        for principal_id, label in result.referenced_principals.items():
+            collection.referenced_principals.setdefault(principal_id, label)
+        for key, computer_ids in result.uncollected_hosts.items():
+            collection.uncollected_hosts[key].update(computer_ids)
         for target_id, target_name in result.trust_targets.items():
             collection.trust_targets.setdefault(target_id, target_name)
         for domain_sid in result.domain_sids:
@@ -577,6 +915,11 @@ def validate_collection(
                 f"{source} has objects from domain {domain_sid}, which is not in the "
                 "collection's domains data.",
             )
+    if skipped_rights:
+        logger.info(
+            "Skipped BloodHound ACEs with rights this module does not import: %s",
+            ", ".join(f"{right} ({n})" for right, n in skipped_rights.most_common()),
+        )
     if unreported_methods:
         logger.warning(
             "BloodHound files did not report their collection methods; treating them "
@@ -594,11 +937,28 @@ class _FileResult:
     domains: dict[str, str | None] = field(default_factory=dict)
     trust_targets: dict[str, str | None] = field(default_factory=dict)
     domain_rows: dict[str, dict[str, Any]] = field(default_factory=dict)
+    referenced_principals: dict[str, str] = field(default_factory=dict)
+    uncollected_hosts: dict[tuple[str, str], set[str]] = field(
+        default_factory=lambda: defaultdict(set),
+    )
+
+
+def _record_references(
+    result: _FileResult,
+    oid: str,
+    row: dict[str, Any],
+) -> None:
+    for side in ("source", "target"):
+        label = PLACEHOLDER_LABELS.get(row.get(f"{side}_type") or "")
+        principal_id = row[f"{side}_id"]
+        if label is not None and principal_id != oid:
+            result.referenced_principals.setdefault(principal_id, label)
 
 
 def _validate_file(
     file: CollectionFile,
     collected_at_override: str | None,
+    skipped_rights: Counter[str] | None = None,
 ) -> _FileResult | None:
     meta = read_meta(file)
     if not isinstance(meta, dict):
@@ -657,7 +1017,8 @@ def _validate_file(
         try:
             if not isinstance(obj, dict):
                 raise ValueError("data entries must be objects")
-            result.domain_sids.add(object_domain_sid(data_type, obj))
+            domain_sid = object_domain_sid(data_type, obj)
+            result.domain_sids.add(domain_sid)
             if is_deleted(obj):
                 continue
             node = transform_node(data_type, obj, provenance)
@@ -665,8 +1026,12 @@ def _validate_file(
                 merged = merge_domain_row(result.domain_rows, node)
                 result.domains[node["id"]] = merged["name"]
                 result.trust_targets.update(trust_targets(obj))
-            for _ in iter_edges(data_type, obj, provenance):
-                pass
+            oid = node["id"]
+            for _, row in iter_edges(data_type, obj, provenance, skipped_rights):
+                _record_references(result, oid, row)
+            if data_type == COMPUTERS:
+                for kind in uncollected_host_edges(obj):
+                    result.uncollected_hosts[(kind, domain_sid)].add(oid)
         except (KeyError, TypeError, ValueError, AttributeError) as exc:
             raise BloodHoundImportError(
                 f"Malformed {data_type} object #{count} in {file.source_uri}: {exc!r}",

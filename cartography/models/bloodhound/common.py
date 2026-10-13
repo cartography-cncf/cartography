@@ -66,6 +66,14 @@ class ADObjectNodeProperties(CartographyNodeProperties):
         "isaclprotected",
         description="Whether the object's DACL blocks inheritance from its parent.",
     )
+    collected: PropertyRef = PropertyRef(
+        "collected",
+        description=(
+            "True when the object itself was in the imported output. False for a "
+            "placeholder created because an imported object references it: a "
+            "trusted domain, or a principal from outside the import."
+        ),
+    )
     source_uri: PropertyRef = PropertyRef(
         "source_uri",
         description="URI of the collector output file this object was read from.",
