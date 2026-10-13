@@ -387,3 +387,15 @@ def test_transform_node_falls_back_to_typed_sid_history():
 
     # Assert
     assert node["sidhistory"] == [old_sid]
+
+
+@pytest.mark.parametrize("value", ["yesterday", True, 10**15, 1e300])
+def test_validate_collection_rejects_malformed_epoch(tmp_path, value):
+    # Arrange
+    data = fixture.collection()
+    data["users"][0]["Properties"]["pwdlastset"] = value
+    archive = fixture.write_zip(tmp_path / "a.zip", data)
+
+    # Act and assert
+    with pytest.raises(BloodHoundImportError, match="Malformed users object #1"):
+        _validate(archive)

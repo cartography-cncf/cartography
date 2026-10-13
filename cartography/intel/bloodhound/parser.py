@@ -273,17 +273,21 @@ _EPOCH_PROPERTIES = frozenset(
 def _epoch_to_datetime(value: Any) -> datetime.datetime | None:
     """Convert SharpHound's epoch seconds to a UTC datetime.
 
-    SharpHound writes 0 or -1 for "never".
+    SharpHound writes 0 or -1 for "never". Any other value that is not a
+    representable number of seconds raises ValueError, which validation reports
+    as a malformed object.
     """
-    if value is None or isinstance(value, bool):
+    if value is None:
         return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"expected epoch seconds, got {value!r}")
     try:
         seconds = int(value)
-    except (TypeError, ValueError):
-        return None
-    if seconds <= 0:
-        return None
-    return datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+        if seconds <= 0:
+            return None
+        return datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+    except (OverflowError, OSError, ValueError) as exc:
+        raise ValueError(f"epoch seconds out of range: {value!r}") from exc
 
 
 def _optional_int(value: Any) -> int | None:
