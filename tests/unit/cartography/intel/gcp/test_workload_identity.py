@@ -116,11 +116,16 @@ def test_transform_providers_classifies_x509_provider():
 
 
 @pytest.mark.parametrize(
-    "wif_member",
-    wif_data.WIF_BINDING_MEMBERS,
-    ids=["principal", "principalSet"],
+    "wif_members",
+    [
+        [wif_data.WIF_BINDING_MEMBERS[0]],
+        [wif_data.WIF_BINDING_MEMBERS[1]],
+        # Both schemes name the same pool, which must be listed once.
+        wif_data.WIF_BINDING_MEMBERS,
+    ],
+    ids=["principal", "principalSet", "both_deduplicated"],
 )
-def test_transform_bindings_extracts_wif_pools(wif_member):
+def test_transform_bindings_extracts_wif_pools(wif_members):
     """
     The policy binding transformer should extract the pool resource name from
     both ``principal://`` and ``principalSet://`` URIs and skip the per-subject
@@ -141,7 +146,7 @@ def test_transform_bindings_extracts_wif_pools(wif_member):
                                     "role": "roles/iam.workloadIdentityUser",
                                     "members": [
                                         "serviceAccount:sa@example.iam.gserviceaccount.com",
-                                        wif_member,
+                                        *wif_members,
                                     ],
                                 },
                             ],

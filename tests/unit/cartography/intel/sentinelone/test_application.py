@@ -243,6 +243,21 @@ def test_get_application_data(mock_get_paginated_results):
 
 
 @patch("cartography.intel.sentinelone.application.get_paginated_results")
+def test_get_application_data_empty_response(mock_get_paginated_results):
+    """
+    Test that get_application_data handles empty API response
+    """
+    # Mock empty API response
+    mock_get_paginated_results.return_value = []
+
+    # Call function
+    result = get_application_data(TEST_ACCOUNT_ID, TEST_API_URL, TEST_API_TOKEN)
+
+    # Verify return value
+    assert result == []
+
+
+@patch("cartography.intel.sentinelone.application.get_paginated_results")
 def test_get_application_data_site_scope(mock_get_paginated_results):
     mock_get_paginated_results.return_value = APPLICATIONS_DATA[:1]
 
