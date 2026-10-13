@@ -18,7 +18,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class ADEdgeProperties(CartographyRelProperties):
+class ADEdgeMatchLinkProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
@@ -60,7 +60,7 @@ class ADMemberOfMatchLink(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
-    properties: ADEdgeProperties = ADEdgeProperties()
+    properties: ADEdgeMatchLinkProperties = ADEdgeMatchLinkProperties()
 
 
 @dataclass(frozen=True)
@@ -78,11 +78,11 @@ class ADContainsMatchLink(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONTAINS"
-    properties: ADEdgeProperties = ADEdgeProperties()
+    properties: ADEdgeMatchLinkProperties = ADEdgeMatchLinkProperties()
 
 
 @dataclass(frozen=True)
-class ADGPLinkProperties(ADEdgeProperties):
+class ADGPLinkMatchLinkProperties(ADEdgeMatchLinkProperties):
     enforced: PropertyRef = PropertyRef(
         "enforced",
         description="Whether the link is enforced, so OUs that block inheritance still apply it.",
@@ -104,11 +104,11 @@ class ADGPLinkMatchLink(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "GP_LINK"
-    properties: ADGPLinkProperties = ADGPLinkProperties()
+    properties: ADGPLinkMatchLinkProperties = ADGPLinkMatchLinkProperties()
 
 
 @dataclass(frozen=True)
-class ADTrustedByProperties(ADEdgeProperties):
+class ADTrustedByMatchLinkProperties(ADEdgeMatchLinkProperties):
     trust_type: PropertyRef = PropertyRef(
         "trust_type",
         description="Trust type: `ParentChild`, `TreeRoot`, `CrossLink`, `External`, `Forest`, `Kerberos` or `Unknown`.",
@@ -150,4 +150,4 @@ class ADTrustedByMatchLink(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "TRUSTED_BY"
-    properties: ADTrustedByProperties = ADTrustedByProperties()
+    properties: ADTrustedByMatchLinkProperties = ADTrustedByMatchLinkProperties()
