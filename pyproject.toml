@@ -142,6 +142,7 @@ dev = [
     "types-PyYAML>=6.0.0",
     "black>=26.0.0",
     "types-requests>=2.32.0",
+    "pytest-xdist>=3.6.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
