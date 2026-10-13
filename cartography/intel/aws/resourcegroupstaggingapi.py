@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -21,7 +22,7 @@ from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
+from cartography.util import load_resource_binary
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
@@ -295,11 +296,21 @@ def cleanup_orphan_tags(
     link. Callers that run `_sync_one_account()` themselves must call this after
     their account loop.
     """
-    run_cleanup_job(
-        "aws_tag_orphan_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    blob = json.load(
+        load_resource_binary(
+            "cartography.data.jobs.cleanup", "aws_tag_orphan_cleanup.json"
+        )
     )
+    # Large tenants hold many tags, so the sweep honors the same batch setting as
+    # the per-account relationship cleanup.
+    batch_size = common_job_parameters.get(
+        "aws_tagging_api_cleanup_batch", DEFAULT_CLEANUP_BATCH_SIZE
+    )
+    for statement in blob["statements"]:
+        statement["iterationsize"] = batch_size
+    job = GraphJob.from_json(blob, "aws_tag_orphan_cleanup")
+    job.merge_parameters({"UPDATE_TAG": common_job_parameters["UPDATE_TAG"]})
+    job.run(neo4j_session)
 
 
 def _load_resource_type_tags(

@@ -25,7 +25,9 @@ relationships.
 
 A tag on a resource that is not in the graph is still loaded, but it has no
 `TAGGED` relationship. Once every account has synced, a single sweep removes
-every `AWSTag` node that no relationship uses. The sweep is skipped if any
+every `AWSTag` node that no relationship uses, except tags stamped by a newer
+sync running against the same graph. It runs in batches of
+`aws_tagging_api_cleanup_batch`. The sweep is skipped if any
 account fails, so it never removes tags that the failed account would have
 linked. Callers that run `_sync_one_account()` for each account themselves must
 call `cartography.intel.aws.resourcegroupstaggingapi.cleanup_orphan_tags()`

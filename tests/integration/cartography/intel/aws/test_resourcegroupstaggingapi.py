@@ -432,8 +432,8 @@ def test_orphan_sweep_removes_tag_of_resource_missing_from_graph(neo4j_session):
 
 def test_orphan_sweep_keeps_linked_tags(neo4j_session):
     """
-    The sweep ignores lastupdated and must never delete a tag that a relationship
-    uses, including one last written by an earlier sync.
+    The sweep must never delete a tag that a relationship uses, including one last
+    written by an earlier sync.
     """
     # Arrange - account A was last synced at 1, account B syncs at 2
     neo4j_session.run(
@@ -472,6 +472,40 @@ def test_orphan_sweep_keeps_linked_tags(neo4j_session):
         ("i-a", "env:prod"),
         ("i-b", "team:core"),
     }
+
+
+def test_orphan_sweep_batches_and_keeps_tags_of_a_newer_sync(neo4j_session):
+    """
+    The sweep runs in batches of the configured size, and leaves unlinked tags
+    stamped by a newer sync for that sync to link.
+    """
+    # Arrange - two orphans from this sync, one unlinked tag from a newer sync
+    neo4j_session.run(
+        "MATCH (n) WHERE n:AWSTag OR n:AWSEC2Instance DETACH DELETE n",
+    )
+    create_test_account(neo4j_session, ACCOUNT_A, 2)
+    _sync_instance_tags(
+        neo4j_session,
+        ACCOUNT_A,
+        _instance_tagging_response(
+            ACCOUNT_A, "i-missing", [("env", "prod"), ("team", "core")]
+        ),
+        2,
+    )
+    _sync_instance_tags(
+        neo4j_session,
+        ACCOUNT_A,
+        _instance_tagging_response(ACCOUNT_A, "i-later", [("owner", "ops")]),
+        3,
+    )
+
+    # Act
+    rgta.cleanup_orphan_tags(
+        neo4j_session, {"UPDATE_TAG": 2, "aws_tagging_api_cleanup_batch": 1}
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSTag", ["id"]) == {("owner:ops",)}
 
 
 def test_cleanup_removes_stale_relationships_written_before_matchlinks(
