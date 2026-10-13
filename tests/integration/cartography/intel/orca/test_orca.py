@@ -595,6 +595,39 @@ def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
     }
 
 
+def test_sync_with_only_terminal_alerts_is_complete_and_cleans_up(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    state, _ = _patch_orca_api(mocker)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    terminal_alerts = deepcopy(ALERTS)
+    terminal_alerts[0]["data"]["Status"] = {"value": "CLOSE"}
+    terminal_alerts[1]["data"]["Status"] = {"value": "dismiss"}
+    state["Alert"] = terminal_alerts
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
+    metadata = neo4j_session.run(
+        """
+        MATCH (n:ModuleSyncMetadata {id: $id})
+        RETURN n.lastupdated AS lastupdated
+        """,
+        id=_sync_metadata_id(ORGANIZATION_ID),
+    ).single()
+    assert metadata["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
 def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
     neo4j_session,
     mocker,
