@@ -93,6 +93,32 @@ def test_transform_single_assume_role_event():
     assert assumption["last_used"] == "2024-01-15T10:30:15.123000"
 
 
+def test_transform_assume_role_event_keeps_govcloud_partition():
+    """An assumed-role source ARN is normalized to its role ARN without leaving its partition."""
+    # Arrange
+    events = [
+        {
+            "EventName": "AssumeRole",
+            "EventTime": "2024-01-15T10:30:15.123000",
+            "EventId": "test-event-id-gov",
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws-us-gov:sts::111122223333:assumed-role/ExampleRole/example-session"}, "requestParameters": {"roleArn": "arn:aws-us-gov:iam::444455556666:role/ExampleTargetRole"}}',
+        },
+    ]
+
+    # Act
+    result = transform_assume_role_events_to_role_assumptions(events=events)
+
+    # Assert
+    assert [
+        (r["source_principal_arn"], r["destination_principal_arn"]) for r in result
+    ] == [
+        (
+            "arn:aws-us-gov:iam::111122223333:role/ExampleRole",
+            "arn:aws-us-gov:iam::444455556666:role/ExampleTargetRole",
+        ),
+    ]
+
+
 def test_transform_single_saml_role_event():
     """Test that a single AssumeRoleWithSAML event is correctly transformed."""
     # Arrange

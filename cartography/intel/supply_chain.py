@@ -1089,21 +1089,34 @@ def get_unmatched_gcp_images_with_history(
              coalesce(direct_repo, parent_repo) AS gcpRepo
         WHERE repo_img IS NOT NULL
         WITH coalesce(gcpRepo.id, img.id) AS group_key, img, repo_img
-        ORDER BY
-            CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
-            repo_img.upload_time DESC
-        WITH group_key, collect({img: img, repo_img: repo_img})[0] AS selected
-        WITH selected.img AS img, selected.repo_img AS repo_img
-        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
-        WITH img, repo_img, img.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH img, repo_img, idx, {
-            diff_id: diff_id,
-            history: layer.history,
-            is_empty: false
-        } AS layer_info
-        ORDER BY idx
-        WITH img, repo_img, collect(layer_info) AS layer_history
+        // Retain one candidate per repository; DESC timestamps put nulls first.
+        WITH group_key, max([
+            CASE WHEN repo_img.tag = 'latest' THEN 1 ELSE 0 END,
+            repo_img.upload_time IS NULL,
+            repo_img.upload_time,
+            img, repo_img
+        ]) AS selected
+        WITH selected[3] AS img, selected[4] AS repo_img
+    """
+
+    if limit is not None:
+        query += f"        ORDER BY coalesce(repo_img.uri, img.digest)\n        LIMIT {int(limit)}\n"
+
+    query += """
+        // Aggregate one image at a time, including when no limit is set.
+        CALL {
+            WITH img
+            UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+            WITH img.layer_diff_ids[idx] AS diff_id, idx
+            OPTIONAL MATCH (layer:ImageLayer {id: diff_id})
+            WITH idx, {
+                diff_id: diff_id,
+                history: layer.history,
+                is_empty: false
+            } AS layer_info
+            ORDER BY idx
+            RETURN collect(layer_info) AS layer_history
+        }
         RETURN
             img.digest AS digest,
             repo_img.uri AS uri,
@@ -1112,9 +1125,6 @@ def get_unmatched_gcp_images_with_history(
             img.layer_diff_ids AS layer_diff_ids,
             layer_history
     """
-
-    if limit is not None:
-        query += f" LIMIT {int(limit)}"
 
     result = neo4j_session.run(
         query,
@@ -1187,21 +1197,34 @@ def get_unmatched_scaleway_images_with_history(
         // Group per repository (namespace + image name) so neither sibling
         // images in a namespace nor same-named images across namespaces collapse.
         WITH coalesce(ns.id + '/' + t.image_name, img.digest) AS group_key, img, t
-        ORDER BY
-            CASE WHEN t.name = 'latest' THEN 0 ELSE 1 END,
-            t.updated_at DESC
-        WITH group_key, collect({img: img, t: t})[0] AS selected
-        WITH selected.img AS img, selected.t AS t
-        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
-        WITH img, t, img.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH img, t, idx, {
-            diff_id: diff_id,
-            history: layer.history,
-            is_empty: layer.is_empty
-        } AS layer_info
-        ORDER BY idx
-        WITH img, t, collect(layer_info) AS layer_history
+        // Retain one candidate per repository; DESC timestamps put nulls first.
+        WITH group_key, max([
+            CASE WHEN t.name = 'latest' THEN 1 ELSE 0 END,
+            t.updated_at IS NULL,
+            t.updated_at,
+            img, t
+        ]) AS selected
+        WITH selected[3] AS img, selected[4] AS t
+    """
+
+    if limit is not None:
+        query += f"        ORDER BY coalesce(t.uri, img.digest)\n        LIMIT {int(limit)}\n"
+
+    query += """
+        // Aggregate one image at a time, including when no limit is set.
+        CALL {
+            WITH img
+            UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+            WITH img.layer_diff_ids[idx] AS diff_id, idx
+            OPTIONAL MATCH (layer:ImageLayer {id: diff_id})
+            WITH idx, {
+                diff_id: diff_id,
+                history: layer.history,
+                is_empty: layer.is_empty
+            } AS layer_info
+            ORDER BY idx
+            RETURN collect(layer_info) AS layer_history
+        }
         RETURN
             img.digest AS digest,
             t.uri AS uri,
@@ -1209,9 +1232,6 @@ def get_unmatched_scaleway_images_with_history(
             img.layer_diff_ids AS layer_diff_ids,
             layer_history
     """
-
-    if limit is not None:
-        query += f" LIMIT {int(limit)}"
 
     result = neo4j_session.run(
         query,

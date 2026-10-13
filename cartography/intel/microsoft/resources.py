@@ -1,0 +1,17 @@
+# Microsoft resource names for selective sync.
+# These are the valid values for --microsoft-requested-syncs. Entra datasets can
+# be selected one at a time; Intune, O365, and Defender run as whole units. The
+# Entra tenant always syncs, because every other Microsoft node hangs off it.
+# Defender also requires the --microsoft-defender opt-in.
+ENTRA_RESOURCES: list[str] = [
+    "users",
+    "groups",
+    "administrative_units",
+    "applications",
+    "service_principals",
+    "app_role_assignments",
+    "directory_roles",
+    "federation",
+]
+
+RESOURCE_FUNCTIONS: list[str] = [*ENTRA_RESOURCES, "intune", "o365", "defender"]

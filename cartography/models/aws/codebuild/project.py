@@ -42,6 +42,14 @@ class CodeBuildProjectNodeProperties(CartographyNodeProperties):
         "sourceLocation",
         description="Information about the location of the source code to be built",
     )
+    source_provider: PropertyRef = PropertyRef(
+        "sourceProvider",
+        description="Code host of the source repository: `github` or `gitlab`. Null for other source types.",
+    )
+    source_repo_url: PropertyRef = PropertyRef(
+        "sourceRepoUrl",
+        description="Canonical HTTPS URL of the source repository, normalized from `source_location`. Null for other source types.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

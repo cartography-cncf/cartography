@@ -1,0 +1,31 @@
+# Azure resource names for selective sync.
+# These are the valid values for --azure-requested-syncs. The tenant and its
+# subscriptions always sync, because every other Azure node hangs off them.
+RESOURCE_FUNCTIONS: list[str] = [
+    "management_groups",
+    "compute",
+    "cosmosdb",
+    "app_service",
+    "functions",
+    "event_grid",
+    "logic_apps",
+    "rbac",
+    "workload_identity",
+    "sql",
+    "storage",
+    "resource_groups",
+    "key_vaults",
+    "aks",
+    "event_hub",
+    "data_factory",
+    "data_lake",
+    "network",
+    "container_instances",
+    "firewall",
+    "load_balancers",
+    "application_gateways",
+    "synapse",
+    "monitor",
+    "security_center",
+    "permission_relationships",
+]

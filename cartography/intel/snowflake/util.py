@@ -278,6 +278,11 @@ def parse_stage_url(url: str | None) -> tuple[str | None, str | None]:
     return scheme, (netloc or None)
 
 
+# Statuses on which a listing scoped to one schema skips that schema rather than
+# failing the sync. See ``list_schema_objects`` for why 400 belongs here.
+SCHEMA_LISTING_SKIPPABLE_STATUSES = (400, 403, 404)
+
+
 def skip_or_raise_http(error: requests.HTTPError, *skippable_statuses: int) -> None:
     """Re-raise an HTTP error unless its status is an expected, skippable one.
 
@@ -313,7 +318,7 @@ def warn_unavailable(resource: str, reason: str) -> None:
     )
 
 
-def _http_error_detail(error: requests.HTTPError) -> str:
+def http_error_detail(error: requests.HTTPError) -> str:
     """Return Snowflake's own error message for a failed request, if it sent one.
 
     Snowflake puts a numeric ``code`` and a human ``message`` in the JSON body
@@ -652,7 +657,7 @@ class SnowflakeClient:
             # distinguish "Standard edition has no masking policies" from a real
             # failure, so re-raise with the message attached.
             raise SnowflakeSqlError(
-                f"{_http_error_detail(error)} (statement: {statement})",
+                f"{http_error_detail(error)} (statement: {statement})",
             ) from error
         body = response.json()
         metadata = body.get("resultSetMetaData") or {}
@@ -690,3 +695,40 @@ class SnowflakeClient:
             if key:
                 properties[str(key).lower()] = row.get("property_value")
         return properties
+
+
+def list_schema_objects(
+    client: SnowflakeClient,
+    database_name: str,
+    schema_name: str,
+    collection: str,
+) -> list[dict[str, Any]] | None:
+    """List one schema-scoped object collection, or None when it cannot be read.
+
+    A 403 or 404 means the role cannot see the schema. Snowflake also answers 400
+    intermittently for a schema whose objects are being dropped and recreated
+    underneath the listing, as ELT tools do with their internal schemas (for
+    example Airbyte's ``airbyte_internal``). Any of these skips the schema for this
+    collection only; the caller marks its walk incomplete and skips cleanup, so the
+    next run picks the objects back up instead of one schema failing the whole sync.
+
+    A 400 is not retried: it is also how Snowflake reports a schema that stays
+    unlistable, where a retry only adds a round trip per schema per collection, and
+    skipping costs no more than one run's freshness for that schema.
+    """
+    try:
+        return client.list_all(
+            f"/api/v2/databases/{sf_path_segment(database_name)}"
+            f"/schemas/{sf_path_segment(schema_name)}/{collection}",
+        )
+    except requests.HTTPError as error:
+        skip_or_raise_http(error, *SCHEMA_LISTING_SKIPPABLE_STATUSES)
+        logger.warning(
+            "Cannot list %s of Snowflake schema %s.%s (%s); they will be missing "
+            "from the graph and their cleanup is skipped.",
+            collection,
+            database_name,
+            schema_name,
+            http_error_detail(error),
+        )
+        return None

@@ -1,4 +1,4 @@
-# Microsoft Configuration
+# Microsoft configuration
 
 ## Prerequisites
 
@@ -8,7 +8,10 @@ Create an app registration in [App Registrations](https://portal.azure.com/#view
 
 Create a client secret for the app registration. Store the secret in an environment variable and note the Microsoft tenant ID and application client ID.
 
-## Required Permissions
+Application authentication is the recommended mode because it provides explicit,
+repeatable permissions and complete cleanup semantics.
+
+## Required permissions
 
 Grant the app registration these Microsoft Graph application permissions:
 
@@ -19,13 +22,74 @@ Grant the app registration these Microsoft Graph application permissions:
 - `GroupMember.Read.All`: Read all group memberships.
 - `User.Read.All`: Read all users' full profiles.
 
-## Optional Permissions
+## Optional permissions
 
 Grant these application permissions when ingesting the indicated data:
 
 - `DeviceManagementManagedDevices.Read.All`: Intune managed devices and detected apps.
 - `DeviceManagementConfiguration.Read.All`: Intune device configuration and compliance policies.
 - `RoleManagement.Read.Directory`: Entra directory role definitions and assignments.
+- `AuditLog.Read.All`: Entra user sign-in activity; also requires an Entra ID P1 or P2 license.
+
+### User sign-in activity
+
+Cartography requests `signInActivity` with the existing user inventory query,
+using pages of up to 500 users and no per-user requests. If the first request
+returns `403 Forbidden`, it logs a warning and retries the inventory without
+activity. Failure of that retry or any later page still propagates and prevents
+cleanup. A successful fallback sets `sign_in_activity_available` to false and
+clears the activity timestamps, since the sync could not observe them. It still
+refreshes basic user inventory and allows its normal cleanup. Availability
+describes the request, not whether each user has signed in. A successful
+activity-enabled request sets it to true even for users with no activity record;
+their timestamps are null.
+
+The three activity properties on `EntraUser` are native UTC datetimes:
+
+- `last_successful_sign_in_date_time`: last successful interactive **or non-interactive** sign-in. Use this for inactivity queries.
+- `last_sign_in_date_time`: last interactive attempt, including failures.
+- `last_non_interactive_sign_in_date_time`: last non-interactive attempt, including failures.
+
+For example, find enabled accounts with a known successful sign-in older than
+90 days:
+
+```cypher
+MATCH (u:EntraUser)
+WHERE u.account_enabled = true
+  AND u.sign_in_activity_available = true
+  AND u.last_successful_sign_in_date_time < datetime() - duration('P90D')
+RETURN u.user_principal_name, u.last_successful_sign_in_date_time
+ORDER BY u.last_successful_sign_in_date_time
+```
+
+When `sign_in_activity_available` is true, a null timestamp means Graph has no
+recorded sign-in for that user, not proof that the account never signed in.
+Microsoft does not backfill `lastSuccessfulSignInDateTime` before December 1, 2023.
+To review enabled accounts with **no recorded successful sign-in**, separately
+from accounts with a known sign-in older than 90 days:
+
+```cypher
+MATCH (u:EntraUser)
+WHERE u.account_enabled = true
+  AND u.sign_in_activity_available = true
+  AND u.last_successful_sign_in_date_time IS NULL
+RETURN u.user_principal_name
+```
+
+This is a review list, not proof of 90 days of inactivity: it can include newly
+created accounts and accounts without backfilled history. Graph can omit
+`signInActivity` entirely for users who never signed in or last signed in before
+April 2020.
+
+`UserAccount._ont_lastactivity` maps to `last_successful_sign_in_date_time`, a
+native datetime that is null whenever activity could not be read. Other providers
+may use different timestamp representations, so normalize them before comparing.
+
+These timestamps measure sign-in recency, not usage frequency or active human
+use; background clients can produce successful non-interactive sign-ins.
+
+See Microsoft's [signInActivity reference](https://learn.microsoft.com/en-us/graph/api/resources/signinactivity?view=graph-rest-1.0)
+and [inactive-account guidance](https://learn.microsoft.com/en-us/entra/identity/monitoring-health/howto-manage-inactive-user-accounts).
 
 Defender for Endpoint is enabled separately with `--microsoft-defender`. Grant
 admin consent for both of these **application** permissions on the same app:
@@ -77,6 +141,116 @@ of 100, and `@odata.nextLink` pagination. Requests retry HTTP 429 and transient 
 responses up to five times and cap each `Retry-After` delay at eight seconds.
 Each collection is limited to 10,000 pages; exceeding that limit aborts the
 snapshot before graph writes or cleanup.
+
+## Sync selected resources
+
+Use `--microsoft-requested-syncs` to sync only some Microsoft resources, for
+example to isolate a slow or failing dataset in a large tenant:
+
+```bash
+cartography \
+  --selected-modules microsoft \
+  --microsoft-tenant-id '<tenant-id>' \
+  --microsoft-client-id '<client-id>' \
+  --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET \
+  --microsoft-requested-syncs users,groups
+```
+
+Valid values are `users`, `groups`, `administrative_units`, `applications`,
+`service_principals`, `app_role_assignments`, `directory_roles`, `federation`,
+`intune`, `o365`, and `defender`. Intune, O365, and Defender run as whole units.
+Requesting `defender` also requires `--microsoft-defender`. The Entra tenant
+always syncs because every other Microsoft node relates to it.
+
+A dataset that isn't requested is neither synced nor cleaned up, so its existing
+graph data stays as it was. Relationships to resources that aren't requested
+are created only when those resources are already in the graph, so run the full
+sync at least once before syncing selected resources.
+
+## Experimental delegated user authentication
+
+Use delegated authentication only when you can't use an app registration and
+you need a best-effort snapshot of the Entra data visible to a signed-in user.
+Delegated authentication doesn't grant the user additional Microsoft Graph
+permissions. It isn't a replacement for application authentication.
+
+### Limitations
+
+- Only Entra datasets are attempted. Intune, O365, and Defender ingestion are
+  skipped. `--microsoft-defender` is rejected with delegated authentication.
+- Microsoft Graph may return partial results without an authorization error.
+- If Microsoft Graph returns `403 Forbidden`, Cartography stops the affected
+  dataset, reports it, and continues with the next dataset. After attempting all
+  datasets, Cartography exits with a nonzero status so automation can't mistake
+  the partial inventory for a complete sync. Records from earlier pages of the
+  affected dataset can remain in the graph.
+- Because the command exits with a nonzero status after a denied dataset, run
+  delegated Microsoft ingestion separately from other selected modules.
+- If Microsoft Graph returns `401 Unauthorized`, or an error other than `403`,
+  Cartography stops the run.
+- Cartography disables cleanup and derived federation analysis. A delegated run
+  doesn't delete existing Entra data, so records that the user can't see can
+  remain in the graph.
+- With `--microsoft-delegated-auth` alone, Cartography reads the local Azure
+  CLI token cache. Use that only for an attended, one-time run on a trusted
+  workstation. Don't use it for hosted or unattended inventory collection.
+- With `--microsoft-access-token-env-var`, the token can't be refreshed, and
+  the sync fails once it expires. Token lifetime depends on the issuing client
+  and tenant policy; Cartography logs the remaining lifetime when the sync
+  starts. Mint the token immediately before the run.
+
+A run that reports no denied datasets can still be incomplete. Microsoft Graph
+can filter results based on the signed-in user's effective visibility without
+returning `403 Forbidden`.
+
+### Sign in and run Cartography
+
+Use a dedicated, non-privileged test user and a fresh disposable Neo4j database
+when you evaluate this mode.
+
+1. Sign in to the target tenant. You don't need an Azure subscription.
+
+   ```bash
+   az login --tenant '<TENANT_ID>' --allow-no-subscriptions
+   ```
+
+   If a browser can't open in your environment, add `--use-device-code`. Your
+   tenant's Conditional Access policy might not allow device-code authentication.
+
+2. Run Cartography.
+
+   ```bash
+   cartography \
+     --selected-modules microsoft \
+     --microsoft-tenant-id '<TENANT_ID>' \
+     --microsoft-delegated-auth
+   ```
+
+Do not pass `--microsoft-client-id` or
+`--microsoft-client-secret-env-var` with delegated authentication.
+
+### Run with an access token
+
+Instead of the local Azure CLI session, Cartography can use a pre-issued
+Microsoft Graph access token, for example one minted on another machine or by
+your own delegated sign-in flow. `--microsoft-access-token-env-var` implies
+`--microsoft-delegated-auth`, with the same limitations.
+
+The token must be issued for Microsoft Graph (`https://graph.microsoft.com`)
+and for the tenant passed in `--microsoft-tenant-id`. An Azure Resource Manager
+token is rejected: use `--azure-access-token-env-var` for the Azure module.
+
+```bash
+az login --tenant '<TENANT_ID>' --allow-no-subscriptions
+export MICROSOFT_ACCESS_TOKEN="$(az account get-access-token \
+  --resource https://graph.microsoft.com \
+  --query accessToken --output tsv)"
+
+cartography \
+  --selected-modules microsoft \
+  --microsoft-tenant-id '<TENANT_ID>' \
+  --microsoft-access-token-env-var MICROSOFT_ACCESS_TOKEN
+```
 
 ## Troubleshooting
 

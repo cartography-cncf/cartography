@@ -6,13 +6,18 @@ import neo4j
 from okta.client import Client as OktaClient
 
 from cartography.config import Config
+from cartography.intel.okta import api_tokens
 from cartography.intel.okta import applications
 from cartography.intel.okta import authenticators
 from cartography.intel.okta import awssaml
+from cartography.intel.okta import devices
 from cartography.intel.okta import factors
 from cartography.intel.okta import groups
+from cartography.intel.okta import log_streams
+from cartography.intel.okta import network_zones
 from cartography.intel.okta import organization
 from cartography.intel.okta import origins
+from cartography.intel.okta import policies
 from cartography.intel.okta import users
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -74,11 +79,23 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         }
     )
 
-    organization.sync_okta_organization(neo4j_session, common_job_parameters)
-    user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)
-    groups.sync_okta_groups(okta_client, neo4j_session, common_job_parameters)
+    org_properties = organization.sync_okta_organization(
+        neo4j_session,
+        common_job_parameters,
+        okta_client,
+    )
+    user_ids, user_roles_synced = users.sync_okta_users(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    group_roles_synced = groups.sync_okta_groups(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
     users.sync_okta_user_types(okta_client, neo4j_session, common_job_parameters)
-    applications.sync_okta_applications(
+    app_ids = applications.sync_okta_applications(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -94,6 +111,44 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
         user_ids,
+    )
+    devices.sync_okta_devices(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    log_streams_synced = log_streams.sync_okta_log_streams(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    network_zones.sync_okta_network_zones(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Runs after users and network zones: tokens link to both.
+    api_tokens.sync_okta_api_tokens(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Runs after applications and network zones: policies link to both.
+    policies.sync_okta_policies(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+        app_ids,
+    )
+
+    organization.record_okta_sync_coverage(
+        neo4j_session,
+        common_job_parameters,
+        org_properties,
+        {
+            "log_streams_synced": log_streams_synced,
+            "admin_roles_synced": user_roles_synced and group_roles_synced,
+        },
     )
 
     # Sync Okta groups to AWS roles via SAML

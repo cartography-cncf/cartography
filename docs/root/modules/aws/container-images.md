@@ -153,6 +153,57 @@ LIMIT 1
 Layer-prefix inference is a heuristic. Restrict the candidate repository and
 prefer explicit provenance when available.
 
+### Build provenance from CodeBuild
+
+CodeBuild does not write provenance onto the images it builds: no attestations,
+annotations or labels. Cartography links a CodeBuild-built ECR image to its
+GitHub or GitLab repository with the first of these signals that applies.
+
+1. **CodeBuild variables passed as image labels.** When the buildspec labels
+   the image with the variables CodeBuild exposes to every build, the ECR layer
+   sync reads them as provenance, the same way it reads CircleCI labels. The
+   GitHub and GitLab supply-chain syncs then create `PACKAGED_FROM` with
+   `match_method` `provenance`. The label key may be namespaced, for example
+   `com.example.CODEBUILD_SOURCE_REPO_URL`.
+
+   ```bash
+   docker build \
+     --label CODEBUILD_SOURCE_REPO_URL="$CODEBUILD_SOURCE_REPO_URL" \
+     --label CODEBUILD_RESOLVED_SOURCE_VERSION="$CODEBUILD_RESOLVED_SOURCE_VERSION" \
+     -t "$REPOSITORY_URI:$IMAGE_TAG" .
+   ```
+
+2. **A build ID tag.** A common buildspec convention tags images with the UUID
+   part of `CODEBUILD_BUILD_ID` (`<project>:<uuid>`), for example
+   `build-<uuid>`. The CodeBuild sync pairs that UUID with the ECR repository's
+   name, confirms the build with `BatchGetBuilds` in every region holding a
+   project of that name, and creates a `PACKAGED_BY`
+   edge carrying the build ID, the resolved commit and the repository URL.
+
+3. **A same-named CodeBuild project.** Without a confirmed build, an image in an
+   ECR repository named after a CodeBuild project in the same account and
+   region is linked to that project's source repository. This rung needs no
+   build history and gives no commit.
+
+| match_method | Signal | Confidence |
+|--------------|--------|------------|
+| `codebuild_build_id_tag` | A tag carries the UUID of a build of the same-named project, confirmed by `BatchGetBuilds`. | high (`0.9`) |
+| `codebuild_project_name` | The ECR repository and a GitHub- or GitLab-sourced CodeBuild project share a name, account and region. | low (`0.4`) |
+
+```cypher
+(:AWSECRImage)-[:PACKAGED_BY]->(:AWSCodeBuildProject)
+(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)
+(:Image)-[:PACKAGED_FROM]->(:GitLabProject)
+```
+
+The ontology stage derives the second and third rungs' `PACKAGED_FROM` edges,
+for the tagged image and, when it is a manifest list, its platform images. An
+image that already has a `PACKAGED_FROM` edge from provenance, Dockerfile
+analysis or another matcher keeps it. Builds are read on every sync and never
+stored as nodes. When a build lookup is attempted and fails, `PACKAGED_BY` edges
+from earlier syncs are kept. See the optional CodeBuild permission in the AWS
+configuration guide.
+
 ### Lambda container images
 
 For Lambda functions with `packagetype="Image"`, `image_uri` stores the

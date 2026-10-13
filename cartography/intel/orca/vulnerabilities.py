@@ -51,6 +51,10 @@ def build_query() -> dict[str, Any]:
                 ],
             },
         },
+        # Offset pagination drifts without an order. VulnerabilityV2 has no
+        # CreatedAt and no sortable unique id; FirstSeen is immutable, so new
+        # findings append instead of shifting earlier pages.
+        "order_by[]": ["FirstSeen", "CveId"],
         "additional_models[]": ["InstalledPackage", "Inventory"],
         "flat_json": True,
         "full_graph_fetch": {"enabled": True},
@@ -272,14 +276,17 @@ def sync(
     api_endpoint: str,
     organization_id: str,
     update_tag: int,
-) -> None:
+) -> bool:
+    """Load Orca vulnerabilities and return whether the fetch is safe to clean up."""
     seen_ids: set[str] = set()
+    progress = api.PaginationProgress()
     for page in api.iter_serving_layer_pages(
         session,
         api_endpoint,
         build_query(),
         page_size=PAGE_SIZE,
         result_name="vulnerabilities",
+        progress=progress,
     ):
         vulnerabilities = transform(page, organization_id)
         new_vulnerabilities = [
@@ -301,6 +308,7 @@ def sync(
                 organization_id,
                 update_tag,
             )
+    return progress.complete
 
 
 def cleanup(

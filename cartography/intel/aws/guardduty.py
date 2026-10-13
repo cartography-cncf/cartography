@@ -292,6 +292,7 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         item["resource_type"] = resource.get("ResourceType")
         item["resource_id"] = None
         item["eks_cluster_arn"] = None
+        item["ecs_cluster_arn"] = None
         item["access_key_id"] = None
         item["principal_user_id"] = None
         item["principal_role_id"] = None
@@ -309,6 +310,11 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # cluster ARN, so match on the Arn from EksClusterDetails.
             details = resource.get("EksClusterDetails", {})
             item["eks_cluster_arn"] = details.get("Arn")
+        elif item["resource_type"] == "ECSCluster":
+            # Runtime Monitoring findings on ECS target a cluster. AWSECSCluster.id
+            # is the cluster ARN.
+            details = resource.get("EcsClusterDetails", {})
+            item["ecs_cluster_arn"] = details.get("Arn")
         elif item["resource_type"] == "AccessKey":
             details = resource.get("AccessKeyDetails", {})
             item["access_key_id"] = details.get("AccessKeyId")
