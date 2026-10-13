@@ -33,14 +33,16 @@ def test_assign_shards_is_independent_of_input_order():
 
 
 def test_assign_shards_weights_unknown_files_as_the_median():
-    # Arrange: the new file must land beside the short one, not the long one.
-    durations = {"long.py": 100.0, "mid.py": 10.0, "short.py": 1.0}
+    # Arrange: the median is 6. Weighted as 6, the new file joins `six.py`; weighted
+    # as 0 (or any small default) it would join `ten.py` instead.
+    durations = {"ten.py": 10.0, "six.py": 6.0, "five.py": 5.0}
 
     # Act
     assignment = assign_shards([*durations, "new.py"], durations, total=2)
 
     # Assert
-    assert assignment["new.py"] != assignment["long.py"]
+    assert assignment["new.py"] == assignment["six.py"]
+    assert assignment["new.py"] != assignment["ten.py"]
 
 
 @pytest.mark.parametrize(
