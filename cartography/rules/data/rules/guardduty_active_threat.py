@@ -10,14 +10,28 @@ from cartography.rules.spec.model import Rule
 # `ThreatPurpose:ResourceTypeAffected/ThreatFamilyName.DetectionMechanism!Artifact`.
 # The ThreatPurpose prefixes below describe categories where the finding is
 # action-indicative: GuardDuty is reporting evidence of active compromise or
-# attacker activity (rather than reconnaissance or policy drift).
+# attacker activity (rather than reconnaissance or policy drift). Runtime
+# Monitoring and Extended Threat Detection report on-host and multi-stage attacker
+# behavior (reverse shells, container escapes, credential theft, attack
+# sequences) under the AttackSequence, CredentialAccess, DefenseEvasion,
+# Execution, Persistence and PrivilegeEscalation purposes.
 _ACTIVE_THREAT_PREFIXES = (
+    "AttackSequence:",
     "Backdoor:",
+    "CredentialAccess:",
     "CryptoCurrency:",
+    "DefenseEvasion:",
+    "Execution:",
     "Exfiltration:",
     "Impact:",
+    "Persistence:",
+    "PrivilegeEscalation:",
     "Trojan:",
     "UnauthorizedAccess:",
+)
+
+_ACTIVE_THREAT_CATEGORIES = ", ".join(
+    prefix.rstrip(":") for prefix in _ACTIVE_THREAT_PREFIXES
 )
 
 _ACTIVE_THREAT_WHERE = " OR ".join(
@@ -30,8 +44,7 @@ aws_guardduty_active_threat = Fact(
     description=(
         "Finds high-severity, unarchived GuardDuty findings whose type "
         "ThreatPurpose belongs to an action-indicative category "
-        "(Backdoor, CryptoCurrency, Exfiltration, Impact, Trojan, "
-        "UnauthorizedAccess). These represent evidence of an active "
+        f"({_ACTIVE_THREAT_CATEGORIES}). These represent evidence of an active "
         "compromise or attacker activity rather than reconnaissance."
     ),
     # A GuardDuty delegated administrator lists its member accounts' findings, so a
@@ -106,9 +119,9 @@ guardduty_active_threat = Rule(
     name="GuardDuty Active Threat",
     description=(
         "Surfaces high-severity GuardDuty findings that indicate an active "
-        "compromise (Backdoor, CryptoCurrency, Exfiltration, Impact, Trojan, "
-        "UnauthorizedAccess). These findings are strong signals of attacker "
-        "activity in the environment and should be triaged immediately."
+        f"compromise ({_ACTIVE_THREAT_CATEGORIES}). These findings are strong "
+        "signals of attacker activity in the environment and should be triaged "
+        "immediately."
     ),
     output_model=GuardDutyActiveThreat,
     tags=(
@@ -119,7 +132,7 @@ guardduty_active_threat = Rule(
         "stride:elevation_of_privilege",
     ),
     facts=(aws_guardduty_active_threat,),
-    version="0.1.2",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("8.16"),
         soc2_tsc("CC7.2"),
