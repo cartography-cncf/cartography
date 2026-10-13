@@ -863,7 +863,6 @@ def validate_collection(
     unreported_methods: list[str] = []
     empty_files: list[_FileResult] = []
     skipped_rights: Counter[str] = Counter()
-    gpo_rdp_rows: list[tuple[str, dict[str, Any]]] = []
 
     for file in files:
         try:
@@ -889,7 +888,6 @@ def validate_collection(
         for key, computer_ids in result.uncollected_hosts.items():
             collection.uncollected_hosts[key].update(computer_ids)
         collection.rdp_logon_grantees.update(result.rdp_logon_grantees)
-        gpo_rdp_rows.extend(result.gpo_rdp_rows)
         for target_id, target_name in result.trust_targets.items():
             collection.trust_targets.setdefault(target_id, target_name)
         for domain_sid in result.domain_sids:
@@ -907,11 +905,7 @@ def validate_collection(
                 collection.domain_methods.get(domain_sid, 0) | result.methods
             )
 
-    # Only principals whose GPO-assigned RDP edge survives the computer's user
-    # rights are referenced, so a filtered edge leaves no placeholder behind.
-    for oid, row in gpo_rdp_rows:
-        if collection.allows_rdp(row["source_id"], row["target_id"]):
-            _record_references(collection.referenced_principals, oid, row)
+    _record_gpo_rdp_references(collection)
 
     # An empty file names no domain. With a single domain in the import it can
     # only describe that domain, so it marks the type as collected and lets
@@ -971,7 +965,6 @@ class _FileResult:
         default_factory=lambda: defaultdict(set),
     )
     rdp_logon_grantees: dict[str, set[str]] = field(default_factory=dict)
-    gpo_rdp_rows: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
 
 
 def _record_references(
@@ -984,6 +977,26 @@ def _record_references(
         principal_id = row[f"{side}_id"]
         if label is not None and principal_id != oid:
             references.setdefault(principal_id, label)
+
+
+def _record_gpo_rdp_references(collection: ValidatedCollection) -> None:
+    """Reference principals whose GPO-assigned RDP edge the user rights allow.
+
+    Runs once every computer's user rights are known. It re-reads the domain
+    and OU files, which are small, rather than buffering one row per member and
+    affected computer, so a filtered edge leaves no placeholder behind.
+    """
+    for validated in collection.files_of(DOMAINS, OUS):
+        for obj in iter_objects(validated.file):
+            if is_deleted(obj):
+                continue
+            oid = object_id(obj)
+            for kind, row in _gpo_local_group_edges(obj, validated.provenance):
+                if kind == CAN_RDP and collection.allows_rdp(
+                    row["source_id"],
+                    row["target_id"],
+                ):
+                    _record_references(collection.referenced_principals, oid, row)
 
 
 def _validate_file(
@@ -1059,11 +1072,10 @@ def _validate_file(
                 result.trust_targets.update(trust_targets(obj))
             oid = node["id"]
             for kind, row in iter_edges(data_type, obj, provenance, skipped_rights):
-                if kind == CAN_RDP and data_type != COMPUTERS:
-                    # GPO-assigned RDP members depend on the computer's user
-                    # rights, which may be in a file not read yet.
-                    result.gpo_rdp_rows.append((oid, row))
-                else:
+                # GPO-assigned RDP members depend on the computer's user rights,
+                # which may be in a file not read yet; see
+                # _record_gpo_rdp_references.
+                if kind != CAN_RDP or data_type == COMPUTERS:
                     _record_references(result.referenced_principals, oid, row)
             if data_type == COMPUTERS:
                 for kind in uncollected_host_edges(obj):
