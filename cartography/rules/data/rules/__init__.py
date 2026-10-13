@@ -1,3 +1,6 @@
+from cartography.rules.data.rules.aws_admin_users_with_access_keys import (
+    aws_admin_users_with_access_keys,
+)
 from cartography.rules.data.rules.cis_4_0_gcp import (
     gcp_bigquery_datasets_publicly_accessible,
 )
@@ -138,6 +141,9 @@ from cartography.rules.data.rules.cis_aws_networking import (
     aws_ipv6_remote_administration_ports_open_to_internet,
 )
 from cartography.rules.data.rules.cis_aws_storage import aws_rds_encryption_at_rest
+from cartography.rules.data.rules.cis_aws_storage import (
+    aws_rds_instances_publicly_accessible,
+)
 from cartography.rules.data.rules.cis_aws_storage import aws_s3_block_public_access
 from cartography.rules.data.rules.cis_aws_storage import aws_s3_bucket_mfa_delete
 from cartography.rules.data.rules.cis_google_workspace import (
@@ -407,6 +413,7 @@ RULES = {
     aws_s3_bucket_mfa_delete.id: aws_s3_bucket_mfa_delete,
     aws_s3_block_public_access.id: aws_s3_block_public_access,
     aws_rds_encryption_at_rest.id: aws_rds_encryption_at_rest,
+    aws_rds_instances_publicly_accessible.id: aws_rds_instances_publicly_accessible,
     # CIS AWS Logging Rules (Section 4)
     aws_cloudtrail_multi_region.id: aws_cloudtrail_multi_region,
     aws_cloudtrail_log_file_validation.id: aws_cloudtrail_log_file_validation,
@@ -436,6 +443,7 @@ RULES = {
     device_update_gaps.id: device_update_gaps,
     eol_software.id: eol_software,
     iam_role_external_account_trust.id: iam_role_external_account_trust,
+    aws_admin_users_with_access_keys.id: aws_admin_users_with_access_keys,
     identity_administration_privileges.id: identity_administration_privileges,
     identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
