@@ -96,7 +96,7 @@ def test_load_railway_deployments(neo4j_session):
             "SUCCESS",
             "web-production-abcde.up.railway.app",
             None,
-            "nginxdemos/hello",
+            None,
             None,
         ),
         (POSTGRES_DEPLOYMENT_ID, "SUCCESS", None, SOURCE_REVISION, None, None),
@@ -142,14 +142,11 @@ def test_digest_pinned_image_creates_has_image_and_resolved_image(neo4j_session)
     digest = "sha256:" + "a" * 64
     bundles = copy.deepcopy(BUNDLES)
     neo4j_session.run("MATCH (d:RailwayDeployment) DETACH DELETE d")
-    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
-        bundles[TEST_PROJECT_ID]
-    ):
-        if instance["id"] == WEB_INSTANCE_ID:
-            instance["source"] = {
-                "image": f"registry.example.com/team/app@{digest}",
-                "repo": None,
-            }
+    _update_deployment_meta(
+        bundles,
+        WEB_DEPLOYMENT_ID,
+        {"image": f"registry.example.com/team/app@{digest}"},
+    )
 
     _sync_compute_tier(neo4j_session)
     neo4j_session.run(
@@ -306,7 +303,7 @@ def test_tagged_meta_image_does_not_use_configured_digest_fallback():
     assert deployment["image_digest"] is None
 
 
-def test_configured_digest_fallback_is_limited_to_latest_deployment():
+def test_configured_image_is_not_deployment_provenance():
     digest = "sha256:" + "e" * 64
     older_deployment_id = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
     bundles = copy.deepcopy(BUNDLES)
@@ -328,10 +325,8 @@ def test_configured_digest_fallback_is_limited_to_latest_deployment():
     deployments, _, _ = cartography.intel.railway.deployments.transform(bundles)
     by_id = {item["id"]: item for item in deployments[TEST_PROJECT_ID]}
 
-    assert by_id[WEB_DEPLOYMENT_ID]["image_digest"] == digest
-    assert by_id[WEB_DEPLOYMENT_ID]["source_image"] == (
-        f"registry.example.com/team/app@{digest}"
-    )
+    assert by_id[WEB_DEPLOYMENT_ID]["image_digest"] is None
+    assert by_id[WEB_DEPLOYMENT_ID]["source_image"] is None
     assert by_id[older_deployment_id]["lifecycle"] == "current"
     assert by_id[older_deployment_id]["image_digest"] is None
     assert by_id[older_deployment_id]["source_image"] is None
@@ -369,7 +364,7 @@ def test_reported_digest_resolves_source_built_image(neo4j_session):
         ["id", "source_image", "image_digest"],
     ) == {
         (POSTGRES_DEPLOYMENT_ID, None, digest),
-        (WEB_DEPLOYMENT_ID, "nginxdemos/hello", None),
+        (WEB_DEPLOYMENT_ID, None, None),
     }
     assert check_rels(
         neo4j_session,

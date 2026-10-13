@@ -64,11 +64,8 @@ def transform(
         }
 
         current_instances: dict[str, dict[str, Any]] = {}
-        latest_deployment_ids: set[str] = set()
         for instance in iter_service_instances(bundle):
             latest_deployment = instance.get("latestDeployment") or {}
-            if latest_deployment.get("id"):
-                latest_deployment_ids.add(latest_deployment["id"])
             current_deployments = list(instance.get("activeDeployments") or [])
             if latest_deployment.get("status") == "SLEEPING":
                 current_deployments.append(latest_deployment)
@@ -81,35 +78,20 @@ def transform(
         project_snapshots: list[dict[str, Any]] = []
         project_triggers: list[dict[str, Any]] = []
         for deployment in project_deployments_by_id.values():
-            current_instance = current_instances.get(deployment["id"])
-            source = (current_instance or {}).get("source") or {}
             meta = deployment.get("meta")
+            # Only deployment-scoped metadata is runtime provenance. ServiceSource.image is the
+            # service instance's current configuration, which can be committed without a
+            # redeploy, so it never supplies a deployment's image.
             meta_image = meta.get("image") if isinstance(meta, dict) else None
-            has_meta_image = isinstance(meta_image, str) and bool(meta_image.strip())
-            source_image = None
-            meta_pinned_digest = None
-            source_fallback_digest = None
-            # ServiceSource is the service instance's current configuration, not immutable
-            # deployment provenance. It is only safe as a fallback for the latest deployment
-            # when that deployment did not report an image reference of its own.
-            if deployment["id"] in latest_deployment_ids and not has_meta_image:
-                source_image, source_fallback_digest = parse_image_uri(
-                    source.get("image"),
-                )
-            if has_meta_image:
-                source_image, meta_pinned_digest = parse_image_uri(meta_image)
+            source_image, meta_pinned_digest = parse_image_uri(
+                meta_image if isinstance(meta_image, str) else None,
+            )
             reported_digest = (
                 meta.get("imageDigest") if isinstance(meta, dict) else None
             )
-            image_digest = (
-                _normalize_image_digest(
-                    reported_digest,
-                )
-                or _normalize_image_digest(
-                    meta_pinned_digest,
-                )
-                or _normalize_image_digest(source_fallback_digest)
-            )
+            image_digest = _normalize_image_digest(
+                reported_digest,
+            ) or _normalize_image_digest(meta_pinned_digest)
             commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
             source_revision = (
                 commit_hash.lower()
@@ -128,6 +110,7 @@ def transform(
                     ),
                 },
             )
+            current_instance = current_instances.get(deployment["id"])
             source_repo = meta.get("repo") if isinstance(meta, dict) else None
             root_directory = (
                 meta.get("rootDirectory") if isinstance(meta, dict) else None

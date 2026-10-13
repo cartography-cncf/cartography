@@ -40,7 +40,7 @@ class RailwayDeploymentNodeProperties(CartographyNodeProperties):
     image_digest: PropertyRef = PropertyRef(
         "image_digest",
         extra_index=True,
-        description="Immutable image digest reported or configured for this deployment.",
+        description="Immutable image digest reported in this deployment's metadata.",
     )
     status_updated_at: PropertyRef = PropertyRef(
         "statusUpdatedAt", description="Time when the deployment status last changed."
