@@ -329,8 +329,12 @@ def test_configured_digest_fallback_is_limited_to_latest_deployment():
     by_id = {item["id"]: item for item in deployments[TEST_PROJECT_ID]}
 
     assert by_id[WEB_DEPLOYMENT_ID]["image_digest"] == digest
+    assert by_id[WEB_DEPLOYMENT_ID]["source_image"] == (
+        f"registry.example.com/team/app@{digest}"
+    )
     assert by_id[older_deployment_id]["lifecycle"] == "current"
     assert by_id[older_deployment_id]["image_digest"] is None
+    assert by_id[older_deployment_id]["source_image"] is None
 
 
 def test_reported_digest_resolves_source_built_image(neo4j_session):

@@ -85,20 +85,18 @@ def transform(
             source = (current_instance or {}).get("source") or {}
             meta = deployment.get("meta")
             meta_image = meta.get("image") if isinstance(meta, dict) else None
-            configured_image, source_pinned_digest = parse_image_uri(
-                source.get("image"),
-            )
-            source_image = configured_image
+            has_meta_image = isinstance(meta_image, str) and bool(meta_image.strip())
+            source_image = None
             meta_pinned_digest = None
+            source_fallback_digest = None
             # ServiceSource is the service instance's current configuration, not immutable
             # deployment provenance. It is only safe as a fallback for the latest deployment
-            # when that deployment did not report a different image reference of its own.
-            source_fallback_digest = (
-                source_pinned_digest
-                if deployment["id"] in latest_deployment_ids and not meta_image
-                else None
-            )
-            if isinstance(meta_image, str) and meta_image.strip():
+            # when that deployment did not report an image reference of its own.
+            if deployment["id"] in latest_deployment_ids and not has_meta_image:
+                source_image, source_fallback_digest = parse_image_uri(
+                    source.get("image"),
+                )
+            if has_meta_image:
                 source_image, meta_pinned_digest = parse_image_uri(meta_image)
             reported_digest = (
                 meta.get("imageDigest") if isinstance(meta, dict) else None
