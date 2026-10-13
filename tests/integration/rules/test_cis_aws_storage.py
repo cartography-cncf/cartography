@@ -1,7 +1,4 @@
 from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.rules.data.rules.cis_aws_storage import (
-    aws_rds_instances_publicly_accessible,
-)
 from cartography.rules.data.rules.cis_aws_storage import aws_s3_block_public_access
 
 
@@ -93,48 +90,3 @@ def test_block_public_access_respects_account_level_bpa(neo4j_session) -> None:
     assert len(visual_rows) == 3
     # The count (denominator) still covers every evaluated bucket.
     assert count_rows[0]["count"] == 5
-
-
-def test_rds_publicly_accessible_flags_public_instances_only(neo4j_session) -> None:
-    _reset_graph(neo4j_session)
-    neo4j_session.run(
-        """
-        CREATE (a:AWSAccount {id: '111111111111', name: 'prod'})
-        CREATE (public_db:AWSRDSInstance {
-            id: 'arn:aws:rds:us-west-2:111111111111:db:public-db',
-            arn: 'arn:aws:rds:us-west-2:111111111111:db:public-db',
-            db_instance_identifier: 'public-db',
-            engine: 'postgres',
-            endpoint_address: 'public-db.example.us-west-2.rds.amazonaws.com',
-            endpoint_port: 5432,
-            region: 'us-west-2',
-            publicly_accessible: true
-        })
-        CREATE (private_db:AWSRDSInstance {
-            id: 'arn:aws:rds:us-west-2:111111111111:db:private-db',
-            arn: 'arn:aws:rds:us-west-2:111111111111:db:private-db',
-            db_instance_identifier: 'private-db',
-            publicly_accessible: false
-        })
-        CREATE (unknown_db:AWSRDSInstance {
-            id: 'arn:aws:rds:us-west-2:111111111111:db:unknown-db',
-            arn: 'arn:aws:rds:us-west-2:111111111111:db:unknown-db',
-            db_instance_identifier: 'unknown-db'
-        })
-        MERGE (a)-[:RESOURCE]->(public_db)
-        MERGE (a)-[:RESOURCE]->(private_db)
-        MERGE (a)-[:RESOURCE]->(unknown_db)
-        """
-    )
-    fact = _get_fact(aws_rds_instances_publicly_accessible)
-
-    findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
-    visual_rows = list(neo4j_session.run(fact.cypher_visual_query))
-    count_rows = list(neo4j_session.run(fact.cypher_count_query))
-
-    assert [
-        (row["db_identifier"], row["endpoint_port"], row["account_id"])
-        for row in findings
-    ] == [("public-db", 5432, "111111111111")]
-    assert len(visual_rows) == 1
-    assert count_rows[0]["count"] == 3

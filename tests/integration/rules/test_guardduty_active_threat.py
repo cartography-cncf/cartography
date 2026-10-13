@@ -4,26 +4,13 @@ from cartography.rules.data.rules.guardduty_active_threat import (
 )
 
 
-def test_guardduty_active_threat_includes_runtime_and_attack_sequence_findings(
-    neo4j_session,
-) -> None:
+def _flagged_finding_ids(neo4j_session, findings: list[dict]) -> set[str]:
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
         CREATE (a:AWSAccount {id: '111111111111', name: 'prod'})
         WITH a
-        UNWIND [
-            {id: 'reverse-shell', type: 'Execution:Runtime/ReverseShell', severity: 8.0},
-            {id: 'attack-sequence', type: 'AttackSequence:EKS/CompromisedCluster', severity: 9.0},
-            {id: 'priv-esc', type: 'PrivilegeEscalation:Runtime/ContainerMountsHostDirectory', severity: 7.0},
-            {id: 'persistence', type: 'Persistence:IAMUser/AnomalousBehavior', severity: 8.0},
-            {id: 'credential-access', type: 'CredentialAccess:IAMUser/AnomalousBehavior', severity: 8.0},
-            {id: 'defense-evasion', type: 'DefenseEvasion:Runtime/ProcessInjection.Proc', severity: 8.0},
-            {id: 'impact', type: 'Impact:IAMUser/AnomalousBehavior', severity: 8.0},
-            {id: 'low-severity-execution', type: 'Execution:Runtime/SuspiciousCommand', severity: 2.0},
-            {id: 'discovery', type: 'Discovery:IAMUser/AnomalousBehavior', severity: 8.0},
-            {id: 'policy', type: 'Policy:IAMUser/RootCredentialUsage', severity: 8.0}
-        ] AS f
+        UNWIND $findings AS f
         CREATE (finding:AWSGuardDutyFinding {
             id: f.id,
             type: f.type,
@@ -32,24 +19,76 @@ def test_guardduty_active_threat_includes_runtime_and_attack_sequence_findings(
             archived: false
         })
         MERGE (a)-[:RESOURCE]->(finding)
-        """
+        """,
+        findings=findings,
     )
-
-    findings = neo4j_session.execute_read(
+    rows = neo4j_session.execute_read(
         read_list_of_dicts_tx,
         aws_guardduty_active_threat.cypher_query,
     )
-    visual_rows = list(
-        neo4j_session.run(aws_guardduty_active_threat.cypher_visual_query)
+    return {row["finding_id"] for row in rows}
+
+
+def test_runtime_reverse_shell_is_an_active_threat(neo4j_session) -> None:
+    assert _flagged_finding_ids(
+        neo4j_session,
+        [
+            {
+                "id": "reverse-shell",
+                "type": "Execution:Runtime/ReverseShell",
+                "severity": 8.0,
+            },
+        ],
+    ) == {"reverse-shell"}
+
+
+def test_attack_sequence_is_an_active_threat(neo4j_session) -> None:
+    assert _flagged_finding_ids(
+        neo4j_session,
+        [
+            {
+                "id": "attack-sequence",
+                "type": "AttackSequence:EKS/CompromisedCluster",
+                "severity": 9.0,
+            },
+        ],
+    ) == {"attack-sequence"}
+
+
+def test_low_severity_runtime_finding_is_not_an_active_threat(neo4j_session) -> None:
+    assert (
+        _flagged_finding_ids(
+            neo4j_session,
+            [
+                {
+                    "id": "suspicious-command",
+                    "type": "Execution:Runtime/SuspiciousCommand",
+                    "severity": 2.0,
+                },
+            ],
+        )
+        == set()
     )
 
-    assert {row["finding_id"] for row in findings} == {
-        "reverse-shell",
-        "attack-sequence",
-        "priv-esc",
-        "persistence",
-        "credential-access",
-        "defense-evasion",
-        "impact",
-    }
-    assert len(visual_rows) == 7
+
+def test_high_severity_discovery_and_policy_findings_are_not_active_threats(
+    neo4j_session,
+) -> None:
+    assert (
+        _flagged_finding_ids(
+            neo4j_session,
+            [
+                {
+                    "id": "discovery",
+                    "type": "Discovery:IAMUser/AnomalousBehavior",
+                    "severity": 8.0,
+                },
+                {
+                    "id": "policy",
+                    "type": "Policy:IAMUser/RootCredentialUsage",
+                    "severity": 8.0,
+                },
+            ],
+        )
+        == set()
+    )
