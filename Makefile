@@ -8,8 +8,10 @@ test_lint:
 
 # `sysmon` is coverage's sys.monitoring backend (Python 3.12+). It measures the same
 # statements as the default trace-function backend but costs noticeably less.
+# Unit tests never touch Neo4j and are safe to spread across processes. Integration
+# tests share one Neo4j per run, so they stay serial.
 test_unit:
-	COVERAGE_CORE=sysmon uv run --frozen pytest -vvv $(PYTEST_COV_FLAGS) tests/unit
+	COVERAGE_CORE=sysmon uv run --frozen pytest -vvv -n auto $(PYTEST_COV_FLAGS) tests/unit
 
 test_integration:
 	COVERAGE_CORE=sysmon uv run --frozen pytest -vvv $(PYTEST_COV_FLAGS) tests/integration

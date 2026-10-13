@@ -3,7 +3,7 @@
 Cartography supports both single-account and multi-account AWS syncs. Resource
 inventory is synced per account. AWS Organizations hierarchy ingestion is a
 separate best-effort step that models organizations, roots, organizational
-units, and account placement.
+units, account placement, and service control policies.
 
 For reliable hierarchy ingestion, include credentials for the Organizations
 management account or a delegated administrator account. If Cartography cannot

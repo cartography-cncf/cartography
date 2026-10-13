@@ -5,7 +5,12 @@ import logging
 import tempfile
 import time
 import zipfile
+from collections.abc import Iterable
+from collections.abc import Iterator
 from dataclasses import dataclass
+from dataclasses import field
+from types import TracebackType
+from typing import IO
 
 import requests
 from msgraph import GraphServiceClient
@@ -29,8 +34,12 @@ DEFAULT_REPORT_POLL_INTERVAL_SECONDS = 5
 DEFAULT_REPORT_TIMEOUT_SECONDS = 300
 DEFAULT_EXPORT_JOB_MAX_ATTEMPTS = 3
 EXPORT_DOWNLOAD_TIMEOUT_SECONDS = 60
-MAX_REPORT_ARCHIVE_BYTES = 64 * 1024 * 1024
-MAX_REPORT_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
+# Exports are spooled to disk and parsed as a stream, so these caps only guard
+# against a runaway download. AppInvRawData is one row per (device, app) pair
+# and reaches hundreds of MB compressed for tenants with tens of thousands of
+# managed devices.
+MAX_REPORT_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024
+MAX_REPORT_UNCOMPRESSED_BYTES = 16 * 1024 * 1024 * 1024
 EXPORT_DOWNLOAD_MAX_RETRIES = 3
 EXPORT_DOWNLOAD_RETRY_BACKOFF_SECONDS = 1.0
 EXPORT_DOWNLOAD_RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
@@ -45,13 +54,59 @@ class IntuneReportExportError(Exception):
     """
 
 
+class IntuneReportTooLargeError(IntuneReportExportError):
+    """Raised when an export exceeds the download or CSV size cap."""
+
+
+class _ArchivedCsvRows:
+    """Re-iterable CSV rows read lazily from a zip archive on disk.
+
+    Large exports do not fit in memory as materialized dicts, and the detected
+    apps sync needs two passes over AppInvRawData (nodes before relationships),
+    so each iteration re-opens the CSV member and streams it again.
+    """
+
+    def __init__(self, archive_file: IO[bytes], member: zipfile.ZipInfo) -> None:
+        self._archive_file = archive_file
+        self._member = member
+
+    def __iter__(self) -> Iterator[dict[str, str | None]]:
+        self._archive_file.seek(0)
+        with (
+            zipfile.ZipFile(self._archive_file) as archive,
+            archive.open(self._member) as report_file,
+        ):
+            reader = csv.DictReader(
+                io.TextIOWrapper(report_file, encoding="utf-8-sig", newline=""),
+            )
+            for row in reader:
+                yield {
+                    key: value if value != "" else None
+                    for key, value in row.items()
+                    if key is not None
+                }
+
+
 @dataclass(frozen=True)
 class ExportedReportRows:
     fieldnames: tuple[str, ...]
-    # The sync pipeline needs repeated access to the same export rows when it
-    # builds the union of aggregate and raw app keys. Materializing the rows
-    # keeps that logic straightforward, while explicit size caps bound memory.
-    rows: list[dict[str, str | None]]
+    rows: Iterable[dict[str, str | None]]
+    archive_file: IO[bytes] | None = field(default=None, repr=False)
+
+    def close(self) -> None:
+        if self.archive_file is not None:
+            self.archive_file.close()
+
+    def __enter__(self) -> "ExportedReportRows":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
 
 
 @timeit
@@ -126,8 +181,7 @@ async def export_report_rows(
 
         report_data = download_export_report_rows(completed_job.url, report_name)
         logger.info(
-            "Downloaded %d rows for Intune report %s from job %s",
-            len(report_data.rows),
+            "Downloaded Intune report %s from job %s",
             report_name,
             created_job.id,
         )
@@ -187,6 +241,26 @@ def download_export_report_rows(
     download_url: str,
     report_name: str,
 ) -> ExportedReportRows:
+    """Download an export to a temp file; the caller must close the result."""
+    archive_file = tempfile.TemporaryFile()
+    try:
+        _download_archive(download_url, report_name, archive_file)
+        fieldnames, csv_member = _read_csv_header(archive_file, report_name)
+    except BaseException:
+        archive_file.close()
+        raise
+    return ExportedReportRows(
+        fieldnames=fieldnames,
+        rows=_ArchivedCsvRows(archive_file, csv_member),
+        archive_file=archive_file,
+    )
+
+
+def _download_archive(
+    download_url: str,
+    report_name: str,
+    archive_file: IO[bytes],
+) -> None:
     with (
         _build_retryable_session() as session,
         session.get(
@@ -196,63 +270,56 @@ def download_export_report_rows(
         ) as response,
     ):
         response.raise_for_status()
+        archive_size = 0
+        for chunk in response.iter_content(chunk_size=1024 * 1024):
+            if not chunk:
+                continue
+            archive_size += len(chunk)
+            if archive_size > MAX_REPORT_ARCHIVE_BYTES:
+                raise IntuneReportTooLargeError(
+                    f"Export for {report_name} exceeded the maximum compressed "
+                    f"size of {MAX_REPORT_ARCHIVE_BYTES} bytes."
+                )
+            archive_file.write(chunk)
 
-        with tempfile.SpooledTemporaryFile(
-            max_size=MAX_REPORT_ARCHIVE_BYTES,
-        ) as archive_file:
-            archive_size = 0
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if not chunk:
-                    continue
-                archive_size += len(chunk)
-                if archive_size > MAX_REPORT_ARCHIVE_BYTES:
-                    raise ValueError(
-                        f"Export for {report_name} exceeded the maximum compressed size."
-                    )
-                archive_file.write(chunk)
 
-            archive_file.seek(0)
-            try:
-                with zipfile.ZipFile(archive_file) as archive:
-                    csv_members = [
-                        info
-                        for info in archive.infolist()
-                        if info.filename.lower().endswith(".csv")
-                    ]
-                    if len(csv_members) != 1:
-                        raise ValueError(
-                            f"Export for {report_name} must contain exactly one CSV file."
-                        )
-
-                    csv_member = csv_members[0]
-                    if csv_member.file_size > MAX_REPORT_UNCOMPRESSED_BYTES:
-                        raise ValueError(
-                            f"Export for {report_name} exceeded the maximum CSV size."
-                        )
-
-                    with archive.open(csv_member) as report_file:
-                        decoded = io.TextIOWrapper(
-                            report_file, encoding="utf-8-sig", newline=""
-                        )
-                        reader = csv.DictReader(decoded)
-                        if not reader.fieldnames:
-                            raise ValueError(
-                                f"Export for {report_name} did not contain CSV headers."
-                            )
-                        rows = [
-                            {
-                                key: value if value != "" else None
-                                for key, value in row.items()
-                                if key is not None
-                            }
-                            for row in reader
-                        ]
-            except zipfile.BadZipFile as e:
+def _read_csv_header(
+    archive_file: IO[bytes],
+    report_name: str,
+) -> tuple[tuple[str, ...], zipfile.ZipInfo]:
+    archive_file.seek(0)
+    try:
+        with zipfile.ZipFile(archive_file) as archive:
+            csv_members = [
+                info
+                for info in archive.infolist()
+                if info.filename.lower().endswith(".csv")
+            ]
+            if len(csv_members) != 1:
                 raise ValueError(
-                    f"Export for {report_name} did not contain a valid zip archive."
-                ) from e
+                    f"Export for {report_name} must contain exactly one CSV file."
+                )
 
-    return ExportedReportRows(fieldnames=tuple(reader.fieldnames), rows=rows)
+            csv_member = csv_members[0]
+            if csv_member.file_size > MAX_REPORT_UNCOMPRESSED_BYTES:
+                raise IntuneReportTooLargeError(
+                    f"Export for {report_name} exceeded the maximum CSV size "
+                    f"of {MAX_REPORT_UNCOMPRESSED_BYTES} bytes."
+                )
+
+            with archive.open(csv_member) as report_file:
+                reader = csv.DictReader(
+                    io.TextIOWrapper(report_file, encoding="utf-8-sig", newline=""),
+                )
+                if not reader.fieldnames:
+                    raise ValueError(
+                        f"Export for {report_name} did not contain CSV headers."
+                    )
+                return tuple(reader.fieldnames), csv_member
+    except zipfile.BadZipFile as e:
+        raise ValueError(
+            f"Export for {report_name} did not contain a valid zip archive."
+        ) from e
 
 
 def _report_status_name(status: DeviceManagementReportStatus | None) -> str:

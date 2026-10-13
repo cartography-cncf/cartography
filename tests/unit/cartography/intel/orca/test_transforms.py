@@ -49,8 +49,17 @@ def test_alert_query_requests_related_inventory_context() -> None:
 
     # Assert
     assert query["additional_models[]"] == ["Inventory"]
+    assert query["order_by[]"] == ["CreatedAt"]
     assert query["full_graph_fetch"] == {"enabled": True}
     assert query["max_tier"] == 2
+
+
+def test_vulnerability_query_requests_deterministic_order() -> None:
+    # Act
+    query = vulnerabilities.build_query()
+
+    # Assert
+    assert query["order_by[]"] == ["FirstSeen", "CveId"]
 
 
 def test_alert_transform_retains_exact_target_context_and_missing_target(

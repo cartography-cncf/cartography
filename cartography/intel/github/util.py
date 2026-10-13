@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import requests
+from dateutil.parser import isoparse
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
@@ -604,6 +605,103 @@ def fetch_all_rest_api_pages(
                     break
 
     return results
+
+
+def parse_github_timestamp(value: str | None) -> datetime | None:
+    """
+    Parse an RFC 3339 timestamp as GitHub returns it, such as
+    ``2024-01-02T03:04:05Z``, into a timezone-aware datetime so Neo4j stores a
+    native temporal value. A missing value is None; a malformed value, a value
+    of another type, or one without a UTC offset raises, so a change in
+    GitHub's format is never mistaken for an absent field.
+    """
+    if value is None or value == "":
+        return None
+    parsed = isoparse(value)
+    if parsed.tzinfo is None:
+        raise ValueError(f"GitHub timestamp {value!r} has no UTC offset")
+    return parsed
+
+
+# GitHub answers 403 or 404 when the credential lacks the permission or scope for
+# a resource, and 422 when a feature cannot be read, such as Copilot billing on an
+# organization with a payment problem. Callers treat these as "unavailable" and
+# let every other failure propagate.
+UNAVAILABLE_STATUSES = (403, 404, 422)
+
+
+def _unavailable_status(
+    err: requests.exceptions.HTTPError,
+    unavailable: tuple[int, ...],
+) -> int | None:
+    """Return the status when it means the resource is unavailable, else re-raise."""
+    status = err.response.status_code if err.response is not None else None
+    if status not in unavailable:
+        raise err
+    return status
+
+
+def fetch_all_rest_api_pages_or_none(
+    token: str,
+    base_url: str,
+    endpoint: str,
+    result_key: str,
+    description: str,
+    unavailable: tuple[int, ...] = UNAVAILABLE_STATUSES,
+    **kwargs: Any,
+) -> list[dict[str, Any]] | None:
+    """
+    Fetch all pages like ``fetch_all_rest_api_pages``, but return None when GitHub
+    reports the listing as unavailable to the credential. Other failures propagate,
+    so a transient error never looks like an empty or denied listing.
+
+    :param description: Human-readable name of the listing for the log message.
+    :param unavailable: HTTP statuses that mean "unavailable" rather than failure.
+    """
+    try:
+        return fetch_all_rest_api_pages(
+            token,
+            base_url,
+            endpoint,
+            result_key,
+            raise_on_status=unavailable,
+            **kwargs,
+        )
+    except requests.exceptions.HTTPError as err:
+        status = _unavailable_status(err, unavailable)
+        logger.warning(
+            "Skipping GitHub %s (%s): HTTP %s. The credential may lack the "
+            "required permission, or the feature is not enabled.",
+            description,
+            endpoint,
+            status,
+        )
+        return None
+
+
+def call_github_rest_api_or_none(
+    endpoint: str,
+    token: str,
+    api_url: str,
+    description: str,
+    unavailable: tuple[int, ...] = UNAVAILABLE_STATUSES,
+) -> dict[str, Any] | None:
+    """
+    Call ``call_github_rest_api`` and return None when GitHub reports the resource
+    as unavailable to the credential. Other failures propagate.
+    """
+    try:
+        return call_github_rest_api(endpoint, token, api_url)
+    except requests.exceptions.HTTPError as err:
+        status = _unavailable_status(err, unavailable)
+        logger.warning(
+            "Skipping GitHub %s (%s): HTTP %s. The credential may lack the "
+            "required permission, or the feature is not enabled.",
+            description,
+            endpoint,
+            status,
+        )
+        return None
 
 
 def call_github_rest_api(
