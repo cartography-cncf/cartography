@@ -104,6 +104,7 @@ jobs:
               --env NEO4J_server_memory_heap_max__size=2g \
               --env NEO4J_server_memory_pagecache_size=512m \
               neo4j:5-community
+            echo $? > "$RUNNER_TEMP/neo4j-start.status"
           ) > "$RUNNER_TEMP/neo4j-start.log" 2>&1 &
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -134,6 +135,21 @@ jobs:
               raise SystemExit("Expected the Rust Bolt codec, got the pure-Python one")
           print("Rust Bolt codec in use.")
           PY
+      - name: Check that Neo4j started
+        # Fails fast, with the cause, if the background pull or start failed, instead of
+        # surfacing later as a readiness timeout in the tests. By now the pull has usually
+        # finished; this waits for the container to be created, not for Neo4j to be ready.
+        run: |
+          for _ in $(seq 180); do
+            [ -f "$RUNNER_TEMP/neo4j-start.status" ] && break
+            sleep 1
+          done
+          status=$(cat "$RUNNER_TEMP/neo4j-start.status" 2>/dev/null || echo "timed out")
+          if [ "$status" != 0 ]; then
+            echo "Starting Neo4j failed ($status):"
+            cat "$RUNNER_TEMP/neo4j-start.log"
+            exit 1
+          fi
       - name: Run integration tests
         env:
           CARTOGRAPHY_TEST_SHARD: ${{ matrix.shard }}/${{ env.SHARD_TOTAL }}
