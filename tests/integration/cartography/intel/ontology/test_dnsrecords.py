@@ -1,4 +1,5 @@
 import cartography.intel.ontology.dnsrecords
+from cartography.analysis.ontology.analysis import DNS_RECORD_TO_KUBERNETES_INGRESS
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
@@ -62,6 +63,54 @@ def test_sync_links_dns_name_to_ingress_created_before_hostname_normalization(
         "id",
         "DNS_POINTS_TO",
     ) == {("dns", "ingress")}
+
+
+def test_sync_skips_ingress_without_host_names(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'dns', _ont_name: 'app.example.com'})
+        CREATE (:KubernetesIngress {id: 'ingress'})
+        """
+    )
+
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "DNSRecord",
+            "id",
+            "KubernetesIngress",
+            "id",
+            "DNS_POINTS_TO",
+        )
+        == set()
+    )
+
+
+def test_kubernetes_ingress_match_seeks_dns_record_index(neo4j_session):
+    neo4j_session.run(
+        "CREATE INDEX dns_record_ont_name IF NOT EXISTS "
+        "FOR (n:DNSRecord) ON (n._ont_name)"
+    ).consume()
+    neo4j_session.run("CALL db.awaitIndexes()").consume()
+    match = DNS_RECORD_TO_KUBERNETES_INGRESS.statements[0].match
+
+    plan = neo4j_session.run(f"EXPLAIN {match} RETURN dns, ing").consume().plan
+
+    assert "NodeIndexSeek" in _operator_names(plan)
+
+
+def _operator_names(plan) -> set[str]:
+    names = {plan["operatorType"].split("@")[0]}
+    for child in plan.get("children", []):
+        names |= _operator_names(child)
+    return names
 
 
 def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
