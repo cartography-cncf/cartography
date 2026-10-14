@@ -9,13 +9,18 @@ import neo4j
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
-from cartography.intel.dns import ingest_dns_record_by_fqdn
+from cartography.intel.dns import resolve_a_record
+from cartography.intel.dns_utils import normalize_hostname
 from cartography.models.aws.elasticsearch.domain import ESDomainSchema
+from cartography.models.aws.elasticsearch.endpoint import (
+    ESDomainEndpointDNSRecordSchema,
+)
+from cartography.models.aws.elasticsearch.endpoint import ESDomainEndpointIpSchema
 from cartography.util import aws_handle_regions
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -156,13 +161,53 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
             # VPC options - keep as lists for one-to-many relationships
             "SubnetIds": vpc_options.get("SubnetIds", []),
             "SecurityGroupIds": vpc_options.get("SecurityGroupIds", []),
-            # Keep original for DNS/access policy processing
-            "_original": domain,
         }
 
         domains_data.append(transformed)
 
     return domains_data
+
+
+@timeit
+def get_endpoint_ip_addresses(domain_list: List[Dict]) -> Dict[str, List[str]]:
+    """
+    Resolve each domain endpoint to the IP addresses of its A record.
+
+    :param domain_list: Transformed domain list
+    :return: The resolved IP addresses keyed by domain id
+    """
+    # TODO add support for the VPC `Endpoints` map
+    endpoint_ips: Dict[str, List[str]] = {}
+    for domain in domain_list:
+        if domain.get("Endpoint"):
+            endpoint_ips[domain["DomainId"]] = resolve_a_record(domain["Endpoint"])
+        else:
+            logger.debug("No es endpoint data for domain id %s", domain["DomainId"])
+    return endpoint_ips
+
+
+def transform_endpoint_dns_records(
+    domain_list: List[Dict],
+    endpoint_ips: Dict[str, List[str]],
+) -> List[Dict]:
+    records = []
+    for domain in domain_list:
+        ip_addresses = endpoint_ips.get(domain["DomainId"])
+        if ip_addresses is None:
+            continue
+        endpoint = domain["Endpoint"]
+        records.append(
+            {
+                "id": f"{endpoint}+A",
+                "name": endpoint,
+                "name_normalized": normalize_hostname(endpoint),
+                "type": "A",
+                "value": ",".join(ip_addresses),
+                "ip_addresses": ip_addresses,
+                "domain_id": domain["DomainId"],
+            },
+        )
+    return records
 
 
 @timeit
@@ -180,7 +225,6 @@ def _load_es_domains(
     :param aws_account_id: The AWS account related to the domains
     :param aws_update_tag: Update tag for the sync
     """
-    # Load domain nodes with all relationships via schema
     load(
         neo4j_session,
         ESDomainSchema(),
@@ -189,63 +233,42 @@ def _load_es_domains(
         AWS_ID=aws_account_id,
     )
 
-    # DNS records are loaded separately because they are shared graph resources.
-    for domain in domain_list:
-        original = domain.get("_original", {})
-        domain_id = domain["DomainId"]
-        _link_es_domains_to_dns(neo4j_session, domain_id, original, aws_update_tag)
-
 
 @timeit
-def _link_es_domains_to_dns(
+def load_endpoint_dns_records(
     neo4j_session: neo4j.Session,
-    domain_id: str,
-    domain_data: Dict,
+    records: List[Dict],
     aws_update_tag: int,
 ) -> None:
-    """
-    Link the ES domain to its DNS FQDN endpoint and create associated nodes in the graph
-    if needed
-
-    :param neo4j_session: Neo4j session object
-    :param domain_id: ES domain id
-    :param domain_data: domain data
-    """
-    # TODO add support for endpoints to this method
-    if domain_data.get("Endpoint"):
-        ingest_dns_record_by_fqdn(
-            neo4j_session,
-            aws_update_tag,
-            domain_data["Endpoint"],
-            domain_id,
-            record_label="AWSESDomain",
-            dns_node_additional_label="AWSDNSRecord",
-        )
-    else:
-        logger.debug(f"No es endpoint data for domain id {domain_id}")
+    ip_addresses = sorted(
+        {ip for record in records for ip in record["ip_addresses"]},
+    )
+    load(
+        neo4j_session,
+        ESDomainEndpointIpSchema(),
+        [{"id": ip, "ip": ip} for ip in ip_addresses],
+        lastupdated=aws_update_tag,
+    )
+    load(
+        neo4j_session,
+        ESDomainEndpointDNSRecordSchema(),
+        records,
+        lastupdated=aws_update_tag,
+    )
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, update_tag: int, aws_account_id: int) -> None:
-    # Clean up AWSESDomain nodes and schema-defined relationships
-    GraphJob.from_node_schema(
-        ESDomainSchema(),
-        {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
-    ).run(neo4j_session)
-
-    # TODO: Keep raw Cypher here for DNS cleanup since _link_es_domains_to_dns() creates
-    # DNSRecord:AWSDNSRecord nodes and DNS_POINTS_TO edges outside the schema.
-    # This will be handled at the ontology level soon.
-    cleanup_dns_query = """
-        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSESDomain)<-[:DNS_POINTS_TO]-(n:DNSRecord)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        DETACH DELETE n
-    """
-    run_write_query(
+def cleanup(neo4j_session: neo4j.Session, update_tag: int, aws_account_id: str) -> None:
+    common_job_parameters = {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id}
+    # Endpoint records are reached through their domain, so clean them up while the stale
+    # domains still exist.
+    run_scoped_analysis_job(
+        "aws_es_domain_endpoint_dns_cleanup.json",
         neo4j_session,
-        cleanup_dns_query,
-        AWS_ID=aws_account_id,
-        UPDATE_TAG=update_tag,
+        common_job_parameters,
+    )
+    GraphJob.from_node_schema(ESDomainSchema(), common_job_parameters).run(
+        neo4j_session,
     )
 
 
@@ -272,11 +295,14 @@ def sync(
         )
         data = _get_es_domains(client)
         domains_data = _transform_es_domains(data)
+        endpoint_ips = get_endpoint_ip_addresses(domains_data)
+        endpoint_records = transform_endpoint_dns_records(domains_data, endpoint_ips)
         _load_es_domains(
             neo4j_session,
             domains_data,
             current_aws_account_id,
             update_tag,
         )
+        load_endpoint_dns_records(neo4j_session, endpoint_records, update_tag)
 
-    cleanup(neo4j_session, update_tag, current_aws_account_id)  # type: ignore
+    cleanup(neo4j_session, update_tag, current_aws_account_id)

@@ -7,7 +7,7 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # type - The DNS record type (A, AAAA, CNAME, MX, TXT, etc.)
 # value - The DNS record value / target (IP address, CNAME target, etc.)
 # target_hostname - Normalized CNAME or ALIAS target, used for indexed DNS matching
-# target_hostnames - Normalized CNAME targets for list-valued records (GCP), not indexed
+# target_hostnames - Normalized CNAME or ALIAS targets for list-valued records (GCP), not indexed
 # name and target hostnames are lowercased, trimmed, and have the trailing root dot removed.
 
 HOSTNAME_RECORD_TYPES = ["CNAME", "ALIAS"]
@@ -38,10 +38,12 @@ aws_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AWSDNSRecord",
             fields=[
-                _name_field(),
+                # Route53 escapes special characters in names, so a wildcard comes back as
+                # `\052.example.com`. The decoded copies let it match other providers.
+                _name_field("name_normalized"),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
                 OntologyFieldMapping(ontology_field="value", node_field="value"),
-                _target_hostname_field(),
+                _target_hostname_field("target_hostname"),
             ],
         ),
     ],
@@ -49,7 +51,7 @@ aws_mapping = OntologyMapping(
 
 # GCP
 # GCPRecordSet.data is list-valued, so it cannot populate scalar _ont_value.
-# target_hostnames stores normalized CNAME targets for DNS linking.
+# target_hostnames stores normalized CNAME and ALIAS targets for DNS linking.
 gcp_mapping = OntologyMapping(
     module_name="gcp",
     nodes=[
