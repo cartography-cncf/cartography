@@ -45,4 +45,11 @@ relationships.
 `BbotDNSName` nodes use the ontology `DNSRecord` label, and `BbotFinding` nodes
 use the `SecurityIssue` label. Running the `ontology` stage after `bbot`
 correlates observed DNS names and globally routable IP addresses with provider
-resources already in the graph.
+resources already in the graph:
+
+- `(:BbotDNSName)-[:MATCHES_DNS_RECORD]->(:DNSRecord)` when a provider DNS record
+  has the same name.
+- `(:BbotDNSName)-[:DNS_POINTS_TO]->(:AWSEC2Instance)` when the name is the
+  instance's public DNS name, such as `ec2-192-0-2-10.compute-1.amazonaws.com`.
+- `(:BbotIPAddress)-[:MATCHES_PUBLIC_IP]->(:PublicIP)` for globally routable
+  addresses.

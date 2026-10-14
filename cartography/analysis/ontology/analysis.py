@@ -272,6 +272,30 @@ BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
         ),
     ),
 )
+# BBOT names carry only _ont_name, so the generic DNSRecord to AWSEC2Instance job, which
+# matches on _ont_value, never sees them. An instance's own public DNS name is the record
+# itself, so match the name directly. Stopped instances are kept: AWS clears publicdnsname
+# when an instance loses its public IP, so a stopped instance that still has one holds an
+# Elastic IP and still owns the name.
+BBOT_DNS_POINTS_TO_EC2_INSTANCE = AnalysisJob(
+    name="Ontology - BbotDNSName to AWSEC2Instance linking",
+    short_name="ontology_bbot_dns_awsec2instance",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            match="MATCH (dns:BbotDNSName) WHERE dns._ont_name IS NOT NULL WITH dns MATCH (target:AWSEC2Instance {publicdnsname: dns._ont_name})",
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "target",
+                    source_label="BbotDNSName",
+                    target_label="AWSEC2Instance",
+                ),
+            ),
+        ),
+    ),
+)
 DNS_RECORD_TARGETS = (
     (
         "AWSLoadBalancerV2",
@@ -328,6 +352,10 @@ DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
     DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN,
     BBOT_DNS_MATCHES_PROVIDER,
+    # Must run before the generic DNSRecord to AWSEC2Instance job. BbotDNSName is a
+    # DNSRecord, so that job's cleanup deletes any of these edges this run has not
+    # refreshed yet.
+    BBOT_DNS_POINTS_TO_EC2_INSTANCE,
 ) + tuple(
     (
         AnalysisJob(
