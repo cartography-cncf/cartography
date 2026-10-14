@@ -120,7 +120,7 @@ epoch seconds):
 
 ```cypher
 MATCH (u:User {enabled: true})
-WHERE u.pwdlastset < (datetime().epochseconds - 365 * 86400)
+WHERE u.pwdlastset < (datetime().epochSeconds - 365 * 86400)
 RETURN u
 ```
 
