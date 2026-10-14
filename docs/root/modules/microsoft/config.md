@@ -105,9 +105,9 @@ tenant grants access. To include them, grant admin consent for these
 Each collection is skipped, without cleanup, when the tenant can't provide it:
 Defender for Endpoint isn't provisioned (token error `AADSTS500011`), its
 permission is missing (`401` or `403`), or, for machines, Microsoft returns `404`
-because there are no recently seen machines. A skip logs which permission to
-grant and preserves previously synced Defender data, like the optional Entra
-permissions above. The connector uses the
+because there are no recently seen machines. A skip logs its cause, naming the
+permission to grant when a request is denied, and preserves previously synced
+Defender data, like the optional Entra permissions above. The connector uses the
 commercial cloud endpoints and does not support sovereign cloud endpoints.
 Machine tokens use `https://api.securitycenter.microsoft.com/.default`, as required
 by Microsoft even though requests go to `https://api.security.microsoft.com`.
@@ -262,8 +262,10 @@ cartography \
 ## Troubleshooting
 
 If Defender machines or alerts are missing, check the sync log for a skipped
-Defender collection: it names the permission to grant. Admin consent must be
-granted again after adding a permission to the app. An exhausted retry, malformed
+Defender collection and its cause. A denied request (`401` or `403`) names the
+permission to grant; admin consent must be granted again after adding a
+permission to the app. `AADSTS500011` means the tenant has no Defender for
+Endpoint, and a machine `404` means Defender reports no recently seen machines. An exhausted retry, malformed
 page, or incomplete pagination aborts the Defender sync before graph writes or
 cleanup, preserving previous Defender data. A successful empty collection is
 eligible for cleanup.
