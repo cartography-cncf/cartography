@@ -7,6 +7,7 @@ import requests
 
 from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.supply_chain import ContainerImage
@@ -70,7 +71,9 @@ def _get_unmatched_ghcr_image_owner_repos(
     RETURN img.digest AS image_digest, repo_ids[0] AS repo_url
     """
     org_url = f"https://github.com/{organization}"
-    result = neo4j_session.run(query, org_url=org_url, update_tag=update_tag)
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx, query, org_url=org_url, update_tag=update_tag
+    )
     return [
         {"image_digest": record["image_digest"], "repo_url": record["repo_url"]}
         for record in result
@@ -153,7 +156,9 @@ def get_unmatched_container_images_with_history(
             layer_history
     """
 
-    result = neo4j_session.run(query, update_tag=update_tag, organization=organization)
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx, query, update_tag=update_tag, organization=organization
+    )
     images = []
 
     for record in result:

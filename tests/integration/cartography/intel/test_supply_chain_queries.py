@@ -190,10 +190,14 @@ def _check_unlimited_image_history(
     ).consume()
 
     # Act
-    with patch.object(image_graph, "run", wraps=image_graph.run) as run:
+    with patch.object(
+        image_graph,
+        "execute_read",
+        wraps=image_graph.execute_read,
+    ) as execute_read:
         images = get_images(image_graph, update_tag=1)
-    query = run.call_args.args[0]
-    parameters = run.call_args.kwargs
+    query = execute_read.call_args.args[1]
+    parameters = execute_read.call_args.kwargs
 
     # Assert
     assert {image.digest for image in images} == {
@@ -386,9 +390,14 @@ def test_image_selection_bounds_tag_fanout_and_uses_layer_index(
     image_graph.run("CALL db.awaitIndexes()").consume()
 
     # Act
-    with patch.object(image_graph, "run", wraps=image_graph.run) as run:
+    with patch.object(
+        image_graph,
+        "execute_read",
+        wraps=image_graph.execute_read,
+    ) as execute_read:
         images = get_images(image_graph, update_tag=1)
-    query, parameters = run.call_args.args[0], run.call_args.kwargs
+    query = execute_read.call_args.args[1]
+    parameters = execute_read.call_args.kwargs
     plan = image_graph.run("EXPLAIN " + query, **parameters).consume().plan
     repeated_images = get_images(image_graph, update_tag=1)
 
