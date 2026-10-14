@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
 VULNERABILITY_MODEL = "VulnerabilityV2"
+# Each deleted finding removes ~23 index entries plus its RESOURCE and ENRICHES
+# edges. At the 10,000-node default, cleanup transactions commit long enough to
+# delay other sessions waiting on causal bookmarks.
+CLEANUP_ITERATION_SIZE = 2000
 
 
 def build_query() -> dict[str, Any]:
@@ -279,6 +283,8 @@ def sync(
 ) -> bool:
     """Load Orca vulnerabilities and return whether the fetch is safe to clean up."""
     seen_ids: set[str] = set()
+    row_count = 0
+    cross_page_duplicates = 0
     progress = api.PaginationProgress()
     for page in api.iter_serving_layer_pages(
         session,
@@ -288,6 +294,7 @@ def sync(
         result_name="vulnerabilities",
         progress=progress,
     ):
+        row_count += len(page)
         vulnerabilities = transform(page, organization_id)
         new_vulnerabilities = [
             vulnerability
@@ -295,6 +302,7 @@ def sync(
             if vulnerability["id"] not in seen_ids
         ]
         duplicate_count = len(vulnerabilities) - len(new_vulnerabilities)
+        cross_page_duplicates += duplicate_count
         if duplicate_count:
             logger.warning(
                 "Skipped %d duplicate Orca vulnerability findings across pages.",
@@ -308,6 +316,15 @@ def sync(
                 organization_id,
                 update_tag,
             )
+    # Findings repeated across pages have several causes. One is offset
+    # pagination drift, which can also skip rows that cleanup then deletes.
+    logger.info(
+        "Loaded %d Orca vulnerability findings from %d rows; skipped %d "
+        "findings repeated across pages.",
+        len(seen_ids),
+        row_count,
+        cross_page_duplicates,
+    )
     return progress.complete
 
 
@@ -318,4 +335,5 @@ def cleanup(
     GraphJob.from_node_schema(
         OrcaVulnerabilityFindingSchema(),
         common_job_parameters,
+        iterationsize=CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)

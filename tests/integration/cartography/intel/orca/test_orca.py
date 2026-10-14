@@ -535,6 +535,68 @@ def test_complete_sync_cleans_stale_findings_and_retargets_alert_context(
     assert metadata["lastupdated"] == TEST_UPDATE_TAG + 1
 
 
+def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    rows = []
+    for index in range(5):
+        row = deepcopy(VULNERABILITIES[0])
+        row["id"] = f"vulnerability-row-{index}"
+        row["CveId"] = f"CVE-2024-{1000 + index}"
+        rows.append(row)
+    state, _ = _patch_orca_api(mocker, vulnerabilities=rows)
+    state["organization"] = {
+        "id": OTHER_ORGANIZATION_ID,
+        "name": "Other synthetic Orca organization",
+        "api_url": API_ENDPOINT,
+    }
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    state["organization"] = deepcopy(ORGANIZATION)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    state["VulnerabilityV2"] = [deepcopy(rows[0])]
+    mocker.patch(
+        "cartography.intel.orca.vulnerabilities.CLEANUP_ITERATION_SIZE",
+        2,
+    )
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert
+    assert {
+        (organization_id, cve_id, lastupdated)
+        for organization_id, cve_id, lastupdated in check_nodes(
+            neo4j_session,
+            "OrcaVulnerabilityFinding",
+            ["organization_id", "cve_id", "lastupdated"],
+        )
+    } == {(ORGANIZATION_ID, "CVE-2024-1000", TEST_UPDATE_TAG + 1)} | {
+        (OTHER_ORGANIZATION_ID, f"CVE-2024-{1000 + index}", TEST_UPDATE_TAG)
+        for index in range(5)
+    }
+    assert check_rels(
+        neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "RESOURCE",
+    ) == {(ORGANIZATION_ID, "CVE-2024-1000")} | {
+        (OTHER_ORGANIZATION_ID, f"CVE-2024-{1000 + index}") for index in range(5)
+    }
+
+
 def test_vulnerability_target_change_replaces_the_occurrence(
     neo4j_session,
     mocker,
