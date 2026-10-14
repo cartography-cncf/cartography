@@ -754,7 +754,8 @@ def test_run_index_query_succeeds_normally():
 
 
 def test_run_index_query_handles_errors_raised_on_consume():
-    """Auto-commit errors can surface on consume; they must stay inside the retry."""
+    # Arrange: auto-commit errors can surface on consume, so they must stay inside
+    # the retry.
     already_exists = MagicMock()
     already_exists.consume.side_effect = _create_client_error(
         "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
@@ -763,25 +764,31 @@ def test_run_index_query_handles_errors_raised_on_consume():
     mock_session = MagicMock()
     mock_session.run.return_value = already_exists
 
+    # Act
     _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
+    # Assert
     mock_session.run.assert_called_once_with("CREATE INDEX IF NOT EXISTS ...")
     already_exists.consume.assert_called_once_with()
 
 
 @patch("time.sleep")
 def test_run_index_query_retries_transient_error_raised_on_consume(mock_sleep):
+    # Arrange
     transient = MagicMock()
     transient.consume.side_effect = neo4j.exceptions.TransientError("busy")
     mock_session = MagicMock()
     mock_session.run.side_effect = [transient, MagicMock()]
 
+    # Act
     _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
+    # Assert
     assert mock_session.run.call_count == 2
 
 
 def test_run_index_query_does_not_retry_client_error_raised_on_consume():
+    # Arrange
     failing = MagicMock()
     failing.consume.side_effect = _create_client_error(
         "Neo.ClientError.Statement.SyntaxError",
@@ -790,22 +797,27 @@ def test_run_index_query_does_not_retry_client_error_raised_on_consume():
     mock_session = MagicMock()
     mock_session.run.return_value = failing
 
+    # Act
     with pytest.raises(neo4j.exceptions.ClientError):
         _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
+    # Assert
     assert mock_session.run.call_count == 1
 
 
 @patch("time.sleep")
 def test_run_index_query_gives_up_after_bounded_retries(mock_sleep):
+    # Arrange
     transient = MagicMock()
     transient.consume.side_effect = neo4j.exceptions.TransientError("busy")
     mock_session = MagicMock()
     mock_session.run.return_value = transient
 
+    # Act
     with pytest.raises(neo4j.exceptions.TransientError):
         _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
+    # Assert
     assert mock_session.run.call_count == 5
     assert mock_sleep.call_count == 4
 
