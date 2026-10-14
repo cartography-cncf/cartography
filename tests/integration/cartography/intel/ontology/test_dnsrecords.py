@@ -1,4 +1,5 @@
 import cartography.intel.ontology.dnsrecords
+from cartography.analysis.ontology.analysis import DNS_RECORD_LINKING_JOBS
 from cartography.analysis.ontology.analysis import DNS_RECORD_TO_KUBERNETES_INGRESS
 from tests.integration.util import check_rels
 
@@ -281,3 +282,150 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         "id",
         "EXPOSE",
     ) == {("custom-domain", "service-instance")}
+
+
+SERVICE_ENDPOINT_LABELS = (
+    "ModalSandboxTunnel",
+    "ModalFunction",
+    "GCPCloudRunService",
+    "NetlifySite",
+    "ScalewayServerlessContainer",
+    "ScalewayServerlessFunction",
+)
+
+
+def _dns_points_to(neo4j_session, target_label: str) -> set[tuple]:
+    return check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        target_label,
+        "id",
+        "DNS_POINTS_TO",
+    )
+
+
+def test_sync_links_dns_records_to_service_endpoints(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:ModalSandboxTunnel {
+            id: 'tunnel',
+            host_normalized: 'tls.modal.example.com',
+            unencrypted_host_normalized: 'clear.modal.example.com'
+        })
+        CREATE (:ModalSandboxTunnel {id: 'tunnel-without-hosts'})
+        CREATE (:ModalFunction {
+            id: 'modal-function', web_hostname: 'function.modal.example.com'
+        })
+        CREATE (:GCPCloudRunService {
+            id: 'cloud-run', uri_hostname: 'service.run.example.com'
+        })
+        CREATE (:NetlifySite {
+            id: 'netlify',
+            default_domain_normalized: 'site.netlify.example.com',
+            custom_domain_normalized: 'www.example.com',
+            domain_aliases_normalized: ['alias.example.com']
+        })
+        CREATE (stale_site:NetlifySite {
+            id: 'stale-site',
+            default_domain_normalized: 'other.netlify.example.com'
+        })
+        CREATE (:ScalewayServerlessContainer {
+            id: 'container', domain_name_normalized: 'container.functions.example.com'
+        })
+        CREATE (:ScalewayServerlessFunction {
+            id: 'scw-function', domain_name_normalized: 'function.functions.example.com'
+        })
+        CREATE (stale_record:DNSRecord {
+            id: 'stale-record', _ont_target_hostname: 'gone.example.com'
+        })
+        CREATE (stale_record)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(stale_site)
+        CREATE (:GCPRecordSet:DNSRecord {
+            id: 'gcp-function',
+            _ont_target_hostnames: ['function.modal.example.com']
+        })
+        CREATE (:GCPRecordSet:DNSRecord {
+            id: 'gcp-alias',
+            _ont_target_hostnames: ['alias.example.com']
+        })
+        WITH 1 AS ignored
+        UNWIND [
+            ['tls', 'tls.modal.example.com'],
+            ['clear', 'clear.modal.example.com'],
+            ['modal-function', 'function.modal.example.com'],
+            ['cloud-run', 'service.run.example.com'],
+            ['netlify-default', 'site.netlify.example.com'],
+            ['netlify-custom', 'www.example.com'],
+            ['netlify-alias', 'alias.example.com'],
+            ['scw-container', 'container.functions.example.com'],
+            ['scw-function', 'function.functions.example.com']
+        ] AS pair
+        CREATE (:DNSRecord {id: pair[0], _ont_target_hostname: pair[1]})
+        """,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert _dns_points_to(neo4j_session, "ModalSandboxTunnel") == {
+        ("tls", "tunnel"),
+        ("clear", "tunnel"),
+    }
+    assert _dns_points_to(neo4j_session, "ModalFunction") == {
+        ("modal-function", "modal-function"),
+        ("gcp-function", "modal-function"),
+    }
+    assert _dns_points_to(neo4j_session, "GCPCloudRunService") == {
+        ("cloud-run", "cloud-run"),
+    }
+    assert _dns_points_to(neo4j_session, "NetlifySite") == {
+        ("netlify-default", "netlify"),
+        ("netlify-custom", "netlify"),
+        ("netlify-alias", "netlify"),
+        ("gcp-alias", "netlify"),
+    }
+    assert _dns_points_to(neo4j_session, "ScalewayServerlessContainer") == {
+        ("scw-container", "container"),
+    }
+    assert _dns_points_to(neo4j_session, "ScalewayServerlessFunction") == {
+        ("scw-function", "scw-function"),
+    }
+
+
+def test_service_endpoint_matches_seek_dns_record_index(neo4j_session):
+    # Arrange
+    neo4j_session.run(
+        "CREATE INDEX dns_record_ont_target_hostname IF NOT EXISTS "
+        "FOR (n:DNSRecord) ON (n._ont_target_hostname)"
+    ).consume()
+    neo4j_session.run("CALL db.awaitIndexes()").consume()
+    matches = [
+        statement.match
+        for job in DNS_RECORD_LINKING_JOBS
+        for statement in job.statements
+        if any(
+            effect.target_label in SERVICE_ENDPOINT_LABELS
+            for effect in statement.effects
+        )
+        and "(dns:DNSRecord {_ont_target_hostname:" in statement.match
+    ]
+
+    # Act
+    plans = {
+        match: neo4j_session.run(f"EXPLAIN {match} RETURN dns, target").consume().plan
+        for match in matches
+    }
+
+    # Assert
+    # One match per scalar hostname property, plus one for Netlify aliases.
+    assert len(plans) == 9
+    for match, plan in plans.items():
+        assert "NodeIndexSeek" in _operator_names(plan), match

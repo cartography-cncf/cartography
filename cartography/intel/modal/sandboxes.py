@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.dns_utils import normalize_hostname
 from cartography.intel.modal.util import list_sandboxes
 from cartography.intel.modal.util import list_sandboxes_v2
 from cartography.intel.modal.util import MODAL_API_ERRORS
@@ -111,8 +112,12 @@ def transform_tunnels(
                     "id": f"{sandbox['id']}/{tunnel['container_port']}",
                     "sandbox_id": sandbox["id"],
                     "host": tunnel.get("host"),
+                    "host_normalized": normalize_hostname(tunnel.get("host")),
                     "port": tunnel.get("port"),
                     "unencrypted_host": tunnel.get("unencrypted_host"),
+                    "unencrypted_host_normalized": normalize_hostname(
+                        tunnel.get("unencrypted_host")
+                    ),
                     "unencrypted_port": tunnel.get("unencrypted_port"),
                     # Precomputed so the cleartext-exposure case is directly queryable.
                     "has_unencrypted_endpoint": bool(tunnel.get("unencrypted_host")),
