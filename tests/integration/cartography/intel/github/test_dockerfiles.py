@@ -261,9 +261,9 @@ def test_get_unmatched_container_images_applies_limit_before_layer_history(
 
     with patch.object(
         isolated_neo4j_session,
-        "run",
-        wraps=isolated_neo4j_session.run,
-    ) as run:
+        "execute_read",
+        wraps=isolated_neo4j_session.execute_read,
+    ) as execute_read:
         images = cartography.intel.github.supply_chain.get_unmatched_container_images_with_history(
             isolated_neo4j_session,
             organization="example",
@@ -275,7 +275,9 @@ def test_get_unmatched_container_images_applies_limit_before_layer_history(
     assert len({image.digest for image in images}) == 2
     assert all(len(image.layer_history) == 2 for image in images)
     query = next(
-        call.args[0] for call in run.call_args_list if "UNWIND range" in call.args[0]
+        call.args[1]
+        for call in execute_read.call_args_list
+        if "UNWIND range" in call.args[1]
     )
     assert query.index("LIMIT 2") < query.index("UNWIND range")
 
