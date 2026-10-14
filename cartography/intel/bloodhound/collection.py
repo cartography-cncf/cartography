@@ -45,6 +45,9 @@ class CollectionFile:
     source_uri: str
     open: Callable[[], IO[bytes]]
     collected_at: str | None
+    # Files of one SharpHound run share this: the archive URI, or for loose
+    # JSON the directory and timestamp prefix.
+    collection_id: str
 
 
 def timestamp_from_filename(name: str) -> str | None:
@@ -72,6 +75,12 @@ def _local_path(
     with open(path, "wb") as fileobj:
         download_report(reader, ref, fileobj)
     return path
+
+
+def _loose_collection_id(ref: ReportRef) -> str:
+    directory = ref.uri.rsplit("/", 1)[0] if "/" in ref.uri else ""
+    match = _FILENAME_TIMESTAMP.match(os.path.basename(ref.name))
+    return f"{directory}/{match.group(1) if match else ''}*"
 
 
 def _open_binary(path: str) -> IO[bytes]:
@@ -108,6 +117,7 @@ def open_collection(reader: ReportReader) -> Iterator[list[CollectionFile]]:
                             open=partial(archive.open, info),
                             collected_at=timestamp_from_filename(info.filename)
                             or timestamp_from_filename(ref.name),
+                            collection_id=ref.uri,
                         ),
                     )
             elif lowered.endswith(".json"):
@@ -117,6 +127,7 @@ def open_collection(reader: ReportReader) -> Iterator[list[CollectionFile]]:
                         source_uri=ref.uri,
                         open=partial(_open_binary, path),
                         collected_at=timestamp_from_filename(ref.name),
+                        collection_id=_loose_collection_id(ref),
                     ),
                 )
             else:
