@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from urllib.parse import urlparse
 
 
 def normalize_hostname(value: str | None) -> str | None:
@@ -16,3 +17,16 @@ def normalize_hostname_values(values: Iterable[str] | None) -> list[str]:
         return []
 
     return [normalized for value in values if (normalized := normalize_hostname(value))]
+
+
+def hostname_from_url(value: str | None) -> str | None:
+    """Return the normalized hostname from an absolute URL."""
+    if value is None:
+        return None
+
+    try:
+        hostname = urlparse(value.strip()).hostname
+    except ValueError:
+        # urlparse rejects malformed bracketed IPv6 netlocs.
+        return None
+    return normalize_hostname(hostname)
