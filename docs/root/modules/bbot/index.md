@@ -44,12 +44,28 @@ relationships.
 
 `BbotDNSName` nodes use the ontology `DNSRecord` label, and `BbotFinding` nodes
 use the `SecurityIssue` label. Running the `ontology` stage after `bbot`
-correlates observed DNS names and globally routable IP addresses with provider
-resources already in the graph:
+attaches what BBOT observed to the cloud resources already in the graph:
 
 - `(:BbotDNSName)-[:MATCHES_DNS_RECORD]->(:DNSRecord)` when a provider DNS record
   has the same name.
-- `(:BbotDNSName)-[:DNS_POINTS_TO]->(:AWSEC2Instance)` when the name is the
-  instance's public DNS name, such as `ec2-192-0-2-10.compute-1.amazonaws.com`.
 - `(:BbotIPAddress)-[:MATCHES_PUBLIC_IP]->(:PublicIP)` for globally routable
   addresses.
+- `(:BbotDNSName)-[:DNS_POINTS_TO]->(resource)` when the name is a hostname that
+  a provider assigned to the resource, such as an EC2 instance's public DNS name
+  or a load balancer's DNS name. Every DNS record target that Cartography links
+  provider records to is covered, so a new target gets BBOT coverage too.
+- `(:BbotOpenTCPPort)-[:EXPOSE]->(resource)` and `(:BbotURL)-[:EXPOSE]->(resource)`
+  for the resource that serves the endpoint.
+- `(:BbotFinding)-[:AFFECTS]->(resource)` and
+  `(:BbotTechnology)-[:DETECTED_ON]->(resource)` for the resource that a finding
+  or a detected technology belongs to.
+- `(:BbotStorageBucket)-[:MATCHES_OBJECT_STORAGE]->(bucket)` for the
+  `AWSS3Bucket` or `GCPBucket` with the same name. Azure buckets are not matched,
+  because BBOT reports a guessed account and container name pair and container
+  names repeat across accounts.
+
+A BBOT host reaches a resource through its globally routable address, which a
+`PublicIP` points to a compute instance or load balancer, or through its DNS
+name. A DNS name also reaches the address or CNAME target it resolves to, and
+the provider DNS record with the same name, in one hop. An endpoint's egress
+address, the `PublicIP` to `Device` link, is not followed.

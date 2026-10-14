@@ -39,7 +39,7 @@ def test_ontology_dns_merges_leave_route53_owned_edges_untouched():
             # A statement matching only GCPRecordSet or BbotDNSName can never reach an
             # AWSDNSRecord.
             if "(dns:GCPRecordSet)" in statement.match or (
-                "(dns:BbotDNSName)" in statement.match
+                "WHERE dns:BbotDNSName" in statement.match
             ):
                 continue
             checked |= owned_targets
