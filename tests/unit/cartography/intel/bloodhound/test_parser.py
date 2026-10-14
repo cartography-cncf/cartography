@@ -803,13 +803,29 @@ def test_validate_collection_rejects_partly_superseded_collection(tmp_path):
         _validate(tmp_path)
 
 
-def test_validate_collection_cannot_order_runs_with_one_override(tmp_path):
+def test_validate_collection_orders_runs_by_file_timestamps_despite_override(
+    tmp_path,
+):
     # Arrange
     fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip")
     fixture.write_zip(
         tmp_path / "20261013090000_BloodHound.zip",
         timestamp="20261013090000",
     )
+
+    # Act
+    collection = _validate(tmp_path, "2026-10-14T00:00:00")
+
+    # Assert
+    assert {f.file.collected_at for f in collection.files} == {
+        "2026-10-13T09:00:00",
+    }
+
+
+def test_validate_collection_cannot_order_unprefixed_runs(tmp_path):
+    # Arrange
+    fixture.write_zip(tmp_path / "a" / "BloodHound.zip", timestamp="run")
+    fixture.write_zip(tmp_path / "b" / "BloodHound.zip", timestamp="run")
 
     # Act and assert
     with pytest.raises(BloodHoundImportError, match="same collection time"):

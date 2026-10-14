@@ -990,8 +990,10 @@ def select_latest_collections(
     A source can hold several SharpHound runs, for example one archive per
     weekly run. For each domain only the files of its newest run are imported,
     so customers can keep adding archives and expire old ones with a bucket
-    lifecycle rule. When runs cannot be ordered (no timestamps, or the same
-    timestamp) every file is kept and validation reports the overlap.
+    lifecycle rule. Runs are ordered by their file name timestamps, falling
+    back to ``collected_at_override``. When runs cannot be ordered (no
+    timestamp, or the same one) every file is kept and validation reports the
+    overlap.
     """
     groups: dict[str, list[CollectionFile]] = defaultdict(list)
     for file in files:
@@ -1001,7 +1003,9 @@ def select_latest_collections(
 
     times: dict[str, str] = {}
     for collection_id, group in groups.items():
-        stamps = {collected_at_override or f.collected_at for f in group}
+        # Runs are ordered by SharpHound's own timestamps; the override only
+        # stands in for files that have none.
+        stamps = {f.collected_at or collected_at_override for f in group}
         if None in stamps:
             return files
         times[collection_id] = max(s for s in stamps if s is not None)
