@@ -152,6 +152,12 @@ def test_transform_dns_rrs_normalizes_only_hostname_targets():
                 "rrdatas": ["Case-Sensitive.Value."],
                 "zone": "zone-1",
             },
+            {
+                "name": "example.com.",
+                "type": "ALIAS",
+                "rrdatas": ["Apex-Target.Example.NET."],
+                "zone": "zone-1",
+            },
         ]
     )
 
@@ -159,3 +165,4 @@ def test_transform_dns_rrs_normalizes_only_hostname_targets():
     assert records[0]["data"] == [" Target.Example.COM. "]
     assert records[1]["target_hostnames"] == []
     assert records[1]["data"] == ["Case-Sensitive.Value."]
+    assert records[2]["target_hostnames"] == ["apex-target.example.net"]

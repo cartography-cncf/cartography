@@ -17,10 +17,29 @@ from cartography.models.ontology.labels import DNS_RECORD
 class AWSDNSRecordNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="The zone id, the record `name` and the record `type` concatenated together. Not affected by the `value` normalization described below.",
+        description=(
+            "For a Route53 record, the zone id, the record `name` and the record `type` "
+            "concatenated together. Not affected by the `value` normalization described below. "
+            "For an Elasticsearch domain endpoint record, the endpoint hostname and `A` joined "
+            "with `+`."
+        ),
     )
     name: PropertyRef = PropertyRef(
-        "name", extra_index=True, description="Name of this `AWSDNSRecord` node."
+        "name",
+        extra_index=True,
+        description=(
+            "The record name as Route53 returns it, without the trailing root dot. Route53 "
+            "returns characters outside a-z, 0-9, `-`, `_` and `.` as `\\ddd` octal escapes, "
+            "so a wildcard record's name starts with `\\052.`."
+        ),
+    )
+    name_normalized: PropertyRef = PropertyRef(
+        "name_normalized",
+        description=(
+            "The record name with Route53's octal escapes for printable characters decoded "
+            "(so `\\052` becomes `*`), lowercased and without the trailing root dot. Used for "
+            "DNS matching across providers."
+        ),
     )
     type: PropertyRef = PropertyRef(
         "type", description="Type of this `AWSDNSRecord` node."
@@ -35,7 +54,15 @@ class AWSDNSRecordNodeProperties(CartographyNodeProperties):
             "ELB APIs report the same load balancer without it. Everywhere else a leading "
             "`dualstack.` is kept, because on an ordinary CNAME or an alias to another record "
             "in the same hosted zone it is part of a genuinely different hostname. If it is an "
-            "NS record, the `name` is used here."
+            "NS record, the `name` is used here. For an Elasticsearch domain endpoint record, "
+            "this is the comma-separated list of IP addresses that the endpoint resolved to."
+        ),
+    )
+    target_hostname: PropertyRef = PropertyRef(
+        "target_hostname",
+        description=(
+            "For CNAME and ALIAS records, `value` with Route53's octal escapes for printable "
+            "characters decoded. Used for DNS matching across providers."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

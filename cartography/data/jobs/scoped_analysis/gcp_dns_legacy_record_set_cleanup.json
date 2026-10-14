@@ -1,0 +1,11 @@
+{
+  "name": "GCP DNS legacy record set cleanup",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: remove in v1.0.0. Record sets written before the GCP DNS data model migration hang off their zone but have no RESOURCE edge from a GCPProject, so the schema cleanup never reaches them. Delete the stale ones in zones that this project owns.",
+      "query": "MATCH (:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(:GCPDNSZone)-[:HAS_RECORD]->(n:GCPRecordSet) WHERE n.lastupdated <> $UPDATE_TAG AND NOT (n)<-[:RESOURCE]-(:GCPProject) WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 100
+    }
+  ]
+}
