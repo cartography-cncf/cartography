@@ -6,6 +6,9 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # name - The DNS record hostname (REQUIRED)
 # type - The DNS record type (A, AAAA, CNAME, MX, TXT, etc.)
 # value - The DNS record value / target (IP address, CNAME target, etc.)
+# target_hostname - Normalized CNAME or ALIAS target, used for indexed DNS matching
+# target_hostnames - Normalized CNAME targets for list-valued records (GCP), not indexed
+# name and target hostnames are lowercased, trimmed, and have the trailing root dot removed.
 
 HOSTNAME_RECORD_TYPES = ["CNAME", "ALIAS"]
 
