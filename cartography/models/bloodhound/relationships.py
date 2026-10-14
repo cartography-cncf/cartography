@@ -46,6 +46,17 @@ class ADEdgeMatchLinkProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+class ADACLMatchLinkProperties(ADEdgeMatchLinkProperties):
+    is_inherited: PropertyRef = PropertyRef(
+        "is_inherited",
+        description=(
+            "Whether the right comes only from ACEs inherited from a parent "
+            "container. False when any ACE grants it on the object itself."
+        ),
+    )
+
+
+@dataclass(frozen=True)
 # (:ADObject)-[:MEMBER_OF]->(:ADGroup)
 class ADMemberOfMatchLink(CartographyRelSchema):
     """Membership of a user, computer or group in an AD group, including primary group membership."""

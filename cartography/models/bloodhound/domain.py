@@ -18,13 +18,6 @@ class ADDomainNodeProperties(ADObjectNodeProperties):
         "forest_root_id",
         description="SID of the forest root domain.",
     )
-    collected: PropertyRef = PropertyRef(
-        "collected",
-        description=(
-            "True when the domain itself was in the imported output. False for a "
-            "placeholder created only because an imported domain trusts it."
-        ),
-    )
 
 
 @dataclass(frozen=True)

@@ -23,16 +23,36 @@ HELPDESK_SID = f"{DOMAIN_SID}-1110"
 WORKSTATIONS_OU = "0B6F3B0C-0000-4000-8000-000000000001"
 USERS_CONTAINER = "0B6F3B0C-0000-4000-8000-000000000002"
 DEFAULT_GPO = "31B2F340-016D-11D2-945F-00C04FB984F9"
+# Principals from the trusted domain, which the import does not contain.
+PARTNER_ADMINS_SID = f"{PARTNER_SID}-519"
+PARTNER_USER_SID = f"{PARTNER_SID}-1500"
+# Local account on WS01, which has no AD object.
+WS01_LOCAL_ADMIN_SID = "S-1-5-21-3000000001-3000000002-3000000003-500"
 
 COLLECTION_TIMESTAMP = "20261012143015"
 COLLECTED_AT = "2026-10-12T14:30:15"
 COLLECTOR_VERSION = "2.5.0.0"
-# Group | LocalAdmin | Session | Trusts | ACL | Container | RDP | ObjectProps | DCOM | PSRemote
-ALL_METHODS = 1 | 2 | 8 | 32 | 64 | 128 | 256 | 512 | 4096 | 16384
+# Group | LocalAdmin | GPOLocalGroup | Session | Trusts | ACL | Container | RDP |
+# ObjectProps | DCOM | PSRemote | UserRights
+ALL_METHODS = 1 | 2 | 4 | 8 | 32 | 64 | 128 | 256 | 512 | 4096 | 16384 | 32768
 
 
 def _principal(oid: str, object_type: str) -> dict[str, str]:
     return {"ObjectIdentifier": oid, "ObjectType": object_type}
+
+
+def _ace(
+    principal_sid: str,
+    principal_type: str,
+    right: str,
+    inherited: bool = False,
+) -> dict[str, Any]:
+    return {
+        "PrincipalSID": principal_sid,
+        "PrincipalType": principal_type,
+        "RightName": right,
+        "IsInherited": inherited,
+    }
 
 
 def _props(name: str, dn: str, **extra: Any) -> dict[str, Any]:
@@ -46,6 +66,29 @@ def _props(name: str, dn: str, **extra: Any) -> dict[str, Any]:
     }
 
 
+def _sessions(*user_sids: str) -> dict[str, Any]:
+    return {
+        "Collected": True,
+        "FailureReason": None,
+        "Results": [{"UserSID": sid, "ComputerSID": WS01_SID} for sid in user_sids],
+    }
+
+
+def _local_group(
+    name: str,
+    rid: str,
+    members: list[dict[str, str]],
+) -> dict[str, Any]:
+    return {
+        "ObjectIdentifier": f"{WS01_SID}-{rid}",
+        "Name": f"{name}@WS01.{DOMAIN_NAME}",
+        "Results": members,
+        "LocalNames": [],
+        "Collected": True,
+        "FailureReason": None,
+    }
+
+
 DOMAINS = [
     {
         "ObjectIdentifier": DOMAIN_SID,
@@ -53,7 +96,18 @@ DOMAINS = [
             **_props(DOMAIN_NAME, "DC=EXAMPLE,DC=TEST"),
             "functionallevel": "2016",
         },
-        "Aces": [],
+        "Aces": [
+            # Both replication rights: DCSync.
+            _ace(PARTNER_ADMINS_SID, "Group", "GetChanges"),
+            _ace(PARTNER_ADMINS_SID, "Group", "GetChangesAll"),
+            # Only one of them: no DCSync.
+            _ace(SVC_SID, "User", "GetChanges"),
+            _ace(PARTNER_ADMINS_SID, "Group", "GenericAll", inherited=True),
+            # Not a principal, and not imported.
+            _ace("S-1-3-4", "User", "GenericAll"),
+            # A right this module does not import.
+            _ace(HELPDESK_SID, "Group", "WriteGPLink"),
+        ],
         "IsDeleted": False,
         "IsACLProtected": False,
         "ContainedBy": None,
@@ -101,7 +155,14 @@ USERS = [
             # Collected by SharpHound but never imported.
             userpassword="not-a-real-password",
         ),
-        "Aces": [],
+        "Aces": [
+            # Granted both directly and by inheritance: reads as direct.
+            _ace(HELPDESK_SID, "Group", "ForceChangePassword", inherited=True),
+            _ace(HELPDESK_SID, "Group", "ForceChangePassword"),
+            _ace(HELPDESK_SID, "Group", "GenericWrite", inherited=True),
+            # An object's rights over itself grant nothing.
+            _ace(ALICE_SID, "User", "WriteSPN"),
+        ],
         "IsDeleted": False,
         "IsACLProtected": False,
         "ContainedBy": _principal(USERS_CONTAINER, "Container"),
@@ -122,13 +183,13 @@ USERS = [
             hasspn=True,
             serviceprincipalnames=["HTTP/app.example.test"],
         ),
-        "Aces": [],
+        "Aces": [_ace(ALICE_SID, "User", "AddKeyCredentialLink")],
         "IsDeleted": False,
         "IsACLProtected": False,
         "ContainedBy": _principal(USERS_CONTAINER, "Container"),
         "PrimaryGroupSID": DOMAIN_USERS_SID,
-        "AllowedToDelegate": [],
-        "HasSIDHistory": [],
+        "AllowedToDelegate": [_principal(WS01_SID, "Computer")],
+        "HasSIDHistory": [_principal(PARTNER_USER_SID, "User")],
         "SPNTargets": [],
         "UnconstrainedDelegation": False,
         "DomainSID": DOMAIN_SID,
@@ -172,7 +233,10 @@ GROUPS = [
             samaccountname="Helpdesk",
             description="Help desk staff",
         ),
-        "Aces": [],
+        "Aces": [
+            _ace(ALICE_SID, "User", "AddSelf"),
+            _ace(SVC_SID, "User", "AddMember"),
+        ],
         "IsDeleted": False,
         "IsACLProtected": False,
         "ContainedBy": _principal(USERS_CONTAINER, "Container"),
@@ -192,20 +256,56 @@ COMPUTERS = [
             enabled=True,
             haslaps=True,
         ),
-        "Aces": [],
+        "Aces": [_ace(HELPDESK_SID, "Group", "ReadLAPSPassword")],
         "IsDeleted": False,
         "IsACLProtected": False,
         "ContainedBy": _principal(WORKSTATIONS_OU, "OU"),
         "PrimaryGroupSID": DOMAIN_COMPUTERS_SID,
         "AllowedToDelegate": [],
-        "AllowedToAct": [],
+        "AllowedToAct": [_principal(SVC_SID, "User")],
         "HasSIDHistory": [],
         "DumpSMSAPassword": [],
-        "Sessions": {"Collected": True, "FailureReason": None, "Results": []},
-        "PrivilegedSessions": {"Collected": True, "FailureReason": None, "Results": []},
-        "RegistrySessions": {"Collected": True, "FailureReason": None, "Results": []},
-        "LocalGroups": [],
-        "UserRights": [],
+        "Sessions": _sessions(ALICE_SID),
+        "PrivilegedSessions": _sessions(SVC_SID),
+        # The same session seen twice yields one edge.
+        "RegistrySessions": _sessions(ALICE_SID),
+        "LocalGroups": [
+            _local_group(
+                "ADMINISTRATORS",
+                "544",
+                [
+                    _principal(HELPDESK_SID, "Group"),
+                    _principal(WS01_LOCAL_ADMIN_SID, "LocalUser"),
+                ],
+            ),
+            _local_group(
+                "REMOTE DESKTOP USERS",
+                "555",
+                [
+                    _principal(DOMAIN_USERS_SID, "Group"),
+                    _principal(ALICE_SID, "User"),
+                ],
+            ),
+            _local_group(
+                "REMOTE MANAGEMENT USERS",
+                "580",
+                [_principal(SVC_SID, "User")],
+            ),
+        ],
+        # Remote Desktop Users lacks the logon right here, so only Alice, who
+        # holds it directly, can RDP.
+        "UserRights": [
+            {
+                "Privilege": "SeRemoteInteractiveLogonRight",
+                "Results": [
+                    _principal(f"{WS01_SID}-544", "LocalGroup"),
+                    _principal(ALICE_SID, "User"),
+                ],
+                "LocalNames": [],
+                "Collected": True,
+                "FailureReason": None,
+            },
+        ],
         "Status": None,
         "IsDC": False,
         "UnconstrainedDelegation": False,
@@ -227,12 +327,13 @@ OUS = [
         "ContainedBy": _principal(DOMAIN_SID, "Domain"),
         "Links": [{"IsEnforced": True, "GUID": DEFAULT_GPO}],
         "ChildObjects": [_principal(WS01_SID, "Computer")],
+        # A GPO linked here adds svc_app to the local Administrators group.
         "GPOChanges": {
-            "LocalAdmins": [],
+            "LocalAdmins": [_principal(SVC_SID, "User")],
             "RemoteDesktopUsers": [],
             "DcomUsers": [],
             "PSRemoteUsers": [],
-            "AffectedComputers": [],
+            "AffectedComputers": [_principal(WS01_SID, "Computer")],
         },
     },
 ]

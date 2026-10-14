@@ -1,5 +1,6 @@
 import datetime
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -9,8 +10,10 @@ from cartography.intel.bloodhound.collection import open_collection
 from cartography.intel.bloodhound.collection import timestamp_from_filename
 from cartography.intel.bloodhound.parser import CollectionMethod
 from cartography.intel.bloodhound.parser import iter_edges
+from cartography.intel.bloodhound.parser import placeholder_domain
 from cartography.intel.bloodhound.parser import Provenance
 from cartography.intel.bloodhound.parser import transform_node
+from cartography.intel.bloodhound.parser import uncollected_host_edges
 from cartography.intel.bloodhound.parser import validate_collection
 from cartography.intel.common.object_store import LocalReportReader
 from tests.data.bloodhound import collection as fixture
@@ -476,3 +479,236 @@ def test_validate_collection_rejects_conflicting_domain_records(tmp_path):
     # Act and assert
     with pytest.raises(BloodHoundImportError, match="conflicting functionallevel"):
         _validate(archive)
+
+
+def _edges(data_type, obj, skipped_rights=None):
+    return {
+        (kind, row["source_id"], row["target_id"])
+        for kind, row in iter_edges(data_type, obj, PROVENANCE, skipped_rights)
+    }
+
+
+def _domain():
+    return fixture.collection()["domains"][0]
+
+
+def _computer():
+    return fixture.collection()["computers"][0]
+
+
+def test_iter_edges_dcsync_needs_both_replication_rights():
+    # Arrange
+    domain = _domain()
+
+    # Act
+    edges = _edges("domains", domain)
+
+    # Assert
+    assert ("DC_SYNC", fixture.PARTNER_ADMINS_SID, fixture.DOMAIN_SID) in edges
+    assert not any(e[0] == "DC_SYNC" and e[1] == fixture.SVC_SID for e in edges)
+
+
+def test_iter_edges_dcsync_only_on_domains():
+    # Arrange
+    user = fixture.collection()["users"][0]
+    user["Aces"] = [
+        {"PrincipalSID": fixture.SVC_SID, "PrincipalType": "User", "RightName": r}
+        for r in ("GetChanges", "GetChangesAll")
+    ]
+    skipped = Counter()
+
+    # Act
+    edges = _edges("users", user, skipped)
+
+    # Assert
+    assert edges.isdisjoint({("DC_SYNC", fixture.SVC_SID, fixture.ALICE_SID)})
+    assert skipped == Counter({"GetChanges": 1, "GetChangesAll": 1})
+
+
+def test_iter_edges_skips_owner_rights_self_and_unmapped_rights():
+    # Arrange
+    domain = _domain()
+    domain["Aces"].append(
+        {
+            "PrincipalSID": f"{fixture.DOMAIN_NAME}-S-1-3-4",
+            "PrincipalType": "Group",
+            "RightName": "WriteDacl",
+        },
+    )
+    domain["Aces"].append(
+        {
+            "PrincipalSID": fixture.DOMAIN_SID,
+            "PrincipalType": "Domain",
+            "RightName": "GenericAll",
+        },
+    )
+    skipped = Counter()
+
+    # Act
+    edges = _edges("domains", domain, skipped)
+
+    # Assert
+    acl = {e for e in edges if e[0] in ("GENERIC_ALL", "WRITE_DACL")}
+    assert acl == {("GENERIC_ALL", fixture.PARTNER_ADMINS_SID, fixture.DOMAIN_SID)}
+    assert skipped == Counter({"WriteGPLink": 1})
+
+
+def test_iter_edges_ace_inheritance_prefers_direct_grant():
+    # Arrange
+    alice = fixture.collection()["users"][0]
+
+    # Act
+    rows = {
+        kind: row
+        for kind, row in iter_edges("users", alice, PROVENANCE)
+        if kind in ("FORCE_CHANGE_PASSWORD", "GENERIC_WRITE")
+    }
+
+    # Assert
+    assert rows["FORCE_CHANGE_PASSWORD"]["is_inherited"] is False
+    assert rows["GENERIC_WRITE"]["is_inherited"] is True
+    assert rows["GENERIC_WRITE"]["source_type"] == "Group"
+
+
+def test_iter_edges_rdp_without_user_rights_uses_group_membership():
+    # Arrange
+    computer = _computer()
+    computer["UserRights"] = []
+
+    # Act
+    edges = _edges("computers", computer)
+
+    # Assert
+    assert {e for e in edges if e[0] == "CAN_RDP"} == {
+        ("CAN_RDP", fixture.DOMAIN_USERS_SID, fixture.WS01_SID),
+        ("CAN_RDP", fixture.ALICE_SID, fixture.WS01_SID),
+    }
+
+
+def test_iter_edges_rdp_when_group_holds_logon_right():
+    # Arrange
+    computer = _computer()
+    computer["UserRights"][0]["Results"] = [
+        {"ObjectIdentifier": f"{fixture.WS01_SID}-555", "ObjectType": "LocalGroup"},
+    ]
+
+    # Act
+    edges = _edges("computers", computer)
+
+    # Assert
+    assert {e for e in edges if e[0] == "CAN_RDP"} == {
+        ("CAN_RDP", fixture.DOMAIN_USERS_SID, fixture.WS01_SID),
+        ("CAN_RDP", fixture.ALICE_SID, fixture.WS01_SID),
+    }
+
+
+def test_iter_edges_skips_uncollected_local_groups_and_sessions():
+    # Arrange
+    computer = _computer()
+    for group in computer["LocalGroups"]:
+        group["Collected"] = False
+    computer["Sessions"]["Collected"] = False
+    computer["RegistrySessions"]["Collected"] = False
+
+    # Act
+    edges = _edges("computers", computer)
+
+    # Assert
+    assert {e[0] for e in edges} & {"ADMIN_TO", "CAN_RDP", "CAN_PS_REMOTE"} == set()
+    assert {e for e in edges if e[0] == "HAS_SESSION"} == {
+        ("HAS_SESSION", fixture.WS01_SID, fixture.SVC_SID),
+    }
+    assert set(uncollected_host_edges(computer)) == {
+        "ADMIN_TO",
+        "CAN_RDP",
+        "CAN_PS_REMOTE",
+    }
+
+
+def test_uncollected_host_edges_for_unreachable_computer():
+    # Arrange
+    computer = _computer()
+    computer["LocalGroups"] = []
+    for name in ("Sessions", "PrivilegedSessions", "RegistrySessions"):
+        computer[name] = {"Collected": False, "Results": []}
+
+    # Act and assert
+    assert set(uncollected_host_edges(computer)) == {
+        "ADMIN_TO",
+        "CAN_RDP",
+        "CAN_PS_REMOTE",
+        "HAS_SESSION",
+    }
+    assert uncollected_host_edges(_computer()) == []
+
+
+def test_iter_edges_gpo_local_groups_reach_affected_computers():
+    # Arrange
+    ou = fixture.collection()["ous"][0]
+    ou["GPOChanges"]["PSRemoteUsers"] = [
+        {"ObjectIdentifier": fixture.HELPDESK_SID, "ObjectType": "Group"},
+        {"ObjectIdentifier": "S-1-5-21-1-2-3-500", "ObjectType": "LocalUser"},
+    ]
+
+    # Act
+    edges = _edges("ous", ou)
+
+    # Assert
+    assert {e for e in edges if e[0] in ("ADMIN_TO", "CAN_PS_REMOTE")} == {
+        ("ADMIN_TO", fixture.SVC_SID, fixture.WS01_SID),
+        ("CAN_PS_REMOTE", fixture.HELPDESK_SID, fixture.WS01_SID),
+    }
+
+
+@pytest.mark.parametrize(
+    ("principal_id", "expected"),
+    [
+        (
+            "S-1-5-21-1-2-3-1105",
+            {"domainsid": "S-1-5-21-1-2-3", "domain": None},
+        ),
+        (
+            "EXAMPLE.TEST-S-1-5-32-544",
+            {"domainsid": None, "domain": "EXAMPLE.TEST"},
+        ),
+        ("S-1-5-11", {"domainsid": None, "domain": None}),
+    ],
+)
+def test_placeholder_domain(principal_id, expected):
+    assert placeholder_domain(principal_id) == expected
+
+
+def test_validate_collection_records_referenced_principals(tmp_path):
+    # Arrange
+    archive = fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip")
+
+    # Act
+    collection = _validate(archive)
+
+    # Assert
+    assert collection.referenced_principals[fixture.PARTNER_ADMINS_SID] == "ADGroup"
+    assert collection.referenced_principals[fixture.PARTNER_USER_SID] == "ADUser"
+    assert collection.referenced_principals[fixture.HELPDESK_SID] == "ADGroup"
+    # Local accounts and OWNER RIGHTS are never placeholders.
+    assert fixture.WS01_LOCAL_ADMIN_SID not in collection.referenced_principals
+    assert "S-1-3-4" not in collection.referenced_principals
+    assert dict(collection.uncollected_hosts) == {}
+
+
+def test_validate_collection_skips_placeholder_for_filtered_gpo_rdp(tmp_path):
+    # Arrange
+    outsider = f"{fixture.PARTNER_SID}-1600"
+    data = fixture.collection()
+    data["ous"][0]["GPOChanges"]["RemoteDesktopUsers"] = [
+        {"ObjectIdentifier": outsider, "ObjectType": "User"},
+    ]
+    archive = fixture.write_zip(tmp_path / "20261012143015_BloodHound.zip", data)
+
+    # Act
+    collection = _validate(archive)
+
+    # Assert
+    # WS01's user rights grant the logon right to Alice only.
+    assert outsider not in collection.referenced_principals
+    assert not collection.allows_rdp(outsider, fixture.WS01_SID)
+    assert collection.allows_rdp(fixture.ALICE_SID, fixture.WS01_SID)
