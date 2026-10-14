@@ -173,6 +173,24 @@ OntologyFieldMapping(
 # endpoint = public_endpoint if set, otherwise private_endpoint
 ```
 
+#### `normalize_hostname`
+Lowercases a hostname, trims surrounding whitespace, and removes the trailing root dot, so
+DNS names from different providers can be matched with an indexed equality lookup. An empty
+result becomes `NULL`. The raw value remains available on the source node's own property.
+Set `extra["record_types"]` to normalize only records of those types, for example when the
+same field holds hostnames for `CNAME` records but IP addresses or text for other types:
+```python
+OntologyFieldMapping(
+    ontology_field="target_hostname",
+    node_field="value",
+    special_handling="normalize_hostname",
+    extra={"record_types": ["CNAME", "ALIAS"]},
+)
+# type="CNAME", value="Target.Example.COM." becomes target_hostname="target.example.com"
+# type="TXT" leaves target_hostname NULL
+```
+The record type is read from the `type` node field, or from `extra["record_type_field"]`.
+
 ### Node Eligibility
 
 The `eligible_for_source` parameter in `OntologyNodeMapping` controls whether a node mapping can create new ontology nodes (default: `True`).
