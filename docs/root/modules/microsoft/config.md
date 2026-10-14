@@ -97,10 +97,10 @@ Defender for Endpoint machines and unresolved alerts sync by default when the
 tenant grants access. To include them, grant admin consent for these
 **application** permissions on the same app:
 
-| API | Permission | Data |
-| --- | --- | --- |
-| WindowsDefenderATP | `Machine.Read.All` | Defender for Endpoint machine inventory |
-| Microsoft Graph | `SecurityAlert.Read.All` | Unresolved Defender for Endpoint alerts |
+| Dataset | API | Permission | Data |
+| --- | --- | --- | --- |
+| `defender_machines` | WindowsDefenderATP | `Machine.Read.All` | Defender for Endpoint machine inventory |
+| `defender_alerts` | Microsoft Graph | `SecurityAlert.Read.All` | Unresolved Defender for Endpoint alerts |
 
 Machine inventory covers the tenant's configured Defender retention period. Only
 unresolved Defender for Endpoint alerts are ingested; resolved alerts and alerts
@@ -108,7 +108,7 @@ outside the retention window are removed on the next successful sync. Repeated
 records or pagination cursors mean the provider's data changed mid-read, so the
 sync aborts before writes; rerun once those changes settle.
 
-Each collection is skipped, without cleanup, when the tenant can't provide it:
+Each dataset is skipped, without cleanup, when the tenant can't provide it:
 Defender for Endpoint isn't provisioned (token error `AADSTS500011`), its
 permission is missing (`401` or `403`), or, for machines, Microsoft returns `404`
 because there are no recently seen machines. A skip logs its cause, naming the
@@ -171,7 +171,8 @@ cartography \
 
 Valid values are `users`, `groups`, `administrative_units`, `applications`,
 `service_principals`, `app_role_assignments`, `directory_roles`, `federation`,
-`intune`, `o365`, and `defender`. Intune, O365, and Defender run as whole units.
+`intune`, `o365`, `defender_machines`, and `defender_alerts`. Intune and O365
+run as whole units.
 The Entra tenant
 always syncs because every other Microsoft node relates to it.
 
@@ -268,7 +269,7 @@ cartography \
 ## Troubleshooting
 
 If Defender machines or alerts are missing, check the sync log for a skipped
-Defender collection and its cause. A denied request (`401` or `403`) names the
+Defender dataset and its cause. A denied request (`401` or `403`) names the
 permission to grant; admin consent must be granted again after adding a
 permission to the app. `AADSTS500011` means the tenant has no Defender for
 Endpoint, and a machine `404` means Defender reports no recently seen machines. An exhausted retry, malformed

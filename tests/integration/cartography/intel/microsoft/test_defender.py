@@ -14,6 +14,7 @@ from msgraph.generated.models.managed_device import ManagedDevice
 
 from cartography.client.core.tx import load
 from cartography.intel.microsoft import defender
+from cartography.intel.microsoft.defender import alerts as defender_alerts
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
 from cartography.models.microsoft.entra.tenant import EntraTenantSchema
 from tests.data.microsoft.defender import AAD_DEVICE_ID
@@ -208,7 +209,7 @@ def test_later_alert_page_failure_preserves_previous_nodes_and_edges(neo4j_sessi
         _response(
             {
                 "value": ALERTS,
-                "@odata.nextLink": defender.ALERTS_URL + "?$skiptoken=page2",
+                "@odata.nextLink": defender_alerts.ALERTS_URL + "?$skiptoken=page2",
             }
         ),
         _response({"error": {"code": "InternalServerError"}}, 500),

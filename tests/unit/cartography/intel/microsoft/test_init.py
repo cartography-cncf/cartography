@@ -69,7 +69,7 @@ def test_requested_syncs_skip_unrequested_intune_and_o365(
 @patch("cartography.intel.microsoft.start_o365_ingestion")
 @patch("cartography.intel.microsoft.start_intune_ingestion")
 @patch("cartography.intel.microsoft.start_entra_ingestion")
-def test_requested_syncs_can_select_only_defender(
+def test_requested_syncs_can_select_only_a_defender_dataset(
     mock_start_entra,
     mock_start_intune,
     mock_start_o365,
@@ -81,7 +81,7 @@ def test_requested_syncs_can_select_only_defender(
         microsoft_tenant_id="tenant-id",
         microsoft_client_id="client-id",
         microsoft_client_secret="client-secret",
-        microsoft_requested_syncs="defender",
+        microsoft_requested_syncs="defender_alerts",
     )
 
     # Act

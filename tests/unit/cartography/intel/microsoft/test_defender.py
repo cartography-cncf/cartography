@@ -1,4 +1,5 @@
 import json
+from contextlib import contextmanager
 from datetime import datetime
 from datetime import timezone
 from io import BytesIO
@@ -15,6 +16,9 @@ from urllib3.response import HTTPResponse
 from cartography.cli import CLI
 from cartography.config import Config
 from cartography.intel.microsoft import defender
+from cartography.intel.microsoft.defender import alerts as defender_alerts
+from cartography.intel.microsoft.defender import client as defender_client
+from cartography.intel.microsoft.defender import machines as defender_machines
 from tests.data.microsoft.defender import ALERTS
 from tests.data.microsoft.defender import MACHINES
 from tests.data.microsoft.defender import TENANT_ID
@@ -35,11 +39,11 @@ def test_machine_pagination_uses_skip_when_full_page_has_no_next_link():
     credential.get_token.return_value.token = "test-token"
 
     # Act
-    result = defender.get_collection(
+    result = defender_client.get_collection(
         session,
         credential,
-        defender.MACHINES_URL,
-        defender.MDE_SCOPE,
+        defender_machines.MACHINES_URL,
+        defender_machines.MDE_SCOPE,
         {"$top": 2},
         use_skip=True,
     )
@@ -48,13 +52,13 @@ def test_machine_pagination_uses_skip_when_full_page_has_no_next_link():
     assert result == MACHINES
     assert session.get.call_args_list[1].kwargs["params"] == {"$top": 2, "$skip": 2}
     assert session.get.call_args.kwargs["allow_redirects"] is False
-    assert credential.get_token.call_args.args == (defender.MDE_SCOPE,)
+    assert credential.get_token.call_args.args == (defender_machines.MDE_SCOPE,)
 
 
 def test_alert_pagination_keeps_provider_cursor_and_uses_graph_scope():
     # Arrange
     session = MagicMock()
-    next_link = defender.ALERTS_URL + "?$skiptoken=next"
+    next_link = defender_alerts.ALERTS_URL + "?$skiptoken=next"
     in_progress = {**ALERTS[0], "id": "alert-2", "status": "inProgress"}
     session.get.side_effect = [
         _response({"value": ALERTS, "@odata.nextLink": next_link}),
@@ -65,7 +69,7 @@ def test_alert_pagination_keeps_provider_cursor_and_uses_graph_scope():
     credential = MagicMock()
 
     # Act
-    result = defender.get_alerts(session, credential)
+    result = defender_alerts.get_alerts(session, credential)
 
     # Assert
     assert [alert["id"] for alert in result] == [ALERTS[0]["id"], "alert-2"]
@@ -82,7 +86,7 @@ def test_alert_pagination_keeps_provider_cursor_and_uses_graph_scope():
         },
     ]
     assert session.get.call_args_list[1].args == (next_link,)
-    assert credential.get_token.call_args.args == (defender.GRAPH_SCOPE,)
+    assert credential.get_token.call_args.args == (defender_alerts.GRAPH_SCOPE,)
 
 
 @pytest.mark.parametrize(
@@ -102,7 +106,7 @@ def test_malformed_collection_is_not_treated_as_empty(payload):
 
     # Act and assert
     with pytest.raises(ValueError):
-        defender.get_alerts(session, MagicMock())
+        defender_alerts.get_alerts(session, MagicMock())
 
 
 @pytest.mark.parametrize(
@@ -123,7 +127,7 @@ def test_untrusted_next_link_fails_before_sending_token(next_link):
 
     # Act and assert
     with pytest.raises(ValueError):
-        defender.get_alerts(session, MagicMock())
+        defender_alerts.get_alerts(session, MagicMock())
     assert session.get.call_count == 1
 
 
@@ -131,12 +135,15 @@ def test_repeated_pagination_fails():
     # Arrange
     session = MagicMock()
     session.get.return_value = _response(
-        {"value": [], "@odata.nextLink": defender.ALERTS_URL + "?$skiptoken=next"}
+        {
+            "value": [],
+            "@odata.nextLink": defender_alerts.ALERTS_URL + "?$skiptoken=next",
+        }
     )
 
     # Act and assert
     with pytest.raises(ValueError, match="repeated nextLink"):
-        defender.get_alerts(session, MagicMock())
+        defender_alerts.get_alerts(session, MagicMock())
 
 
 def test_advancing_pagination_is_bounded() -> None:
@@ -146,7 +153,7 @@ def test_advancing_pagination_is_bounded() -> None:
         _response(
             {
                 "value": [{"id": str(i)}],
-                "@odata.nextLink": defender.ALERTS_URL + f"?$skiptoken={i}",
+                "@odata.nextLink": defender_alerts.ALERTS_URL + f"?$skiptoken={i}",
             }
         )
         for i in range(2)
@@ -154,10 +161,10 @@ def test_advancing_pagination_is_bounded() -> None:
 
     # Act and assert
     with (
-        patch.object(defender, "DEFAULT_MAX_PAGES", 2),
+        patch.object(defender_client, "DEFAULT_MAX_PAGES", 2),
         pytest.raises(ValueError, match="pagination limit"),
     ):
-        defender.get_alerts(session, MagicMock())
+        defender_alerts.get_alerts(session, MagicMock())
     assert session.get.call_count == 2
 
 
@@ -177,13 +184,13 @@ def test_retry_after_is_capped_through_real_http_adapter() -> None:
 
     # Act
     with (
-        defender.create_session() as session,
+        defender_client.create_session() as session,
         patch.object(
             HTTPSConnectionPool, "_make_request", side_effect=responses
         ) as send,
         patch("urllib3.util.retry.time.sleep") as sleep,
     ):
-        result = defender.get_machines(session, credential)
+        result = defender_machines.get_machines(session, credential)
 
     # Assert
     assert result == []
@@ -196,8 +203,8 @@ def test_optional_timestamps_are_native_and_bad_metadata_keeps_inventory() -> No
     machines = [{"id": "machine", "firstSeen": None, "lastSeen": "invalid"}]
 
     # Act
-    machine = defender.transform_machines(machines, TENANT_ID)[0]
-    alert = defender.transform_alerts(ALERTS, TENANT_ID)[0]
+    machine = defender_machines.transform_machines(machines, TENANT_ID)[0]
+    alert = defender_alerts.transform_alerts(ALERTS, TENANT_ID)[0]
 
     # Assert
     assert machine["id"] == f"{TENANT_ID}/machine"
@@ -213,7 +220,7 @@ def test_optional_timestamps_are_native_and_bad_metadata_keeps_inventory() -> No
 )
 def test_rfc3339_timestamps_parse(value):
     # Act
-    machine = defender.transform_machines(
+    machine = defender_machines.transform_machines(
         [{"id": "machine", "lastSeen": value}], TENANT_ID
     )[0]
 
@@ -228,11 +235,11 @@ def test_repeated_machine_records_fail_instead_of_looping_on_ignored_skip():
 
     # Act and assert
     with pytest.raises(ValueError, match="repeated a record"):
-        defender.get_collection(
+        defender_client.get_collection(
             session,
             MagicMock(),
-            defender.MACHINES_URL,
-            defender.MDE_SCOPE,
+            defender_machines.MACHINES_URL,
+            defender_machines.MDE_SCOPE,
             {"$top": 2},
             use_skip=True,
         )
@@ -246,7 +253,7 @@ def test_http_errors_are_not_treated_as_empty_inventory(status):
 
     # Act and assert
     with pytest.raises(requests.HTTPError):
-        defender.get_machines(session, MagicMock())
+        defender_machines.get_machines(session, MagicMock())
 
 
 def test_authentication_failure_does_not_issue_api_request():
@@ -256,14 +263,14 @@ def test_authentication_failure_does_not_issue_api_request():
 
     # Act and assert
     with pytest.raises(ClientAuthenticationError):
-        defender.get_machines(session, credential)
+        defender_machines.get_machines(session, credential)
     session.get.assert_not_called()
 
 
 def test_transforms_scope_provider_ids_and_device_evidence():
     # Act
-    machines = defender.transform_machines(MACHINES, TENANT_ID)
-    alerts = defender.transform_alerts(ALERTS, TENANT_ID)
+    machines = defender_machines.transform_machines(MACHINES, TENANT_ID)
+    alerts = defender_alerts.transform_alerts(ALERTS, TENANT_ID)
 
     # Assert
     assert machines[0]["id"] == f"{TENANT_ID}/machine-1"
@@ -272,7 +279,7 @@ def test_transforms_scope_provider_ids_and_device_evidence():
         for machine in ("machine-1", "machine-2", "machine-outside-retention")
     ]
     assert (
-        defender.transform_machines(MACHINES, "other-tenant")[0]["id"]
+        defender_machines.transform_machines(MACHINES, "other-tenant")[0]["id"]
         != machines[0]["id"]
     )
 
@@ -282,7 +289,7 @@ def test_transforms_scope_provider_ids_and_device_evidence():
 )
 def test_missing_entra_ids_do_not_join_unregistered_intune_devices(aad_device_id):
     # Act
-    result = defender.transform_machines(
+    result = defender_machines.transform_machines(
         [{"id": "machine", "aadDeviceId": aad_device_id}], TENANT_ID
     )
 
@@ -294,7 +301,7 @@ def test_missing_entra_ids_do_not_join_unregistered_intune_devices(aad_device_id
 def test_cross_tenant_alert_fails():
     # Act and assert
     with pytest.raises(ValueError, match="different tenant"):
-        defender.transform_alerts(ALERTS, "other-tenant")
+        defender_alerts.transform_alerts(ALERTS, "other-tenant")
 
 
 def test_missing_application_credentials_fail_before_constructing_credentials():
@@ -330,67 +337,101 @@ def test_cli_accepts_defender_requested_sync(monkeypatch):
                 "--microsoft-client-secret-env-var",
                 "TEST_MICROSOFT_SECRET",
                 "--microsoft-requested-syncs",
-                "defender",
+                "defender_machines,defender_alerts",
             ]
         )
 
     # Assert
     assert exit_code == 0
     config = run.call_args.args[1]
-    assert config.microsoft_requested_syncs == "defender"
+    assert config.microsoft_requested_syncs == "defender_machines,defender_alerts"
     assert config.microsoft_client_secret == "test-secret"
 
 
-def _skipped(fetch_error, caplog, level="WARNING"):
+@contextmanager
+def _patched_sync(machines=MACHINES, alerts=ALERTS):
+    """Patch API reads and graph writes; yield the names of datasets written."""
+    calls: dict[str, list[str]] = {"loaded": [], "cleaned": []}
+
+    def fake(result):
+        return (
+            {"side_effect": result}
+            if isinstance(result, Exception)
+            else {"return_value": result}
+        )
+
     with (
-        patch.object(defender, "get_machines", side_effect=fetch_error),
-        patch.object(defender, "get_alerts", return_value=ALERTS),
-        patch.object(defender, "load") as load,
-        patch.object(defender.GraphJob, "from_node_schema") as cleanup,
-        caplog.at_level(level),
+        patch.object(defender_machines, "get_machines", **fake(machines)),
+        patch.object(defender_alerts, "get_alerts", **fake(alerts)),
+        patch.object(
+            defender_machines,
+            "load_machines",
+            side_effect=lambda *_: calls["loaded"].append("machines"),
+        ),
+        patch.object(
+            defender_alerts,
+            "load_alerts",
+            side_effect=lambda *_: calls["loaded"].append("alerts"),
+        ),
+        patch.object(
+            defender_machines,
+            "cleanup_machines",
+            side_effect=lambda *_: calls["cleaned"].append("machines"),
+        ),
+        patch.object(
+            defender_alerts,
+            "cleanup_alerts",
+            side_effect=lambda *_: calls["cleaned"].append("alerts"),
+        ),
     ):
-        defender.sync(MagicMock(), MagicMock(), MagicMock(), TENANT_ID, 1)
-    return load, cleanup
+        yield calls
+
+
+def _sync(requested=defender.DEFENDER_RESOURCES):
+    defender.sync(MagicMock(), MagicMock(), MagicMock(), TENANT_ID, 1, requested)
 
 
 @pytest.mark.parametrize("status", [401, 403])
 def test_denied_machines_are_skipped_without_cleanup(status, caplog):
     # Act
-    load, cleanup = _skipped(requests.HTTPError(response=_response({}, status)), caplog)
+    with (
+        _patched_sync(
+            machines=requests.HTTPError(response=_response({}, status))
+        ) as calls,
+        caplog.at_level("WARNING"),
+    ):
+        _sync()
 
     # Assert: alerts still sync and clean up; machines are neither loaded nor cleaned.
-    loaded = [type(c.args[1]).__name__ for c in load.call_args_list]
-    cleaned = [type(c.args[0]).__name__ for c in cleanup.call_args_list]
-    assert loaded == cleaned == ["DefenderAlertSchema"]
+    assert calls == {"loaded": ["alerts"], "cleaned": ["alerts"]}
     assert "Machine.Read.All" in caplog.text
 
 
 def test_tenant_without_defender_skips_quietly(caplog):
-    # Act
-    load, cleanup = _skipped(
-        ClientAuthenticationError(
-            "AADSTS500011: The resource principal named "
-            "https://api.securitycenter.microsoft.com was not found in the tenant."
-        ),
-        caplog,
-        level="INFO",
+    # Arrange
+    error = ClientAuthenticationError(
+        "AADSTS500011: The resource principal named "
+        "https://api.securitycenter.microsoft.com was not found in the tenant."
     )
 
+    # Act
+    with _patched_sync(machines=error) as calls, caplog.at_level("INFO"):
+        _sync()
+
     # Assert
-    assert [type(c.args[1]).__name__ for c in load.call_args_list] == [
-        "DefenderAlertSchema"
-    ]
+    assert calls["loaded"] == ["alerts"]
     assert "not provisioned" in caplog.text
 
 
-def test_no_recent_machines_404_is_skipped(caplog):
+def test_no_recent_machines_404_is_skipped():
     # Act
-    load, _ = _skipped(requests.HTTPError(response=_response({}, 404)), caplog)
+    with _patched_sync(
+        machines=requests.HTTPError(response=_response({}, 404))
+    ) as calls:
+        _sync()
 
     # Assert
-    assert [type(c.args[1]).__name__ for c in load.call_args_list] == [
-        "DefenderAlertSchema"
-    ]
+    assert calls["loaded"] == ["alerts"]
 
 
 @pytest.mark.parametrize(
@@ -403,26 +444,54 @@ def test_no_recent_machines_404_is_skipped(caplog):
 )
 def test_other_failures_abort_before_writes(error):
     # Act and assert
-    with (
-        patch.object(defender, "get_machines", side_effect=error),
-        patch.object(defender, "load") as load,
-        pytest.raises(type(error)),
-    ):
-        defender.sync(MagicMock(), MagicMock(), MagicMock(), TENANT_ID, 1)
-    load.assert_not_called()
+    with _patched_sync(machines=error) as calls, pytest.raises(type(error)):
+        _sync()
+    assert calls == {"loaded": [], "cleaned": []}
 
 
-def test_denied_alert_404_is_not_skipped():
+def test_alert_404_is_not_skipped():
     # Act and assert: 404 is only a documented empty response for machines.
     with (
-        patch.object(defender, "get_machines", return_value=MACHINES),
-        patch.object(
-            defender,
-            "get_alerts",
-            side_effect=requests.HTTPError(response=_response({}, 404)),
-        ),
-        patch.object(defender, "load") as load,
+        _patched_sync(alerts=requests.HTTPError(response=_response({}, 404))) as calls,
         pytest.raises(requests.HTTPError),
     ):
-        defender.sync(MagicMock(), MagicMock(), MagicMock(), TENANT_ID, 1)
-    load.assert_not_called()
+        _sync()
+    assert calls == {"loaded": [], "cleaned": []}
+
+
+@pytest.mark.parametrize(
+    "requested,expected",
+    [
+        (["defender_machines"], ["machines"]),
+        (["defender_alerts"], ["alerts"]),
+    ],
+)
+def test_only_requested_datasets_are_read_and_written(requested, expected):
+    # Act
+    with _patched_sync() as calls:
+        _sync(requested)
+        machines_read = defender_machines.get_machines.called
+        alerts_read = defender_alerts.get_alerts.called
+
+    # Assert
+    assert calls["loaded"] == expected
+    assert machines_read is ("machines" in expected)
+    assert alerts_read is ("alerts" in expected)
+
+
+def test_no_requested_dataset_skips_credentials():
+    # Arrange
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id=TENANT_ID,
+        microsoft_client_id="client-id",
+        microsoft_client_secret="client-secret",
+        microsoft_requested_syncs="users",
+    )
+
+    # Act
+    with patch.object(defender.credentials, "make_credential") as make_credential:
+        defender.start_defender_ingestion(MagicMock(), config)
+
+    # Assert
+    make_credential.assert_not_called()
