@@ -13,6 +13,7 @@ modules/aws/index
 modules/azure/index
 modules/bbot/index
 modules/bigfix/index
+modules/bloodhound/index
 modules/circleci/index
 modules/cloudflare/index
 modules/crowdstrike/index

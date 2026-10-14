@@ -551,6 +551,22 @@ class DeviceToMiradoreDeviceHostnameMatchLink(CartographyRelSchema):
 
 # Configuration for hostname matchlinks used by the intel module.
 # Each tuple: (target_label, target_hostname_field, matchlink_schema)
+# (:Device)-[:OBSERVED_AS]->(:ADComputer) via hostname
+@dataclass(frozen=True)
+class DeviceToADComputerHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "ADComputer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
 HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
     ("CrowdstrikeHost", "hostname", DeviceToCrowdstrikeHostHostnameMatchLink()),
     ("KandjiDevice", "device_name", DeviceToKandjiDeviceHostnameMatchLink()),
@@ -577,4 +593,5 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
     ),
     ("JamfComputer", "name", DeviceToJamfComputerHostnameMatchLink()),
     ("MiradoreDevice", "hostname", DeviceToMiradoreDeviceHostnameMatchLink()),
+    ("ADComputer", "hostname", DeviceToADComputerHostnameMatchLink()),
 ]

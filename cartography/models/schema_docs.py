@@ -893,6 +893,7 @@ def _mermaid_relationship(relationship: Relationship) -> str:
 def _module_title(module: str) -> str:
     title_overrides = {
         "aibom": "AIBOM",
+        "bloodhound": "BloodHound",
         "aws": "AWS",
         "gcp": "GCP",
         "oci": "OCI",
