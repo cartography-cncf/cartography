@@ -31,6 +31,7 @@ import cartography.intel.scaleway.instances.securitygroups
 import cartography.intel.scaleway.kapsule.clusters
 import cartography.intel.scaleway.kms.keys
 import cartography.intel.scaleway.loadbalancers.loadbalancers
+import cartography.intel.scaleway.mnq.sqs
 import cartography.intel.scaleway.network.ips
 import cartography.intel.scaleway.network.private_networks
 import cartography.intel.scaleway.network.public_gateways
@@ -324,6 +325,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Secret Manager
     cartography.intel.scaleway.secrets.secrets.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Messaging & Queuing (SQS-compatible namespace + credentials).
+    cartography.intel.scaleway.mnq.sqs.sync(
         neo4j_session,
         client,
         common_job_parameters,
