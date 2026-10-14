@@ -112,7 +112,11 @@ class DefenderMachineNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class DefenderMachineToIntuneDeviceRel(CartographyRelSchema):
-    """Matches Defender and Intune inventory by Entra device ID within the same tenant."""
+    """Matches Defender and Intune inventory by Entra device ID within the same tenant.
+
+    Both producers write the same lowercase key; empty and all-zero device IDs
+    never link. Entra users are reachable through the Intune enrollment.
+    """
 
     target_node_label: str = "IntuneManagedDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -128,7 +132,13 @@ class DefenderMachineToIntuneDeviceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DefenderMachineSchema(CartographyNodeSchema):
-    """A machine observed by Microsoft Defender for Endpoint within the tenant's retention period."""
+    """A machine observed by Microsoft Defender for Endpoint within the tenant's retention period.
+
+    Presence in the inventory doesn't prove the endpoint is protected; see
+    onboarding_status. The API provides no hardware serial number, so machines
+    don't create canonical Device nodes; canonical devices are reachable through
+    the linked IntuneManagedDevice.
+    """
 
     label: str = "DefenderMachine"
     properties: DefenderMachineNodeProperties = DefenderMachineNodeProperties()
@@ -203,7 +213,10 @@ class DefenderAlertNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class DefenderAlertToMachineRel(CartographyRelSchema):
-    """Links an alert to each Defender machine identified in its device evidence."""
+    """Links an alert to each Defender machine identified in its device evidence.
+
+    Machines outside the inventory's retention period aren't created as placeholders.
+    """
 
     target_node_label: str = "DefenderMachine"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -219,7 +232,8 @@ class DefenderAlertSchema(CartographyNodeSchema):
     """An unresolved Defender for Endpoint alert returned by Microsoft Graph security alerts v2.
 
     Ontology Mapping: The SecurityIssue label enables cross-provider security
-    issue queries with normalized severity and resolution status.
+    issue queries with normalized title, severity, status, type, and first-seen
+    values. Unknown severity and status values stay unmapped.
     """
 
     label: str = "DefenderAlert"

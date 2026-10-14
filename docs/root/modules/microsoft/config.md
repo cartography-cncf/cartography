@@ -102,6 +102,12 @@ tenant grants access. To include them, grant admin consent for these
 | WindowsDefenderATP | `Machine.Read.All` | Defender for Endpoint machine inventory |
 | Microsoft Graph | `SecurityAlert.Read.All` | Unresolved Defender for Endpoint alerts |
 
+Machine inventory covers the tenant's configured Defender retention period. Only
+unresolved Defender for Endpoint alerts are ingested; resolved alerts and alerts
+outside the retention window are removed on the next successful sync. Repeated
+records or pagination cursors mean the provider's data changed mid-read, so the
+sync aborts before writes; rerun once those changes settle.
+
 Each collection is skipped, without cleanup, when the tenant can't provide it:
 Defender for Endpoint isn't provisioned (token error `AADSTS500011`), its
 permission is missing (`401` or `403`), or, for machines, Microsoft returns `404`
