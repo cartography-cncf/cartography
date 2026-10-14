@@ -9,11 +9,12 @@ analysis
 ```
 
 
-The `microsoft` module is the top-level umbrella for Microsoft tenant, SaaS, and security control plane data ingested via Microsoft Graph. It includes:
+The `microsoft` module is the top-level umbrella for Microsoft tenant, SaaS, and security control plane data ingested via Microsoft Graph and Defender for Endpoint APIs. It includes:
 
 - **entra**: Entra ID identity objects (users, groups, OUs, applications, service principals, and app role assignments)
 - **intune**: Intune managed devices, detected apps, and compliance policies
 - **o365**: Office 365 licensing (subscribed SKUs, service plans, and per-user license assignments)
+- **defender**: Defender for Endpoint machines (`defender_machines`) and unresolved alerts (`defender_alerts`)
 
 `microsoft` is the canonical top-level module name. `entra` remains accepted as a backward-compatible alias for module selection and ontology source configuration during the migration.
 

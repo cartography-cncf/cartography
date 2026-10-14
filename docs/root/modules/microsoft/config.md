@@ -91,6 +91,36 @@ use; background clients can produce successful non-interactive sign-ins.
 See Microsoft's [signInActivity reference](https://learn.microsoft.com/en-us/graph/api/resources/signinactivity?view=graph-rest-1.0)
 and [inactive-account guidance](https://learn.microsoft.com/en-us/entra/identity/monitoring-health/howto-manage-inactive-user-accounts).
 
+### Defender for Endpoint
+
+Defender for Endpoint machines and unresolved alerts sync by default when the
+tenant grants access. To include them, grant admin consent for these
+**application** permissions on the same app:
+
+| Dataset | API | Permission | Data |
+| --- | --- | --- | --- |
+| `defender_machines` | WindowsDefenderATP | `Machine.Read.All` | Defender for Endpoint machine inventory |
+| `defender_alerts` | Microsoft Graph | `SecurityAlert.Read.All` | Unresolved Defender for Endpoint alerts |
+
+Machine inventory covers the tenant's configured Defender retention period. Only
+unresolved Defender for Endpoint alerts are ingested; resolved alerts and alerts
+outside the retention window are removed on the next successful sync. Repeated
+records or pagination cursors mean the provider's data changed mid-read, so the
+sync aborts before writes; rerun once those changes settle.
+
+Each dataset is skipped, without cleanup, when the tenant can't provide it:
+Defender for Endpoint isn't provisioned (token error `AADSTS500011`), its
+permission is missing (`401` or `403`), or, for machines, Microsoft returns `404`
+because there are no recently seen machines. A skip logs its cause, naming the
+permission to grant when a request is denied, and preserves previously synced
+Defender data, like the optional Entra permissions above. The connector uses the
+commercial cloud endpoints and does not support sovereign cloud endpoints.
+Machine tokens use `https://api.securitycenter.microsoft.com/.default`, as required
+by Microsoft even though requests go to `https://api.security.microsoft.com`.
+Alert tokens use `https://graph.microsoft.com/.default`. Both are obtained through
+the existing Microsoft service principal credential. No write API permissions are
+required.
+
 ## Configure Cartography
 
 Provide these options:
@@ -99,7 +129,8 @@ Provide these options:
 - `--microsoft-client-id`: App registration client ID.
 - `--microsoft-client-secret-env-var`: Name of the environment variable containing the client secret.
 
-These credentials apply to all Microsoft Graph ingestion in the `microsoft` module, including Entra ID and Intune.
+These credentials apply to all ingestion in the `microsoft` module, including
+Entra ID, Intune, O365, and Defender for Endpoint ingestion.
 
 The deprecated `--entra-tenant-id`, `--entra-client-id`, and `--entra-client-secret-env-var` aliases remain accepted until Cartography v1.0.0. Do not mix `--microsoft-*` and `--entra-*` credential flags in one invocation.
 
@@ -113,6 +144,16 @@ cartography \
   --microsoft-client-id '<client-id>' \
   --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET
 ```
+
+Defender machine inventory requests use pages of up to 10,000 records; Microsoft documents limits
+of 100 machine requests per minute and 1,500 per hour. Alerts use Graph
+`/v1.0/security/alerts_v2` with
+`serviceSource eq 'microsoftDefenderForEndpoint'`, one query each for the
+unresolved statuses `new` and `inProgress`, pages
+of 100, and `@odata.nextLink` pagination. Requests retry HTTP 429 and transient 5xx
+responses up to five times and cap each `Retry-After` delay at eight seconds.
+Each collection is limited to 10,000 pages; exceeding that limit aborts the
+snapshot before graph writes or cleanup.
 
 ## Sync selected resources
 
@@ -130,7 +171,9 @@ cartography \
 
 Valid values are `users`, `groups`, `administrative_units`, `applications`,
 `service_principals`, `app_role_assignments`, `directory_roles`, `federation`,
-`intune`, and `o365`. Intune and O365 run as whole units. The Entra tenant
+`intune`, `o365`, `defender_machines`, and `defender_alerts`. Intune and O365
+run as whole units.
+The Entra tenant
 always syncs because every other Microsoft node relates to it.
 
 A dataset that isn't requested is neither synced nor cleaned up, so its existing
@@ -147,7 +190,8 @@ permissions. It isn't a replacement for application authentication.
 
 ### Limitations
 
-- Only Entra datasets are attempted. Intune and O365 ingestion are skipped.
+- Only Entra datasets are attempted. Intune, O365, and Defender ingestion are
+  skipped.
 - Microsoft Graph may return partial results without an authorization error.
 - If Microsoft Graph returns `403 Forbidden`, Cartography stops the affected
   dataset, reports it, and continues with the next dataset. After attempting all
@@ -222,7 +266,24 @@ cartography \
   --microsoft-access-token-env-var MICROSOFT_ACCESS_TOKEN
 ```
 
+## Troubleshooting
+
+If Defender machines or alerts are missing, check the sync log for a skipped
+Defender dataset and its cause. A denied request (`401` or `403`) names the
+permission to grant; admin consent must be granted again after adding a
+permission to the app. `AADSTS500011` means the tenant has no Defender for
+Endpoint, and a machine `404` means Defender reports no recently seen machines. An exhausted retry, malformed
+page, or incomplete pagination aborts the Defender sync before graph writes or
+cleanup, preserving previous Defender data. A successful empty collection is
+eligible for cleanup.
+
 ## References
+
+- [Defender for Endpoint machine list](https://learn.microsoft.com/en-us/defender-endpoint/api/get-machines)
+- [Defender for Endpoint machine properties](https://learn.microsoft.com/en-us/defender-endpoint/api/machine)
+- [Defender app-only authentication and token audience](https://learn.microsoft.com/en-us/defender-endpoint/api/exposed-apis-create-app-webapp)
+- [Microsoft Graph security alerts v2 list, permissions, filters, and pagination](https://learn.microsoft.com/en-us/graph/api/security-list-alerts_v2?view=graph-rest-1.0)
+- [Microsoft Graph device evidence and Defender device IDs](https://learn.microsoft.com/en-us/graph/api/resources/security-deviceevidence?view=graph-rest-1.0)
 
 - [Microsoft Graph user](https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http)
 - [Microsoft Graph administrative unit](https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&tabs=http)
