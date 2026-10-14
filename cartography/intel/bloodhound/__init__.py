@@ -36,6 +36,7 @@ from cartography.intel.bloodhound.parser import CollectionMethod
 from cartography.intel.bloodhound.parser import COMPUTERS
 from cartography.intel.bloodhound.parser import CONTAINERS
 from cartography.intel.bloodhound.parser import CONTAINS
+from cartography.intel.bloodhound.parser import CROSS_FOREST_TRUST
 from cartography.intel.bloodhound.parser import DOMAINS
 from cartography.intel.bloodhound.parser import GP_LINK
 from cartography.intel.bloodhound.parser import GPOS
@@ -46,8 +47,8 @@ from cartography.intel.bloodhound.parser import iter_objects
 from cartography.intel.bloodhound.parser import MEMBER_OF
 from cartography.intel.bloodhound.parser import object_domain_sid
 from cartography.intel.bloodhound.parser import OUS
+from cartography.intel.bloodhound.parser import SAME_FOREST_TRUST
 from cartography.intel.bloodhound.parser import transform_node
-from cartography.intel.bloodhound.parser import TRUSTED_BY
 from cartography.intel.bloodhound.parser import USERS
 from cartography.intel.bloodhound.parser import validate_collection
 from cartography.intel.bloodhound.parser import ValidatedCollection
@@ -63,9 +64,10 @@ from cartography.models.bloodhound.gpo import ADGPOSchema
 from cartography.models.bloodhound.group import ADGroupSchema
 from cartography.models.bloodhound.ou import ADOUSchema
 from cartography.models.bloodhound.relationships import ADContainsMatchLink
+from cartography.models.bloodhound.relationships import ADCrossForestTrustMatchLink
 from cartography.models.bloodhound.relationships import ADGPLinkMatchLink
 from cartography.models.bloodhound.relationships import ADMemberOfMatchLink
-from cartography.models.bloodhound.relationships import ADTrustedByMatchLink
+from cartography.models.bloodhound.relationships import ADSameForestTrustMatchLink
 from cartography.models.bloodhound.user import ADUserSchema
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
@@ -94,6 +96,9 @@ _NODE_SCHEMAS: dict[str, CartographyNodeSchema] = {
 
 @dataclass(frozen=True)
 class EdgeKind:
+    # The BloodHound CE edge this relationship imports. The relationship type is
+    # this name in UPPER_SNAKE, for example GPLink -> GP_LINK.
+    bloodhound_name: str
     schema: CartographyRelSchema
     # The edge kind is only cleaned up for a domain when one of these
     # collection methods ran for it...
@@ -105,21 +110,35 @@ class EdgeKind:
 
 EDGE_KINDS: dict[str, EdgeKind] = {
     MEMBER_OF: EdgeKind(
+        "MemberOf",
         ADMemberOfMatchLink(),
         CollectionMethod.GROUP,
         (USERS, GROUPS, COMPUTERS),
     ),
     CONTAINS: EdgeKind(
+        "Contains",
         ADContainsMatchLink(),
         CollectionMethod.CONTAINER,
         (DOMAINS, USERS, GROUPS, COMPUTERS, OUS, CONTAINERS),
     ),
     GP_LINK: EdgeKind(
+        "GPLink",
         ADGPLinkMatchLink(),
         CollectionMethod.CONTAINER,
         (DOMAINS, OUS),
     ),
-    TRUSTED_BY: EdgeKind(ADTrustedByMatchLink(), CollectionMethod.TRUSTS, (DOMAINS,)),
+    SAME_FOREST_TRUST: EdgeKind(
+        "SameForestTrust",
+        ADSameForestTrustMatchLink(),
+        CollectionMethod.TRUSTS,
+        (DOMAINS,),
+    ),
+    CROSS_FOREST_TRUST: EdgeKind(
+        "CrossForestTrust",
+        ADCrossForestTrustMatchLink(),
+        CollectionMethod.TRUSTS,
+        (DOMAINS,),
+    ),
 }
 
 

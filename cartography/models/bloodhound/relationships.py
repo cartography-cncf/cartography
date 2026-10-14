@@ -108,14 +108,10 @@ class ADGPLinkMatchLink(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ADTrustedByMatchLinkProperties(ADEdgeMatchLinkProperties):
+class ADTrustMatchLinkProperties(ADEdgeMatchLinkProperties):
     trust_type: PropertyRef = PropertyRef(
         "trust_type",
-        description="Trust type: `ParentChild`, `TreeRoot`, `CrossLink`, `External`, `Forest`, `Kerberos` or `Unknown`.",
-    )
-    same_forest: PropertyRef = PropertyRef(
-        "same_forest",
-        description="Whether both domains are in the same forest (`ParentChild`, `TreeRoot` or `CrossLink`).",
+        description="Trust type as SharpHound reports it, such as `ParentChild`, `TreeRoot`, `Shortcut`, `External`, `Forest`, `Realm` or `Unknown`.",
     )
     is_transitive: PropertyRef = PropertyRef(
         "is_transitive",
@@ -136,9 +132,9 @@ class ADTrustedByMatchLinkProperties(ADEdgeMatchLinkProperties):
 
 
 @dataclass(frozen=True)
-# (:ADDomain)-[:TRUSTED_BY]->(:ADDomain)
-class ADTrustedByMatchLink(CartographyRelSchema):
-    """The source domain is trusted by the target domain, so its principals can authenticate there."""
+# (:ADDomain)-[:SAME_FOREST_TRUST]->(:ADDomain)
+class ADSameForestTrustMatchLink(CartographyRelSchema):
+    """The source domain trusts the target domain in the same forest (`ParentChild`, `TreeRoot` or `CrossLink`), so the target's principals can authenticate in the source."""
 
     source_node_label: str = "ADDomain"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -149,5 +145,23 @@ class ADTrustedByMatchLink(CartographyRelSchema):
         {"id": PropertyRef("target_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "TRUSTED_BY"
-    properties: ADTrustedByMatchLinkProperties = ADTrustedByMatchLinkProperties()
+    rel_label: str = "SAME_FOREST_TRUST"
+    properties: ADTrustMatchLinkProperties = ADTrustMatchLinkProperties()
+
+
+@dataclass(frozen=True)
+# (:ADDomain)-[:CROSS_FOREST_TRUST]->(:ADDomain)
+class ADCrossForestTrustMatchLink(CartographyRelSchema):
+    """The source domain trusts the target domain across forests (any trust type other than `ParentChild`, `TreeRoot` or `CrossLink`), so the target's principals can authenticate in the source."""
+
+    source_node_label: str = "ADDomain"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_id")},
+    )
+    target_node_label: str = "ADDomain"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CROSS_FOREST_TRUST"
+    properties: ADTrustMatchLinkProperties = ADTrustMatchLinkProperties()

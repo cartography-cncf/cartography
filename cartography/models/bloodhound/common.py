@@ -31,6 +31,11 @@ class ADObjectNodeProperties(CartographyNodeProperties):
         description="Object identifier: the SID for security principals, the GUID for OUs, GPOs and containers.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    objectid: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="Same as `id`. Named like BloodHound CE's `objectid` so BloodHound queries carry over.",
+    )
     name: PropertyRef = PropertyRef(
         "name",
         extra_index=True,

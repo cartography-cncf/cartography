@@ -42,7 +42,8 @@ REQUIRED_TYPES = frozenset({DOMAINS, USERS, GROUPS, COMPUTERS})
 MEMBER_OF = "MEMBER_OF"
 CONTAINS = "CONTAINS"
 GP_LINK = "GP_LINK"
-TRUSTED_BY = "TRUSTED_BY"
+SAME_FOREST_TRUST = "SAME_FOREST_TRUST"
+CROSS_FOREST_TRUST = "CROSS_FOREST_TRUST"
 
 _BOM = b"\xef\xbb\xbf"
 _READ_ERRORS = (
@@ -64,6 +65,7 @@ _TRUST_TYPES = (
     "Kerberos",
     "Unknown",
 )
+# BloodHound CE's rule: every other trust type is a cross-forest trust.
 _SAME_FOREST_TRUST_TYPES = frozenset({"TreeRoot", "ParentChild", "CrossLink"})
 
 # Allowlist of BloodHound properties copied onto nodes. Attributes that can hold
@@ -437,22 +439,33 @@ def _trust_edges(
     )
     if target_id is None or direction == "Disabled":
         return
-    trust_type = _enum_name(trust.get("TrustType"), _TRUST_TYPES, "trust type")
+    # SharpHound writes the type as a name, and versions add names (Shortcut,
+    # Realm), so any name is kept. Older output writes an enum value.
+    raw_type = trust.get("TrustType")
+    trust_type = (
+        raw_type
+        if isinstance(raw_type, str) and raw_type
+        else _enum_name(raw_type, _TRUST_TYPES, "trust type")
+    )
+    kind = (
+        SAME_FOREST_TRUST
+        if trust_type in _SAME_FOREST_TRUST_TYPES
+        else CROSS_FOREST_TRUST
+    )
     props = {
         "trust_type": trust_type,
-        "same_forest": trust_type in _SAME_FOREST_TRUST_TYPES,
         "is_transitive": trust.get("IsTransitive"),
         "sid_filtering_enabled": trust.get("SidFilteringEnabled"),
         "tgt_delegation_enabled": trust.get("TGTDelegationEnabled"),
         "trust_attributes": _optional_int(trust.get("TrustAttributes")),
     }
     # An inbound trust means the target domain trusts this one; an outbound
-    # trust means this domain trusts the target. TRUSTED_BY runs from the trusted
-    # domain to the trusting one, the direction in which access flows.
+    # trust means this domain trusts the target. As in BloodHound CE, trust
+    # edges run from the trusting domain to the trusted one.
     if direction in ("Inbound", "Bidirectional"):
-        yield TRUSTED_BY, _edge(domain_id, target_id, provenance, **props)
+        yield kind, _edge(target_id, domain_id, provenance, **props)
     if direction in ("Outbound", "Bidirectional"):
-        yield TRUSTED_BY, _edge(target_id, domain_id, provenance, **props)
+        yield kind, _edge(domain_id, target_id, provenance, **props)
 
 
 def trust_targets(obj: dict[str, Any]) -> dict[str, str | None]:

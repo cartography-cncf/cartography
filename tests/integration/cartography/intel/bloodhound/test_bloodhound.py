@@ -37,6 +37,12 @@ def test_sync_imports_nodes(neo4j_session, tmp_path):
         (fixture.DOMAIN_SID, fixture.DOMAIN_NAME, True),
         (fixture.PARTNER_SID, fixture.PARTNER_NAME, False),
     }
+    # objectid mirrors id on every node, placeholders included, as in BloodHound CE.
+    mismatched = neo4j_session.run(
+        "MATCH (n:ADObject) WHERE n.objectid IS NULL OR n.objectid <> n.id "
+        "RETURN count(n) AS c",
+    ).single()["c"]
+    assert mismatched == 0
     assert check_nodes(neo4j_session, "ADUser", ["id", "samaccountname"]) == {
         (fixture.ALICE_SID, "alice"),
         (fixture.SVC_SID, "svc_app"),
@@ -152,15 +158,20 @@ def test_sync_imports_structural_edges(neo4j_session, tmp_path):
         "MATCH (:ADGPO)-[r:GP_LINK]->(:ADOU) RETURN r.enforced AS enforced",
     ).single()["enforced"]
     assert enforced is True
-    # EXAMPLE.TEST has an outbound trust: it trusts PARTNER.TEST.
+    # EXAMPLE.TEST has an outbound external trust: it trusts PARTNER.TEST.
     assert check_rels(
         neo4j_session,
         "ADDomain",
         "id",
         "ADDomain",
         "id",
-        "TRUSTED_BY",
-    ) == {(fixture.PARTNER_SID, fixture.DOMAIN_SID)}
+        "CROSS_FOREST_TRUST",
+    ) == {(fixture.DOMAIN_SID, fixture.PARTNER_SID)}
+    trust = neo4j_session.run(
+        "MATCH (:ADDomain)-[r:CROSS_FOREST_TRUST]->(:ADDomain) RETURN r",
+    ).single()["r"]
+    assert trust["trust_type"] == "External"
+    assert trust["sid_filtering_enabled"] is True
 
 
 def test_reimport_keeps_identity_and_removes_stale_objects(neo4j_session, tmp_path):
@@ -258,8 +269,8 @@ def test_partial_collection_keeps_uncollected_edges(neo4j_session, tmp_path):
         "id",
         "ADDomain",
         "id",
-        "TRUSTED_BY",
-    ) == {(fixture.PARTNER_SID, fixture.DOMAIN_SID)}
+        "CROSS_FOREST_TRUST",
+    ) == {(fixture.DOMAIN_SID, fixture.PARTNER_SID)}
 
 
 def test_placeholder_does_not_overwrite_imported_domain(neo4j_session, tmp_path):

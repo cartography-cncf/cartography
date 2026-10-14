@@ -20,42 +20,115 @@ schema
 Every AD object is keyed by its stable directory identifier, so later imports,
 and other sources of AD data, update the same nodes:
 
-| Node | Identifier | Ontology |
-|---|---|---|
-| `ADDomain` | Domain SID | `Tenant` |
-| `ADUser` | SID | `UserAccount` |
-| `ADGroup` | SID | `UserGroup` |
-| `ADComputer` | SID | Linked to a canonical `Device` by host name when the ontology module runs |
-| `ADOU` | GUID | |
-| `ADGPO` | GUID | |
-| `ADContainer` | GUID | |
+| Node | BloodHound kind | Identifier | Ontology |
+|---|---|---|---|
+| `ADDomain` | `Domain` | Domain SID | `Tenant` |
+| `ADUser` | `User` | SID | `UserAccount` |
+| `ADGroup` | `Group` | SID | `UserGroup` |
+| `ADComputer` | `Computer` | SID | Linked to a canonical `Device` by host name when the ontology module runs |
+| `ADOU` | `OU` | GUID | |
+| `ADGPO` | `GPO` | GUID | |
+| `ADContainer` | `Container` | GUID | |
 
-Every node also carries the `ADObject` label. `ADDomain` is the tenant: each
-object hangs off its domain through a `RESOURCE` relationship. Built-in
+Every node also carries the `ADObject` label, the counterpart of BloodHound's
+`Base`, and an `objectid` property equal to `id`. `ADDomain` is the tenant:
+each object hangs off its domain through a `RESOURCE` relationship. Built-in
 principals keep the domain-prefixed identifiers SharpHound emits, such as
 `EXAMPLE.LOCAL-S-1-5-32-544` for the domain's Administrators group.
 
-Each supported BloodHound edge kind becomes its own relationship type so that
-path queries can follow specific edges. This release imports the membership,
-containment, GPO-link and trust edges below; ACL, host-access and delegation
-edges are not imported yet.
+Object properties holding times, such as `whencreated` and
+`lastlogontimestamp`, are stored as UTC datetimes; SharpHound's "never" values
+are left empty.
+
+`MEMBER_OF` includes primary group membership. Trust relationships run from
+the trusting domain to the trusted domain, as in BloodHound CE:
+`SAME_FOREST_TRUST` for `ParentChild`, `TreeRoot` and `CrossLink` trusts and
+`CROSS_FOREST_TRUST` for every other trust type. A domain that only appears as
+a trust target is kept as a placeholder `ADDomain` with `collected` set to
+`false` until its own data is imported.
+
+## Coming from BloodHound
+
+The schema follows BloodHound CE's, adapted to Cartography's naming
+conventions, so BloodHound queries translate mechanically:
+
+- **Node labels** are the BloodHound kind prefixed with `AD`: `User` becomes
+  `ADUser`, and `Base` becomes `ADObject`.
+- **Relationship types** are the BloodHound edge name in UPPER_SNAKE, with
+  acronyms kept whole: `MemberOf` becomes `MEMBER_OF` and `GPLink` becomes
+  `GP_LINK`. Directions match BloodHound CE.
+- **Properties** keep BloodHound's lowercase names (`objectid`, `name`,
+  `domainsid`, `samaccountname`, `hasspn`, `enabled`, ...), except that times
+  are datetimes rather than epoch seconds.
 
 | BloodHound edge | Cartography relationship |
 |---|---|
 | `MemberOf` | `(:ADObject)-[:MEMBER_OF]->(:ADGroup)` |
 | `Contains` | `(:ADObject)-[:CONTAINS]->(:ADObject)` |
 | `GPLink` | `(:ADGPO)-[:GP_LINK]->(:ADObject)` |
-| `TrustedBy`, `SameForestTrust`, `CrossForestTrust` | `(:ADDomain)-[:TRUSTED_BY]->(:ADDomain)` |
+| `SameForestTrust` | `(:ADDomain)-[:SAME_FOREST_TRUST]->(:ADDomain)` |
+| `CrossForestTrust` | `(:ADDomain)-[:CROSS_FOREST_TRUST]->(:ADDomain)` |
 
-Object properties holding times, such as `whencreated` and
-`lastlogontimestamp`, are stored as UTC datetimes; SharpHound's "never" values
-are left empty.
+This release imports the edges above. ACL, host-access and delegation edges
+are not imported yet. Cartography does not compute BloodHound CE's Tier Zero
+tags (`system_tags`, `highvalue`).
 
-`MEMBER_OF` includes primary group membership. `TRUSTED_BY` runs from the
-trusted domain to the trusting domain, the direction in which access flows,
-and records whether both domains are in the same forest. A domain that only
-appears as a trust target is kept as a placeholder `ADDomain` with `collected`
-set to `false` until its own data is imported.
+Example queries, BloodHound first, then Cartography:
+
+Kerberoastable users:
+
+```cypher
+MATCH (u:User {hasspn: true, enabled: true}) RETURN u
+```
+
+```cypher
+MATCH (u:ADUser {hasspn: true, enabled: true}) RETURN u
+```
+
+Everyone in Domain Admins, through nested groups:
+
+```cypher
+MATCH p = (n)-[:MemberOf*1..]->(g:Group) WHERE g.objectid ENDS WITH '-512' RETURN p
+```
+
+```cypher
+MATCH p = (n:ADObject)-[:MEMBER_OF*1..]->(g:ADGroup) WHERE g.objectid ENDS WITH '-512' RETURN p
+```
+
+Computers a GPO applies to:
+
+```cypher
+MATCH p = (:GPO {name: $gpo})-[:GPLink]->()-[:Contains*1..]->(:Computer) RETURN p
+```
+
+```cypher
+MATCH p = (:ADGPO {name: $gpo})-[:GP_LINK]->()-[:CONTAINS*1..]->(:ADComputer) RETURN p
+```
+
+Domain trusts:
+
+```cypher
+MATCH p = (:Domain)-[:SameForestTrust|CrossForestTrust]->(:Domain) RETURN p
+```
+
+```cypher
+MATCH p = (:ADDomain)-[:SAME_FOREST_TRUST|CROSS_FOREST_TRUST]->(:ADDomain) RETURN p
+```
+
+Enabled users whose password is over a year old (times are datetimes, not
+epoch seconds):
+
+```cypher
+MATCH (u:User {enabled: true})
+WHERE u.pwdlastset < (datetime().epochseconds - 365 * 86400)
+RETURN u
+```
+
+```cypher
+MATCH (u:ADUser {enabled: true})
+WHERE u.pwdlastset < datetime() - duration('P365D')
+RETURN u
+```
 
 ## Provenance
 
@@ -86,6 +159,6 @@ An import never deletes data unless it completes:
 
 Clean-up also respects what SharpHound collected. Each relationship kind is
 only cleaned up when the collection method that produces it ran (for example,
-`TRUSTED_BY` needs the `Trusts` method) and the import holds every file type
+the trust relationships need the `Trusts` method) and the import holds every file type
 that declares it (for example, `GP_LINK` needs `domains` and `ous`). A narrower SharpHound run, or an import missing a file, does not
 delete relationships it did not look for.

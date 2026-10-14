@@ -263,8 +263,8 @@ def test_iter_edges_membership_and_structure():
 @pytest.mark.parametrize(
     ("direction", "expected"),
     [
-        ("Outbound", [("PARTNER", "DOMAIN")]),
-        ("Inbound", [("DOMAIN", "PARTNER")]),
+        ("Outbound", [("DOMAIN", "PARTNER")]),
+        ("Inbound", [("PARTNER", "DOMAIN")]),
         (3, [("DOMAIN", "PARTNER"), ("PARTNER", "DOMAIN")]),
         ("Disabled", []),
     ],
@@ -279,7 +279,7 @@ def test_iter_edges_trust_direction(direction, expected):
     trusts = [
         row
         for kind, row in iter_edges("domains", domain, PROVENANCE)
-        if kind == "TRUSTED_BY"
+        if kind == "CROSS_FOREST_TRUST"
     ]
 
     # Assert
@@ -288,7 +288,33 @@ def test_iter_edges_trust_direction(direction, expected):
     )
     for row in trusts:
         assert row["trust_type"] == "External"
-        assert row["same_forest"] is False
+
+
+@pytest.mark.parametrize(
+    ("trust_type", "kind"),
+    [
+        ("ParentChild", "SAME_FOREST_TRUST"),
+        ("TreeRoot", "SAME_FOREST_TRUST"),
+        ("CrossLink", "SAME_FOREST_TRUST"),
+        # BloodHound CE treats every other type as cross-forest.
+        ("Shortcut", "CROSS_FOREST_TRUST"),
+        ("Realm", "CROSS_FOREST_TRUST"),
+        ("Forest", "CROSS_FOREST_TRUST"),
+        (3, "CROSS_FOREST_TRUST"),
+    ],
+)
+def test_iter_edges_trust_kind_follows_bloodhound(trust_type, kind):
+    # Arrange
+    domain = fixture.collection()["domains"][0]
+    domain["Trusts"][0]["TrustType"] = trust_type
+
+    # Act
+    kinds = [
+        k for k, _ in iter_edges("domains", domain, PROVENANCE) if k.endswith("_TRUST")
+    ]
+
+    # Assert
+    assert kinds == [kind]
 
 
 def _replace_member(tmp_path, data_type: str, document: dict) -> Path:
