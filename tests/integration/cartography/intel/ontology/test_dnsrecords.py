@@ -1,4 +1,5 @@
 import cartography.intel.ontology.dnsrecords
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 LB_DNS_NAME = "mylb-1234567890.us-east-1.elb.amazonaws.com"
@@ -23,16 +24,14 @@ def test_sync_links_canonical_dns_name_to_kubernetes_ingress(neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    assert (
-        neo4j_session.run(
-            """
-            MATCH (:DNSRecord {id: 'dns'})-[r:DNS_POINTS_TO]->
-                  (:KubernetesIngress {id: 'ingress'})
-            RETURN count(r) AS count
-            """
-        ).single()["count"]
-        == 1
-    )
+    assert check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "KubernetesIngress",
+        "id",
+        "DNS_POINTS_TO",
+    ) == {("dns", "ingress")}
 
 
 def test_sync_links_dns_name_to_ingress_created_before_hostname_normalization(
@@ -55,16 +54,14 @@ def test_sync_links_dns_name_to_ingress_created_before_hostname_normalization(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    assert (
-        neo4j_session.run(
-            """
-            MATCH (:DNSRecord {id: 'dns'})-[r:DNS_POINTS_TO]->
-                  (:KubernetesIngress {id: 'ingress'})
-            RETURN count(r) AS count
-            """
-        ).single()["count"]
-        == 1
-    )
+    assert check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "KubernetesIngress",
+        "id",
+        "DNS_POINTS_TO",
+    ) == {("dns", "ingress")}
 
 
 def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
@@ -196,38 +193,42 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
     )
 
     # Assert
-    paths = {
-        (record_id, domain_label, instance_id)
-        for record_id, domain_label, instance_id in neo4j_session.run(
-            """
-            MATCH (dns:DNSRecord)-[:DNS_POINTS_TO]->(domain)-[:EXPOSE]->(instance)
-            WHERE domain:RailwayServiceDomain
-               OR domain:RailwayCustomDomain
-            RETURN dns.id AS record_id, labels(domain)[0] AS domain_label,
-                   instance.id AS instance_id
-            """
-        ).values()
-    }
-    assert paths == {
-        ("custom-domain-record", "RailwayServiceDomain", "service-instance"),
-        ("custom-domain-record", "RailwayCustomDomain", "service-instance"),
-    }
+    service_domain_links = check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "RailwayServiceDomain",
+        "id",
+        "DNS_POINTS_TO",
+    )
+    assert service_domain_links == {("custom-domain-record", "service-domain")}
+    assert ("stale-record", "service-domain") not in service_domain_links
 
-    stale_relationship_count = neo4j_session.run(
-        """
-        MATCH (:DNSRecord {id: 'stale-record'})-[r:DNS_POINTS_TO]->(domain)
-        WHERE domain:RailwayServiceDomain
-           OR domain:RailwayCustomDomain
-        RETURN count(r) AS count
-        """
-    ).single()["count"]
-    assert stale_relationship_count == 0
+    custom_domain_links = check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "RailwayCustomDomain",
+        "id",
+        "DNS_POINTS_TO",
+    )
+    assert custom_domain_links == {("custom-domain-record", "custom-domain")}
+    assert ("stale-record", "custom-domain") not in custom_domain_links
+    assert ("pending-domain-record", "unverified-domain") not in custom_domain_links
 
-    unverified_relationship_count = neo4j_session.run(
-        """
-        MATCH (:DNSRecord {id: 'pending-domain-record'})
-              -[r:DNS_POINTS_TO]->(:RailwayCustomDomain {id: 'unverified-domain'})
-        RETURN count(r) AS count
-        """
-    ).single()["count"]
-    assert unverified_relationship_count == 0
+    assert check_rels(
+        neo4j_session,
+        "RailwayServiceDomain",
+        "id",
+        "RailwayServiceInstance",
+        "id",
+        "EXPOSE",
+    ) == {("service-domain", "service-instance")}
+    assert check_rels(
+        neo4j_session,
+        "RailwayCustomDomain",
+        "id",
+        "RailwayServiceInstance",
+        "id",
+        "EXPOSE",
+    ) == {("custom-domain", "service-instance")}
