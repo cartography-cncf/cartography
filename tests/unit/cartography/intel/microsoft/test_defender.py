@@ -475,6 +475,7 @@ def test_only_requested_datasets_are_read_and_written(requested, expected):
 
     # Assert
     assert calls["loaded"] == expected
+    assert calls["cleaned"] == expected
     assert machines_read is ("machines" in expected)
     assert alerts_read is ("alerts" in expected)
 
