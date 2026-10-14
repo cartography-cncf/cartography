@@ -486,23 +486,26 @@ def test_sync_route53_decodes_wildcard_escapes_for_ontology(
     assert check_nodes(
         neo4j_session,
         "AWSDNSRecord",
-        ["id", "name", "_ont_name", "_ont_target_hostname"],
+        ["id", "name", "value", "_ont_name", "_ont_target_hostname"],
     ) == {
         (
             "/hostedzone/WILDCARD_ZONE/\\052.example.com/CNAME",
             "\\052.example.com",
+            "ingress.example.net",
             "*.example.com",
             "ingress.example.net",
         ),
         (
             "/hostedzone/WILDCARD_ZONE/\\052.apps.example.com/ALIAS",
             "\\052.apps.example.com",
+            "\\052.endpoint.example.net",
             "*.apps.example.com",
             "*.endpoint.example.net",
         ),
         (
             "/hostedzone/WILDCARD_ZONE/\\052.static.example.com/A",
             "\\052.static.example.com",
+            "192.0.2.20",
             "*.static.example.com",
             None,
         ),

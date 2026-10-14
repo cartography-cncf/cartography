@@ -36,9 +36,10 @@ class AWSDNSRecordNodeProperties(CartographyNodeProperties):
     name_normalized: PropertyRef = PropertyRef(
         "name_normalized",
         description=(
-            "The record name with Route53's octal escapes for printable characters decoded "
-            "(so `\\052` becomes `*`), lowercased and without the trailing root dot. Used for "
-            "DNS matching across providers."
+            "The record name with Route53's octal escapes decoded (so `\\052` becomes `*`), "
+            "lowercased and without the trailing root dot. Escapes for `.`, `\\`, whitespace, "
+            "control characters and non-ASCII bytes stay escaped. Used for DNS matching across "
+            "providers."
         ),
     )
     type: PropertyRef = PropertyRef(
@@ -61,8 +62,8 @@ class AWSDNSRecordNodeProperties(CartographyNodeProperties):
     target_hostname: PropertyRef = PropertyRef(
         "target_hostname",
         description=(
-            "For CNAME and ALIAS records, `value` with Route53's octal escapes for printable "
-            "characters decoded. Used for DNS matching across providers."
+            "For CNAME and ALIAS records, `value` with Route53's octal escapes decoded the same "
+            "way as `name_normalized`. Used for DNS matching across providers."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
