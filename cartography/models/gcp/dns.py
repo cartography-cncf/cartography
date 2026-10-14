@@ -101,6 +101,10 @@ class GCPRecordSetNodeProperties(CartographyNodeProperties):
         description="Number of seconds that this ResourceRecordSet can be cached by resolvers.",
     )
     data: PropertyRef = PropertyRef("data", description="Data contained in the record.")
+    target_hostnames: PropertyRef = PropertyRef(
+        "target_hostnames",
+        description="Normalized CNAME target hostnames.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
