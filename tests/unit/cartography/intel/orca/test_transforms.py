@@ -195,10 +195,7 @@ def test_alert_cleanup_uses_bounded_iteration_size(mocker) -> None:
     )
 
     # Assert
-    assert (
-        from_node_schema.call_args.kwargs["iterationsize"]
-        == alerts.CLEANUP_ITERATION_SIZE
-    )
+    assert from_node_schema.call_args.kwargs["iterationsize"] == 2000
     from_node_schema.return_value.run.assert_called_once_with(neo4j_session)
 
 
