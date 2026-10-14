@@ -1,9 +1,16 @@
 {
   "name": "GCP DNS legacy record set cleanup",
+  "__comment__": "DEPRECATED: remove in v1.0.0. Record sets written before the GCP DNS data model migration hang off their zones but have no RESOURCE edge from a GCPProject, so the schema cleanup never reaches them. The legacy loader keyed them by name, so one node can be shared by zones in several projects.",
   "statements": [
     {
-      "__comment__": "DEPRECATED: remove in v1.0.0. Record sets written before the GCP DNS data model migration hang off their zone but have no RESOURCE edge from a GCPProject, so the schema cleanup never reaches them. Delete the stale ones in zones that this project owns.",
-      "query": "MATCH (:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(:GCPDNSZone)-[:HAS_RECORD]->(n:GCPRecordSet) WHERE n.lastupdated <> $UPDATE_TAG AND NOT (n)<-[:RESOURCE]-(:GCPProject) WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "__comment__": "Delete stale legacy record sets that only this project's zones reference.",
+      "query": "MATCH (:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(:GCPDNSZone)-[:HAS_RECORD]->(n:GCPRecordSet) WHERE n.lastupdated <> $UPDATE_TAG AND NOT (n)<-[:RESOURCE]-(:GCPProject) AND NOT EXISTS { MATCH (n)<-[:HAS_RECORD]-(z:GCPDNSZone) WHERE NOT (z)<-[:RESOURCE]-(:GCPProject{id: $PROJECT_ID}) } WITH DISTINCT n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment__": "Detach this project's zones from stale legacy record sets that other zones still reference.",
+      "query": "MATCH (:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(:GCPDNSZone)-[r:HAS_RECORD]->(n:GCPRecordSet) WHERE n.lastupdated <> $UPDATE_TAG AND NOT (n)<-[:RESOURCE]-(:GCPProject) WITH r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100
     }

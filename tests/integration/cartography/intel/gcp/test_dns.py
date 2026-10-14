@@ -270,6 +270,8 @@ def test_sync_removes_stale_legacy_record_sets_in_owned_zones(
         MERGE (owned)-[:HAS_RECORD]->(:GCPRecordSet{id: 'legacy.zone-1.example.com.', lastupdated: 1})
         MERGE (other_zone)-[:HAS_RECORD]->(:GCPRecordSet{id: 'legacy.other.example.com.', lastupdated: 1})
         MERGE (orphan_zone)-[:HAS_RECORD]->(:GCPRecordSet{id: 'legacy.orphan.example.com.', lastupdated: 1})
+        MERGE (owned)-[:HAS_RECORD]->(shared:GCPRecordSet{id: 'legacy.shared.example.com.', lastupdated: 1})
+        MERGE (other_zone)-[:HAS_RECORD]->(shared)
         """,
     )
     new_update_tag = TEST_UPDATE_TAG + 1
@@ -290,4 +292,22 @@ def test_sync_removes_stale_legacy_record_sets_in_owned_zones(
         ("a.zone-2.example.com.|TXT|2222222222222222222",),
         ("legacy.other.example.com.",),
         ("legacy.orphan.example.com.",),
+        ("legacy.shared.example.com.",),
+    }
+    # A record set that another project's zone still references stays, detached from ours.
+    assert check_rels(
+        neo4j_session,
+        "GCPDNSZone",
+        "id",
+        "GCPRecordSet",
+        "id",
+        "HAS_RECORD",
+        rel_direction_right=True,
+    ) == {
+        ("111111111111111111111", "a.zone-1.example.com.|TXT|111111111111111111111"),
+        ("111111111111111111111", "b.zone-1.example.com.|TXT|111111111111111111111"),
+        ("2222222222222222222", "a.zone-2.example.com.|TXT|2222222222222222222"),
+        ("other-zone", "legacy.other.example.com."),
+        ("other-zone", "legacy.shared.example.com."),
+        ("orphan-zone", "legacy.orphan.example.com."),
     }
