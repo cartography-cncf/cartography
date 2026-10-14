@@ -218,3 +218,61 @@ def test_cloudflare_dnsrecord_resource_edge_migration_cleans_legacy_records(
     }
     assert "legacy-stale" not in remaining
     assert "legacy-fresh" in remaining
+
+
+def test_load_cloudflare_dnsrecords_normalizes_ontology_hostnames(neo4j_session):
+    _ensure_local_neo4j_has_test_accounts(neo4j_session)
+    _ensure_local_neo4j_has_test_zones(neo4j_session)
+
+    cartography.intel.cloudflare.dnsrecords.load_dnsrecords(
+        neo4j_session,
+        [
+            {
+                "id": "normalize-cname",
+                "name": " WWW.Example.COM. ",
+                "type": "CNAME",
+                "content": "Target.Example.NET.",
+            },
+            {
+                "id": "normalize-txt",
+                "name": "_Verify.Example.COM.",
+                "type": "TXT",
+                "content": "Case-Sensitive.Token.",
+            },
+        ],
+        ACCOUNT_ID,
+        ZONE_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    assert (
+        {
+            tuple(row)
+            for row in neo4j_session.run(
+                """
+            MATCH (record:CloudflareDNSRecord)
+            WHERE record.id IN ['normalize-cname', 'normalize-txt']
+            RETURN record.id, record.name, record.value,
+                record._ont_name, record._ont_value, record._ont_target_hostname
+            """
+            ).values()
+        }
+        == {
+            (
+                "normalize-cname",
+                " WWW.Example.COM. ",
+                "Target.Example.NET.",
+                "www.example.com",
+                "Target.Example.NET.",
+                "target.example.net",
+            ),
+            (
+                "normalize-txt",
+                "_Verify.Example.COM.",
+                "Case-Sensitive.Token.",
+                "_verify.example.com",
+                "Case-Sensitive.Token.",
+                None,
+            ),
+        }
+    )
