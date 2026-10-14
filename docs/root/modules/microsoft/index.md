@@ -14,7 +14,7 @@ The `microsoft` module is the top-level umbrella for Microsoft tenant, SaaS, and
 - **entra**: Entra ID identity objects (users, groups, OUs, applications, service principals, and app role assignments)
 - **intune**: Intune managed devices, detected apps, and compliance policies
 - **o365**: Office 365 licensing (subscribed SKUs, service plans, and per-user license assignments)
-- **defender** (opt-in): Defender for Endpoint machines and unresolved alerts, including machine health, onboarding status, risk, exposure, and alert-to-machine relationships.
+- **defender**: Defender for Endpoint machines and unresolved alerts, including machine health, onboarding status, risk, exposure, and alert-to-machine relationships. Skipped when the tenant lacks Defender for Endpoint or its permissions.
 
 Defender uses bulk list APIs without per-device requests. Its machine inventory
 covers the tenant's configured Defender retention period; an inventory record can

@@ -153,8 +153,6 @@ class Config:
         user's delegated token. Implies microsoft_delegated_auth. Optional.
     :type microsoft_requested_syncs: str
     :param microsoft_requested_syncs: Comma-separated list of Microsoft resources to sync. Optional.
-    :type microsoft_defender: bool
-    :param microsoft_defender: Opt in to Defender for Endpoint machines and unresolved alerts. Default is False.
     :type entra_tenant_id: str
     :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
@@ -817,7 +815,6 @@ class Config:
         opsgenie_api_key=None,
         opsgenie_api_url="https://api.opsgenie.com",
         opsgenie_request_timeout=60,
-        microsoft_defender=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -884,15 +881,9 @@ class Config:
                     "Microsoft delegated authentication cannot be combined with "
                     "a Microsoft client ID or client secret.",
                 )
-            if microsoft_defender:
-                raise ValueError(
-                    "Microsoft Defender requires application authentication and "
-                    "cannot be combined with delegated authentication.",
-                )
         self.microsoft_delegated_auth = microsoft_delegated_auth
         self.microsoft_access_token = microsoft_access_token
         self.microsoft_requested_syncs = microsoft_requested_syncs
-        self.microsoft_defender = microsoft_defender
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory

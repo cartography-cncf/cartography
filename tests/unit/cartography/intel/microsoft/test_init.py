@@ -2,8 +2,6 @@ import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
-
 from cartography.config import Config
 from cartography.intel.microsoft import start_microsoft_ingestion
 
@@ -84,7 +82,6 @@ def test_requested_syncs_can_select_only_defender(
         microsoft_client_id="client-id",
         microsoft_client_secret="client-secret",
         microsoft_requested_syncs="defender",
-        microsoft_defender=True,
     )
 
     # Act
@@ -97,29 +94,26 @@ def test_requested_syncs_can_select_only_defender(
     mock_start_defender.assert_called_once()
 
 
-@pytest.mark.parametrize("enabled", [False, True])
 @patch("cartography.intel.microsoft.start_defender_ingestion")
 @patch("cartography.intel.microsoft.start_o365_ingestion")
 @patch("cartography.intel.microsoft.start_intune_ingestion")
 @patch("cartography.intel.microsoft.start_entra_ingestion")
-def test_full_sync_runs_defender_only_when_opted_in(
+def test_full_sync_includes_defender(
     mock_start_entra,
     mock_start_intune,
     mock_start_o365,
     mock_start_defender,
-    enabled,
-):
+) -> None:
     # Arrange
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         microsoft_tenant_id="tenant-id",
         microsoft_client_id="client-id",
         microsoft_client_secret="client-secret",
-        microsoft_defender=enabled,
     )
 
     # Act
     start_microsoft_ingestion(MagicMock(), config)
 
     # Assert
-    assert mock_start_defender.called is enabled
+    mock_start_defender.assert_called_once()

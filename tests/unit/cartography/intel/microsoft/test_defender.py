@@ -297,19 +297,20 @@ def test_cross_tenant_alert_fails():
         defender.transform_alerts(ALERTS, "other-tenant")
 
 
-def test_unconfigured_defender_does_not_construct_credentials():
+def test_missing_application_credentials_fail_before_constructing_credentials():
     # Arrange
-    config = Config(neo4j_uri="bolt://localhost:7687")
+    config = Config(neo4j_uri="bolt://localhost:7687", microsoft_tenant_id=TENANT_ID)
 
-    # Act
-    with patch.object(defender.credentials, "make_credential") as make_credential:
+    # Act and assert
+    with (
+        patch.object(defender.credentials, "make_credential") as make_credential,
+        pytest.raises(ValueError, match="service principal credentials"),
+    ):
         defender.start_defender_ingestion(MagicMock(), config)
-
-    # Assert
     make_credential.assert_not_called()
 
 
-def test_cli_enables_defender_with_existing_microsoft_credentials(monkeypatch):
+def test_cli_accepts_defender_requested_sync(monkeypatch):
     # Arrange
     monkeypatch.setenv("TEST_MICROSOFT_SECRET", "test-secret")
     cli = CLI(MagicMock(), "test")
@@ -328,13 +329,100 @@ def test_cli_enables_defender_with_existing_microsoft_credentials(monkeypatch):
                 "client-id",
                 "--microsoft-client-secret-env-var",
                 "TEST_MICROSOFT_SECRET",
-                "--microsoft-defender",
+                "--microsoft-requested-syncs",
+                "defender",
             ]
         )
 
     # Assert
     assert exit_code == 0
     config = run.call_args.args[1]
-    assert config.microsoft_defender is True
-    assert config.microsoft_tenant_id == TENANT_ID
+    assert config.microsoft_requested_syncs == "defender"
     assert config.microsoft_client_secret == "test-secret"
+
+
+def _skipped(fetch_error, caplog, level="WARNING"):
+    with (
+        patch.object(defender, "get_machines", side_effect=fetch_error),
+        patch.object(defender, "get_alerts", return_value=ALERTS),
+        patch.object(defender, "load") as load,
+        patch.object(defender.GraphJob, "from_node_schema") as cleanup,
+        caplog.at_level(level),
+    ):
+        defender.sync(MagicMock(), MagicMock(), MagicMock(), TENANT_ID, 1)
+    return load, cleanup
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_denied_machines_are_skipped_without_cleanup(status, caplog):
+    # Act
+    load, cleanup = _skipped(requests.HTTPError(response=_response({}, status)), caplog)
+
+    # Assert: alerts still sync and clean up; machines are neither loaded nor cleaned.
+    loaded = [type(c.args[1]).__name__ for c in load.call_args_list]
+    cleaned = [type(c.args[0]).__name__ for c in cleanup.call_args_list]
+    assert loaded == cleaned == ["DefenderAlertSchema"]
+    assert "Machine.Read.All" in caplog.text
+
+
+def test_tenant_without_defender_skips_quietly(caplog):
+    # Act
+    load, cleanup = _skipped(
+        ClientAuthenticationError(
+            "AADSTS500011: The resource principal named "
+            "https://api.securitycenter.microsoft.com was not found in the tenant."
+        ),
+        caplog,
+        level="INFO",
+    )
+
+    # Assert
+    assert [type(c.args[1]).__name__ for c in load.call_args_list] == [
+        "DefenderAlertSchema"
+    ]
+    assert "not provisioned" in caplog.text
+
+
+def test_no_recent_machines_404_is_skipped(caplog):
+    # Act
+    load, _ = _skipped(requests.HTTPError(response=_response({}, 404)), caplog)
+
+    # Assert
+    assert [type(c.args[1]).__name__ for c in load.call_args_list] == [
+        "DefenderAlertSchema"
+    ]
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        requests.HTTPError(response=_response({}, 500)),
+        ClientAuthenticationError("AADSTS7000215: Invalid client secret provided."),
+        ValueError("Defender API returned an unsafe or repeated nextLink"),
+    ],
+)
+def test_other_failures_abort_before_writes(error):
+    # Act and assert
+    with (
+        patch.object(defender, "get_machines", side_effect=error),
+        patch.object(defender, "load") as load,
+        pytest.raises(type(error)),
+    ):
+        defender.sync(MagicMock(), MagicMock(), MagicMock(), TENANT_ID, 1)
+    load.assert_not_called()
+
+
+def test_denied_alert_404_is_not_skipped():
+    # Act and assert: 404 is only a documented empty response for machines.
+    with (
+        patch.object(defender, "get_machines", return_value=MACHINES),
+        patch.object(
+            defender,
+            "get_alerts",
+            side_effect=requests.HTTPError(response=_response({}, 404)),
+        ),
+        patch.object(defender, "load") as load,
+        pytest.raises(requests.HTTPError),
+    ):
+        defender.sync(MagicMock(), MagicMock(), MagicMock(), TENANT_ID, 1)
+    load.assert_not_called()

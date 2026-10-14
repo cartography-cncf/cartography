@@ -2,7 +2,6 @@
 # These are the valid values for --microsoft-requested-syncs. Entra datasets can
 # be selected one at a time; Intune, O365, and Defender run as whole units. The
 # Entra tenant always syncs, because every other Microsoft node hangs off it.
-# Defender also requires the --microsoft-defender opt-in.
 ENTRA_RESOURCES: list[str] = [
     "users",
     "groups",

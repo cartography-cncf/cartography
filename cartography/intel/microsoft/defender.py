@@ -1,10 +1,12 @@
 import logging
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlsplit
 
 import neo4j
 import requests
 from azure.core.credentials import TokenCredential
+from azure.core.exceptions import ClientAuthenticationError
 from dateutil.parser import isoparse
 from requests.adapters import HTTPAdapter
 
@@ -14,6 +16,7 @@ from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.util import normalize_azure_ad_device_id
+from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.microsoft.defender import DefenderAlertSchema
 from cartography.models.microsoft.defender import DefenderMachineSchema
 from cartography.util import DEFAULT_MAX_PAGES
@@ -26,6 +29,8 @@ ALERTS_URL = "https://graph.microsoft.com/v1.0/security/alerts_v2"
 MDE_SCOPE = "https://api.securitycenter.microsoft.com/.default"
 GRAPH_SCOPE = "https://graph.microsoft.com/.default"
 MACHINE_PAGE_SIZE = 10000
+# Token error when the tenant has no Defender for Endpoint service principal.
+RESOURCE_NOT_PROVISIONED = "AADSTS500011"
 # alerts_v2 documents only `eq` filters, so each unresolved status is queried separately.
 UNRESOLVED_ALERT_STATUSES = ("new", "inProgress")
 
@@ -223,6 +228,49 @@ def transform_alerts(
     return result
 
 
+def _fetch_optional(
+    name: str,
+    permission: str,
+    fetch: Callable[[], list[dict[str, Any]]],
+) -> list[dict[str, Any]] | None:
+    """Return a complete collection, or None when the tenant can't provide it.
+
+    Missing provisioning or permissions skip the collection without cleanup, like
+    optional Entra datasets. Any other failure propagates.
+    """
+    try:
+        return fetch()
+    except ClientAuthenticationError as e:
+        if RESOURCE_NOT_PROVISIONED not in str(e):
+            raise
+        logger.info(
+            "Defender for Endpoint is not provisioned in this tenant; skipping "
+            "Defender %s.",
+            name,
+        )
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else None
+        if status in (401, 403):
+            logger.warning(
+                "Defender %s request was denied (%d). Grant the %s application "
+                "permission to sync them. Skipping; previously synced Defender "
+                "%s are preserved.",
+                name,
+                status,
+                permission,
+                name,
+            )
+        elif status == 404 and name == "machines":
+            # Microsoft documents 404 when the tenant has no recent machines.
+            logger.warning(
+                "Defender returned no recent machines (404). Skipping; previously "
+                "synced Defender machines are preserved.",
+            )
+        else:
+            raise
+    return None
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -231,25 +279,37 @@ def sync(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    # Finish both API reads and transforms before any writes or cleanup. A failed
-    # alert page must not remove machines referenced by the previous alert data.
-    machines = transform_machines(get_machines(session, credential), tenant_id)
-    alerts = transform_alerts(get_alerts(session, credential), tenant_id)
-    for schema, data in (
-        (DefenderMachineSchema(), machines),
-        (DefenderAlertSchema(), alerts),
-    ):
+    # Finish both API reads and transforms before any writes or cleanup, so a
+    # failed read leaves the previous snapshot intact. A skipped collection is
+    # neither loaded nor cleaned up.
+    raw_machines = _fetch_optional(
+        "machines",
+        "WindowsDefenderATP Machine.Read.All",
+        lambda: get_machines(session, credential),
+    )
+    raw_alerts = _fetch_optional(
+        "alerts",
+        "Microsoft Graph SecurityAlert.Read.All",
+        lambda: get_alerts(session, credential),
+    )
+    collections: list[tuple[CartographyNodeSchema, list[dict[str, Any]]]] = []
+    if raw_machines is not None:
+        collections.append(
+            (DefenderMachineSchema(), transform_machines(raw_machines, tenant_id))
+        )
+    if raw_alerts is not None:
+        collections.append(
+            (DefenderAlertSchema(), transform_alerts(raw_alerts, tenant_id))
+        )
+    for schema, data in collections:
         load(neo4j_session, schema, data, lastupdated=update_tag, TENANT_ID=tenant_id)
     parameters = {"TENANT_ID": tenant_id, "UPDATE_TAG": update_tag}
-    for schema in (DefenderAlertSchema(), DefenderMachineSchema()):
+    for schema, _ in reversed(collections):
         GraphJob.from_node_schema(schema, parameters).run(neo4j_session)
 
 
 @timeit
 def start_defender_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    if not config.microsoft_defender:
-        logger.info("Microsoft Defender import is not enabled - skipping")
-        return
     tenant_id = config.microsoft_tenant_id
     client_id = config.microsoft_client_id
     client_secret = config.microsoft_client_secret

@@ -162,17 +162,6 @@ def test_config_rejects_delegated_auth_with_application_credentials() -> None:
         )
 
 
-def test_config_rejects_defender_with_delegated_auth() -> None:
-    # Act and assert
-    with pytest.raises(ValueError, match="Defender requires application"):
-        Config(
-            neo4j_uri="bolt://localhost:7687",
-            microsoft_tenant_id="tenant-id",
-            microsoft_delegated_auth=True,
-            microsoft_defender=True,
-        )
-
-
 def test_config_requires_tenant_for_delegated_auth() -> None:
     # Act and assert
     with pytest.raises(ValueError, match="requires a Microsoft tenant ID"):

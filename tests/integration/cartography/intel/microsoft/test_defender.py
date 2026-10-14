@@ -211,7 +211,7 @@ def test_later_alert_page_failure_preserves_previous_nodes_and_edges(neo4j_sessi
                 "@odata.nextLink": defender.ALERTS_URL + "?$skiptoken=page2",
             }
         ),
-        _response({"error": {"code": "Forbidden"}}, 403),
+        _response({"error": {"code": "InternalServerError"}}, 500),
     ]
 
     # Act
@@ -232,6 +232,32 @@ def test_later_alert_page_failure_preserves_previous_nodes_and_edges(neo4j_sessi
         (f"{TENANT_ID}/alert-1", f"{TENANT_ID}/machine-1"),
         (f"{TENANT_ID}/alert-1", f"{TENANT_ID}/machine-2"),
     }
+
+
+def test_denied_alerts_keep_previous_alerts_and_refresh_machines(neo4j_session):
+    # Arrange
+    defender.sync(
+        neo4j_session, _api_session(MACHINES, ALERTS), MagicMock(), TENANT_ID, 1
+    )
+    session = MagicMock()
+    session.get.side_effect = [
+        _response({"value": MACHINES[:1]}),
+        _response({"error": {"code": "Forbidden"}}, 403),
+    ]
+
+    # Act
+    defender.sync(neo4j_session, session, MagicMock(), TENANT_ID, 2)
+
+    # Assert: machines are refreshed and cleaned; alerts are neither loaded nor cleaned.
+    assert check_nodes(neo4j_session, "DefenderMachine", ["id", "lastupdated"]) == {
+        (f"{TENANT_ID}/machine-1", 2),
+    }
+    assert check_nodes(neo4j_session, "DefenderAlert", ["id", "lastupdated"]) == {
+        (f"{TENANT_ID}/alert-1", 1)
+    }
+    assert check_rels(
+        neo4j_session, "DefenderAlert", "id", "DefenderMachine", "id", "AFFECTS"
+    ) == {(f"{TENANT_ID}/alert-1", f"{TENANT_ID}/machine-1")}
 
 
 @pytest.mark.parametrize(

@@ -881,18 +881,6 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = None,
-            microsoft_defender: Annotated[
-                bool,
-                typer.Option(
-                    "--microsoft-defender",
-                    help=(
-                        "Include Defender for Endpoint machines and unresolved "
-                        "alerts (requires additional read permissions)."
-                    ),
-                    rich_help_panel=PANEL_MICROSOFT,
-                    hidden=PANEL_MICROSOFT not in visible_panels,
-                ),
-            ] = False,
             # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
@@ -3120,17 +3108,7 @@ class CLI:
                     parse_and_validate_microsoft_requested_syncs,
                 )
 
-                if (
-                    "defender"
-                    in parse_and_validate_microsoft_requested_syncs(
-                        microsoft_requested_syncs,
-                    )
-                    and not microsoft_defender
-                ):
-                    raise ValueError(
-                        "`--microsoft-requested-syncs` includes defender, which "
-                        "also requires `--microsoft-defender`.",
-                    )
+                parse_and_validate_microsoft_requested_syncs(microsoft_requested_syncs)
 
             # Read Azure client secret
             azure_client_secret = None
@@ -3966,7 +3944,6 @@ class CLI:
                 microsoft_delegated_auth=microsoft_delegated_auth,
                 microsoft_requested_syncs=microsoft_requested_syncs,
                 microsoft_access_token=microsoft_access_token,
-                microsoft_defender=microsoft_defender,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,

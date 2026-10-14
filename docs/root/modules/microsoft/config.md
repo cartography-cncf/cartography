@@ -91,15 +91,23 @@ use; background clients can produce successful non-interactive sign-ins.
 See Microsoft's [signInActivity reference](https://learn.microsoft.com/en-us/graph/api/resources/signinactivity?view=graph-rest-1.0)
 and [inactive-account guidance](https://learn.microsoft.com/en-us/entra/identity/monitoring-health/howto-manage-inactive-user-accounts).
 
-Defender for Endpoint is enabled separately with `--microsoft-defender`. Grant
-admin consent for both of these **application** permissions on the same app:
+### Defender for Endpoint
+
+Defender for Endpoint machines and unresolved alerts sync by default when the
+tenant grants access. To include them, grant admin consent for these
+**application** permissions on the same app:
 
 | API | Permission | Data |
 | --- | --- | --- |
 | WindowsDefenderATP | `Machine.Read.All` | Defender for Endpoint machine inventory |
 | Microsoft Graph | `SecurityAlert.Read.All` | Unresolved Defender for Endpoint alerts |
 
-The tenant must have Defender for Endpoint provisioned. The connector uses the
+Each collection is skipped, without cleanup, when the tenant can't provide it:
+Defender for Endpoint isn't provisioned (token error `AADSTS500011`), its
+permission is missing (`401` or `403`), or, for machines, Microsoft returns `404`
+because there are no recently seen machines. A skip logs which permission to
+grant and preserves previously synced Defender data, like the optional Entra
+permissions above. The connector uses the
 commercial cloud endpoints and does not support sovereign cloud endpoints.
 Machine tokens use `https://api.securitycenter.microsoft.com/.default`, as required
 by Microsoft even though requests go to `https://api.security.microsoft.com`.
@@ -114,10 +122,9 @@ Provide these options:
 - `--microsoft-tenant-id`: Microsoft tenant ID.
 - `--microsoft-client-id`: App registration client ID.
 - `--microsoft-client-secret-env-var`: Name of the environment variable containing the client secret.
-- `--microsoft-defender`: Opt in to Defender for Endpoint machine and unresolved-alert ingestion; disabled by default.
 
 These credentials apply to all ingestion in the `microsoft` module, including
-Entra ID, Intune, and optional Defender for Endpoint ingestion.
+Entra ID, Intune, O365, and Defender for Endpoint ingestion.
 
 The deprecated `--entra-tenant-id`, `--entra-client-id`, and `--entra-client-secret-env-var` aliases remain accepted until Cartography v1.0.0. Do not mix `--microsoft-*` and `--entra-*` credential flags in one invocation.
 
@@ -132,8 +139,7 @@ cartography \
   --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET
 ```
 
-Add `--microsoft-defender` to the command above to include Defender. Machine
-inventory requests use pages of up to 10,000 records; Microsoft documents limits
+Defender machine inventory requests use pages of up to 10,000 records; Microsoft documents limits
 of 100 machine requests per minute and 1,500 per hour. Alerts use Graph
 `/v1.0/security/alerts_v2` with
 `serviceSource eq 'microsoftDefenderForEndpoint'`, one query each for the
@@ -160,7 +166,7 @@ cartography \
 Valid values are `users`, `groups`, `administrative_units`, `applications`,
 `service_principals`, `app_role_assignments`, `directory_roles`, `federation`,
 `intune`, `o365`, and `defender`. Intune, O365, and Defender run as whole units.
-Requesting `defender` also requires `--microsoft-defender`. The Entra tenant
+The Entra tenant
 always syncs because every other Microsoft node relates to it.
 
 A dataset that isn't requested is neither synced nor cleaned up, so its existing
@@ -178,7 +184,7 @@ permissions. It isn't a replacement for application authentication.
 ### Limitations
 
 - Only Entra datasets are attempted. Intune, O365, and Defender ingestion are
-  skipped. `--microsoft-defender` is rejected with delegated authentication.
+  skipped.
 - Microsoft Graph may return partial results without an authorization error.
 - If Microsoft Graph returns `403 Forbidden`, Cartography stops the affected
   dataset, reports it, and continues with the next dataset. After attempting all
@@ -255,12 +261,12 @@ cartography \
 
 ## Troubleshooting
 
-When Defender is enabled, an authorization error, exhausted retry, malformed page,
-or incomplete pagination aborts its sync before graph writes or cleanup. Previous
-Defender data is preserved. Verify both application permissions and their admin
-consent for 403 errors. Microsoft documents 404 for machine queries with no recent
-machines; this connector conservatively treats that response as an error, preserving
-the previous inventory. A successful empty collection is eligible for cleanup.
+If Defender machines or alerts are missing, check the sync log for a skipped
+Defender collection: it names the permission to grant. Admin consent must be
+granted again after adding a permission to the app. An exhausted retry, malformed
+page, or incomplete pagination aborts the Defender sync before graph writes or
+cleanup, preserving previous Defender data. A successful empty collection is
+eligible for cleanup.
 
 ## References
 
