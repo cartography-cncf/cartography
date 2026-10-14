@@ -1553,3 +1553,172 @@ TRIVY_MIXED_IDENTIFIERS_SAMPLE = {
         },
     ],
 }
+
+
+# Per-target rating samples. One CVE is rated differently in each scan target, so
+# tests can check that the AFFECTS relationship to each target keeps its own
+# severity, source and status. The ratings exercise the aggregation rules and are
+# not the advisories' published values.
+PER_TARGET_DIGEST_A = (
+    "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+)
+PER_TARGET_DIGEST_B = (
+    "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+)
+
+_DEBIAN_DATA_SOURCE = {
+    "ID": "debian",
+    "Name": "Debian Security Tracker",
+    "URL": "https://salsa.debian.org/security-tracker-team/security-tracker",
+}
+_ALPINE_DATA_SOURCE = {
+    "ID": "alpine",
+    "Name": "Alpine Secdb",
+    "URL": "https://secdb.alpinelinux.org/",
+}
+_GHSA_PIP_DATA_SOURCE = {
+    "ID": "ghsa",
+    "Name": "GitHub Security Advisory pip",
+    "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip",
+}
+
+
+def _per_target_report(digest: str, results: list[dict]) -> dict:
+    return {
+        "SchemaVersion": 2,
+        "ArtifactName": f"example.com/repo/per-target@{digest}",
+        "ArtifactType": "container_image",
+        "Metadata": {
+            "RepoDigests": [f"example.com/repo/per-target@{digest}"],
+        },
+        "Results": results,
+    }
+
+
+def _gcc_vulnerability(
+    pkg_name: str,
+    severity: str,
+    severity_source: str | None,
+    status: str,
+) -> dict:
+    vulnerability = {
+        "VulnerabilityID": "CVE-2023-4039",
+        "PkgID": f"{pkg_name}@12.2.0-14",
+        "PkgName": pkg_name,
+        "PkgIdentifier": {
+            "PURL": f"pkg:deb/debian/{pkg_name}@12.2.0-14?arch=amd64&distro=debian-12.8",
+        },
+        "InstalledVersion": "12.2.0-14",
+        "FixedVersion": "12.2.0-14+deb12u1",
+        "Status": status,
+        "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2023-4039",
+        "DataSource": _DEBIAN_DATA_SOURCE,
+        "Title": "gcc: -fstack-protector fails to guard dynamic stack allocations on ARM64",
+        "Severity": severity,
+        "CweIDs": ["CWE-693"],
+    }
+    if severity_source is not None:
+        vulnerability["SeveritySource"] = severity_source
+    return vulnerability
+
+
+def _debian_results(vulnerabilities: list[dict]) -> dict:
+    return {
+        "Target": "example.com/repo/per-target (debian 12.8)",
+        "Class": "os-pkgs",
+        "Type": "debian",
+        "Vulnerabilities": vulnerabilities,
+    }
+
+
+TRIVY_PER_TARGET_REPORT_A = _per_target_report(
+    PER_TARGET_DIGEST_A,
+    [
+        _debian_results(
+            [_gcc_vulnerability("gcc-12-base", "LOW", "debian", "affected")],
+        ),
+    ],
+)
+
+TRIVY_PER_TARGET_REPORT_B = _per_target_report(
+    PER_TARGET_DIGEST_B,
+    [
+        {
+            "Target": "example.com/repo/per-target (alpine 3.19.1)",
+            "Class": "os-pkgs",
+            "Type": "alpine",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2023-4039",
+                    "PkgID": "libgcc@13.2.1_git20231014-r0",
+                    "PkgName": "libgcc",
+                    "PkgIdentifier": {
+                        "PURL": "pkg:apk/alpine/libgcc@13.2.1_git20231014-r0?arch=x86_64&distro=3.19.1",
+                    },
+                    "InstalledVersion": "13.2.1_git20231014-r0",
+                    "FixedVersion": "13.2.1_git20240309-r0",
+                    "Status": "fixed",
+                    "SeveritySource": "nvd",
+                    "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2023-4039",
+                    "DataSource": _ALPINE_DATA_SOURCE,
+                    "Title": "gcc: -fstack-protector fails to guard dynamic stack allocations on ARM64",
+                    "Severity": "HIGH",
+                    "CweIDs": ["CWE-693"],
+                },
+            ],
+        },
+    ],
+)
+
+# Report A rescanned after the source dropped out of the advisory data, leaving
+# Trivy's unsourced default severity.
+TRIVY_PER_TARGET_REPORT_A_UNSOURCED = _per_target_report(
+    PER_TARGET_DIGEST_A,
+    [
+        _debian_results(
+            [_gcc_vulnerability("gcc-12-base", "MEDIUM", None, "affected")],
+        ),
+    ],
+)
+
+# The same CVE on an OS package and a language package of one image: the image is
+# rated by the worse of the two.
+TRIVY_MULTI_PACKAGE_REPORT = _per_target_report(
+    PER_TARGET_DIGEST_A,
+    [
+        _debian_results(
+            [_gcc_vulnerability("gcc-12-base", "LOW", "debian", "affected")],
+        ),
+        {
+            "Target": "requirements.txt",
+            "Class": "lang-pkgs",
+            "Type": "pip",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2023-4039",
+                    "PkgName": "example-package",
+                    "PkgIdentifier": {"PURL": "pkg:pypi/example-package@1.0.0"},
+                    "InstalledVersion": "1.0.0",
+                    "FixedVersion": "1.0.1",
+                    "Status": "fixed",
+                    "SeveritySource": "ghsa",
+                    "DataSource": _GHSA_PIP_DATA_SOURCE,
+                    "Severity": "HIGH",
+                },
+            ],
+        },
+    ],
+)
+
+# Two OS packages with the same severity and source: only the fix status differs.
+TRIVY_STATUS_TIE_REPORT = _per_target_report(
+    PER_TARGET_DIGEST_A,
+    [
+        _debian_results(
+            [
+                _gcc_vulnerability("gcc-12-base", "LOW", "debian", "fixed"),
+                _gcc_vulnerability("libstdc++6", "LOW", "debian", "affected"),
+            ],
+        ),
+    ],
+)

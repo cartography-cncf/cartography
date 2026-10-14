@@ -386,3 +386,26 @@ def assert_trivy_image_relationships(
         )
         == expected_finding_rels
     )
+
+
+def assert_trivy_affects_rel_properties(
+    neo4j_session: Session,
+    target_label: str,
+    target_field: str,
+    expected: set[tuple],
+) -> None:
+    """Assert each finding's AFFECTS relationships to scan targets and their ratings.
+
+    Each expected tuple is (finding id, target field value, severity,
+    severity_source, status, data_source_id).
+    """
+    result = neo4j_session.run(
+        f"""
+        MATCH (f:TrivyImageFinding)-[r:AFFECTS]->(t:{target_label})
+        RETURN f.id AS finding_id, t[$target_field] AS target,
+               r.severity AS severity, r.severity_source AS severity_source,
+               r.status AS status, r.data_source_id AS data_source_id
+        """,
+        target_field=target_field,
+    )
+    assert {tuple(record.values()) for record in result} == expected
