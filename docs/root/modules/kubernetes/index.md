@@ -11,8 +11,10 @@ already-ingested cloud disks with `BACKED_BY` relationships.
 
 Container `MOUNTS` relationships identify the PersistentVolumeClaims used by
 individual containers. Each container's `persistent_volume_claim_mounts`
-property preserves the claim identifier, mount path, read-only setting, and
-other per-mount Kubernetes configuration as a JSON-encoded list. The
+property preserves the claim identifier, mount path, effective read-only
+setting, and other per-mount Kubernetes configuration as a JSON-encoded list. A
+mount is read-only when either its `volumeMounts[].readOnly` or the pod volume's
+`persistentVolumeClaim.readOnly` is set. The
 `persistent_volume_claim_read_write_ids` property provides a queryable list of
 claims that have at least one read-write mount.
 
