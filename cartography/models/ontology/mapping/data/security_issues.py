@@ -125,15 +125,12 @@ _ORCA_ALERT_SEVERITY = {
     "MEDIUM": "medium",
     "LOW": "low",
 }
+# Closed and dismissed alerts are not ingested.
 _ORCA_ALERT_STATUS = {
     "open": "open",
     "in_progress": "open",
-    "close": "fixed",
-    "dismiss": "ignored",
     "OPEN": "open",
     "IN_PROGRESS": "open",
-    "CLOSE": "fixed",
-    "DISMISS": "ignored",
 }
 
 aws_mapping = OntologyMapping(
