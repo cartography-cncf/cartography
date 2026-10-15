@@ -10,6 +10,7 @@ from typing import Any
 from typing import cast
 
 import backoff
+import requests
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import MethodNotImplemented
 from google.api_core.exceptions import NotFound
@@ -27,6 +28,9 @@ from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# HTTP timeout in seconds: (connect_timeout, read_timeout)
+_TIMEOUT = (60, 60)
 
 DEFAULT_VERTEX_AI_LOCATION_WORKERS = 8
 
@@ -367,8 +371,6 @@ def paginate_vertex_api(
     :param session: Optional authorized session used to execute requests
     :return: List of all resources across all pages
     """
-    import requests
-
     resources = []
     page_token = None
     request_headers = headers or {}
@@ -379,9 +381,13 @@ def paginate_vertex_api(
             params["pageToken"] = page_token
 
         if session is not None:
-            response = session.get(url, headers=request_headers, params=params)
+            response = session.get(
+                url, headers=request_headers, params=params, timeout=_TIMEOUT,
+            )
         else:
-            response = requests.get(url, headers=request_headers, params=params)
+            response = requests.get(
+                url, headers=request_headers, params=params, timeout=_TIMEOUT,
+            )
 
         # Handle response with common error patterns
         data, should_continue = handle_vertex_api_response(
@@ -407,3 +413,4 @@ def paginate_vertex_api(
         project_id,
     )
     return resources
+
