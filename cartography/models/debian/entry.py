@@ -43,7 +43,8 @@ class DebianSecurityTrackerEntryNodeProperties(CartographyNodeProperties):
         description=(
             "Major version of the release, for example `12` for bookworm, from a "
             "mapping kept in Cartography. Unset for sid, which never gets a version, "
-            "and for a codename the mapping does not know."
+            "and for a codename the mapping does not know. Matches the `os_release` "
+            "that Trivy records on `DEPLOYED` for a Debian image."
         ),
     )
     status: PropertyRef = PropertyRef(

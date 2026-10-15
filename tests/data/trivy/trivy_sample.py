@@ -1710,3 +1710,80 @@ TRIVY_MULTI_PACKAGE_REPORT = _per_target_report(
         ),
     ],
 )
+
+
+# One package name and version installed in a Debian testing image, an Ubuntu image
+# and a Debian stable root filesystem, so tests can check that each target's
+# DEPLOYED edge keeps its own OS. The Debian image reports its release as testing
+# images do.
+def _per_target_os_results(
+    os_family: str,
+    os_name: str,
+    vulnerabilities: list[dict],
+) -> list[dict]:
+    return [
+        {
+            "Target": f"example.com/repo/per-target ({os_family} {os_name})",
+            "Class": "os-pkgs",
+            "Type": os_family,
+            "Packages": [
+                {
+                    "ID": "tar@1.35+dfsg-3",
+                    "Name": "tar",
+                    "Version": "1.35+dfsg-3",
+                    "Identifier": {
+                        "PURL": f"pkg:deb/{os_family}/tar@1.35%2Bdfsg-3?arch=amd64",
+                    },
+                },
+            ],
+            "Vulnerabilities": vulnerabilities,
+        },
+    ]
+
+
+def _per_target_os_report(
+    digest: str,
+    os_family: str,
+    os_name: str,
+    vulnerabilities: list[dict],
+) -> dict:
+    report = _per_target_report(
+        digest,
+        _per_target_os_results(os_family, os_name, vulnerabilities),
+    )
+    report["Metadata"]["OS"] = {"Family": os_family, "Name": os_name}
+    return report
+
+
+TRIVY_PER_TARGET_OS_REPORT_DEBIAN = _per_target_os_report(
+    PER_TARGET_DIGEST_A,
+    "debian",
+    "trixie/sid",
+    [
+        {
+            "VulnerabilityID": "CVE-2005-2541",
+            "PkgID": "tar@1.35+dfsg-3",
+            "PkgName": "tar",
+            "InstalledVersion": "1.35+dfsg-3",
+            "Status": "affected",
+            "SeveritySource": "debian",
+            "DataSource": _DEBIAN_DATA_SOURCE,
+            "Severity": "LOW",
+        },
+    ],
+)
+
+TRIVY_PER_TARGET_OS_REPORT_UBUNTU = _per_target_os_report(
+    PER_TARGET_DIGEST_B,
+    "ubuntu",
+    "24.04",
+    [],
+)
+
+TRIVY_PER_TARGET_OS_REPORT_FILESYSTEM = {
+    "SchemaVersion": 2,
+    "ArtifactName": "/srv/rootfs",
+    "ArtifactType": "filesystem",
+    "Metadata": {"OS": {"Family": "debian", "Name": "12.13"}},
+    "Results": _per_target_os_results("debian", "12.13", []),
+}

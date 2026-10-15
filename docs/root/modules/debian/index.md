@@ -40,6 +40,23 @@ Entries carry no `CVE` label, because whether one applies to an image depends
 on the image's release. They are read for CVE IDs only: the tracker's
 `TEMP-` placeholders are skipped.
 
+## Matching entries to images
+
+Entries have no relationship to findings or images. [Trivy](../trivy/index.md)
+records the Debian release of each scanned image on its `DEPLOYED`
+relationships as `os_release`, normalized from the point release or the
+`<codename>/sid` the image reports, so an image's findings match entries on
+`cve_id` and `release_version`. Testing and unstable images both report
+`<codename>/sid` and match the release in preparation, not `sid`.
+
+The match does not include the source package yet. The tracker keys entries by
+source package, Trivy reports binary packages, and Cartography does not record
+which source package a binary package was built from. A finding therefore
+matches the entry of every source package the tracker lists the CVE under, and
+those entries can disagree. Do not combine their `status`, `urgency` or
+`not_affected` values for one finding: a matching entry can belong to a source
+package the image does not contain.
+
 See [configuration](config.md) to enable the module, [queries](queries.md) for
 example queries, and the generated [schema](schema.md) for fields and
 relationships.

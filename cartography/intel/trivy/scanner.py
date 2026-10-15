@@ -9,6 +9,7 @@ from neo4j import Session
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.common.debian_releases import major_release
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import read_text_report
 from cartography.intel.common.object_store import ReportRef
@@ -86,10 +87,29 @@ def _set_target_ratings(findings_list: list[dict[str, Any]]) -> None:
             row["TargetDataSourceID"] = rating["DataSourceID"]
 
 
+def transform_target_os(metadata: dict[str, Any] | None) -> dict[str, str | None]:
+    """
+    The OS Trivy detected in the scan target. It is recorded on each DEPLOYED edge
+    rather than on the shared version|name package node, which a Debian and an
+    Ubuntu target can both reach.
+    """
+    target_os = (metadata or {}).get("OS") or {}
+    family = target_os.get("Family") or None
+    name = target_os.get("Name") or None
+    return {
+        "OSFamily": family,
+        "OSName": name,
+        # Debian reports a point release or `<codename>/sid`; the security
+        # tracker keys its data by release.
+        "OSRelease": major_release(name) if family == "debian" else None,
+    }
+
+
 def transform_scan_results(
     results: list[dict],
     image_digest: str | None,
     filesystem_snapshot_ids: list[str] | None = None,
+    target_os: dict[str, str | None] | None = None,
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """
     Transform raw Trivy scan results into a format suitable for loading into Neo4j.
@@ -218,6 +238,7 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
+                        **(target_os or {}),
                         "FindingId": finding["id"],  # For AFFECTS relationship
                         # Additional fields
                         "PURL": purl,
@@ -249,6 +270,7 @@ def transform_all_packages(
     image_digest: str | None,
     seen_ids: set[str],
     filesystem_snapshot_ids: list[str] | None = None,
+    target_os: dict[str, str | None] | None = None,
 ) -> list[dict]:
     """
     Transform Trivy Packages arrays into package dicts for loading.
@@ -305,6 +327,7 @@ def transform_all_packages(
                     "Type": pkg_type,
                     "ImageDigest": image_digest,
                     "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
+                    **(target_os or {}),
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),
@@ -377,6 +400,7 @@ def sync_single_image(
             results,
             source,
             update_tag,
+            target_os=transform_target_os(trivy_data["Metadata"]),
             image_digest=image_digest,
         )
         stat_handler.incr("image_scan_cve_count", num_findings)
@@ -414,6 +438,7 @@ def sync_single_filesystem_snapshot(
             results,
             source,
             update_tag,
+            target_os=transform_target_os(trivy_data.get("Metadata")),
             filesystem_snapshot_ids=filesystem_snapshot_ids,
         )
         stat_handler.incr("filesystem_scan_cve_count", num_findings)
@@ -429,6 +454,7 @@ def _sync_scan_results(
     source: str,
     update_tag: int,
     *,
+    target_os: dict[str, str | None],
     image_digest: str | None = None,
     filesystem_snapshot_ids: list[str] | None = None,
 ) -> int:
@@ -436,6 +462,7 @@ def _sync_scan_results(
         results,
         image_digest,
         filesystem_snapshot_ids,
+        target_os,
     )
 
     load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
@@ -448,6 +475,7 @@ def _sync_scan_results(
         image_digest,
         seen_ids,
         filesystem_snapshot_ids,
+        target_os,
     )
     if all_packages:
         logger.info(

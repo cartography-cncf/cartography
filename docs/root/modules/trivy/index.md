@@ -48,9 +48,31 @@ rating of one package, chosen by, in order:
 4. an operating system package over a language package;
 5. report order.
 
+## Operating System Per Scan Target
+
+A `TrivyPackage` node is shared by every image and filesystem snapshot with a
+package of the same name and version, and those can run different
+distributions. The operating system Trivy detected in each scan target
+(`Metadata.OS`) is therefore recorded on the `DEPLOYED` relationship from each
+package to that target:
+
+- `os_family`: the OS family, such as `debian`, `ubuntu` or `alpine`.
+- `os_name`: the version as Trivy reported it, such as `12.7` or `trixie/sid`
+  for Debian and `24.04` for Ubuntu.
+- `os_release`: for Debian only, the major release (`12` for `12.7`, `13` for
+  `trixie/sid`), which matches `release_version` on
+  [Debian security tracker](../debian/index.md) entries.
+
+Every package of a target carries the target's OS, language packages
+included. To keep to the distribution's own packages, filter on the package's
+`class_name` (`os-pkgs`), as the [queries](queries.md) page shows. The
+package's `type` does not work for this: it is on the shared node, so a package
+with the same name and version in a Debian and an Ubuntu image carries the
+type of whichever report was ingested last.
+
 See [configuration](config.md) for report requirements and source options,
-[queries](queries.md) for query examples, and the generated [schema](schema.md)
-for fields and relationships.
+[queries](queries.md) for example queries, and the generated
+[schema](schema.md) for fields and relationships.
 
 ```{toctree}
 config

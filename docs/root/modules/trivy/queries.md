@@ -6,3 +6,18 @@
 MATCH (f:TrivyImageFinding {cve_id: 'CVE-2026-27171'})-[r:AFFECTS]->(img:Image)
 RETURN img.`_ont_digest`, r.severity, r.severity_source, r.status
 ```
+
+## Operating system of each image
+
+Count each image's operating system packages. `class_name` is `os-pkgs` for
+the distribution's own packages; language packages carry the image's OS too:
+
+```cypher
+MATCH (p:TrivyPackage)-[d:DEPLOYED]->(img:Image)
+WHERE p.class_name = 'os-pkgs'
+RETURN img.`_ont_digest`, d.os_family, d.os_name, d.os_release,
+       count(p) AS os_packages
+```
+
+To join the findings on Debian images to the Debian security tracker, see the
+[Debian security tracker queries](../debian/queries.md).
