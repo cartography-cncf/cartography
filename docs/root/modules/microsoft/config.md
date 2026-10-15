@@ -121,6 +121,9 @@ have null risk properties and `risk_available` set to true.
 `EntraUser.user_type` (`Member` or `Guest`) and `external_user_state` come
 from the base user inventory and need no extra permission.
 
+The registration report lags by up to 36 hours and leaves out disabled and
+soft-deleted users, whose MFA properties stay null.
+
 ### Federated domains
 
 The registration report only covers methods registered in Entra ID. A user

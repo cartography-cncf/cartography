@@ -41,8 +41,8 @@ class EntraDomainNodeProperties(CartographyNodeProperties):
     )
     is_root: PropertyRef = PropertyRef(
         "is_root",
-        description="Whether the domain is a verified root domain rather than a "
-        "subdomain.",
+        description="Whether the domain is a verified root domain. False for a "
+        "subdomain or an unverified domain.",
     )
     is_verified: PropertyRef = PropertyRef(
         "is_verified",
@@ -50,7 +50,8 @@ class EntraDomainNodeProperties(CartographyNodeProperties):
     )
     is_admin_managed: PropertyRef = PropertyRef(
         "is_admin_managed",
-        description="Whether DNS record management is delegated to Microsoft 365.",
+        description="False when DNS record management for the domain is delegated "
+        "to Microsoft 365, true otherwise.",
     )
     supported_services: PropertyRef = PropertyRef(
         "supported_services",

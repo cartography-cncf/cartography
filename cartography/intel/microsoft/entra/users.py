@@ -9,9 +9,6 @@ from msgraph import GraphServiceClient
 from msgraph.generated.models.organization import Organization
 from msgraph.generated.models.user import User
 from msgraph.generated.models.user_registration_details import UserRegistrationDetails
-from msgraph.generated.reports.authentication_methods.user_registration_details.user_registration_details_request_builder import (
-    UserRegistrationDetailsRequestBuilder,
-)
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -159,14 +156,10 @@ async def get_user_mfa_registrations(
     client: GraphServiceClient,
 ) -> dict[str, dict[str, Any]] | None:
     """Return MFA registration keyed by user ID, or None when Graph denies the report."""
+    # The report documents $filter only, so it is read whole rather than with $select.
     builder = client.reports.authentication_methods.user_registration_details
-    request_configuration = UserRegistrationDetailsRequestBuilder.UserRegistrationDetailsRequestBuilderGetRequestConfiguration(
-        query_parameters=UserRegistrationDetailsRequestBuilder.UserRegistrationDetailsRequestBuilderGetQueryParameters(
-            select=["id", "isMfaRegistered", "isMfaCapable", "methodsRegistered"],
-        ),
-    )
     return await get_optional_id_map(
-        lambda: builder.get(request_configuration=request_configuration),
+        builder.get,
         lambda url: builder.with_url(url).get(),
         "user registration details",
         MFA_REGISTRATION_PERMISSION,
