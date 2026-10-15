@@ -14,6 +14,7 @@ def _mock_dataset_syncs(monkeypatch) -> dict[str, AsyncMock]:
         name: AsyncMock()
         for name in (
             "sync_tenant",
+            "sync_entra_domains",
             "sync_entra_users",
             "sync_entra_groups",
             "sync_entra_ous",
@@ -194,3 +195,26 @@ def test_requested_syncs_without_entra_datasets_still_sync_the_tenant(
     awaited = {name for name, sync in syncs.items() if sync.await_count}
     assert awaited == {"sync_tenant"}
     federation.assert_not_awaited()
+
+
+def test_domains_sync_before_users(monkeypatch) -> None:
+    """Users link to their domain on load, so a fresh graph needs domains first."""
+    # Arrange
+    syncs = _mock_dataset_syncs(monkeypatch)
+    order: list[str] = []
+    for name in ("sync_entra_domains", "sync_entra_users"):
+        syncs[name].side_effect = lambda *_, name=name, **__: order.append(name)
+    monkeypatch.setattr(entra, "sync_entra_federation", AsyncMock())
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_client_id="client-id",
+        microsoft_client_secret="client-secret",
+        update_tag=1234567890,
+    )
+
+    # Act
+    entra.start_entra_ingestion(MagicMock(), config)
+
+    # Assert
+    assert order == ["sync_entra_domains", "sync_entra_users"]

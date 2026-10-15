@@ -188,6 +188,27 @@ class EntraUserReportsToRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:EntraUser)-[:IN_DOMAIN]->(:EntraDomain)
+class EntraUserInDomainRel(CartographyRelSchema):
+    """Links an Entra user to the tenant domain of its user principal name.
+
+    The domain's authentication type says whether Entra ID or an external
+    identity provider signs the user in.
+    """
+
+    target_node_label: str = "EntraDomain"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "name": PropertyRef("upn_domain"),
+            "tenant_id": PropertyRef("TENANT_ID", set_in_kwargs=True),
+        },
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IN_DOMAIN"
+    properties: EntraTenantToUserRelProperties = EntraTenantToUserRelProperties()
+
+
+@dataclass(frozen=True)
 # (:EntraUser)<-[:RESOURCE]-(:AzureTenant)
 class EntraUserToTenantRel(CartographyRelSchema):
     """Links a Microsoft tenant to one of its Entra users."""
@@ -211,6 +232,7 @@ class EntraUserSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EntraUserReportsToRel(),
+            EntraUserInDomainRel(),
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

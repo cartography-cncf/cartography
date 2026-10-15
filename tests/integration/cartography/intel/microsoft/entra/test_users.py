@@ -544,7 +544,9 @@ async def test_sync_merges_mfa_registration_and_risk(
     # Act
     await _sync(neo4j_session, client, 2)
 
-    # Assert
+    # Assert: _ont_has_mfa stays unset. A user signing in through a federated
+    # identity provider registers MFA there, so Entra's report reads false for
+    # them and would misreport a cross-provider "has MFA" fact.
     assert check_nodes(
         neo4j_session,
         "EntraUser",
@@ -568,7 +570,7 @@ async def test_sync_merges_mfa_registration_and_risk(
             True,
             False,
             False,
-            False,
+            None,
             "high",
             "confirmedCompromised",
             "adminConfirmedUserCompromised",
@@ -580,7 +582,7 @@ async def test_sync_merges_mfa_registration_and_risk(
             True,
             True,
             True,
-            True,
+            None,
             None,
             None,
             None,

@@ -16,6 +16,7 @@ from msgraph.generated.reports.authentication_methods.user_registration_details.
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft import credentials
+from cartography.intel.microsoft.entra.domains import domain_name_of
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.intel.microsoft.entra.utils import EMPTY_RISK
 from cartography.intel.microsoft.entra.utils import get_optional_id_map
@@ -219,6 +220,7 @@ def transform_users(
         yield {
             "id": user.id,
             "user_principal_name": user.user_principal_name,
+            "upn_domain": domain_name_of(user.user_principal_name),
             "display_name": user.display_name,
             "given_name": user.given_name,
             "surname": user.surname,

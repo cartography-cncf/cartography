@@ -118,20 +118,31 @@ it was denied, so a null property then means unknown rather than absent:
 When a risk report was read, users and service principals that are not in it
 have null risk properties and `risk_available` set to true.
 
-`UserAccount._ont_has_mfa` maps to `is_mfa_registered`. `EntraUser.user_type`
-(`Member` or `Guest`) and `external_user_state` come from the base user
-inventory and need no extra permission.
+`EntraUser.user_type` (`Member` or `Guest`) and `external_user_state` come
+from the base user inventory and need no extra permission.
 
-For example, find enabled users with high or confirmed-compromised risk and no
-registered MFA:
+### Federated domains
+
+The registration report only covers methods registered in Entra ID. A user
+whose domain is federated to another identity provider, such as AD FS or Okta,
+completes MFA there, so the report shows no methods for them. For that reason
+`is_mfa_registered` is not mapped to `UserAccount._ont_has_mfa`.
+
+Cartography syncs the tenant's domains as `EntraDomain` nodes, using the
+`Directory.Read.All` permission it already requires, and links each user to the
+domain of its user principal name with `(:EntraUser)-[:IN_DOMAIN]->(:EntraDomain)`.
+`authentication_type` is `Managed` when Entra ID signs the domain's users in and
+`Federated` when another identity provider does.
+
+For example, find enabled members of managed domains with no registered MFA:
 
 ```cypher
-MATCH (u:EntraUser)
+MATCH (u:EntraUser)-[:IN_DOMAIN]->(d:EntraDomain {authentication_type: 'Managed'})
 WHERE u.account_enabled = true
+  AND u.user_type = 'Member'
   AND u.mfa_registration_available = true
   AND u.is_mfa_registered = false
-  AND (u.risk_level = 'high' OR u.risk_state = 'confirmedCompromised')
-RETURN u.user_principal_name, u.user_type, u.risk_level, u.risk_state
+RETURN u.user_principal_name, d.name
 ```
 
 ### Defender for Endpoint
@@ -212,7 +223,7 @@ cartography \
   --microsoft-requested-syncs users,groups
 ```
 
-Valid values are `users`, `groups`, `administrative_units`, `applications`,
+Valid values are `domains`, `users`, `groups`, `administrative_units`, `applications`,
 `service_principals`, `app_role_assignments`, `directory_roles`, `federation`,
 `intune`, `o365`, `defender_machines`, and `defender_alerts`. Intune and O365
 run as whole units.
