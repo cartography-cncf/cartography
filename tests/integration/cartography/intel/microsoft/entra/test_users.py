@@ -625,11 +625,17 @@ async def test_denied_optional_report_leaves_fields_null(
 
     # Assert: inventory still loads; only the denied report's fields are null.
     expected = {
-        "registrations": ("observed-user", False, None, "low"),
-        "risky_users": ("observed-user", True, True, None),
+        "registrations": ("observed-user", False, None, True, "low"),
+        "risky_users": ("observed-user", True, True, False, None),
     }[denied]
     assert check_nodes(
         neo4j_session,
         "EntraUser",
-        ["id", "mfa_registration_available", "is_mfa_registered", "risk_level"],
+        [
+            "id",
+            "mfa_registration_available",
+            "is_mfa_registered",
+            "risk_available",
+            "risk_level",
+        ],
     ) == {expected}

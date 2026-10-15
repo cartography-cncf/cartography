@@ -174,17 +174,18 @@ async def get_user_mfa_registrations(
 
 
 @timeit
-async def get_risky_users(client: GraphServiceClient) -> dict[str, dict[str, Any]]:
-    """Return risk state keyed by user ID; empty when Graph denies the report."""
+async def get_risky_users(
+    client: GraphServiceClient,
+) -> dict[str, dict[str, Any]] | None:
+    """Return risk state keyed by user ID, or None when Graph denies the report."""
     builder = client.identity_protection.risky_users
-    risky_users = await get_optional_id_map(
+    return await get_optional_id_map(
         builder.get,
         lambda url: builder.with_url(url).get(),
         "risky users",
         RISKY_USERS_PERMISSION,
         transform_risk,
     )
-    return risky_users or {}
 
 
 @timeit
@@ -199,11 +200,12 @@ def transform_users(
 ) -> Generator[dict[str, Any], None, None]:
     """Convert MS Graph SDK `User` models into dicts matching our schema.
 
-    `mfa_registrations` is None when the registration report was unreadable,
-    which sets `mfa_registration_available` to false for every user.
+    Each report is None when Graph denied it, which sets its availability flag
+    to false for every user so a null field reads as unknown, not as absent.
     """
     mfa_registration_available = mfa_registrations is not None
     mfa_registrations = mfa_registrations or {}
+    risk_available = risky_users is not None
     risky_users = risky_users or {}
 
     for user in users:
@@ -256,6 +258,7 @@ def transform_users(
             "is_mfa_registered": mfa_registration.get("is_mfa_registered"),
             "is_mfa_capable": mfa_registration.get("is_mfa_capable"),
             "mfa_methods_registered": mfa_registration.get("mfa_methods_registered"),
+            "risk_available": risk_available,
             **risky_users.get(user.id or "", EMPTY_RISK),
         }
 

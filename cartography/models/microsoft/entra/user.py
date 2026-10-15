@@ -137,6 +137,12 @@ class EntraUserNodeProperties(CartographyNodeProperties):
         description="Authentication methods the user has registered, such as "
         "`microsoftAuthenticatorPush` or `fido2`. Null when unknown.",
     )
+    risk_available: PropertyRef = PropertyRef(
+        "risk_available",
+        description="Whether the latest sync could read the riskyUsers report. "
+        "When false, the risk properties are null because Graph denied access, "
+        "not because the user carries no risk.",
+    )
     risk_level: PropertyRef = PropertyRef(
         "risk_level",
         extra_index=True,

@@ -111,23 +111,24 @@ async def get_service_principal_by_app_id(
 @timeit
 async def get_risky_service_principals(
     client: GraphServiceClient,
-) -> dict[str, dict[str, Any]]:
-    """Return risk state keyed by service principal ID; empty when Graph denies the report."""
+) -> dict[str, dict[str, Any]] | None:
+    """Return risk state keyed by service principal ID, or None when Graph denies the report."""
     builder = client.identity_protection.risky_service_principals
-    risky_service_principals = await get_optional_id_map(
+    return await get_optional_id_map(
         builder.get,
         lambda url: builder.with_url(url).get(),
         "risky service principals",
         RISKY_SERVICE_PRINCIPALS_PERMISSION,
         transform_risk,
     )
-    return risky_service_principals or {}
 
 
 def transform_service_principals(
     service_principals: list[ServicePrincipal],
     risky_service_principals: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
+    # None means Graph denied the report; the flag keeps null risk readable as unknown.
+    risk_available = risky_service_principals is not None
     risky_service_principals = risky_service_principals or {}
     result = []
     for spn in service_principals:
@@ -159,6 +160,7 @@ def transform_service_principals(
                 if spn.token_encryption_key_id
                 else None
             ),
+            "risk_available": risk_available,
             **risky_service_principals.get(spn.id or "", EMPTY_RISK),
         }
         result.append(transformed)

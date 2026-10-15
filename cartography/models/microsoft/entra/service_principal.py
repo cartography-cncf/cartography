@@ -61,6 +61,12 @@ class EntraServicePrincipalNodeProperties(CartographyNodeProperties):
         "token_encryption_key_id",
         description="Key ID used to encrypt issued tokens.",
     )
+    risk_available: PropertyRef = PropertyRef(
+        "risk_available",
+        description="Whether the latest sync could read the riskyServicePrincipals "
+        "report. When false, the risk properties are null because Graph denied "
+        "access, not because the service principal carries no risk.",
+    )
     risk_level: PropertyRef = PropertyRef(
         "risk_level",
         extra_index=True,

@@ -104,12 +104,19 @@ inventory:
 | `/identityProtection/riskyUsers` | `IdentityRiskyUser.Read.All` | Entra ID P2 | `EntraUser.risk_level`, `risk_state`, `risk_detail`, `risk_last_updated_date_time` |
 | `/identityProtection/riskyServicePrincipals` | `IdentityRiskyServicePrincipal.Read.All` | Workload Identities Premium | The same risk properties on `EntraServicePrincipal` |
 
-If a report returns `403 Forbidden`, Cartography logs a warning, leaves its
-properties null, and still syncs users and service principals. Other errors
-propagate. `mfa_registration_available` on `EntraUser` is false when the
-registration report was denied, so a null `is_mfa_registered` then means
-unknown rather than unregistered. Users and service principals that are not in a
-risk report have null risk properties.
+If a report returns `403 Forbidden`, Cartography logs a warning, clears its
+properties, and still syncs users and service principals. Other errors
+propagate. Clearing follows the sign-in activity behavior above: a value the
+sync could not observe is not kept, so a revoked permission cannot leave a stale
+`atRisk` state in place. Each report has an availability flag that is false when
+it was denied, so a null property then means unknown rather than absent:
+
+- `EntraUser.mfa_registration_available` for the registration report
+- `EntraUser.risk_available` for the riskyUsers report
+- `EntraServicePrincipal.risk_available` for the riskyServicePrincipals report
+
+When a risk report was read, users and service principals that are not in it
+have null risk properties and `risk_available` set to true.
 
 `UserAccount._ont_has_mfa` maps to `is_mfa_registered`. `EntraUser.user_type`
 (`Member` or `Guest`) and `external_user_state` come from the base user

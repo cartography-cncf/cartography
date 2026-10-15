@@ -37,11 +37,11 @@ def _forbidden_error() -> APIError:
             ("reports", "authentication_methods", "user_registration_details"),
             None,
         ),
-        (users.get_risky_users, ("identity_protection", "risky_users"), {}),
+        (users.get_risky_users, ("identity_protection", "risky_users"), None),
         (
             service_principals.get_risky_service_principals,
             ("identity_protection", "risky_service_principals"),
-            {},
+            None,
         ),
     ),
 )

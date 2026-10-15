@@ -601,15 +601,18 @@ async def test_sync_service_principals_risk(neo4j_session, denied: bool) -> None
             {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": tenant_id},
         )
 
-    # Assert: service principals load either way; risk is null when denied.
+    # Assert: service principals load either way; risk is null and flagged
+    # unavailable when denied, so null does not read as "no risk".
     rows = neo4j_session.run(
         "MATCH (:AzureTenant {id: $tenant_id})-[:RESOURCE]->(sp:EntraServicePrincipal) "
-        "RETURN sp.id AS id, sp.risk_level AS level, sp.risk_state AS state, "
-        "sp.risk_detail AS detail",
+        "RETURN sp.id AS id, sp.risk_available AS available, sp.risk_level AS level, "
+        "sp.risk_state AS state, sp.risk_detail AS detail",
         tenant_id=tenant_id,
     )
     expected_risk = (None, None, None) if denied else ("high", "atRisk", "none")
-    assert {(r["id"], r["level"], r["state"], r["detail"]) for r in rows} == {
-        (risky_sp_id, *expected_risk),
-        (MOCK_SERVICE_PRINCIPALS[1].id, None, None, None),
+    assert {
+        (r["id"], r["available"], r["level"], r["state"], r["detail"]) for r in rows
+    } == {
+        (risky_sp_id, not denied, *expected_risk),
+        (MOCK_SERVICE_PRINCIPALS[1].id, not denied, None, None, None),
     }
