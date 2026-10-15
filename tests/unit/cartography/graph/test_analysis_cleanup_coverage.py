@@ -39,14 +39,21 @@ def _prop_cleanup(
     label: str,
     *props: str,
     scope: ScopeById | None = None,
+    stamp: str | None = None,
 ) -> str:
     node = f"(node:{label})"
     match = f"MATCH {node}"
-    if scope:
+    if scope and scope.label == label:
+        match = f"MATCH (node:{label} {{id: ${scope.id_param}}})"
+    elif scope:
         match = (
             f"MATCH (scope:{scope.label} {{id: ${scope.id_param}}})-[:RESOURCE]->{node}"
         )
     filters = " OR ".join(f"node.{prop} IS NOT NULL" for prop in props)
+    if stamp:
+        filters = (
+            f"({filters}) AND (node.{stamp} IS NULL OR node.{stamp} <> $UPDATE_TAG)"
+        )
     return (
         f"{match}\n"
         f"WHERE {filters}\n"
@@ -113,6 +120,62 @@ CLEANUP_CASES = [
         None,
         _prop_cleanup("AWSECSContainer", "exposed_internet", "exposed_internet_type"),
         id="aws_ecs_asset_exposure",
+    ),
+    pytest.param(
+        PropertyEffect(
+            "AWSECSTask",
+            ("no_modeled_internet_path", "no_modeled_internet_path_checked_at"),
+            cleanup_before_statements=False,
+            cleanup_stamp="no_modeled_internet_path_checked_at",
+        ),
+        None,
+        _prop_cleanup(
+            "AWSECSTask",
+            "no_modeled_internet_path",
+            "no_modeled_internet_path_checked_at",
+            scope=None,
+            stamp="no_modeled_internet_path_checked_at",
+        ),
+        id="aws_ecs_no_modeled_internet_path_task",
+    ),
+    pytest.param(
+        PropertyEffect(
+            "AWSECSContainer",
+            ("no_modeled_internet_path", "no_modeled_internet_path_checked_at"),
+            cleanup_before_statements=False,
+            cleanup_stamp="no_modeled_internet_path_checked_at",
+        ),
+        None,
+        _prop_cleanup(
+            "AWSECSContainer",
+            "no_modeled_internet_path",
+            "no_modeled_internet_path_checked_at",
+            scope=None,
+            stamp="no_modeled_internet_path_checked_at",
+        ),
+        id="aws_ecs_no_modeled_internet_path_container",
+    ),
+    pytest.param(
+        PropertyEffect(
+            "AWSAccount",
+            (
+                "unmodeled_internet_paths",
+                "unmodeled_internet_path_count",
+                "unmodeled_internet_paths_checked_at",
+            ),
+            cleanup_before_statements=False,
+            cleanup_stamp="unmodeled_internet_paths_checked_at",
+        ),
+        AWS,
+        _prop_cleanup(
+            "AWSAccount",
+            "unmodeled_internet_paths",
+            "unmodeled_internet_path_count",
+            "unmodeled_internet_paths_checked_at",
+            scope=AWS,
+            stamp="unmodeled_internet_paths_checked_at",
+        ),
+        id="aws_unmodeled_internet_paths",
     ),
     pytest.param(
         PropertyEffect("AWSEKSCluster", ("exposed_internet",)),
@@ -505,6 +568,62 @@ CLEANUP_CASES = [
             scope=K8S,
         ),
         id="k8s_container_asset_exposure",
+    ),
+    pytest.param(
+        PropertyEffect(
+            "KubernetesPod",
+            ("no_modeled_internet_path", "no_modeled_internet_path_checked_at"),
+            cleanup_before_statements=False,
+            cleanup_stamp="no_modeled_internet_path_checked_at",
+        ),
+        K8S,
+        _prop_cleanup(
+            "KubernetesPod",
+            "no_modeled_internet_path",
+            "no_modeled_internet_path_checked_at",
+            scope=K8S,
+            stamp="no_modeled_internet_path_checked_at",
+        ),
+        id="k8s_no_modeled_internet_path_pod",
+    ),
+    pytest.param(
+        PropertyEffect(
+            "KubernetesContainer",
+            ("no_modeled_internet_path", "no_modeled_internet_path_checked_at"),
+            cleanup_before_statements=False,
+            cleanup_stamp="no_modeled_internet_path_checked_at",
+        ),
+        K8S,
+        _prop_cleanup(
+            "KubernetesContainer",
+            "no_modeled_internet_path",
+            "no_modeled_internet_path_checked_at",
+            scope=K8S,
+            stamp="no_modeled_internet_path_checked_at",
+        ),
+        id="k8s_no_modeled_internet_path_container",
+    ),
+    pytest.param(
+        PropertyEffect(
+            "KubernetesCluster",
+            (
+                "unmodeled_internet_paths",
+                "unmodeled_internet_path_count",
+                "unmodeled_internet_paths_checked_at",
+            ),
+            cleanup_before_statements=False,
+            cleanup_stamp="unmodeled_internet_paths_checked_at",
+        ),
+        K8S,
+        _prop_cleanup(
+            "KubernetesCluster",
+            "unmodeled_internet_paths",
+            "unmodeled_internet_path_count",
+            "unmodeled_internet_paths_checked_at",
+            scope=K8S,
+            stamp="unmodeled_internet_paths_checked_at",
+        ),
+        id="k8s_unmodeled_internet_paths",
     ),
     pytest.param(
         RelationshipEffect(

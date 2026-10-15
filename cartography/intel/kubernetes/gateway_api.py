@@ -284,7 +284,8 @@ def sync_gateway_api(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> bool:
+    """Return False when listing was denied and the previous objects were kept."""
     try:
         raw_gateways = get_gateways(client)
         raw_routes = get_http_routes(client)
@@ -303,7 +304,7 @@ def sync_gateway_api(
                 client.name,
                 err.status,
             )
-            return
+            return False
         raise
 
     gateways = transform_gateways(raw_gateways)
@@ -328,3 +329,4 @@ def sync_gateway_api(
         cluster_name=client.name,
     )
     cleanup(neo4j_session, common_job_parameters)
+    return True

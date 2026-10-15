@@ -18,5 +18,6 @@ infrastructure-investigations
 container-images
 identity-access
 tagging-and-labels
+analysis
 schema
 ```

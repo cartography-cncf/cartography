@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1Node
 
 from cartography.client.core.tx import load
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_nodes(client: K8sClient) -> list[V1Node]:
-    return k8s_paginate(client.core.list_node)
+    return k8s_paginate(client.core.list_node, raise_on_error=True)
 
 
 def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:
@@ -104,8 +105,19 @@ def sync_nodes(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> dict[str, str]:
-    raw_nodes = get_nodes(client)
+) -> dict[str, str] | None:
+    """Return None when the list failed and the previous Nodes were kept."""
+    try:
+        raw_nodes = get_nodes(client)
+    except ApiException as e:
+        # A partial list would let cleanup delete the Nodes it did not return.
+        logger.warning(
+            "Kubernetes API error listing nodes on cluster %s (status %s). "
+            "Skipping the node sync and keeping previously synced nodes.",
+            client.name,
+            e.status,
+        )
+        return None
     transformed = transform_nodes(raw_nodes, client.name)
     load_nodes(
         session,

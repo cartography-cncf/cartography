@@ -9,7 +9,7 @@ from kubernetes.client.models import V1ObjectMeta
 from cartography.intel.kubernetes.ingress import transform_ingresses
 
 
-def test_transform_ingresses_lowercases_load_balancer_dns_names():
+def test_transform_ingresses_load_balancer_status():
     ingress = V1Ingress(
         metadata=V1ObjectMeta(
             uid="ingress-1",
@@ -28,6 +28,8 @@ def test_transform_ingresses_lowercases_load_balancer_dns_names():
                     V1IngressLoadBalancerIngress(
                         hostname="My-ALB-1234567890.us-east-1.elb.amazonaws.com",
                     ),
+                    # An entry with only an IP cannot be matched to a load balancer.
+                    V1IngressLoadBalancerIngress(ip="203.0.113.10"),
                 ],
             ),
         ),
@@ -38,6 +40,7 @@ def test_transform_ingresses_lowercases_load_balancer_dns_names():
     assert transformed["load_balancer_dns_names"] == [
         "my-alb-1234567890.us-east-1.elb.amazonaws.com"
     ]
+    assert transformed["load_balancer_ips"] == ["203.0.113.10"]
 
 
 def test_transform_ingresses_normalizes_rule_hostnames():

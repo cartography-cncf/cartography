@@ -1380,8 +1380,10 @@ def test_sync_one_account_all_sync_functions(
     assert mock_cleanup.call_count == 0
     # All dependencies are present, so both guarded analyses reach the executor.
     assert mock_guarded_analysis.call_count == 2
-    # LB/NACL runs directly after its explicit dependency check.
-    assert mock_analysis.call_count == 1
+    # LB/NACL runs directly after its dependency check, and the unmodeled internet
+    # path check runs before the syncs, to withdraw the account's previous check, and
+    # after them.
+    assert mock_analysis.call_count == 3
 
 
 def test_sync_one_account_uses_owned_ecr_session_factory(
