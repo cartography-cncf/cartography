@@ -31,3 +31,14 @@ def test_kubernetes_storage_security_rule_shape() -> None:
         assert rule.facts[0].asset_label == "KubernetesContainer"
         assert rule.facts[0].asset_id_field == "container_id"
         assert rule.facts[0].identity_fields == ("container_id",)
+
+
+def test_kubernetes_storage_security_rule_ids() -> None:
+    assert (
+        kubernetes_internet_exposed_containers_with_writable_persistent_storage.id
+        == "kubernetes_internet_exposed_containers_with_writable_persistent_storage"
+    )
+    assert (
+        kubernetes_containers_using_raw_block_persistent_storage.id
+        == "kubernetes_containers_using_raw_block_persistent_storage"
+    )

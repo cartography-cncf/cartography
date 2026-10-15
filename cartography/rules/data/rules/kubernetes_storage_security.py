@@ -106,7 +106,7 @@ _raw_block_persistent_storage = Fact(
 
 
 kubernetes_internet_exposed_containers_with_writable_persistent_storage = Rule(
-    id="kubernetes-internet-exposed-containers-with-writable-persistent-storage",
+    id="kubernetes_internet_exposed_containers_with_writable_persistent_storage",
     name="Internet-Exposed Containers with Writable Persistent Storage",
     description=(
         "Identifies internet-exposed Kubernetes containers that can write to "
@@ -134,7 +134,7 @@ kubernetes_internet_exposed_containers_with_writable_persistent_storage = Rule(
 
 
 kubernetes_containers_using_raw_block_persistent_storage = Rule(
-    id="kubernetes-containers-using-raw-block-persistent-storage",
+    id="kubernetes_containers_using_raw_block_persistent_storage",
     name="Containers Using Raw Block Persistent Storage",
     description=(
         "Identifies Kubernetes containers that use PersistentVolumeClaims as raw "
