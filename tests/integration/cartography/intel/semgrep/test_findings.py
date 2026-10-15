@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
+import tests.data.semgrep.aisast
 import tests.data.semgrep.deployment
 import tests.data.semgrep.sast
 import tests.data.semgrep.sca
@@ -46,10 +47,17 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
-    with patch.object(
-        cartography.intel.semgrep.findings,
-        "get_sca_vulns",
-        return_value=[],
+    with (
+        patch.object(
+            cartography.intel.semgrep.findings,
+            "get_sca_vulns",
+            return_value=[],
+        ),
+        patch.object(
+            cartography.intel.semgrep.findings,
+            "get_ai_sast_findings",
+            return_value=[],
+        ),
     ):
         sync_findings(
             neo4j_session,
@@ -191,10 +199,295 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
 @patch.object(
     cartography.intel.semgrep.findings,
     "get_sca_vulns",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_ai_sast_findings",
+    return_value=tests.data.semgrep.aisast.RAW_FINDINGS,
+)
+def test_sync_ai_sast_findings(
+    mock_get_ai_sast_findings,
+    mock_get_sca_vulns,
+    mock_get_sast_findings,
+    mock_get_deployment,
+    neo4j_session,
+):
+    # Arrange
+    # Reset the graph so SecurityIssue / assistant assertions can't pass or fail on
+    # nodes left behind by earlier tests that share the neo4j_session fixture.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_github_repos(neo4j_session)
+    semgrep_app_token = "your_semgrep_app_token"
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+    }
+
+    # Act
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    sync_findings(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert nodes
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepAISASTFinding",
+        [
+            "id",
+            "rule_id",
+            "title",
+            "repository",
+            "repository_url",
+            "branch",
+            "severity",
+            "confidence",
+            "state",
+            "triage_status",
+            "fix_status",
+        ],
+    ) == {
+        (
+            tests.data.semgrep.aisast.AI_SAST_FINDING_ID,
+            "ai.detection.idor",
+            "ai.detection.idor",
+            "simpsoncorp/sample_repo",
+            "https://github.com/simpsoncorp/sample_repo",
+            "main",
+            "HIGH",
+            "MEDIUM",
+            "unresolved",
+            "untriaged",
+            "open",
+        ),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepAISASTFinding",
+        [
+            "id",
+            "description",
+            "ai_impact",
+            "file_path",
+            "start_line",
+            "start_col",
+            "end_line",
+            "end_col",
+            "opened_at",
+        ],
+    ) == {
+        (
+            tests.data.semgrep.aisast.AI_SAST_FINDING_ID,
+            "Insecure direct object reference: the order is fetched by a user-supplied ID without an ownership check.",
+            "An attacker could access or modify other users' orders by manipulating the order identifier in the request.",
+            "src/api/orders.py",
+            17,
+            5,
+            19,
+            30,
+            "2025-01-15T09:30:00.000000Z",
+        ),
+    }
+
+    # List-valued properties are not hashable, so check_nodes() can't return them.
+    record = neo4j_session.run(
+        "MATCH (n:SemgrepAISASTFinding) "
+        "RETURN n.categories AS categories, "
+        "n.vulnerability_classes AS vulnerability_classes, "
+        "n.cwe_names AS cwe_names",
+    ).single()
+    assert record["categories"] == ["security"]
+    assert record["vulnerability_classes"] == [
+        "Insecure Direct Object Reference (IDOR)",
+    ]
+    assert record["cwe_names"] == [
+        "CWE-639: Authorization Bypass Through User-Controlled Key",
+    ]
+
+    # Assert the SecurityIssue ontology label and normalized fields
+    assert check_nodes(
+        neo4j_session,
+        "SecurityIssue",
+        ["id", "_ont_title", "_ont_severity", "_ont_status"],
+    ) == {
+        (
+            tests.data.semgrep.aisast.AI_SAST_FINDING_ID,
+            "ai.detection.idor",
+            "high",
+            "open",
+        ),
+    }
+
+    # Assert deployment relationship
+    assert check_rels(
+        neo4j_session,
+        "SemgrepDeployment",
+        "id",
+        "SemgrepAISASTFinding",
+        "id",
+        "RESOURCE",
+    ) == {
+        (
+            "123456",
+            tests.data.semgrep.aisast.AI_SAST_FINDING_ID,
+        ),
+    }
+
+    # Assert GitHub repo relationship
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "SemgrepAISASTFinding",
+        "id",
+        "FOUND_IN",
+        rel_direction_right=False,
+    ) == {
+        (
+            "https://github.com/simpsoncorp/sample_repo",
+            tests.data.semgrep.aisast.AI_SAST_FINDING_ID,
+        ),
+    }
+
+    # Assert assistant node and relationship
+    expected_assistant_id = (
+        f"semgrep-assistant-{tests.data.semgrep.aisast.AI_SAST_FINDING_ID}"
+    )
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepFindingAssistant",
+        ["id", "autotriage_verdict", "component_tag", "guidance_summary"],
+    ) == {
+        (
+            expected_assistant_id,
+            "true_positive",
+            "user data",
+            "Scope the query to the authenticated user.",
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SemgrepAISASTFinding",
+        "id",
+        "SemgrepFindingAssistant",
+        "id",
+        "HAS_ASSISTANT",
+    ) == {
+        (
+            tests.data.semgrep.aisast.AI_SAST_FINDING_ID,
+            expected_assistant_id,
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sast_findings",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sca_vulns",
+    return_value=[],
+)
+def test_sync_ai_sast_findings_cleanup(
+    mock_get_sca_vulns,
+    mock_get_sast_findings,
+    mock_get_deployment,
+    neo4j_session,
+):
+    # Arrange: sync a finding so there is something to clean up on the next update tag
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_github_repos(neo4j_session)
+    semgrep_app_token = "your_semgrep_app_token"
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    with patch.object(
+        cartography.intel.semgrep.findings,
+        "get_ai_sast_findings",
+        return_value=tests.data.semgrep.aisast.RAW_FINDINGS,
+    ):
+        sync_findings(
+            neo4j_session,
+            semgrep_app_token,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+    assert check_nodes(neo4j_session, "SemgrepAISASTFinding", ["id"]) == {
+        (tests.data.semgrep.aisast.AI_SAST_FINDING_ID,),
+    }
+
+    # Act: sync again with a new update tag and no findings
+    new_update_tag = TEST_UPDATE_TAG + 1
+    new_job_parameters = {"UPDATE_TAG": new_update_tag}
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        new_update_tag,
+        new_job_parameters,
+    )
+    with patch.object(
+        cartography.intel.semgrep.findings,
+        "get_ai_sast_findings",
+        return_value=[],
+    ):
+        sync_findings(
+            neo4j_session,
+            semgrep_app_token,
+            new_update_tag,
+            new_job_parameters,
+        )
+
+    # Assert: the stale finding and its assistant are removed
+    assert check_nodes(neo4j_session, "SemgrepAISASTFinding", ["id"]) == set()
+    assert check_nodes(neo4j_session, "SemgrepFindingAssistant", ["id"]) == set()
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sast_findings",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sca_vulns",
     return_value=tests.data.semgrep.sca.RAW_VULNS,
 )
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_ai_sast_findings",
+    return_value=[],
+)
 def test_sync_findings(
-    mock_get_sca_vulns, mock_get_sast_findings, mock_get_deployment, neo4j_session
+    mock_get_ai_sast_findings,
+    mock_get_sca_vulns,
+    mock_get_sast_findings,
+    mock_get_deployment,
+    neo4j_session,
 ):
     # Arrange
     create_github_repos(neo4j_session)

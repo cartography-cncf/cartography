@@ -195,6 +195,33 @@ semgrep_mapping = OntologyMapping(
                 ),
             ],
         ),
+        # SemgrepAISASTFinding mirrors SemgrepSASTFinding; `state` shares the same vocabulary.
+        OntologyNodeMapping(
+            node_label="SemgrepAISASTFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="title",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _SEMGREP_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _SEMGREP_SAST_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="opened_at",
+                ),
+            ],
+        ),
         # SemgrepSCAFinding is a hybrid dependency-vulnerability finding: it carries
         # :CVE when CVE-backed and :SecurityIssue when advisory-only. The resolver
         # returns a single mapping per primary label regardless of which conditional
