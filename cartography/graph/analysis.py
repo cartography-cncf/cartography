@@ -80,11 +80,32 @@ class SetProperty:
 
 @dataclass(frozen=True)
 class SetProperties:
-    """Set multiple node properties; label is required for generated cleanup."""
+    """
+    Set multiple node properties; label is required for generated cleanup.
+
+    cleanup_stamp names one of the properties whose value is $UPDATE_TAG. When it
+    is set, generated cleanup runs after the statements instead of before them and
+    only clears nodes whose stamp differs from $UPDATE_TAG. Readers keep seeing the
+    previous run's values until this run replaces or retires them, and a job that
+    fails part-way leaves them in place.
+    """
 
     node: str
     properties: dict[str, CypherValue]
     label: str | None = None
+    cleanup_stamp: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.cleanup_stamp is None:
+            return
+        if self.properties.get(self.cleanup_stamp) not in (
+            Param("UPDATE_TAG"),
+            Param("$UPDATE_TAG"),
+        ):
+            raise ValueError(
+                "SetProperties.cleanup_stamp must name a property set to "
+                f"Param('UPDATE_TAG'), got {self.cleanup_stamp!r}."
+            )
 
 
 @dataclass(frozen=True)
@@ -209,15 +230,38 @@ class RelationshipEffect:
 
 @dataclass(frozen=True)
 class PropertyEffect:
-    """Node-property cleanup declaration derived from property effects."""
+    """
+    Node-property cleanup declaration derived from property effects.
+
+    Without a cleanup_stamp the properties are cleared before the statements run.
+    With one, cleanup runs after the statements and clears only nodes whose stamp
+    property is not $UPDATE_TAG.
+    """
 
     node_label: str
     properties: tuple[str, ...]
     cleanup_before_statements: bool = True
+    cleanup_stamp: str | None = None
 
     def __post_init__(self) -> None:
         if not self.properties:
             raise ValueError("PropertyEffect requires at least one property.")
+        if self.cleanup_stamp is None:
+            if not self.cleanup_before_statements:
+                # Without a stamp, a trailing cleanup would clear what the statements just wrote.
+                raise ValueError(
+                    "PropertyEffect cleanup after the statements requires a cleanup_stamp."
+                )
+            return
+        if self.cleanup_stamp not in self.properties:
+            raise ValueError(
+                "PropertyEffect.cleanup_stamp must be one of its properties, "
+                f"got {self.cleanup_stamp!r}."
+            )
+        if self.cleanup_before_statements:
+            raise ValueError(
+                "PropertyEffect with a cleanup_stamp must clean up after the statements."
+            )
 
 
 @dataclass(frozen=True)
