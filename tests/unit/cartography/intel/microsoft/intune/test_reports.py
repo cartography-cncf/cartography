@@ -320,6 +320,96 @@ async def test_export_report_rows_resubmits_after_stalled_job(
     "wait_for_export_job",
     new_callable=AsyncMock,
 )
+async def test_export_report_rows_resubmits_after_job_completes_without_url(
+    mock_wait_for_export_job,
+    mock_download_export_report_rows,
+):
+    # Microsoft Graph sometimes marks an export job `completed` without a
+    # download URL; that job is unusable, so a fresh one must be submitted.
+    client = MagicMock()
+    export_jobs_builder = client.device_management.reports.export_jobs
+    export_jobs_builder.post = AsyncMock(
+        side_effect=[
+            DeviceManagementExportJob(id="job-no-url"),
+            DeviceManagementExportJob(id="job-recovered"),
+        ],
+    )
+    mock_wait_for_export_job.side_effect = [
+        DeviceManagementExportJob(
+            id="job-no-url",
+            status=DeviceManagementReportStatus.Completed,
+        ),
+        DeviceManagementExportJob(
+            id="job-recovered",
+            status=DeviceManagementReportStatus.Completed,
+            url="https://example.test/report.zip",
+        ),
+    ]
+    mock_download_export_report_rows.return_value = MagicMock()
+
+    result = await export_report_rows(
+        client,
+        "AppInvRawData",
+        ["ApplicationKey"],
+    )
+
+    assert export_jobs_builder.post.await_count == 2
+    mock_download_export_report_rows.assert_called_once_with(
+        "https://example.test/report.zip",
+        "AppInvRawData",
+    )
+    assert result is mock_download_export_report_rows.return_value
+
+
+@pytest.mark.asyncio
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "download_export_report_rows",
+)
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "wait_for_export_job",
+    new_callable=AsyncMock,
+)
+async def test_export_report_rows_raises_export_error_when_url_never_arrives(
+    mock_wait_for_export_job,
+    mock_download_export_report_rows,
+):
+    # Must surface as IntuneReportExportError so the Intune sync skips detected
+    # apps instead of failing the whole Microsoft sync.
+    client = MagicMock()
+    export_jobs_builder = client.device_management.reports.export_jobs
+    export_jobs_builder.post = AsyncMock(
+        return_value=DeviceManagementExportJob(id="job-no-url"),
+    )
+    mock_wait_for_export_job.return_value = DeviceManagementExportJob(
+        id="job-no-url",
+        status=DeviceManagementReportStatus.Completed,
+    )
+
+    with pytest.raises(IntuneReportExportError) as exc_info:
+        await export_report_rows(
+            client,
+            "AppInvRawData",
+            ["ApplicationKey"],
+            max_attempts=2,
+        )
+
+    assert "completed without a URL" in str(exc_info.value.__cause__)
+    assert export_jobs_builder.post.await_count == 2
+    mock_download_export_report_rows.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "download_export_report_rows",
+)
+@patch.object(
+    cartography.intel.microsoft.intune.reports,
+    "wait_for_export_job",
+    new_callable=AsyncMock,
+)
 async def test_export_report_rows_reraises_after_exhausting_attempts(
     mock_wait_for_export_job,
     mock_download_export_report_rows,

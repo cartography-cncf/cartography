@@ -156,12 +156,18 @@ async def export_report_rows(
                 poll_interval_seconds=poll_interval_seconds,
                 timeout_seconds=timeout_seconds,
             )
+            if not completed_job.url:
+                raise RuntimeError(
+                    f"Export job {created_job.id} for {report_name} completed "
+                    "without a URL."
+                )
         except (TimeoutError, RuntimeError) as e:
             # Microsoft Graph intermittently strands an export job in
-            # `inProgress` (or marks it `failed`) server-side, even for tiny
-            # tenants whose report normally completes in seconds. The stranded
-            # job never recovers, but resubmitting yields a fresh job that
-            # almost always succeeds, so retry instead of failing the sync.
+            # `inProgress`, marks it `failed`, or marks it `completed` with no
+            # download URL, even for tiny tenants whose report normally
+            # completes in seconds. The bad job never recovers, but
+            # resubmitting yields a fresh job that almost always succeeds, so
+            # retry instead of failing the sync.
             last_export_error = e
             logger.warning(
                 "Intune report export job %s for %s did not complete on "
@@ -173,11 +179,6 @@ async def export_report_rows(
                 e,
             )
             continue
-
-        if not completed_job.url:
-            raise ValueError(
-                f"Export job {created_job.id} for {report_name} completed without a URL."
-            )
 
         report_data = download_export_report_rows(completed_job.url, report_name)
         logger.info(
