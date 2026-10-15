@@ -46,13 +46,58 @@ def test_client_credentials_flow(mock_post):
     assert client.session.headers["Authorization"] == "Bearer tok"
 
 
+def _audience_rejected_response():
+    return MagicMock(
+        status_code=400,
+        text='{"error":"invalid_grant","error_description":"audience is invalid"}',
+    )
+
+
+@pytest.mark.parametrize(
+    ("login_url", "first_response", "expected_audiences"),
+    [
+        pytest.param(
+            "https://login.salesforce.com",
+            None,
+            ["https://login.salesforce.com"],
+            id="documented-audience",
+        ),
+        pytest.param(
+            "https://acme.my.salesforce.com",
+            None,
+            ["https://acme.my.salesforce.com"],
+            id="my-domain-accepted",
+        ),
+        pytest.param(
+            "https://acme.my.salesforce.com",
+            "audience",
+            ["https://acme.my.salesforce.com", "https://login.salesforce.com"],
+            id="my-domain-falls-back-to-production",
+        ),
+        pytest.param(
+            "https://acme--dev.sandbox.my.salesforce.com",
+            "audience",
+            [
+                "https://acme--dev.sandbox.my.salesforce.com",
+                "https://test.salesforce.com",
+            ],
+            id="sandbox-falls-back-to-test",
+        ),
+    ],
+)
 @patch("cartography.intel.salesforce.util.jwt.encode", return_value="signed-jwt")
 @patch("cartography.intel.salesforce.util.requests.post")
-def test_jwt_bearer_flow(mock_post, mock_encode):
-    mock_post.return_value = _token_response()
+def test_jwt_bearer_flow(
+    mock_post, mock_encode, login_url, first_response, expected_audiences
+):
+    mock_post.side_effect = (
+        [_audience_rejected_response(), _token_response()]
+        if first_response
+        else [_token_response()]
+    )
 
-    get_salesforce_client(
-        login_url="https://login.salesforce.com",
+    client = get_salesforce_client(
+        login_url=login_url,
         client_id="cid",
         username="user@example.com",
         private_key="-----BEGIN PRIVATE KEY-----",
@@ -61,6 +106,33 @@ def test_jwt_bearer_flow(mock_post, mock_encode):
     sent = mock_post.call_args.kwargs["data"]
     assert sent["grant_type"] == "urn:ietf:params:oauth:grant-type:jwt-bearer"
     assert sent["assertion"] == "signed-jwt"
+    assert [call.args[0]["aud"] for call in mock_encode.call_args_list] == (
+        expected_audiences
+    )
+    assert {call.args[0] for call in mock_post.call_args_list} == {
+        f"{login_url}/services/oauth2/token"
+    }
+    assert client.session.headers["Authorization"] == "Bearer tok"
+
+
+@patch("cartography.intel.salesforce.util.jwt.encode", return_value="signed-jwt")
+@patch("cartography.intel.salesforce.util.requests.post")
+def test_jwt_bearer_flow_raises_non_audience_errors(mock_post, mock_encode):
+    resp = MagicMock(
+        status_code=400,
+        text='{"error":"invalid_grant","error_description":"invalid assertion"}',
+    )
+    resp.raise_for_status.side_effect = requests.HTTPError(response=resp)
+    mock_post.return_value = resp
+
+    with pytest.raises(requests.HTTPError):
+        get_salesforce_client(
+            login_url="https://acme.my.salesforce.com",
+            client_id="cid",
+            username="user@example.com",
+            private_key="-----BEGIN PRIVATE KEY-----",
+        )
+    assert mock_post.call_count == 1
 
 
 def test_missing_credentials_raises():

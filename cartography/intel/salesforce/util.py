@@ -2,6 +2,7 @@ import logging
 import time
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import jwt
 import requests
@@ -15,6 +16,8 @@ _TIMEOUT = (60, 60)
 # ponytail: pinned version; bump when a newer object/field is needed.
 API_VERSION = "v60.0"
 _JWT_LIFETIME_SECONDS = 300
+_PRODUCTION_AUDIENCE = "https://login.salesforce.com"
+_SANDBOX_AUDIENCE = "https://test.salesforce.com"
 _MAX_ERROR_DETAIL_LENGTH = 1000
 
 
@@ -107,27 +110,60 @@ class SalesforceClient:
         ]
 
 
-def _authenticate_jwt_bearer(
-    login_url: str, client_id: str, username: str, private_key: str
-) -> dict[str, Any]:
+def _jwt_audiences(login_url: str) -> list[str]:
+    """Return the JWT audiences to try, in order.
+
+    Salesforce documents https://login.salesforce.com (or
+    https://test.salesforce.com for sandboxes) as the audience even when the
+    token request goes to a My Domain host, but some orgs accept only the host
+    the request is sent to. Like the Salesforce CLI, try the login URL first
+    and fall back to the documented audience.
+    """
+    host = urlparse(login_url).hostname or ""
+    is_sandbox = host == "test.salesforce.com" or host.endswith(
+        ".sandbox.my.salesforce.com"
+    )
+    documented = _SANDBOX_AUDIENCE if is_sandbox else _PRODUCTION_AUDIENCE
+    return list(dict.fromkeys([login_url, documented]))
+
+
+def _request_jwt_token(
+    login_url: str, client_id: str, username: str, private_key: str, audience: str
+) -> requests.Response:
     now = int(time.time())
     assertion = jwt.encode(
         {
             "iss": client_id,
             "sub": username,
-            "aud": login_url,
+            "aud": audience,
             "exp": now + _JWT_LIFETIME_SECONDS,
         },
         private_key,
         algorithm="RS256",
     )
-    resp = requests.post(
+    return requests.post(
         f"{login_url}/services/oauth2/token",
         data={
             "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
             "assertion": assertion,
         },
         timeout=_TIMEOUT,
+    )
+
+
+def _authenticate_jwt_bearer(
+    login_url: str, client_id: str, username: str, private_key: str
+) -> dict[str, Any]:
+    *fallible_audiences, last_audience = _jwt_audiences(login_url)
+    for audience in fallible_audiences:
+        resp = _request_jwt_token(login_url, client_id, username, private_key, audience)
+        if resp.status_code == 400 and "audience" in resp.text:
+            logger.info("Salesforce rejected JWT audience %s; retrying.", audience)
+            continue
+        resp.raise_for_status()
+        return resp.json()
+    resp = _request_jwt_token(
+        login_url, client_id, username, private_key, last_audience
     )
     resp.raise_for_status()
     return resp.json()

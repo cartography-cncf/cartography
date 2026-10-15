@@ -78,6 +78,7 @@ Set `--salesforce-login-url` according to the authentication flow and organizati
 
 - Production or Developer edition with JWT bearer: `https://login.salesforce.com`, which is the default.
 - Sandbox with JWT bearer: `https://test.salesforce.com`.
+- JWT bearer in an organization that blocks logins from `login.salesforce.com`: your My Domain URL. Cartography sends the token request to My Domain and first uses it as the JWT audience. If Salesforce rejects that audience, Cartography retries with `https://login.salesforce.com`, or `https://test.salesforce.com` for a `.sandbox.my.salesforce.com` host.
 - Client credentials: Your My Domain URL.
 
 Cartography resolves the organization's instance URL from the token response.
