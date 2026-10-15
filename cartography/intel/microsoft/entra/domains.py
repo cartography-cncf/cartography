@@ -40,8 +40,9 @@ async def get_domains(client: GraphServiceClient) -> list[Domain]:
 def transform_domains(domains: list[Domain], tenant_id: str) -> list[dict[str, Any]]:
     result = []
     for domain in domains:
+        # Skipping it would let cleanup delete a domain that still exists.
         if not domain.id:
-            continue
+            raise ValueError("Microsoft Graph returned a domain without an id.")
         name = domain.id.lower()
         result.append(
             {
