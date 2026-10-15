@@ -262,6 +262,17 @@ async def test_export_report_rows_creates_job_and_downloads_rows(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "first_attempt",
+    [
+        TimeoutError("Timed out waiting for export job job-stalled"),
+        DeviceManagementExportJob(
+            id="job-stalled",
+            status=DeviceManagementReportStatus.Completed,
+        ),
+    ],
+    ids=["stalled", "completed_without_url"],
+)
 @patch.object(
     cartography.intel.microsoft.intune.reports,
     "download_export_report_rows",
@@ -271,12 +282,14 @@ async def test_export_report_rows_creates_job_and_downloads_rows(
     "wait_for_export_job",
     new_callable=AsyncMock,
 )
-async def test_export_report_rows_resubmits_after_stalled_job(
+async def test_export_report_rows_resubmits_after_unusable_job(
     mock_wait_for_export_job,
     mock_download_export_report_rows,
+    first_attempt,
 ):
-    # Microsoft Graph sometimes strands the first export job in `inProgress`;
-    # export_report_rows must submit a fresh job and recover within the run.
+    # Microsoft Graph sometimes strands the first export job in `inProgress`
+    # or completes it without a download URL; export_report_rows must submit a
+    # fresh job and recover within the run.
     client = MagicMock()
     export_jobs_builder = client.device_management.reports.export_jobs
     export_jobs_builder.post = AsyncMock(
@@ -286,7 +299,7 @@ async def test_export_report_rows_resubmits_after_stalled_job(
         ],
     )
     mock_wait_for_export_job.side_effect = [
-        TimeoutError("Timed out waiting for export job job-stalled"),
+        first_attempt,
         DeviceManagementExportJob(
             id="job-recovered",
             status=DeviceManagementReportStatus.Completed,
