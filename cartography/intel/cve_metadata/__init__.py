@@ -13,7 +13,9 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.cve_metadata import epss
+from cartography.intel.cve_metadata import kev
 from cartography.intel.cve_metadata import nvd
+from cartography.intel.cve_metadata import vulnrichment
 from cartography.intel.cve_metadata.effect_tags import derive_effect_tags
 from cartography.intel.cve_metadata.effect_tags import unmapped_cwes
 from cartography.models.cve_metadata.cve_metadata import CVEMetadataSchema
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 CVE_METADATA_FEED_ID = "CVE_METADATA"
-ALL_SOURCES = {"nvd", "epss"}
+ALL_SOURCES = {"nvd", "epss", "kev", "vulnrichment"}
 
 # Each CVEMetadata row fans out to every node carrying the :CVE label with the same cve_id
 # (the deprecated CVE node plus AWSInspectorFinding / SemgrepSCAFinding / TrivyImageFinding /
@@ -79,6 +81,8 @@ def load_cve_metadata_feed(
     neo4j_session: neo4j.Session,
     update_tag: int,
     sources: set[str],
+    kev_catalog: kev.KevCatalog | None = None,
+    vulnrichment_snapshot: vulnrichment.VulnrichmentSnapshot | None = None,
 ) -> None:
     """Load the CVEMetadataFeed node."""
     feed_data = [
@@ -86,6 +90,15 @@ def load_cve_metadata_feed(
             "FEED_ID": CVE_METADATA_FEED_ID,
             "source_nvd": "nvd" in sources,
             "source_epss": "epss" in sources,
+            "source_kev": "kev" in sources,
+            "source_vulnrichment": "vulnrichment" in sources,
+            "kev_catalog_version": (
+                kev_catalog.catalog_version if kev_catalog else None
+            ),
+            "kev_date_released": kev_catalog.date_released if kev_catalog else None,
+            "vulnrichment_commit": (
+                vulnrichment_snapshot.commit if vulnrichment_snapshot else None
+            ),
         }
     ]
     load(
@@ -114,13 +127,39 @@ def load_cve_metadata(
     )
 
 
+def _fetch_kev_catalog(http_session: Session) -> kev.KevCatalog | None:
+    try:
+        return kev.transform_kev_catalog(kev.get_kev_catalog(http_session))
+    except (requests.exceptions.RequestException, ValueError, KeyError, TypeError):
+        logger.warning(
+            "Failed to fetch the CISA KEV catalog; is_kev falls back to NVD where available.",
+            exc_info=True,
+        )
+        return None
+
+
+def _fetch_vulnrichment(
+    http_session: Session,
+    cve_ids: set[str],
+) -> vulnrichment.VulnrichmentSnapshot | None:
+    try:
+        return vulnrichment.get_vulnrichment_records(http_session, cve_ids)
+    except vulnrichment.FETCH_ERRORS:
+        logger.warning(
+            "Failed to read the Vulnrichment archive, continuing without SSVC enrichment.",
+            exc_info=True,
+        )
+        return None
+
+
 @timeit
 def start_cve_metadata_ingestion(
     neo4j_session: neo4j.Session,
     config: Config,
 ) -> None:
     """
-    Enrich existing CVE nodes with metadata from NVD and EPSS.
+    Enrich existing CVE nodes with metadata from NVD, EPSS, the CISA KEV catalog,
+    and CISA Vulnrichment.
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
     """
@@ -154,10 +193,9 @@ def start_cve_metadata_ingestion(
             skipped_cves,
         )
 
-    # Load the feed node first so each batch can attach RESOURCE links to it.
-    load_cve_metadata_feed(neo4j_session, config.update_tag, sources)
-
-    if yearly_batches:
+    if not yearly_batches:
+        load_cve_metadata_feed(neo4j_session, config.update_tag, sources)
+    else:
         session = Session()
         retry_policy = Retry(
             total=8,
@@ -173,6 +211,23 @@ def start_cve_metadata_ingestion(
         unmapped_cwe_counts: Counter[str] = Counter()
 
         with session as http_session:
+            # KEV and Vulnrichment are single downloads, fetched once for all batches.
+            kev_catalog = None
+            if "kev" in sources:
+                kev_catalog = _fetch_kev_catalog(http_session)
+            vulnrichment_snapshot = None
+            if "vulnrichment" in sources:
+                vulnrichment_snapshot = _fetch_vulnrichment(http_session, set(cve_ids))
+
+            # Load the feed node first so each batch can attach RESOURCE links to it.
+            load_cve_metadata_feed(
+                neo4j_session,
+                config.update_tag,
+                sources,
+                kev_catalog,
+                vulnrichment_snapshot,
+            )
+
             # Step 2: Enrich and load one CVE year at a time to keep memory bounded.
             for batch_cve_ids in yearly_batches:
                 cves: list[dict[str, Any]] = [
@@ -197,6 +252,19 @@ def start_cve_metadata_ingestion(
                             "Failed to fetch EPSS scores, continuing without EPSS enrichment.",
                             exc_info=True,
                         )
+
+                # Runs without a catalog too, so that is_kev_source records the
+                # NVD fallback.
+                kev.merge_kev_into_cves(cves, kev_catalog)
+                vulnrichment.merge_vulnrichment_into_cves(cves, vulnrichment_snapshot)
+                logger.info(
+                    "%d of %d CVEs in batch are known exploited (is_kev from %s); "
+                    "%d have an SSVC decision.",
+                    sum(1 for cve in cves if cve.get("is_kev")),
+                    len(cves),
+                    "the KEV catalog" if kev_catalog else "NVD, where available",
+                    sum(1 for cve in cves if cve.get("ssvc_exploitation")),
+                )
 
                 # Derive effect_tags for every CVE (not just NVD-transformed ones),
                 # so the ingest contract holds even for epss-only / NVD-absent nodes.
