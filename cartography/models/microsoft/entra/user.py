@@ -76,6 +76,16 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     age_group: PropertyRef = PropertyRef(
         "age_group", description="Age group classification of the user."
     )
+    user_type: PropertyRef = PropertyRef(
+        "user_type",
+        description="Graph userType: `Member` for internal users or `Guest` for "
+        "external (B2B) users.",
+    )
+    external_user_state: PropertyRef = PropertyRef(
+        "external_user_state",
+        description="Invitation state of an external user, such as "
+        "`PendingAcceptance` or `Accepted`. Null for users that were not invited.",
+    )
     manager_id: PropertyRef = PropertyRef(
         "manager_id", description="Entra user ID of the user's manager."
     )
@@ -105,6 +115,56 @@ class EntraUserNodeProperties(CartographyNodeProperties):
         "before December 2023. Null when activity was unavailable, or when Graph "
         "has no recorded successful sign-in for the user.",
     )
+    mfa_registration_available: PropertyRef = PropertyRef(
+        "mfa_registration_available",
+        description="Whether the latest sync could read the "
+        "userRegistrationDetails report. When false, the MFA properties are null "
+        "because Graph denied access, not because the user has no MFA.",
+    )
+    is_mfa_registered: PropertyRef = PropertyRef(
+        "is_mfa_registered",
+        description="Whether the user has registered a strong authentication "
+        "method for MFA. Null when unknown.",
+    )
+    is_mfa_capable: PropertyRef = PropertyRef(
+        "is_mfa_capable",
+        description="Whether the user has registered a strong authentication "
+        "method that the authentication methods policy allows for MFA. Null when "
+        "unknown.",
+    )
+    mfa_methods_registered: PropertyRef = PropertyRef(
+        "mfa_methods_registered",
+        description="Authentication methods the user has registered, such as "
+        "`microsoftAuthenticatorPush` or `fido2`. Null when unknown.",
+    )
+    risk_available: PropertyRef = PropertyRef(
+        "risk_available",
+        description="Whether the latest sync could read the riskyUsers report. "
+        "When false, the risk properties are null because Graph denied access, "
+        "not because the user carries no risk.",
+    )
+    risk_level: PropertyRef = PropertyRef(
+        "risk_level",
+        extra_index=True,
+        description="Entra ID Protection user risk level, such as `low`, "
+        "`medium`, `high`, `hidden`, or `none`. Null when the user is not "
+        "in the riskyUsers report, or when that report is unavailable "
+        "(it requires Entra ID P2).",
+    )
+    risk_state: PropertyRef = PropertyRef(
+        "risk_state",
+        description="Entra ID Protection risk state, such as `atRisk`, "
+        "`confirmedCompromised`, `remediated`, or `dismissed`. Null when unknown.",
+    )
+    risk_detail: PropertyRef = PropertyRef(
+        "risk_detail",
+        description="Reason for the latest risk state change, such as "
+        "`adminConfirmedUserCompromised`. Null when unknown.",
+    )
+    risk_last_updated_date_time: PropertyRef = PropertyRef(
+        "risk_last_updated_date_time",
+        description="UTC datetime the risk state last changed. Null when unknown.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -124,6 +184,27 @@ class EntraUserReportsToRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "REPORTS_TO"
+    properties: EntraTenantToUserRelProperties = EntraTenantToUserRelProperties()
+
+
+@dataclass(frozen=True)
+# (:EntraUser)-[:IN_DOMAIN]->(:EntraDomain)
+class EntraUserInDomainRel(CartographyRelSchema):
+    """Links an Entra user to the tenant domain of its user principal name.
+
+    The domain's authentication type says whether Entra ID or an external
+    identity provider signs the user in.
+    """
+
+    target_node_label: str = "EntraDomain"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "name": PropertyRef("upn_domain"),
+            "tenant_id": PropertyRef("TENANT_ID", set_in_kwargs=True),
+        },
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IN_DOMAIN"
     properties: EntraTenantToUserRelProperties = EntraTenantToUserRelProperties()
 
 
@@ -151,6 +232,7 @@ class EntraUserSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EntraUserReportsToRel(),
+            EntraUserInDomainRel(),
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

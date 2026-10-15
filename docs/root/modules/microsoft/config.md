@@ -29,7 +29,9 @@ Grant these application permissions when ingesting the indicated data:
 - `DeviceManagementManagedDevices.Read.All`: Intune managed devices and detected apps.
 - `DeviceManagementConfiguration.Read.All`: Intune device configuration and compliance policies.
 - `RoleManagement.Read.Directory`: Entra directory role definitions and assignments.
-- `AuditLog.Read.All`: Entra user sign-in activity; also requires an Entra ID P1 or P2 license.
+- `AuditLog.Read.All`: Entra user sign-in activity and MFA registration; also requires an Entra ID P1 or P2 license.
+- `IdentityRiskyUser.Read.All`: Entra ID Protection user risk; also requires an Entra ID P2 license.
+- `IdentityRiskyServicePrincipal.Read.All`: Entra ID Protection service principal risk; also requires a Workload Identities Premium license.
 
 ### User sign-in activity
 
@@ -90,6 +92,62 @@ use; background clients can produce successful non-interactive sign-ins.
 
 See Microsoft's [signInActivity reference](https://learn.microsoft.com/en-us/graph/api/resources/signinactivity?view=graph-rest-1.0)
 and [inactive-account guidance](https://learn.microsoft.com/en-us/entra/identity/monitoring-health/howto-manage-inactive-user-accounts).
+
+### MFA registration and identity risk
+
+Cartography reads three optional reports once per sync and merges them into the
+inventory:
+
+| Report | Permission | License | Properties |
+| --- | --- | --- | --- |
+| `/reports/authenticationMethods/userRegistrationDetails` | `AuditLog.Read.All` | Entra ID P1 or P2 | `EntraUser.is_mfa_registered`, `is_mfa_capable`, `mfa_methods_registered` |
+| `/identityProtection/riskyUsers` | `IdentityRiskyUser.Read.All` | Entra ID P2 | `EntraUser.risk_level`, `risk_state`, `risk_detail`, `risk_last_updated_date_time` |
+| `/identityProtection/riskyServicePrincipals` | `IdentityRiskyServicePrincipal.Read.All` | Workload Identities Premium | The same risk properties on `EntraServicePrincipal` |
+
+If a report returns `403 Forbidden`, Cartography logs a warning, clears its
+properties, and still syncs users and service principals. Other errors
+propagate. Clearing follows the sign-in activity behavior above: a value the
+sync could not observe is not kept, so a revoked permission cannot leave a stale
+`atRisk` state in place. Each report has an availability flag that is false when
+it was denied, so a null property then means unknown rather than absent:
+
+- `EntraUser.mfa_registration_available` for the registration report
+- `EntraUser.risk_available` for the riskyUsers report
+- `EntraServicePrincipal.risk_available` for the riskyServicePrincipals report
+
+When a risk report was read, users and service principals that are not in it
+have null risk properties and `risk_available` set to true.
+
+`EntraUser.user_type` (`Member` or `Guest`) and `external_user_state` come
+from the base user inventory and need no extra permission.
+
+The registration report lags by up to 36 hours and leaves out disabled users,
+so their MFA properties stay null. It also leaves out soft-deleted users, which
+the user inventory doesn't include either.
+
+### Federated domains
+
+The registration report only covers methods registered in Entra ID. A user
+whose domain is federated to another identity provider, such as AD FS or Okta,
+completes MFA there, so the report shows no methods for them. For that reason
+`is_mfa_registered` is not mapped to `UserAccount._ont_has_mfa`.
+
+Cartography syncs the tenant's domains as `EntraDomain` nodes, using the
+`Directory.Read.All` permission it already requires, and links each user to the
+domain of its user principal name with `(:EntraUser)-[:IN_DOMAIN]->(:EntraDomain)`.
+`authentication_type` is `Managed` when Entra ID signs the domain's users in and
+`Federated` when another identity provider does.
+
+For example, find enabled members of managed domains with no registered MFA:
+
+```cypher
+MATCH (u:EntraUser)-[:IN_DOMAIN]->(d:EntraDomain {authentication_type: 'Managed'})
+WHERE u.account_enabled = true
+  AND u.user_type = 'Member'
+  AND u.mfa_registration_available = true
+  AND u.is_mfa_registered = false
+RETURN u.user_principal_name, d.name
+```
 
 ### Defender for Endpoint
 
@@ -169,7 +227,7 @@ cartography \
   --microsoft-requested-syncs users,groups
 ```
 
-Valid values are `users`, `groups`, `administrative_units`, `applications`,
+Valid values are `domains`, `users`, `groups`, `administrative_units`, `applications`,
 `service_principals`, `app_role_assignments`, `directory_roles`, `federation`,
 `intune`, `o365`, `defender_machines`, and `defender_alerts`. Intune and O365
 run as whole units.

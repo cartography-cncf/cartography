@@ -17,6 +17,7 @@ from cartography.intel.microsoft.entra.app_role_assignments import (
 )
 from cartography.intel.microsoft.entra.applications import sync_entra_applications
 from cartography.intel.microsoft.entra.directory_roles import sync_entra_directory_roles
+from cartography.intel.microsoft.entra.domains import sync_entra_domains
 from cartography.intel.microsoft.entra.federation.aws_identity_center import (
     sync_entra_federation,
 )
@@ -87,8 +88,8 @@ async def sync_tenant(
 @timeit
 def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
-    Perform ingestion of Entra identity data (users, groups, OUs, applications,
-    service principals, app role assignments, federation).
+    Perform ingestion of Entra identity data (domains, users, groups, OUs,
+    applications, service principals, app role assignments, federation).
 
     Must run before Intune ingestion, as Intune nodes relate back to Entra
     users, groups, and tenants.
@@ -180,6 +181,14 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             common_job_parameters,
+        )
+        # Users link to their domain, so domains load first.
+        await run_dataset(
+            "domains",
+            "domains",
+            lambda: sync_entra_domains(
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
+            ),
         )
         await run_dataset(
             "users",

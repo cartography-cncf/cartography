@@ -5,6 +5,7 @@
 # off it. Each Defender dataset needs its own permission and is skipped when the
 # tenant can't provide it.
 ENTRA_RESOURCES: list[str] = [
+    "domains",
     "users",
     "groups",
     "administrative_units",

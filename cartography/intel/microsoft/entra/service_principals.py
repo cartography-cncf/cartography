@@ -13,6 +13,9 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
+from cartography.intel.microsoft.entra.utils import EMPTY_RISK
+from cartography.intel.microsoft.entra.utils import get_optional_id_map
+from cartography.intel.microsoft.entra.utils import transform_risk
 from cartography.models.microsoft.entra.service_principal import (
     EntraServicePrincipalSchema,
 )
@@ -22,6 +25,9 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 SERVICE_PRINCIPALS_PAGE_SIZE = 999
+RISKY_SERVICE_PRINCIPALS_PERMISSION = (
+    "IdentityRiskyServicePrincipal.Read.All and Workload Identities Premium licensing"
+)
 
 
 @timeit
@@ -102,9 +108,28 @@ async def get_service_principal_by_app_id(
     return service_principals_page.value[0]
 
 
+@timeit
+async def get_risky_service_principals(
+    client: GraphServiceClient,
+) -> dict[str, dict[str, Any]] | None:
+    """Return risk state keyed by service principal ID, or None when Graph denies the report."""
+    builder = client.identity_protection.risky_service_principals
+    return await get_optional_id_map(
+        builder.get,
+        lambda url: builder.with_url(url).get(),
+        "risky service principals",
+        RISKY_SERVICE_PRINCIPALS_PERMISSION,
+        transform_risk,
+    )
+
+
 def transform_service_principals(
     service_principals: list[ServicePrincipal],
+    risky_service_principals: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
+    # None means Graph denied the report; the flag keeps null risk readable as unknown.
+    risk_available = risky_service_principals is not None
+    risky_service_principals = risky_service_principals or {}
     result = []
     for spn in service_principals:
         aws_identity_center_instance_id = None
@@ -135,6 +160,8 @@ def transform_service_principals(
                 if spn.token_encryption_key_id
                 else None
             ),
+            "risk_available": risk_available,
+            **risky_service_principals.get(spn.id or "", EMPTY_RISK),
         }
         result.append(transformed)
     return result
@@ -209,6 +236,7 @@ async def sync_service_principals(
         credential,
         scopes=["https://graph.microsoft.com/.default"],
     )
+    risky_service_principals = await get_risky_service_principals(client)
     service_principals_batch = []
     batch_size = 50  # Batch size for service principals
     total_count = 0
@@ -223,7 +251,7 @@ async def sync_service_principals(
             # Transform and load service principals in batches
             if len(service_principals_batch) >= batch_size:
                 transformed_service_principals = transform_service_principals(
-                    service_principals_batch
+                    service_principals_batch, risky_service_principals
                 )
                 load_service_principals(
                     neo4j_session,
@@ -246,7 +274,7 @@ async def sync_service_principals(
     # Process remaining service principals
     if service_principals_batch:
         transformed_service_principals = transform_service_principals(
-            service_principals_batch
+            service_principals_batch, risky_service_principals
         )
         load_service_principals(
             neo4j_session, transformed_service_principals, update_tag, tenant_id
