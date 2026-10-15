@@ -121,8 +121,9 @@ have null risk properties and `risk_available` set to true.
 `EntraUser.user_type` (`Member` or `Guest`) and `external_user_state` come
 from the base user inventory and need no extra permission.
 
-The registration report lags by up to 36 hours and leaves out disabled and
-soft-deleted users, whose MFA properties stay null.
+The registration report lags by up to 36 hours and leaves out disabled users,
+so their MFA properties stay null. It also leaves out soft-deleted users, which
+the user inventory doesn't include either.
 
 ### Federated domains
 
