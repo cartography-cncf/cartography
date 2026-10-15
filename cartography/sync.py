@@ -154,6 +154,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cve_metadata": _LazyStage(
             "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),
+        # Keeps entries only for CVEs already in the graph, so it runs after every
+        # module that ingests them.
+        "debian": _LazyStage("cartography.intel.debian", "start_debian_ingestion"),
         "slack": _LazyStage("cartography.intel.slack", "start_slack_ingestion"),
         "spacelift": _LazyStage(
             "cartography.intel.spacelift", "start_spacelift_ingestion"
