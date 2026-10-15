@@ -53,8 +53,11 @@ def test_activity_timestamps_and_missing_activity() -> None:
         assert row["last_non_interactive_sign_in_date_time"] is None
 
 
-@pytest.mark.parametrize("readable", [True, False])  # type: ignore[misc]
-def test_transform_merges_mfa_registration_and_risk(readable: bool) -> None:
+@pytest.mark.parametrize("risk_readable", [True, False])  # type: ignore[misc]
+@pytest.mark.parametrize("registrations_readable", [True, False])  # type: ignore[misc]
+def test_transform_merges_mfa_registration_and_risk(
+    registrations_readable: bool, risk_readable: bool
+) -> None:
     # Arrange
     registrations = {
         "listed": {
@@ -77,16 +80,16 @@ def test_transform_merges_mfa_registration_and_risk(readable: bool) -> None:
     listed, unlisted = transform_users(
         users,
         activity_available=True,
-        mfa_registrations=registrations if readable else None,
-        risky_users=risky_users if readable else None,
+        mfa_registrations=registrations if registrations_readable else None,
+        risky_users=risky_users if risk_readable else None,
     )
 
-    # Assert
+    # Assert: each report's flag and fields follow only that report.
     for row in (listed, unlisted):
-        assert row["mfa_registration_available"] is readable
-        assert row["risk_available"] is readable
-    assert listed["is_mfa_registered"] is (True if readable else None)
-    assert listed["risk_level"] == ("high" if readable else None)
+        assert row["mfa_registration_available"] is registrations_readable
+        assert row["risk_available"] is risk_readable
+    assert listed["is_mfa_registered"] is (True if registrations_readable else None)
+    assert listed["risk_level"] == ("high" if risk_readable else None)
     for field in ("is_mfa_registered", "mfa_methods_registered", "risk_level"):
         assert unlisted[field] is None
 
