@@ -4,19 +4,28 @@
 
 `exposed_internet` is only ever written as `true`, so a container without it may
 be private, or may sit behind a path the exposure rules do not model. The
-`aws_ecs_no_modeled_internet_path` analysis job records the other case. It sets
-`no_modeled_internet_path = true` and `no_modeled_internet_path_checked_at` (the
-run's update tag) on an `AWSECSTask` and its `AWSECSContainer` nodes when all of
-these hold:
+`aws_ecs_no_modeled_internet_path` analysis job records which tasks no modeled
+internet path reaches, and which it checked and declined. It checks an
+`AWSECSTask` when:
 
-- the task definition uses `awsvpc` networking. Bridge and host tasks share
-  their instance's network and are never marked;
-- every network interface of the task is in the graph, has no public IPv4
-  address on any of its private IPs, no Elastic IP linked to it, and no IPv6
-  address. The Elastic IP sync can link one in a run that does not sync the
-  interfaces, which is when their public IPv4 addresses are refreshed;
 - the task's account was checked for unmodeled internet paths in the run that
-  synced the task, and none were found;
+  synced the task, whatever the check found;
+- its task definition is in the graph, and so are its network interfaces when
+  it uses `awsvpc` networking.
+
+On every task it checks, and on the task's `AWSECSContainer` nodes, it sets
+`no_modeled_internet_path_checked_at` to the run's update tag and
+`no_modeled_internet_path` to `true` when all of these hold, and to `false`
+otherwise:
+
+- the account's check found no unmodeled internet paths;
+- the task definition uses `awsvpc` networking. Bridge and host tasks share
+  their instance's network, and a task definition without a network mode uses
+  bridge;
+- no network interface of the task has a public IPv4 address on any of its
+  private IPs, an Elastic IP linked to it, or an IPv6 address. The Elastic IP
+  sync can link one in a run that does not sync the interfaces, which is when
+  their public IPv4 addresses are refreshed;
 - every `AWSLoadBalancerV2` that reaches the task is `internal`, its account
   was checked at or after the load balancer was synced, with none found, and no
   load balancer targets one of that account's load balancer interfaces, as
@@ -26,9 +35,12 @@ these hold:
   ALB;
 - no container of the task is marked `exposed_internet`.
 
-The property describes the graph, not the network: no internet path that
-Cartography models reaches the task. The paths it does not see are listed
-below.
+`true` describes the graph, not the network: no internet path that Cartography
+models reaches the task. The paths it does not see are listed below. `false`
+means the job declined, not that the task is exposed: a modeled path may reach
+it, or something in front of it could not be ruled out, such as a load balancer
+in an account that was not checked. A task the job cannot check gets neither
+property.
 
 The job runs at the end of every AWS sync, whatever modules were synced. It
 checks every task in the graph, not only the tasks this run synced, because a
@@ -36,28 +48,32 @@ load balancer in one account can reach a task in another, accounts can be
 synced by separate runs, and a run that syncs only some modules can change what
 an earlier result relied on. Its properties are replaced at the end of the run
 instead of being cleared first, so a run that fails part-way leaves the previous
-values in place.
+values in place. A run that completes removes them from every task it did not
+check, so a withdrawn result does not linger.
 
 A result is current when `no_modeled_internet_path_checked_at` is at least the
-node's `lastupdated`. The two are equal when the same run synced the task and
-checked it. A later run that checks a task it did not sync writes its own,
-newer tag. After a failed run, a task that the run synced keeps the older tag.
-A failed run does not re-check the tasks it did not sync either, so their
-results can predate what it changed, such as a load balancer in another account
-or an entry point in their own account. The next successful run corrects them,
-whichever accounts it syncs, because a run removes an account's check before it
-syncs any of the check's inputs, as described below.
+node's `lastupdated`, and its value, `true` or `false`, is then authoritative.
+The two are equal when the same run synced the task and checked it. A later run
+that checks a task it did not sync writes its own, newer tag. Without a current
+result, the task has not been checked since it was last synced. After a failed
+run, a task that the run synced keeps the older tag. A failed run does not
+re-check the tasks it did not sync either, so their results can predate what it
+changed, such as a load balancer in another account or an entry point in their
+own account. The next successful run corrects them, whichever accounts it
+syncs, because a run removes an account's check before it syncs any of the
+check's inputs, as described below.
 
 ```cypher
 MATCH (account:AWSAccount)-[:RESOURCE]->(task:AWSECSTask)
 OPTIONAL MATCH (container:AWSECSContainer)-[:WORKLOAD_PARENT]->(task)
 RETURN account.id, account.unmodeled_internet_paths,
        task.arn, container.name, container.exposed_internet,
-       coalesce(task.no_modeled_internet_path, false)
-         AND task.no_modeled_internet_path_checked_at >= task.lastupdated
-         AS no_modeled_internet_path
+       CASE WHEN task.no_modeled_internet_path_checked_at >= task.lastupdated
+            THEN task.no_modeled_internet_path END AS no_modeled_internet_path
 ORDER BY account.id, task.arn
 ```
+
+`no_modeled_internet_path` is `null` there for a task that has not been checked.
 
 ## Unmodeled internet paths
 
@@ -93,12 +109,13 @@ them only when it synced all of them. A run that syncs some of them, or that
 fails part-way, leaves the account unchecked, so an older check never vouches
 for newer data.
 
-An account counts as clear for a task only when its count is `0` and it was
-checked in the run that synced the task, and for a load balancer only when its
-check is at least as recent as the load balancer. An account that was never
-checked, or whose check does not meet that bar, counts as unknown, and the tasks
-that rely on it are not marked. The Kubernetes analysis reads the same
-properties for the AWS load balancers in front of pods.
+The ECS job checks a task only when its account was checked in the run that
+synced the task, and sets `true` only when that check's count is `0`. An account
+counts as clear for a load balancer only when its count is `0` and its check is
+at least as recent as the load balancer. An account that was never checked, or
+whose check is older, counts as unknown, and the tasks behind its load balancers
+get `false`. The Kubernetes analysis reads the same properties for the AWS load
+balancers in front of pods.
 
 ## Load balancers in front of load balancer interfaces
 

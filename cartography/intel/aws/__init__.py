@@ -935,7 +935,7 @@ def _perform_aws_analysis(
     )
 
     # Runs on every AWS run, after every account's own check and after
-    # AWS_ECS_ASSET_EXPOSURE. It needs no sync dependencies, because it marks a task
+    # AWS_ECS_ASSET_EXPOSURE. It needs no sync dependencies, because it checks a task
     # only when its account was checked in the run that synced the task, and running
     # it every time retires the results that a partial run has made stale.
     run_typed_analysis_job(

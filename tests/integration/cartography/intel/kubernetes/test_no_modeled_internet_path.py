@@ -386,6 +386,10 @@ def _results(session, label):
     }
 
 
+def _expected(tag, clear=CLEAR, suffix=""):
+    return {(f"pod-{pod['name']}{suffix}", pod["name"] in clear, tag) for pod in PODS}
+
+
 def _cluster_check(session):
     return (
         session.run(
@@ -414,16 +418,12 @@ def test_only_pods_behind_private_entry_points_have_no_modeled_internet_path(
 
     _analyze(session, 1)
 
-    assert _results(session, "KubernetesPod") == {
-        (f"pod-{name}", True, 1) for name in CLEAR
-    }
-    assert _results(session, "KubernetesContainer") == {
-        (f"pod-{name}/app", True, 1) for name in CLEAR
-    }
+    assert _results(session, "KubernetesPod") == _expected(1)
+    assert _results(session, "KubernetesContainer") == _expected(1, suffix="/app")
     assert _cluster_check(session) == {"paths": None, "count": 0, "checked_at": 1}
 
 
-def test_result_is_dropped_when_a_later_run_finds_exposure(neo4j_session_empty):
+def test_later_run_that_finds_exposure_declines(neo4j_session_empty):
     session = neo4j_session_empty
     _sync(session, 1)
     _analyze(session, 1)
@@ -439,12 +439,10 @@ def test_result_is_dropped_when_a_later_run_finds_exposure(neo4j_session_empty):
     _sync(session, 2, service_list=reexposed)
     _analyze(session, 2)
 
-    assert _results(session, "KubernetesPod") == {
-        (f"pod-{name}", True, 2) for name in CLEAR - {"clusterip"}
-    }
-    assert _results(session, "KubernetesContainer") == {
-        (f"pod-{name}/app", True, 2) for name in CLEAR - {"clusterip"}
-    }
+    assert _results(session, "KubernetesPod") == _expected(2, CLEAR - {"clusterip"})
+    assert _results(session, "KubernetesContainer") == _expected(
+        2, CLEAR - {"clusterip"}, suffix="/app"
+    )
 
 
 @pytest.mark.parametrize(
@@ -539,14 +537,14 @@ def test_result_is_dropped_when_a_later_run_finds_exposure(neo4j_session_empty):
         "public_ip_on_a_pod_ip",
     ],
 )
-def test_cluster_with_an_unmodeled_path_gets_no_result_until_it_goes(
+def test_cluster_with_an_unmodeled_path_declines_until_it_goes(
     neo4j_session_empty, entry_point, paths
 ):
     session = neo4j_session_empty
     _sync(session, 1, **entry_point)
     _analyze(session, 1)
 
-    assert _results(session, "KubernetesPod") == set()
+    assert _results(session, "KubernetesPod") == _expected(1, clear=set())
     assert _cluster_check(session) == {
         "paths": paths,
         "count": len(paths),
@@ -556,9 +554,7 @@ def test_cluster_with_an_unmodeled_path_gets_no_result_until_it_goes(
     _sync(session, 2)
     _analyze(session, 2)
 
-    assert _results(session, "KubernetesPod") == {
-        (f"pod-{name}", True, 2) for name in CLEAR
-    }
+    assert _results(session, "KubernetesPod") == _expected(2)
     assert _cluster_check(session) == {"paths": None, "count": 0, "checked_at": 2}
 
 
@@ -586,7 +582,9 @@ def test_internal_load_balancer_needs_a_clear_aws_account(neo4j_session_empty, r
         _sync(session, tag, **run)
         _analyze(session, tag)
 
-    assert _results(session, "KubernetesPod") == {("pod-clusterip", True, len(runs))}
+    assert _results(session, "KubernetesPod") == _expected(
+        len(runs), clear={"clusterip"}
+    )
 
 
 # A list call that failed leaves the previous Services, Ingresses, Nodes or Gateways
@@ -618,9 +616,7 @@ def test_cluster_not_checked_since_the_pod_sync_gets_no_result(
     "label,node_id",
     [("KubernetesPod", "pod-clusterip"), ("KubernetesContainer", "pod-clusterip/app")],
 )
-def test_result_is_never_written_on_a_runtime_marked_exposed(
-    neo4j_session_empty, label, node_id
-):
+def test_runtime_marked_exposed_is_declined(neo4j_session_empty, label, node_id):
     session = neo4j_session_empty
     _sync(session, 1)
     # A future exposure rule may mark a runtime through a path this job does not
@@ -636,4 +632,5 @@ def test_result_is_never_written_on_a_runtime_marked_exposed(
             {"UPDATE_TAG": 1, "CLUSTER_ID": CLUSTER_ID, "CHECK_INPUTS_SYNCED": True},
         )
 
-    assert ("pod-clusterip", True, 1) not in _results(session, "KubernetesPod")
+    assert ("pod-clusterip", False, 1) in _results(session, "KubernetesPod")
+    assert ("pod-clusterip/app", False, 1) in _results(session, "KubernetesContainer")

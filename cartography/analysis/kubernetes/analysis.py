@@ -9,6 +9,7 @@ from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
+from cartography.graph.analysis import Var
 
 K8S_SERVICE_ASSET_EXPOSURE = AnalysisJob(
     name="Kubernetes service internet exposure",
@@ -263,18 +264,24 @@ K8S_UNMODELED_INTERNET_PATHS = AnalysisJob(
         ),
     ),
 )
-# A pod has no modeled internet path when its cluster was checked in this run with no
-# unmodeled internet paths, it uses neither the host network nor host ports, no
-# NodePort or LoadBalancer Service selects it, and every load balancer that reaches it
-# through a Service or an Ingress, directly or chained behind another load balancer,
-# is internal in a checked, clear AWS account. A LoadBalancer Service opens a node
-# port on every node unless allocateLoadBalancerNodePorts is false, which the graph
-# does not record, so it counts as a NodePort Service. An Ingress that shares its load
-# balancer with a LoadBalancer Service is served by an in-cluster controller such as
-# ingress-nginx, which routes what reaches that Service's node port to the Ingress's
-# backends, so they count as selected by it. Results are replaced, not cleared first,
-# so a reader keeps the previous result until this run decides. The pods are collected
-# first so that the load balancer interface rule is evaluated once, not once per pod.
+# The job checks the pods this run synced in a cluster that was checked for unmodeled
+# internet paths in this run, whatever the check found. Every pod it checks, and its
+# containers, get no_modeled_internet_path, true or false, stamped with the run's tag,
+# so a reader can tell a declined pod from one that was not checked. A pod it cannot
+# check gets neither, and loses any earlier result.
+#
+# A pod has no modeled internet path when its cluster's check found none, it uses
+# neither the host network nor host ports, no NodePort or LoadBalancer Service selects
+# it, and every load balancer that reaches it through a Service or an Ingress,
+# directly or chained behind another load balancer, is internal in a checked, clear
+# AWS account. A LoadBalancer Service opens a node port on every node unless
+# allocateLoadBalancerNodePorts is false, which the graph does not record, so it
+# counts as a NodePort Service. An Ingress that shares its load balancer with a
+# LoadBalancer Service is served by an in-cluster controller such as ingress-nginx,
+# which routes what reaches that Service's node port to the Ingress's backends, so
+# they count as selected by it. Results are replaced, not cleared first, so a reader
+# keeps the previous result until this run decides. The pods are collected first so
+# that the load balancer interface rule is evaluated once, not once per pod.
 K8S_NO_MODELED_INTERNET_PATH = AnalysisJob(
     name="Kubernetes no modeled internet path",
     short_name="k8s_no_modeled_internet_path",
@@ -287,36 +294,34 @@ K8S_NO_MODELED_INTERNET_PATH = AnalysisJob(
             + AWS_LB_INTERFACE_FRONTED_ACCOUNTS
             + """ AS fronted_accounts
             UNWIND pods AS pod
-            MATCH (pod:KubernetesPod)
-            WHERE NOT coalesce(pod.host_network, false)
-            AND NOT coalesce(pod.exposed_internet, false)
-            AND EXISTS {
-                MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod)
-                WHERE cluster.unmodeled_internet_paths_checked_at >= pod.lastupdated
-                AND cluster.unmodeled_internet_path_count = 0
-            }
-            AND size(coalesce(pod.host_ports, [])) = 0
-            AND NOT EXISTS {
-                MATCH (pod)-[:CONTAINS]->(c:KubernetesContainer)
-                WHERE c.exposed_internet = true
-            }
-            AND NOT EXISTS {
-                MATCH (service:KubernetesService)-[:TARGETS]->(pod)
-                WHERE service.type IN ['NodePort', 'LoadBalancer']
-            }
-            AND NOT EXISTS {
-                MATCH (ingress:KubernetesIngress)-[:TARGETS]->(:KubernetesService)-[:TARGETS]->(pod)
-                MATCH (ingress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
-                    <-[:USES_LOAD_BALANCER]-(:KubernetesService)
-            }
-            AND NOT EXISTS {
-                MATCH (front)-[:TARGETS*1..2]->(pod)
-                WHERE front:KubernetesService OR front:KubernetesIngress
-                MATCH (front)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)<-[:EXPOSE*0..1]-(lb:AWSLoadBalancerV2)
-                WHERE """
+            MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
+            WHERE cluster.unmodeled_internet_paths_checked_at >= pod.lastupdated
+            WITH pod,
+                cluster.unmodeled_internet_path_count = 0
+                AND NOT coalesce(pod.host_network, false)
+                AND NOT coalesce(pod.exposed_internet, false)
+                AND size(coalesce(pod.host_ports, [])) = 0
+                AND NOT EXISTS {
+                    MATCH (pod)-[:CONTAINS]->(c:KubernetesContainer)
+                    WHERE c.exposed_internet = true
+                }
+                AND NOT EXISTS {
+                    MATCH (service:KubernetesService)-[:TARGETS]->(pod)
+                    WHERE service.type IN ['NodePort', 'LoadBalancer']
+                }
+                AND NOT EXISTS {
+                    MATCH (ingress:KubernetesIngress)-[:TARGETS]->(:KubernetesService)-[:TARGETS]->(pod)
+                    MATCH (ingress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+                        <-[:USES_LOAD_BALANCER]-(:KubernetesService)
+                }
+                AND NOT EXISTS {
+                    MATCH (front)-[:TARGETS*1..2]->(pod)
+                    WHERE front:KubernetesService OR front:KubernetesIngress
+                    MATCH (front)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)<-[:EXPOSE*0..1]-(lb:AWSLoadBalancerV2)
+                    WHERE """
             + AWS_LB_MAY_FACE_INTERNET
             + """
-            }
+                } AS clear
             OPTIONAL MATCH (pod)-[:CONTAINS]->(container:KubernetesContainer)
             """,
             incremental_on="pod",
@@ -324,7 +329,7 @@ K8S_NO_MODELED_INTERNET_PATH = AnalysisJob(
                 SetProperties(
                     "pod",
                     {
-                        "no_modeled_internet_path": True,
+                        "no_modeled_internet_path": Var("clear"),
                         "no_modeled_internet_path_checked_at": Param("UPDATE_TAG"),
                     },
                     label="KubernetesPod",
@@ -333,7 +338,7 @@ K8S_NO_MODELED_INTERNET_PATH = AnalysisJob(
                 SetProperties(
                     "container",
                     {
-                        "no_modeled_internet_path": True,
+                        "no_modeled_internet_path": Var("clear"),
                         "no_modeled_internet_path_checked_at": Param("UPDATE_TAG"),
                     },
                     label="KubernetesContainer",

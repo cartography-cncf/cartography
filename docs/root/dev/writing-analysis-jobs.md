@@ -155,13 +155,13 @@ The compiler determines cleanup ordering from the effect type:
 
 - Node-property effects such as `SetProperty` and `AddToSet` remove values left by the previous run before applying current matches.
 - Relationship effects such as `AddRelationship` run their `MERGE` statements first and delete relationships with an old `lastupdated` value afterward. This avoids a window where concurrent readers see all managed relationships disappear.
-- `SetProperties(..., cleanup_stamp="...")` works like a relationship effect. The stamp names one of the properties, and its value must be `Param("UPDATE_TAG")`. The properties are written first, and cleanup afterward removes them only from nodes whose stamp is not the current update tag. Use it when readers must keep seeing the previous value until the run decides, for example a positive check result that would otherwise disappear while the job runs, or stay missing after a failed run.
+- `SetProperties(..., cleanup_stamp="...")` works like a relationship effect. The stamp names one of the properties, and its value must be `Param("UPDATE_TAG")`. The properties are written first, and cleanup afterward removes them only from nodes whose stamp is not the current update tag. Use it when readers must keep seeing the previous value until the run decides, for example a check result that would otherwise disappear while the job runs, or stay missing after a failed run.
 
 ```python
 SetProperties(
     "task",
     {
-        "no_modeled_internet_path": True,
+        "no_modeled_internet_path": Var("clear"),
         "no_modeled_internet_path_checked_at": Param("UPDATE_TAG"),
     },
     label="AWSECSTask",

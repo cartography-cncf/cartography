@@ -2,14 +2,18 @@
 
 ## Pods with no modeled internet path
 
-`exposed_internet` is only ever written as `true`. The
-`k8s_no_modeled_internet_path` analysis job records the other case. At the end
-of each cluster's sync, it sets `no_modeled_internet_path = true` and
-`no_modeled_internet_path_checked_at` (the run's update tag) on a
-`KubernetesPod` and its `KubernetesContainer` nodes when:
+`exposed_internet` is only ever written as `true`, so a pod without it may be
+private, or may sit behind a path the exposure rules do not model. The
+`k8s_no_modeled_internet_path` analysis job records which pods no modeled
+internet path reaches, and which it checked and declined. At the end of each
+cluster's sync, it checks the pods that sync loaded, when the cluster was
+checked for unmodeled internet paths in the same run, whatever the check found.
+On every pod it checks, and on the pod's `KubernetesContainer` nodes, it sets
+`no_modeled_internet_path_checked_at` to the run's update tag and
+`no_modeled_internet_path` to `true` when all of these hold, and to `false`
+otherwise:
 
-- the cluster was checked for unmodeled internet paths in this run, and none
-  were found;
+- the cluster's check found no unmodeled internet paths;
 - the pod does not use the host network, and declares no host port on any of
   its containers or native sidecars (init containers with
   `restartPolicy: Always`, recorded in the pod's `host_ports`);
@@ -27,18 +31,24 @@ of each cluster's sync, it sets `no_modeled_internet_path = true` and
   load balancer interfaces. See the [AWS analysis](../aws/analysis.md) page;
 - neither the pod nor its containers are marked `exposed_internet`.
 
-The property describes the graph, not the network: no internet path that
-Cartography models reaches the pod. The paths it does not see are listed below.
+`true` describes the graph, not the network: no internet path that Cartography
+models reaches the pod. The paths it does not see are listed below. `false`
+means the job declined, not that the pod is exposed: a modeled path may reach
+it, or something in front of it could not be ruled out, such as a load balancer
+in an AWS account that was not checked.
 
-The job only checks pods that the same run synced, so a current result has
-`no_modeled_internet_path_checked_at` equal to the pod's `lastupdated`. Its
-properties are replaced at the end of the run instead of being cleared first,
-so a run that fails part-way leaves the previous values, with an older tag.
+A result is current when `no_modeled_internet_path_checked_at` is at least the
+pod's `lastupdated`, and its value, `true` or `false`, is then authoritative.
+The job only checks pods that the same run synced, so the two are equal when
+current. Its properties are replaced at the end of the run instead of being
+cleared first, so a run that fails part-way leaves the previous values, with an
+older tag. A run that completes removes them from every pod in the cluster that
+it did not check.
 
 When the Service, Ingress or Node list fails, or listing Gateway API objects is
 denied, that sync keeps the objects from its previous run instead of loading a
 partial list, and the run withdraws the cluster's check, so no pod in the
-cluster is marked.
+cluster is checked and none keeps a result.
 
 A result reflects the AWS data in the graph when the cluster was synced. An AWS
 sync that runs later, for example one that loads a new internet-facing load
@@ -50,11 +60,12 @@ AWS sync before the Kubernetes sync to keep the two close.
 MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
 RETURN cluster.name, cluster.unmodeled_internet_paths,
        pod.namespace, pod.name, pod.exposed_internet,
-       coalesce(pod.no_modeled_internet_path, false)
-         AND pod.no_modeled_internet_path_checked_at >= pod.lastupdated
-         AS no_modeled_internet_path
+       CASE WHEN pod.no_modeled_internet_path_checked_at >= pod.lastupdated
+            THEN pod.no_modeled_internet_path END AS no_modeled_internet_path
 ORDER BY cluster.name, pod.namespace, pod.name;
 ```
+
+`no_modeled_internet_path` is `null` there for a pod that has not been checked.
 
 ## Unmodeled internet paths
 
@@ -77,7 +88,7 @@ It finds:
   when ingress-nginx publishes several addresses with
   `--publish-status-address`. The IP addresses of a `LoadBalancer` Service are
   not checked, because the pods it selects, and the backends of an Ingress
-  that shares its load balancer, are never marked;
+  that shares its load balancer, are always declined;
 - Services without a selector that are `NodePort` or `LoadBalancer` Services
   or that an Ingress routes to, and `ExternalName` Services that an Ingress
   routes to. The endpoints of a Service without a selector are managed by hand,
