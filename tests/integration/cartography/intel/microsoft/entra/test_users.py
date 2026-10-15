@@ -9,9 +9,20 @@ import neo4j
 import pytest
 from kiota_abstractions.api_error import APIError
 from msgraph.generated.models.directory_object import DirectoryObject
+from msgraph.generated.models.risk_detail import RiskDetail
+from msgraph.generated.models.risk_level import RiskLevel
+from msgraph.generated.models.risk_state import RiskState
+from msgraph.generated.models.risky_user import RiskyUser
+from msgraph.generated.models.risky_user_collection_response import (
+    RiskyUserCollectionResponse,
+)
 from msgraph.generated.models.sign_in_activity import SignInActivity
 from msgraph.generated.models.user import User
 from msgraph.generated.models.user_collection_response import UserCollectionResponse
+from msgraph.generated.models.user_registration_details import UserRegistrationDetails
+from msgraph.generated.models.user_registration_details_collection_response import (
+    UserRegistrationDetailsCollectionResponse,
+)
 from msgraph.generated.users.users_request_builder import UsersRequestBuilder
 
 import cartography.intel.microsoft.entra.users
@@ -136,9 +147,8 @@ async def test_successful_activity_read_with_no_recorded_sign_in(
         TEST_TENANT_ID,
         1,
     )
-    client = MagicMock()
-    client.users.get = AsyncMock(
-        return_value=UserCollectionResponse(
+    client = _graph_client(
+        UserCollectionResponse(
             value=[
                 User(
                     id="unknown-user", account_enabled=True, sign_in_activity=activity
@@ -185,6 +195,9 @@ async def test_successful_activity_read_with_no_recorded_sign_in(
 def _graph_client(
     first_page: UserCollectionResponse,
     next_page: UserCollectionResponse | None = None,
+    *,
+    registrations: UserRegistrationDetailsCollectionResponse | None = None,
+    risky_users: RiskyUserCollectionResponse | None = None,
 ) -> MagicMock:
     client = MagicMock()
     client.users.UsersRequestBuilderGetRequestConfiguration = (
@@ -195,6 +208,10 @@ def _graph_client(
     )
     client.users.get = AsyncMock(return_value=first_page)
     client.users.with_url.return_value.get = AsyncMock(return_value=next_page)
+    client.reports.authentication_methods.user_registration_details.get = AsyncMock(
+        return_value=registrations
+    )
+    client.identity_protection.risky_users.get = AsyncMock(return_value=risky_users)
     return client
 
 
@@ -340,9 +357,8 @@ async def test_later_page_failure_preserves_existing_inventory(
         TEST_TENANT_ID,
         1,
     )
-    client = MagicMock()
-    client.users.get = AsyncMock(
-        return_value=UserCollectionResponse(
+    client = _graph_client(
+        UserCollectionResponse(
             value=[User(id="partial-user")],
             odata_next_link="https://graph.microsoft.com/v1.0/users?$skiptoken=synthetic",
         )
@@ -394,8 +410,8 @@ async def test_sync_entra_users(
     """
     # Arrange: Load tenant as prerequisite
     load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
-    mock_client.return_value.users.get = AsyncMock(
-        return_value=UserCollectionResponse(value=MOCK_ENTRA_USERS)
+    mock_client.return_value = _graph_client(
+        UserCollectionResponse(value=MOCK_ENTRA_USERS)
     )
 
     # Act
@@ -476,3 +492,144 @@ async def test_sync_entra_users(
         )
         == expected_rels
     )
+
+
+@pytest.mark.asyncio  # type: ignore[misc]
+async def test_sync_merges_mfa_registration_and_risk(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, 1)
+    risk_updated = datetime(2024, 5, 1, tzinfo=timezone.utc)
+    client = _graph_client(
+        UserCollectionResponse(
+            value=[
+                User(
+                    id="guest-user",
+                    user_type="Guest",
+                    external_user_state="PendingAcceptance",
+                ),
+                User(id="member-user", user_type="Member"),
+            ]
+        ),
+        registrations=UserRegistrationDetailsCollectionResponse(
+            value=[
+                UserRegistrationDetails(
+                    id="member-user",
+                    is_mfa_registered=True,
+                    is_mfa_capable=True,
+                    methods_registered=["microsoftAuthenticatorPush", "fido2"],
+                ),
+                UserRegistrationDetails(
+                    id="guest-user",
+                    is_mfa_registered=False,
+                    is_mfa_capable=False,
+                    methods_registered=[],
+                ),
+            ]
+        ),
+        risky_users=RiskyUserCollectionResponse(
+            value=[
+                RiskyUser(
+                    id="guest-user",
+                    risk_level=RiskLevel.High,
+                    risk_state=RiskState.ConfirmedCompromised,
+                    risk_detail=RiskDetail.AdminConfirmedUserCompromised,
+                    risk_last_updated_date_time=risk_updated,
+                ),
+            ]
+        ),
+    )
+
+    # Act
+    await _sync(neo4j_session, client, 2)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "EntraUser",
+        [
+            "id",
+            "user_type",
+            "external_user_state",
+            "mfa_registration_available",
+            "is_mfa_registered",
+            "is_mfa_capable",
+            "_ont_has_mfa",
+            "risk_level",
+            "risk_state",
+            "risk_detail",
+        ],
+    ) == {
+        (
+            "guest-user",
+            "Guest",
+            "PendingAcceptance",
+            True,
+            False,
+            False,
+            False,
+            "high",
+            "confirmedCompromised",
+            "adminConfirmedUserCompromised",
+        ),
+        (
+            "member-user",
+            "Member",
+            None,
+            True,
+            True,
+            True,
+            True,
+            None,
+            None,
+            None,
+        ),
+    }
+    row = neo4j_session.run(
+        "MATCH (member:EntraUser {id: 'member-user'}), "
+        "(guest:EntraUser {id: 'guest-user'}) "
+        "RETURN member.mfa_methods_registered AS methods, "
+        "guest.risk_last_updated_date_time AS updated"
+    ).single()
+    assert row is not None
+    assert row["methods"] == ["microsoftAuthenticatorPush", "fido2"]
+    assert row["updated"].to_native() == risk_updated
+
+
+@pytest.mark.parametrize("denied", ["registrations", "risky_users"])  # type: ignore[misc]
+@pytest.mark.asyncio  # type: ignore[misc]
+async def test_denied_optional_report_leaves_fields_null(
+    neo4j_session: neo4j.Session,
+    denied: str,
+) -> None:
+    # Arrange
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, 1)
+    client = _graph_client(
+        UserCollectionResponse(value=[User(id="observed-user")]),
+        registrations=UserRegistrationDetailsCollectionResponse(
+            value=[UserRegistrationDetails(id="observed-user", is_mfa_registered=True)]
+        ),
+        risky_users=RiskyUserCollectionResponse(
+            value=[RiskyUser(id="observed-user", risk_level=RiskLevel.Low)]
+        ),
+    )
+    report = {
+        "registrations": client.reports.authentication_methods.user_registration_details,
+        "risky_users": client.identity_protection.risky_users,
+    }[denied]
+    report.get.side_effect = APIError("forbidden", response_status_code=403)
+
+    # Act
+    await _sync(neo4j_session, client, 2)
+
+    # Assert: inventory still loads; only the denied report's fields are null.
+    expected = {
+        "registrations": ("observed-user", False, None, "low"),
+        "risky_users": ("observed-user", True, True, None),
+    }[denied]
+    assert check_nodes(
+        neo4j_session,
+        "EntraUser",
+        ["id", "mfa_registration_available", "is_mfa_registered", "risk_level"],
+    ) == {expected}

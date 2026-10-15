@@ -8,11 +8,18 @@ from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.organization import Organization
 from msgraph.generated.models.user import User
+from msgraph.generated.models.user_registration_details import UserRegistrationDetails
+from msgraph.generated.reports.authentication_methods.user_registration_details.user_registration_details_request_builder import (
+    UserRegistrationDetailsRequestBuilder,
+)
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
+from cartography.intel.microsoft.entra.utils import EMPTY_RISK
+from cartography.intel.microsoft.entra.utils import get_optional_id_map
+from cartography.intel.microsoft.entra.utils import transform_risk
 from cartography.models.microsoft.entra.tenant import EntraTenantSchema
 from cartography.models.microsoft.entra.user import EntraUserSchema
 from cartography.util import timeit
@@ -62,7 +69,13 @@ USER_SELECT_FIELDS = [
     "employeeType",
     "accountEnabled",
     "ageGroup",
+    "userType",
+    "externalUserState",
 ]
+
+# Optional reports: each needs a permission and license the user inventory does not.
+MFA_REGISTRATION_PERMISSION = "AuditLog.Read.All and Entra ID P1/P2 licensing"
+RISKY_USERS_PERMISSION = "IdentityRiskyUser.Read.All and Entra ID P2 licensing"
 
 
 @timeit
@@ -130,15 +143,71 @@ async def get_users(
             raise
 
 
+def _transform_mfa_registration(
+    details: UserRegistrationDetails,
+) -> dict[str, Any]:
+    return {
+        "is_mfa_registered": details.is_mfa_registered,
+        "is_mfa_capable": details.is_mfa_capable,
+        "mfa_methods_registered": details.methods_registered,
+    }
+
+
+@timeit
+async def get_user_mfa_registrations(
+    client: GraphServiceClient,
+) -> dict[str, dict[str, Any]] | None:
+    """Return MFA registration keyed by user ID, or None when Graph denies the report."""
+    builder = client.reports.authentication_methods.user_registration_details
+    request_configuration = UserRegistrationDetailsRequestBuilder.UserRegistrationDetailsRequestBuilderGetRequestConfiguration(
+        query_parameters=UserRegistrationDetailsRequestBuilder.UserRegistrationDetailsRequestBuilderGetQueryParameters(
+            select=["id", "isMfaRegistered", "isMfaCapable", "methodsRegistered"],
+        ),
+    )
+    return await get_optional_id_map(
+        lambda: builder.get(request_configuration=request_configuration),
+        lambda url: builder.with_url(url).get(),
+        "user registration details",
+        MFA_REGISTRATION_PERMISSION,
+        _transform_mfa_registration,
+    )
+
+
+@timeit
+async def get_risky_users(client: GraphServiceClient) -> dict[str, dict[str, Any]]:
+    """Return risk state keyed by user ID; empty when Graph denies the report."""
+    builder = client.identity_protection.risky_users
+    risky_users = await get_optional_id_map(
+        builder.get,
+        lambda url: builder.with_url(url).get(),
+        "risky users",
+        RISKY_USERS_PERMISSION,
+        transform_risk,
+    )
+    return risky_users or {}
+
+
 @timeit
 # The manager reference is now embedded in the user objects courtesy of the
 # `$expand` we added above, so we no longer need a separate `manager_map`.
 def transform_users(
-    users: list[User], *, activity_available: bool
+    users: list[User],
+    *,
+    activity_available: bool,
+    mfa_registrations: dict[str, dict[str, Any]] | None = None,
+    risky_users: dict[str, dict[str, Any]] | None = None,
 ) -> Generator[dict[str, Any], None, None]:
-    """Convert MS Graph SDK `User` models into dicts matching our schema."""
+    """Convert MS Graph SDK `User` models into dicts matching our schema.
+
+    `mfa_registrations` is None when the registration report was unreadable,
+    which sets `mfa_registration_available` to false for every user.
+    """
+    mfa_registration_available = mfa_registrations is not None
+    mfa_registrations = mfa_registrations or {}
+    risky_users = risky_users or {}
 
     for user in users:
+        mfa_registration = mfa_registrations.get(user.id or "", {})
         activity = user.sign_in_activity
         manager_id: str | None = None
         if getattr(user, "manager", None) is not None:
@@ -166,6 +235,8 @@ def transform_users(
             "employee_type": user.employee_type,
             "account_enabled": user.account_enabled,
             "age_group": user.age_group,
+            "user_type": user.user_type,
+            "external_user_state": user.external_user_state,
             "manager_id": manager_id,
             "sign_in_activity_available": activity_available,
             "last_sign_in_date_time": (
@@ -181,6 +252,11 @@ def transform_users(
                 if activity is not None
                 else None
             ),
+            "mfa_registration_available": mfa_registration_available,
+            "is_mfa_registered": mfa_registration.get("is_mfa_registered"),
+            "is_mfa_capable": mfa_registration.get("is_mfa_capable"),
+            "mfa_methods_registered": mfa_registration.get("mfa_methods_registered"),
+            **risky_users.get(user.id or "", EMPTY_RISK),
         }
 
 
@@ -283,10 +359,20 @@ async def sync_entra_users(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
+    # Both maps hold a few scalar fields per user, so they are fetched once
+    # rather than per page.
+    mfa_registrations = await get_user_mfa_registrations(client)
+    risky_users = await get_risky_users(client)
+
     # Keep memory bounded to one Graph page; failures propagate before cleanup.
     async for users, activity_available in get_users(client):
         transformed_users = list(
-            transform_users(users, activity_available=activity_available)
+            transform_users(
+                users,
+                activity_available=activity_available,
+                mfa_registrations=mfa_registrations,
+                risky_users=risky_users,
+            )
         )
         load_users(neo4j_session, transformed_users, tenant_id, update_tag)
 

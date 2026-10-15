@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from typing import Any
 from typing import AsyncGenerator
 from typing import Awaitable
@@ -145,3 +146,62 @@ async def get_paginated_values_with_expired_page_retry(
     ):
         values.extend(page_values)
     return values
+
+
+async def get_optional_id_map(
+    first_page_getter: Callable[[], Awaitable[Any]],
+    next_page_getter: Callable[[str], Awaitable[Any]],
+    resource_description: str,
+    permission_hint: str,
+    transform: Callable[[Any], dict[str, Any]],
+) -> dict[str, dict[str, Any]] | None:
+    """
+    Fetch a paginated Graph report into a map keyed by object ID.
+
+    These reports need extra permissions or licensing that the base inventory
+    does not, so a 403 returns None instead of failing the caller's sync.
+    Other errors propagate.
+    """
+    rows: dict[str, dict[str, Any]] = {}
+    try:
+        async for values in iter_paginated_values_with_expired_page_retry(
+            first_page_getter,
+            next_page_getter,
+            resource_description,
+            on_restart=rows.clear,
+        ):
+            for value in values:
+                if value.id:
+                    rows[value.id] = transform(value)
+    except APIError as error:
+        if error.response_status_code != 403:
+            raise
+        logger.warning(
+            "Microsoft Graph %s request was forbidden; skipping it. Check %s.",
+            resource_description,
+            permission_hint,
+        )
+        return None
+    return rows
+
+
+def _enum_value(value: Any) -> Any:
+    return value.value if isinstance(value, Enum) else value
+
+
+def transform_risk(risky: Any) -> dict[str, Any]:
+    """Shared by RiskyUser and RiskyServicePrincipal, which use the same risk fields."""
+    return {
+        "risk_level": _enum_value(risky.risk_level),
+        "risk_state": _enum_value(risky.risk_state),
+        "risk_detail": _enum_value(risky.risk_detail),
+        "risk_last_updated_date_time": risky.risk_last_updated_date_time,
+    }
+
+
+EMPTY_RISK: dict[str, Any] = {
+    "risk_level": None,
+    "risk_state": None,
+    "risk_detail": None,
+    "risk_last_updated_date_time": None,
+}

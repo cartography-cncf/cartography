@@ -61,6 +61,28 @@ class EntraServicePrincipalNodeProperties(CartographyNodeProperties):
         "token_encryption_key_id",
         description="Key ID used to encrypt issued tokens.",
     )
+    risk_level: PropertyRef = PropertyRef(
+        "risk_level",
+        extra_index=True,
+        description="Entra ID Protection workload identity risk level, such as `low`, "
+        "`medium`, `high`, `hidden`, or `none`. Null when the service principal is not "
+        "in the riskyServicePrincipals report, or when that report is unavailable "
+        "(it requires Workload Identities Premium).",
+    )
+    risk_state: PropertyRef = PropertyRef(
+        "risk_state",
+        description="Entra ID Protection risk state, such as `atRisk`, "
+        "`confirmedCompromised`, `remediated`, or `dismissed`. Null when unknown.",
+    )
+    risk_detail: PropertyRef = PropertyRef(
+        "risk_detail",
+        description="Reason for the latest risk state change, such as "
+        "`adminConfirmedServicePrincipalCompromised`. Null when unknown.",
+    )
+    risk_last_updated_date_time: PropertyRef = PropertyRef(
+        "risk_last_updated_date_time",
+        description="UTC datetime the risk state last changed. Null when unknown.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

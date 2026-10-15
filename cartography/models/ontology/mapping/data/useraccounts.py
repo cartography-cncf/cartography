@@ -27,6 +27,9 @@ entra_mapping = OntologyMapping(
                     ontology_field="lastactivity",
                     node_field="last_successful_sign_in_date_time",
                 ),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="is_mfa_registered"
+                ),
             ],
         ),
     ],

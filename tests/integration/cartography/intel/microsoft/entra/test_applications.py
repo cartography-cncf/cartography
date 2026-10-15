@@ -3,6 +3,14 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from kiota_abstractions.api_error import APIError
+from msgraph.generated.models.risk_detail import RiskDetail
+from msgraph.generated.models.risk_level import RiskLevel
+from msgraph.generated.models.risk_state import RiskState
+from msgraph.generated.models.risky_service_principal import RiskyServicePrincipal
+from msgraph.generated.models.risky_service_principal_collection_response import (
+    RiskyServicePrincipalCollectionResponse,
+)
 
 import cartography.client.core.tx
 import cartography.intel.aws.identitycenter
@@ -205,6 +213,11 @@ async def test_app_role_assignments_only_query_the_requested_tenant(
         )
 
 
+@patch.object(
+    cartography.intel.microsoft.entra.service_principals,
+    "get_risky_service_principals",
+    new=AsyncMock(return_value={}),
+)
 @patch.object(
     cartography.intel.microsoft.entra.app_role_assignments,
     "get_app_role_assignments_for_app",
@@ -539,4 +552,64 @@ async def test_sync_entra_applications(
         # scoped to TEST_TENANT_ID does not touch apps owned by other
         # tenants (would otherwise be False from foreign_sp.account_enabled).
         ("Foreign Tenant App", True),
+    }
+
+
+@pytest.mark.parametrize("denied", [False, True])  # type: ignore[misc]
+@pytest.mark.asyncio  # type: ignore[misc]
+async def test_sync_service_principals_risk(neo4j_session, denied: bool) -> None:
+    # Arrange: a separate tenant keeps cleanup away from other tests' nodes.
+    tenant_id = "synthetic-risk-tenant"
+    load_tenant(neo4j_session, {"id": tenant_id}, TEST_UPDATE_TAG)
+    risky_sp_id = MOCK_SERVICE_PRINCIPALS[0].id
+    client = MagicMock()
+    client.identity_protection.risky_service_principals.get = AsyncMock(
+        return_value=RiskyServicePrincipalCollectionResponse(
+            value=[
+                RiskyServicePrincipal(
+                    id=risky_sp_id,
+                    risk_level=RiskLevel.High,
+                    risk_state=RiskState.AtRisk,
+                    risk_detail=RiskDetail.None_,
+                ),
+            ]
+        ),
+        side_effect=(
+            APIError("forbidden", response_status_code=403) if denied else None
+        ),
+    )
+
+    # Act
+    with (
+        patch.object(
+            cartography.intel.microsoft.entra.service_principals,
+            "GraphServiceClient",
+            return_value=client,
+        ),
+        patch.object(
+            cartography.intel.microsoft.entra.service_principals,
+            "get_entra_service_principals",
+            side_effect=_mock_get_entra_service_principals,
+        ),
+    ):
+        await sync_service_principals(
+            neo4j_session,
+            tenant_id,
+            TEST_CLIENT_ID,
+            TEST_CLIENT_SECRET,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": tenant_id},
+        )
+
+    # Assert: service principals load either way; risk is null when denied.
+    rows = neo4j_session.run(
+        "MATCH (:AzureTenant {id: $tenant_id})-[:RESOURCE]->(sp:EntraServicePrincipal) "
+        "RETURN sp.id AS id, sp.risk_level AS level, sp.risk_state AS state, "
+        "sp.risk_detail AS detail",
+        tenant_id=tenant_id,
+    )
+    expected_risk = (None, None, None) if denied else ("high", "atRisk", "none")
+    assert {(r["id"], r["level"], r["state"], r["detail"]) for r in rows} == {
+        (risky_sp_id, *expected_risk),
+        (MOCK_SERVICE_PRINCIPALS[1].id, None, None, None),
     }

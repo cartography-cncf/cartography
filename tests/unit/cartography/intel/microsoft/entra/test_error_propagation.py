@@ -29,6 +29,43 @@ def _forbidden_error() -> APIError:
     return error
 
 
+@pytest.mark.parametrize(  # type: ignore[misc]
+    ("getter", "report_path", "unavailable"),
+    (
+        (
+            users.get_user_mfa_registrations,
+            ("reports", "authentication_methods", "user_registration_details"),
+            None,
+        ),
+        (users.get_risky_users, ("identity_protection", "risky_users"), {}),
+        (
+            service_principals.get_risky_service_principals,
+            ("identity_protection", "risky_service_principals"),
+            {},
+        ),
+    ),
+)
+@pytest.mark.parametrize("status", [403, 401, 429, 500])  # type: ignore[misc]
+def test_optional_reports_tolerate_only_denial(
+    getter, report_path: tuple[str, ...], unavailable: Any, status: int
+) -> None:
+    # Arrange
+    client = MagicMock()
+    report = client
+    for attribute in report_path:
+        report = getattr(report, attribute)
+    report.get = AsyncMock(
+        side_effect=APIError("request failed", response_status_code=status)
+    )
+
+    # Act and assert
+    if status == 403:
+        assert asyncio.run(getter(client)) == unavailable
+    else:
+        with pytest.raises(APIError):
+            asyncio.run(getter(client))
+
+
 def test_users_propagates_denial_from_later_page() -> None:
     # Arrange
     client = MagicMock()
@@ -55,6 +92,7 @@ def test_administrative_units_propagates_denial() -> None:
 
 def test_delegated_users_loads_partial_batch_before_propagating_denial(
     monkeypatch,
+    graph_client_class: MagicMock,
 ) -> None:
     # Arrange
     async def get_users_then_deny(client):
@@ -62,7 +100,7 @@ def test_delegated_users_loads_partial_batch_before_propagating_denial(
         raise _forbidden_error()
 
     monkeypatch.setattr(credentials, "make_credential", MagicMock())
-    monkeypatch.setattr(users, "GraphServiceClient", MagicMock())
+    monkeypatch.setattr(users, "GraphServiceClient", graph_client_class)
     monkeypatch.setattr(users, "get_users", get_users_then_deny)
     load_users = MagicMock()
     monkeypatch.setattr(users, "load_users", load_users)
@@ -205,6 +243,7 @@ def test_delegated_groups_preserves_owners_after_member_denial(monkeypatch) -> N
 )
 def test_delegated_collectors_load_partial_batch_before_propagating_denial(
     monkeypatch: pytest.MonkeyPatch,
+    graph_client_class: MagicMock,
     module,
     getter_name: str,
     loader_name: str,
@@ -216,7 +255,7 @@ def test_delegated_collectors_load_partial_batch_before_propagating_denial(
         raise _forbidden_error()
 
     monkeypatch.setattr(credentials, "make_credential", MagicMock())
-    monkeypatch.setattr(module, "GraphServiceClient", MagicMock())
+    monkeypatch.setattr(module, "GraphServiceClient", graph_client_class)
     monkeypatch.setattr(module, getter_name, get_one_then_deny)
     loader = MagicMock()
     monkeypatch.setattr(module, loader_name, loader)

@@ -29,7 +29,9 @@ Grant these application permissions when ingesting the indicated data:
 - `DeviceManagementManagedDevices.Read.All`: Intune managed devices and detected apps.
 - `DeviceManagementConfiguration.Read.All`: Intune device configuration and compliance policies.
 - `RoleManagement.Read.Directory`: Entra directory role definitions and assignments.
-- `AuditLog.Read.All`: Entra user sign-in activity; also requires an Entra ID P1 or P2 license.
+- `AuditLog.Read.All`: Entra user sign-in activity and MFA registration; also requires an Entra ID P1 or P2 license.
+- `IdentityRiskyUser.Read.All`: Entra ID Protection user risk; also requires an Entra ID P2 license.
+- `IdentityRiskyServicePrincipal.Read.All`: Entra ID Protection service principal risk; also requires a Workload Identities Premium license.
 
 ### User sign-in activity
 
@@ -90,6 +92,40 @@ use; background clients can produce successful non-interactive sign-ins.
 
 See Microsoft's [signInActivity reference](https://learn.microsoft.com/en-us/graph/api/resources/signinactivity?view=graph-rest-1.0)
 and [inactive-account guidance](https://learn.microsoft.com/en-us/entra/identity/monitoring-health/howto-manage-inactive-user-accounts).
+
+### MFA registration and identity risk
+
+Cartography reads three optional reports once per sync and merges them into the
+inventory:
+
+| Report | Permission | License | Properties |
+| --- | --- | --- | --- |
+| `/reports/authenticationMethods/userRegistrationDetails` | `AuditLog.Read.All` | Entra ID P1 or P2 | `EntraUser.is_mfa_registered`, `is_mfa_capable`, `mfa_methods_registered` |
+| `/identityProtection/riskyUsers` | `IdentityRiskyUser.Read.All` | Entra ID P2 | `EntraUser.risk_level`, `risk_state`, `risk_detail`, `risk_last_updated_date_time` |
+| `/identityProtection/riskyServicePrincipals` | `IdentityRiskyServicePrincipal.Read.All` | Workload Identities Premium | The same risk properties on `EntraServicePrincipal` |
+
+If a report returns `403 Forbidden`, Cartography logs a warning, leaves its
+properties null, and still syncs users and service principals. Other errors
+propagate. `mfa_registration_available` on `EntraUser` is false when the
+registration report was denied, so a null `is_mfa_registered` then means
+unknown rather than unregistered. Users and service principals that are not in a
+risk report have null risk properties.
+
+`UserAccount._ont_has_mfa` maps to `is_mfa_registered`. `EntraUser.user_type`
+(`Member` or `Guest`) and `external_user_state` come from the base user
+inventory and need no extra permission.
+
+For example, find enabled users with high or confirmed-compromised risk and no
+registered MFA:
+
+```cypher
+MATCH (u:EntraUser)
+WHERE u.account_enabled = true
+  AND u.mfa_registration_available = true
+  AND u.is_mfa_registered = false
+  AND (u.risk_level = 'high' OR u.risk_state = 'confirmedCompromised')
+RETURN u.user_principal_name, u.user_type, u.risk_level, u.risk_state
+```
 
 ### Defender for Endpoint
 
