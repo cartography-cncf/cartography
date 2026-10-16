@@ -9,6 +9,7 @@ import pytest
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
 from cartography.analysis.ontology.analysis import DEVICE_OWNS_LINKING
+from cartography.graph.analysisbuilder import to_graph_job
 from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,
@@ -288,6 +289,50 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
         ).single()["count"]
         == 0
     )
+
+
+def _plan_operators(plan: dict) -> set[str]:
+    # Neo4j 5 reports operator types with a runtime suffix, e.g. CartesianProduct@neo4j.
+    operators = {plan["operatorType"].split("@")[0]}
+    for child in plan.get("children", []):
+        operators |= _plan_operators(child)
+    return operators
+
+
+def test_link_ontology_devices_plans_without_cartesian_product(neo4j_session):
+    """
+    Ownership statements must expand from their own pattern: a cartesian product of
+    Devices and OBSERVED_AS edges grows with the square of the device count.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:Device {id: 'device-1', lastupdated: $update_tag})
+            -[:OBSERVED_AS {lastupdated: $update_tag}]->(:SnipeitAsset {id: 'asset-1'})
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    statements = to_graph_job(DEVICE_OWNS_LINKING).statements
+
+    # Act
+    plans = [
+        neo4j_session.run(
+            f"EXPLAIN {statement.query}",
+            UPDATE_TAG=TEST_UPDATE_TAG,
+            LIMIT_SIZE=1,
+        )
+        .consume()
+        .plan
+        for statement in statements
+    ]
+
+    # Assert
+    assert [
+        number
+        for number, plan in enumerate(plans, start=1)
+        if "CartesianProduct" in _plan_operators(plan)
+    ] == []
 
 
 def test_cleanup_removes_stale_user_owns_device_relationships(neo4j_session):
