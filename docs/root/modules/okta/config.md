@@ -20,6 +20,8 @@ limited to the granted scopes, and it is not tied to an admin user.
    `okta.trustedOrigins.read`, `okta.userTypes.read`, `okta.users.read`.
 1. On the **Admin roles** tab, assign the **Read-only Administrator** role.
    Okta requires both the scope and an admin role that allows the request.
+   Okta refuses that role a few resources, such as admin role assignments; see
+   [Permissions](#permissions).
 
 Okta refuses to issue an access token (`invalid_scope`) when Cartography
 requests a scope that the app was not granted. To run with fewer scopes, list
@@ -60,9 +62,10 @@ Authentication and profile enrollment policies, and the Admin Console session
 settings, exist only in Okta Identity Engine orgs. Classic Engine orgs sync the
 other policy types.
 
-The OAuth scopes above apply to OAuth service apps. An API token instead gets
-whatever its creator's admin role allows. A token created by a read-only
-administrator may be refused for:
+The OAuth scopes above apply to OAuth service apps. A service app also needs an
+admin role that allows each request, and an API token gets whatever its
+creator's admin role allows. With the Read-only Administrator role, Okta may
+refuse:
 
 - Log streams and the Admin Console session settings.
 - Admin role assignments.

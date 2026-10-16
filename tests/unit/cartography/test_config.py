@@ -273,3 +273,18 @@ def test_config_rejects_microsoft_access_token_with_application_credentials() ->
             microsoft_client_secret="client-secret",
             microsoft_access_token="graph-token",
         )
+
+
+def test_okta_oauth_config_is_appended_for_positional_compatibility() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    for name in (
+        "okta_client_id",
+        "okta_private_key",
+        "okta_private_key_id",
+        "okta_scopes",
+        "okta_dpop_enabled",
+    ):
+        assert parameters.index(name) > parameters.index("opsgenie_request_timeout")

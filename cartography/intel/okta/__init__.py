@@ -105,6 +105,11 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A `cartography.config` object
     :return: Nothing
     """
+    if bool(config.okta_client_id) != bool(config.okta_private_key):
+        logger.warning(
+            "Okta OAuth needs both okta_client_id and okta_private_key; ignoring "
+            "the incomplete OAuth settings.",
+        )
     if not (config.okta_api_key or _has_oauth_credentials(config)):
         logger.warning(
             "No valid Okta credentials could be found. Exiting Okta sync stage.",

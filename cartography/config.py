@@ -615,11 +615,6 @@ class Config:
         oci_sync_all_profiles=None,
         okta_org_id=None,
         okta_api_key=None,
-        okta_client_id=None,
-        okta_private_key=None,
-        okta_private_key_id=None,
-        okta_scopes=None,
-        okta_dpop_enabled=True,
         okta_base_domain="okta.com",
         okta_saml_role_regex=None,
         github_config=None,
@@ -836,6 +831,11 @@ class Config:
         opsgenie_api_key=None,
         opsgenie_api_url="https://api.opsgenie.com",
         opsgenie_request_timeout=60,
+        okta_client_id=None,
+        okta_private_key=None,
+        okta_private_key_id=None,
+        okta_scopes=None,
+        okta_dpop_enabled=True,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

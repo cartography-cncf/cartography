@@ -41,3 +41,48 @@ def test_okta_oauth_cli_config(monkeypatch):
     assert config.okta_private_key_id == "key-1"
     assert config.okta_scopes == "okta.users.read,okta.groups.read"
     assert config.okta_dpop_enabled is False
+
+
+def _run_okta_cli(args):
+    cli = cartography.cli.CLI(MagicMock(), "test")
+    with patch("cartography.sync.run_with_config", return_value=0) as run:
+        exit_code = cli.main(
+            [
+                "--neo4j-uri",
+                "bolt://localhost:7687",
+                "--selected-modules",
+                "okta",
+                "--okta-org-id",
+                "acme",
+                *args,
+            ]
+        )
+    return exit_code, run
+
+
+def test_okta_cli_rejects_client_id_without_private_key():
+    # Act
+    exit_code, run = _run_okta_cli(["--okta-client-id", "0oaclient"])
+
+    # Assert
+    assert exit_code != 0
+    run.assert_not_called()
+
+
+def test_okta_cli_rejects_empty_private_key_env_var(monkeypatch):
+    # Arrange
+    monkeypatch.delenv("TEST_OKTA_PRIVATE_KEY", raising=False)
+
+    # Act
+    exit_code, run = _run_okta_cli(
+        [
+            "--okta-client-id",
+            "0oaclient",
+            "--okta-private-key-env-var",
+            "TEST_OKTA_PRIVATE_KEY",
+        ]
+    )
+
+    # Assert
+    assert exit_code != 0
+    run.assert_not_called()

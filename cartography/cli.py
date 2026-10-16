@@ -3235,12 +3235,16 @@ class CLI:
                 )
                 okta_api_key = os.environ.get(okta_api_key_env_var)
             okta_private_key = None
+            if bool(okta_client_id) != bool(okta_private_key_env_var):
+                raise typer.BadParameter(
+                    "--okta-client-id and --okta-private-key-env-var must be set "
+                    "together.",
+                )
             if okta_org_id and okta_private_key_env_var:
-                logger.debug(
-                    "Reading private key for Okta from environment variable %s",
+                okta_private_key = _read_access_token_env_var(
+                    "Okta",
                     okta_private_key_env_var,
                 )
-                okta_private_key = os.environ.get(okta_private_key_env_var)
 
             # Read GitHub config
             github_config = None

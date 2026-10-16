@@ -143,13 +143,16 @@ def test_oauth_token_failure_raises_oauth_token_error() -> None:
 
 def test_start_okta_ingestion_skips_without_complete_credentials(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     # Arrange: a client ID without its private key is not usable.
     create_client = MagicMock()
     monkeypatch.setattr(okta, "create_okta_client", create_client)
 
     # Act
-    okta.start_okta_ingestion(MagicMock(), _config(okta_client_id="0oaclient"))
+    with caplog.at_level(logging.WARNING):
+        okta.start_okta_ingestion(MagicMock(), _config(okta_client_id="0oaclient"))
 
     # Assert
     create_client.assert_not_called()
+    assert "incomplete OAuth settings" in caplog.text
