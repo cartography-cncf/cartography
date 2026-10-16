@@ -3240,7 +3240,11 @@ class CLI:
                     "--okta-client-id and --okta-private-key-env-var must be set "
                     "together.",
                 )
-            if okta_org_id and okta_private_key_env_var:
+            if okta_client_id and not okta_org_id:
+                raise typer.BadParameter(
+                    "--okta-client-id requires --okta-org-id.",
+                )
+            if okta_private_key_env_var:
                 okta_private_key = _read_access_token_env_var(
                     "Okta",
                     okta_private_key_env_var,

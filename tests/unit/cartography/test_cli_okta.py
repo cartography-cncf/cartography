@@ -86,3 +86,28 @@ def test_okta_cli_rejects_empty_private_key_env_var(monkeypatch):
     # Assert
     assert exit_code != 0
     run.assert_not_called()
+
+
+def test_okta_cli_rejects_oauth_without_org_id(monkeypatch):
+    # Arrange
+    cli = cartography.cli.CLI(MagicMock(), "test")
+    monkeypatch.setenv("TEST_OKTA_PRIVATE_KEY", "test-private-key")
+
+    # Act
+    with patch("cartography.sync.run_with_config", return_value=0) as run:
+        exit_code = cli.main(
+            [
+                "--neo4j-uri",
+                "bolt://localhost:7687",
+                "--selected-modules",
+                "okta",
+                "--okta-client-id",
+                "0oaclient",
+                "--okta-private-key-env-var",
+                "TEST_OKTA_PRIVATE_KEY",
+            ]
+        )
+
+    # Assert
+    assert exit_code != 0
+    run.assert_not_called()
