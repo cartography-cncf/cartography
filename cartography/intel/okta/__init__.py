@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import re
+from typing import Any
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -19,6 +21,7 @@ from cartography.intel.okta import organization
 from cartography.intel.okta import origins
 from cartography.intel.okta import policies
 from cartography.intel.okta import users
+from cartography.intel.okta.common import OKTA_OAUTH_DEFAULT_SCOPES
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -51,6 +54,49 @@ def cleanup_okta_groups(
     run_cleanup_job("okta_groups_cleanup.json", neo4j_session, common_job_parameters)
 
 
+def _has_oauth_credentials(config: Config) -> bool:
+    return bool(config.okta_client_id and config.okta_private_key)
+
+
+def _parse_scopes(scopes: str | None) -> list[str]:
+    return [scope for scope in re.split(r"[\s,]+", scopes or "") if scope]
+
+
+def create_okta_client(config: Config) -> OktaClient:
+    """
+    Build an Okta SDK client that authenticates with an OAuth service app when
+    one is configured, and with an API token otherwise.
+    """
+    client_config: dict[str, Any] = {
+        "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
+    }
+    if not _has_oauth_credentials(config):
+        client_config["token"] = config.okta_api_key
+        return OktaClient(client_config)
+
+    if config.okta_api_key:
+        logger.warning(
+            "Both an Okta API key and OAuth client credentials are set; using the "
+            "OAuth client.",
+        )
+    client_config.update(
+        {
+            "authorizationMode": "PrivateKey",
+            "clientId": config.okta_client_id,
+            # A PEM string or a JWK; the SDK also accepts a path to a PEM file.
+            "privateKey": config.okta_private_key,
+            "scopes": _parse_scopes(config.okta_scopes)
+            or list(OKTA_OAUTH_DEFAULT_SCOPES),
+            # Okta requires DPoP on new service apps by default. The SDK uses
+            # whichever token type Okta returns, DPoP or Bearer.
+            "dpopEnabled": config.okta_dpop_enabled,
+        }
+    )
+    if config.okta_private_key_id:
+        client_config["kid"] = config.okta_private_key_id
+    return OktaClient(client_config)
+
+
 @timeit
 def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
@@ -59,7 +105,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A `cartography.config` object
     :return: Nothing
     """
-    if not config.okta_api_key:
+    if not (config.okta_api_key or _has_oauth_credentials(config)):
         logger.warning(
             "No valid Okta credentials could be found. Exiting Okta sync stage.",
         )
@@ -72,12 +118,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "OKTA_ORG_ID": config.okta_org_id,
     }
 
-    okta_client = OktaClient(
-        {
-            "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
-            "token": config.okta_api_key,
-        }
-    )
+    okta_client = create_okta_client(config)
 
     org_properties = organization.sync_okta_organization(
         neo4j_session,

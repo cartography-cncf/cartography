@@ -47,6 +47,35 @@ OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 # Returned when the API token or OAuth client lacks the scope an endpoint needs.
 OKTA_MISSING_SCOPE_ERROR_CODE = "E0000006"
 
+# Read-only scopes covering every endpoint the Okta sync calls. An OAuth service
+# app must be granted all of them, or Okta refuses to issue an access token.
+OKTA_OAUTH_DEFAULT_SCOPES = (
+    "okta.apiTokens.read",
+    "okta.apps.read",
+    "okta.authenticators.read",
+    "okta.devices.read",
+    "okta.groups.read",
+    "okta.logStreams.read",
+    "okta.networkZones.read",
+    "okta.policies.read",
+    "okta.roles.read",
+    "okta.trustedOrigins.read",
+    "okta.userTypes.read",
+    "okta.users.read",
+)
+
+# Token endpoint errors returned when an OAuth service app cannot get an access
+# token: unknown client ID or key, scopes not granted, or a DPoP mismatch.
+_OKTA_OAUTH_TOKEN_ERROR_CODES = frozenset(
+    {
+        "invalid_client",
+        "invalid_dpop_proof",
+        "invalid_grant",
+        "invalid_scope",
+        "unauthorized_client",
+    }
+)
+
 # UserFactor and every model the factorType discriminator can resolve to. Each
 # subclass owns its own copy of the inherited FieldInfo, so all of them must be
 # patched individually.
@@ -175,6 +204,11 @@ def is_resource_not_found_error(error: OktaApiError) -> bool:
 
 def is_missing_scope_error(error: OktaApiError) -> bool:
     return error.error_code == OKTA_MISSING_SCOPE_ERROR_CODE
+
+
+def is_oauth_token_error(error: OktaApiError) -> bool:
+    """Return True when Okta refused to issue an OAuth access token."""
+    return error.error_code in _OKTA_OAUTH_TOKEN_ERROR_CODES
 
 
 def _has_next_link(headers: Any) -> bool:
