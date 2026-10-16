@@ -225,10 +225,60 @@ def test_statement_compiles_add_relationship_effect():
     )
 
 
-def test_statement_rejects_incremental_variable_outside_a_pattern():
+@pytest.mark.parametrize(
+    ("match", "gated_match"),
+    [
+        (
+            "MATCH (:Agent)<-[obs:OBSERVED_AS]-(d:Device)",
+            "MATCH (:Agent)<-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]-"
+            "(d:Device {lastupdated: $UPDATE_TAG})",
+        ),
+        (
+            "MATCH (:Agent)<-[obs:OBSERVED_AS{source:'edr'}]-(d:Device {kind:'laptop'})",
+            "MATCH (:Agent)<-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG, source:'edr'}]-"
+            "(d:Device {lastupdated: $UPDATE_TAG, kind:'laptop'})",
+        ),
+        (
+            "MATCH (a:Agent) WHERE EXISTS { MATCH (a)<-[obs:OBSERVED_AS]-(d:Device) } "
+            "MATCH (a)<-[obs:OBSERVED_AS]-(d:Device)",
+            "MATCH (a:Agent) WHERE EXISTS { MATCH (a)<-[obs:OBSERVED_AS]-(d:Device) } "
+            "MATCH (a)<-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]-"
+            "(d:Device {lastupdated: $UPDATE_TAG})",
+        ),
+    ],
+    ids=["bare", "existing_properties", "after_subquery"],
+)
+def test_statement_gates_incremental_variables_in_their_match_pattern(
+    match,
+    gated_match,
+):
     # Arrange
     statement = AnalysisStatement(
-        match="MATCH (d:Device) WITH d, d.agent AS agent",
+        match=match,
+        effects=(SetProperty("d", "linked", True, label="Device"),),
+        incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+    )
+
+    # Act
+    query = compile_query(statement)
+
+    # Assert
+    assert query.splitlines()[0] == gated_match
+
+
+@pytest.mark.parametrize(
+    "match",
+    [
+        "MATCH (d:Device) WITH d, d.agent AS agent",
+        "MATCH (d:Device) WITH d, d.agent AS agent WHERE (agent) IS NOT NULL",
+        "MATCH (d:Device) OPTIONAL MATCH (d)-[:OBSERVED_AS]->(agent:Agent)",
+    ],
+    ids=["projection", "parenthesized_expression", "optional_match"],
+)
+def test_statement_rejects_incremental_variable_outside_a_required_pattern(match):
+    # Arrange
+    statement = AnalysisStatement(
+        match=match,
         effects=(SetProperty("d", "linked", True, label="Device"),),
         incremental_on=IncrementalMatch("agent"),
     )

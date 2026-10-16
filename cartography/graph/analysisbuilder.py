@@ -210,6 +210,13 @@ def _incremental_targets(
 
 _FRESHNESS_GATE = "lastupdated: $UPDATE_TAG"
 _PATTERN_LABELS = r"(?:\s*:\s*[A-Za-z_][A-Za-z0-9_]*)*"
+_STRING_LITERAL = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"")
+_CLAUSE_KEYWORD = re.compile(
+    r"(?<![A-Za-z0-9_.:$`])"
+    r"(OPTIONAL\s+MATCH|MATCH|WHERE|WITH|RETURN|UNWIND|CALL|ORDER\s+BY|SKIP|LIMIT|UNION)"
+    r"(?![A-Za-z0-9_])",
+    re.IGNORECASE,
+)
 
 
 def _gate_incremental_targets(match: str, statement: AnalysisStatement) -> str:
@@ -223,12 +230,12 @@ def _gate_incremental_targets(match: str, statement: AnalysisStatement) -> str:
             rf"(?<![A-Za-z0-9_]){re.escape(opener)}\s*{variable}\b{_PATTERN_LABELS}"
             rf"(?=\s*[{{{re.escape(closer)}])"
         )
-        found = element.search(match)
+        found = _find_in_required_match_patterns(match, element)
         if found is None:
             kind = "relationship" if target.relationship else "node"
             raise ValueError(
                 f"incremental_on variable {variable!r} must appear as a {kind} "
-                "pattern element with an optional property map in match."
+                "pattern element of a top-level, non-optional MATCH in match."
             )
         head = match[: found.end()]
         tail = match[found.end() :].lstrip()
@@ -239,6 +246,28 @@ def _gate_incremental_targets(match: str, statement: AnalysisStatement) -> str:
         else:
             match = f"{head} {{{_FRESHNESS_GATE}}}{tail}"
     return match
+
+
+def _find_in_required_match_patterns(
+    match: str,
+    element: re.Pattern[str],
+) -> re.Match[str] | None:
+    # In an expression, an OPTIONAL MATCH or a subquery, the gate would change
+    # what the statement matches instead of narrowing it to fresh rows.
+    masked = _STRING_LITERAL.sub(lambda literal: "_" * len(literal.group()), match)
+    clauses = [
+        clause
+        for clause in _CLAUSE_KEYWORD.finditer(masked)
+        if masked.count("{", 0, clause.start()) == masked.count("}", 0, clause.start())
+    ]
+    for clause, following in zip(clauses, [*clauses[1:], None]):
+        if clause.group(1).upper() != "MATCH":
+            continue
+        end = following.start() if following else len(masked)
+        found = element.search(masked, clause.end(), end)
+        if found:
+            return found
+    return None
 
 
 def _require_label(label: str | None) -> str:
