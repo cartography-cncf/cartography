@@ -51,8 +51,8 @@ OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 OKTA_MISSING_SCOPE_ERROR_CODE = "E0000006"
 # Logged with a resource name and the scope it needs when Okta refuses it.
 OKTA_MISSING_SCOPE_WARNING = (
-    "Unable to sync %s - the Okta credential needs %s and an admin role that "
-    "allows it"
+    "Unable to sync %s - the Okta credential needs an admin role that allows "
+    "it, and an OAuth service app also needs the %s scope"
 )
 
 # Read-only scopes covering every endpoint the Okta sync calls. An OAuth service

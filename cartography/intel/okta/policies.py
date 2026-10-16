@@ -144,8 +144,9 @@ async def _get_okta_first_party_app_names(
     if unreadable:
         logger.warning(
             "Unable to read %d Okta first-party apps to name the policies assigned "
-            "to them - the Okta credential needs okta.apps.read and an admin "
-            "role that can read Okta's own apps",
+            "to them - the Okta credential needs an admin role that can read "
+            "Okta's own apps, and an OAuth service app also needs the "
+            "okta.apps.read scope",
             len(unreadable),
         )
     return names

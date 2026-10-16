@@ -65,8 +65,9 @@ def _get_admin_console_settings(okta_client: OktaClient) -> dict[str, Any]:
         if is_missing_scope_error(exc) or is_resource_not_found_error(exc):
             logger.warning(
                 "Unable to read Okta Admin Console session settings - the Okta "
-                "credential needs okta.apps.read and an admin role that allows it, "
-                "and the org must use Identity Engine",
+                "credential needs an admin role that allows it, an OAuth service "
+                "app also needs the okta.apps.read scope, and the org must use "
+                "Identity Engine",
             )
             return {}
         raise
