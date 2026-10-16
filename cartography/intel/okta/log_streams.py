@@ -11,6 +11,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_raw_paginated
 from cartography.intel.okta.common import is_missing_scope_error
+from cartography.intel.okta.common import OKTA_MISSING_SCOPE_WARNING
 from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.log_stream import OktaLogStreamSchema
 from cartography.util import timeit
@@ -79,7 +80,7 @@ def sync_okta_log_streams(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> bool:
-    """Sync Okta log streams and return whether the API token could read them."""
+    """Sync Okta log streams and return whether the credential could read them."""
     logger.info("Syncing Okta log streams")
     try:
         raw_log_streams = asyncio.run(_get_okta_log_streams(okta_client))
@@ -88,7 +89,8 @@ def sync_okta_log_streams(
         # lack it; skip this sub-sync so the rest of Okta ingestion still runs.
         if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync Okta log streams - api token needs "
+                OKTA_MISSING_SCOPE_WARNING,
+                "Okta log streams",
                 "okta.logStreams.read",
             )
             return False

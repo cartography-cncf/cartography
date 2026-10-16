@@ -14,6 +14,7 @@ from cartography.intel.okta.common import collect_raw_paginated
 from cartography.intel.okta.common import get_raw_json
 from cartography.intel.okta.common import is_missing_scope_error
 from cartography.intel.okta.common import is_resource_not_found_error
+from cartography.intel.okta.common import OKTA_MISSING_SCOPE_WARNING
 from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.policy import OktaPolicyRuleSchema
 from cartography.models.okta.policy import OktaPolicySchema
@@ -143,7 +144,9 @@ async def _get_okta_first_party_app_names(
     if unreadable:
         logger.warning(
             "Unable to read %d Okta first-party apps to name the policies assigned "
-            "to them - api token needs permission to read Okta apps",
+            "to them - the Okta credential needs an admin role that can read "
+            "Okta's own apps, and an OAuth service app also needs the "
+            "okta.apps.read scope",
             len(unreadable),
         )
     return names
@@ -442,7 +445,9 @@ def sync_okta_policies(
         # it; skip this sub-sync so the rest of Okta ingestion still runs.
         if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync Okta policies - api token needs okta.policies.read",
+                OKTA_MISSING_SCOPE_WARNING,
+                "Okta policies",
+                "okta.policies.read",
             )
             return
         raise

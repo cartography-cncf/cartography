@@ -42,9 +42,9 @@ def record_okta_sync_coverage(
     coverage: dict[str, bool],
 ) -> None:
     """
-    Reload the organization with flags saying whether the API token could read
-    resources that need extra permissions, so an org without them can be told
-    apart from one whose token could not read them.
+    Reload the organization with flags saying whether the Okta credential could
+    read resources that need extra permissions, so an org without them can be
+    told apart from one whose credential could not read them.
     """
     _load_organization(
         neo4j_session,
@@ -64,8 +64,10 @@ def _get_admin_console_settings(okta_client: OktaClient) -> dict[str, Any]:
     except OktaApiError as exc:
         if is_missing_scope_error(exc) or is_resource_not_found_error(exc):
             logger.warning(
-                "Unable to read Okta Admin Console session settings - api token "
-                "needs okta.apps.read and an Identity Engine org",
+                "Unable to read Okta Admin Console session settings - the Okta "
+                "credential needs an admin role that allows it, an OAuth service "
+                "app also needs the okta.apps.read scope, and the org must use "
+                "Identity Engine",
             )
             return {}
         raise
