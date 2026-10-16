@@ -16,7 +16,9 @@ from okta.models.user import User as OktaUser
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import is_missing_scope_error
 from cartography.intel.okta.common import is_resource_not_found_error
+from cartography.intel.okta.common import OKTA_MISSING_SCOPE_WARNING
 from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.group import OktaGroupRoleSchema
@@ -80,10 +82,11 @@ def sync_okta_groups(
         _cleanup_okta_group_roles(neo4j_session, common_job_parameters)
         roles_synced = True
     except OktaApiError as exc:
-        if exc.error_code == "E0000006":
+        if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync group roles - the Okta credential needs "
-                "okta.roles.read and an admin role that allows it",
+                OKTA_MISSING_SCOPE_WARNING,
+                "group roles",
+                "okta.roles.read",
             )
             group_roles = []
             # Still run cleanup so stale roles from a previously privileged

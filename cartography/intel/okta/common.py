@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from typing import Any
 from typing import Awaitable
 from typing import Callable
 from urllib.parse import urlencode
 
+import okta.dpop
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from okta.models.application import Application
 from okta.models.application_json_converter import ApplicationJsonConverter
 from okta.models.authenticator_key_tac_all_of_provider import (
@@ -46,6 +49,11 @@ from okta.pagination import PaginationHelper
 OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 # Returned when the API token or OAuth client lacks the scope an endpoint needs.
 OKTA_MISSING_SCOPE_ERROR_CODE = "E0000006"
+# Logged with a resource name and the scope it needs when Okta refuses it.
+OKTA_MISSING_SCOPE_WARNING = (
+    "Unable to sync %s - the Okta credential needs %s and an admin role that "
+    "allows it"
+)
 
 # Read-only scopes covering every endpoint the Okta sync calls. An OAuth service
 # app must be granted all of them, or Okta refuses to issue an access token.
@@ -186,6 +194,32 @@ _patch_okta_sdk_user_factor_models()
 # DEPRECATED: Remove this Okta SDK 3.x compatibility shim in v1.0.0 after
 # okta/okta-sdk-python#579 is released upstream.
 _patch_okta_sdk_authenticator_models()
+
+
+@lru_cache(maxsize=4)
+def _load_dpop_signing_key(pem: bytes) -> Any:
+    return load_pem_private_key(pem, password=None)
+
+
+_sdk_dpop_jwt_encode = okta.dpop.jwt_encode
+
+
+def _jwt_encode_with_loaded_key(
+    payload: Any,
+    key: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> str:
+    # The SDK passes its DPoP key as PEM bytes, so PyJWT parses and validates
+    # the RSA key on every request (~60 ms each). Sign with a loaded key instead.
+    if isinstance(key, bytes):
+        key = _load_dpop_signing_key(key)
+    return _sdk_dpop_jwt_encode(payload, key, *args, **kwargs)
+
+
+# DEPRECATED: Remove this Okta SDK 3.4.4 performance shim in v1.0.0 once the SDK
+# signs DPoP proofs with a loaded key.
+okta.dpop.jwt_encode = _jwt_encode_with_loaded_key
 
 
 class OktaApiError(RuntimeError):

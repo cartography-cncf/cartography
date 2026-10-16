@@ -14,6 +14,7 @@ from cartography.intel.okta.common import collect_raw_paginated
 from cartography.intel.okta.common import get_raw_json
 from cartography.intel.okta.common import is_missing_scope_error
 from cartography.intel.okta.common import is_resource_not_found_error
+from cartography.intel.okta.common import OKTA_MISSING_SCOPE_WARNING
 from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.policy import OktaPolicyRuleSchema
 from cartography.models.okta.policy import OktaPolicySchema
@@ -443,8 +444,9 @@ def sync_okta_policies(
         # it; skip this sub-sync so the rest of Okta ingestion still runs.
         if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync Okta policies - the Okta credential needs "
-                "okta.policies.read and an admin role that allows it",
+                OKTA_MISSING_SCOPE_WARNING,
+                "Okta policies",
+                "okta.policies.read",
             )
             return
         raise

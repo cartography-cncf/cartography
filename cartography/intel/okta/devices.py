@@ -13,6 +13,8 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import is_missing_scope_error
+from cartography.intel.okta.common import OKTA_MISSING_SCOPE_WARNING
 from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.device import OktaDeviceSchema
 from cartography.models.okta.device import OktaUserOwnsDeviceRel
@@ -162,10 +164,11 @@ def sync_okta_devices(
     except OktaApiError as exc:
         # Device listing requires okta.devices.read. Existing tokens often lack
         # it; skip this sub-sync so the rest of Okta ingestion still runs.
-        if exc.error_code == "E0000006":
+        if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync Okta devices - the Okta credential needs "
-                "okta.devices.read and an admin role that allows it",
+                OKTA_MISSING_SCOPE_WARNING,
+                "Okta devices",
+                "okta.devices.read",
             )
             return
         raise

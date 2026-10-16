@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 import neo4j
@@ -21,7 +20,9 @@ from cartography.intel.okta import organization
 from cartography.intel.okta import origins
 from cartography.intel.okta import policies
 from cartography.intel.okta import users
+from cartography.intel.okta.common import is_oauth_token_error
 from cartography.intel.okta.common import OKTA_OAUTH_DEFAULT_SCOPES
+from cartography.intel.okta.common import OktaApiError
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -58,10 +59,6 @@ def _has_oauth_credentials(config: Config) -> bool:
     return bool(config.okta_client_id and config.okta_private_key)
 
 
-def _parse_scopes(scopes: str | None) -> list[str]:
-    return [scope for scope in re.split(r"[\s,]+", scopes or "") if scope]
-
-
 def create_okta_client(config: Config) -> OktaClient:
     """
     Build an Okta SDK client that authenticates with an OAuth service app when
@@ -85,7 +82,7 @@ def create_okta_client(config: Config) -> OktaClient:
             "clientId": config.okta_client_id,
             # A PEM string or a JWK; the SDK also accepts a path to a PEM file.
             "privateKey": config.okta_private_key,
-            "scopes": _parse_scopes(config.okta_scopes)
+            "scopes": (config.okta_scopes or "").replace(",", " ").split()
             or list(OKTA_OAUTH_DEFAULT_SCOPES),
             # Okta requires DPoP on new service apps by default. The SDK uses
             # whichever token type Okta returns, DPoP or Bearer.
@@ -105,14 +102,12 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A `cartography.config` object
     :return: Nothing
     """
-    if bool(config.okta_client_id) != bool(config.okta_private_key):
+    if not config.okta_org_id or not (
+        config.okta_api_key or _has_oauth_credentials(config)
+    ):
         logger.warning(
-            "Okta OAuth needs both okta_client_id and okta_private_key; ignoring "
-            "the incomplete OAuth settings.",
-        )
-    if not (config.okta_api_key or _has_oauth_credentials(config)):
-        logger.warning(
-            "No valid Okta credentials could be found. Exiting Okta sync stage.",
+            "No Okta org ID or valid Okta credentials could be found. Exiting "
+            "Okta sync stage.",
         )
         return
 
@@ -125,11 +120,22 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     okta_client = create_okta_client(config)
 
-    org_properties = organization.sync_okta_organization(
-        neo4j_session,
-        common_job_parameters,
-        okta_client,
-    )
+    try:
+        # The first request fetches the OAuth access token.
+        org_properties = organization.sync_okta_organization(
+            neo4j_session,
+            common_job_parameters,
+            okta_client,
+        )
+    except OktaApiError as exc:
+        if is_oauth_token_error(exc):
+            logger.error(
+                "Okta refused to issue an OAuth access token (%s). Check the "
+                "service app's client ID, private key, and key ID, and that it "
+                "is granted every requested scope.",
+                exc.error_code,
+            )
+        raise
     user_ids, user_roles_synced = users.sync_okta_users(
         okta_client,
         neo4j_session,

@@ -15,6 +15,8 @@ from okta.models.user_type import UserType as OktaUserType
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import is_missing_scope_error
+from cartography.intel.okta.common import OKTA_MISSING_SCOPE_WARNING
 from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.user import OktaUserRoleSchema
@@ -162,10 +164,11 @@ def sync_okta_users(
         _cleanup_okta_user_roles(neo4j_session, common_job_parameters)
         roles_synced = True
     except OktaApiError as exc:
-        if exc.error_code == "E0000006":
+        if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync user roles - the Okta credential needs "
-                "okta.roles.read and an admin role that allows it",
+                OKTA_MISSING_SCOPE_WARNING,
+                "user roles",
+                "okta.roles.read",
             )
             # Still run cleanup so stale roles from a previously privileged
             # token don't linger and overstate admin access.

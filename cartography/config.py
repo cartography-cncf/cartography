@@ -196,7 +196,7 @@ class Config:
         Not needed when ``okta_private_key`` is a JWK that carries its ``kid``.
         Optional.
     :type okta_scopes: str
-    :param okta_scopes: Comma- or space-separated OAuth scopes to request.
+    :param okta_scopes: Comma-separated OAuth scopes to request.
         Defaults to every read scope the Okta sync uses. Optional.
     :type okta_dpop_enabled: bool
     :param okta_dpop_enabled: Whether to bind OAuth access tokens with DPoP.
@@ -911,6 +911,10 @@ class Config:
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
+        if bool(okta_client_id) != bool(okta_private_key):
+            raise ValueError(
+                "Okta OAuth requires both okta_client_id and okta_private_key.",
+            )
         self.okta_client_id = okta_client_id
         self.okta_private_key = okta_private_key
         self.okta_private_key_id = okta_private_key_id
