@@ -51,13 +51,15 @@ def _hosts_client() -> MagicMock:
     return client
 
 
+FIRST_VULN_PAGE = _response([VULNERABILITIES[VULN_IDS[0]]], after="cursor-1")
+
+
 def _spotlight_client(
     requested_cursors: list[str | None],
+    first_page: dict[str, Any],
     *later_pages: dict[str, Any],
 ) -> MagicMock:
-    pages = iter(
-        [_response([VULNERABILITIES[VULN_IDS[0]]], after="cursor-1"), *later_pages],
-    )
+    pages = iter([first_page, *later_pages])
 
     def combined_query(parameters: dict[str, Any]) -> dict[str, Any]:
         requested_cursors.append(parameters.get("after"))
@@ -72,6 +74,7 @@ def _ingest(
     neo4j_session,
     update_tag: int,
     *later_vuln_pages: dict[str, Any],
+    first_vuln_page: dict[str, Any] = FIRST_VULN_PAGE,
 ) -> list[str | None]:
     requested_cursors: list[str | None] = []
     config = Config(
@@ -90,7 +93,11 @@ def _ingest(
         patch.object(
             cartography.intel.crowdstrike.spotlight,
             "Spotlight_Vulnerabilities",
-            return_value=_spotlight_client(requested_cursors, *later_vuln_pages),
+            return_value=_spotlight_client(
+                requested_cursors,
+                first_vuln_page,
+                *later_vuln_pages,
+            ),
         ),
         patch("cartography.intel.crowdstrike.util.time.sleep"),
     ):
@@ -160,3 +167,35 @@ def test_failed_page_aborts_before_cleanup(neo4j_session, failed_pages):
         "CrowdstrikeSpotlightVulnerability",
         ["id", "lastupdated"],
     ) == {(VULN_IDS[0], 11), (VULN_IDS[1], 10)}
+
+
+def test_missing_spotlight_scope_syncs_hosts_and_keeps_vulnerabilities(neo4j_session):
+    # Arrange
+    _ingest(neo4j_session, 20, _response([VULNERABILITIES[VULN_IDS[1]]]))
+
+    # Act
+    _ingest(neo4j_session, 21, first_vuln_page=_response([], status_code=403))
+
+    # Assert
+    assert check_nodes(neo4j_session, "CrowdstrikeHost", ["id", "lastupdated"]) == {
+        (host_id, 21) for host_id in HOST_IDS
+    }
+    assert check_nodes(
+        neo4j_session,
+        "CrowdstrikeSpotlightVulnerability",
+        ["id", "lastupdated"],
+    ) == {(vuln_id, 20) for vuln_id in VULN_IDS}
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeHost",
+        "id",
+        "CrowdstrikeSpotlightVulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == set(zip(HOST_IDS, VULN_IDS))
+    metadata = neo4j_session.run(
+        "MATCH (m:ModuleSyncMetadata {id: 'crowdstrike_public_crowdstrike'}) "
+        "RETURN m.lastupdated AS lastupdated",
+    ).single()
+    assert metadata["lastupdated"] == 21
