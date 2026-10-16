@@ -1,9 +1,10 @@
 import abc
+import keyword
 from dataclasses import dataclass
 from dataclasses import field
-from dataclasses import make_dataclass
 from enum import auto
 from enum import Enum
+from typing import Any
 from typing import Dict
 from typing import List
 
@@ -129,6 +130,22 @@ class TargetNodeMatcher:
     pass
 
 
+def _make_node_matcher(name: str, key_ref_dict: Dict[str, PropertyRef]):
+    # A matcher key is a graph property name, which can be a Python keyword such as
+    # `class`, and make_dataclass rejects those. Only the generated __init__,
+    # __repr__ and __eq__ spell a field name as an identifier, so keyword fields
+    # stay out of them and keep their default.
+    namespace: dict = {"__annotations__": dict.fromkeys(key_ref_dict, PropertyRef)}
+    for key, prop_ref in key_ref_dict.items():
+        namespace[key] = (
+            field(default=prop_ref, init=False, repr=False, compare=False)
+            if keyword.iskeyword(key)
+            else prop_ref
+        )
+    matcher_cls: type[Any] = dataclass(frozen=True)(type(name, (), namespace))
+    return matcher_cls()
+
+
 def make_target_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> TargetNodeMatcher:
     """
     Create a TargetNodeMatcher with dynamically generated attributes.
@@ -162,11 +179,7 @@ def make_target_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> TargetNode
         ... })
         >>> # The resulting matcher has an id attribute
     """
-    fields = [
-        (key, PropertyRef, field(default=prop_ref))
-        for key, prop_ref in key_ref_dict.items()
-    ]
-    return make_dataclass(TargetNodeMatcher.__name__, fields, frozen=True)()
+    return _make_node_matcher(TargetNodeMatcher.__name__, key_ref_dict)
 
 
 @dataclass(frozen=True)
@@ -222,11 +235,7 @@ def make_source_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> SourceNode
         A SourceNodeMatcher instance with dynamically created attributes
         corresponding to the provided key_ref_dict.
     """
-    fields = [
-        (key, PropertyRef, field(default=prop_ref))
-        for key, prop_ref in key_ref_dict.items()
-    ]
-    return make_dataclass(SourceNodeMatcher.__name__, fields, frozen=True)()
+    return _make_node_matcher(SourceNodeMatcher.__name__, key_ref_dict)
 
 
 @dataclass(frozen=True)

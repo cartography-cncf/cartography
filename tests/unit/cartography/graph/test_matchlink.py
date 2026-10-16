@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from cartography.graph.cleanupbuilder import build_cleanup_query_for_matchlink
+from cartography.graph.querybuilder import _build_match_clause
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_matchlink_cartesian_product_query
 from cartography.graph.querybuilder import build_matchlink_query
@@ -425,3 +426,12 @@ def test_build_create_index_queries_for_scoped_matchlink():
     }
 
     assert set(index_queries) == expected_queries
+
+
+@pytest.mark.parametrize(
+    "make_matcher", [make_source_node_matcher, make_target_node_matcher]
+)
+def test_node_matcher_accepts_python_keyword_keys(make_matcher):
+    matcher = make_matcher({"class": PropertyRef("Class"), "id": PropertyRef("Id")})
+
+    assert _build_match_clause(matcher) == "class: item.Class, id: item.Id"
