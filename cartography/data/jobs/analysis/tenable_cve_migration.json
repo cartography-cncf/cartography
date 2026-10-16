@@ -1,0 +1,17 @@
+{
+  "statements": [
+    {
+      "__comment__": "Releases up to 0.143.0 put the :CVE ontology label on TenableFinding, with its _ont_* fields, and kept the plugin's CVE IDs in an indexed TenableFinding.cve_list. CVEs are now TenableCve nodes and nothing updates these any more, so strip them: left stale, :CVE queries count Tenable data twice. Idempotent: once stripped, no TenableFinding carries :CVE.",
+      "query": "MATCH (f:TenableFinding:CVE) WITH f LIMIT $LIMIT_SIZE REMOVE f:CVE, f._ont_source, f._ont_cve_id, f._ont_base_severity, f._ont_vuln_status, f.cve_list RETURN count(f) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Builds between #3310 and its follow-up linked every finding to each of its plugin's CVEs: millions of edges on a large fleet. Findings now reach CVEs through their plugin. Delete those edges in batches here, rather than in one oversized transaction when cleanup deletes the CVE nodes they point at. Idempotent: findings no longer get HAS_CVE edges.",
+      "query": "MATCH (:TenableCve)<-[r:HAS_CVE]-(:TenableFinding) WITH r LIMIT $LIMIT_SIZE DELETE r RETURN count(r) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 10000
+    }
+  ],
+  "name": "Tenable - migrate CVE data written by earlier versions"
+}

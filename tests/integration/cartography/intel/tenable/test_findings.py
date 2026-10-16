@@ -1,18 +1,20 @@
 import copy
+from typing import Any
+
+import pytest
 
 import cartography.intel.tenable.assets
 import cartography.intel.tenable.findings
+from cartography.intel.cve import feed as cve_feed
+from tests.data.cve.feed import GET_CVE_API_DATA
 from tests.data.tenable.assets import ASSET_ID_1
 from tests.data.tenable.assets import ASSET_ID_2
 from tests.data.tenable.assets import ASSETS_DATA
 from tests.data.tenable.assets import TENABLE_TENANT_ID
-from tests.data.tenable.findings import CVE_ID_1
 from tests.data.tenable.findings import FINDING_ID_1
 from tests.data.tenable.findings import FINDING_ID_2
 from tests.data.tenable.findings import FINDING_ID_3
 from tests.data.tenable.findings import FINDINGS_DATA
-from tests.data.tenable.findings import PLUGIN_1_CVE_NODE_IDS
-from tests.data.tenable.findings import PLUGIN_1_CVES
 from tests.data.tenable.findings import PLUGIN_ID_1
 from tests.data.tenable.findings import PLUGIN_ID_2
 from tests.data.tenable.findings import PLUGIN_ID_3
@@ -23,6 +25,36 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_BASE_URL = "https://cloud.tenable.com"
+
+
+@pytest.fixture(autouse=True)
+def isolated_graph(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    try:
+        yield
+    finally:
+        neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+
+
+@pytest.fixture
+def legacy_cve_list_index(neo4j_session):
+    """The RANGE index earlier versions declared on TenableFinding.cve_list.
+
+    Cartography never drops an index it no longer declares, so upgraded graphs keep it.
+    """
+    neo4j_session.run(
+        "CREATE INDEX legacy_tenable_finding_cve_list IF NOT EXISTS "
+        "FOR (n:TenableFinding) ON (n.cve_list)"
+    ).consume()
+    # Real graphs have it ONLINE. An oversized write to a POPULATING index can fail
+    # at commit and leave the test database needing a restart.
+    neo4j_session.run("CALL db.awaitIndexes()").consume()
+    try:
+        yield
+    finally:
+        neo4j_session.run(
+            "DROP INDEX legacy_tenable_finding_cve_list IF EXISTS"
+        ).consume()
 
 
 def _load_assets(neo4j_session, mocker):
@@ -41,27 +73,50 @@ def _load_assets(neo4j_session, mocker):
     )
 
 
-def _sync_findings(neo4j_session, mocker, data=None):
-    """Helper: run findings sync with optional custom data."""
-    mocker.patch(
-        "cartography.intel.tenable.findings.get",
-        return_value=data if data is not None else FINDINGS_DATA,
-    )
+def _sync_findings(
+    neo4j_session,
+    mocker,
+    data=FINDINGS_DATA,
+    tenant_id=TENABLE_TENANT_ID,
+    update_tag=TEST_UPDATE_TAG,
+):
+    """Helper: run findings sync, with the export API returning ``data``."""
+    mocker.patch("cartography.intel.tenable.findings.get", return_value=data)
     cartography.intel.tenable.findings.sync(
         neo4j_session,
         mocker.MagicMock(),
         TEST_BASE_URL,
-        TENABLE_TENANT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENABLE_TENANT_ID": TENABLE_TENANT_ID},
+        tenant_id,
+        update_tag,
+        {"UPDATE_TAG": update_tag, "TENABLE_TENANT_ID": tenant_id},
     )
+
+
+def _load_nvd_records(neo4j_session):
+    """Helper: load the NVD fixture through the `cve` module, which MERGEs on (:CVE {id})."""
+    # transform_cves() rewrites its input in place, so give it a private copy.
+    nvd_data = copy.deepcopy(GET_CVE_API_DATA)
+    nvd_feed = cve_feed.transform_cve_feed(nvd_data)
+    cve_feed.load_cve_feed(neo4j_session, [nvd_feed], TEST_UPDATE_TAG)
+    cve_feed.load_cves(
+        neo4j_session,
+        cve_feed.transform_cves(nvd_data),
+        nvd_feed["FEED_ID"],
+        TEST_UPDATE_TAG,
+    )
+
+
+def _finding(finding_id: str, plugin_id: int, cves: list[str]) -> dict[str, Any]:
+    """A minimal raw Tenable finding whose plugin names ``cves``."""
+    return {
+        "finding_id": finding_id,
+        "asset": {"uuid": ASSET_ID_1},
+        "plugin": {"id": plugin_id, "cve": cves},
+    }
 
 
 def test_sync_findings(neo4j_session, mocker):
     """Test that findings sync creates TenableFinding nodes with correct properties."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
     # Act
     _sync_findings(neo4j_session, mocker)
 
@@ -78,231 +133,319 @@ def test_sync_findings(neo4j_session, mocker):
     }
 
 
-def test_sync_findings_cve_fields(neo4j_session, mocker):
-    """Test that cve_id, cve_list and has_cve stay on the finding itself."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
+def test_sync_findings_keep_the_first_cve_id_and_a_has_cve_flag(neo4j_session, mocker):
     # Act
     _sync_findings(neo4j_session, mocker)
 
     # Assert
-    # Finding with CVEs. The :CVE ontology label belongs to :TenableCve now, so the
-    # finding must not carry it. cve_list is retained for backwards compatibility.
-    record = neo4j_session.run(
-        "MATCH (f:TenableFinding {id: $id}) "
-        "RETURN f.cve_id AS cve_id, f.cve_list AS cve_list, "
-        "f.has_cve AS has_cve, f:CVE AS has_cve_label",
-        id=FINDING_ID_1,
-    ).single()
-    assert record["cve_id"] == CVE_ID_1
-    assert set(record["cve_list"]) == set(PLUGIN_1_CVES)
-    assert record["has_cve"] == "true"
-    assert record["has_cve_label"] is False
-
-    # Finding without CVEs
-    record = neo4j_session.run(
-        "MATCH (f:TenableFinding {id: $id}) "
-        "RETURN f.cve_list AS cve_list, f.has_cve AS has_cve",
-        id=FINDING_ID_2,
-    ).single()
-    assert record["cve_list"] == []
-    assert record["has_cve"] == "false"
+    assert check_nodes(
+        neo4j_session, "TenableFinding", ["id", "cve_id", "has_cve"]
+    ) == {
+        (FINDING_ID_1, "CVE-2022-21837", "true"),
+        (FINDING_ID_2, None, "false"),
+        (FINDING_ID_3, None, "false"),
+    }
 
 
-def test_sync_cves(neo4j_session, mocker):
-    """Test that TenableCve nodes are created, deduplicated, and carry the CVE label."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
+def test_sync_creates_a_cve_node_for_each_cve_a_plugin_names(neo4j_session, mocker):
     # Act
     _sync_findings(neo4j_session, mocker)
 
     # Assert
     assert check_nodes(neo4j_session, "TenableCve", ["id", "cve_id"]) == {
-        (f"TNB|{cve_id}", cve_id) for cve_id in PLUGIN_1_CVES
+        ("TNB|cloud.tenable.com|CVE-2022-21837", "CVE-2022-21837"),
+        ("TNB|cloud.tenable.com|CVE-2022-21840", "CVE-2022-21840"),
+        ("TNB|cloud.tenable.com|CVE-2022-21842", "CVE-2022-21842"),
     }
 
-    record = neo4j_session.run(
-        "MATCH (c:TenableCve {id: $id}) "
-        "RETURN c:CVE AS has_cve_label, c._ont_cve_id AS ontology_cve_id, "
-        "c._ont_source AS ontology_source",
-        id=f"TNB|{CVE_ID_1}",
-    ).single()
-    assert record["has_cve_label"] is True
-    assert record["ontology_cve_id"] == CVE_ID_1
-    assert record["ontology_source"] == "tenable"
 
-
-def test_sync_cves_correlate_with_nvd_through_ontology(neo4j_session, mocker):
-    """Test that TenableCve lines up with NVD data through _ont_cve_id, with no edge.
-
-    The :CVE ontology label writes _ont_cve_id in place, so a CVE's own severity is
-    read by joining on it. The NVD record must not absorb Tenable's node.
-    """
-    # Arrange: an NVD record, as the `cve` module would ingest it.
-    neo4j_session.run(
-        """
-        MERGE (c:CVE {id: $cve_id})
-        SET c.cve_id = $cve_id, c._ont_cve_id = $cve_id, c._ont_source = 'cve',
-            c._ont_base_severity = 'high', c.lastupdated = $update_tag
-        """,
-        cve_id=CVE_ID_1,
-        update_tag=TEST_UPDATE_TAG,
-    )
-    _load_assets(neo4j_session, mocker)
-
+def test_sync_puts_the_cve_ontology_label_on_cve_nodes_only(neo4j_session, mocker):
     # Act
     _sync_findings(neo4j_session, mocker)
 
-    # Assert: the NVD record keeps its own identity and did not absorb :TenableCve.
-    record = neo4j_session.run(
-        "MATCH (c:CVE {_ont_source: 'cve', _ont_cve_id: $cve_id}) "
-        "RETURN labels(c) AS labels, c._ont_base_severity AS severity",
-        cve_id=CVE_ID_1,
-    ).single(strict=True)
-    assert record["labels"] == ["CVE"]
-    assert record["severity"] == "high"
-
-    # The `cve` module MERGEs on (:CVE {id}). Thanks to the TNB| prefix only its own
-    # record answers to the bare id, so it can never adopt a TenableCve.
-    count = neo4j_session.run(
-        "MATCH (c:CVE {id: $cve_id}) RETURN count(c) AS n", cve_id=CVE_ID_1
-    ).single(strict=True)["n"]
-    assert count == 1
-
-    # TenableCve has no outgoing edges: correlation goes through _ont_cve_id.
-    outgoing = neo4j_session.run(
-        "MATCH (:TenableCve)-[r]->() RETURN count(r) AS n"
-    ).single(strict=True)["n"]
-    assert outgoing == 0
-
-    # The CVE's own severity is reachable from the finding by joining on _ont_cve_id.
-    record = neo4j_session.run(
-        """
-        MATCH (f:TenableFinding {id: $finding_id})-[:HAS_CVE]->(t:TenableCve)
-        MATCH (n:CVE {_ont_cve_id: t._ont_cve_id, _ont_source: 'cve'})
-        RETURN t.cve_id AS cve_id, n._ont_base_severity AS severity
-        """,
-        finding_id=FINDING_ID_1,
-    ).single(strict=True)
-    assert record["cve_id"] == CVE_ID_1
-    assert record["severity"] == "high"
+    # Assert: the three TenableCve nodes are the only :CVE nodes; findings are not.
+    assert check_nodes(neo4j_session, "CVE", ["id", "_ont_cve_id", "_ont_source"]) == {
+        ("TNB|cloud.tenable.com|CVE-2022-21837", "CVE-2022-21837", "tenable"),
+        ("TNB|cloud.tenable.com|CVE-2022-21840", "CVE-2022-21840", "tenable"),
+        ("TNB|cloud.tenable.com|CVE-2022-21842", "CVE-2022-21842", "tenable"),
+    }
 
 
-def test_sync_findings_with_a_cumulative_update_cve_list(neo4j_session, mocker):
-    """Regression test: a plugin naming hundreds of CVEs must not fail the sync.
-
-    cve_list used to be indexed, and Neo4j rejects index keys over ~8 KB.
-    """
-    # Arrange: roughly the size of a cumulative OS update plugin's CVE list.
-    cve_ids = [f"CVE-2026-{n:05d}" for n in range(700)]
-    data = copy.deepcopy(FINDINGS_DATA[:1])
-    data[0]["finding_id"] = "large-cve-list"
-    data[0]["plugin"]["id"] = 999999
-    data[0]["plugin"]["cve"] = cve_ids
-    _load_assets(neo4j_session, mocker)
-
-    try:
-        # Act
-        _sync_findings(neo4j_session, mocker, data)
-
-        # Assert: every CVE is linked, and nothing indexes the list.
-        record = neo4j_session.run(
-            """
-            MATCH (f:TenableFinding {id: 'large-cve-list'})
-            RETURN size(f.cve_list) AS listed,
-                   COUNT { (f)-[:HAS_CVE]->(:TenableCve) } AS linked
-            """
-        ).single(strict=True)
-        assert record["listed"] == 700
-        assert record["linked"] == 700
-        indexes = neo4j_session.run(
-            """
-            SHOW INDEXES YIELD labelsOrTypes, properties
-            WHERE labelsOrTypes = ['TenableFinding'] AND properties = ['cve_list']
-            RETURN count(*) AS n
-            """
-        ).single(strict=True)["n"]
-        assert indexes == 0
-    finally:
-        neo4j_session.run(
-            """
-            MATCH (n)
-            WHERE (n:TenableFinding AND n.id = 'large-cve-list')
-               OR (n:TenablePlugin AND n.id = 999999)
-               OR (n:TenableCve AND n.cve_id STARTS WITH 'CVE-2026-')
-            DETACH DELETE n
-            """
-        )
-
-
-def test_sync_findings_has_cve_rel(neo4j_session, mocker):
-    """Test that TenableFinding-[:HAS_CVE]->TenableCve covers every CVE, not just the first."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
-    # Act
-    _sync_findings(neo4j_session, mocker)
-
-    # Assert: FINDING_ID_1 fans out to all three CVEs; the CVE-less findings have none.
-    actual_rels = check_rels(
-        neo4j_session,
-        "TenableFinding",
-        "id",
-        "TenableCve",
-        "id",
-        "HAS_CVE",
-        rel_direction_right=True,
-    )
-    assert actual_rels == {(FINDING_ID_1, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
-
-
-def test_sync_plugins_has_cve_rel(neo4j_session, mocker):
-    """Test that TenablePlugin-[:HAS_CVE]->TenableCve relationships are created."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
+def test_sync_links_each_plugin_to_the_cves_it_names(neo4j_session, mocker):
     # Act
     _sync_findings(neo4j_session, mocker)
 
     # Assert
-    actual_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "TenablePlugin",
         "id",
         "TenableCve",
-        "id",
+        "cve_id",
         "HAS_CVE",
         rel_direction_right=True,
-    )
-    assert actual_rels == {(PLUGIN_ID_1, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
+    ) == {
+        (PLUGIN_ID_1, "CVE-2022-21837"),
+        (PLUGIN_ID_1, "CVE-2022-21840"),
+        (PLUGIN_ID_1, "CVE-2022-21842"),
+    }
 
 
-def test_sync_cves_cleanup(neo4j_session, mocker):
-    """Test that stale TenableCve nodes are deleted after sync."""
+def test_sync_lets_findings_be_looked_up_by_cve_through_their_plugin(
+    neo4j_session, mocker
+):
+    # Act
+    _sync_findings(neo4j_session, mocker)
+
+    # Assert: the lookup documented for users.
+    record = neo4j_session.run(
+        """
+        MATCH (:TenableCve {cve_id: 'CVE-2022-21840'})<-[:HAS_CVE]-(:TenablePlugin)
+              <-[:DETECTED_BY]-(f:TenableFinding)
+        RETURN f.id AS id
+        """
+    ).single(strict=True)
+    assert record["id"] == FINDING_ID_1
+
+
+def test_sync_links_a_plugins_cves_once_however_many_hosts_report_it(
+    neo4j_session, mocker
+):
+    # Arrange: one cumulative-update plugin, reported on three hosts.
+    cves = ["CVE-2026-0001", "CVE-2026-0002"]
+    data = [
+        _finding("host-1-finding", plugin_id=1, cves=cves),
+        _finding("host-2-finding", plugin_id=1, cves=cves),
+        _finding("host-3-finding", plugin_id=1, cves=cves),
+    ]
+
+    # Act
+    _sync_findings(neo4j_session, mocker, data)
+
+    # Assert
+    edge_count = neo4j_session.run(
+        "MATCH ()-[r:HAS_CVE]->(:TenableCve) RETURN count(r) AS n"
+    ).single(strict=True)["n"]
+    assert edge_count == 2
+
+
+def test_sync_succeeds_with_a_huge_cve_list_on_a_graph_with_the_legacy_index(
+    neo4j_session, mocker, legacy_cve_list_index
+):
+    """Regression test: upgraded graphs must not need the legacy index dropped by hand.
+
+    A RANGE index rejects keys over ~8 KB. 700 CVE IDs encode to more than that, as
+    a cumulative OS update's list does.
+    """
     # Arrange
-    old_update_tag = TEST_UPDATE_TAG - 1000
+    cves = [f"CVE-2026-{n:05d}" for n in range(700)]
+    data = [_finding("windows-cumulative-update", plugin_id=1, cves=cves)]
+
+    # Act
+    _sync_findings(neo4j_session, mocker, data)
+
+    # Assert
+    linked = neo4j_session.run(
+        """
+        MATCH (:TenableFinding {id: 'windows-cumulative-update'})-[:DETECTED_BY]->
+              (:TenablePlugin)-[:HAS_CVE]->(c:TenableCve)
+        RETURN count(c) AS n
+        """
+    ).single(strict=True)["n"]
+    assert linked == 700
+
+
+def test_sync_deletes_cves_no_plugin_names_any_more(neo4j_session, mocker):
+    # Arrange
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [_finding("f1", plugin_id=1, cves=["CVE-2026-0001", "CVE-2026-0002"])],
+        update_tag=1,
+    )
+
+    # Act
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [_finding("f1", plugin_id=1, cves=["CVE-2026-0001"])],
+        update_tag=2,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "TenableCve", ["cve_id"]) == {
+        ("CVE-2026-0001",),
+    }
+
+
+def test_sync_unlinks_a_cve_from_a_plugin_that_stops_naming_it(neo4j_session, mocker):
+    # Arrange: both plugins name the CVE.
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [
+            _finding("f1", plugin_id=1, cves=["CVE-2026-0001"]),
+            _finding("f2", plugin_id=2, cves=["CVE-2026-0001"]),
+        ],
+        update_tag=1,
+    )
+
+    # Act: plugin 1 no longer names it.
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [
+            _finding("f1", plugin_id=1, cves=[]),
+            _finding("f2", plugin_id=2, cves=["CVE-2026-0001"]),
+        ],
+        update_tag=2,
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "TenablePlugin",
+        "id",
+        "TenableCve",
+        "cve_id",
+        "HAS_CVE",
+        rel_direction_right=True,
+    ) == {(2, "CVE-2026-0001")}
+
+
+def test_sync_cleanup_for_one_tenant_keeps_another_tenants_cves(neo4j_session, mocker):
+    # Arrange: two tenants whose plugins name the same CVE. The plugins differ because
+    # plugin ids are not yet tenant-qualified; see the tenant ID note in config.md.
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [_finding("a-f1", plugin_id=1, cves=["CVE-2026-0001"])],
+        tenant_id="tenant-a",
+        update_tag=1,
+    )
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [_finding("b-f1", plugin_id=2, cves=["CVE-2026-0001"])],
+        tenant_id="tenant-b",
+        update_tag=2,
+    )
+
+    # Act: tenant A's host is patched, so tenant A's cleanup retires the CVE.
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [_finding("a-f2", plugin_id=3, cves=[])],
+        tenant_id="tenant-a",
+        update_tag=3,
+    )
+
+    # Assert: tenant B's plugin still reaches the CVE.
+    assert check_rels(
+        neo4j_session,
+        "TenablePlugin",
+        "id",
+        "TenableCve",
+        "cve_id",
+        "HAS_CVE",
+        rel_direction_right=True,
+    ) == {(2, "CVE-2026-0001")}
+
+
+def test_sync_does_not_let_the_cve_module_adopt_tenable_cve_nodes(
+    neo4j_session, mocker
+):
+    # Arrange: CVE-2023-6493 is in the NVD fixture.
+    _sync_findings(
+        neo4j_session, mocker, [_finding("f1", plugin_id=1, cves=["CVE-2023-6493"])]
+    )
+
+    # Act
+    _load_nvd_records(neo4j_session)
+
+    # Assert: two distinct records of the CVE, one per module.
+    records = neo4j_session.run(
+        """
+        MATCH (c:CVE {_ont_cve_id: 'CVE-2023-6493'})
+        RETURN c.id AS id, c._ont_source AS source
+        ORDER BY id
+        """
+    ).data()
+    assert records == [
+        {"id": "CVE-2023-6493", "source": "cve"},
+        {"id": "TNB|cloud.tenable.com|CVE-2023-6493", "source": "tenable"},
+    ]
+
+
+def test_sync_lets_findings_read_nvd_severity_through_the_ontology(
+    neo4j_session, mocker
+):
+    # Arrange: NVD rates CVE-2023-6493 MEDIUM.
+    _load_nvd_records(neo4j_session)
+
+    # Act
+    _sync_findings(
+        neo4j_session, mocker, [_finding("f1", plugin_id=1, cves=["CVE-2023-6493"])]
+    )
+
+    # Assert: the join documented for users.
+    record = neo4j_session.run(
+        """
+        MATCH (f:TenableFinding)-[:DETECTED_BY]->(:TenablePlugin)-[:HAS_CVE]->(t:TenableCve)
+        MATCH (n:CVE {_ont_cve_id: t._ont_cve_id, _ont_source: 'cve'})
+        RETURN f.id AS finding_id, n._ont_base_severity AS cve_severity
+        """
+    ).single(strict=True)
+    assert (record["finding_id"], record["cve_severity"]) == ("f1", "medium")
+
+
+def test_sync_strips_the_legacy_cve_label_from_findings(neo4j_session, mocker):
+    # Arrange: a finding as releases up to 0.143.0 left it.
+    _sync_findings(neo4j_session, mocker)
     neo4j_session.run(
         """
-        CREATE (t:TenableTenant {id: $tenant_id, lastupdated: $update_tag})
-        CREATE (c:TenableCve {id: 'TNB|CVE-1999-0001', lastupdated: $old_tag})
-        CREATE (t)-[:RESOURCE]->(c)
+        MATCH (f:TenableFinding {id: $id})
+        SET f:CVE, f._ont_source = 'tenable', f._ont_cve_id = 'CVE-2022-21837',
+            f.cve_list = ['CVE-2022-21837', 'CVE-2022-21840', 'CVE-2022-21842']
         """,
-        tenant_id=TENABLE_TENANT_ID,
-        update_tag=TEST_UPDATE_TAG,
-        old_tag=old_update_tag,
-    )
-
-    _load_assets(neo4j_session, mocker)
+        id=FINDING_ID_1,
+    ).consume()
 
     # Act
     _sync_findings(neo4j_session, mocker)
 
     # Assert
-    assert check_nodes(neo4j_session, "TenableCve", ["id"]) == {
-        (node_id,) for node_id in PLUGIN_1_CVE_NODE_IDS
-    }
+    record = neo4j_session.run(
+        """
+        MATCH (f:TenableFinding {id: $id})
+        RETURN f:CVE AS is_cve, f._ont_source AS ont_source, f.cve_list AS cve_list
+        """,
+        id=FINDING_ID_1,
+    ).single(strict=True)
+    assert record.data() == {"is_cve": False, "ont_source": None, "cve_list": None}
+
+
+def test_sync_deletes_finding_to_cve_edges_left_by_earlier_builds(
+    neo4j_session, mocker
+):
+    # Arrange: an edge as builds between #3310 and this change wrote it.
+    _sync_findings(neo4j_session, mocker)
+    neo4j_session.run(
+        """
+        MATCH (f:TenableFinding {id: $id}), (c:TenableCve {cve_id: 'CVE-2022-21837'})
+        CREATE (f)-[:HAS_CVE]->(c)
+        """,
+        id=FINDING_ID_1,
+    ).consume()
+
+    # Act
+    _sync_findings(neo4j_session, mocker)
+
+    # Assert
+    edge_count = neo4j_session.run(
+        "MATCH (:TenableFinding)-[r:HAS_CVE]->() RETURN count(r) AS n"
+    ).single(strict=True)["n"]
+    assert edge_count == 0
 
 
 def test_sync_findings_affects_asset_rel(neo4j_session, mocker):
@@ -332,9 +475,6 @@ def test_sync_findings_affects_asset_rel(neo4j_session, mocker):
 
 def test_sync_plugins(neo4j_session, mocker):
     """Test that TenablePlugin nodes are created and deduplicated."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
     # Act
     _sync_findings(neo4j_session, mocker)
 
@@ -362,19 +502,21 @@ def test_sync_plugins(neo4j_session, mocker):
         (PLUGIN_ID_3, "Nessus Scan Information", "Settings", "none", None),
     }
 
-    # cve_list is retained for backwards compatibility alongside the :HAS_CVE edges.
+
+def test_sync_plugins_keep_their_full_cve_list(neo4j_session, mocker):
+    # Act
+    _sync_findings(neo4j_session, mocker)
+
+    # Assert
     record = neo4j_session.run(
         "MATCH (p:TenablePlugin {id: $id}) RETURN p.cve_list AS cve_list",
         id=PLUGIN_ID_1,
-    ).single()
-    assert set(record["cve_list"]) == set(PLUGIN_1_CVES)
+    ).single(strict=True)
+    assert record["cve_list"] == ["CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"]
 
 
 def test_sync_findings_detected_by_rel(neo4j_session, mocker):
     """Test that TenableFinding-[:DETECTED_BY]->TenablePlugin relationships are created."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
     # Act
     _sync_findings(neo4j_session, mocker)
 
@@ -397,9 +539,6 @@ def test_sync_findings_detected_by_rel(neo4j_session, mocker):
 
 def test_sync_scans(neo4j_session, mocker):
     """Test that TenableScan nodes are created, deduplicated, and linked to findings."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
     # Act
     _sync_findings(neo4j_session, mocker)
 
@@ -429,9 +568,6 @@ def test_sync_scans(neo4j_session, mocker):
 
 def test_sync_findings_tenant_resource_rel(neo4j_session, mocker):
     """Test that TenableTenant-[:RESOURCE]->TenableFinding relationships are created."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
     # Act
     _sync_findings(neo4j_session, mocker)
 
@@ -454,9 +590,6 @@ def test_sync_findings_tenant_resource_rel(neo4j_session, mocker):
 
 def test_sync_finding_subresources_have_tenant_ownership(neo4j_session, mocker):
     """Test that plugins, scans and CVEs have the RESOURCE edge used for cleanup."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-
     # Act
     _sync_findings(neo4j_session, mocker)
 
@@ -491,73 +624,22 @@ def test_sync_finding_subresources_have_tenant_ownership(neo4j_session, mocker):
         "TenableTenant",
         "id",
         "TenableCve",
-        "id",
+        "cve_id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {(TENABLE_TENANT_ID, node_id) for node_id in PLUGIN_1_CVE_NODE_IDS}
+    ) == {
+        (TENABLE_TENANT_ID, "CVE-2022-21837"),
+        (TENABLE_TENANT_ID, "CVE-2022-21840"),
+        (TENABLE_TENANT_ID, "CVE-2022-21842"),
+    }
 
 
-def test_sync_findings_cleanup(neo4j_session, mocker):
-    """Test that stale TenableFinding nodes are deleted after sync."""
+def test_sync_deletes_findings_absent_from_the_latest_export(neo4j_session, mocker):
     # Arrange
-    old_update_tag = TEST_UPDATE_TAG - 1000
-    neo4j_session.run(
-        """
-        CREATE (t:TenableTenant {id: $tenant_id, lastupdated: $update_tag})
-        CREATE (f:TenableFinding {id: 'stale-finding-id', lastupdated: $old_tag})
-        CREATE (t)-[:RESOURCE]->(f)
-        """,
-        tenant_id=TENABLE_TENANT_ID,
-        update_tag=TEST_UPDATE_TAG,
-        old_tag=old_update_tag,
-    )
-
-    _load_assets(neo4j_session, mocker)
+    _sync_findings(neo4j_session, mocker, FINDINGS_DATA, update_tag=1)
 
     # Act
-    _sync_findings(neo4j_session, mocker, data=[FINDINGS_DATA[0]])
-
-    # Assert
-    result = neo4j_session.run("MATCH (f:TenableFinding) RETURN f.id AS id")
-    existing_ids = {r["id"] for r in result}
-    assert "stale-finding-id" not in existing_ids
-    assert FINDING_ID_1 in existing_ids
-
-
-def test_sync_findings_cleanup_across_update_tags(neo4j_session, mocker):
-    """Test that a second complete sync removes findings absent from the new export."""
-    # Arrange
-    _load_assets(neo4j_session, mocker)
-    first_update_tag = TEST_UPDATE_TAG
-    second_update_tag = TEST_UPDATE_TAG + 1
-    mocker.patch(
-        "cartography.intel.tenable.findings.get",
-        side_effect=[FINDINGS_DATA, [FINDINGS_DATA[0]]],
-    )
-
-    # Act
-    cartography.intel.tenable.findings.sync(
-        neo4j_session,
-        mocker.MagicMock(),
-        TEST_BASE_URL,
-        TENABLE_TENANT_ID,
-        first_update_tag,
-        {
-            "UPDATE_TAG": first_update_tag,
-            "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
-        },
-    )
-    cartography.intel.tenable.findings.sync(
-        neo4j_session,
-        mocker.MagicMock(),
-        TEST_BASE_URL,
-        TENABLE_TENANT_ID,
-        second_update_tag,
-        {
-            "UPDATE_TAG": second_update_tag,
-            "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
-        },
-    )
+    _sync_findings(neo4j_session, mocker, [FINDINGS_DATA[0]], update_tag=2)
 
     # Assert
     assert check_nodes(neo4j_session, "TenableFinding", ["id"]) == {(FINDING_ID_1,)}
@@ -577,8 +659,6 @@ def test_sync_plugins_cleanup(neo4j_session, mocker):
         update_tag=TEST_UPDATE_TAG,
         old_tag=old_update_tag,
     )
-
-    _load_assets(neo4j_session, mocker)
 
     # Act
     _sync_findings(neo4j_session, mocker)
@@ -606,8 +686,6 @@ def test_sync_scans_cleanup(neo4j_session, mocker):
         update_tag=TEST_UPDATE_TAG,
         old_tag=old_update_tag,
     )
-
-    _load_assets(neo4j_session, mocker)
 
     # Act
     _sync_findings(neo4j_session, mocker)
