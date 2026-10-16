@@ -16,6 +16,10 @@ class CrowdstrikeAPIError(RuntimeError):
     pass
 
 
+class CrowdstrikeForbiddenError(CrowdstrikeAPIError):
+    """The API client lacks the scope for the call, or the tenant lacks the module."""
+
+
 def get_authorization(client_id: str, client_secret: str, api_url: str) -> OAuth2:
     authorization = OAuth2(
         creds={"client_id": client_id, "client_secret": client_secret},
@@ -37,7 +41,10 @@ def get_response_body(response: dict[str, Any], operation: str) -> dict[str, Any
     body = response.get("body")
     if status_code is None or not 200 <= status_code < 300:
         messages = [error.get("message") for error in (body or {}).get("errors") or []]
-        raise CrowdstrikeAPIError(
+        error_class = (
+            CrowdstrikeForbiddenError if status_code == 403 else CrowdstrikeAPIError
+        )
+        raise error_class(
             f"CrowdStrike {operation} failed with HTTP {status_code}: {messages}",
         )
     if not body:

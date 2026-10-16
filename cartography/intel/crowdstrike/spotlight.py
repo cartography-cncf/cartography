@@ -13,6 +13,7 @@ from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
 from cartography.client.core.tx import load
 from cartography.intel.crowdstrike.util import call_with_retries
 from cartography.intel.crowdstrike.util import CrowdstrikeAPIError
+from cartography.intel.crowdstrike.util import CrowdstrikeForbiddenError
 from cartography.intel.crowdstrike.util import REQUEST_TIMEOUT_SECONDS
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
@@ -32,15 +33,33 @@ def sync_vulnerabilities(
     neo4j_session: neo4j.Session,
     update_tag: int,
     authorization: OAuth2,
-) -> None:
+) -> bool:
+    """
+    Sync Spotlight vulnerabilities, returning False if Spotlight was not readable.
+
+    Spotlight is a separately licensed Falcon module. A tenant without it cannot
+    grant the Vulnerabilities: Read scope, and its hosts should still sync. The
+    caller skips the vulnerability cleanup on False, so losing the scope keeps
+    the last synced vulnerabilities rather than deleting them.
+    """
     client = Spotlight_Vulnerabilities(
         auth_object=authorization,
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
-    for vulnerability_data in _prefetch(get_spotlight_vulnerabilities(client)):
-        vulns, cves = transform(vulnerability_data)
-        load_vulnerability_data(neo4j_session, vulns, update_tag)
-        load_cve_data(neo4j_session, cves, update_tag)
+    try:
+        for vulnerability_data in _prefetch(get_spotlight_vulnerabilities(client)):
+            vulns, cves = transform(vulnerability_data)
+            load_vulnerability_data(neo4j_session, vulns, update_tag)
+            load_cve_data(neo4j_session, cves, update_tag)
+    except CrowdstrikeForbiddenError as e:
+        logger.warning(
+            "Skipping CrowdStrike Spotlight vulnerabilities: %s. Grant the API "
+            "client Vulnerabilities: Read to sync them; tenants without the "
+            "Spotlight module cannot.",
+            e,
+        )
+        return False
+    return True
 
 
 def _prefetch(pages: Iterable[T]) -> Iterator[T]:
