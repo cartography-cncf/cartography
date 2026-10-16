@@ -8,7 +8,9 @@ from kubernetes.client.models import V1Node
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.gcp.gke_utils import instance_id_from_provider_id
 from cartography.intel.kubernetes.util import format_resource_quantities
+from cartography.intel.kubernetes.util import get_gke_cluster_ref
 from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_nodes(client: K8sClient) -> list[V1Node]:
-    return k8s_paginate(client.core.list_node)
+    return k8s_paginate(client.core.list_node, raise_on_error=True)
 
 
 def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:
@@ -35,7 +37,11 @@ def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:
     return instance_id if instance_id.startswith("i-") else None
 
 
-def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, Any]]:
+def transform_nodes(
+    nodes: list[V1Node],
+    cluster_name: str,
+    gke_resource_name: str | None = None,
+) -> list[dict[str, Any]]:
     transformed = []
     for node in nodes:
         ni = node.status.node_info if node.status else None
@@ -43,12 +49,20 @@ def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, An
         labels = node.metadata.labels or {}
         capacity = node.status.capacity if node.status else None
         allocatable = node.status.allocatable if node.status else None
+        gke_node_pool = labels.get("cloud.google.com/gke-nodepool")
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
                 "name": node.metadata.name,
                 "provider_id": provider_id,
                 "instance_id": _ec2_instance_id_from_provider_id(provider_id),
+                "gcp_instance_id": instance_id_from_provider_id(provider_id),
+                "gke_node_pool": gke_node_pool,
+                "gke_node_pool_id": (
+                    f"{gke_resource_name}/nodePools/{gke_node_pool}"
+                    if gke_resource_name and gke_node_pool
+                    else None
+                ),
                 "labels": json.dumps(labels, sort_keys=True),
                 "capacity": format_resource_quantities(capacity),
                 "allocatable": format_resource_quantities(allocatable),
@@ -106,7 +120,10 @@ def sync_nodes(
     common_job_parameters: dict[str, Any],
 ) -> dict[str, str]:
     raw_nodes = get_nodes(client)
-    transformed = transform_nodes(raw_nodes, client.name)
+    gke_ref = get_gke_cluster_ref(client)
+    transformed = transform_nodes(
+        raw_nodes, client.name, gke_ref.resource_name if gke_ref else None
+    )
     load_nodes(
         session,
         transformed,

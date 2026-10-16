@@ -13,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.dns_utils import normalize_hostname_values
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_gke_cluster_ref
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.ingress import KubernetesIngressSchema
@@ -22,7 +23,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_ingress(client: K8sClient) -> list[V1Ingress]:
-    items = k8s_paginate(client.networking.list_ingress_for_all_namespaces)
+    items = k8s_paginate(
+        client.networking.list_ingress_for_all_namespaces, raise_on_error=True
+    )
     return items
 
 
@@ -103,7 +106,10 @@ def _extract_load_balancer_dns_names(
     return dns_names
 
 
-def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
+def transform_ingresses(
+    ingress: list[V1Ingress],
+    gcp_project_id: str | None = None,
+) -> list[dict[str, Any]]:
     transformed_ingresses: list[dict[str, Any]] = []
 
     for item in ingress:
@@ -126,7 +132,11 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
 
         # extract load balancer DNS names from status for cloud LB matching
         load_balancer_dns_names: list[str] = []
+        load_balancer_ips: list[str] = []
         if item.status and item.status.load_balancer:
+            load_balancer_ips = sorted(
+                {i.ip for i in item.status.load_balancer.ingress or [] if i.ip}
+            )
             load_balancer_dns_names = _extract_load_balancer_dns_names(
                 item.status.load_balancer.ingress
             )
@@ -153,6 +163,9 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,
+                "load_balancer_ips": load_balancer_ips,
+                # Scopes IP matching against GCP forwarding rules to the GKE cluster's project.
+                "gcp_project_id": gcp_project_id,
             }
         )
     return transformed_ingresses
@@ -191,7 +204,10 @@ def sync_ingress(
     common_job_parameters: dict[str, Any],
 ) -> None:
     ingresses = get_ingress(client)
-    transformed_ingresses = transform_ingresses(ingresses)
+    gke_ref = get_gke_cluster_ref(client)
+    transformed_ingresses = transform_ingresses(
+        ingresses, gke_ref.project if gke_ref else None
+    )
     load_ingresses(
         neo4j_session,
         transformed_ingresses,

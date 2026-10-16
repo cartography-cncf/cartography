@@ -9,11 +9,14 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.gke_utils import GKEClusterRef
+from cartography.intel.gcp.gke_utils import parse_cluster_ref
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.gke import GCPGKEClusterSchema
+from cartography.models.gcp.gke import GKENodePoolSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -38,6 +41,13 @@ def get_gke_clusters(container: Resource, project_id: str) -> Dict:
             container.projects().zones().clusters().list(projectId=project_id, zone="-")
         )
         res = gcp_api_execute_with_retry(req)
+        for cluster in res.get("clusters", []):
+            # selfLink may carry the project number; key on the project ID instead so
+            # Kubernetes-side lookups (`--gke-cluster projects/PROJECT_ID/...`) match.
+            reference = parse_cluster_ref(cluster["selfLink"])
+            cluster["resource_name"] = GKEClusterRef(
+                project_id, reference.location, reference.name
+            ).resource_name
         return res
     except HttpError as e:
         if classify_gcp_http_error(e) in (
@@ -81,11 +91,13 @@ def load_gke_clusters(
     )
 
 
-def _process_network_policy(cluster: Dict) -> bool:
+def _process_network_policy(cluster: Dict) -> str | bool:
     """
     Parse cluster.networkPolicy to verify if
     the provider has been enabled.
     """
+    if cluster.get("networkConfig", {}).get("datapathProvider") == "ADVANCED_DATAPATH":
+        return "DATAPLANE_V2"
     provider = cluster.get("networkPolicy", {}).get("provider")
     enabled = cluster.get("networkPolicy", {}).get("enabled")
     if provider and enabled is True:
@@ -101,6 +113,9 @@ def cleanup_gke_clusters(
     """
     Scoped cleanup for GKE clusters based on the project sub-resource relationship.
     """
+    GraphJob.from_node_schema(GKENodePoolSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
     GraphJob.from_node_schema(GCPGKEClusterSchema(), common_job_parameters).run(
         neo4j_session,
     )
@@ -146,6 +161,25 @@ def sync_gke_clusters(
             lastupdated=gcp_update_tag,
             PROJECT_ID=project_id,
         )
+    node_pools = transform_node_pools(gke_res)
+    if node_pools:
+        load(
+            neo4j_session,
+            GKENodePoolSchema(),
+            node_pools,
+            lastupdated=gcp_update_tag,
+            PROJECT_ID=project_id,
+        )
+    if gke_res.get("missingZones"):
+        # An unreachable zone is not an empty zone: keep clusters we could not see.
+        # Label sync also cleans up, so it waits for a complete listing too.
+        logger.warning(
+            "GKE cluster listing for project %s is missing zones %s; skipping "
+            "label sync and cleanup.",
+            project_id,
+            gke_res["missingZones"],
+        )
+        return
     sync_labels(
         neo4j_session,
         clusters,
@@ -157,15 +191,72 @@ def sync_gke_clusters(
     cleanup_gke_clusters(neo4j_session, common_job_parameters)
 
 
+def _transform_control_plane_endpoints(cluster: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Describe how clients can reach the GKE control plane (the Kubernetes API server).
+
+    `controlPlaneEndpointsConfig` supersedes `privateClusterConfig`: the DNS endpoint is
+    reachable from the internet when `allowExternalTraffic` is true (authorized by IAM
+    `container.clusters.connect`), and IP endpoints can be disabled entirely. Older
+    responses without it fall back to `privateClusterConfig.enablePrivateEndpoint`.
+    """
+    endpoints = cluster.get("controlPlaneEndpointsConfig")
+    if not endpoints:
+        private_endpoint = (cluster.get("privateClusterConfig") or {}).get(
+            "enablePrivateEndpoint"
+        )
+        return {
+            "dns_endpoint": None,
+            "dns_endpoint_enabled": None,
+            "dns_allow_kubernetes_tokens": None,
+            "dns_allow_kubernetes_certs": None,
+            "ip_endpoints_enabled": None,
+            "public_ip_endpoint_enabled": None,
+            "control_plane_public_access": not private_endpoint,
+        }
+    dns = endpoints.get("dnsEndpointConfig")
+    ip = endpoints.get("ipEndpointsConfig")
+    dns_enabled = bool(dns.get("allowExternalTraffic")) if dns is not None else None
+    ip_enabled = bool(ip.get("enabled")) if ip is not None else None
+    public_ip_enabled = (
+        bool(ip.get("enabled") and ip.get("enablePublicEndpoint"))
+        if ip is not None
+        else None
+    )
+    return {
+        "dns_endpoint": (dns or {}).get("endpoint"),
+        "dns_endpoint_enabled": dns_enabled,
+        "dns_allow_kubernetes_tokens": (
+            bool(dns.get("enableK8sTokensViaDns")) if dns is not None else None
+        ),
+        "dns_allow_kubernetes_certs": (
+            bool(dns.get("enableK8sCertsViaDns")) if dns is not None else None
+        ),
+        "ip_endpoints_enabled": ip_enabled,
+        "public_ip_endpoint_enabled": public_ip_enabled,
+        "control_plane_public_access": bool(dns_enabled or public_ip_enabled),
+    }
+
+
 def transform_gke_clusters(api_result: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Transform GKE API response into a list of dicts suitable for the data model loader.
     """
     result: List[Dict[str, Any]] = []
     for c in api_result.get("clusters", []):
+        ref = parse_cluster_ref(c.get("resource_name") or c["selfLink"])
         transformed: Dict[str, Any] = {
             # Required fields
             "id": c["selfLink"],
+            "resource_name": ref.resource_name,
+            "project_id": ref.project,
+            "gke_uid": c.get("id"),
+            "autopilot_enabled": (c.get("autopilot") or {}).get("enabled", False),
+            "workload_pool": (c.get("workloadIdentityConfig") or {}).get(
+                "workloadPool"
+            ),
+            "datapath_provider": (c.get("networkConfig") or {}).get("datapathProvider"),
+            **_transform_control_plane_endpoints(c),
             "self_link": c["selfLink"],
             "name": c["name"],
             "created_at": c.get("createTime"),
@@ -211,3 +302,31 @@ def transform_gke_clusters(api_result: Dict[str, Any]) -> List[Dict[str, Any]]:
         }
         result.append(transformed)
     return result
+
+
+def transform_node_pools(api_result: Dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Transform the `nodePools` of each cluster in a GKE API response.
+    """
+    pools = []
+    for cluster in api_result.get("clusters", []):
+        ref = parse_cluster_ref(cluster.get("resource_name") or cluster["selfLink"])
+        for pool in cluster.get("nodePools", []):
+            config = pool.get("config") or {}
+            pools.append(
+                {
+                    "id": f"{ref.resource_name}/nodePools/{pool['name']}",
+                    "name": pool["name"],
+                    "cluster_id": cluster["selfLink"],
+                    "cluster_resource_name": ref.resource_name,
+                    "service_account": config.get("serviceAccount"),
+                    "oauth_scopes": config.get("oauthScopes"),
+                    "workload_metadata_mode": (
+                        config.get("workloadMetadataConfig") or {}
+                    ).get("mode"),
+                    "instance_group_urls": pool.get("instanceGroupUrls"),
+                    "status": pool.get("status"),
+                    "version": pool.get("version"),
+                }
+            )
+    return pools

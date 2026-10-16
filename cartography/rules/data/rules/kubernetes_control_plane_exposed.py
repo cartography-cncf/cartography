@@ -56,12 +56,13 @@ _gcp_gke_control_plane_exposed = Fact(
     name="Internet-Exposed GKE Control Plane",
     description=(
         "GKE clusters whose Kubernetes API server is reachable from the "
-        "public internet. Derived from "
-        "privateClusterConfig.enablePrivateEndpoint: when false (or the "
-        "cluster is not configured as a private cluster at all), the "
-        "master endpoint is publicly reachable. Note: clusters restricted "
-        "via masterAuthorizedNetworksConfig still match, mirroring the AWS "
-        "EKS convention."
+        "public internet: the DNS-based endpoint accepts external traffic "
+        "(controlPlaneEndpointsConfig.dnsEndpointConfig.allowExternalTraffic) "
+        "or the public IP endpoint is enabled. Clusters without "
+        "controlPlaneEndpointsConfig fall back to "
+        "privateClusterConfig.enablePrivateEndpoint being false. Note: "
+        "clusters restricted via authorized networks or IAM still match, "
+        "mirroring the AWS EKS convention."
     ),
     cypher_query="""
     MATCH (c:GKECluster)
