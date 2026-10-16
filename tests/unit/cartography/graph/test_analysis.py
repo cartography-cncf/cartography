@@ -272,8 +272,16 @@ def test_statement_gates_incremental_variables_in_their_match_pattern(
         "MATCH (d:Device) WITH d, d.agent AS agent",
         "MATCH (d:Device) WITH d, d.agent AS agent WHERE (agent) IS NOT NULL",
         "MATCH (d:Device) OPTIONAL MATCH (d)-[:OBSERVED_AS]->(agent:Agent)",
+        "MATCH (d:Device) WHERE EXISTS { MATCH (d)-[:OBSERVED_AS]->(agent:Agent) }",
+        "MATCH (d:Device) // }\nOPTIONAL MATCH (d)-[:OBSERVED_AS]->(agent:Agent)",
     ],
-    ids=["projection", "parenthesized_expression", "optional_match"],
+    ids=[
+        "projection",
+        "parenthesized_expression",
+        "optional_match",
+        "subquery",
+        "optional_match_after_comment",
+    ],
 )
 def test_statement_rejects_incremental_variable_outside_a_required_pattern(match):
     # Arrange

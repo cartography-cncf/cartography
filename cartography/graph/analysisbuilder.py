@@ -210,7 +210,10 @@ def _incremental_targets(
 
 _FRESHNESS_GATE = "lastupdated: $UPDATE_TAG"
 _PATTERN_LABELS = r"(?:\s*:\s*[A-Za-z_][A-Za-z0-9_]*)*"
-_STRING_LITERAL = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"")
+_STRING_OR_COMMENT = re.compile(
+    r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"|//[^\n]*|/\*.*?\*/",
+    re.DOTALL,
+)
 _CLAUSE_KEYWORD = re.compile(
     r"(?<![A-Za-z0-9_.:$`])"
     r"(OPTIONAL\s+MATCH|MATCH|WHERE|WITH|RETURN|UNWIND|CALL|ORDER\s+BY|SKIP|LIMIT|UNION)"
@@ -254,7 +257,7 @@ def _find_in_required_match_patterns(
 ) -> re.Match[str] | None:
     # In an expression, an OPTIONAL MATCH or a subquery, the gate would change
     # what the statement matches instead of narrowing it to fresh rows.
-    masked = _STRING_LITERAL.sub(lambda literal: "_" * len(literal.group()), match)
+    masked = _STRING_OR_COMMENT.sub(lambda token: "_" * len(token.group()), match)
     clauses = [
         clause
         for clause in _CLAUSE_KEYWORD.finditer(masked)
