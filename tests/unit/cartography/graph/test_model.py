@@ -121,6 +121,11 @@ def test_microsoft_tenant_relationships_target_azure_tenant():
     )
 
 
+# `Ip` is a provider-neutral label for an address that a DNS name resolves to, shared with the
+# nodes other modules label `Ip`.
+AWS_UNPREFIXED_NODE_LABELS: Set[str] = {"Ip"}
+
+
 def test_aws_primary_node_labels_use_provider_prefix():
     errors: List[str] = []
     for module_name, element in load_models(cartography.models):
@@ -128,7 +133,10 @@ def test_aws_primary_node_labels_use_provider_prefix():
             continue
         if not is_node_schema(element):
             continue
-        if element.label.startswith("AWS"):
+        if (
+            element.label.startswith("AWS")
+            or element.label in AWS_UNPREFIXED_NODE_LABELS
+        ):
             continue
         errors.append(
             f"{element.__name__} uses unprefixed AWS label {element.label!r}.",
@@ -362,6 +370,8 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Public/global registry data.
     "DockerScoutPublicImage",
     "DockerScoutPublicImageTag",
+    # An IP address that a DNS name resolves to can be resolved from many accounts.
+    "Ip",
     # GCP Artifact Registry images are a shared canonical container-image node
     # whose tenancy is set dynamically through a MatchLink
     # (`_sub_resource_label`/`_sub_resource_id` kwargs) rather than a fixed

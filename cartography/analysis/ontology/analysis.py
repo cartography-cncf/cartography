@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
@@ -219,7 +221,10 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL WITH dns MATCH (ing:KubernetesIngress) WHERE dns._ont_name IN ing.host_names",
+            # DEPRECATED: the host_names fallback covers ingresses loaded before
+            # host_names_normalized existed, until their next Kubernetes sync. Will be
+            # removed in v1.0.0.
+            match="MATCH (ing:KubernetesIngress) UNWIND coalesce(ing.host_names_normalized, [host IN ing.host_names | toLower(rtrim(trim(host), '.'))]) AS hostname MATCH (dns:DNSRecord {_ont_name: hostname})",
             effects=(
                 AddRelationship(
                     "dns",
@@ -232,12 +237,31 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
         ),
     ),
 )
+DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
+    name="Ontology - DNSRecord to RailwayCustomDomain linking",
+    short_name="ontology_dnsrecords_railway_custom_domain",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            match="MATCH (domain:RailwayCustomDomain) WHERE domain.verified = true AND domain.domain_normalized IS NOT NULL WITH domain MATCH (dns:DNSRecord {_ont_name: domain.domain_normalized}) WHERE dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']",
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "domain",
+                    source_label="DNSRecord",
+                    target_label="RailwayCustomDomain",
+                ),
+            ),
+        ),
+    ),
+)
 BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
     name="Ontology - BbotDNSName to provider DNSRecord linking",
     short_name="ontology_bbot_dns_matches_provider",
     statements=(
         AnalysisStatement(
-            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND toLower(rtrim(bbot._ont_name, '.')) = toLower(rtrim(provider._ont_name, '.'))",
+            match="MATCH (bbot:BbotDNSName) WHERE bbot._ont_name IS NOT NULL WITH bbot MATCH (provider:DNSRecord {_ont_name: bbot._ont_name}) WHERE NOT provider:BbotDNSName",
             effects=(
                 AddRelationship(
                     "bbot",
@@ -250,77 +274,143 @@ BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
         ),
     ),
 )
+
+
+class DNSRecordTarget(NamedTuple):
+    label: str
+    # Hostname properties on the target. Legacy targets store raw provider values, so
+    # their match normalizes both sides at query time and cannot use an index.
+    # Normalized targets store canonical hostnames at ingestion and match by equality
+    # against the indexed DNSRecord._ont_target_hostname.
+    properties: tuple[str, ...]
+    match_filter: str = "AND NOT dns:GCPRecordSet"
+    cleanup_where: str = ""
+    normalized: bool = False
+    # Normalized list-valued hostname properties, such as Netlify domain aliases.
+    list_properties: tuple[str, ...] = ()
+
+
+_ROUTE53_EXCLUDED_FILTER = "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet"
+_ROUTE53_CLEANUP_WHERE = "NOT source:AWSDNSRecord"
+
 DNS_RECORD_TARGETS = (
-    (
+    DNSRecordTarget(
         "AWSLoadBalancerV2",
-        "dnsname",
-        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
-        "NOT source:AWSDNSRecord",
+        ("dnsname",),
+        _ROUTE53_EXCLUDED_FILTER,
+        _ROUTE53_CLEANUP_WHERE,
     ),
-    (
+    DNSRecordTarget(
         "AWSLoadBalancer",
-        "dnsname",
-        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
-        "NOT source:AWSDNSRecord",
+        ("dnsname",),
+        _ROUTE53_EXCLUDED_FILTER,
+        _ROUTE53_CLEANUP_WHERE,
     ),
-    ("AWSCloudFrontDistribution", "domain_name", "AND NOT dns:GCPRecordSet", ""),
-    (
+    DNSRecordTarget("AWSCloudFrontDistribution", ("domain_name",)),
+    DNSRecordTarget(
         "AWSEC2Instance",
-        "publicdnsname",
-        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
-        "NOT source:AWSDNSRecord",
+        ("publicdnsname",),
+        _ROUTE53_EXCLUDED_FILTER,
+        _ROUTE53_CLEANUP_WHERE,
     ),
-    ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
+    DNSRecordTarget("GCPInstance", ("hostname",)),
+    DNSRecordTarget("AzureAppService", ("default_host_name",)),
+    DNSRecordTarget("AzureFunctionApp", ("default_host_name",)),
+    DNSRecordTarget("RailwayServiceDomain", ("domain_normalized",), normalized=True),
+    DNSRecordTarget(
+        "ModalSandboxTunnel",
+        ("host_normalized", "unencrypted_host_normalized"),
+        normalized=True,
+    ),
+    DNSRecordTarget("ModalFunction", ("web_hostname",), normalized=True),
+    DNSRecordTarget("GCPCloudRunService", ("uri_hostname",), normalized=True),
+    DNSRecordTarget(
+        "NetlifySite",
+        ("default_domain_normalized", "custom_domain_normalized"),
+        normalized=True,
+        list_properties=("domain_aliases_normalized",),
+    ),
+    DNSRecordTarget(
+        "ScalewayServerlessContainer",
+        ("domain_name_normalized",),
+        normalized=True,
+    ),
+    DNSRecordTarget(
+        "ScalewayServerlessFunction",
+        ("domain_name_normalized",),
+        normalized=True,
+    ),
 )
+
+
+def _dns_record_target_matches(target: DNSRecordTarget) -> tuple[str, ...]:
+    label = target.label
+    if not target.normalized:
+        return tuple(
+            match
+            for prop in target.properties
+            for match in (
+                f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {target.match_filter} WITH dns MATCH (target:{label}) WHERE toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(target.{prop}, '.'))",
+                f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{label}) WHERE toLower(rtrim(val, '.')) = toLower(rtrim(target.{prop}, '.'))",
+            )
+        )
+
+    gcp_hostnames = "MATCH (dns:GCPRecordSet) WHERE dns._ont_target_hostnames IS NOT NULL UNWIND dns._ont_target_hostnames AS hostname WITH dns, hostname"
+    scalar_matches = tuple(
+        match
+        for prop in target.properties
+        for match in (
+            f"MATCH (target:{label}) WHERE target.{prop} IS NOT NULL WITH target MATCH (dns:DNSRecord {{_ont_target_hostname: target.{prop}}}) WHERE true {target.match_filter}",
+            f"{gcp_hostnames} MATCH (target:{label}) WHERE hostname = target.{prop}",
+        )
+    )
+    # GCPRecordSet hostnames are list-valued and a list property cannot be indexed, so
+    # the GCP side of a list match scans the target label.
+    list_matches = tuple(
+        match
+        for prop in target.list_properties
+        for match in (
+            f"MATCH (target:{label}) WHERE target.{prop} IS NOT NULL UNWIND target.{prop} AS hostname WITH target, hostname MATCH (dns:DNSRecord {{_ont_target_hostname: hostname}}) WHERE true {target.match_filter}",
+            f"{gcp_hostnames} MATCH (target:{label}) WHERE hostname IN target.{prop}",
+        )
+    )
+    return scalar_matches + list_matches
+
+
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
+    DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN,
     BBOT_DNS_MATCHES_PROVIDER,
 ) + tuple(
-    (
-        AnalysisJob(
-            name=f"Ontology - DNSRecord to {target_label} linking",
-            short_name=f"ontology_dnsrecords_{target_label.lower()}",
-            cleanup_iterationsize=1000,
-            statements=(
-                AnalysisStatement(
-                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(toString(dns._ont_value)) = toLower(target.{target_property})",
-                    effects=(
-                        AddRelationship(
-                            "dns",
-                            "DNS_POINTS_TO",
-                            "target",
-                            source_label="DNSRecord",
-                            target_label=target_label,
-                            cleanup_where=cleanup_where,
-                        ),
+    AnalysisJob(
+        name=f"Ontology - DNSRecord to {target.label} linking",
+        short_name=f"ontology_dnsrecords_{target.label.lower()}",
+        cleanup_iterationsize=1000,
+        statements=tuple(
+            AnalysisStatement(
+                match=match,
+                effects=(
+                    AddRelationship(
+                        "dns",
+                        "DNS_POINTS_TO",
+                        "target",
+                        # Every statement declares the same effect, cleanup_where
+                        # included, so their cleanups dedupe into a single guarded
+                        # delete. GCPRecordSet carries the DNSRecord label and is never
+                        # an AWSDNSRecord, so that one delete also covers the GCP edges;
+                        # declaring GCPRecordSet as the source would only add a redundant
+                        # cleanup, and omitting cleanup_where would add an unguarded one
+                        # that deletes the provider-owned edges the guard protects.
+                        source_label="DNSRecord",
+                        target_label=target.label,
+                        cleanup_where=target.cleanup_where,
                     ),
                 ),
-                AnalysisStatement(
-                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(val) = toLower(target.{target_property})",
-                    effects=(
-                        AddRelationship(
-                            "dns",
-                            "DNS_POINTS_TO",
-                            "target",
-                            # Declared identically to the statement above, cleanup_where
-                            # included, so the two cleanup effects dedupe into a single
-                            # guarded delete. GCPRecordSet carries the DNSRecord label and is
-                            # never an AWSDNSRecord, so that one delete already covers these
-                            # edges; declaring GCPRecordSet here would only add a redundant
-                            # cleanup, and omitting cleanup_where would add an unguarded one
-                            # that deletes the provider-owned edges the guard protects.
-                            source_label="DNSRecord",
-                            target_label=target_label,
-                            cleanup_where=cleanup_where,
-                        ),
-                    ),
-                ),
-            ),
-        )
-        for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
+            )
+            for match in _dns_record_target_matches(target)
+        ),
     )
+    for target in DNS_RECORD_TARGETS
 )
 BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
     name="Ontology - BbotIPAddress to PublicIP linking",

@@ -43,6 +43,7 @@ from cartography.util import timeit
 
 from . import ec2
 from . import organizations
+from . import resourcegroupstaggingapi
 from . import ssm as ssm_intel
 from .resources import RESOURCE_FUNCTIONS
 
@@ -732,6 +733,15 @@ def _sync_multiple_accounts(
             neo4j_session,
             common_job_parameters,
         )
+        # AWSTag nodes are shared across accounts, so unlinked ones can only be removed once
+        # every account has linked its tags. This is skipped when an account failed in
+        # best-effort mode (the raise above), so tags that account would have linked survive
+        # and any true orphans are removed on the next fully successful sync.
+        if "resourcegroupstaggingapi" in aws_requested_syncs:
+            resourcegroupstaggingapi.cleanup_orphan_tags(
+                neo4j_session,
+                common_job_parameters,
+            )
         return True
     return False
 

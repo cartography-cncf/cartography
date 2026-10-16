@@ -1,0 +1,11 @@
+{
+  "name": "AWS tag legacy relationship cleanup",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: TAGGED relationships written before AWSTag moved to the data model have no _sub_resource_id, so the MatchLink cleanup never matches them. Remove this account's stale ones. Will be removed in v1.0.0.",
+      "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->()-[r:TAGGED]->(:AWSTag) WHERE r._sub_resource_id IS NULL AND r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

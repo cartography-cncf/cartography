@@ -318,6 +318,52 @@ def _build_ontology_field_statement_coalesce(
     )
 
 
+def _build_ontology_field_statement_normalize_hostname(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+    node_property_map: dict[str, PropertyRef],
+) -> str | None:
+    """Build a Cypher assignment that normalizes a hostname.
+
+    If `record_types` is set, normalize only records of those types.
+    """
+    normalized_expression = f"toLower(rtrim(trim(toString({property_ref})), '.'))"
+    record_types = mapping_field.extra.get("record_types")
+    if record_types is not None:
+        if not isinstance(record_types, list) or not all(
+            isinstance(record_type, str) for record_type in record_types
+        ):
+            logger.warning(
+                "normalize_hostname special handling 'record_types' for field %s must be a list of strings",
+                mapping_field.ontology_field,
+            )
+            return None
+        record_type_field = mapping_field.extra.get("record_type_field", "type")
+        record_type_propertyref = node_property_map.get(record_type_field)
+        if not record_type_propertyref:
+            logger.warning(
+                "Record type field '%s' not found for hostname normalization of field %s",
+                record_type_field,
+                mapping_field.ontology_field,
+            )
+            return None
+        escaped_record_types = ", ".join(
+            f"'{_escape_cypher_string(record_type)}'" for record_type in record_types
+        )
+        normalized_expression = (
+            "CASE "
+            f"WHEN toUpper(toString({record_type_propertyref})) IN [{escaped_record_types}] "
+            f"THEN {normalized_expression} "
+            "ELSE null END"
+        )
+
+    return (
+        f"i._ont_{mapping_field.ontology_field} = CASE "
+        f"WHEN {property_ref} IS NULL OR {normalized_expression} = '' "
+        f"THEN null ELSE {normalized_expression} END"
+    )
+
+
 def _build_ontology_node_properties_statement(
     node_schema: CartographyNodeSchema,
     node_property_map: dict[str, PropertyRef],
@@ -401,6 +447,14 @@ def _build_ontology_node_properties_statement(
             )
             if coalesce_statement:
                 set_clauses.append(coalesce_statement)
+        elif mapping_field.special_handling == "normalize_hostname":
+            normalize_hostname_statement = (
+                _build_ontology_field_statement_normalize_hostname(
+                    mapping_field, node_propertyref, node_property_map
+                )
+            )
+            if normalize_hostname_statement:
+                set_clauses.append(normalize_hostname_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
@@ -1597,19 +1651,27 @@ def _build_matchlink_endpoint_match(
     sub_resource_var: str | None,
     sub_resource: MatchLinkSubResource | None,
 ) -> str:
-    rel_pattern = ""
+    # The sub-resource check is an EXISTS subquery, not part of the MATCH pattern.
+    # As a pattern, the planner can find the endpoint by expanding every relationship
+    # of the already-bound sub-resource and filtering on the endpoint properties,
+    # instead of seeking the endpoint's index: on a tenant with 142k RESOURCE
+    # relationships that is 142k expansions per row, and a ~1M-row Intune HAS_APP
+    # load ran for over 20 hours. With EXISTS, the index seek is the only way to
+    # find the endpoint.
+    sub_resource_check = ""
     if sub_resource and sub_resource_var:
         if sub_resource.direction == LinkDirection.INWARD:
             rel_pattern = f"<-[:{sub_resource.rel_label}]-({sub_resource_var})"
         else:
             rel_pattern = f"-[:{sub_resource.rel_label}]->({sub_resource_var})"
+        sub_resource_check = f" WHERE EXISTS {{ ({endpoint_var}){rel_pattern} }}"
     return Template(
-        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$rel_pattern"
+        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$sub_resource_check"
     ).safe_substitute(
         endpoint_var=endpoint_var,
         endpoint_label=endpoint_label,
         match_clause=_build_match_clause(matcher),
-        rel_pattern=rel_pattern,
+        sub_resource_check=sub_resource_check,
     )
 
 

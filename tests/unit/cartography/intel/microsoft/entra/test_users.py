@@ -53,6 +53,47 @@ def test_activity_timestamps_and_missing_activity() -> None:
         assert row["last_non_interactive_sign_in_date_time"] is None
 
 
+@pytest.mark.parametrize("risk_readable", [True, False])  # type: ignore[misc]
+@pytest.mark.parametrize("registrations_readable", [True, False])  # type: ignore[misc]
+def test_transform_merges_mfa_registration_and_risk(
+    registrations_readable: bool, risk_readable: bool
+) -> None:
+    # Arrange
+    registrations = {
+        "listed": {
+            "is_mfa_registered": True,
+            "is_mfa_capable": True,
+            "mfa_methods_registered": ["fido2"],
+        },
+    }
+    risky_users = {
+        "listed": {
+            "risk_level": "high",
+            "risk_state": "atRisk",
+            "risk_detail": "none",
+            "risk_last_updated_date_time": None,
+        },
+    }
+    users = [User(id="listed"), User(id="unlisted")]
+
+    # Act
+    listed, unlisted = transform_users(
+        users,
+        activity_available=True,
+        mfa_registrations=registrations if registrations_readable else None,
+        risky_users=risky_users if risk_readable else None,
+    )
+
+    # Assert: each report's flag and fields follow only that report.
+    for row in (listed, unlisted):
+        assert row["mfa_registration_available"] is registrations_readable
+        assert row["risk_available"] is risk_readable
+    assert listed["is_mfa_registered"] is (True if registrations_readable else None)
+    assert listed["risk_level"] == ("high" if risk_readable else None)
+    for field in ("is_mfa_registered", "mfa_methods_registered", "risk_level"):
+        assert unlisted[field] is None
+
+
 def _client() -> MagicMock:
     client = MagicMock()
     client.users.UsersRequestBuilderGetRequestConfiguration = (

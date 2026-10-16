@@ -48,6 +48,10 @@ def _mock_graph_client(*args, **kwargs):
     client.users.get = AsyncMock(
         return_value=UserCollectionResponse(value=MOCK_ENTRA_USERS),
     )
+    client.reports.authentication_methods.user_registration_details.get = AsyncMock(
+        return_value=None
+    )
+    client.identity_protection.risky_users.get = AsyncMock(return_value=None)
     return client
 
 

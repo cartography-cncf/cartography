@@ -67,6 +67,18 @@ def test_load_cloudflare_dnsrecords(mock_cloudflare, mock_api, neo4j_session):
         )
         == expected_nodes
     )
+    assert check_nodes(
+        neo4j_session,
+        "CloudflareDNSRecord",
+        ["id", "_ont_name", "_ont_target_hostname"],
+    ) == {
+        ("2b534a38-8658-48c0-8d6d-f9277d689c75", "simpson.corp", None),
+        (
+            "922f7919-e12b-4f46-800f-74b433724d29",
+            "www.simpson.corp",
+            "simpson.corp",
+        ),
+    }
 
     # Assert DNSRecords are connected with Account (the tenant)
     expected_account_rels = {
@@ -199,3 +211,63 @@ def test_cloudflare_dnsrecord_resource_edge_migration_cleans_legacy_records(
     }
     assert "legacy-stale" not in remaining
     assert "legacy-fresh" in remaining
+
+
+def test_load_cloudflare_dnsrecords_normalizes_ontology_hostnames(neo4j_session):
+    _ensure_local_neo4j_has_test_accounts(neo4j_session)
+    _ensure_local_neo4j_has_test_zones(neo4j_session)
+
+    cartography.intel.cloudflare.dnsrecords.load_dnsrecords(
+        neo4j_session,
+        [
+            {
+                "id": "normalize-cname",
+                "name": " WWW.Example.COM. ",
+                "type": "CNAME",
+                "content": "Target.Example.NET.",
+            },
+            {
+                "id": "normalize-txt",
+                "name": "_Verify.Example.COM.",
+                "type": "TXT",
+                "content": "Case-Sensitive.Token.",
+            },
+        ],
+        ACCOUNT_ID,
+        ZONE_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    assert {
+        row
+        for row in check_nodes(
+            neo4j_session,
+            "CloudflareDNSRecord",
+            [
+                "id",
+                "name",
+                "value",
+                "_ont_name",
+                "_ont_value",
+                "_ont_target_hostname",
+            ],
+        )
+        if row[0] in {"normalize-cname", "normalize-txt"}
+    } == {
+        (
+            "normalize-cname",
+            " WWW.Example.COM. ",
+            "Target.Example.NET.",
+            "www.example.com",
+            "Target.Example.NET.",
+            "target.example.net",
+        ),
+        (
+            "normalize-txt",
+            "_Verify.Example.COM.",
+            "Case-Sensitive.Token.",
+            "_verify.example.com",
+            "Case-Sensitive.Token.",
+            None,
+        ),
+    }

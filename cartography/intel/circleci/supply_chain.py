@@ -11,6 +11,7 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import run_write_query
 from cartography.intel.circleci.util import paginated_get
 from cartography.intel.circleci.util import parse_iso
@@ -126,7 +127,9 @@ def get_unmatched_circleci_candidate_images(
         RETURN img.digest AS digest, tags
     """
 
-    result = neo4j_session.run(query, update_tag=update_tag, org_id=org_id)
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx, query, update_tag=update_tag, org_id=org_id
+    )
     images = [
         {
             "digest": record["digest"],
@@ -364,7 +367,7 @@ def get_circleci_edged_image_tags(
         OPTIONAL MATCH (img)<-[:IMAGE]-(t:ImageTag)
         RETURN img.digest AS digest, collect(DISTINCT t.name) AS tags
     """
-    result = neo4j_session.run(query, org_id=org_id)
+    result = neo4j_session.execute_read(read_list_of_dicts_tx, query, org_id=org_id)
     return [
         {
             "digest": record["digest"],

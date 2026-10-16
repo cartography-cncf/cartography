@@ -16,6 +16,7 @@ import cartography.intel.microsoft.intune.reports
 from cartography.intel.microsoft.intune.reports import download_export_report_rows
 from cartography.intel.microsoft.intune.reports import export_report_rows
 from cartography.intel.microsoft.intune.reports import IntuneReportExportError
+from cartography.intel.microsoft.intune.reports import IntuneReportTooLargeError
 from cartography.intel.microsoft.intune.reports import wait_for_export_job
 
 
@@ -134,14 +135,54 @@ def test_download_export_report_rows_parses_csv_zip_and_preserves_missing_option
         stream=True,
         timeout=60,
     )
-    assert result.fieldnames == ("ApplicationKey", "ApplicationName", "ApplicationId")
-    assert result.rows == [
+    expected_rows = [
         {
             "ApplicationKey": "4f5c",
             "ApplicationName": "Google Chrome",
             "ApplicationId": None,
         },
     ]
+    with result:
+        assert result.fieldnames == (
+            "ApplicationKey",
+            "ApplicationName",
+            "ApplicationId",
+        )
+        # The detected-apps sync makes two passes over the raw export.
+        assert list(result.rows) == expected_rows
+        assert list(result.rows) == expected_rows
+    assert result.archive_file is not None
+    assert result.archive_file.closed
+
+
+def test_download_export_report_rows_rejects_oversized_archive():
+    response = _mock_streaming_response(
+        _build_zip({"report.csv": "ApplicationKey\n4f5c\n"}),
+    )
+    session = _mock_retryable_session(response)
+
+    with (
+        patch.object(
+            cartography.intel.microsoft.intune.reports,
+            "_build_retryable_session",
+            return_value=session,
+        ),
+        patch.object(
+            cartography.intel.microsoft.intune.reports,
+            "MAX_REPORT_ARCHIVE_BYTES",
+            8,
+        ),
+    ):
+        # A subclass of IntuneReportExportError, so the Intune sync skips
+        # detected apps instead of failing the whole Microsoft sync.
+        with pytest.raises(
+            IntuneReportTooLargeError,
+            match="AppInvRawData exceeded the maximum compressed size",
+        ):
+            download_export_report_rows(
+                "https://example.test/report.zip",
+                "AppInvRawData",
+            )
 
 
 def test_download_export_report_rows_rejects_multiple_csv_members():
@@ -221,6 +262,17 @@ async def test_export_report_rows_creates_job_and_downloads_rows(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "first_attempt",
+    [
+        TimeoutError("Timed out waiting for export job job-stalled"),
+        DeviceManagementExportJob(
+            id="job-stalled",
+            status=DeviceManagementReportStatus.Completed,
+        ),
+    ],
+    ids=["stalled", "completed_without_url"],
+)
 @patch.object(
     cartography.intel.microsoft.intune.reports,
     "download_export_report_rows",
@@ -230,12 +282,14 @@ async def test_export_report_rows_creates_job_and_downloads_rows(
     "wait_for_export_job",
     new_callable=AsyncMock,
 )
-async def test_export_report_rows_resubmits_after_stalled_job(
+async def test_export_report_rows_resubmits_after_unusable_job(
     mock_wait_for_export_job,
     mock_download_export_report_rows,
+    first_attempt,
 ):
-    # Microsoft Graph sometimes strands the first export job in `inProgress`;
-    # export_report_rows must submit a fresh job and recover within the run.
+    # Microsoft Graph sometimes strands the first export job in `inProgress`
+    # or completes it without a download URL; export_report_rows must submit a
+    # fresh job and recover within the run.
     client = MagicMock()
     export_jobs_builder = client.device_management.reports.export_jobs
     export_jobs_builder.post = AsyncMock(
@@ -245,7 +299,7 @@ async def test_export_report_rows_resubmits_after_stalled_job(
         ],
     )
     mock_wait_for_export_job.side_effect = [
-        TimeoutError("Timed out waiting for export job job-stalled"),
+        first_attempt,
         DeviceManagementExportJob(
             id="job-recovered",
             status=DeviceManagementReportStatus.Completed,

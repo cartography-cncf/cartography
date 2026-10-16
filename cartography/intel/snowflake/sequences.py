@@ -9,15 +9,13 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import list_schema_objects
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
-from cartography.intel.snowflake.util import sf_path_segment
-from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.sequence import SnowflakeSequenceSchema
 from cartography.util import timeit
@@ -32,19 +30,7 @@ def get_schema_sequences(
     schema_name: str,
 ) -> list[dict[str, Any]] | None:
     """Sequences of one schema, or None when the role cannot read that schema."""
-    try:
-        return client.list_all(
-            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}/sequences",
-        )
-    except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
-        logger.warning(
-            "Cannot list sequences of Snowflake schema %s.%s (permission denied); "
-            "they will be missing from the graph.",
-            database_name,
-            schema_name,
-        )
-        return None
+    return list_schema_objects(client, database_name, schema_name, "sequences")
 
 
 @timeit

@@ -8,12 +8,15 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.dns_utils import normalize_hostname_values
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.dns import GCPDNSZoneSchema
 from cartography.models.gcp.dns import GCPRecordSetSchema
+from cartography.models.ontology.mapping.data.dnsrecords import HOSTNAME_RECORD_TYPES
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -128,14 +131,21 @@ def transform_dns_rrs(dns_rrs: List[Dict]) -> List[Dict]:
     """Transform raw DNS record set responses into Neo4j-ready dicts."""
     records: List[Dict] = []
     for r in dns_rrs:
+        record_type = r.get("type")
+        data = r.get("rrdatas")
         records.append(
             {
                 # Compose a unique ID to avoid collisions across types and zones
                 "id": f"{r['name']}|{r.get('type')}|{r.get('zone')}",
                 "name": r["name"],
-                "type": r.get("type"),
+                "type": record_type,
                 "ttl": r.get("ttl"),
-                "data": r.get("rrdatas"),
+                "data": data,
+                "target_hostnames": (
+                    normalize_hostname_values(data)
+                    if record_type in HOSTNAME_RECORD_TYPES
+                    else []
+                ),
                 "zone_id": r.get("zone"),
             }
         )
@@ -182,6 +192,13 @@ def cleanup_dns_records(
     common_job_parameters: Dict,
 ) -> None:
     """Delete out-of-date GCP DNS Zones and Record Sets nodes and relationships."""
+    # DEPRECATED: cleanup for record sets written before the data model migration, which have
+    # no RESOURCE edge from their project; remove in v1.0.0.
+    run_scoped_analysis_job(
+        "gcp_dns_legacy_record_set_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
     # Record sets depend on zones, so clean them up first.
     GraphJob.from_node_schema(GCPRecordSetSchema(), common_job_parameters).run(
         neo4j_session,

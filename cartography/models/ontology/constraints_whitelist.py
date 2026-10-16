@@ -187,11 +187,18 @@ from cartography.models.kubernetes.statefulsets import (
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.okta.awssaml import OktaGroupToAWSRoleAllowedByMatchLink
 from cartography.models.okta.group import OktaGroupToOktaUserDeprecatedRel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
 from cartography.models.openai.apikey import OpenAIApiKeyToSARel
 from cartography.models.openai.apikey import OpenAIApiKeyToUserRel
+from cartography.models.railway.deployment import RailwayDeploymentToECRImageRel
+from cartography.models.railway.deployment import (
+    RailwayDeploymentToGCPArtifactRegistryImageRel,
+)
+from cartography.models.railway.deployment import RailwayDeploymentToGitHubImageRel
+from cartography.models.railway.deployment import RailwayDeploymentToGitLabImageRel
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToApplicationRel
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToUserRel
 from cartography.models.scaleway.serverless.container import (
@@ -239,6 +246,7 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         KeycloakUserAssumeRoleMatchLink,
         AWSSSOGroupToPermissionSetRel,
         KeycloakGroupToRoleRel,
+        OktaGroupToAWSRoleAllowedByMatchLink,
         # ALLOWED_BY is a distinct "this role is assumable by that SSO user"
         # semantic (PermissionRole->UserAccount), not a role assignment, so it
         # intentionally runs counter to the HAS_ROLE (UserAccount->PermissionRole)
@@ -368,6 +376,10 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         AzureContainerInstanceToGitLabContainerImageRel,
         AzureContainerInstanceToGCPArtifactRegistryImageRel,
         AzureContainerInstanceToGitHubContainerImageRel,
+        RailwayDeploymentToECRImageRel,
+        RailwayDeploymentToGitLabImageRel,
+        RailwayDeploymentToGCPArtifactRegistryImageRel,
+        RailwayDeploymentToGitHubImageRel,
         ScalewayServerlessContainerToImageRel,
         SnowflakeServiceContainerToImageRel,
         AWSLambdaToECRImageRel,

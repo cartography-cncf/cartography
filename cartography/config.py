@@ -185,6 +185,22 @@ class Config:
     :param okta_org_id: Okta organization id. Optional.
     :type okta_api_key: str
     :param okta_api_key: Okta API key. Optional.
+    :type okta_client_id: str
+    :param okta_client_id: Client ID of an Okta OAuth service app. When set with
+        ``okta_private_key``, used instead of ``okta_api_key``. Optional.
+    :type okta_private_key: str
+    :param okta_private_key: Private key of the Okta OAuth service app, as a PEM
+        string or a JWK. Optional.
+    :type okta_private_key_id: str
+    :param okta_private_key_id: Key ID (``kid``) of the service app's public key.
+        Not needed when ``okta_private_key`` is a JWK that carries its ``kid``.
+        Optional.
+    :type okta_scopes: str
+    :param okta_scopes: Comma-separated OAuth scopes to request.
+        Defaults to every read scope the Okta sync uses. Optional.
+    :type okta_dpop_enabled: bool
+    :param okta_dpop_enabled: Whether to bind OAuth access tokens with DPoP.
+        Defaults to True. Optional.
     :type okta_saml_role_regex: str
     :param okta_saml_role_regex: The regex used to map okta groups to AWS roles. Optional.
     :type github_config: str
@@ -821,6 +837,11 @@ class Config:
         opsgenie_api_key=None,
         opsgenie_api_url="https://api.opsgenie.com",
         opsgenie_request_timeout=60,
+        okta_client_id=None,
+        okta_private_key=None,
+        okta_private_key_id=None,
+        okta_scopes=None,
+        okta_dpop_enabled=True,
         gke_clusters: list[str] | None = None,
         gke_endpoint: str = "dns",
         gke_impersonate_service_account: str | None = None,
@@ -899,6 +920,15 @@ class Config:
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
+        if bool(okta_client_id) != bool(okta_private_key):
+            raise ValueError(
+                "Okta OAuth requires both okta_client_id and okta_private_key.",
+            )
+        self.okta_client_id = okta_client_id
+        self.okta_private_key = okta_private_key
+        self.okta_private_key_id = okta_private_key_id
+        self.okta_scopes = okta_scopes
+        self.okta_dpop_enabled = okta_dpop_enabled
         self.okta_base_domain = okta_base_domain
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config

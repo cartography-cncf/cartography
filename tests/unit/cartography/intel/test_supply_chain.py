@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_container_parent_image
@@ -237,7 +238,7 @@ def test_unmatched_image_helpers_limit_before_layer_history_expansion(
     stable_order,
 ):
     neo4j_session = MagicMock()
-    neo4j_session.run.return_value = []
+    neo4j_session.execute_read.return_value = []
 
     helper(
         neo4j_session,
@@ -247,7 +248,8 @@ def test_unmatched_image_helpers_limit_before_layer_history_expansion(
         limit=10,
     )
 
-    query = neo4j_session.run.call_args.args[0]
+    tx_func, query = neo4j_session.execute_read.call_args.args[:2]
+    assert tx_func is read_list_of_dicts_tx
     assert (
         query.index(stable_order)
         < query.index("LIMIT 10")

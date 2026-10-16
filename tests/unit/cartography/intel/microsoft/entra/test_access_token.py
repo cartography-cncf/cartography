@@ -10,6 +10,7 @@ from cartography.config import Config
 
 ENTRA_SYNCS = (
     "sync_tenant",
+    "sync_entra_domains",
     "sync_entra_users",
     "sync_entra_groups",
     "sync_entra_ous",

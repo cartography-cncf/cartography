@@ -318,10 +318,84 @@ aws_rds_encryption_at_rest = Rule(
 # Missing datamodel or evidence: RDS field auto_minor_version_upgrade
 # =============================================================================
 
+
 # =============================================================================
-# TODO: CIS AWS 3.2.3: RDS instances are not publicly accessible
-# Missing datamodel or evidence: none; current RDS nodes already expose publicly_accessible, but the corresponding rule is not implemented yet
+# CIS AWS 3.2.3: RDS instances are not publicly accessible
+# Main node: AWSRDSInstance
 # =============================================================================
+class RdsPubliclyAccessibleOutput(Finding):
+    """Output model for the RDS public accessibility check."""
+
+    db_identifier: str | None = None
+    db_arn: str | None = None
+    engine: str | None = None
+    endpoint_address: str | None = None
+    endpoint_port: int | None = None
+    region: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+# Unlike `database_instance_exposed`, this does not require a 0.0.0.0/0 ingress
+# rule. A publicly accessible instance resolves to a public IP, so one security
+# group rule for any public source, even a single /32, puts the database on the
+# internet.
+_aws_rds_publicly_accessible = Fact(
+    id="aws_rds_publicly_accessible",
+    name="AWS RDS instances that are publicly accessible",
+    description=(
+        "Detects RDS instances with publicly_accessible = true. Such instances "
+        "resolve to a public IP address, so any security group rule that admits "
+        "a public source exposes the database to the internet."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance)
+    WHERE rds.publicly_accessible = true
+    RETURN
+        rds.db_instance_identifier AS db_identifier,
+        rds.arn AS db_arn,
+        rds.engine AS engine,
+        rds.endpoint_address AS endpoint_address,
+        rds.endpoint_port AS endpoint_port,
+        rds.region AS region,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(rds:AWSRDSInstance)
+    WHERE rds.publicly_accessible = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (rds:AWSRDSInstance)
+    RETURN COUNT(rds) AS count
+    """,
+    asset_id_field="db_arn",
+    asset_label="AWSRDSInstance",
+    identity_fields=("db_arn",),
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+aws_rds_instances_publicly_accessible = Rule(
+    id="aws_rds_instances_publicly_accessible",
+    name="RDS Instances Publicly Accessible",
+    description=(
+        "RDS instances should not be publicly accessible. Keep databases in "
+        "private subnets and reach them over private networking, so that a "
+        "security group change alone cannot expose them to the internet."
+    ),
+    output_model=RdsPubliclyAccessibleOutput,
+    facts=(_aws_rds_publicly_accessible,),
+    tags=("storage", "rds", "network", "stride:information_disclosure"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+    frameworks=(
+        cis_aws("3.2.3"),
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
+)
 
 # =============================================================================
 # TODO: CIS AWS 3.2.4: Multi-AZ deployments are used for enhanced availability in Amazon RDS

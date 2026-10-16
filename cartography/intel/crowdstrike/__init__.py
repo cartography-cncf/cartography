@@ -56,12 +56,12 @@ def start_crowdstrike_ingestion(
         config.update_tag,
         authorization,
     )
-    sync_vulnerabilities(
+    spotlight_synced = sync_vulnerabilities(
         neo4j_session,
         config.update_tag,
         authorization,
     )
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters, spotlight_synced)
 
     group_id = "public"
     if config.crowdstrike_api_url:
@@ -88,7 +88,9 @@ def _list_tenant_cids(neo4j_session: neo4j.Session) -> list[str]:
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    spotlight_synced: bool = True,
 ) -> None:
     logger.info("Running Crowdstrike cleanup")
     # DEPRECATED: compatibility migration to backfill CrowdstrikeTenant nodes
@@ -108,9 +110,13 @@ def cleanup(
         GraphJob.from_node_schema(CrowdstrikeHostSchema(), scoped_params).run(
             neo4j_session
         )
-        GraphJob.from_node_schema(SpotlightVulnerabilitySchema(), scoped_params).run(
-            neo4j_session
-        )
+        if spotlight_synced:
+            GraphJob.from_node_schema(
+                SpotlightVulnerabilitySchema(), scoped_params
+            ).run(neo4j_session)
+
+    if not spotlight_synced:
+        return
 
     # CrowdstrikeFinding (CVE) is global — scoped_cleanup=False on the schema.
     GraphJob.from_node_schema(CrowdstrikeCVESchema(), common_job_parameters).run(

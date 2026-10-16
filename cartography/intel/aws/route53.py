@@ -1,4 +1,5 @@
 import logging
+import re
 from collections import namedtuple
 from typing import Any
 
@@ -11,6 +12,7 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.dns_utils import normalize_hostname
 from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
 from cartography.models.aws.route53.nameserver import NameServerSchema
 from cartography.models.aws.route53.subzone import AWSDNSZoneSubzoneMatchLink
@@ -26,6 +28,11 @@ _ELB_DNS_SUFFIXES = (
     ".elb.amazonaws.com",
     ".elb.amazonaws.com.cn",
 )
+
+# Route53 returns every character outside a-z, 0-9, `-`, `_` and `.` as a `\ddd` octal escape,
+# so a wildcard record comes back as `\052.example.com`.
+# https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DomainNameFormat.html
+_ROUTE53_OCTAL_ESCAPE = re.compile(r"\\([0-7]{3})")
 
 DnsData = namedtuple(
     "DnsData",
@@ -85,6 +92,41 @@ def _normalize_alias_target(value: str) -> str:
     return normalized
 
 
+def _decode_route53_escapes(value: str) -> str:
+    r"""
+    Decode the `\ddd` octal escapes Route53 uses for special characters, such as `\052` for `*`.
+
+    Only escapes that stand for a printable ASCII character are decoded. An escaped `.` or `\`
+    stays escaped because decoding it would change how the name splits into labels, and
+    whitespace, control characters and non-ASCII bytes stay escaped because they cannot be part
+    of a hostname that another provider reports.
+    """
+
+    def _decode(match: re.Match[str]) -> str:
+        char = chr(int(match.group(1), 8))
+        if (
+            char.isascii()
+            and char.isprintable()
+            and not char.isspace()
+            and char not in ".\\"
+        ):
+            return char
+        return match.group(0)
+
+    return _ROUTE53_OCTAL_ESCAPE.sub(_decode, value)
+
+
+def _route53_hostname(value: str) -> str | None:
+    return normalize_hostname(_decode_route53_escapes(value))
+
+
+def _with_hostnames(record: dict[str, Any]) -> dict[str, Any]:
+    record["name_normalized"] = _route53_hostname(record["name"])
+    if record["type"] in {"CNAME", "ALIAS"}:
+        record["target_hostname"] = _route53_hostname(record["value"])
+    return record
+
+
 @timeit
 def get_zone_record_sets(
     client: botocore.client.BaseClient,
@@ -116,6 +158,13 @@ def get_zones(
 
 
 def transform_record_set(
+    record_set: dict[str, Any], zone_id: str, name: str
+) -> dict[str, Any] | None:
+    record = _transform_record_set(record_set, zone_id, name)
+    return _with_hostnames(record) if record else None
+
+
+def _transform_record_set(
     record_set: dict[str, Any], zone_id: str, name: str
 ) -> dict[str, Any] | None:
     # process CNAME, ALIAS, A, and AAAA records
@@ -206,14 +255,16 @@ def transform_ns_record_set(
             _normalize_dns_address(record["Value"])
             for record in record_set["ResourceRecords"]
         ]
-        return {
-            "zoneid": zone_id,
-            "type": "NS",
-            # looks like "name.some.fqdn.net.", so this removes the trailing comma.
-            "name": _normalize_dns_address(record_set["Name"]),
-            "servers": servers,
-            "id": _create_dns_record_id(zone_id, record_set["Name"][:-1], "NS"),
-        }
+        return _with_hostnames(
+            {
+                "zoneid": zone_id,
+                "type": "NS",
+                # looks like "name.some.fqdn.net.", so this removes the trailing comma.
+                "name": _normalize_dns_address(record_set["Name"]),
+                "servers": servers,
+                "id": _create_dns_record_id(zone_id, record_set["Name"][:-1], "NS"),
+            }
+        )
     else:
         # This should never happen since we only call this for NS records
         # but we'll log it and return None.
