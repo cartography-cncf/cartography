@@ -1651,19 +1651,27 @@ def _build_matchlink_endpoint_match(
     sub_resource_var: str | None,
     sub_resource: MatchLinkSubResource | None,
 ) -> str:
-    rel_pattern = ""
+    # The sub-resource check is an EXISTS subquery, not part of the MATCH pattern.
+    # As a pattern, the planner can find the endpoint by expanding every relationship
+    # of the already-bound sub-resource and filtering on the endpoint properties,
+    # instead of seeking the endpoint's index: on a tenant with 142k RESOURCE
+    # relationships that is 142k expansions per row, and a ~1M-row Intune HAS_APP
+    # load ran for over 20 hours. With EXISTS, the index seek is the only way to
+    # find the endpoint.
+    sub_resource_check = ""
     if sub_resource and sub_resource_var:
         if sub_resource.direction == LinkDirection.INWARD:
             rel_pattern = f"<-[:{sub_resource.rel_label}]-({sub_resource_var})"
         else:
             rel_pattern = f"-[:{sub_resource.rel_label}]->({sub_resource_var})"
+        sub_resource_check = f" WHERE EXISTS {{ ({endpoint_var}){rel_pattern} }}"
     return Template(
-        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$rel_pattern"
+        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$sub_resource_check"
     ).safe_substitute(
         endpoint_var=endpoint_var,
         endpoint_label=endpoint_label,
         match_clause=_build_match_clause(matcher),
-        rel_pattern=rel_pattern,
+        sub_resource_check=sub_resource_check,
     )
 
 
