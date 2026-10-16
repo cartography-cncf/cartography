@@ -8,20 +8,43 @@ limited to the granted scopes, and it is not tied to an admin user.
 
 ### OAuth service app
 
-1. Create an API Services app by following Okta's
-   [Implement OAuth for Okta with a service app](https://developer.okta.com/docs/guides/implement-oauth-for-okta-serviceapp/main/)
-   guide. Set client authentication to **Public key / Private key** and add a
-   key. Okta does not accept a client secret for its management API.
-1. Save the private key, as a PEM or a JWK, and note its key ID (`kid`).
-1. On the **Okta API Scopes** tab, grant these scopes:
+In the Okta Admin Console:
+
+1. Go to **Applications** > **Applications** > **Create App Integration**. Open
+   the **Classic experience** tab, choose **API Services**, and click **Next**.
+   The recommended Okta Integration Wizard tab does not offer this flow.
+1. Name the app, for example `Cartography`, choose **Use Okta-generated client
+   ID**, and click **Save**. Copy the **Client ID**.
+1. Switch the app to key authentication. Okta creates the app with a client
+   secret, but
+   [accepts only a private key](https://developer.okta.com/docs/guides/implement-oauth-for-okta-serviceapp/main/)
+   when the app requests Okta API scopes. Add the key first, or Okta refuses
+   the switch:
+   1. Under **Public keys**, click **Edit** and then **Add key**. Paste your
+      public key as a JWK, or click **Generate new key** and save the private
+      key that Okta shows only once. Click **Done**, then **Save**, and note the
+      key's **KID**.
+   1. Under **Client Credentials**, click **Edit**, choose **Public key /
+      Private key**, click **Save**, and confirm. Okta deletes the unused client
+      secret.
+1. On the **Okta API Scopes** tab, click **Grant** for each of these scopes:
    `okta.apiTokens.read`, `okta.apps.read`, `okta.authenticators.read`,
    `okta.devices.read`, `okta.groups.read`, `okta.logStreams.read`,
    `okta.networkZones.read`, `okta.policies.read`, `okta.roles.read`,
    `okta.trustedOrigins.read`, `okta.userTypes.read`, `okta.users.read`.
-1. On the **Admin roles** tab, assign the **Read-only Administrator** role.
-   Okta requires both the scope and an admin role that allows the request.
-   Okta refuses that role a few resources, such as admin role assignments; see
-   [Permissions](#permissions).
+   To script this step, use the `okta_app_oauth_api_scope` resource of the
+   Okta Terraform provider or the
+   [application grants API](https://developer.okta.com/docs/api/openapi/okta-management/management/tag/ApplicationGrants/).
+1. On the **Admin roles** tab, click **Edit assignments**, choose
+   **Read-only Administrator**, and save. Okta asks you to reauthenticate
+   before it saves an admin role. Okta checks both the scope and the admin
+   role, and refuses this role a few resources, such as admin role
+   assignments; see [Permissions](#permissions).
+
+Leave **Require Demonstrating Proof of Possession (DPoP)** as it is.
+Cartography sends DPoP proofs by default, which works whether or not the app
+requires them. `--okta-disable-dpop` stops sending them; an app that requires
+DPoP then rejects the token request with `invalid_dpop_proof`.
 
 Okta refuses to issue an access token (`invalid_scope`) when Cartography
 requests a scope that the app was not granted. To run with fewer scopes, list
@@ -30,10 +53,6 @@ the granted ones with `--okta-scopes`. The Okta sync fails without
 `okta.authenticators.read`, `okta.trustedOrigins.read`, and
 `okta.userTypes.read`. It skips the resources under
 [Permissions](#permissions) whose scope is missing.
-
-Okta requires DPoP-bound tokens on new service apps by default, and Cartography
-sends DPoP proofs automatically. If the app does not require DPoP, pass
-`--okta-disable-dpop` to stop sending them.
 
 ### API token
 

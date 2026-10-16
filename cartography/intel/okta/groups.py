@@ -82,7 +82,8 @@ def sync_okta_groups(
     except OktaApiError as exc:
         if exc.error_code == "E0000006":
             logger.warning(
-                "Unable to sync group roles - api token needs admin rights to pull admin roles data",
+                "Unable to sync group roles - the Okta credential needs "
+                "okta.roles.read and an admin role that allows it",
             )
             group_roles = []
             # Still run cleanup so stale roles from a previously privileged

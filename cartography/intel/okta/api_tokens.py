@@ -91,7 +91,8 @@ def sync_okta_api_tokens(
         # it; skip this sub-sync so the rest of Okta ingestion still runs.
         if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync Okta API tokens - api token needs okta.apiTokens.read",
+                "Unable to sync Okta API tokens - the Okta credential needs "
+                "okta.apiTokens.read and an admin role that allows it",
             )
             return
         raise

@@ -164,7 +164,8 @@ def sync_okta_devices(
         # it; skip this sub-sync so the rest of Okta ingestion still runs.
         if exc.error_code == "E0000006":
             logger.warning(
-                "Unable to sync Okta devices - api token needs okta.devices.read",
+                "Unable to sync Okta devices - the Okta credential needs "
+                "okta.devices.read and an admin role that allows it",
             )
             return
         raise

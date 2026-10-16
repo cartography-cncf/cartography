@@ -148,7 +148,7 @@ def sync_okta_users(
     users = asyncio.run(_get_okta_users(okta_client))
 
     # Gather user roles using the bulk API to minimize API calls.
-    # Role endpoints require super-admin; most tokens won't have it. When the
+    # Role endpoints require super-admin; most credentials won't have it. When the
     # API returns E0000006 we log and continue so the rest of the sync runs.
     # https://developer.okta.com/docs/reference/error-codes/
     user_roles: list[tuple[str, OktaUserRole]] = []
@@ -164,7 +164,8 @@ def sync_okta_users(
     except OktaApiError as exc:
         if exc.error_code == "E0000006":
             logger.warning(
-                "Unable to sync user roles - api token needs admin rights to pull admin roles data",
+                "Unable to sync user roles - the Okta credential needs "
+                "okta.roles.read and an admin role that allows it",
             )
             # Still run cleanup so stale roles from a previously privileged
             # token don't linger and overstate admin access.

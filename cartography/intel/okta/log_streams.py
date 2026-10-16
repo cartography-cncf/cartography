@@ -79,7 +79,7 @@ def sync_okta_log_streams(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> bool:
-    """Sync Okta log streams and return whether the API token could read them."""
+    """Sync Okta log streams and return whether the credential could read them."""
     logger.info("Syncing Okta log streams")
     try:
         raw_log_streams = asyncio.run(_get_okta_log_streams(okta_client))
@@ -88,8 +88,8 @@ def sync_okta_log_streams(
         # lack it; skip this sub-sync so the rest of Okta ingestion still runs.
         if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync Okta log streams - api token needs "
-                "okta.logStreams.read",
+                "Unable to sync Okta log streams - the Okta credential needs "
+                "okta.logStreams.read and an admin role that allows it",
             )
             return False
         raise

@@ -123,8 +123,8 @@ def sync_okta_network_zones(
         # lack it; skip this sub-sync so the rest of Okta ingestion still runs.
         if is_missing_scope_error(exc):
             logger.warning(
-                "Unable to sync Okta network zones - api token needs "
-                "okta.networkZones.read",
+                "Unable to sync Okta network zones - the Okta credential needs "
+                "okta.networkZones.read and an admin role that allows it",
             )
             return
         raise
