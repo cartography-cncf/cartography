@@ -225,23 +225,17 @@ def test_statement_compiles_add_relationship_effect():
     )
 
 
-def test_statement_compiles_incremental_node_and_relationship_matches():
+def test_statement_rejects_incremental_variable_outside_a_pattern():
     # Arrange
     statement = AnalysisStatement(
-        match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)",
+        match="MATCH (d:Device) WITH d, d.agent AS agent",
         effects=(SetProperty("d", "linked", True, label="Device"),),
-        incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        incremental_on=IncrementalMatch("agent"),
     )
 
-    # Act
-    query = compile_query(statement)
-
-    # Assert
-    assert query.startswith(
-        "MATCH (d:Device {lastupdated: $UPDATE_TAG})\n"
-        "MATCH ()-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]->()\n"
-        "MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)"
-    )
+    # Act and assert
+    with pytest.raises(ValueError, match="'agent'"):
+        compile_query(statement)
 
 
 def test_matching_fingerprint_uses_update_tag_firstseen():

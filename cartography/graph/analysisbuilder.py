@@ -50,11 +50,10 @@ def compile_query(
     prefixes: list[str] = []
     if scope:
         prefixes.append(_declared_scope_match(scope, scope_index))
-    prefixes.extend(_incremental_matches(statement))
     return "\n".join(
         (
             *prefixes,
-            statement.match.strip(),
+            _gate_incremental_targets(statement.match, statement).strip(),
             *(_compile_effect(e) for e in statement.effects),
         )
     )
@@ -209,37 +208,37 @@ def _incremental_targets(
     )
 
 
-def _incremental_matches(statement: AnalysisStatement) -> tuple[str, ...]:
-    if statement.match is None:
-        return ()
-    matches: list[str] = []
+_FRESHNESS_GATE = "lastupdated: $UPDATE_TAG"
+_PATTERN_LABELS = r"(?:\s*:\s*[A-Za-z_][A-Za-z0-9_]*)*"
+
+
+def _gate_incremental_targets(match: str, statement: AnalysisStatement) -> str:
+    # The gate rides on the variable's own pattern element. Standalone prefix
+    # MATCH clauses share no pattern with each other, so Neo4j plans them as a
+    # cartesian product that grows with the square of the node count.
     for target in _incremental_targets(statement):
         variable = _validate_identifier(target.variable, "incremental variable")
-        if target.relationship:
-            rel_type = _relationship_type_for_alias(statement.match, variable)
-            rel_label = f":{rel_type}" if rel_type else ""
-            matches.append(
-                f"MATCH ()-[{variable}{rel_label} " "{lastupdated: $UPDATE_TAG}]->()"
+        opener, closer = ("[", "]") if target.relationship else ("(", ")")
+        element = re.compile(
+            rf"(?<![A-Za-z0-9_]){re.escape(opener)}\s*{variable}\b{_PATTERN_LABELS}"
+            rf"(?=\s*[{{{re.escape(closer)}])"
+        )
+        found = element.search(match)
+        if found is None:
+            kind = "relationship" if target.relationship else "node"
+            raise ValueError(
+                f"incremental_on variable {variable!r} must appear as a {kind} "
+                "pattern element with an optional property map in match."
             )
+        head = match[: found.end()]
+        tail = match[found.end() :].lstrip()
+        if tail.startswith("{"):
+            properties = tail[1:]
+            separator = "" if properties.lstrip().startswith("}") else ", "
+            match = f"{head} {{{_FRESHNESS_GATE}{separator}{properties}"
         else:
-            label = _node_label_for_alias(statement.match, variable)
-            node_label = f":{label}" if label else ""
-            matches.append(
-                f"MATCH ({variable}{node_label} " "{lastupdated: $UPDATE_TAG})"
-            )
-    return tuple(matches)
-
-
-def _node_label_for_alias(match: str, alias: str) -> str | None:
-    pattern = re.compile(rf"\(\s*{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)")
-    found = pattern.search(match)
-    return found.group(1) if found else None
-
-
-def _relationship_type_for_alias(match: str, alias: str) -> str | None:
-    pattern = re.compile(rf"\[\s*{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)")
-    found = pattern.search(match)
-    return found.group(1) if found else None
+            match = f"{head} {{{_FRESHNESS_GATE}}}{tail}"
+    return match
 
 
 def _require_label(label: str | None) -> str:
