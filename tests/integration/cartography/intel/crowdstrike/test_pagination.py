@@ -185,3 +185,17 @@ def test_missing_spotlight_scope_syncs_hosts_and_keeps_vulnerabilities(neo4j_ses
         "CrowdstrikeSpotlightVulnerability",
         ["id", "lastupdated"],
     ) == {(vuln_id, 20) for vuln_id in VULN_IDS}
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeHost",
+        "id",
+        "CrowdstrikeSpotlightVulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == set(zip(HOST_IDS, VULN_IDS))
+    metadata = neo4j_session.run(
+        "MATCH (m:ModuleSyncMetadata {id: 'crowdstrike_public_crowdstrike'}) "
+        "RETURN m.lastupdated AS lastupdated",
+    ).single()
+    assert metadata["lastupdated"] == 21

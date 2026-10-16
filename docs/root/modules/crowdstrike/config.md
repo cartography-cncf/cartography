@@ -11,7 +11,7 @@ version, for example **Support and resources → API clients and keys**,
 **Support and resources → Client Management**, or **Support Apps → API Clients**
 on older consoles.
 
-### Required API scopes
+### API scopes
 
 Grant the API client these read-only scopes:
 
