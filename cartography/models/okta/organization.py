@@ -48,6 +48,24 @@ class OktaOrganizationNodeProperties(CartographyNodeProperties):
             "`OktaUserRole` or `OktaGroupRole` does not mean a user has no admin role."
         ),
     )
+    application_roles_synced: PropertyRef = PropertyRef(
+        "application_roles_synced",
+        description=(
+            "Whether the last sync could read the admin roles assigned to OAuth "
+            "service apps. False when the credential lacks `okta.roles.read` or an "
+            "admin role that allows it, so a missing `OktaApplicationRole` does not "
+            "mean an app has no admin role."
+        ),
+    )
+    app_grants_synced: PropertyRef = PropertyRef(
+        "app_grants_synced",
+        description=(
+            "Whether the last sync could read the OAuth scopes granted to apps "
+            "into `OktaApplication.granted_scopes`. False when the credential "
+            "lacks `okta.appGrants.read` or an admin role that allows it, so a "
+            "null `granted_scopes` does not mean an app has no grants."
+        ),
+    )
 
 
 @dataclass(frozen=True)

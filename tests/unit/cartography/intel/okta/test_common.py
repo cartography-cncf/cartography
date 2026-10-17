@@ -1,10 +1,12 @@
 import asyncio
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from okta.errors.http_error import HTTPError
 from okta.models.application_json_converter import ApplicationJsonConverter
 from okta.models.authenticator_base import AuthenticatorBase
 from okta.models.user_factor import UserFactor
@@ -12,6 +14,8 @@ from okta.models.user_factor import UserFactor
 import cartography.intel.okta.common  # noqa: F401
 from cartography.intel.okta.common import collect_paginated
 from cartography.intel.okta.common import collect_raw_paginated
+from cartography.intel.okta.common import gather_bounded
+from cartography.intel.okta.common import is_missing_scope_error
 from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
@@ -232,3 +236,58 @@ def test_collect_raw_paginated_raises_okta_api_error() -> None:
     with pytest.raises(OktaApiError) as exc_info:
         asyncio.run(collect_raw_paginated(okta_client, "/api/v1/zones"))
     assert exc_info.value.error_code == "E0000006"
+
+
+def test_gather_bounded_limits_concurrency_and_keeps_order() -> None:
+    # Arrange
+    running = 0
+    peak = 0
+
+    async def double(item: int) -> int:
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        # Finish later items first, so input order must be restored.
+        await asyncio.sleep(0.01 * (5 - item))
+        running -= 1
+        return item * 2
+
+    # Act
+    results = asyncio.run(gather_bounded(double, range(5), limit=2))
+
+    # Assert
+    assert results == [0, 2, 4, 6, 8]
+    assert peak == 2
+
+
+def _http_error(status: int, www_authenticate: str | None = None) -> HTTPError:
+    headers = {"WWW-Authenticate": www_authenticate} if www_authenticate else {}
+    return HTTPError(
+        "https://example.okta.com/api/v1/apps/0oaWeb/grants",
+        SimpleNamespace(status=status, headers=headers),
+        "",
+    )
+
+
+# Okta answers a token without the endpoint's scope with a bare 403.
+_INSUFFICIENT_SCOPE = (
+    'DPoP realm="https://example.okta.com", scope="okta.appGrants.read", '
+    'error="insufficient_scope", '
+    'error_description="The access token provided does not contain the required scopes."'
+)
+
+
+@pytest.mark.parametrize(
+    ("error", "missing_scope"),
+    [
+        (SimpleNamespace(error_code="E0000006"), True),
+        (_http_error(403, _INSUFFICIENT_SCOPE), True),
+        (_http_error(403), False),
+        (_http_error(401, 'DPoP error="invalid_token"'), False),
+        (SimpleNamespace(error_code="E0000007"), False),
+    ],
+    ids=["admin-role", "token-scope", "bare-403", "invalid-token", "not-found"],
+)
+def test_is_missing_scope_error(error, missing_scope):
+    # Act and assert
+    assert is_missing_scope_error(OktaApiError("request", error)) is missing_scope
