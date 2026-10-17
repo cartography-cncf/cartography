@@ -654,9 +654,9 @@ def test_internal_load_balancer_needs_a_clear_aws_account(
 
 
 def test_cluster_whose_lists_failed_gets_no_results(neo4j_session_empty):
-    # Arrange: a list call failed in the second run, so its sync kept the previous
-    # Services, Ingresses, Nodes or Gateways, and the cluster check cannot vouch for
-    # them.
+    # Arrange: the second run sets CHECK_INPUTS_SYNCED to False directly, as the
+    # sync does when a Services, Ingresses, Nodes or Gateways list fails. The failed
+    # lists themselves are covered by the services, ingress and nodes sync tests.
     session = neo4j_session_empty
     _sync(session, 1)
     _analyze(session, 1)
