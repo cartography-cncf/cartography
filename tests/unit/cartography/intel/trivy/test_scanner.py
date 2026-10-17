@@ -1225,7 +1225,7 @@ def test_transform_scan_results_prefers_no_fix_available_on_a_tie(
 
 
 @pytest.mark.parametrize(
-    "results",
+    "results, expected_rating",
     [
         pytest.param(
             [
@@ -1236,6 +1236,7 @@ def test_transform_scan_results_prefers_no_fix_available_on_a_tie(
                     _vulnerability("language-package", "HIGH", "ghsa", "affected"),
                 ),
             ],
+            ("HIGH", "debian", "affected", "os-package-db"),
             id="os-package-first",
         ),
         pytest.param(
@@ -1247,19 +1248,40 @@ def test_transform_scan_results_prefers_no_fix_available_on_a_tie(
                     _vulnerability("os-package", "HIGH", "debian", "affected"),
                 ),
             ],
+            ("HIGH", "debian", "affected", "os-package-db"),
             id="language-package-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("alpha-package", "HIGH", "debian", "affected"),
+                    _vulnerability("beta-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "alpha-package-db"),
+            id="full-tie-alpha-reported-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("beta-package", "HIGH", "debian", "affected"),
+                    _vulnerability("alpha-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "beta-package-db"),
+            id="full-tie-beta-reported-first",
         ),
     ],
 )
-def test_transform_scan_results_prefers_os_packages_on_a_full_tie(results):
+def test_transform_scan_results_prefers_os_packages_then_report_order_on_a_tie(
+    results,
+    expected_rating,
+):
     # Act
     findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
 
     # Assert
-    assert _target_ratings(findings_list) == [
-        ("HIGH", "debian", "affected", "os-package-db"),
-        ("HIGH", "debian", "affected", "os-package-db"),
-    ]
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
 
 
 def test_transform_scan_results_keeps_each_package_rating_on_its_finding_row():
