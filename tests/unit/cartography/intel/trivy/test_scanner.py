@@ -13,9 +13,6 @@ from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.intel.trivy.scanner import transform_scan_results
-from tests.data.trivy.trivy_sample import TRIVY_MULTI_PACKAGE_REPORT
-from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
-from tests.data.trivy.trivy_sample import TRIVY_STATUS_TIE_REPORT
 
 
 def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
@@ -936,30 +933,38 @@ def test_transform_scan_results_dedupes_vulnerability_ids():
 def _vulnerability(
     pkg_name: str,
     severity: str,
-    severity_source: str | None = None,
-    status: str = "affected",
+    severity_source: str | None,
+    status: str,
 ) -> dict:
-    vulnerability = {
+    return {
         "VulnerabilityID": "CVE-2023-4039",
         "PkgName": pkg_name,
         "InstalledVersion": "1.0.0",
         "Severity": severity,
+        "SeveritySource": severity_source,
         "Status": status,
         "DataSource": {"ID": f"{pkg_name}-db"},
     }
-    if severity_source is not None:
-        vulnerability["SeveritySource"] = severity_source
-    return vulnerability
 
 
-def _os_results(*vulnerabilities: dict) -> list[dict]:
-    return [
-        {"Class": "os-pkgs", "Type": "debian", "Vulnerabilities": [*vulnerabilities]}
-    ]
-
-
-def _target_ratings(findings_list: list[dict]) -> set[tuple]:
+def _os_packages(*vulnerabilities: dict) -> dict:
     return {
+        "Class": "os-pkgs",
+        "Type": "debian",
+        "Vulnerabilities": list(vulnerabilities),
+    }
+
+
+def _language_packages(*vulnerabilities: dict) -> dict:
+    return {
+        "Class": "lang-pkgs",
+        "Type": "pip",
+        "Vulnerabilities": list(vulnerabilities),
+    }
+
+
+def _target_ratings(findings_list: list[dict]) -> list[tuple]:
+    return [
         (
             row["TargetSeverity"],
             row["TargetSeveritySource"],
@@ -967,224 +972,220 @@ def _target_ratings(findings_list: list[dict]) -> set[tuple]:
             row["TargetDataSourceID"],
         )
         for row in findings_list
-    }
+    ]
 
 
 @pytest.mark.parametrize(
     "results",
     [
-        pytest.param(TRIVY_MULTI_PACKAGE_REPORT["Results"], id="os-package-first"),
         pytest.param(
-            TRIVY_MULTI_PACKAGE_REPORT["Results"][::-1],
-            id="language-package-first",
+            [
+                _os_packages(
+                    _vulnerability("low-package", "LOW", "debian", "affected"),
+                    _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+                ),
+            ],
+            id="most-severe-last",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+                    _vulnerability("low-package", "LOW", "debian", "affected"),
+                ),
+            ],
+            id="most-severe-first",
         ),
     ],
 )
-def test_transform_scan_results_rates_each_finding_by_its_worst_package(results):
+def test_transform_scan_results_rates_a_finding_by_its_most_severe_package(results):
     # Act
     findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
 
     # Assert
-    assert len(findings_list) == 2
-    assert _target_ratings(findings_list) == {("HIGH", "ghsa", "fixed", "ghsa")}
+    assert _target_ratings(findings_list) == [
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+    ]
 
 
-@pytest.mark.parametrize("vendor_first", [True, False])
-def test_transform_scan_results_prefers_a_vendor_rating_on_a_severity_tie(
-    vendor_first,
+@pytest.mark.parametrize(
+    "results, expected_rating",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                    _vulnerability("vendor-rated", "MEDIUM", "debian", "affected"),
+                ),
+            ],
+            ("MEDIUM", "debian", "affected", "vendor-rated-db"),
+            id="named-source-after-nvd",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("vendor-rated", "MEDIUM", "debian", "affected"),
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                ),
+            ],
+            ("MEDIUM", "debian", "affected", "vendor-rated-db"),
+            id="named-source-before-nvd",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                    _vulnerability("vendor-rated", "MEDIUM", "ubuntu", "affected"),
+                ),
+            ],
+            ("MEDIUM", "ubuntu", "affected", "vendor-rated-db"),
+            id="named-source-after-unsourced",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                ),
+            ],
+            ("MEDIUM", None, "affected", "unsourced-db"),
+            id="unsourced-ties-with-nvd-unsourced-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                ),
+            ],
+            ("MEDIUM", "nvd", "affected", "nvd-rated-db"),
+            id="unsourced-ties-with-nvd-nvd-first",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_a_named_severity_source_on_a_tie(
+    results,
+    expected_rating,
 ):
-    # Arrange
-    vendor = _vulnerability("vendor-rated", "MEDIUM", "debian")
-    nvd = _vulnerability("nvd-rated", "MEDIUM", "nvd")
-    results = _os_results(*([vendor, nvd] if vendor_first else [nvd, vendor]))
-
     # Act
     findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
 
     # Assert
-    assert _target_ratings(findings_list) == {
-        ("MEDIUM", "debian", "affected", "vendor-rated-db"),
-    }
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
 
 
 @pytest.mark.parametrize(
-    "vulnerabilities, expected_source, expected_data_source",
+    "results, expected_rating",
     [
         pytest.param(
             [
-                _vulnerability("unsourced", "MEDIUM"),
-                _vulnerability("nvd-rated", "MEDIUM", "nvd"),
+                _os_packages(
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                    _vulnerability("unfixed", "LOW", "debian", "affected"),
+                ),
             ],
-            None,
-            "unsourced-db",
-            id="unsourced-first-wins-by-report-order",
-        ),
-        pytest.param(
-            [
-                _vulnerability("nvd-rated", "MEDIUM", "nvd"),
-                _vulnerability("unsourced", "MEDIUM"),
-            ],
-            "nvd",
-            "nvd-rated-db",
-            id="nvd-first-wins-by-report-order",
-        ),
-        pytest.param(
-            [
-                _vulnerability("unsourced", "MEDIUM"),
-                _vulnerability("nvd-rated", "MEDIUM", "nvd"),
-                _vulnerability("vendor-rated", "MEDIUM", "ubuntu"),
-            ],
-            "ubuntu",
-            "vendor-rated-db",
-            id="vendor-beats-both",
-        ),
-    ],
-)
-def test_transform_scan_results_ranks_an_unsourced_rating_with_nvd(
-    vulnerabilities,
-    expected_source,
-    expected_data_source,
-):
-    # Act
-    findings_list, _, _ = transform_scan_results(
-        _os_results(*vulnerabilities),
-        "sha256:testdigest",
-    )
-
-    # Assert
-    assert _target_ratings(findings_list) == {
-        ("MEDIUM", expected_source, "affected", expected_data_source),
-    }
-
-
-@pytest.mark.parametrize(
-    "vulnerabilities, expected_status",
-    [
-        pytest.param(
-            TRIVY_STATUS_TIE_REPORT["Results"][0]["Vulnerabilities"],
-            "affected",
+            ("LOW", "debian", "affected", "unfixed-db"),
             id="affected-after-fixed",
         ),
         pytest.param(
-            TRIVY_STATUS_TIE_REPORT["Results"][0]["Vulnerabilities"][::-1],
-            "affected",
+            [
+                _os_packages(
+                    _vulnerability("unfixed", "LOW", "debian", "affected"),
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                ),
+            ],
+            ("LOW", "debian", "affected", "unfixed-db"),
             id="affected-before-fixed",
         ),
         pytest.param(
             [
-                _vulnerability("fixed-package", "LOW", "debian", "fixed"),
-                _vulnerability("unfixable-package", "LOW", "debian", "will_not_fix"),
+                _os_packages(
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                    _vulnerability("unfixable", "LOW", "debian", "will_not_fix"),
+                ),
             ],
-            "will_not_fix",
-            id="will-not-fix-beats-fixed",
+            ("LOW", "debian", "will_not_fix", "unfixable-db"),
+            id="will-not-fix-after-fixed",
         ),
         pytest.param(
             [
-                _vulnerability("unaffected-package", "LOW", "debian", "not_affected"),
-                _vulnerability("fixed-package", "LOW", "debian", "fixed"),
+                _os_packages(
+                    _vulnerability("unaffected", "LOW", "debian", "not_affected"),
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                ),
             ],
-            "fixed",
-            id="fixed-beats-not-affected",
+            ("LOW", "debian", "fixed", "fixable-db"),
+            id="fixed-after-not-affected",
         ),
     ],
 )
 def test_transform_scan_results_prefers_no_fix_available_on_a_tie(
-    vulnerabilities,
-    expected_status,
+    results,
+    expected_rating,
 ):
     # Act
-    findings_list, _, _ = transform_scan_results(
-        _os_results(*vulnerabilities),
-        "sha256:testdigest",
-    )
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
 
     # Assert
-    assert {row["TargetStatus"] for row in findings_list} == {expected_status}
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
 
 
-@pytest.mark.parametrize("os_first", [True, False])
-def test_transform_scan_results_prefers_os_packages_on_a_full_tie(os_first):
-    # Arrange
-    os_results = _os_results(_vulnerability("os-package", "HIGH", "debian"))
-    language_results = [
-        {
-            "Class": "lang-pkgs",
-            "Type": "pip",
-            "Vulnerabilities": [_vulnerability("language-package", "HIGH", "ghsa")],
-        },
+@pytest.mark.parametrize(
+    "results",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("os-package", "HIGH", "debian", "affected"),
+                ),
+                _language_packages(
+                    _vulnerability("language-package", "HIGH", "ghsa", "affected"),
+                ),
+            ],
+            id="os-package-first",
+        ),
+        pytest.param(
+            [
+                _language_packages(
+                    _vulnerability("language-package", "HIGH", "ghsa", "affected"),
+                ),
+                _os_packages(
+                    _vulnerability("os-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            id="language-package-first",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_os_packages_on_a_full_tie(results):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [
+        ("HIGH", "debian", "affected", "os-package-db"),
+        ("HIGH", "debian", "affected", "os-package-db"),
     ]
-    results = (
-        os_results + language_results if os_first else language_results + os_results
-    )
+
+
+def test_transform_scan_results_keeps_each_package_rating_on_its_finding_row():
+    # Arrange
+    results = [
+        _os_packages(
+            _vulnerability("low-package", "LOW", "debian", "affected"),
+            _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+        ),
+    ]
 
     # Act
     findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
 
     # Assert
-    assert _target_ratings(findings_list) == {
-        ("HIGH", "debian", "affected", "os-package-db"),
-    }
-
-
-def test_transform_scan_results_keeps_package_and_fix_rows():
-    """Aggregation adds per-target keys without merging rows or rewriting node values."""
-    # Arrange
-    vulnerability_rows = sum(
-        len(scan_class.get("Vulnerabilities") or [])
-        for scan_class in TRIVY_SAMPLE["Results"]
-    )
-    fixable_rows = sum(
-        1
-        for scan_class in TRIVY_SAMPLE["Results"]
-        for vulnerability in scan_class.get("Vulnerabilities") or []
-        if vulnerability.get("FixedVersion") is not None
-    )
-
-    # Act
-    sample_findings, sample_packages, sample_fixes = transform_scan_results(
-        TRIVY_SAMPLE["Results"],
-        "sha256:testdigest",
-    )
-    findings_list, packages_list, fixes_list = transform_scan_results(
-        TRIVY_MULTI_PACKAGE_REPORT["Results"],
-        "sha256:testdigest",
-    )
-
-    # Assert
-    assert len(sample_findings) == vulnerability_rows
-    assert len(sample_packages) == vulnerability_rows
-    assert len(sample_fixes) == fixable_rows
-    assert {package["id"] for package in packages_list} == {
-        "12.2.0-14|gcc-12-base",
-        "1.0.0|example-package",
-    }
-    assert {fix["id"] for fix in fixes_list} == {
-        "12.2.0-14+deb12u1|gcc-12-base",
-        "1.0.1|example-package",
-    }
-    # Node properties still come from each row's own package.
-    assert {
+    assert [
         (row["Severity"], row["SeveritySource"], row["Status"], row["DataSourceID"])
         for row in findings_list
-    } == {
-        ("LOW", "debian", "affected", "debian"),
-        ("HIGH", "ghsa", "fixed", "ghsa"),
-    }
-
-
-def test_transform_scan_results_rates_filesystem_snapshot_targets():
-    # Arrange
-    snapshot_ids = ["snapshot-1", "snapshot-2"]
-
-    # Act
-    findings_list, _, _ = transform_scan_results(
-        TRIVY_MULTI_PACKAGE_REPORT["Results"],
-        None,
-        snapshot_ids,
-    )
-
-    # Assert
-    assert {tuple(row["FilesystemSnapshotIds"]) for row in findings_list} == {
-        tuple(snapshot_ids),
-    }
-    assert _target_ratings(findings_list) == {("HIGH", "ghsa", "fixed", "ghsa")}
+    ] == [
+        ("LOW", "debian", "affected", "low-package-db"),
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+    ]

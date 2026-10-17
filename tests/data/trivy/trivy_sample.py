@@ -1681,14 +1681,12 @@ TRIVY_PER_TARGET_REPORT_A_UNSOURCED = _per_target_report(
     ],
 )
 
-# The same CVE on an OS package and a language package of one image: the image is
-# rated by the worse of the two.
+# The same CVE on a language package and an OS package of one image. The worse
+# rating comes first, so the AFFECTS edge only keeps it if the edge does not take
+# whichever package row is ingested last.
 TRIVY_MULTI_PACKAGE_REPORT = _per_target_report(
     PER_TARGET_DIGEST_A,
     [
-        _debian_results(
-            [_gcc_vulnerability("gcc-12-base", "LOW", "debian", "affected")],
-        ),
         {
             "Target": "requirements.txt",
             "Class": "lang-pkgs",
@@ -1707,18 +1705,8 @@ TRIVY_MULTI_PACKAGE_REPORT = _per_target_report(
                 },
             ],
         },
-    ],
-)
-
-# Two OS packages with the same severity and source: only the fix status differs.
-TRIVY_STATUS_TIE_REPORT = _per_target_report(
-    PER_TARGET_DIGEST_A,
-    [
         _debian_results(
-            [
-                _gcc_vulnerability("gcc-12-base", "LOW", "debian", "fixed"),
-                _gcc_vulnerability("libstdc++6", "LOW", "debian", "affected"),
-            ],
+            [_gcc_vulnerability("gcc-12-base", "LOW", "debian", "affected")],
         ),
     ],
 )
