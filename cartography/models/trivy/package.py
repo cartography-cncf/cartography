@@ -57,10 +57,10 @@ class TrivyPackageToImageRelProperties(CartographyRelProperties):
         "OSFamily",
         description=(
             "Operating system family Trivy detected in this scan target "
-            "(`Metadata.OS.Family`), such as `debian`, `ubuntu` or `alpine`. The same "
-            "on every package of the target, OS and language packages alike: filter "
-            "on the package's `class_name` (`os-pkgs`) to keep to the OS packages. "
-            "Unset when Trivy detected no operating system."
+            "(`Metadata.OS.Family`), such as `debian`, `ubuntu` or `alpine`. Set "
+            "only when the package is one of the target's OS packages (Trivy class "
+            "`os-pkgs`), so it selects them in this target. Unset on language "
+            "packages and when Trivy detected no operating system."
         ),
     )
     os_name: PropertyRef = PropertyRef(
@@ -68,7 +68,7 @@ class TrivyPackageToImageRelProperties(CartographyRelProperties):
         description=(
             "Operating system version Trivy detected in this scan target "
             "(`Metadata.OS.Name`), as reported: for example `12.7` or `trixie/sid` "
-            "for Debian, `24.04` for Ubuntu."
+            "for Debian, `24.04` for Ubuntu. Set only when `os_family` is."
         ),
     )
     os_release: PropertyRef = PropertyRef(
@@ -76,8 +76,8 @@ class TrivyPackageToImageRelProperties(CartographyRelProperties):
         description=(
             "Major release of a Debian scan target, normalized from `os_name` "
             "(`12` for `12.7`, `13` for `trixie/sid`) to match "
-            "`DebianSecurityTrackerEntry.release_version`. Unset for other "
-            "families and for a Debian name that is not recognized."
+            "`DebianSecurityTrackerEntry.release_version`. Unset when `os_family` "
+            "is, for other families and for a Debian name that is not recognized."
         ),
     )
 
@@ -85,8 +85,8 @@ class TrivyPackageToImageRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class TrivyPackageToOntologyImageRel(CartographyRelSchema):
     """
-    Links a Trivy package to the container image where it is installed, with the
-    operating system Trivy detected in that image.
+    Links a Trivy package to the container image where it is installed. For an OS
+    package, it carries the operating system Trivy detected in that image.
     """
 
     target_node_label: str = "Image"
@@ -101,8 +101,8 @@ class TrivyPackageToOntologyImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class TrivyPackageToFilesystemSnapshotRel(CartographyRelSchema):
     """
-    Links a Trivy package to the filesystem snapshots where it is installed, with
-    the operating system Trivy detected in the snapshot.
+    Links a Trivy package to the filesystem snapshots where it is installed. For
+    an OS package, it carries the operating system Trivy detected in the snapshot.
     """
 
     target_node_label: str = "FilesystemSnapshot"

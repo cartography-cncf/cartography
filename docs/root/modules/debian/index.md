@@ -43,11 +43,11 @@ on the image's release. They are read for CVE IDs only: the tracker's
 ## Matching entries to images
 
 Entries have no relationship to findings or images. [Trivy](../trivy/index.md)
-records the Debian release of each scanned image on its `DEPLOYED`
-relationships as `os_release`, normalized from the point release or the
-`<codename>/sid` the image reports, so an image's findings match entries on
-`cve_id` and `release_version`. Testing and unstable images both report
-`<codename>/sid` and match the release in preparation, not `sid`.
+records the Debian release of each scanned image as `os_release` on the
+`DEPLOYED` relationships of the image's OS packages, normalized from the point
+release or the `<codename>/sid` the image reports, so an image's findings
+match entries on `cve_id` and `release_version`. Testing and unstable images
+both report `<codename>/sid` and match the release in preparation, not `sid`.
 
 The match does not include the source package yet. The tracker keys entries by
 source package, Trivy reports binary packages, and Cartography does not record

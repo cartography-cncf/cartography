@@ -54,7 +54,7 @@ A `TrivyPackage` node is shared by every image and filesystem snapshot with a
 package of the same name and version, and those can run different
 distributions. The operating system Trivy detected in each scan target
 (`Metadata.OS`) is therefore recorded on the `DEPLOYED` relationship from each
-package to that target:
+of the target's OS packages to that target:
 
 - `os_family`: the OS family, such as `debian`, `ubuntu` or `alpine`.
 - `os_name`: the version as Trivy reported it, such as `12.7` or `trixie/sid`
@@ -63,12 +63,11 @@ package to that target:
   `trixie/sid`), which matches `release_version` on
   [Debian security tracker](../debian/index.md) entries.
 
-Every package of a target carries the target's OS, language packages
-included. To keep to the distribution's own packages, filter on the package's
-`class_name` (`os-pkgs`), as the [queries](queries.md) page shows. The
-package's `type` does not work for this: it is on the shared node, so a package
-with the same name and version in a Debian and an Ubuntu image carries the
-type of whichever report was ingested last.
+Language packages carry none of these, so `os_family` on the relationship
+selects a target's OS packages, as the [queries](queries.md) page shows. The
+package's `class_name` and `type` do not work for this: they are on the shared
+node, so a package with the same name and version in two targets carries the
+values of whichever report was ingested last.
 
 See [configuration](config.md) for report requirements and source options,
 [queries](queries.md) for example queries, and the generated

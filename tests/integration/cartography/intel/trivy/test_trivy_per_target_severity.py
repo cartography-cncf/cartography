@@ -180,7 +180,7 @@ def test_filesystem_snapshot_affects_carries_the_target_rating(
     }
 
 
-def test_deployed_carries_each_target_os(neo4j_session):
+def test_deployed_carries_each_target_os_on_its_os_packages(neo4j_session):
     # Arrange
     _reset_graph_with_images(neo4j_session)
     neo4j_session.run(
@@ -212,6 +212,7 @@ def test_deployed_carries_each_target_os(neo4j_session):
     # Assert
     assert _deployed_os(neo4j_session) == {
         ("1.35+dfsg-3|tar", PER_TARGET_DIGEST_A, "debian", "trixie/sid", "13"),
+        ("2.31.0|requests", PER_TARGET_DIGEST_A, None, None, None),
         ("1.35+dfsg-3|tar", PER_TARGET_DIGEST_B, "ubuntu", "24.04", None),
         ("1.35+dfsg-3|tar", SNAPSHOT_IDS[0], "debian", "12.13", "12"),
     }

@@ -9,12 +9,12 @@ RETURN img.`_ont_digest`, r.severity, r.severity_source, r.status
 
 ## Operating system of each image
 
-Count each image's operating system packages. `class_name` is `os-pkgs` for
-the distribution's own packages; language packages carry the image's OS too:
+Count each image's operating system packages. Only the distribution's own
+packages carry the image's OS on `DEPLOYED`:
 
 ```cypher
 MATCH (p:TrivyPackage)-[d:DEPLOYED]->(img:Image)
-WHERE p.class_name = 'os-pkgs'
+WHERE d.os_family IS NOT NULL
 RETURN img.`_ont_digest`, d.os_family, d.os_name, d.os_release,
        count(p) AS os_packages
 ```

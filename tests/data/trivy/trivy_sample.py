@@ -1715,7 +1715,7 @@ TRIVY_MULTI_PACKAGE_REPORT = _per_target_report(
 # One package name and version installed in a Debian testing image, an Ubuntu image
 # and a Debian stable root filesystem, so tests can check that each target's
 # DEPLOYED edge keeps its own OS. The Debian image reports its release as testing
-# images do.
+# images do, and also has a Python package, which is not an OS package.
 def _per_target_os_results(
     os_family: str,
     os_name: str,
@@ -1746,10 +1746,12 @@ def _per_target_os_report(
     os_family: str,
     os_name: str,
     vulnerabilities: list[dict],
+    language_results: list[dict] | None = None,
 ) -> dict:
     report = _per_target_report(
         digest,
-        _per_target_os_results(os_family, os_name, vulnerabilities),
+        _per_target_os_results(os_family, os_name, vulnerabilities)
+        + (language_results or []),
     )
     report["Metadata"]["OS"] = {"Family": os_family, "Name": os_name}
     return report
@@ -1769,6 +1771,21 @@ TRIVY_PER_TARGET_OS_REPORT_DEBIAN = _per_target_os_report(
             "SeveritySource": "debian",
             "DataSource": _DEBIAN_DATA_SOURCE,
             "Severity": "LOW",
+        },
+    ],
+    language_results=[
+        {
+            "Target": "Python",
+            "Class": "lang-pkgs",
+            "Type": "python-pkg",
+            "Packages": [
+                {
+                    "ID": "requests@2.31.0",
+                    "Name": "requests",
+                    "Version": "2.31.0",
+                    "Identifier": {"PURL": "pkg:pypi/requests@2.31.0"},
+                },
+            ],
         },
     ],
 )

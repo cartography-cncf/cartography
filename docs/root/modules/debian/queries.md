@@ -12,16 +12,16 @@ ORDER BY e.release
 ## Tracker entries for the Debian findings on each image
 
 This joins [Trivy](../trivy/index.md) findings on Debian images to the entries
-for each image's release. Keep to the distribution's own packages with
-`p.class_name = 'os-pkgs'`: language packages in the same image carry the
-image's `os_family` too. `p.type` does not work for this. The package node is
-shared by every image with a package of that name and version, a Debian and an
-Ubuntu image included, and holds the type of the last report ingested.
+for each image's release. Trivy sets `os_family` and `os_release` only on the
+`DEPLOYED` edges of an image's OS packages, so `d.os_family = 'debian'` keeps
+to Debian's own packages in that image. The package's `type` and `class_name`
+do not work for this: the package node is shared by every image with a package
+of that name and version, and holds the values of the last report ingested.
 
 ```cypher
 MATCH (f:TrivyImageFinding)-[:AFFECTS]->(img:Image)
 MATCH (f)-[:AFFECTS]->(p:TrivyPackage)-[d:DEPLOYED]->(img)
-WHERE d.os_family = 'debian' AND p.class_name = 'os-pkgs'
+WHERE d.os_family = 'debian'
 MATCH (e:DebianSecurityTrackerEntry {cve_id: f.cve_id, release_version: d.os_release})
 RETURN DISTINCT img.`_ont_digest` AS image, f.cve_id AS cve, p.name AS package,
        e.source_package, e.urgency, e.status, e.not_affected

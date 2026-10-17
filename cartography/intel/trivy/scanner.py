@@ -89,9 +89,9 @@ def _set_target_ratings(findings_list: list[dict[str, Any]]) -> None:
 
 def transform_target_os(metadata: dict[str, Any] | None) -> dict[str, str | None]:
     """
-    The OS Trivy detected in the scan target. It is recorded on each DEPLOYED edge
-    rather than on the shared version|name package node, which a Debian and an
-    Ubuntu target can both reach.
+    The OS Trivy detected in the scan target. It is recorded on the DEPLOYED edges
+    of the target's OS packages rather than on the shared version|name package
+    node, which a Debian and an Ubuntu target can both reach.
     """
     target_os = (metadata or {}).get("OS") or {}
     family = target_os.get("Family") or None
@@ -103,6 +103,19 @@ def transform_target_os(metadata: dict[str, Any] | None) -> dict[str, str | None
         # tracker keys its data by release.
         "OSRelease": major_release(name) if family == "debian" else None,
     }
+
+
+def _package_os(
+    class_name: str | None,
+    target_os: dict[str, str | None] | None,
+) -> dict[str, str | None]:
+    # A language package was not installed by the target's distribution, so its
+    # edge gets no OS. That lets the edge alone select the target's OS packages,
+    # which the package node cannot: its class is shared by every target with a
+    # package of the same name and version.
+    if class_name == "os-pkgs" and target_os:
+        return target_os
+    return {"OSFamily": None, "OSName": None, "OSRelease": None}
 
 
 def transform_scan_results(
@@ -238,7 +251,7 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
-                        **(target_os or {}),
+                        **_package_os(scan_class["Class"], target_os),
                         "FindingId": finding["id"],  # For AFFECTS relationship
                         # Additional fields
                         "PURL": purl,
@@ -327,7 +340,7 @@ def transform_all_packages(
                     "Type": pkg_type,
                     "ImageDigest": image_digest,
                     "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
-                    **(target_os or {}),
+                    **_package_os(class_name, target_os),
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),
