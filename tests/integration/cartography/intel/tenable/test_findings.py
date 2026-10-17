@@ -3,10 +3,15 @@ from typing import Any
 
 import pytest
 
+import cartography.intel.cve_metadata
 import cartography.intel.tenable.assets
 import cartography.intel.tenable.findings
+from cartography.config import Config
 from cartography.intel.cve import feed as cve_feed
+from cartography.intel.cve_metadata import start_cve_metadata_ingestion
+from cartography.intel.cve_metadata.nvd import transform_cves as transform_nvd_cves
 from tests.data.cve.feed import GET_CVE_API_DATA
+from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
 from tests.data.tenable.assets import ASSET_ID_1
 from tests.data.tenable.assets import ASSET_ID_2
 from tests.data.tenable.assets import ASSETS_DATA
@@ -400,6 +405,46 @@ def test_sync_lets_findings_read_nvd_severity_through_the_ontology(
         """
     ).single(strict=True)
     assert (record["finding_id"], record["cve_severity"]) == ("f1", "medium")
+
+
+def test_cve_metadata_enriches_every_cve_a_plugin_names(neo4j_session, mocker):
+    # Arrange: both CVEs are in the NVD metadata fixture. Before TenableCve, only a
+    # finding's first CVE carried the :CVE label, so only the first was enriched.
+    _sync_findings(
+        neo4j_session,
+        mocker,
+        [_finding("f1", plugin_id=1, cves=["CVE-2023-41782", "CVE-2024-22075"])],
+    )
+    mocker.patch.object(
+        cartography.intel.cve_metadata.nvd,
+        "get_and_transform_nvd_cves",
+        side_effect=lambda http_session, cve_ids, api_key=None: transform_nvd_cves(
+            copy.deepcopy(GET_NVD_API_DATA), cve_ids
+        ),
+    )
+    mocker.patch.object(
+        cartography.intel.cve_metadata.epss, "get_epss_scores", return_value={}
+    )
+
+    # Act
+    start_cve_metadata_ingestion(
+        neo4j_session,
+        Config(neo4j_uri="bolt://localhost:7687", update_tag=TEST_UPDATE_TAG),
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "CVEMetadata",
+        "id",
+        "TenableCve",
+        "cve_id",
+        "ENRICHES",
+        rel_direction_right=True,
+    ) == {
+        ("CVE-2023-41782", "CVE-2023-41782"),
+        ("CVE-2024-22075", "CVE-2024-22075"),
+    }
 
 
 def test_sync_strips_the_legacy_cve_label_from_findings(neo4j_session, mocker):
