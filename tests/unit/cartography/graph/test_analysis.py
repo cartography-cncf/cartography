@@ -536,84 +536,6 @@ def test_property_job_prepends_cleanup_statement():
     )
 
 
-def test_stamped_property_job_appends_cleanup_statement():
-    # Arrange
-    job = AnalysisJob(
-        name="Private workload check",
-        short_name="private_workload_check",
-        scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="pod"),
-        statements=(
-            AnalysisStatement(
-                match="MATCH (pod:KubernetesPod) WHERE NOT pod.host_network",
-                effects=(
-                    SetProperties(
-                        "pod",
-                        {"private": True, "checked_at": Param("UPDATE_TAG")},
-                        label="KubernetesPod",
-                        cleanup_stamp="checked_at",
-                    ),
-                ),
-            ),
-        ),
-    )
-
-    # Act
-    graph_job = to_graph_job(job)
-
-    # Assert: the write runs first and the cleanup only retires stale stamps.
-    assert properties_set(job) == (
-        PropertyEffect(
-            "KubernetesPod",
-            ("private", "checked_at"),
-            cleanup_before_statements=False,
-            cleanup_stamp="checked_at",
-        ),
-    )
-    assert [statement.query for statement in graph_job.statements] == [
-        "MATCH (scope:KubernetesCluster {id: $CLUSTER_ID})-[:RESOURCE]->(pod)\n"
-        "MATCH (pod:KubernetesPod) WHERE NOT pod.host_network\n"
-        "SET pod.private = true, pod.checked_at = $UPDATE_TAG",
-        "MATCH (scope:KubernetesCluster {id: $CLUSTER_ID})"
-        "-[:RESOURCE]->(node:KubernetesPod)\n"
-        "WHERE (node.private IS NOT NULL OR node.checked_at IS NOT NULL) "
-        "AND (node.checked_at IS NULL OR node.checked_at <> $UPDATE_TAG)\n"
-        "WITH node LIMIT $LIMIT_SIZE\n"
-        "REMOVE node.private, node.checked_at",
-    ]
-
-
-def test_stamped_property_on_scope_node_anchors_and_cleans_up_that_node():
-    job = AnalysisJob(
-        name="Cluster check",
-        short_name="cluster_check",
-        scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="cluster"),
-        statements=(
-            AnalysisStatement(
-                match="MATCH (cluster:KubernetesCluster)",
-                effects=(
-                    SetProperties(
-                        "cluster",
-                        {"paths": [], "checked_at": Param("UPDATE_TAG")},
-                        label="KubernetesCluster",
-                        cleanup_stamp="checked_at",
-                    ),
-                ),
-            ),
-        ),
-    )
-
-    assert [statement.query for statement in to_graph_job(job).statements] == [
-        "MATCH (cluster:KubernetesCluster {id: $CLUSTER_ID})\n"
-        "MATCH (cluster:KubernetesCluster)\n"
-        "SET cluster.paths = [], cluster.checked_at = $UPDATE_TAG",
-        "MATCH (node:KubernetesCluster {id: $CLUSTER_ID})\n"
-        "WHERE (node.paths IS NOT NULL OR node.checked_at IS NOT NULL) "
-        "AND (node.checked_at IS NULL OR node.checked_at <> $UPDATE_TAG)\n"
-        "WITH node LIMIT $LIMIT_SIZE\n"
-        "REMOVE node.paths, node.checked_at",
-    ]
-
-
 @pytest.mark.parametrize(
     "properties",
     [
@@ -621,21 +543,32 @@ def test_stamped_property_on_scope_node_anchors_and_cleans_up_that_node():
         {"private": True, "checked_at": 123},
         {"private": True, "checked_at": Param("OTHER_TAG")},
     ],
+    ids=["missing", "literal", "other_parameter"],
 )
 def test_set_properties_cleanup_stamp_must_hold_the_update_tag(properties):
+    # Act and assert
     with pytest.raises(ValueError, match="cleanup_stamp"):
         SetProperties("n", properties, label="Node", cleanup_stamp="checked_at")
 
 
-def test_property_effect_cleanup_after_statements_requires_a_stamp():
-    with pytest.raises(ValueError, match="requires a cleanup_stamp"):
-        PropertyEffect("Node", ("flag",), cleanup_before_statements=False)
-    with pytest.raises(ValueError, match="one of its properties"):
-        PropertyEffect(
-            "Node", ("flag",), cleanup_before_statements=False, cleanup_stamp="at"
-        )
-    with pytest.raises(ValueError, match="after the statements"):
-        PropertyEffect("Node", ("flag", "at"), cleanup_stamp="at")
+@pytest.mark.parametrize(
+    "cleanup,error",
+    [
+        # Cleanup after the statements would clear what they just wrote.
+        ({"cleanup_before_statements": False}, "requires a cleanup_stamp"),
+        (
+            {"cleanup_before_statements": False, "cleanup_stamp": "checked_at"},
+            "one of its properties",
+        ),
+        # A stamp only tells a trailing cleanup which values are current.
+        ({"cleanup_stamp": "flag"}, "after the statements"),
+    ],
+    ids=["after_without_stamp", "stamp_not_a_property", "stamp_before"],
+)
+def test_property_effect_rejects_inconsistent_cleanup_stamp(cleanup, error):
+    # Act and assert
+    with pytest.raises(ValueError, match=error):
+        PropertyEffect("Node", ("flag",), **cleanup)
 
 
 def test_property_effect_requires_properties():

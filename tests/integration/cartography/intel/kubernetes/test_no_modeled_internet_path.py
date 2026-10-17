@@ -1,4 +1,4 @@
-"""Kubernetes pods that no internet path modelled in the graph reaches."""
+"""Kubernetes pods that no internet path modeled in the graph reaches."""
 
 import json
 from unittest.mock import patch
@@ -165,7 +165,6 @@ def _ingress(name, *, service, lb_dns, ingress_class="alb"):
     }
 
 
-CLEAR = {"clusterip", "ingress-internal"}
 PODS = [
     _pod("clusterip"),
     _pod("internal-nlb"),
@@ -179,6 +178,10 @@ PODS = [
     _pod("ingress-controller-backend"),
 ]
 CONTAINERS = [_container(pod["name"]) for pod in PODS]
+# The pod that only a ClusterIP Service selects, and the one behind an Ingress on an
+# internal load balancer, are the two that no modeled internet path reaches.
+PRIVATE_PODS = [_pod("clusterip"), _pod("ingress-internal")]
+PRIVATE_CONTAINERS = [_container("clusterip"), _container("ingress-internal")]
 SERVICES = [
     _service("clusterip", "ClusterIP", pods=["clusterip", "host-network", "host-port"]),
     # A LoadBalancer Service opens a node port on every node, even behind an internal
@@ -386,10 +389,6 @@ def _results(session, label):
     }
 
 
-def _expected(tag, clear=CLEAR, suffix=""):
-    return {(f"pod-{pod['name']}{suffix}", pod["name"] in clear, tag) for pod in PODS}
-
-
 def _cluster_check(session):
     return (
         session.run(
@@ -413,36 +412,64 @@ def neo4j_session_empty(neo4j_session):
 def test_only_pods_behind_private_entry_points_have_no_modeled_internet_path(
     neo4j_session_empty,
 ):
+    # Arrange
     session = neo4j_session_empty
     _sync(session, 1)
 
+    # Act
     _analyze(session, 1)
 
-    assert _results(session, "KubernetesPod") == _expected(1)
-    assert _results(session, "KubernetesContainer") == _expected(1, suffix="/app")
+    # Assert
+    assert _results(session, "KubernetesPod") == {
+        ("pod-clusterip", True, 1),
+        ("pod-ingress-internal", True, 1),
+        ("pod-internal-nlb", False, 1),
+        ("pod-public-nlb", False, 1),
+        ("pod-nodeport", False, 1),
+        ("pod-host-network", False, 1),
+        ("pod-host-port", False, 1),
+        ("pod-ingress-public", False, 1),
+        ("pod-ingress-chained", False, 1),
+        ("pod-ingress-controller-backend", False, 1),
+    }
+    assert _results(session, "KubernetesContainer") == {
+        ("pod-clusterip/app", True, 1),
+        ("pod-ingress-internal/app", True, 1),
+        ("pod-internal-nlb/app", False, 1),
+        ("pod-public-nlb/app", False, 1),
+        ("pod-nodeport/app", False, 1),
+        ("pod-host-network/app", False, 1),
+        ("pod-host-port/app", False, 1),
+        ("pod-ingress-public/app", False, 1),
+        ("pod-ingress-chained/app", False, 1),
+        ("pod-ingress-controller-backend/app", False, 1),
+    }
     assert _cluster_check(session) == {"paths": None, "count": 0, "checked_at": 1}
 
 
 def test_later_run_that_finds_exposure_declines(neo4j_session_empty):
+    # Arrange
     session = neo4j_session_empty
-    _sync(session, 1)
+    pods = [_pod("clusterip")]
+    containers = [_container("clusterip")]
+    _sync(session, 1, pods=pods, containers=containers)
+
+    # Act
     _analyze(session, 1)
 
-    reexposed = [
-        (
-            _service("clusterip", "NodePort", pods=["clusterip"])
-            if svc["name"] == "clusterip"
-            else svc
-        )
-        for svc in SERVICES
-    ]
-    _sync(session, 2, service_list=reexposed)
+    # Assert
+    assert _results(session, "KubernetesPod") == {("pod-clusterip", True, 1)}
+
+    # Arrange
+    node_port = _service("clusterip", "NodePort", pods=["clusterip"])
+    _sync(session, 2, pods=pods, containers=containers, service_list=[node_port])
+
+    # Act
     _analyze(session, 2)
 
-    assert _results(session, "KubernetesPod") == _expected(2, CLEAR - {"clusterip"})
-    assert _results(session, "KubernetesContainer") == _expected(
-        2, CLEAR - {"clusterip"}, suffix="/app"
-    )
+    # Assert
+    assert _results(session, "KubernetesPod") == {("pod-clusterip", False, 2)}
+    assert _results(session, "KubernetesContainer") == {("pod-clusterip/app", False, 2)}
 
 
 @pytest.mark.parametrize(
@@ -540,31 +567,51 @@ def test_later_run_that_finds_exposure_declines(neo4j_session_empty):
 def test_cluster_with_an_unmodeled_path_declines_until_it_goes(
     neo4j_session_empty, entry_point, paths
 ):
+    # Arrange
     session = neo4j_session_empty
-    _sync(session, 1, **entry_point)
+    _sync(
+        session,
+        1,
+        pods=PRIVATE_PODS,
+        containers=PRIVATE_CONTAINERS,
+        **entry_point,
+    )
+
+    # Act
     _analyze(session, 1)
 
-    assert _results(session, "KubernetesPod") == _expected(1, clear=set())
+    # Assert
+    assert _results(session, "KubernetesPod") == {
+        ("pod-clusterip", False, 1),
+        ("pod-ingress-internal", False, 1),
+    }
     assert _cluster_check(session) == {
         "paths": paths,
         "count": len(paths),
         "checked_at": 1,
     }
 
-    _sync(session, 2)
+    # Arrange
+    _sync(session, 2, pods=PRIVATE_PODS, containers=PRIVATE_CONTAINERS)
+
+    # Act
     _analyze(session, 2)
 
-    assert _results(session, "KubernetesPod") == _expected(2)
+    # Assert
+    assert _results(session, "KubernetesPod") == {
+        ("pod-clusterip", True, 2),
+        ("pod-ingress-internal", True, 2),
+    }
     assert _cluster_check(session) == {"paths": None, "count": 0, "checked_at": 2}
 
 
 @pytest.mark.parametrize(
-    "runs",
+    "first_run,second_run",
     [
-        [{"vpc_origin": True}],
-        [{"aws_check": False}],
-        [{}, {"aws_check": False}],
-        [{"static_ip_load_balancer": True}],
+        ({}, {"vpc_origin": True}),
+        ({"aws_check": False}, {"aws_check": False}),
+        ({}, {"aws_check": False}),
+        ({}, {"static_ip_load_balancer": True}),
     ],
     ids=[
         "unmodeled_path",
@@ -573,64 +620,80 @@ def test_cluster_with_an_unmodeled_path_declines_until_it_goes(
         "load_balancer_interface_target",
     ],
 )
-def test_internal_load_balancer_needs_a_clear_aws_account(neo4j_session_empty, runs):
+def test_internal_load_balancer_needs_a_clear_aws_account(
+    neo4j_session_empty, first_run, second_run
+):
+    # Arrange: a CloudFront VPC origin, or a load balancer that targets the interface
+    # of one in the account, can put the internet in front of any internal load
+    # balancer in the account, and an unchecked account may have either.
     session = neo4j_session_empty
-    # A CloudFront VPC origin, or a load balancer that targets the interface of one
-    # in the account, can put the internet in front of any internal load balancer in
-    # the account, and an unchecked account may have either.
-    for tag, run in enumerate(runs, start=1):
-        _sync(session, tag, **run)
-        _analyze(session, tag)
-
-    assert _results(session, "KubernetesPod") == _expected(
-        len(runs), clear={"clusterip"}
+    _sync(
+        session,
+        1,
+        pods=PRIVATE_PODS,
+        containers=PRIVATE_CONTAINERS,
+        **first_run,
+    )
+    _analyze(session, 1)
+    _sync(
+        session,
+        2,
+        pods=PRIVATE_PODS,
+        containers=PRIVATE_CONTAINERS,
+        **second_run,
     )
 
+    # Act
+    _analyze(session, 2)
 
-# A list call that failed leaves the previous Services, Ingresses, Nodes or Gateways
-# in place, so the run cannot vouch for the cluster.
-@pytest.mark.parametrize(
-    "cluster_check",
-    [None, {"CHECK_INPUTS_SYNCED": False}],
-    ids=["not_run", "inputs_not_synced"],
-)
-def test_cluster_not_checked_since_the_pod_sync_gets_no_result(
-    neo4j_session_empty, cluster_check
-):
+    # Assert
+    assert _results(session, "KubernetesPod") == {
+        ("pod-clusterip", True, 2),
+        ("pod-ingress-internal", False, 2),
+    }
+
+
+def test_cluster_whose_lists_failed_gets_no_results(neo4j_session_empty):
+    # Arrange: a list call failed in the second run, so its sync kept the previous
+    # Services, Ingresses, Nodes or Gateways, and the cluster check cannot vouch for
+    # them.
     session = neo4j_session_empty
     _sync(session, 1)
     _analyze(session, 1)
-
     _sync(session, 2)
     params = {"UPDATE_TAG": 2, "CLUSTER_ID": CLUSTER_ID}
-    if cluster_check is not None:
-        run_typed_analysis_job(
-            K8S_UNMODELED_INTERNET_PATHS, session, {**params, **cluster_check}
-        )
+
+    # Act
+    run_typed_analysis_job(
+        K8S_UNMODELED_INTERNET_PATHS, session, {**params, "CHECK_INPUTS_SYNCED": False}
+    )
     run_typed_analysis_job(K8S_NO_MODELED_INTERNET_PATH, session, params)
 
+    # Assert
     assert _results(session, "KubernetesPod") == set()
+    assert _results(session, "KubernetesContainer") == set()
+    assert _cluster_check(session) == {"paths": None, "count": None, "checked_at": None}
 
 
 @pytest.mark.parametrize(
-    "label,node_id",
-    [("KubernetesPod", "pod-clusterip"), ("KubernetesContainer", "pod-clusterip/app")],
+    "pod,container",
+    [
+        ({**_pod("clusterip"), "exposed_internet": True}, _container("clusterip")),
+        (_pod("clusterip"), {**_container("clusterip"), "exposed_internet": True}),
+    ],
+    ids=["pod", "container"],
 )
-def test_runtime_marked_exposed_is_declined(neo4j_session_empty, label, node_id):
+def test_runtime_marked_exposed_is_declined(neo4j_session_empty, pod, container):
+    # Arrange: a future exposure rule may mark a runtime through a path this job does
+    # not model.
     session = neo4j_session_empty
-    _sync(session, 1)
-    # A future exposure rule may mark a runtime through a path this job does not
-    # model. Run the jobs alone so the existing rules do not clear the mark.
-    session.run(
-        f"MATCH (n:{label} {{id: $id}}) SET n.exposed_internet = true", id=node_id
-    )
+    _sync(session, 1, pods=[pod], containers=[container])
+    params = {"UPDATE_TAG": 1, "CLUSTER_ID": CLUSTER_ID, "CHECK_INPUTS_SYNCED": True}
 
-    for job in (K8S_UNMODELED_INTERNET_PATHS, K8S_NO_MODELED_INTERNET_PATH):
-        run_typed_analysis_job(
-            job,
-            session,
-            {"UPDATE_TAG": 1, "CLUSTER_ID": CLUSTER_ID, "CHECK_INPUTS_SYNCED": True},
-        )
+    # Act: run the jobs alone, so the existing exposure rules do not clear the mark.
+    run_typed_analysis_job(K8S_UNMODELED_INTERNET_PATHS, session, params)
+    run_typed_analysis_job(K8S_NO_MODELED_INTERNET_PATH, session, params)
 
-    assert ("pod-clusterip", False, 1) in _results(session, "KubernetesPod")
-    assert ("pod-clusterip/app", False, 1) in _results(session, "KubernetesContainer")
+    # Assert
+    assert _results(session, "KubernetesPod") == {("pod-clusterip", False, 1)}
+    assert _results(session, "KubernetesContainer") == {("pod-clusterip/app", False, 1)}

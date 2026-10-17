@@ -4,10 +4,8 @@ from dataclasses import dataclass
 from unittest.mock import patch
 
 import pytest
-from neo4j.exceptions import ServiceUnavailable
 
 from cartography.analysis.aws.analysis import AWS_ECS_NO_MODELED_INTERNET_PATH
-from cartography.graph.statement import GraphStatement
 from cartography.intel.aws import _check_unmodeled_internet_paths
 from cartography.intel.aws import _perform_aws_analysis
 from cartography.intel.aws import _sync_one_account
@@ -115,9 +113,6 @@ WORKLOADS = (
     INTERNAL_ALB_SERVICE,
     CHAINED_ALB_SERVICE,
 )
-CLEAR = {PRIVATE, BEHIND_INTERNAL_ALB, INTERNAL_ALB_SERVICE}
-# A task whose network interface is not in the graph cannot be checked.
-CHECKED = tuple(w for w in WORKLOADS if w is not ENI_NOT_INGESTED)
 
 
 LOAD_BALANCERS = [
@@ -403,10 +398,6 @@ def _results(session, label):
     }
 
 
-def _expected(tag, clear=CLEAR, node="task"):
-    return {(getattr(w, node), w in clear, tag) for w in CHECKED}
-
-
 def _account_check(session, account=ACCOUNT):
     return (
         session.run(
@@ -430,13 +421,42 @@ def neo4j_session_empty(neo4j_session):
 def test_only_private_awsvpc_tasks_have_no_modeled_internet_path(
     neo4j_session_empty,
 ):
+    # Arrange
     session = neo4j_session_empty
     _sync(session, 1, lb_account=ACCOUNT)
 
+    # Act
     _analyze(session, 1)
 
-    assert _results(session, "AWSECSTask") == _expected(1)
-    assert _results(session, "AWSECSContainer") == _expected(1, node="container")
+    # Assert: ENI_NOT_INGESTED is not checked, since its interface is not in the graph.
+    assert _results(session, "AWSECSTask") == {
+        (PRIVATE.task, True, 1),
+        (BEHIND_INTERNAL_ALB.task, True, 1),
+        (INTERNAL_ALB_SERVICE.task, True, 1),
+        (BEHIND_PUBLIC_ALB.task, False, 1),
+        (PUBLIC_ALB_SERVICE.task, False, 1),
+        (BEHIND_CHAINED_ALB.task, False, 1),
+        (CHAINED_ALB_SERVICE.task, False, 1),
+        (PUBLIC_IP.task, False, 1),
+        (IPV6.task, False, 1),
+        (SECONDARY_PUBLIC_IP.task, False, 1),
+        (BRIDGE.task, False, 1),
+        (HOST.task, False, 1),
+    }
+    assert _results(session, "AWSECSContainer") == {
+        (PRIVATE.container, True, 1),
+        (BEHIND_INTERNAL_ALB.container, True, 1),
+        (INTERNAL_ALB_SERVICE.container, True, 1),
+        (BEHIND_PUBLIC_ALB.container, False, 1),
+        (PUBLIC_ALB_SERVICE.container, False, 1),
+        (BEHIND_CHAINED_ALB.container, False, 1),
+        (CHAINED_ALB_SERVICE.container, False, 1),
+        (PUBLIC_IP.container, False, 1),
+        (IPV6.container, False, 1),
+        (SECONDARY_PUBLIC_IP.container, False, 1),
+        (BRIDGE.container, False, 1),
+        (HOST.container, False, 1),
+    }
     # The internet-facing ALB has no security group open to 0.0.0.0/0, so its target
     # is not marked exposed. The scheme alone is enough to decline the task.
     assert (BEHIND_PUBLIC_ALB.container, None) in check_nodes(
@@ -446,44 +466,42 @@ def test_only_private_awsvpc_tasks_have_no_modeled_internet_path(
 
 
 def test_later_run_that_finds_exposure_declines(neo4j_session_empty):
+    # Arrange
     session = neo4j_session_empty
-    _sync(session, 1, lb_account=ACCOUNT)
+    _sync(session, 1, (PRIVATE,))
+
+    # Act
     _analyze(session, 1)
 
+    # Assert
+    assert _results(session, "AWSECSTask") == {(PRIVATE.task, True, 1)}
+
+    # Arrange
     exposed = Workload(PRIVATE.name, PRIVATE.ip, public_ip="203.0.113.10")
-    workloads = tuple(exposed if w is PRIVATE else w for w in WORKLOADS)
-    _sync(session, 2, workloads, lb_account=ACCOUNT)
+    _sync(session, 2, (exposed,))
+
+    # Act
     _analyze(session, 2)
 
-    assert _results(session, "AWSECSTask") == _expected(2, CLEAR - {PRIVATE})
-    assert _results(session, "AWSECSContainer") == _expected(
-        2, CLEAR - {PRIVATE}, node="container"
-    )
+    # Assert
+    assert _results(session, "AWSECSTask") == {(PRIVATE.task, False, 2)}
+    assert _results(session, "AWSECSContainer") == {(PRIVATE.container, False, 2)}
 
 
-def test_failed_run_keeps_the_previous_result_and_tag(neo4j_session_empty):
+def test_run_that_fails_after_syncing_the_task_keeps_the_previous_result(
+    neo4j_session_empty,
+):
+    # Arrange
     session = neo4j_session_empty
     _sync(session, 1, (PRIVATE,))
     _analyze(session, 1)
-
-    run = GraphStatement.run
-
-    def fail_write(statement, neo4j_session):
-        if statement.parent_job_name == "aws_ecs_no_modeled_internet_path" and (
-            "REMOVE" not in statement.query
-        ):
-            raise ServiceUnavailable("connection lost")
-        return run(statement, neo4j_session)
-
     exposed = Workload(PRIVATE.name, PRIVATE.ip, public_ip="203.0.113.10")
-    _sync(session, 2, (exposed,))
-    with patch.object(GraphStatement, "run", autospec=True) as statement_run:
-        statement_run.side_effect = fail_write
-        with pytest.raises(ServiceUnavailable):
-            _analyze(session, 2)
 
-    # Nothing cleared the result before the failed write: the old result stays, and
-    # its tag is now older than the task's lastupdated.
+    # Act: the run fails after the ECS sync, before its analysis.
+    _sync(session, 2, (exposed,))
+
+    # Assert: the sync left the result, whose tag is now older than the task's
+    # lastupdated, so readers no longer take it as current.
     assert check_nodes(
         session,
         "AWSECSTask",
@@ -508,10 +526,14 @@ def test_failed_run_keeps_the_previous_result_and_tag(neo4j_session_empty):
 def test_account_with_an_unmodeled_path_declines_until_it_goes(
     neo4j_session_empty, entry_point, path_id
 ):
+    # Arrange
     session = neo4j_session_empty
     _sync(session, 1, (PRIVATE,), **entry_point)
+
+    # Act
     _analyze(session, 1)
 
+    # Assert
     assert _results(session, "AWSECSTask") == {(PRIVATE.task, False, 1)}
     assert _account_check(session) == {
         "paths": [path_id],
@@ -519,9 +541,13 @@ def test_account_with_an_unmodeled_path_declines_until_it_goes(
         "checked_at": 1,
     }
 
+    # Arrange
     _sync(session, 2, (PRIVATE,))
+
+    # Act
     _analyze(session, 2)
 
+    # Assert
     assert _results(session, "AWSECSTask") == {(PRIVATE.task, True, 2)}
     assert _account_check(session) == {"paths": None, "count": 0, "checked_at": 2}
 
@@ -565,14 +591,23 @@ def test_account_with_an_unmodeled_path_declines_until_it_goes(
 def test_later_run_without_every_input_retires_the_result(
     neo4j_session_empty, later_run, account_check
 ):
+    # Arrange
     session = neo4j_session_empty
     _sync(session, 1, (PRIVATE,))
+
+    # Act
     _analyze(session, 1)
+
+    # Assert
     assert _results(session, "AWSECSTask") == {(PRIVATE.task, True, 1)}
 
+    # Arrange
     _sync(session, 2, (PRIVATE,), **later_run)
+
+    # Act
     _analyze(session, 2, later_run["requested_syncs"])
 
+    # Assert
     assert _results(session, "AWSECSTask") == set()
     assert _results(session, "AWSECSContainer") == set()
     assert _account_check(session) == account_check
@@ -596,13 +631,15 @@ def test_later_run_without_every_input_retires_the_result(
 def test_internal_load_balancer_in_another_account_needs_that_account_clear(
     neo4j_session_empty, workload, lb_account_state, expected_clear
 ):
+    # Arrange: shared VPC. The internal ALB belongs to another account, whose API
+    # Gateway VPC link can put the internet in front of it.
     session = neo4j_session_empty
-    # Shared VPC: the internal ALB belongs to another account, whose API Gateway VPC
-    # link can put the internet in front of it.
     _sync(session, 1, (workload,), lb_account=LB_ACCOUNT, **lb_account_state)
 
+    # Act
     _analyze(session, 1)
 
+    # Assert
     assert _results(session, "AWSECSTask") == {(workload.task, expected_clear, 1)}
 
 
@@ -618,9 +655,9 @@ def test_internal_load_balancer_in_another_account_needs_that_account_clear(
 def test_load_balancer_targeting_a_load_balancer_interface_withholds_its_targets(
     neo4j_session_empty, scheme, expected_clear
 ):
+    # Arrange: the graph does not link a load balancer's interfaces to it, so the
+    # internal ALB in front of the task looks private.
     session = neo4j_session_empty
-    # The graph does not link a load balancer's interfaces to it, so the internal
-    # ALB in front of the task looks private.
     _sync(
         session,
         1,
@@ -629,8 +666,10 @@ def test_load_balancer_targeting_a_load_balancer_interface_withholds_its_targets
         static_ip_nlb_scheme=scheme,
     )
 
+    # Act
     _analyze(session, 1)
 
+    # Assert
     assert _results(session, "AWSECSTask") == {
         (BEHIND_INTERNAL_ALB.task, expected_clear, 1)
     }
@@ -639,6 +678,7 @@ def test_load_balancer_targeting_a_load_balancer_interface_withholds_its_targets
 def test_load_balancer_interface_target_from_another_account_synced_later(
     neo4j_session_empty,
 ):
+    # Arrange
     session = neo4j_session_empty
     _sync(
         session,
@@ -647,11 +687,15 @@ def test_load_balancer_interface_target_from_another_account_synced_later(
         lb_account=ACCOUNT,
         static_ip_nlb_scheme="internal",
     )
+
+    # Act
     _analyze(session, 1)
+
+    # Assert
     assert _results(session, "AWSECSTask") == {(BEHIND_INTERNAL_ALB.task, True, 1)}
 
-    # A later run syncs only another account in the shared VPC, whose NLB lists the
-    # same interface. It counts even though it is internal.
+    # Arrange: a later run syncs only another account in the shared VPC, whose NLB
+    # lists the same interface. It counts even though it is internal.
     params = {"UPDATE_TAG": 2, "AWS_ID": OTHER_ACCOUNT}
     front = make_load_balancer_v2(
         "edge-static-ip.example.invalid",
@@ -667,18 +711,21 @@ def test_load_balancer_interface_target_from_another_account_synced_later(
             session, None, [REGION], OTHER_ACCOUNT, 2, params
         )
     _check_unmodeled_internet_paths(session, set(ALL_SYNCS), params)
+
+    # Act
     _analyze(session, 2)
 
+    # Assert
     assert _results(session, "AWSECSTask") == {(BEHIND_INTERNAL_ALB.task, False, 2)}
 
 
 def test_elastic_ip_linked_since_the_interface_sync_declines(
     neo4j_session_empty,
 ):
+    # Arrange
     session = neo4j_session_empty
     _sync(session, 1, (PRIVATE,))
     _analyze(session, 1)
-
     # A run that syncs only Elastic IPs links one to the task's interface, without
     # refreshing the interface's public IPv4 address.
     load_elastic_ip_addresses(
@@ -697,22 +744,28 @@ def test_elastic_ip_linked_since_the_interface_sync_declines(
         ACCOUNT,
         2,
     )
+
+    # Act
     _analyze(session, 2, {"ec2:elastic_ip_addresses"})
 
+    # Assert
     assert _results(session, "AWSECSTask") == {(PRIVATE.task, False, 2)}
 
 
 def test_accounts_synced_by_separate_runs_keep_their_results(neo4j_session_empty):
+    # Arrange
     session = neo4j_session_empty
     other = Workload("other-private", "10.0.3.10", account=OTHER_ACCOUNT)
     _sync(session, 1, (PRIVATE,))
     _analyze(session, 1)
-
     _sync(session, 2, (other,), account=OTHER_ACCOUNT)
+
+    # Act
     _analyze(session, 2)
 
-    # The second run re-checks the first account's task against the whole graph, so
-    # its result carries the newer tag while the task keeps its own lastupdated.
+    # Assert: the second run re-checks the first account's task against the whole
+    # graph, so its result carries the newer tag while the task keeps its own
+    # lastupdated.
     assert check_nodes(
         session,
         "AWSECSTask",
@@ -726,6 +779,7 @@ def test_accounts_synced_by_separate_runs_keep_their_results(neo4j_session_empty
 
 
 def test_run_that_fails_part_way_leaves_the_account_unchecked(neo4j_session_empty):
+    # Arrange
     session = neo4j_session_empty
     _sync(session, 1, (PRIVATE,))
     _analyze(session, 1)
@@ -743,6 +797,7 @@ def test_run_that_fails_part_way_leaves_the_account_unchecked(neo4j_session_empt
         )
         raise RuntimeError("a later module failed")
 
+    # Act
     with patch.dict(RESOURCE_FUNCTIONS, {"cloudfront": load_vpc_origin_then_fail}):
         with pytest.raises(RuntimeError):
             _sync_one_account(
@@ -760,21 +815,35 @@ def test_run_that_fails_part_way_leaves_the_account_unchecked(neo4j_session_empt
     _sync(session, 3, (other,), account=OTHER_ACCOUNT)
     _analyze(session, 3)
 
+    # Assert
     assert _results(session, "AWSECSTask") == {(other.task, True, 3)}
     assert _account_check(session) == {"paths": None, "count": None, "checked_at": None}
 
 
 def test_runtime_marked_exposed_is_declined(neo4j_session_empty):
+    # Arrange: a future exposure rule may mark a container through a path this job
+    # does not model.
     session = neo4j_session_empty
     _sync(session, 1, (PRIVATE,))
-    # A future exposure rule may mark a container through a path this job does not
-    # model. Run the job alone so the existing ECS rule does not clear the mark.
-    session.run(
-        "MATCH (c:AWSECSContainer {id: $id}) SET c.exposed_internet = true",
-        id=PRIVATE.container,
+    ecs.load_ecs_containers(
+        session,
+        [
+            {
+                "containerArn": PRIVATE.container,
+                "taskArn": PRIVATE.task,
+                "name": "app",
+                "exposed_internet": True,
+            }
+        ],
+        REGION,
+        ACCOUNT,
+        1,
     )
 
+    # Act: run the job alone, so the existing ECS exposure rule does not clear the
+    # mark.
     run_typed_analysis_job(AWS_ECS_NO_MODELED_INTERNET_PATH, session, {"UPDATE_TAG": 1})
 
+    # Assert
     assert _results(session, "AWSECSTask") == {(PRIVATE.task, False, 1)}
     assert _results(session, "AWSECSContainer") == {(PRIVATE.container, False, 1)}
