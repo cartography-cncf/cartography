@@ -300,6 +300,177 @@ _azure_account_manipulation_permissions = Fact(
 )
 
 
+# Okta
+# Standard admin roles that can create or change users and group membership, or
+# reset users' credentials. Custom roles are not evaluated: their permissions are
+# not synced.
+_OKTA_IDENTITY_ADMIN_ROLE_TYPES = (
+    "['SUPER_ADMIN', 'ORG_ADMIN', 'USER_ADMIN', 'GROUP_MEMBERSHIP_ADMIN', "
+    "'HELP_DESK_ADMIN']"
+)
+# Okta API scopes that let a service app write users, groups, or role
+# assignments. A service app can act only within both its role and its scopes.
+_OKTA_IDENTITY_MANAGE_SCOPES = (
+    "['okta.users.manage', 'okta.groups.manage', 'okta.roles.manage']"
+)
+# Lifecycle states in which an Okta user can still sign in.
+_OKTA_ENABLED_USER_STATUSES = "['ACTIVE', 'PASSWORD_EXPIRED', 'LOCKED_OUT', 'RECOVERY']"
+
+_OKTA_USER_IDENTITY_ADMINS = f"""
+    MATCH (o:OktaOrganization)-[:RESOURCE]->(principal:OktaUser)
+    WHERE o.admin_roles_synced = true
+      AND principal.status IN {_OKTA_ENABLED_USER_STATUSES}
+    MATCH (principal)-[:HAS_ROLE]->(role:OktaUserRole)
+    WHERE role.role_type IN {_OKTA_IDENTITY_ADMIN_ROLE_TYPES}
+      AND coalesce(role.status, 'ACTIVE') = 'ACTIVE'
+"""
+
+_okta_user_identity_admin_roles = Fact(
+    id="okta_user_identity_admin_roles",
+    name="Okta Users with Identity Administration Roles",
+    description=(
+        "Enabled Okta users directly assigned a standard admin role that can "
+        "create or change users and group membership, or reset users' "
+        "credentials: Super, Org, Group, Group Membership, or Help Desk "
+        "Administrator. Only evaluates orgs whose admin roles were synced."
+    ),
+    cypher_query=f"""
+    {_OKTA_USER_IDENTITY_ADMINS}
+    RETURN
+        o.id AS account_id,
+        o.id AS account,
+        coalesce(principal.login, principal.email, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        'OktaUser' AS principal_type,
+        role.id AS policy_id,
+        role.label AS policy_name,
+        [role.role_type] AS actions,
+        [o.id] AS resources
+    ORDER BY account, principal_name, policy_name
+    """,
+    cypher_visual_query=f"""
+    {_OKTA_USER_IDENTITY_ADMINS}
+    MATCH p=(o)-[:RESOURCE]->(principal)-[:HAS_ROLE]->(role)
+    RETURN p
+    """,
+    cypher_count_query="""
+    MATCH (o:OktaOrganization)-[:RESOURCE]->(principal:OktaUser)
+    WHERE o.admin_roles_synced = true
+    RETURN COUNT(principal) AS count
+    """,
+    asset_label="OktaUser",
+    asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
+    module=Module.OKTA,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_OKTA_GROUP_IDENTITY_ADMINS = f"""
+    MATCH (o:OktaOrganization)-[:RESOURCE]->(principal:OktaGroup)
+    WHERE o.admin_roles_synced = true
+    MATCH (principal)-[:HAS_ROLE]->(role:OktaGroupRole)
+    WHERE role.role_type IN {_OKTA_IDENTITY_ADMIN_ROLE_TYPES}
+      AND coalesce(role.status, 'ACTIVE') = 'ACTIVE'
+"""
+
+_okta_group_identity_admin_roles = Fact(
+    id="okta_group_identity_admin_roles",
+    name="Okta Groups with Identity Administration Roles",
+    description=(
+        "Okta groups assigned a standard admin role that can create or change "
+        "users and group membership, or reset users' credentials, which every "
+        "member of the group holds. Only evaluates orgs whose admin roles were "
+        "synced."
+    ),
+    cypher_query=f"""
+    {_OKTA_GROUP_IDENTITY_ADMINS}
+    RETURN
+        o.id AS account_id,
+        o.id AS account,
+        coalesce(principal.name, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        'OktaGroup' AS principal_type,
+        role.id AS policy_id,
+        role.label AS policy_name,
+        [role.role_type] AS actions,
+        [o.id] AS resources
+    ORDER BY account, principal_name, policy_name
+    """,
+    cypher_visual_query=f"""
+    {_OKTA_GROUP_IDENTITY_ADMINS}
+    MATCH p=(o)-[:RESOURCE]->(principal)-[:HAS_ROLE]->(role)
+    RETURN p
+    """,
+    cypher_count_query="""
+    MATCH (o:OktaOrganization)-[:RESOURCE]->(principal:OktaGroup)
+    WHERE o.admin_roles_synced = true
+    RETURN COUNT(principal) AS count
+    """,
+    asset_label="OktaGroup",
+    asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
+    module=Module.OKTA,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_OKTA_APP_IDENTITY_ADMINS = f"""
+    MATCH (o:OktaOrganization)-[:RESOURCE]->(principal:OktaApplication)
+    WHERE o.application_roles_synced = true
+      AND o.app_grants_synced = true
+      AND principal.status = 'ACTIVE'
+    MATCH (principal)-[:HAS_ROLE]->(role:OktaApplicationRole)
+    WHERE role.role_type IN {_OKTA_IDENTITY_ADMIN_ROLE_TYPES}
+      AND role.status = 'ACTIVE'
+    WITH o, principal, role,
+        [scope IN coalesce(principal.granted_scopes, [])
+            WHERE scope IN {_OKTA_IDENTITY_MANAGE_SCOPES}] AS actions
+    WHERE size(actions) > 0
+"""
+
+_okta_application_identity_admin_roles = Fact(
+    id="okta_application_identity_admin_roles",
+    name="Okta Service Apps with Identity Administration Access",
+    description=(
+        "Active Okta OAuth service apps assigned a standard admin role that can "
+        "administer identities and granted `okta.users.manage`, "
+        "`okta.groups.manage`, or `okta.roles.manage`, so the app can change "
+        "identities with no person or MFA in the loop. Only evaluates orgs "
+        "whose app admin roles and scope grants were synced."
+    ),
+    cypher_query=f"""
+    {_OKTA_APP_IDENTITY_ADMINS}
+    RETURN
+        o.id AS account_id,
+        o.id AS account,
+        coalesce(principal.label, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        'OktaApplication' AS principal_type,
+        role.id AS policy_id,
+        role.label AS policy_name,
+        actions,
+        [o.id] AS resources
+    ORDER BY account, principal_name, policy_name
+    """,
+    cypher_visual_query=f"""
+    {_OKTA_APP_IDENTITY_ADMINS}
+    MATCH p=(o)-[:RESOURCE]->(principal)-[:HAS_ROLE]->(role)
+    RETURN p
+    """,
+    cypher_count_query="""
+    MATCH (o:OktaOrganization)-[:RESOURCE]->(principal:OktaApplication)
+    WHERE o.application_roles_synced = true AND o.app_grants_synced = true
+    RETURN COUNT(principal) AS count
+    """,
+    asset_label="OktaApplication",
+    asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
+    module=Module.OKTA,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class IdentityAdministrationPrivileges(Finding):
     principal_name: str | None = None
@@ -325,6 +496,9 @@ identity_administration_privileges = Rule(
         _aws_account_manipulation_permissions,
         _azure_account_manipulation_permissions,
         _gcp_account_manipulation_permissions,
+        _okta_user_identity_admin_roles,
+        _okta_group_identity_admin_roles,
+        _okta_application_identity_admin_roles,
     ),
     tags=(
         "iam",
@@ -332,7 +506,7 @@ identity_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.1",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),

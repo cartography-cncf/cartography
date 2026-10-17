@@ -11,7 +11,7 @@ STIG_FRAMEWORK_SHORT_NAME = "STIG"
 
 STIG_OKTA_FRAMEWORK_NAME = "DISA Okta Identity as a Service (IDaaS) STIG"
 STIG_OKTA_SCOPE = "okta"
-STIG_OKTA_REVISION = "V1R2"
+STIG_OKTA_REVISION = "V1R3"
 
 STIG_OKTA_CONTROL_TITLES = {
     "V-273186": "Okta must log out a session after a 15-minute period of inactivity.",
@@ -28,7 +28,7 @@ STIG_OKTA_CONTROL_TITLES = {
     "V-273198": "Okta must enforce password complexity by requiring that at least one numeric character be used.",
     "V-273199": "Okta must enforce password complexity by requiring that at least one special character be used.",
     "V-273200": "Okta must enforce 24 hours/one day as the minimum password lifetime.",
-    "V-273201": "Okta must enforce a 60-day maximum password lifetime restriction.",
+    "V-273201": "Okta must enforce a 180-day maximum password lifetime restriction.",
     "V-273202": "Okta must off-load audit records onto a central log server.",
     "V-273203": "Okta must be configured to limit the global session lifetime to 18 hours.",
     "V-273205": "The Okta Verify application must be configured to connect only to FIPS-compliant devices.",

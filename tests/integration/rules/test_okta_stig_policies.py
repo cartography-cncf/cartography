@@ -137,7 +137,7 @@ CREATE (b)-[:RESOURCE]->(:OktaPolicy {
     password_min_length: 15, password_min_lowercase: 1, password_min_uppercase: 1,
     password_min_number: 1, password_min_symbol: 1,
     password_common_password_check: true, password_min_age_minutes: 1440,
-    password_max_age_days: 60, password_history_count: 5, lockout_max_attempts: 3
+    password_max_age_days: 180, password_history_count: 5, lockout_max_attempts: 3
 })
 
 // Log streams

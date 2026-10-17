@@ -195,12 +195,60 @@ _duo_user_not_enrolled = Fact(
 )
 
 
+# Lifecycle states in which an Okta user can still sign in. A security question
+# is a second thing the user knows, not a second factor.
+_OKTA_USERS_WITHOUT_MFA = """
+    MATCH (org:OktaOrganization)-[:RESOURCE]->(user:OktaUser)
+    WHERE user.status IN ['ACTIVE', 'PASSWORD_EXPIRED', 'LOCKED_OUT', 'RECOVERY']
+      AND NOT EXISTS {
+        MATCH (user)-[:FACTOR]->(factor:OktaUserFactor)
+        WHERE factor.status = 'ACTIVE' AND factor.factor_type <> 'question'
+      }
+"""
+
+_okta_user_mfa_not_enrolled = Fact(
+    id="okta_user_mfa_not_enrolled",
+    name="Enabled Okta users without an active MFA factor",
+    description=(
+        "Detects Okta users who can sign in but have no active factor other than "
+        "a security question, so Okta cannot ask them for a second factor."
+    ),
+    cypher_query=f"""
+    {_OKTA_USERS_WITHOUT_MFA}
+    RETURN
+        'okta' AS provider,
+        org.id AS account_id,
+        org.id AS account_name,
+        user.id AS principal_id,
+        coalesce(user.login, user.email, user.id) AS principal_name,
+        'user' AS principal_type,
+        'mfa_not_enrolled' AS issue,
+        user.status AS current_value
+    """,
+    cypher_visual_query=f"""
+    {_OKTA_USERS_WITHOUT_MFA}
+    MATCH p=(org)-[:RESOURCE]->(user)
+    RETURN p
+    """,
+    cypher_count_query="""
+    MATCH (user:OktaUser)
+    WHERE user.status IN ['ACTIVE', 'PASSWORD_EXPIRED', 'LOCKED_OUT', 'RECOVERY']
+    RETURN COUNT(user) AS count
+    """,
+    asset_label="OktaUser",
+    asset_id_field="principal_id",
+    identity_fields=("principal_id",),
+    module=Module.OKTA,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 identity_mfa_gaps = Rule(
     id="identity_mfa_gaps",
     name="Identity MFA Gaps",
     description=(
         "Detects provider-specific MFA enforcement and enrollment gaps for "
-        "Cloudflare, LastPass, JumpCloud, and Duo."
+        "Cloudflare, LastPass, JumpCloud, Duo, and Okta."
     ),
     output_model=IdentityMfaGapOutput,
     facts=(
@@ -208,9 +256,10 @@ identity_mfa_gaps = Rule(
         _lastpass_user_mfa_missing,
         _jumpcloud_user_mfa_missing,
         _duo_user_not_enrolled,
+        _okta_user_mfa_not_enrolled,
     ),
     tags=("identity", "mfa", "compliance", "stride:spoofing"),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("8.5"),
         soc2_tsc("CC6.1"),

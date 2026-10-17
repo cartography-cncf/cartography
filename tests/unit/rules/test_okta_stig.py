@@ -16,8 +16,8 @@ OKTA_STIG_RULES = tuple(
     value for value in vars(okta_stig).values() if isinstance(value, Rule)
 )
 
-# Every V-ID in the Okta IDaaS STIG V1R2.
-OKTA_STIG_V1R2_VULN_IDS = {
+# Every V-ID in the Okta IDaaS STIG V1R3.
+OKTA_STIG_V1R3_VULN_IDS = {
     *(f"V-2731{n}" for n in range(86, 100)),
     *(f"V-2732{n:02d}" for n in range(0, 10)),
     "V-279689",
@@ -42,13 +42,20 @@ def _coverage_table() -> dict[str, str]:
     return dict(COVERAGE_ROW.findall(okta_stig.__doc__ or ""))
 
 
+# Rules whose check changed after their first release.
+RULE_VERSIONS = {
+    # V1R3 raised the maximum password lifetime from 60 to 180 days.
+    "okta_password_max_age_too_long": "1.1.0",
+}
+
+
 def test_rules_registered_and_metadata():
     assert len(OKTA_STIG_RULES) == 26
     for rule in OKTA_STIG_RULES:
         assert RULES[rule.id] is rule
-        assert rule.version == "1.0.0"
+        assert rule.version == RULE_VERSIONS.get(rule.id, "1.0.0")
         assert rule.modules == {Module.OKTA}
-        assert rule.has_framework("stig", "okta", "v1r2")
+        assert rule.has_framework("stig", "okta", "v1r3")
         assert len(_stig_requirements(rule)) == 1
         assert rule.has_framework("iso", "27001", "2022")
         assert rule.has_framework("soc2", "tsc", "2022")
@@ -87,8 +94,8 @@ def test_phase_one_output_models_are_distinct():
 def test_coverage_table_lists_every_stig_check_once():
     rows = COVERAGE_ROW.findall(okta_stig.__doc__ or "")
 
-    assert len(rows) == len(OKTA_STIG_V1R2_VULN_IDS)
-    assert {vuln_id for vuln_id, _ in rows} == OKTA_STIG_V1R2_VULN_IDS
+    assert len(rows) == len(OKTA_STIG_V1R3_VULN_IDS)
+    assert {vuln_id for vuln_id, _ in rows} == OKTA_STIG_V1R3_VULN_IDS
 
 
 def test_coverage_table_matches_mapped_rules():
@@ -122,7 +129,7 @@ def test_coverage_table_is_in_the_module_source():
     # tests above parse.
     source = Path(okta_stig.__file__).read_text()
     assert source.lstrip().startswith('"""')
-    assert "STIG coverage (V1R2, 29 checks)" in source
+    assert "STIG coverage (V1R3, 29 checks)" in source
 
 
 def test_inactive_user_fact_uses_35_day_window_and_enabled_states():

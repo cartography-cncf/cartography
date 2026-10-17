@@ -306,6 +306,12 @@ from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitiv
 from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_inventory
 from cartography.rules.data.rules.nist_ai_rmf import aibom_coverage_gaps
 from cartography.rules.data.rules.object_storage_public import object_storage_public
+from cartography.rules.data.rules.okta_service_apps import (
+    okta_admin_service_app_without_dpop,
+)
+from cartography.rules.data.rules.okta_service_apps import (
+    okta_service_app_admin_write_access,
+)
 from cartography.rules.data.rules.okta_stig import (
     okta_admin_console_idle_timeout_too_long,
 )
@@ -555,6 +561,9 @@ RULES = {
     okta_api_token_owned_by_super_admin.id: okta_api_token_owned_by_super_admin,
     okta_anonymizer_blocklist_missing.id: okta_anonymizer_blocklist_missing,
     okta_app_policy_without_network_zones.id: okta_app_policy_without_network_zones,
+    # Okta OAuth Service App Rules
+    okta_service_app_admin_write_access.id: okta_service_app_admin_write_access,
+    okta_admin_service_app_without_dpop.id: okta_admin_service_app_without_dpop,
     # CIS Kubernetes Benchmark v1.12 Rules
     kubernetes_cluster_admin_role_usage.id: kubernetes_cluster_admin_role_usage,
     kubernetes_roles_grant_secret_access.id: kubernetes_roles_grant_secret_access,
