@@ -40,7 +40,7 @@ In the Okta Admin Console:
    [Admin role and scopes](#admin-role-and-scopes). Okta asks you to
    reauthenticate before it saves an admin role.
 
-#### Admin role and scopes
+### Admin role and scopes
 
 Okta checks two things on every request from a service app: one of the access
 token's scopes must allow the action, and the app's admin role must allow access
