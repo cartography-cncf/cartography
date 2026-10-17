@@ -9,6 +9,7 @@ import cartography.intel.ontology.publicips
 import cartography.intel.ontology.users
 from cartography.analysis.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
 from cartography.analysis.ontology.analysis import BBOT_IP_MATCHES_PUBLIC_IP
+from cartography.analysis.ontology.analysis import BBOT_RESOURCE_JOBS
 from cartography.analysis.ontology.analysis import CODEBUILD_IMAGE_PACKAGED_FROM
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.analysis.ontology.analysis import TAILSCALE_DEVICE_INSTANCE_LINKING
@@ -88,6 +89,10 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
+    # Attach BBOT ports, URLs, findings, technologies and buckets to the cloud resources
+    # behind them. Runs after the DNS, PublicIP and BBOT IP linking it reads.
+    for job in BBOT_RESOURCE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)
     # Link Tailscale endpoint devices to the cloud compute instances they identify as.
     # Runs after provider syncs so EC2/GCP ComputeInstance nodes are available.
     run_typed_analysis_job(

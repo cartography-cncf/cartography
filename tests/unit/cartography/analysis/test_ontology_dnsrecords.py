@@ -36,8 +36,11 @@ def test_ontology_dns_merges_leave_route53_owned_edges_untouched():
             } & owned
             if not owned_targets:
                 continue
-            # A statement matching only GCPRecordSet can never reach an AWSDNSRecord.
-            if "(dns:GCPRecordSet)" in statement.match:
+            # A statement matching only GCPRecordSet or BbotDNSName can never reach an
+            # AWSDNSRecord.
+            if "(dns:GCPRecordSet)" in statement.match or (
+                "WHERE dns:BbotDNSName" in statement.match
+            ):
                 continue
             checked |= owned_targets
             assert MATCH_GUARD in statement.match, (
@@ -63,6 +66,9 @@ def test_ontology_dns_cleanups_guard_route53_owned_edges():
             # effect as the generic ones and dedupe into a single delete, but such a cleanup
             # would be safe if one came back.
             if "(source:GCPRecordSet)" in statement.query:
+                continue
+            # BBOT cleanups are scoped to BbotDNSName sources, which are never AWSDNSRecords.
+            if "(source:BbotDNSName)" in statement.query:
                 continue
             for target in owned:
                 if f"(target:{target})" not in statement.query:
