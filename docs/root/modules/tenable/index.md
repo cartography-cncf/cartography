@@ -26,6 +26,10 @@ To find findings by CVE:
           <-[:DETECTED_BY]-(f:TenableFinding)
     RETURN f
 
+Plugin IDs are not yet tenant-qualified (see [configuration](config.md)), so a plugin
+node is shared by every tenant that reports it. In a graph holding several tenants,
+scope the findings with `(f)<-[:RESOURCE]-(:TenableTenant {id: '<tenant id>'})`.
+
 Tenable's export names CVEs as bare identifiers with no per-CVE scoring, and a plugin's
 severity is Tenable's roll-up over every CVE it covers. So `TenableCve` has no
 `_ont_base_severity` or `_ont_vuln_status`, and a query that filters `CVE` nodes on

@@ -149,25 +149,25 @@ def test_sync_findings_keep_the_first_cve_id_and_a_has_cve_flag(neo4j_session, m
 
 def test_sync_creates_a_cve_node_for_each_cve_a_plugin_names(neo4j_session, mocker):
     # Act
-    _sync_findings(neo4j_session, mocker)
+    _sync_findings(neo4j_session, mocker, tenant_id="tenant-a")
 
     # Assert
     assert check_nodes(neo4j_session, "TenableCve", ["id", "cve_id"]) == {
-        ("TNB|cloud.tenable.com|CVE-2022-21837", "CVE-2022-21837"),
-        ("TNB|cloud.tenable.com|CVE-2022-21840", "CVE-2022-21840"),
-        ("TNB|cloud.tenable.com|CVE-2022-21842", "CVE-2022-21842"),
+        ("TNB|tenant-a|CVE-2022-21837", "CVE-2022-21837"),
+        ("TNB|tenant-a|CVE-2022-21840", "CVE-2022-21840"),
+        ("TNB|tenant-a|CVE-2022-21842", "CVE-2022-21842"),
     }
 
 
 def test_sync_puts_the_cve_ontology_label_on_cve_nodes_only(neo4j_session, mocker):
     # Act
-    _sync_findings(neo4j_session, mocker)
+    _sync_findings(neo4j_session, mocker, tenant_id="tenant-a")
 
     # Assert: the three TenableCve nodes are the only :CVE nodes; findings are not.
     assert check_nodes(neo4j_session, "CVE", ["id", "_ont_cve_id", "_ont_source"]) == {
-        ("TNB|cloud.tenable.com|CVE-2022-21837", "CVE-2022-21837", "tenable"),
-        ("TNB|cloud.tenable.com|CVE-2022-21840", "CVE-2022-21840", "tenable"),
-        ("TNB|cloud.tenable.com|CVE-2022-21842", "CVE-2022-21842", "tenable"),
+        ("TNB|tenant-a|CVE-2022-21837", "CVE-2022-21837", "tenable"),
+        ("TNB|tenant-a|CVE-2022-21840", "CVE-2022-21840", "tenable"),
+        ("TNB|tenant-a|CVE-2022-21842", "CVE-2022-21842", "tenable"),
     }
 
 
@@ -357,7 +357,10 @@ def test_sync_does_not_let_the_cve_module_adopt_tenable_cve_nodes(
 ):
     # Arrange: CVE-2023-6493 is in the NVD fixture.
     _sync_findings(
-        neo4j_session, mocker, [_finding("f1", plugin_id=1, cves=["CVE-2023-6493"])]
+        neo4j_session,
+        mocker,
+        [_finding("f1", plugin_id=1, cves=["CVE-2023-6493"])],
+        tenant_id="tenant-a",
     )
 
     # Act
@@ -373,7 +376,7 @@ def test_sync_does_not_let_the_cve_module_adopt_tenable_cve_nodes(
     ).data()
     assert records == [
         {"id": "CVE-2023-6493", "source": "cve"},
-        {"id": "TNB|cloud.tenable.com|CVE-2023-6493", "source": "tenable"},
+        {"id": "TNB|tenant-a|CVE-2023-6493", "source": "tenable"},
     ]
 
 
