@@ -30,21 +30,11 @@ carries the vulnerability, and Trivy can rate the same vulnerability differently
 in each of them: a Debian package and an Alpine package with the same CVE often
 carry different severities. The node's `severity`, `severity_source`, `status`
 and `data_source_id` come from the last package row ingested for the finding,
-across all scans. The ontology fields `_ont_base_severity` and `_ont_vuln_status`
-follow those node values, so per-image questions should read the `AFFECTS`
-relationship instead.
-
-Each `AFFECTS` relationship from a finding to an `Image` or `FilesystemSnapshot`
-carries the rating Trivy reported for that scan target, as raw Trivy strings
-rather than normalized values:
-
-- `severity`: uppercase Trivy severity, such as `LOW` or `CRITICAL`.
-- `severity_source`: the advisory source Trivy used for the severity, such as
-  `debian`, `ubuntu`, `ghsa` or `nvd`. Absent when Trivy fell back to its
-  default severity without naming a source.
-- `status`: the fix status in Trivy's vocabulary, such as `affected`, `fixed` or
-  `will_not_fix`.
-- `data_source_id`: the Trivy advisory database that matched the package.
+across all scans, and the ontology fields `_ont_base_severity` and
+`_ont_vuln_status` follow those node values. For per-target questions, read the
+same four properties on the `AFFECTS` relationship from the finding to the
+`Image` or `FilesystemSnapshot`. They hold the raw Trivy values reported for
+that target.
 
 When several packages in one target carry the same finding, the target takes the
 rating of one package, chosen by, in order:
@@ -58,17 +48,12 @@ rating of one package, chosen by, in order:
 4. an operating system package over a language package;
 5. report order.
 
-For example, to list the rating of one CVE on every image it affects:
-
-```cypher
-MATCH (f:TrivyImageFinding {cve_id: 'CVE-2026-27171'})-[r:AFFECTS]->(img:Image)
-RETURN img.`_ont_digest`, r.severity, r.severity_source, r.status
-```
-
-See [configuration](config.md) for report requirements and source options, and
-the generated [schema](schema.md) for fields and relationships.
+See [configuration](config.md) for report requirements and source options,
+[queries](queries.md) for query examples, and the generated [schema](schema.md)
+for fields and relationships.
 
 ```{toctree}
 config
 schema
+queries
 ```
