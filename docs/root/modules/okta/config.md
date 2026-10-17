@@ -36,10 +36,26 @@ In the Okta Admin Console:
    Okta Terraform provider or the
    [application grants API](https://developer.okta.com/docs/api/openapi/okta-management/management/tag/ApplicationGrants/).
 1. On the **Admin roles** tab, click **Edit assignments**, choose
-   **Read-only Administrator**, and save. Okta asks you to reauthenticate
-   before it saves an admin role. Okta checks both the scope and the admin
-   role, and refuses this role a few resources, such as admin role
-   assignments; see [Permissions](#permissions).
+   **Super Administrator**, and save. The app stays read-only; see
+   [Admin role and scopes](#admin-role-and-scopes). Okta asks you to
+   reauthenticate before it saves an admin role.
+
+#### Admin role and scopes
+
+Okta checks two things on every request from a service app: one of the access
+token's scopes must allow the action, and the app's admin role must allow access
+to the resource. The scopes limit what the app can do; the admin role limits
+what it can see.
+
+Cartography requests only read scopes, so the app cannot create, change, or
+delete anything in Okta, whatever admin role it has. That also makes a service
+app safer than an API token, which can do anything its creator can.
+
+- **Super Administrator** (recommended): Cartography syncs every resource. The
+  read scopes keep the app read-only.
+- **Read-only Administrator**: Okta refuses this role log streams, admin role
+  assignments, the Admin Console session settings, and Okta's own apps.
+  Cartography skips those with a warning; see [Permissions](#permissions).
 
 Leave **Require Demonstrating Proof of Possession (DPoP)** as it is.
 Cartography sends DPoP proofs by default, which works whether or not the app
@@ -83,8 +99,8 @@ other policy types.
 
 The OAuth scopes above apply to OAuth service apps. A service app also needs an
 admin role that allows each request, and an API token gets whatever its
-creator's admin role allows. With the Read-only Administrator role, Okta may
-refuse:
+creator's admin role allows. With the Read-only Administrator role, Okta
+refuses:
 
 - Log streams and the Admin Console session settings.
 - Admin role assignments.
