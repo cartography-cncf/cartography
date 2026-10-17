@@ -32,7 +32,7 @@ class CVEMetadataFeedNodeProperties(CartographyNodeProperties):
         description=(
             "catalogVersion of the KEV catalog used by the sync. Unset when no "
             "catalog was used: the source was disabled, the fetch failed, or the "
-            "catalog listed no CVEs."
+            "catalog listed no CVEs or a number other than its count."
         ),
     )
     kev_date_released: PropertyRef = PropertyRef(

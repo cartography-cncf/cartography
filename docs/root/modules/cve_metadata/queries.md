@@ -15,5 +15,5 @@ ORDER BY m.kev_date_added DESC
 ```cypher
 MATCH (m:CVEMetadata)-[:ENRICHES]->(c:CVE)
 WHERE m.ssvc_automatable = 'yes' AND m.ssvc_technical_impact = 'total'
-RETURN m.id, m.ssvc_exploitation, m.ssvc_timestamp, count(c) AS findings
+RETURN m.id, m.ssvc_exploitation, m.ssvc_timestamp, count(c) AS enriched_cve_nodes
 ```

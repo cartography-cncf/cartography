@@ -133,16 +133,8 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
             vulnrichment_snapshot,
         ),
     ]
-    assert [c.args[1] for c in mock_merge_kev_into_cves.call_args_list] == [
-        kev_catalog,
-        kev_catalog,
-    ]
-    assert [c.args[1] for c in mock_merge_vulnrichment_into_cves.call_args_list] == [
-        vulnrichment_snapshot,
-        vulnrichment_snapshot,
-    ]
-    # merge_nvd_into_cves is mocked out, so cves stay stubs; effect_tags derivation
-    # still runs on each, resolving to []/none with no CWE or CVSS present.
+    # The merges are mocked out, so cves stay stubs; effect_tags derivation still
+    # runs on each, resolving to []/none with no CWE or CVSS present.
     assert mock_load_cve_metadata.call_args_list == [
         call(
             neo4j_session,

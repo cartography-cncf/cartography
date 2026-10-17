@@ -1,6 +1,8 @@
 from datetime import datetime
 from datetime import timezone
 
+from dateutil.parser import isoparse
+
 
 def parse_utc_datetime(value: str | None) -> datetime | None:
     """
@@ -8,7 +10,7 @@ def parse_utc_datetime(value: str | None) -> datetime | None:
     Neo4j LocalDateTime, and comparing that with a zoned DateTime returns null,
     so range filters would silently drop the row.
     """
-    if not value:
+    if value is None or value == "":
         return None
-    parsed = datetime.fromisoformat(value)
+    parsed = isoparse(value)
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)

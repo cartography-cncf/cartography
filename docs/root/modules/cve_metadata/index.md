@@ -41,6 +41,8 @@ already in the graph. The archive is never held in memory or written to disk.
 If the KEV catalog or the Vulnrichment archive cannot be fetched or read in
 full, or holds no records, the sync continues without that source: `is_kev`
 falls back to NVD's copy of the KEV data, and the SSVC fields are left unset.
+A KEV catalog whose `count` disagrees with the number of entries it lists is
+treated the same way.
 The `CVEMetadataFeed` node records the KEV catalog version as
 `kev_catalog_version` and the archive's commit as `vulnrichment_commit`. Each
 is unset when its source was not used.

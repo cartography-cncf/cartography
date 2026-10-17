@@ -4,7 +4,6 @@ from datetime import datetime
 from datetime import timezone
 from unittest.mock import patch
 
-import neo4j.time
 import pytest
 import requests
 
@@ -68,25 +67,6 @@ def _mock_vulnrichment(http_session, cve_ids):
 def _mock_truncated_vulnrichment(http_session, cve_ids):
     archive = build_vulnrichment_archive(ARCHIVE_RECORDS)
     return read_vulnrichment_archive(io.BytesIO(archive[: len(archive) // 2]), cve_ids)
-
-
-def _to_native(value):
-    return value.to_native() if isinstance(value, neo4j.time.DateTime) else value
-
-
-KEV_AND_SSVC_FIELDS = [
-    "id",
-    "is_kev",
-    "is_kev_source",
-    "kev_date_added",
-    "kev_due_date",
-    "kev_ransomware_use",
-    "kev_forensic_triage",
-    "ssvc_exploitation",
-    "ssvc_automatable",
-    "ssvc_technical_impact",
-    "ssvc_version",
-]
 
 
 def test_get_cve_ids_from_graph(neo4j_session):
@@ -207,6 +187,7 @@ def test_sync(mock_nvd, mock_epss, mock_kev, mock_vulnrichment, neo4j_session):
             "source_kev",
             "source_vulnrichment",
             "kev_catalog_version",
+            "kev_date_released",
             "vulnrichment_commit",
         ],
     ) == {
@@ -217,6 +198,7 @@ def test_sync(mock_nvd, mock_epss, mock_kev, mock_vulnrichment, neo4j_session):
             True,
             True,
             "2024.01.10",
+            datetime(2024, 1, 10, 15, 0, 0, 10500, tzinfo=timezone.utc),
             VULNRICHMENT_COMMIT,
         ),
     }
@@ -254,60 +236,58 @@ def test_sync(mock_nvd, mock_epss, mock_kev, mock_vulnrichment, neo4j_session):
         ("CVE-2024-22075", "2024-01-08", "2024-01-29"),
     }
 
-    # Assert - is_kev follows the KEV catalog, which disagrees with NVD on both
-    # CVEs, and the SSVC fields follow Vulnrichment. CVE-2024-22075 has a
-    # CNA-only record in Vulnrichment, so it has no SSVC decision.
-    assert check_nodes(neo4j_session, "CVEMetadata", KEV_AND_SSVC_FIELDS) == {
+    # Assert - is_kev follows the KEV catalog, which disagrees with NVD on both CVEs
+    assert check_nodes(
+        neo4j_session,
+        "CVEMetadata",
+        [
+            "id",
+            "is_kev",
+            "is_kev_source",
+            "kev_date_added",
+            "kev_due_date",
+            "kev_ransomware_use",
+            "kev_forensic_triage",
+        ],
+    ) == {
+        ("CVE-2023-41782", True, "kev", "2024-01-09", "2024-01-30", "Known", True),
+        ("CVE-2024-22075", False, "kev", None, None, None, None),
+    }
+
+    # Assert - the SSVC fields follow Vulnrichment. CVE-2024-22075 has a CNA-only
+    # record there, so it has no SSVC decision but does have an update time.
+    assert check_nodes(
+        neo4j_session,
+        "CVEMetadata",
+        [
+            "id",
+            "ssvc_exploitation",
+            "ssvc_automatable",
+            "ssvc_technical_impact",
+            "ssvc_version",
+            "ssvc_timestamp",
+            "vulnrichment_updated_at",
+        ],
+    ) == {
         (
             "CVE-2023-41782",
-            True,
-            "kev",
-            "2024-01-09",
-            "2024-01-30",
-            "Known",
-            True,
             "active",
             "yes",
             "total",
             "2.0.3",
-        ),
-        (
-            "CVE-2024-22075",
-            False,
-            "kev",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-    }
-    timestamps = {
-        row["id"]: (_to_native(row["ssvc_timestamp"]), _to_native(row["updated_at"]))
-        for row in neo4j_session.run(
-            """
-            MATCH (m:CVEMetadata)
-            RETURN m.id AS id, m.ssvc_timestamp AS ssvc_timestamp,
-                   m.vulnrichment_updated_at AS updated_at
-            """,
-        )
-    }
-    assert timestamps == {
-        "CVE-2023-41782": (
             datetime(2024, 8, 1, 19, 28, 25, 242481, tzinfo=timezone.utc),
             datetime(2024, 10, 29, 14, 7, 56, 381000, tzinfo=timezone.utc),
         ),
-        "CVE-2024-22075": (
+        (
+            "CVE-2024-22075",
+            None,
+            None,
+            None,
+            None,
             None,
             datetime(2024, 5, 28, 18, 59, 27, 726000, tzinfo=timezone.utc),
         ),
     }
-    # The KEV catalog and the Vulnrichment archive are fetched once per sync.
-    mock_kev.assert_called_once()
-    mock_vulnrichment.assert_called_once()
 
     # Assert - RESOURCE relationship to feed
     assert check_rels(

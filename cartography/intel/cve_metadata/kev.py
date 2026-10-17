@@ -39,11 +39,18 @@ def get_kev_catalog(http_session: Session) -> dict[str, Any]:
 
 
 def transform_kev_catalog(raw: dict[str, Any]) -> KevCatalog:
-    if not raw["vulnerabilities"]:
-        # The catalog decides is_kev, so an empty one would set every CVE to false.
+    # The catalog decides is_kev, so an empty or partial one would set CVEs it
+    # leaves out to false.
+    vulnerabilities = raw["vulnerabilities"]
+    if not vulnerabilities:
         raise ValueError("The CISA KEV catalog lists no vulnerabilities.")
+    if raw["count"] != len(vulnerabilities):
+        raise ValueError(
+            f"The CISA KEV catalog declares {raw['count']} vulnerabilities but "
+            f"lists {len(vulnerabilities)}.",
+        )
     entries: dict[str, dict[str, Any]] = {}
-    for vuln in raw["vulnerabilities"]:
+    for vuln in vulnerabilities:
         cve_id = vuln["cveID"]
         forensic_triage = vuln.get("forensicTriage")
         if forensic_triage is not None and forensic_triage not in _FORENSIC_TRIAGE:

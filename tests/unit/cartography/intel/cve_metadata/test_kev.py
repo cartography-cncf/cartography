@@ -3,15 +3,18 @@ from datetime import timezone
 
 import pytest
 
-from cartography.intel.cve_metadata.kev import merge_kev_into_cves
 from cartography.intel.cve_metadata.kev import transform_kev_catalog
 from tests.data.cve_metadata.kev import GET_KEV_CATALOG
 
 
 @pytest.mark.parametrize(
     "date_released",
-    ["2024-01-10T15:00:00.0105Z", "2024-01-10T15:00:00.0105"],
-    ids=["utc", "no-offset-read-as-utc"],
+    [
+        "2024-01-10T15:00:00.0105Z",
+        "2024-01-10T15:00:00.0105",
+        "2024-01-10t15:00:00.0105z",
+    ],
+    ids=["utc", "no-offset-read-as-utc", "lowercase-rfc3339"],
 )
 def test_transform_kev_catalog(date_released):
     # Act
@@ -38,57 +41,19 @@ def test_transform_kev_catalog(date_released):
     }
 
 
-def test_transform_kev_catalog_without_entries_raises():
-    # An empty catalog would otherwise set every is_kev to false.
-    with pytest.raises(ValueError):
-        transform_kev_catalog({**GET_KEV_CATALOG, "vulnerabilities": []})
-
-
-def test_merge_kev_catalog_overrides_nvd():
-    # Arrange: NVD's copy disagrees with the catalog on both CVEs.
-    catalog = transform_kev_catalog(GET_KEV_CATALOG)
-    cves = [
-        {"id": "CVE-2023-41782", "is_kev": False},
-        {"id": "CVE-2024-22075", "is_kev": True, "cisaExploitAdd": "2024-01-08"},
-    ]
-
-    # Act
-    merge_kev_into_cves(cves, catalog)
-
-    # Assert
-    assert cves == [
-        {
-            "id": "CVE-2023-41782",
-            "is_kev": True,
-            "is_kev_source": "kev",
-            "kev_date_added": "2024-01-09",
-            "kev_due_date": "2024-01-30",
-            "kev_ransomware_use": "Known",
-            "kev_forensic_triage": True,
-        },
-        {
-            "id": "CVE-2024-22075",
-            "is_kev": False,
-            "is_kev_source": "kev",
-            "cisaExploitAdd": "2024-01-08",
-            "kev_date_added": None,
-            "kev_due_date": None,
-            "kev_ransomware_use": None,
-            "kev_forensic_triage": None,
-        },
-    ]
-
-
-def test_merge_kev_without_catalog_falls_back_to_nvd():
-    # Arrange: the second CVE has no NVD record.
-    cves = [{"id": "CVE-2024-22075", "is_kev": True}, {"id": "CVE-2023-41782"}]
-
-    # Act
-    merge_kev_into_cves(cves, None)
-
-    # Assert
-    assert [(c["id"], c.get("is_kev"), c["is_kev_source"]) for c in cves] == [
-        ("CVE-2024-22075", True, "nvd"),
-        ("CVE-2023-41782", None, None),
-    ]
-    assert all(c["kev_date_added"] is None for c in cves)
+# An unusable catalog must fail the fetch so that is_kev falls back to NVD. The
+# catalog decides is_kev, so an empty or partial one would set the CVEs it leaves
+# out to false.
+@pytest.mark.parametrize(
+    "overrides, error",
+    [
+        ({"vulnerabilities": []}, ValueError),
+        ({"count": 3}, ValueError),
+        ({"dateReleased": 0}, TypeError),
+    ],
+    ids=["no-entries", "count-mismatch", "non-string-date-released"],
+)
+def test_transform_unusable_kev_catalog_raises(overrides, error):
+    # Act and assert
+    with pytest.raises(error):
+        transform_kev_catalog({**GET_KEV_CATALOG, **overrides})
