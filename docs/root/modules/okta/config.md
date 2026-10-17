@@ -53,9 +53,9 @@ app safer than an API token, which can do anything its creator can.
 
 - **Super Administrator** (recommended): Cartography syncs every resource. The
   read scopes keep the app read-only.
-- **Read-only Administrator**: Okta refuses this role log streams, admin role
-  assignments, the Admin Console session settings, and Okta's own apps.
-  Cartography skips those with a warning; see [Permissions](#permissions).
+- **Read-only Administrator**: Okta denies this role access to log streams,
+  admin role assignments, the Admin Console session settings, and Okta's own
+  apps. Cartography skips those with a warning; see [Permissions](#permissions).
 
 Leave **Require Demonstrating Proof of Possession (DPoP)** as it is.
 Cartography sends DPoP proofs by default, which works whether or not the app
