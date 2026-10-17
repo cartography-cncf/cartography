@@ -79,7 +79,7 @@ def test_framework_helpers_preserve_framework_metadata():
             "DISA Okta Identity as a Service (IDaaS) STIG",
             "stig",
             "okta",
-            "v1r2",
+            "v1r3",
             "v-273188",
             "Okta must automatically disable accounts after a 35-day period of account inactivity.",
         ),

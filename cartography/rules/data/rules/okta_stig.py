@@ -2,12 +2,12 @@
 DISA Okta IDaaS STIG Checks
 
 Implements checks from the DISA Okta Identity as a Service (IDaaS) Security
-Technical Implementation Guide, Version 1 Release 2.
+Technical Implementation Guide, Version 1 Release 3.
 
 Each Rule represents a distinct security concept with a consistent main node type.
 Facts within a Rule are provider-specific implementations of the same concept.
 
-STIG coverage (V1R2, 29 checks):
+STIG coverage (V1R3, 29 checks):
 
 | V-ID     | Status      | Reason when not covered                                              |
 | -------- | ----------- | -------------------------------------------------------------------- |
@@ -72,7 +72,7 @@ from cartography.rules.spec.model import RuleReference
 
 STIG_REFERENCES = [
     RuleReference(
-        text="DISA Okta Identity as a Service (IDaaS) STIG V1R2",
+        text="DISA Okta Identity as a Service (IDaaS) STIG V1R3",
         url="https://public.cyber.mil/stigs/downloads/",
     ),
 ]
@@ -825,6 +825,7 @@ def _password_policy_rule(
     fact_name: str,
     violation: str,
     iso_requirements: tuple[str, ...] = ("5.17",),
+    version: str = "1.0.0",
 ) -> Rule:
     return Rule(
         id=rule_id,
@@ -873,7 +874,7 @@ def _password_policy_rule(
             ),
         ),
         tags=("iam", "authentication", "password_policy", "stride:spoofing"),
-        version="1.0.0",
+        version=version,
         references=_PASSWORD_REFERENCES,
         frameworks=(
             stig_okta(vuln_id),
@@ -960,10 +961,12 @@ okta_password_max_age_too_long = _password_policy_rule(
     "okta_password_max_age_too_long",
     "V-273201",
     "Password Maximum Age Too Long",
-    "Okta passwords should expire after at most 60 days.",
-    "okta_password_policy_max_age_over_60_days",
-    "Passwords never expire or expire after more than 60 days",
-    "coalesce(p.password_max_age_days, 0) = 0 OR p.password_max_age_days > 60",
+    "Okta passwords should expire after at most 180 days.",
+    "okta_password_policy_max_age_over_180_days",
+    "Passwords never expire or expire after more than 180 days",
+    "coalesce(p.password_max_age_days, 0) = 0 OR p.password_max_age_days > 180",
+    # V1R3 raised the maximum password lifetime from 60 to 180 days.
+    version="1.1.0",
 )
 
 okta_password_common_password_check_disabled = _password_policy_rule(
