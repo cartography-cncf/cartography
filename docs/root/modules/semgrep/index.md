@@ -7,8 +7,8 @@ are available.
 
 Cloud ingestion supports SAST, AI-powered detection (AI SAST), Supply Chain
 (SCA), and Secrets findings. AI SAST findings are loaded as
-`SemgrepAISASTFinding` nodes. If AI-powered detection is not available for the
-deployment, Cartography logs a warning and skips AI SAST for that run. OSS
+`SemgrepAISASTFinding` nodes. If the AI SAST request fails, Cartography logs a
+warning and skips AI SAST for that run; SAST and SCA ingestion continue. OSS
 ingestion supports SAST findings from explicit JSON reports and requires a
 repository mapping file because Semgrep OSS reports do not contain repository
 identity. See [Configuration](config.md) for authentication, report mapping, and
@@ -27,8 +27,8 @@ file's `url` to node `id`; GitLab projects match it to `web_url`.
 
 Cloud-only SAST data includes `line_of_code_url`, `state`, `fix_status`,
 `triage_status`, `opened_at`, `risk_severity`, and Semgrep Assistant
-relationships. AI SAST findings carry the same cloud-only fields (except
-`risk_severity`) plus `ai_impact`, and link to Semgrep Assistant data.
+relationships. AI SAST findings carry the same cloud-only fields plus
+`ai_impact`, and link to Semgrep Assistant data.
 
 ```{toctree}
 config

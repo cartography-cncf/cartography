@@ -298,6 +298,15 @@ def test_sync_ai_sast_findings(
         ),
     }
 
+    # The linked repository is not archived, so risk_severity follows severity.
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepAISASTFinding",
+        ["id", "risk_severity"],
+    ) == {
+        (tests.data.semgrep.aisast.AI_SAST_FINDING_ID, "HIGH"),
+    }
+
     # List-valued properties are not hashable, so check_nodes() can't return them.
     record = neo4j_session.run(
         "MATCH (n:SemgrepAISASTFinding) "
@@ -460,6 +469,66 @@ def test_sync_ai_sast_findings_cleanup(
     # Assert: the stale finding and its assistant are removed
     assert check_nodes(neo4j_session, "SemgrepAISASTFinding", ["id"]) == set()
     assert check_nodes(neo4j_session, "SemgrepFindingAssistant", ["id"]) == set()
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sast_findings",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sca_vulns",
+    return_value=[],
+)
+def test_sync_ai_sast_findings_archived_github_repo(
+    mock_get_sca_vulns,
+    mock_get_sast_findings,
+    mock_get_deployment,
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_github_repos(neo4j_session)
+    neo4j_session.run(
+        "MATCH (r:GitHubRepository {id: $repo_id}) SET r.archived = true",
+        repo_id=TEST_REPO_ID,
+    )
+    semgrep_app_token = "your_semgrep_app_token"
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Act
+    with patch.object(
+        cartography.intel.semgrep.findings,
+        "get_ai_sast_findings",
+        return_value=tests.data.semgrep.aisast.RAW_FINDINGS,
+    ):
+        sync_findings(
+            neo4j_session,
+            semgrep_app_token,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepAISASTFinding",
+        ["id", "risk_severity"],
+    ) == {
+        (tests.data.semgrep.aisast.AI_SAST_FINDING_ID, "INFO"),
+    }
 
 
 @patch.object(
