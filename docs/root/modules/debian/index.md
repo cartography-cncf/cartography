@@ -12,6 +12,10 @@ create `CVE` nodes first, and the sync order places `debian` after them. When
 the graph has no `CVE` nodes, the module skips the download and removes the
 entries of earlier syncs.
 
+If the download fails, or the document is truncated, malformed or holds no
+vulnerability records, the module raises an error before it changes the graph,
+so the entries of the previous sync are kept.
+
 ## Entries
 
 Each `DebianSecurityTrackerEntry` is one CVE in one source package and one

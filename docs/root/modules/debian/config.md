@@ -13,11 +13,9 @@ earlier sync.
 
 Enable ingestion with `--debian-security-tracker-enabled`.
 
-Each sync downloads the tracker's JSON export once, about 80 MB, and reads it
-as a stream, keeping only the records of CVEs in the graph. It is not written
-to disk. If the download fails, or the document is truncated, malformed or
-holds no vulnerability records, the module raises an error before it changes
-the graph, so the entries of the previous sync are kept.
+When the graph has `CVE` nodes, each sync downloads the tracker's JSON export
+once, about 80 MB, and reads it as a stream, keeping only the records of CVEs
+in the graph. It is not written to disk.
 
 The download URL is the module constant `DEBIAN_SECURITY_TRACKER_URL` in
 `cartography.intel.debian.tracker`. A deployment that wraps Cartography can

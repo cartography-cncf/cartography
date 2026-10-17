@@ -279,7 +279,6 @@ def load_entries(
     entries: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d DebianSecurityTrackerEntry nodes.", len(entries))
     load(
         neo4j_session,
         DebianSecurityTrackerEntrySchema(),
