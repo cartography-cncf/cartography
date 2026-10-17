@@ -836,6 +836,7 @@ class Config:
         okta_private_key_id=None,
         okta_scopes=None,
         okta_dpop_enabled=True,
+        debian_security_tracker_enabled=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1137,6 +1138,7 @@ class Config:
         self.zizmor_source = zizmor_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
+        self.debian_security_tracker_enabled = debian_security_tracker_enabled
         self.zoom_account_id = zoom_account_id
         self.zoom_client_id = zoom_client_id
         self.zoom_client_secret = zoom_client_secret

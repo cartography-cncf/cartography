@@ -13,6 +13,7 @@ from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.intel.trivy.scanner import transform_scan_results
+from cartography.intel.trivy.scanner import transform_target_os
 
 
 def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
@@ -1211,3 +1212,41 @@ def test_transform_scan_results_keeps_each_package_rating_on_its_finding_row():
         ("LOW", "debian", "affected", "low-package-db"),
         ("HIGH", "nvd", "fixed", "high-package-db"),
     ]
+
+
+@pytest.mark.parametrize(
+    "metadata, expected",
+    [
+        pytest.param(
+            {"OS": {"Family": "debian", "Name": "12.13"}},
+            {"OSFamily": "debian", "OSName": "12.13", "OSRelease": "12"},
+            id="debian-point-release",
+        ),
+        pytest.param(
+            {"OS": {"Family": "debian", "Name": "trixie/sid"}},
+            {"OSFamily": "debian", "OSName": "trixie/sid", "OSRelease": "13"},
+            id="debian-testing",
+        ),
+        pytest.param(
+            {"OS": {"Family": "ubuntu", "Name": "24.04"}},
+            {"OSFamily": "ubuntu", "OSName": "24.04", "OSRelease": None},
+            id="ubuntu",
+        ),
+        pytest.param(
+            {},
+            {"OSFamily": None, "OSName": None, "OSRelease": None},
+            id="repository-scan-without-os",
+        ),
+        pytest.param(
+            None,
+            {"OSFamily": None, "OSName": None, "OSRelease": None},
+            id="no-metadata",
+        ),
+    ],
+)
+def test_transform_target_os(metadata, expected):
+    # Act
+    target_os = transform_target_os(metadata)
+
+    # Assert
+    assert target_os == expected

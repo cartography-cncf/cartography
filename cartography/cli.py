@@ -85,6 +85,7 @@ PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
 PANEL_ZIZMOR = "Zizmor Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
+PANEL_DEBIAN = "Debian Security Tracker Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
@@ -160,6 +161,7 @@ MODULE_PANELS = {
     "aibom": PANEL_AIBOM,
     "zizmor": PANEL_ZIZMOR,
     "ubuntu": PANEL_UBUNTU,
+    "debian": PANEL_DEBIAN,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
@@ -2387,6 +2389,21 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Debian Security Tracker Options
+            # =================================================================
+            debian_security_tracker_enabled: Annotated[
+                bool,
+                typer.Option(
+                    "--debian-security-tracker-enabled",
+                    help=(
+                        "Enable Debian security tracker ingestion for the CVEs "
+                        "already in the graph."
+                    ),
+                    rich_help_panel=PANEL_DEBIAN,
+                    hidden=PANEL_DEBIAN not in visible_panels,
+                ),
+            ] = False,
+            # =================================================================
             # Ontology Options
             # =================================================================
             ontology_users_source: Annotated[
@@ -4251,6 +4268,7 @@ class CLI:
                 workos_client_id=workos_client_id,
                 ubuntu_security_enabled=ubuntu_security_enabled,
                 ubuntu_security_api_url=ubuntu_security_api_url,
+                debian_security_tracker_enabled=debian_security_tracker_enabled,
                 _warn_on_legacy_report_source=False,
             )
 

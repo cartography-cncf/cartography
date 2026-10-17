@@ -41,6 +41,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Cve](../modules/cve/schema.md)
 - [Cve Metadata](../modules/cve_metadata/schema.md)
 - [Databricks](../modules/databricks/schema.md)
+- [Debian](../modules/debian/schema.md)
 - [Digitalocean](../modules/digitalocean/schema.md)
 - [Docker Scout](../modules/docker_scout/schema.md)
 - [Duo](../modules/duo/schema.md)
