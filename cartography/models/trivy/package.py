@@ -68,7 +68,7 @@ class TrivyPackageToImageRelProperties(CartographyRelProperties):
         description=(
             "Operating system version Trivy detected in this scan target "
             "(`Metadata.OS.Name`), as reported: for example `12.7` or `trixie/sid` "
-            "for Debian, `24.04` for Ubuntu. Set only when `os_family` is."
+            "for Debian, `24.04` for Ubuntu. Set only when `os_family` is set."
         ),
     )
     os_release: PropertyRef = PropertyRef(
@@ -77,7 +77,8 @@ class TrivyPackageToImageRelProperties(CartographyRelProperties):
             "Major release of a Debian scan target, normalized from `os_name` "
             "(`12` for `12.7`, `13` for `trixie/sid`) to match "
             "`DebianSecurityTrackerEntry.release_version`. Unset when `os_family` "
-            "is, for other families and for a Debian name that is not recognized."
+            "is unset, for other families, and for a Debian name that is not "
+            "recognized."
         ),
     )
 
