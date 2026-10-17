@@ -928,3 +928,286 @@ def test_transform_scan_results_dedupes_vulnerability_ids():
 
     # Assert
     assert findings_list[0]["vulnerability_ids"] == ["CVE-2025-31115", "DSA-5895-1"]
+
+
+def _vulnerability(
+    pkg_name: str,
+    severity: str,
+    severity_source: str | None,
+    status: str,
+) -> dict:
+    return {
+        "VulnerabilityID": "CVE-2023-4039",
+        "PkgName": pkg_name,
+        "InstalledVersion": "1.0.0",
+        "Severity": severity,
+        "SeveritySource": severity_source,
+        "Status": status,
+        "DataSource": {"ID": f"{pkg_name}-db"},
+    }
+
+
+def _os_packages(*vulnerabilities: dict) -> dict:
+    return {
+        "Class": "os-pkgs",
+        "Type": "debian",
+        "Vulnerabilities": list(vulnerabilities),
+    }
+
+
+def _language_packages(*vulnerabilities: dict) -> dict:
+    return {
+        "Class": "lang-pkgs",
+        "Type": "pip",
+        "Vulnerabilities": list(vulnerabilities),
+    }
+
+
+def _target_ratings(findings_list: list[dict]) -> list[tuple]:
+    return [
+        (
+            row["TargetSeverity"],
+            row["TargetSeveritySource"],
+            row["TargetStatus"],
+            row["TargetDataSourceID"],
+        )
+        for row in findings_list
+    ]
+
+
+@pytest.mark.parametrize(
+    "results",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("low-package", "LOW", "debian", "affected"),
+                    _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+                ),
+            ],
+            id="most-severe-last",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+                    _vulnerability("low-package", "LOW", "debian", "affected"),
+                ),
+            ],
+            id="most-severe-first",
+        ),
+    ],
+)
+def test_transform_scan_results_rates_a_finding_by_its_most_severe_package(results):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "results, expected_rating",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                    _vulnerability("vendor-rated", "MEDIUM", "debian", "affected"),
+                ),
+            ],
+            ("MEDIUM", "debian", "affected", "vendor-rated-db"),
+            id="named-source-after-nvd",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("vendor-rated", "MEDIUM", "debian", "affected"),
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                ),
+            ],
+            ("MEDIUM", "debian", "affected", "vendor-rated-db"),
+            id="named-source-before-nvd",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                    _vulnerability("vendor-rated", "MEDIUM", "ubuntu", "affected"),
+                ),
+            ],
+            ("MEDIUM", "ubuntu", "affected", "vendor-rated-db"),
+            id="named-source-after-unsourced",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                ),
+            ],
+            ("MEDIUM", None, "affected", "unsourced-db"),
+            id="unsourced-ties-with-nvd-unsourced-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                ),
+            ],
+            ("MEDIUM", "nvd", "affected", "nvd-rated-db"),
+            id="unsourced-ties-with-nvd-nvd-first",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_a_named_severity_source_on_a_tie(
+    results,
+    expected_rating,
+):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
+
+
+@pytest.mark.parametrize(
+    "results, expected_rating",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                    _vulnerability("unfixed", "LOW", "debian", "affected"),
+                ),
+            ],
+            ("LOW", "debian", "affected", "unfixed-db"),
+            id="affected-after-fixed",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unfixed", "LOW", "debian", "affected"),
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                ),
+            ],
+            ("LOW", "debian", "affected", "unfixed-db"),
+            id="affected-before-fixed",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                    _vulnerability("unfixable", "LOW", "debian", "will_not_fix"),
+                ),
+            ],
+            ("LOW", "debian", "will_not_fix", "unfixable-db"),
+            id="will-not-fix-after-fixed",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unaffected", "LOW", "debian", "not_affected"),
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                ),
+            ],
+            ("LOW", "debian", "fixed", "fixable-db"),
+            id="fixed-after-not-affected",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_no_fix_available_on_a_tie(
+    results,
+    expected_rating,
+):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
+
+
+@pytest.mark.parametrize(
+    "results, expected_rating",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("os-package", "HIGH", "debian", "affected"),
+                ),
+                _language_packages(
+                    _vulnerability("language-package", "HIGH", "ghsa", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "os-package-db"),
+            id="os-package-first",
+        ),
+        pytest.param(
+            [
+                _language_packages(
+                    _vulnerability("language-package", "HIGH", "ghsa", "affected"),
+                ),
+                _os_packages(
+                    _vulnerability("os-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "os-package-db"),
+            id="language-package-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("alpha-package", "HIGH", "debian", "affected"),
+                    _vulnerability("beta-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "alpha-package-db"),
+            id="full-tie-alpha-reported-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("beta-package", "HIGH", "debian", "affected"),
+                    _vulnerability("alpha-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "beta-package-db"),
+            id="full-tie-beta-reported-first",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_os_packages_then_report_order_on_a_tie(
+    results,
+    expected_rating,
+):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
+
+
+def test_transform_scan_results_keeps_each_package_rating_on_its_finding_row():
+    # Arrange
+    results = [
+        _os_packages(
+            _vulnerability("low-package", "LOW", "debian", "affected"),
+            _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+        ),
+    ]
+
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert [
+        (row["Severity"], row["SeveritySource"], row["Status"], row["DataSourceID"])
+        for row in findings_list
+    ] == [
+        ("LOW", "debian", "affected", "low-package-db"),
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+    ]
