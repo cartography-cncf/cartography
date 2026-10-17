@@ -937,7 +937,7 @@ requires-dist = [
     { name = "google-cloud-run", specifier = ">=0.13.0" },
     { name = "google-cloud-storage", specifier = ">=2.0.0" },
     { name = "httpx", specifier = ">=0.24.0" },
-    { name = "kubernetes", specifier = ">=22.6.0" },
+    { name = "kubernetes", specifier = ">=28.1.0" },
     { name = "marshmallow", specifier = ">=4.0.0" },
     { name = "modal", specifier = ">=1.5.3,<2" },
     { name = "msgraph-sdk", specifier = ">=1.53.0" },

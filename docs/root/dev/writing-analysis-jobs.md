@@ -155,6 +155,33 @@ The compiler determines cleanup ordering from the effect type:
 
 - Node-property effects such as `SetProperty` and `AddToSet` remove values left by the previous run before applying current matches.
 - Relationship effects such as `AddRelationship` run their `MERGE` statements first and delete relationships with an old `lastupdated` value afterward. This avoids a window where concurrent readers see all managed relationships disappear.
+- `SetProperties(..., cleanup_stamp="...")` works like a relationship effect. The stamp names one of the properties, and its value must be `Param("UPDATE_TAG")`. The properties are written first, and cleanup afterward removes them only from nodes whose stamp is not the current update tag. Use it when readers must keep seeing the previous value until the run decides, for example a check result that would otherwise disappear while the job runs, or stay missing after a failed run.
+
+For example, a statement that records whether each ECS task runs in `awsvpc` network mode binds the result to `awsvpc` in its match and writes it with the stamp:
+
+```python
+AnalysisStatement(
+    match="""
+    MATCH (task:AWSECSTask)-[:HAS_TASK_DEFINITION]->(definition:AWSECSTaskDefinition)
+    WITH task, coalesce(definition.network_mode, '') = 'awsvpc' AS awsvpc
+    """,
+    effects=(
+        SetProperties(
+            "task",
+            {
+                "uses_awsvpc": Var("awsvpc"),
+                "uses_awsvpc_checked_at": Param("UPDATE_TAG"),
+            },
+            label="AWSECSTask",
+            cleanup_stamp="uses_awsvpc_checked_at",
+        ),
+    ),
+)
+```
+
+`AWS_ECS_NO_MODELED_INTERNET_PATH` in `cartography/analysis/aws/analysis.py` writes its `no_modeled_internet_path` result the same way.
+
+A scoped job can also write on the scope node itself. When the statement matches the `scope_on` variable with the scope label, for example `MATCH (cluster:KubernetesCluster)` in a job scoped to `KubernetesCluster`, the compiler anchors that node by its ID instead of through `RESOURCE`, and cleans up property effects on the scope label on the scope node. Use this for a per-account or per-cluster result that every evaluated owner records, including owners where nothing was found.
 
 Do not add handwritten cleanup statements to a typed job when an existing effect can express the change.
 

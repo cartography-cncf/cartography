@@ -157,7 +157,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="`True` when the container's pod is targeted by an internet-exposed service. `False` otherwise.",
+        description="`True` when the container's pod is targeted by an internet-exposed service. Unset otherwise: it is never written as `false`, so its absence does not mean the container is private. `no_modeled_internet_path`, set on a container the analysis checked, is `true` when no internet path the graph models reaches it and `false` when the analysis declined.",
     )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",

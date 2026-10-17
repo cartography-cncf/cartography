@@ -1,4 +1,7 @@
+from types import SimpleNamespace
+
 import pytest
+from kubernetes.client.exceptions import ApiException
 
 import cartography.intel.aws.ec2.load_balancer_v2s
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
@@ -6,6 +9,7 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import load_pods
 from cartography.intel.kubernetes.services import cleanup
 from cartography.intel.kubernetes.services import load_services
+from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.services import transform_services
 from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LB_DNS_NAME
 from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LOAD_BALANCER_V2_DATA
@@ -447,4 +451,66 @@ def test_load_services_with_mixed_case_aws_loadbalancer_relationship(
         rel_direction_right=True,
     ) == {
         ("mixed-case-lb-service", MIXED_CASE_LB_DNS_NAME),
+    }
+
+
+def _list_returning(items):
+    return lambda **kwargs: SimpleNamespace(
+        items=items, metadata=SimpleNamespace(_continue=None)
+    )
+
+
+def _list_failing_with(status):
+    def list_service_for_all_namespaces(**kwargs):
+        raise ApiException(status=status)
+
+    return list_service_for_all_namespaces
+
+
+def test_sync_services_keeps_the_previous_services_when_the_list_fails(
+    neo4j_session, _create_test_cluster
+):
+    # Arrange
+    neo4j_session.run("MATCH (s:KubernetesService) DETACH DELETE s")
+    client = SimpleNamespace(
+        name=KUBERNETES_CLUSTER_NAMES[0],
+        core=SimpleNamespace(
+            list_service_for_all_namespaces=_list_returning(
+                KUBERNETES_MIXED_CASE_LB_SERVICE_RAW
+            ),
+        ),
+    )
+
+    # Act
+    synced = sync_services(
+        neo4j_session,
+        client,
+        [],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]},
+    )
+
+    # Assert
+    assert synced is True
+    assert check_nodes(neo4j_session, "KubernetesService", ["name"]) == {
+        ("mixed-case-lb-service",),
+    }
+
+    # Arrange: a transient server error. Loading nothing and cleaning up would
+    # delete the Services.
+    client.core.list_service_for_all_namespaces = _list_failing_with(503)
+
+    # Act
+    synced = sync_services(
+        neo4j_session,
+        client,
+        [],
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]},
+    )
+
+    # Assert
+    assert synced is False
+    assert check_nodes(neo4j_session, "KubernetesService", ["name"]) == {
+        ("mixed-case-lb-service",),
     }

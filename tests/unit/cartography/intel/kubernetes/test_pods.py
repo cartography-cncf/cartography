@@ -56,6 +56,7 @@ def test_transform_pods_defaults_service_account_name():
             "host_pid": None,
             "host_ipc": None,
             "host_network": None,
+            "host_ports": [],
             "seccomp_profile_type": None,
             "host_path_volume_paths": [],
             "persistent_volume_claim_names": [],
@@ -282,6 +283,24 @@ def test_transform_pods_extracts_container_ports():
                     ],
                 ),
             ],
+            # A native sidecar runs for the pod's whole life, but is not one of its
+            # containers. A plain init container exits before they start.
+            init_containers=[
+                SimpleNamespace(
+                    name="proxy",
+                    env=None,
+                    env_from=None,
+                    restart_policy="Always",
+                    ports=[SimpleNamespace(container_port=8443, host_port=8443)],
+                ),
+                SimpleNamespace(
+                    name="setup",
+                    env=None,
+                    env_from=None,
+                    restart_policy=None,
+                    ports=[SimpleNamespace(container_port=9443, host_port=9443)],
+                ),
+            ],
             volumes=[],
             node_name="node-a",
             service_account_name="default",
@@ -294,6 +313,7 @@ def test_transform_pods_extracts_container_ports():
 
     assert container["container_port_numbers"] == [53, 8080]
     assert container["host_ports"] == [30053]
+    assert transformed[0]["host_ports"] == [8443, 30053]
     assert json.loads(container["container_ports"]) == [
         {"container_port": 8080, "protocol": "TCP", "name": "http"},
         {"container_port": 53, "protocol": "UDP", "name": "dns"},
