@@ -12,6 +12,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_qualified_resource_name
+from cartography.intel.kubernetes.util import is_skippable_list_error
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.services import KubernetesServiceSchema
@@ -176,6 +177,8 @@ def sync_services(
     try:
         services = get_services(client)
     except ApiException as e:
+        if not is_skippable_list_error(e):
+            raise
         # A partial list would let cleanup delete the Services it did not return.
         logger.warning(
             "Kubernetes API error listing services on cluster %s (status %s). "

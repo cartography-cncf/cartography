@@ -157,15 +157,25 @@ The compiler determines cleanup ordering from the effect type:
 - Relationship effects such as `AddRelationship` run their `MERGE` statements first and delete relationships with an old `lastupdated` value afterward. This avoids a window where concurrent readers see all managed relationships disappear.
 - `SetProperties(..., cleanup_stamp="...")` works like a relationship effect. The stamp names one of the properties, and its value must be `Param("UPDATE_TAG")`. The properties are written first, and cleanup afterward removes them only from nodes whose stamp is not the current update tag. Use it when readers must keep seeing the previous value until the run decides, for example a check result that would otherwise disappear while the job runs, or stay missing after a failed run.
 
+This simplified form of `AWS_ECS_NO_MODELED_INTERNET_PATH` binds the check's result to `clear` in its match and writes it with the stamp:
+
 ```python
-SetProperties(
-    "task",
-    {
-        "no_modeled_internet_path": Var("clear"),
-        "no_modeled_internet_path_checked_at": Param("UPDATE_TAG"),
-    },
-    label="AWSECSTask",
-    cleanup_stamp="no_modeled_internet_path_checked_at",
+AnalysisStatement(
+    match="""
+    MATCH (task:AWSECSTask)-[:HAS_TASK_DEFINITION]->(definition:AWSECSTaskDefinition)
+    WITH task, coalesce(definition.network_mode, '') = 'awsvpc' AS clear
+    """,
+    effects=(
+        SetProperties(
+            "task",
+            {
+                "no_modeled_internet_path": Var("clear"),
+                "no_modeled_internet_path_checked_at": Param("UPDATE_TAG"),
+            },
+            label="AWSECSTask",
+            cleanup_stamp="no_modeled_internet_path_checked_at",
+        ),
+    ),
 )
 ```
 

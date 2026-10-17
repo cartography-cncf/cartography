@@ -11,6 +11,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_gpu_quantity
+from cartography.intel.kubernetes.util import is_skippable_list_error
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.nodes import KubernetesNodeSchema
@@ -110,6 +111,8 @@ def sync_nodes(
     try:
         raw_nodes = get_nodes(client)
     except ApiException as e:
+        if not is_skippable_list_error(e):
+            raise
         # A partial list would let cleanup delete the Nodes it did not return.
         logger.warning(
             "Kubernetes API error listing nodes on cluster %s (status %s). "

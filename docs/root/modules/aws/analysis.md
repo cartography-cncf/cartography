@@ -169,7 +169,8 @@ The checks read the graph, so they only see what the syncs loaded.
   run, when an API call is denied or times out, and the module's cleanup then
   removes what it had loaded from there. A missing CloudFront, API Gateway,
   ELBv2 or EC2 read permission, or a timeout, can hide an entry point or a load
-  balancer and leave the account looking clear. After a transient ELBv2 failure,
-  the previous load balancers are kept, and new ones are missing.
+  balancer and leave the account looking clear. After a transient ELBv2 or API
+  Gateway v2 failure in a region, the region's previous load balancers or APIs
+  are kept, and new ones are missing.
 - Application-layer forwarding, such as a proxy task that relays internet
   traffic to another service.

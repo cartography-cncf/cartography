@@ -3,7 +3,11 @@ from types import SimpleNamespace
 import pytest
 from kubernetes.client.exceptions import ApiException
 
+from cartography.intel.kubernetes import ingress
+from cartography.intel.kubernetes import nodes
+from cartography.intel.kubernetes import services
 from cartography.intel.kubernetes.util import get_gpu_quantity
+from cartography.intel.kubernetes.util import is_skippable_list_error
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import k8s_paginate_pages
 
@@ -77,6 +81,49 @@ def test_k8s_paginate_pages_error_semantics_match_k8s_paginate():
         list(k8s_paginate_pages(_raiser(500), raise_on_error=True))
     with pytest.raises(ApiException):
         list(k8s_paginate_pages(_raiser(403), raise_on_forbidden=True))
+
+
+@pytest.mark.parametrize(
+    "status,skippable",
+    [
+        (401, True),
+        (403, True),
+        (None, True),
+        # The continue token of a paginated list expired.
+        (410, True),
+        (429, True),
+        (503, True),
+        (400, False),
+        (404, False),
+    ],
+)
+def test_only_permission_and_transient_list_errors_are_skippable(status, skippable):
+    # Act and assert
+    assert is_skippable_list_error(ApiException(status=status)) is skippable
+
+
+@pytest.mark.parametrize(
+    "sync",
+    [
+        lambda client: services.sync_services(None, client, [], 1, {}),
+        lambda client: ingress.sync_ingress(None, client, 1, {}),
+        lambda client: nodes.sync_nodes(None, client, 1, {}),
+    ],
+    ids=["services", "ingress", "nodes"],
+)
+def test_sync_fails_on_a_list_error_it_cannot_skip(sync):
+    # Arrange
+    client = SimpleNamespace(
+        name="example",
+        core=SimpleNamespace(
+            list_service_for_all_namespaces=_raiser(404), list_node=_raiser(404)
+        ),
+        networking=SimpleNamespace(list_ingress_for_all_namespaces=_raiser(404)),
+    )
+
+    # Act and assert
+    with pytest.raises(ApiException):
+        sync(client)
 
 
 def test_get_gpu_quantity_sums_extended_gpu_resources():

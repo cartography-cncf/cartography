@@ -45,10 +45,12 @@ cleared first, so a run that fails part-way leaves the previous values, with an
 older tag. A run that completes removes them from every pod in the cluster that
 it did not check.
 
-When the Service, Ingress or Node list fails, or listing Gateway API objects is
-denied, that sync keeps the objects from its previous run instead of loading a
-partial list, and the run withdraws the cluster's check, so no pod in the
-cluster is checked and none keeps a result.
+When the Service, Ingress or Node list is denied (401 or 403) or fails
+transiently (no response, an expired continue token, 429 or a 5xx status), or
+listing Gateway API objects is denied, that sync keeps the objects from its
+previous run instead of loading a partial list, and the run withdraws the
+cluster's check, so no pod in the cluster is checked and none keeps a result.
+Any other API error fails the cluster's sync.
 
 A result reflects the AWS data in the graph when the cluster was synced. An AWS
 sync that runs later, for example one that loads a new internet-facing load

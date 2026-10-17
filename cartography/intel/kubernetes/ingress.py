@@ -14,6 +14,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.dns_utils import normalize_hostname_values
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import is_skippable_list_error
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.ingress import KubernetesIngressSchema
@@ -212,6 +213,8 @@ def sync_ingress(
     try:
         ingresses = get_ingress(client)
     except ApiException as e:
+        if not is_skippable_list_error(e):
+            raise
         # A partial list would let cleanup delete the Ingresses it did not return.
         logger.warning(
             "Kubernetes API error listing ingresses on cluster %s (status %s). "
