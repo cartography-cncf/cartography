@@ -76,9 +76,9 @@ Generate an API token by following Okta's [Create an API Token guide](https://de
 
 An API token can do anything its creator can, so it forces a trade-off: a Super
 Administrator's token syncs every resource but can also change your Okta org,
-and a read-only administrator's token misses the resources listed under
-[Permissions](#permissions). A service app with read scopes avoids that
-trade-off.
+and a read-only administrator's token is denied log streams, admin role
+assignments, the Admin Console session settings, and Okta's own apps. A service
+app with read scopes avoids that trade-off.
 
 ### Permissions
 
