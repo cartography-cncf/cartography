@@ -28,11 +28,11 @@ In the Okta Admin Console:
       Private key**, click **Save**, and confirm. Okta deletes the unused client
       secret.
 1. On the **Okta API Scopes** tab, click **Grant** for each of these scopes:
-   `okta.apiTokens.read`, `okta.apps.read`, `okta.authenticators.read`,
-   `okta.devices.read`, `okta.groups.read`, `okta.logStreams.read`,
-   `okta.networkZones.read`, `okta.policies.read`, `okta.roles.read`,
-   `okta.trustedOrigins.read`, `okta.userTypes.read`, `okta.users.read`.
-   To script this step, use the `okta_app_oauth_api_scope` resource of the
+   `okta.apiTokens.read`, `okta.appGrants.read`, `okta.apps.read`,
+   `okta.authenticators.read`, `okta.devices.read`, `okta.groups.read`,
+   `okta.logStreams.read`, `okta.networkZones.read`, `okta.policies.read`,
+   `okta.roles.read`, `okta.trustedOrigins.read`, `okta.userTypes.read`,
+   `okta.users.read`. To script this step, use the `okta_app_oauth_api_scope` resource of the
    Okta Terraform provider or the
    [application grants API](https://developer.okta.com/docs/api/openapi/okta-management/management/tag/ApplicationGrants/).
 1. On the **Admin roles** tab, click **Edit assignments**, choose
@@ -46,13 +46,13 @@ Cartography sends DPoP proofs by default, which works whether or not the app
 requires them. `--okta-disable-dpop` stops sending them; an app that requires
 DPoP then rejects the token request with `invalid_dpop_proof`.
 
-Okta refuses to issue an access token (`invalid_scope`) when Cartography
-requests a scope that the app was not granted. To run with fewer scopes, list
-the granted ones with `--okta-scopes`. The Okta sync fails without
-`okta.users.read`, `okta.groups.read`, `okta.apps.read`,
-`okta.authenticators.read`, `okta.trustedOrigins.read`, and
-`okta.userTypes.read`. It skips the resources under
-[Permissions](#permissions) whose scope is missing.
+Cartography requests all of these scopes. Okta leaves the ones the app was not
+granted out of the access token, and refuses the token only when it grants none
+of them (`consent_required`). The Okta sync fails without `okta.users.read`,
+`okta.groups.read`, `okta.apps.read`, `okta.authenticators.read`,
+`okta.trustedOrigins.read`, and `okta.userTypes.read`. It skips the resources
+under [Permissions](#permissions) whose scope is missing, with a warning. To
+request other scopes, list them with `--okta-scopes`.
 
 ### API token
 
@@ -70,6 +70,8 @@ resource, and continues the rest of the Okta sync:
 | Resource | OAuth scope |
 | --- | --- |
 | Admin role assignments (`OktaUserRole`, `OktaGroupRole`) | `okta.roles.read` |
+| Admin roles of OAuth service apps (`OktaApplicationRole`) | `okta.roles.read` |
+| OAuth scopes granted to apps (`OktaApplication.granted_scopes`) | `okta.appGrants.read` |
 | Devices (`OktaDevice`) | `okta.devices.read` |
 | API token metadata (`OktaApiToken`) | `okta.apiTokens.read` |
 | Log streams (`OktaLogStream`) | `okta.logStreams.read` |

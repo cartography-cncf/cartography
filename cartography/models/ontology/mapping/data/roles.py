@@ -239,7 +239,11 @@ okta_mapping = OntologyMapping(
                     ),
                 ],
             )
-            for node_label in ("OktaUserRole", "OktaGroupRole")
+            for node_label in (
+                "OktaUserRole",
+                "OktaGroupRole",
+                "OktaApplicationRole",
+            )
         ],
     ],
 )

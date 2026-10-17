@@ -1,3 +1,4 @@
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -10,8 +11,10 @@ from okta.models.application_json_converter import ApplicationJsonConverter
 from cartography.intel.okta import applications
 from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.application import ACTIVE_DIRECTORY_APPLICATION
+from tests.data.okta.application import APP_GRANTS
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import APPLICATION_WITH_UNKNOWN_SIGN_ON_MODE
+from tests.data.okta.application import APPLICATIONS
 
 
 async def _empty_assignments(*args):
@@ -221,3 +224,147 @@ def test_transform_okta_applications_reraises_other_okta_errors_on_groups(
     # Act and assert
     with pytest.raises(OktaApiError):
         applications._transform_okta_applications(MagicMock(), [application])
+
+
+def test_transform_maps_client_auth_settings_and_granted_scopes(monkeypatch) -> None:
+    # Arrange
+    applications_list = [
+        ApplicationJsonConverter.from_dict(app) for app in APPLICATIONS
+    ]
+    monkeypatch.setattr(
+        applications, "_get_application_assigned_users", _empty_assignments
+    )
+    monkeypatch.setattr(
+        applications, "_get_application_assigned_groups", _empty_assignments
+    )
+
+    # Act
+    result = applications._transform_okta_applications(
+        None,
+        applications_list,
+        {"0oaService": ["okta.users.read"], "0oaWeb": []},
+    )
+
+    # Assert
+    assert [
+        (
+            app["id"],
+            app.get("credentials_oauth_client_token_endpoint_auth_method"),
+            app.get("settings_oauth_client_dpop_bound_access_tokens"),
+            app["granted_scopes"],
+        )
+        for app in result
+    ] == [
+        ("0oaService", "private_key_jwt", True, ["okta.users.read"]),
+        ("0oaWeb", "client_secret_basic", False, []),
+        ("0oaFeatures", None, None, None),
+    ]
+
+
+def test_transform_granted_scopes_keeps_active_grants_sorted() -> None:
+    # Arrange
+    grants = [
+        *APP_GRANTS["0oaService"],
+        # A second grant of the same scope, e.g. from a user's consent.
+        {**APP_GRANTS["0oaService"][0], "id": "oagDuplicate", "source": "END_USER"},
+    ]
+
+    # Act
+    scopes = applications._transform_granted_scopes(grants)
+
+    # Assert: the revoked okta.groups.manage grant is dropped.
+    assert scopes == ["okta.apps.read", "okta.users.read"]
+
+
+def test_transform_application_roles_scopes_ids_to_the_app() -> None:
+    # Arrange: both apps hold Super Administrator with the assignment ID Okta's
+    # API reference derives from the role type; the second also holds a custom
+    # role.
+    super_admin = {
+        "id": "KNKVARKSL5AUITKJJY",
+        "label": "Super Administrator",
+        "type": "SUPER_ADMIN",
+        "status": "ACTIVE",
+        "created": "2026-01-05T10:00:00.000Z",
+        "lastUpdated": "2026-01-05T10:00:00.000Z",
+        "assignmentType": "CLIENT",
+    }
+    custom_role = {
+        "id": "irbCustom",
+        "label": "Inventory reader",
+        "type": "CUSTOM",
+        "status": "ACTIVE",
+        "assignmentType": "CLIENT",
+        "role": "cr0Inventory",
+        "resource-set": "iamInventory",
+    }
+
+    # Act
+    roles = applications._transform_okta_application_roles(
+        [("0oaOne", super_admin), ("0oaTwo", super_admin), ("0oaTwo", custom_role)],
+    )
+
+    # Assert
+    assert [
+        (
+            role["id"],
+            role["application_id"],
+            role["assignment_id"],
+            role["role_type"],
+            role["role_id"],
+            role["resource_set_id"],
+        )
+        for role in roles
+    ] == [
+        (
+            "0oaOne:KNKVARKSL5AUITKJJY",
+            "0oaOne",
+            "KNKVARKSL5AUITKJJY",
+            "SUPER_ADMIN",
+            None,
+            None,
+        ),
+        (
+            "0oaTwo:KNKVARKSL5AUITKJJY",
+            "0oaTwo",
+            "KNKVARKSL5AUITKJJY",
+            "SUPER_ADMIN",
+            None,
+            None,
+        ),
+        (
+            "0oaTwo:irbCustom",
+            "0oaTwo",
+            "irbCustom",
+            "CUSTOM",
+            "cr0Inventory",
+            "iamInventory",
+        ),
+    ]
+
+
+async def _deleted_app(*args):
+    raise OktaApiError("raw request", SimpleNamespace(error_code="E0000007"))
+
+
+def test_get_application_roles_skips_an_app_deleted_during_sync(monkeypatch) -> None:
+    # Arrange
+    application = ApplicationJsonConverter.from_dict(APPLICATIONS[0])
+    monkeypatch.setattr(applications, "collect_raw_paginated", _deleted_app)
+
+    # Act
+    roles = asyncio.run(applications._get_application_roles(MagicMock(), application))
+
+    # Assert
+    assert roles == []
+
+
+def test_get_application_grants_skips_an_app_deleted_during_sync(monkeypatch) -> None:
+    # Arrange
+    monkeypatch.setattr(applications, "collect_raw_paginated", _deleted_app)
+
+    # Act
+    grants = asyncio.run(applications._get_application_grants(MagicMock(), "0oaWeb"))
+
+    # Assert: None, so the app's granted scopes stay unknown rather than empty.
+    assert grants is None
