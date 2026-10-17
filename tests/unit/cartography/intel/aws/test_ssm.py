@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -6,11 +7,16 @@ from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from botocore.exceptions import ClientError
+
 from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
+from cartography.intel.aws.ssm import get_ssm_parameter_tags
 from cartography.intel.aws.ssm import sync_public_parameters
 from cartography.intel.aws.ssm import transform_ssm_parameters
+from tests.data.aws.ssm import SSM_PARAMETER_TAGS
 
 
 def test_normalize_allowlisted_prefixes() -> None:
@@ -96,6 +102,7 @@ def test_transform_ssm_parameters_preserves_arn_identity_and_dates() -> None:
                 "Name": "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
                 "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
                 "Type": "String",
+                "Tags": SSM_PARAMETER_TAGS,
                 "Version": 3,
                 "Value": "ami-abc123",
                 "LastModifiedDate": datetime(2025, 1, 2, tzinfo=timezone.utc),
@@ -107,6 +114,102 @@ def test_transform_ssm_parameters_preserves_arn_identity_and_dates() -> None:
         "aws-k8s-1.30/x86_64/latest/image_id"
     )
     assert transformed[0]["LastModifiedDate"] == 1735776000
+    assert transformed[0]["TagsJson"] == json.dumps(SSM_PARAMETER_TAGS)
+
+
+def test_get_ssm_parameter_tags() -> None:
+    # Arrange
+    client = MagicMock()
+    client.list_tags_for_resource.return_value = {
+        "TagList": SSM_PARAMETER_TAGS,
+    }
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+    parameters = [{"Name": "/my/app/config/db-host"}]
+
+    # Act
+    wrapped_get_ssm_parameter_tags = cast(Any, get_ssm_parameter_tags).__wrapped__
+    result = wrapped_get_ssm_parameter_tags(boto3_session, "us-east-1", parameters)
+
+    # Assert
+    assert result == [
+        {
+            "Name": "/my/app/config/db-host",
+            "Tags": SSM_PARAMETER_TAGS,
+        },
+    ]
+    client.list_tags_for_resource.assert_called_once_with(
+        ResourceType="Parameter",
+        ResourceId="/my/app/config/db-host",
+    )
+
+
+def _client_error(code: str) -> ClientError:
+    return ClientError(
+        {"Error": {"Code": code, "Message": code}},
+        "ListTagsForResource",
+    )
+
+
+def test_get_ssm_parameter_tags_skips_deleted_parameter() -> None:
+    # Arrange
+    client = MagicMock()
+    client.list_tags_for_resource.side_effect = [
+        _client_error("InvalidResourceId"),
+        {"TagList": SSM_PARAMETER_TAGS},
+    ]
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+    parameters = [{"Name": "/deleted"}, {"Name": "/kept"}]
+
+    # Act
+    wrapped_get_ssm_parameter_tags = cast(Any, get_ssm_parameter_tags).__wrapped__
+    result = wrapped_get_ssm_parameter_tags(boto3_session, "us-east-1", parameters)
+
+    # Assert
+    assert result == [
+        {"Name": "/deleted"},
+        {"Name": "/kept", "Tags": SSM_PARAMETER_TAGS},
+    ]
+
+
+def test_get_ssm_parameter_tags_keeps_parameters_on_access_denied() -> None:
+    # Arrange
+    client = MagicMock()
+    client.list_tags_for_resource.side_effect = [
+        _client_error("AccessDeniedException"),
+        {"TagList": SSM_PARAMETER_TAGS},
+    ]
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+    parameters = [{"Name": "/denied"}, {"Name": "/allowed"}]
+
+    # Act
+    wrapped_get_ssm_parameter_tags = cast(Any, get_ssm_parameter_tags).__wrapped__
+    result = wrapped_get_ssm_parameter_tags(boto3_session, "us-east-1", parameters)
+
+    # Assert
+    assert result == [
+        {"Name": "/denied"},
+        {"Name": "/allowed", "Tags": SSM_PARAMETER_TAGS},
+    ]
+
+
+def test_get_ssm_parameter_tags_raises_unexpected_errors() -> None:
+    # Arrange
+    client = MagicMock()
+    client.list_tags_for_resource.side_effect = _client_error("InternalServerError")
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+
+    # Act and assert
+    wrapped_get_ssm_parameter_tags = cast(Any, get_ssm_parameter_tags).__wrapped__
+    with pytest.raises(ClientError):
+        wrapped_get_ssm_parameter_tags(
+            boto3_session,
+            "us-east-1",
+            [{"Name": "/my/app/config/db-host"}],
+        )
 
 
 @patch("cartography.intel.aws.ssm.cleanup_public_ssm_parameters")
