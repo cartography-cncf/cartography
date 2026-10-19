@@ -219,9 +219,15 @@ def get_spotlight_vulnerabilities(
         except CrowdstrikeAPIError as e:
             if e.status_code != EXPIRED_CURSOR_STATUS or "after" not in parameters:
                 raise
+            if watermark is None:
+                raise CrowdstrikeAPIError(
+                    "CrowdStrike combinedQueryVulnerabilities cursor expired after a "
+                    "page with no updated_timestamp to restart from.",
+                    status_code=e.status_code,
+                ) from e
             # A restart that expires again before passing its own timestamp would
             # restart there forever.
-            if watermark is None or watermark == resumed_from:
+            if watermark == resumed_from:
                 raise CrowdstrikeAPIError(
                     "CrowdStrike combinedQueryVulnerabilities cursor expired again "
                     f"before paging past updated_timestamp {watermark}; refusing to "
@@ -235,6 +241,8 @@ def get_spotlight_vulnerabilities(
             )
             resumed_from = watermark
             del parameters["after"]
+            # A new search context may hand out a cursor string the old one did.
+            seen_cursors.clear()
             parameters["filter"] = (
                 f"{SPOTLIGHT_FILTER}+updated_timestamp:>='{watermark}'"
             )
@@ -247,7 +255,9 @@ def get_spotlight_vulnerabilities(
                 )
             return
         first_page = False
-        watermark = resources[-1].get("updated_timestamp") or watermark
+        # Falling back to an earlier timestamp would restart past records not yet
+        # read, and the cleanup after a finished sync would then delete them.
+        watermark = resources[-1].get("updated_timestamp")
         yield resources
         after = body.get("meta", {}).get("pagination", {}).get("after")
         if not after:
