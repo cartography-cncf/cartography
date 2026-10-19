@@ -821,8 +821,8 @@ def test_link_ontology_device_affected_by_huntress_incident_report(neo4j_session
     ) == {(4001, "SN-HUNTRESS-AFFECTS")}
 
 
-def test_link_ontology_device_affected_by_crowdstrike_finding(neo4j_session):
-    """CrowdStrike findings should AFFECTS the canonical Device via host and Spotlight vuln."""
+def test_crowdstrike_finding_affects_device_is_not_projected(neo4j_session):
+    """CrowdStrike findings stay reachable through the host, and old AFFECTS edges are cleaned up."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
@@ -850,16 +850,34 @@ def test_link_ontology_device_affected_by_crowdstrike_finding(neo4j_session):
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
+    neo4j_session.run(
+        """
+        MATCH (d:Device {serial_number: 'SN-CROWDSTRIKE-AFFECTS'}), (f:CrowdstrikeFinding)
+        MERGE (f)-[r:AFFECTS]->(d)
+        SET r.lastupdated = $old_tag
+        """,
+        old_tag=TEST_UPDATE_TAG - 1,
+    )
 
-    assert check_rels(
+    cartography.intel.ontology.devices.sync(
         neo4j_session,
-        "CrowdstrikeFinding",
-        "id",
-        "Device",
-        "serial_number",
-        "AFFECTS",
-        rel_direction_right=True,
-    ) == {("CVE-2024-0002", "SN-CROWDSTRIKE-AFFECTS")}
+        ["crowdstrike"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "CrowdstrikeFinding",
+            "id",
+            "Device",
+            "serial_number",
+            "AFFECTS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
 
 def test_link_ontology_devices_from_intune_enrolled_to(neo4j_session):

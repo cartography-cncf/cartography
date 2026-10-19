@@ -108,9 +108,13 @@ class DeviceAffectedByHuntressIncidentReportRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# Cleanup-only relationship.
-# Created by the devices linking query (walking OBSERVED_AS -> CrowdstrikeHost ->
-# CrowdstrikeSpotlightVulnerability -> CrowdstrikeFinding), not by load(DeviceSchema()).
+# DEPRECATED: no longer created. Remove in v1.0.0.
+# The devices linking job used to copy every host's Spotlight vulnerabilities onto the
+# Device (one edge per device and CVE), which on large tenants is hundreds of millions of
+# edges written in a single transaction. The same facts are reachable through
+# (:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->
+# (:CrowdstrikeSpotlightVulnerability)-[:HAS_CVE]->(:CrowdstrikeFinding).
+# Kept on DeviceSchema only so its cleanup removes edges left by earlier syncs.
 # (:CrowdstrikeFinding)-[:AFFECTS]->(:Device)
 @dataclass(frozen=True)
 class DeviceAffectedByCrowdstrikeFindingRel(CartographyRelSchema):
