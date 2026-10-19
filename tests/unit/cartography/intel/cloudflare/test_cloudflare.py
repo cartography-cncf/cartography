@@ -19,6 +19,7 @@ def test_start_cloudflare_ingestion_requires_token():
         start_cloudflare_ingestion(None, config)
 
 
+@patch.object(cartography.intel.cloudflare.access, "sync")
 @patch.object(cartography.intel.cloudflare.rulesets, "sync")
 @patch.object(cartography.intel.cloudflare.workerroutes, "sync")
 @patch.object(cartography.intel.cloudflare.workerscripts, "sync")
@@ -46,6 +47,7 @@ def test_r2_listing_failure_does_not_stop_the_later_stages(
     mock_workerscripts,
     mock_workerroutes,
     mock_rulesets,
+    mock_access,
 ):
     """
     Ensure that a refused R2 bucket listing does not abort the ingestion: the
@@ -67,3 +69,4 @@ def test_r2_listing_failure_does_not_stop_the_later_stages(
     mock_workerscripts.assert_called_once()
     mock_workerroutes.assert_called_once()
     mock_rulesets.assert_called_once()
+    mock_access.assert_called_once()
