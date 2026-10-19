@@ -7,6 +7,7 @@ from cartography.analysis.ontology.analysis import DEVICE_LINKING_JOBS
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
 from cartography.models.ontology.device import DeviceSchema
 from cartography.models.ontology.device import HOSTNAME_MATCHLINKS
@@ -152,6 +153,7 @@ def cleanup(
     GraphJob.from_node_schema(DeviceSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    _delete_legacy_crowdstrike_finding_affects(neo4j_session)
     # Clean up stale hostname matchlink relationships
     for _, _, matchlink in HOSTNAME_MATCHLINKS:
         GraphJob.from_matchlink(
@@ -160,3 +162,20 @@ def cleanup(
             MATCHLINK_SUB_RESOURCE_ID,
             common_job_parameters["UPDATE_TAG"],
         ).run(neo4j_session)
+
+
+# DEPRECATED: remove in v1.0.0, once graphs synced before #3447 have been cleaned.
+def _delete_legacy_crowdstrike_finding_affects(neo4j_session: neo4j.Session) -> None:
+    # #3447 stopped creating these edges (one per device and CVE, hundreds of millions
+    # on large Spotlight tenants); delete in batches so old graphs never build one huge
+    # transaction.
+    GraphStatement(
+        """
+        MATCH (:CrowdstrikeFinding)-[r:AFFECTS]->(:Device)
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r
+        """,
+        iterative=True,
+        iterationsize=10000,
+        parent_job_name="Legacy CrowdstrikeFinding AFFECTS Device cleanup",
+    ).run(neo4j_session)
