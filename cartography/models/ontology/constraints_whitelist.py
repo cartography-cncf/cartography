@@ -138,6 +138,8 @@ from cartography.models.gsuite.group import GSuiteGroupToGroupMemberRel
 from cartography.models.gsuite.group import GSuiteGroupToGroupOwnerRel
 from cartography.models.gsuite.group import GSuiteGroupToMemberRel
 from cartography.models.gsuite.group import GSuiteGroupToOwnerRel
+from cartography.models.jumpcloud.application import JumpCloudApplicationToUserRel
+from cartography.models.keycloak.client import KeycloakClientToServiceAccountRel
 from cartography.models.keycloak.group import KeycloakGroupToGroupRel
 from cartography.models.keycloak.group import KeycloakGroupToRoleRel
 from cartography.models.keycloak.inheritance import KeycloakUserAssumeRoleMatchLink
@@ -185,8 +187,10 @@ from cartography.models.kubernetes.statefulsets import (
     KubernetesStatefulSetToKubernetesClusterRel,
 )
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
+from cartography.models.notion.bot import NotionBotToOwnerRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.okta.application import OktaApplicationToOktaUserPropertiesRel
 from cartography.models.okta.awssaml import OktaGroupToAWSRoleAllowedByMatchLink
 from cartography.models.okta.group import OktaGroupToOktaUserDeprecatedRel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
@@ -397,5 +401,15 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # carry ComputeCluster (warehouses and compute pools are both elastic
         # clusters), so the guard would otherwise flag it. Distinct semantic.
         SnowflakeServiceToWarehouseRel,
+        # Raw provider references for (:UserAccount)-[:AUTHORIZED]->(:ThirdPartyApp):
+        # an Okta app assignment and a JumpCloud app binding. The canonical edge is
+        # materialized from them by USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP, as
+        # RESOLVED_IMAGE is from HAS_IMAGE.
+        OktaApplicationToOktaUserPropertiesRel,
+        JumpCloudApplicationToUserRel,
+        # A Keycloak client's own service-account user and a Notion bot's owner are
+        # not authorizations of the app by a user account. Distinct semantics.
+        KeycloakClientToServiceAccountRel,
+        NotionBotToOwnerRel,
     }
 )
