@@ -53,6 +53,7 @@ def get_response_body(response: dict[str, Any], operation: str) -> dict[str, Any
     if not body:
         raise CrowdstrikeAPIError(
             f"CrowdStrike {operation} returned HTTP {status_code} with no body",
+            status_code=status_code,
         )
     return body
 
