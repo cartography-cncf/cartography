@@ -13,7 +13,9 @@ REQUEST_TIMEOUT_SECONDS = 120
 
 
 class CrowdstrikeAPIError(RuntimeError):
-    pass
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class CrowdstrikeForbiddenError(CrowdstrikeAPIError):
@@ -46,6 +48,7 @@ def get_response_body(response: dict[str, Any], operation: str) -> dict[str, Any
         )
         raise error_class(
             f"CrowdStrike {operation} failed with HTTP {status_code}: {messages}",
+            status_code=status_code,
         )
     if not body:
         raise CrowdstrikeAPIError(

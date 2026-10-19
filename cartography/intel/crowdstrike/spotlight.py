@@ -24,7 +24,11 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 SPOTLIGHT_FILTER = 'status:["open","reopen"]'
+SPOTLIGHT_SORT = "updated_timestamp|asc"
 SPOTLIGHT_PAGE_SIZE = 5000
+# combinedQueryVulnerabilities answers an `after` cursor whose search context has
+# expired with HTTP 404 ("Search context expired, 'after' key no longer valid").
+EXPIRED_CURSOR_STATUS = 404
 SPOTLIGHT_FACETS = ["cve", "host_info", "remediation"]
 
 
@@ -188,19 +192,53 @@ def get_spotlight_vulnerabilities(
     records per call; querying IDs then fetching details caps at 400 per two
     calls, which made a large tenant's sync take days. Expired vulnerabilities
     are excluded because Spotlight no longer evaluates them.
+
+    The `after` cursor expires while the caller is still loading a page, which a
+    busy Neo4j makes routine at this size. Pages are sorted by `updated_timestamp`,
+    so an expired cursor restarts the query from the last timestamp yielded rather
+    than failing the sync. The restart reads the records sharing that timestamp
+    again, which loading tolerates, and an update only moves a record later, so no
+    unread record can fall behind the restart point.
     """
     parameters: dict[str, Any] = {
         "filter": SPOTLIGHT_FILTER,
+        "sort": SPOTLIGHT_SORT,
         "limit": SPOTLIGHT_PAGE_SIZE,
         "facet": SPOTLIGHT_FACETS,
     }
     seen_cursors: set[str] = set()
     first_page = True
+    watermark: str | None = None
+    resumed_from: str | None = None
     while True:
-        body = call_with_retries(
-            lambda: client.combinedQueryVulnerabilities(parameters=parameters),
-            "combinedQueryVulnerabilities",
-        )
+        try:
+            body = call_with_retries(
+                lambda: client.combinedQueryVulnerabilities(parameters=parameters),
+                "combinedQueryVulnerabilities",
+            )
+        except CrowdstrikeAPIError as e:
+            if e.status_code != EXPIRED_CURSOR_STATUS or "after" not in parameters:
+                raise
+            # A restart that expires again before passing its own timestamp would
+            # restart there forever.
+            if watermark is None or watermark == resumed_from:
+                raise CrowdstrikeAPIError(
+                    "CrowdStrike combinedQueryVulnerabilities cursor expired again "
+                    f"before paging past updated_timestamp {watermark}; refusing to "
+                    "restart forever.",
+                    status_code=e.status_code,
+                ) from e
+            logger.warning(
+                "CrowdStrike Spotlight pagination cursor expired; restarting from "
+                "updated_timestamp %s.",
+                watermark,
+            )
+            resumed_from = watermark
+            del parameters["after"]
+            parameters["filter"] = (
+                f"{SPOTLIGHT_FILTER}+updated_timestamp:>='{watermark}'"
+            )
+            continue
         resources = body.get("resources") or []
         if not resources:
             if first_page:
@@ -209,6 +247,7 @@ def get_spotlight_vulnerabilities(
                 )
             return
         first_page = False
+        watermark = resources[-1].get("updated_timestamp") or watermark
         yield resources
         after = body.get("meta", {}).get("pagination", {}).get("after")
         if not after:
