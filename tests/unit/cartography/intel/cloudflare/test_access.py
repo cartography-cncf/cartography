@@ -4,6 +4,8 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from cloudflare import APIConnectionError
+from cloudflare import APIStatusError
 from cloudflare import Cloudflare
 
 from cartography.intel.cloudflare import access
@@ -66,7 +68,8 @@ def test_reusable_policy_attachments_keep_their_application_precedence():
     assert second["precedence"] == 10
 
 
-def test_sdk_paginates_both_endpoints_with_account_scoping():
+@pytest.mark.parametrize("with_metadata", [False, True])
+def test_sdk_paginates_both_endpoints_with_account_scoping(with_metadata):
     # Arrange: use the real SDK to exercise its paginator and model conversion.
     calls = []
 
@@ -75,14 +78,10 @@ def test_sdk_paginates_both_endpoints_with_account_scoping():
         assert page <= 3, "SDK requested an unexpected extra page"
         calls.append((request.url.path.removeprefix("/client/v4"), page))
         data = POLICIES if request.url.path.endswith("/policies") else APPLICATIONS
-        return httpx.Response(
-            200,
-            json={
-                "success": True,
-                "result": data[page - 1 : page],
-                "result_info": {"page": page, "per_page": 1, "total_pages": 2},
-            },
-        )
+        payload = {"success": True, "result": data[page - 1 : page]}
+        if with_metadata:
+            payload["result_info"] = {"page": page, "per_page": 1, "total_pages": 2}
+        return httpx.Response(200, json=payload)
 
     with Cloudflare(
         api_token="synthetic",
@@ -98,6 +97,7 @@ def test_sdk_paginates_both_endpoints_with_account_scoping():
     assert [row["id"] for row in policies] == ["shared-policy", "bypass-policy"]
     assert applications[0]["created_at"].startswith("2026-01-01")
     assert policies[0]["include"] == POLICIES[0]["include"]
+    # SDK 5.8.0 uses an empty terminal page, even when total_pages is supplied.
     assert calls == [("/accounts/account/access/apps", page) for page in (1, 2, 3)] + [
         ("/accounts/account/access/apps/app-one/policies", page) for page in (1, 2, 3)
     ]
@@ -128,6 +128,60 @@ def test_failed_api_read_does_not_touch_neo4j(failed_endpoint, caplog):
     assert session.mock_calls == []
     assert "Skipping Access loading and cleanup" in caplog.text
     assert "private-response" not in caplog.text
+
+
+@pytest.mark.parametrize("status", [401, 404, 429, 500, 503])
+@pytest.mark.parametrize("failed_endpoint", ["applications", "policies"])
+def test_unexpected_api_errors_propagate_without_touching_neo4j(
+    status, failed_endpoint
+):
+    # Arrange
+    session = MagicMock()
+
+    def handler(request):
+        if failed_endpoint == "applications" or request.url.path.endswith("/policies"):
+            return httpx.Response(
+                status, json={"errors": [{"message": "test failure"}]}
+            )
+        page = int(request.url.params.get("page", "1"))
+        return httpx.Response(200, json={"result": APPLICATIONS if page == 1 else []})
+
+    with Cloudflare(
+        api_token="synthetic",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        max_retries=0,
+    ) as client:
+        # Act and assert
+        with pytest.raises(APIStatusError) as raised:
+            access.sync(session, client, {"UPDATE_TAG": 1}, "account")
+
+    # Assert
+    assert raised.value.status_code == status
+    assert session.mock_calls == []
+
+
+@pytest.mark.parametrize("failed_endpoint", ["applications", "policies"])
+def test_connection_errors_propagate_without_touching_neo4j(failed_endpoint):
+    # Arrange
+    session = MagicMock()
+
+    def handler(request):
+        if failed_endpoint == "applications" or request.url.path.endswith("/policies"):
+            raise httpx.ConnectError("test connection failure", request=request)
+        page = int(request.url.params.get("page", "1"))
+        return httpx.Response(200, json={"result": APPLICATIONS if page == 1 else []})
+
+    with Cloudflare(
+        api_token="synthetic",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        max_retries=0,
+    ) as client:
+        # Act and assert
+        with pytest.raises(APIConnectionError):
+            access.sync(session, client, {"UPDATE_TAG": 1}, "account")
+
+    # Assert
+    assert session.mock_calls == []
 
 
 @pytest.mark.parametrize(

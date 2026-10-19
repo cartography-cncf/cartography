@@ -102,10 +102,12 @@ See [Access application paths](https://developers.cloudflare.com/cloudflare-one/
 and [wildcard DNS records](https://developers.cloudflare.com/dns/manage-dns-records/reference/wildcard-dns-records/)
 for the different wildcard semantics.
 
-If any application or policy API page cannot be read, Access loading and cleanup
-are skipped for that account, preserving its previous Access graph. This includes
-permission errors: grant the token Access application/policy read permission to
-enable ingestion. A successful empty application listing removes stale Access
+If an application or policy API page returns HTTP 403, Access loading and
+cleanup are skipped for that account, preserving its previous Access graph.
+Grant the token Access application/policy read permission to enable ingestion.
+Other API failures, including authentication errors, rate limits, server errors,
+and connection failures, propagate so the run cannot report a successful sync
+with stale Access data. A successful empty application listing removes stale Access
 nodes for that account. Other accounts are cleaned independently.
 
 API references: [applications](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/list/) and [application policies](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/subresources/policies/methods/list/).
@@ -126,14 +128,14 @@ production Access rules or DNS records to create test cases:
   policy on two applications exercises attachment identity and precedence.
   A bypass example must remain visibly a bypass, not an inferred protected host.
 
-For a targeted account's zone/DNS/Access sync, grant a test token **Zone:Read**,
-**Zone DNS:Read**, and **Access: Apps and Policies Read**, restricted to that
-account and the required zones. Supply the account ID separately if bypassing
-account enumeration. The complete `--selected-modules cloudflare` command also
-runs the existing account/member/role/Workers/ruleset stages and needs their read
-scopes from the permission table above; **Account Settings:Read** is needed for
-account enumeration. Keep the token in a local environment variable (for example
-`CLOUDFLARE_TOKEN`); never paste it into chat, source files, fixtures, or evidence.
+The supported `cartography --selected-modules cloudflare` command enumerates
+accounts and runs the account/member/role/zone/DNS/R2/Workers/ruleset stages as
+well as Access. It does not expose an account-ID selector. Grant the read scopes
+from the permission table above, including **Account Settings:Read** for account
+enumeration, **Zone:Read**, **Zone DNS:Read**, and
+**Access: Apps and Policies Read**, restricted to the test account and its zones.
+Keep the token in a local environment variable (for example `CLOUDFLARE_TOKEN`);
+never paste it into chat, source files, fixtures, or evidence.
 
 Use a fresh disposable Neo4j database, with its URI and credentials supplied
 locally. Run the existing zone and DNS stages before Access. Record the exact

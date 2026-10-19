@@ -6,8 +6,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import neo4j
-from cloudflare import APIError
 from cloudflare import Cloudflare
+from cloudflare import PermissionDeniedError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -35,7 +35,7 @@ def sync(
             (application["id"], get_policies(client, account_id, application["id"]))
             for application in applications
         ]
-    except APIError:
+    except PermissionDeniedError:
         logger.warning(
             "Unable to read Cloudflare Access applications and policies for account %s. "
             "Skipping Access loading and cleanup; check the token's Access read permissions.",

@@ -1,8 +1,10 @@
 import json
+from contextlib import nullcontext
 from copy import deepcopy
 
 import httpx
 import pytest
+from cloudflare import APIStatusError
 from cloudflare import Cloudflare
 
 from cartography.intel.cloudflare import access
@@ -20,12 +22,16 @@ ACCOUNT = "access-test-account"
 OTHER_ACCOUNT = "other-access-test-account"
 
 
-def _client(applications, policies, failed_path=None, failed_page=1, status=403):
+def _client(
+    applications, policies, failed_path=None, failed_page=1, status=403, calls=None
+):
     """Mock only the provider HTTP boundary; keep the real SDK and graph flows."""
 
     def handler(request):
         page = int(request.url.params.get("page", "1"))
-        assert page <= 2, "SDK requested an unexpected extra page"
+        assert page <= 3, "SDK requested an unexpected extra page"
+        if calls is not None:
+            calls.append((request.url.path.removeprefix("/client/v4"), page))
         if (
             request.url.path.removeprefix("/client/v4") == failed_path
             and page == failed_page
@@ -39,7 +45,18 @@ def _client(applications, policies, failed_path=None, failed_page=1, status=403)
             if request.url.path.endswith("/policies")
             else applications
         )
-        return httpx.Response(200, json={"result": records if page == 1 else []})
+        # SDK 5.8.0 continues until an empty page, independently of result_info.
+        return httpx.Response(
+            200,
+            json={
+                "result": records[page - 1 : page],
+                "result_info": {
+                    "page": page,
+                    "per_page": 1,
+                    "total_pages": max(1, len(records)),
+                },
+            },
+        )
 
     return Cloudflare(
         api_token="synthetic",
@@ -166,9 +183,17 @@ def test_repeated_sync_updates_in_place_without_duplicate_nodes_or_edges(neo4j_s
         ).single()["count"]
         == 3
     )
-    assert neo4j_session.run(
-        "MATCH ()-[r:HAS_POLICY]->() RETURN count(r) AS count, collect(r.lastupdated) AS tags"
-    ).single().data() == {"count": 3, "tags": [2, 2, 2]}
+    assert {
+        (row["application"], row["policy"], row["tag"])
+        for row in neo4j_session.run(
+            "MATCH (a:CloudflareAccessApplication)-[r:HAS_POLICY]->(p:CloudflareAccessPolicy) "
+            "RETURN a.id AS application, p.id AS policy, r.lastupdated AS tag"
+        )
+    } == {
+        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/shared-policy", 2),
+        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/bypass-policy", 2),
+        (f"{ACCOUNT}/app-two", f"{ACCOUNT}/app-two/shared-policy", 2),
+    }
     assert neo4j_session.run(
         "MATCH (a:CloudflareAccessApplication {id: $id}) RETURN a.name AS name, a.lastupdated AS tag",
         id=f"{ACCOUNT}/app-one",
@@ -232,17 +257,22 @@ def test_failed_or_partial_fetch_preserves_previous_graph(
 ):
     # Arrange: a failure after earlier successful pages must not change the graph.
     _sync(neo4j_session)
+    calls = []
+    failed_path = f"/accounts/{ACCOUNT}{endpoint}"
 
-    # Act
-    _sync(
-        neo4j_session,
-        tag=2,
-        failed_path=f"/accounts/{ACCOUNT}{endpoint}",
-        failed_page=page,
-        status=status,
-    )
+    # Act: only permission errors skip; unexpected failures abort the sync.
+    with pytest.raises(APIStatusError) if status == 500 else nullcontext():
+        _sync(
+            neo4j_session,
+            tag=2,
+            failed_path=failed_path,
+            failed_page=page,
+            status=status,
+            calls=calls,
+        )
 
-    # Assert
+    # Assert: the requested failure page was reached, including later pages.
+    assert (failed_path, page) in calls
     assert check_nodes(
         neo4j_session, "CloudflareAccessApplication", ["id", "lastupdated"]
     ) == {
