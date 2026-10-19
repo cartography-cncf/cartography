@@ -1013,6 +1013,66 @@ class CLI:
                     hidden=PANEL_OKTA not in visible_panels,
                 ),
             ] = None,
+            okta_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-client-id",
+                    help=(
+                        "Client ID of an Okta OAuth service app. Used with "
+                        "--okta-private-key-env-var instead of an API key."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-private-key-env-var",
+                    help=(
+                        "Environment variable name containing the Okta OAuth "
+                        "service app's private key, as a PEM string or a JWK."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_private_key_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-private-key-id",
+                    help=(
+                        "Key ID (kid) of the Okta OAuth service app's public key. "
+                        "Not needed when the private key is a JWK with a kid."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_scopes: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-scopes",
+                    help=(
+                        "Comma-separated OAuth scopes to request. Defaults to "
+                        "every read scope the Okta sync uses."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_disable_dpop: Annotated[
+                bool,
+                typer.Option(
+                    "--okta-disable-dpop",
+                    help=(
+                        "Do not send DPoP proofs when requesting Okta OAuth "
+                        "access tokens."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = False,
             okta_base_domain: Annotated[
                 str,
                 typer.Option(
@@ -3174,6 +3234,21 @@ class CLI:
                     okta_api_key_env_var,
                 )
                 okta_api_key = os.environ.get(okta_api_key_env_var)
+            okta_private_key = None
+            if bool(okta_client_id) != bool(okta_private_key_env_var):
+                raise typer.BadParameter(
+                    "--okta-client-id and --okta-private-key-env-var must be set "
+                    "together.",
+                )
+            if okta_client_id and not okta_org_id:
+                raise typer.BadParameter(
+                    "--okta-client-id requires --okta-org-id.",
+                )
+            if okta_private_key_env_var:
+                okta_private_key = _read_access_token_env_var(
+                    "Okta",
+                    okta_private_key_env_var,
+                )
 
             # Read GitHub config
             github_config = None
@@ -3950,6 +4025,11 @@ class CLI:
                 oci_sync_all_profiles=oci_sync_all_profiles,
                 okta_org_id=okta_org_id,
                 okta_api_key=okta_api_key,
+                okta_client_id=okta_client_id,
+                okta_private_key=okta_private_key,
+                okta_private_key_id=okta_private_key_id,
+                okta_scopes=okta_scopes,
+                okta_dpop_enabled=not okta_disable_dpop,
                 okta_base_domain=okta_base_domain,
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,

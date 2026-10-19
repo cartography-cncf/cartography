@@ -1,5 +1,6 @@
 import cartography.intel.ontology.dnsrecords
 from cartography.analysis.ontology.analysis import DNS_RECORD_LINKING_JOBS
+from cartography.analysis.ontology.analysis import DNS_RECORD_TARGETS
 from cartography.analysis.ontology.analysis import DNS_RECORD_TO_KUBERNETES_INGRESS
 from tests.integration.util import check_rels
 
@@ -95,16 +96,50 @@ def test_sync_skips_ingress_without_host_names(neo4j_session):
 
 
 def test_kubernetes_ingress_match_seeks_dns_record_index(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
-        "CREATE INDEX dns_record_ont_name IF NOT EXISTS "
-        "FOR (n:DNSRecord) ON (n._ont_name)"
-    ).consume()
-    neo4j_session.run("CALL db.awaitIndexes()").consume()
+        """
+        UNWIND range(1, 100) AS i
+        CREATE (:DNSRecord {id: 'dns-' + i, _ont_name: 'app-' + i + '.example.com'})
+        """
+    )
+    neo4j_session.run(
+        """
+        CREATE (:KubernetesIngress {
+            id: 'ingress', host_names_normalized: ['app-1.example.com']
+        })
+        """
+    )
+    _create_dns_record_index_with_fresh_sample(
+        neo4j_session, "dns_record_ont_name", "_ont_name"
+    )
     match = DNS_RECORD_TO_KUBERNETES_INGRESS.statements[0].match
 
     plan = neo4j_session.run(f"EXPLAIN {match} RETURN dns, ing").consume().plan
 
     assert "NodeIndexSeek" in _operator_names(plan)
+
+
+def _create_dns_record_index_with_fresh_sample(
+    neo4j_session, index_name: str, prop: str
+) -> None:
+    """Ensure the DNSRecord index on `prop` exists and its sample matches the graph.
+
+    Plans depend on index statistics. An earlier test module's load() may already have
+    created an equivalent unnamed index, which makes the named CREATE a no-op, and Neo4j
+    resamples an index only in the background. A stale sample taken on an empty label
+    estimates zero rows for both a seek and a scan, and the planner may then pick either.
+    """
+    neo4j_session.run(
+        f"CREATE INDEX {index_name} IF NOT EXISTS FOR (n:DNSRecord) ON (n.{prop})"
+    ).consume()
+    neo4j_session.run("CALL db.awaitIndexes()").consume()
+    existing_name = neo4j_session.run(
+        "SHOW RANGE INDEXES YIELD name, labelsOrTypes, properties "
+        "WHERE labelsOrTypes = ['DNSRecord'] AND properties = [$prop] RETURN name",
+        prop=prop,
+    ).single(strict=True)["name"]
+    neo4j_session.run("CALL db.resampleIndex($name)", name=existing_name).consume()
 
 
 def _operator_names(plan) -> set[str]:
@@ -402,11 +437,35 @@ def test_sync_links_dns_records_to_service_endpoints(neo4j_session):
 
 def test_service_endpoint_matches_seek_dns_record_index(neo4j_session):
     # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
-        "CREATE INDEX dns_record_ont_target_hostname IF NOT EXISTS "
-        "FOR (n:DNSRecord) ON (n._ont_target_hostname)"
-    ).consume()
-    neo4j_session.run("CALL db.awaitIndexes()").consume()
+        """
+        UNWIND range(1, 100) AS i
+        CREATE (:DNSRecord {
+            id: 'dns-' + i, _ont_target_hostname: 'host-' + i + '.example.com'
+        })
+        """
+    )
+    neo4j_session.run(
+        """
+        CREATE (:GCPRecordSet:DNSRecord {
+            id: 'gcp', _ont_target_hostnames: ['host-1.example.com']
+        })
+        """
+    )
+    for target in DNS_RECORD_TARGETS:
+        if target.label not in SERVICE_ENDPOINT_LABELS:
+            continue
+        hostnames = {prop: f"{prop}.example.com" for prop in target.properties}
+        hostnames |= {prop: [f"{prop}.example.com"] for prop in target.list_properties}
+        neo4j_session.run(
+            f"CREATE (target:{target.label} {{id: $id}}) SET target += $hostnames",
+            id=target.label,
+            hostnames=hostnames,
+        )
+    _create_dns_record_index_with_fresh_sample(
+        neo4j_session, "dns_record_ont_target_hostname", "_ont_target_hostname"
+    )
     matches = [
         statement.match
         for job in DNS_RECORD_LINKING_JOBS

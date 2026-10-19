@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from typing import Any
 from typing import Awaitable
 from typing import Callable
 from urllib.parse import urlencode
 
+import okta.dpop
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from okta.models.application import Application
 from okta.models.application_json_converter import ApplicationJsonConverter
 from okta.models.authenticator_key_tac_all_of_provider import (
@@ -46,6 +49,40 @@ from okta.pagination import PaginationHelper
 OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 # Returned when the API token or OAuth client lacks the scope an endpoint needs.
 OKTA_MISSING_SCOPE_ERROR_CODE = "E0000006"
+# Logged with a resource name and the scope it needs when Okta refuses it.
+OKTA_MISSING_SCOPE_WARNING = (
+    "Unable to sync %s - the Okta credential needs an admin role that allows "
+    "it, and an OAuth service app also needs the %s scope"
+)
+
+# Read-only scopes covering every endpoint the Okta sync calls. An OAuth service
+# app must be granted all of them, or Okta refuses to issue an access token.
+OKTA_OAUTH_DEFAULT_SCOPES = (
+    "okta.apiTokens.read",
+    "okta.apps.read",
+    "okta.authenticators.read",
+    "okta.devices.read",
+    "okta.groups.read",
+    "okta.logStreams.read",
+    "okta.networkZones.read",
+    "okta.policies.read",
+    "okta.roles.read",
+    "okta.trustedOrigins.read",
+    "okta.userTypes.read",
+    "okta.users.read",
+)
+
+# Token endpoint errors returned when an OAuth service app cannot get an access
+# token: unknown client ID or key, scopes not granted, or a DPoP mismatch.
+_OKTA_OAUTH_TOKEN_ERROR_CODES = frozenset(
+    {
+        "invalid_client",
+        "invalid_dpop_proof",
+        "invalid_grant",
+        "invalid_scope",
+        "unauthorized_client",
+    }
+)
 
 # UserFactor and every model the factorType discriminator can resolve to. Each
 # subclass owns its own copy of the inherited FieldInfo, so all of them must be
@@ -159,6 +196,32 @@ _patch_okta_sdk_user_factor_models()
 _patch_okta_sdk_authenticator_models()
 
 
+@lru_cache(maxsize=4)
+def _load_dpop_signing_key(pem: bytes) -> Any:
+    return load_pem_private_key(pem, password=None)
+
+
+_sdk_dpop_jwt_encode = okta.dpop.jwt_encode
+
+
+def _jwt_encode_with_loaded_key(
+    payload: Any,
+    key: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> str:
+    # The SDK passes its DPoP key as PEM bytes, so PyJWT parses and validates
+    # the RSA key on every request (~60 ms each). Sign with a loaded key instead.
+    if isinstance(key, bytes):
+        key = _load_dpop_signing_key(key)
+    return _sdk_dpop_jwt_encode(payload, key, *args, **kwargs)
+
+
+# DEPRECATED: Remove this Okta SDK 3.4.4 performance shim in v1.0.0 once the SDK
+# signs DPoP proofs with a loaded key.
+okta.dpop.jwt_encode = _jwt_encode_with_loaded_key
+
+
 class OktaApiError(RuntimeError):
     """Okta API error that preserves the SDK error_code for callers."""
 
@@ -175,6 +238,11 @@ def is_resource_not_found_error(error: OktaApiError) -> bool:
 
 def is_missing_scope_error(error: OktaApiError) -> bool:
     return error.error_code == OKTA_MISSING_SCOPE_ERROR_CODE
+
+
+def is_oauth_token_error(error: OktaApiError) -> bool:
+    """Return True when Okta refused to issue an OAuth access token."""
+    return error.error_code in _OKTA_OAUTH_TOKEN_ERROR_CODES
 
 
 def _has_next_link(headers: Any) -> bool:

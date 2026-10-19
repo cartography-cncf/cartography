@@ -47,7 +47,8 @@ class AnalysisStatement:
     iterative separately and use AnalysisJob.cleanup_iterationsize.
 
     incremental_on names node or relationship variables whose lastupdated value
-    must match $UPDATE_TAG during a stock sync run.
+    must match $UPDATE_TAG during a stock sync run. Each variable must appear as a
+    pattern element in match, which carries the freshness gate.
     """
 
     query: str | None = None
