@@ -304,6 +304,7 @@ def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
 
     # Assert
     assert [item["id"] for item in first] == [item["id"] for item in second]
+    assert len(first) == 2
     assert {item["cve_id"] for item in first} == {CVE_ID_1, "CVE-2026-99999"}
     assert {item["target_orca_asset_unique_id"] for item in first} == {
         ASSET_UNIQUE_ID_1
@@ -475,6 +476,7 @@ def test_vulnerability_transform_skips_rows_without_canonical_cve(
     assert "Skipped 1 Orca vulnerability rows without a canonical CVE id" in (
         caplog.text
     )
+    assert repr(cve_id) in caplog.text
 
 
 @pytest.mark.parametrize(
