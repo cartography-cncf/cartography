@@ -785,7 +785,7 @@ def test_filesystem_scan_accepts_null_results(mock_sync_scan_results):
 
 
 def test_transform_scan_results_only_sets_cve_id_for_cves():
-    """Only CVE-prefixed ids populate cve_id; GHSA ids land in ghsa_id."""
+    """Only CVE ids populate cve_id, in canonical form; GHSA ids land in ghsa_id."""
     # Arrange
     results = [
         {
@@ -810,6 +810,12 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
                     "InstalledVersion": "5.4.1-0.2",
                     "Severity": "LOW",
                 },
+                {
+                    "VulnerabilityID": "CVE-2026-1965_1",
+                    "PkgName": "curl",
+                    "InstalledVersion": "8.14.1-r2",
+                    "Severity": "UNKNOWN",
+                },
             ],
         },
     ]
@@ -823,6 +829,7 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
         "TIF|CVE-2024-11111",
         "TIF|GHSA-aaaa-bbbb-cccc",
         "TIF|TEMP-0000000-ABCDEF",
+        "TIF|CVE-2026-1965_1",
     }
 
     cve = findings_by_id["TIF|CVE-2024-11111"]
@@ -840,11 +847,18 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
     assert temp["ghsa_id"] is None
     assert temp["has_cve"] == "false"
 
+    # Alpine's per-patch suffix is dropped from cve_id but kept on the node id
+    alpine = findings_by_id["TIF|CVE-2026-1965_1"]
+    assert alpine["cve_id"] == "CVE-2026-1965"
+    assert alpine["has_cve"] == "true"
+    assert alpine["vulnerability_ids"] == ["CVE-2026-1965_1"]
+
     # The raw identifier stays available on name regardless of its scheme
     assert {finding["VulnerabilityID"] for finding in findings_list} == {
         "CVE-2024-11111",
         "GHSA-aaaa-bbbb-cccc",
         "TEMP-0000000-ABCDEF",
+        "CVE-2026-1965_1",
     }
 
 

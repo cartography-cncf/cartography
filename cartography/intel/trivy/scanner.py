@@ -13,6 +13,7 @@ from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import read_text_report
 from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
+from cartography.intel.trivy.util import canonical_cve_id
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
@@ -87,7 +88,7 @@ def transform_scan_results(
                     dict.fromkeys([vuln_id, *(result.get("VendorIDs") or [])]),
                 )
                 cve_id = next(
-                    (vid for vid in vulnerability_ids if vid.startswith("CVE-")),
+                    (cid for cid in map(canonical_cve_id, vulnerability_ids) if cid),
                     None,
                 )
                 ghsa_id = next(
