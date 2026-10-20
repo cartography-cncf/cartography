@@ -100,6 +100,7 @@ def _prepare_mock_assignments():
     app_id_mapping = {
         "Finance Tracker": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
         "HR Portal": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+        "Example LLM Assistant": "99999999-8888-7777-6666-555555555555",
     }
 
     for assignment in MOCK_APP_ROLE_ASSIGNMENTS:
@@ -135,6 +136,7 @@ async def _mock_get_app_role_assignments_for_app(
     app_id_to_display = {
         "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee": "Finance Tracker",
         "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb": "HR Portal",
+        "99999999-8888-7777-6666-555555555555": "Example LLM Assistant",
     }
 
     target_display_name = app_id_to_display.get(app_id)
@@ -321,6 +323,7 @@ async def test_sync_entra_applications(
         ("assignment-2", "User", "Test User 2", "HR Portal"),
         ("assignment-3", "Group", "Finance Team", "Finance Tracker"),
         ("assignment-4", "Group", "HR Team", "HR Portal"),
+        ("assignment-5", "User", "Test User 1", "Example LLM Assistant"),
     }
     assert (
         check_nodes(
@@ -335,6 +338,7 @@ async def test_sync_entra_applications(
     expected_user_assignment_rels = {
         ("Test User 1", "assignment-1"),
         ("Test User 2", "assignment-2"),
+        ("Test User 1", "assignment-5"),
     }
     assert (
         check_rels(
@@ -401,6 +405,20 @@ async def test_sync_entra_applications(
             ["id", "display_name"],
         )
         == expected_service_principal_nodes
+    )
+
+    # Assert the vendor app's assignment reaches its service principal: the vendor
+    # app has no EntraApplication in this tenant.
+    assert (
+        "assignment-5",
+        "sp-33333333-3333-3333-3333-333333333333",
+    ) in check_rels(
+        neo4j_session,
+        "EntraAppRoleAssignment",
+        "id",
+        "EntraServicePrincipal",
+        "id",
+        "ASSIGNED_TO",
     )
 
     # Assert only the vendor app's service principal is a ThirdPartyApp, with its

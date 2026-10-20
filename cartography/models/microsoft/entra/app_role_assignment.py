@@ -123,6 +123,31 @@ class EntraAppRoleAssignmentToGroupRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EntraAppRoleAssignmentToServicePrincipalRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class EntraAppRoleAssignmentToServicePrincipalRel(CartographyRelSchema):
+    """
+    Links an app role assignment to the service principal it grants access to.
+
+    resourceId names that service principal. A vendor app has no EntraApplication in
+    the tenant, so this is the only edge from its assignments to the app.
+    """
+
+    target_node_label: str = "EntraServicePrincipal"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSIGNED_TO"
+    properties: EntraAppRoleAssignmentToServicePrincipalRelProperties = (
+        EntraAppRoleAssignmentToServicePrincipalRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class EntraAppRoleAssignmentSchema(CartographyNodeSchema):
     """An application role assignment in Microsoft Entra ID."""
 
@@ -136,6 +161,7 @@ class EntraAppRoleAssignmentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EntraAppRoleAssignmentToApplicationRel(),
+            EntraAppRoleAssignmentToServicePrincipalRel(),
             EntraAppRoleAssignmentToUserRel(),
             EntraAppRoleAssignmentToGroupRel(),
         ],

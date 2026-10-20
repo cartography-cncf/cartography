@@ -711,7 +711,9 @@ USER_OWNS_API_KEY = AnalysisJob(
 # them so a query reaches every provider through one pattern. Google Workspace and
 # Salesforce already write AUTHORIZED directly, with scopes, and own those edges:
 # cleanup is limited to the edges this job marked, or it would delete theirs whenever
-# their module last ran under another update tag.
+# their module last ran under another update tag. An Entra assignment points at both the
+# EntraApplication and its service principal; only one of them is a ThirdPartyApp (the
+# application for the tenant's own apps, the service principal for a vendor's).
 _USER_ACCOUNT_AUTHORIZED_MATCHES = (
     (
         "okta_app_assignment",
@@ -728,12 +730,12 @@ _USER_ACCOUNT_AUTHORIZED_MATCHES = (
     (
         "entra_app_role_assignment",
         "MATCH (ua:EntraUser)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment)"
-        "-[:ASSIGNED_TO]->(app:EntraApplication)",
+        "-[:ASSIGNED_TO]->(app:ThirdPartyApp)",
     ),
     (
         "entra_group_app_role_assignment",
         "MATCH (ua:EntraUser)-[:MEMBER_OF]->(:EntraGroup)-[:HAS_APP_ROLE]->"
-        "(:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)",
+        "(:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:ThirdPartyApp)",
     ),
 )
 _USER_ACCOUNT_AUTHORIZED_CLEANUP = "r.match_method IN [{}]".format(

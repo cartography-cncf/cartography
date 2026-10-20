@@ -292,6 +292,15 @@ def test_user_account_authorized_third_party_app_normalizes_provider_edges(
               -[:HAS_APP_ROLE]->(:EntraAppRoleAssignment {id: 'assignment-2'})
               -[:ASSIGNED_TO]->(entra_via_group)
 
+        // A vendor app exists in the tenant only as a service principal.
+        MERGE (vendor:EntraServicePrincipal:ThirdPartyApp {id: 'entra-vendor-sp'})
+        MERGE (entra)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment {id: 'assignment-3'})
+              -[:ASSIGNED_TO]->(vendor)
+        // The tenant's own app's service principal is not the ThirdPartyApp.
+        MERGE (own_sp:EntraServicePrincipal {id: 'entra-own-sp'})
+        MERGE (entra)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment {id: 'assignment-4'})
+              -[:ASSIGNED_TO]->(own_sp)
+
         // Okta no longer assigns this app, so its derived edge is stale.
         MERGE (unassigned:OktaApplication:ThirdPartyApp {id: 'okta-unassigned-app'})
         MERGE (okta)-[stale_derived:AUTHORIZED]->(unassigned)
@@ -325,5 +334,6 @@ def test_user_account_authorized_third_party_app_normalizes_provider_edges(
         ("jumpcloud-user", "jumpcloud-app", "jumpcloud_app_binding"),
         ("entra-user", "entra-direct-app", "entra_app_role_assignment"),
         ("entra-user", "entra-group-app", "entra_group_app_role_assignment"),
+        ("entra-user", "entra-vendor-sp", "entra_app_role_assignment"),
         ("gw-user", "gw-app", None),
     }
