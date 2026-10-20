@@ -22,6 +22,9 @@ from cartography.intel.microsoft.entra.federation.aws_identity_center import (
     sync_entra_federation,
 )
 from cartography.intel.microsoft.entra.groups import sync_entra_groups
+from cartography.intel.microsoft.entra.oauth2_permission_grants import (
+    sync_oauth2_permission_grants,
+)
 from cartography.intel.microsoft.entra.ou import sync_entra_ous
 from cartography.intel.microsoft.entra.service_principals import sync_service_principals
 from cartography.intel.microsoft.entra.users import get_tenant
@@ -231,6 +234,15 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             lambda: sync_app_role_assignments(
                 *sync_args, delegated_auth=delegated_auth, access_token=access_token
             ),
+        )
+        # Grants link users to service principals, so both load first.
+        await run_dataset(
+            "oauth2_permission_grants",
+            "OAuth2 permission grants",
+            lambda: sync_oauth2_permission_grants(
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
+            ),
+            allow_application_auth_denial=True,
         )
         await run_dataset(
             "directory_roles",

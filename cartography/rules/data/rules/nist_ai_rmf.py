@@ -67,6 +67,15 @@ RISKY_SCOPE_PREFIXES = (
     "https://www.googleapis.com/auth/gmail",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/calendar",
+    # Microsoft 365 mail, files, SharePoint, calendars, Teams chats and OneNote, as
+    # Entra consent grants record them on AUTHORIZED.scopes.
+    "https://graph.microsoft.com/Mail.",
+    "https://graph.microsoft.com/Files.",
+    "https://graph.microsoft.com/Sites.",
+    "https://graph.microsoft.com/Calendars.",
+    "https://graph.microsoft.com/Chat.",
+    "https://graph.microsoft.com/ChannelMessage.",
+    "https://graph.microsoft.com/Notes.",
 )
 
 
@@ -283,7 +292,7 @@ ai_third_party_app_sensitive_scopes = Rule(
     output_model=NistAiSensitiveScopesOutput,
     facts=(_cross_cloud_nist_ai_app_sensitive_scopes,),
     tags=("ai", "identity", "oauth", "compliance"),
-    version="0.1.3",
+    version="0.1.4",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MEASURE 2"),

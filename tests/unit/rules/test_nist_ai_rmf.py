@@ -27,7 +27,7 @@ def test_nist_ai_rules_registered_and_metadata():
     expected_versions = {
         "ai_provider_api_key_hygiene": "0.2.1",
         "ai_third_party_app_inventory": "0.1.3",
-        "ai_third_party_app_sensitive_scopes": "0.1.3",
+        "ai_third_party_app_sensitive_scopes": "0.1.4",
         "ai_admin_app_authorizations": "0.1.3",
         "aibom_agent_inventory": "0.1.1",
     }

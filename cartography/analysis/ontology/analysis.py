@@ -746,7 +746,10 @@ USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
     short_name="ontology_user_accounts_third_party_app",
     statements=tuple(
         AnalysisStatement(
-            match=match,
+            # A connector-owned edge (an Entra consent grant) already says the same
+            # thing with scopes; marking it would hand it to this job's cleanup.
+            match=f"{match} WHERE NOT EXISTS {{ (ua)-[owned:AUTHORIZED]->(app) "
+            "WHERE owned.match_method IS NULL }",
             effects=(
                 AddRelationship(
                     "ua",
