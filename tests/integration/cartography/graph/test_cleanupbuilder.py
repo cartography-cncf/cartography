@@ -1,6 +1,7 @@
 from cartography.client.core.tx import load_graph_data
 from cartography.graph.job import GraphJob
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.graph.statement import SCAN_BATCHES_PER_RUN
 from tests.data.graph.querybuilder.sample_data.helloworld_relationships import (
     INTERESTING_NODE_NO_WORLD_ASSET,
 )
@@ -293,4 +294,36 @@ def test_cleanup_interesting_asset_end_to_end_no_world_asset(neo4j_session):
     # and from the SubResource:
     assert check_nodes(neo4j_session, "SubResource", ["id", "lastupdated"]) == {
         ("sub-resource-id", 1),
+    }
+
+
+def test_cleanup_runs_until_every_stale_node_is_gone(neo4j_session):
+    # Arrange: more stale nodes than a single cleanup scan deletes.
+    neo4j_session.run(MERGE_SUB_RESOURCE_QUERY)
+    query = build_ingestion_query(InterestingAssetSchema())
+    stale = [
+        {**INTERESTING_NODE_SUB_RES_ONLY[0], "Id": f"stale-asset-{i}"}
+        for i in range(SCAN_BATCHES_PER_RUN + 50)
+    ]
+    load_graph_data(
+        neo4j_session, query, stale, lastupdated=10, sub_resource_id="sub-resource-id"
+    )
+    load_graph_data(
+        neo4j_session,
+        query,
+        INTERESTING_NODE_SUB_RES_ONLY,
+        lastupdated=11,
+        sub_resource_id="sub-resource-id",
+    )
+
+    # Act
+    GraphJob.from_node_schema(
+        InterestingAssetSchema(),
+        {"UPDATE_TAG": 11, "sub_resource_id": "sub-resource-id"},
+        iterationsize=1,
+    ).run(neo4j_session)
+
+    # Assert
+    assert check_nodes(neo4j_session, "InterestingAsset", ["id", "lastupdated"]) == {
+        ("interesting-node-id", 11),
     }

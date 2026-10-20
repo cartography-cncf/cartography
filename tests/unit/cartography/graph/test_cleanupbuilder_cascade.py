@@ -43,19 +43,23 @@ def test_cascade_cleanup_sub_rel():
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
+        WITH n LIMIT $SCAN_LIMIT_SIZE
         CALL (n) {
-            OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
-            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
-            DETACH DELETE child
-        }
-        DETACH DELETE n;
+            CALL (n) {
+                OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
+                WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+                DETACH DELETE child
+            }
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE s.lastupdated <> $UPDATE_TAG
-        WITH s LIMIT $LIMIT_SIZE
-        DELETE s;
+        WITH s LIMIT $SCAN_LIMIT_SIZE
+        CALL (s) {
+            DELETE s
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
@@ -76,20 +80,24 @@ def test_cascade_cleanup_with_selected_rel():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         MATCH (n)-[r:ASSOCIATED_WITH]->(:HelloAsset)
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
+        WITH n LIMIT $SCAN_LIMIT_SIZE
         CALL (n) {
-            OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
-            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
-            DETACH DELETE child
-        }
-        DETACH DELETE n;
+            CALL (n) {
+                OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
+                WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+                DETACH DELETE child
+            }
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         MATCH (n)-[r:ASSOCIATED_WITH]->(:HelloAsset)
         WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
@@ -108,33 +116,41 @@ def test_build_cleanup_queries_with_cascade():
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
+        WITH n LIMIT $SCAN_LIMIT_SIZE
         CALL (n) {
-            OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
-            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
-            DETACH DELETE child
-        }
-        DETACH DELETE n;
+            CALL (n) {
+                OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
+                WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+                DETACH DELETE child
+            }
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE s.lastupdated <> $UPDATE_TAG
-        WITH s LIMIT $LIMIT_SIZE
-        DELETE s;
+        WITH s LIMIT $SCAN_LIMIT_SIZE
+        CALL (s) {
+            DELETE s
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         MATCH (n)-[r:ASSOCIATED_WITH]->(:HelloAsset)
         WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         MATCH (n)<-[r:CONNECTED]-(:WorldAsset)
         WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
@@ -160,14 +176,18 @@ def test_cascade_delete_default_false():
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE s.lastupdated <> $UPDATE_TAG
-        WITH s LIMIT $LIMIT_SIZE
-        DELETE s;
+        WITH s LIMIT $SCAN_LIMIT_SIZE
+        CALL (s) {
+            DELETE s
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
     ]
     assert clean_query_list(actual_queries_default) == clean_query_list(

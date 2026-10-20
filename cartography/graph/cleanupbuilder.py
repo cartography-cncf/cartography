@@ -13,6 +13,25 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
+def _delete_in_batches(variable: str, delete_statement: str) -> str:
+    """
+    Build the clause that deletes the stale ``variable`` rows matched before it.
+
+    Rerunning a ``WITH x LIMIT $LIMIT_SIZE`` delete until it changes nothing rescans everything the
+    cleanup MATCH reaches once per batch, and fresh rows come first in that scan. On a large label
+    with a stale tail that is one full scan per $LIMIT_SIZE rows. Here one scan deletes up to
+    $SCAN_LIMIT_SIZE rows and commits every $LIMIT_SIZE, so each transaction stays as small as
+    before. The LIMIT before CALL bounds the rows Neo4j buffers ahead of the subquery.
+
+    The statement must run in an auto-commit transaction; see
+    ``GraphStatement(batched_transactions=True)``.
+    """
+    return f"""WITH {variable} LIMIT $SCAN_LIMIT_SIZE
+        CALL ({variable}) {{
+            {delete_statement}
+        }} IN TRANSACTIONS OF $LIMIT_SIZE ROWS;"""
+
+
 def build_cleanup_queries(
     node_schema: CartographyNodeSchema, cascade_delete: bool = False
 ) -> List[str]:
@@ -154,8 +173,10 @@ def _build_cleanup_rel_query_no_sub_resource(
         MATCH (n:AWSUser)
         MATCH (n)-[r:HAS_ROLE]->(...)
         WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
     """
     if node_schema.sub_resource_relationship:
         raise ValueError(
@@ -168,13 +189,13 @@ def _build_cleanup_rel_query_no_sub_resource(
         MATCH (n:$node_label)
         $selected_rel_clause
         WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        $delete_clause
         """,
     )
     return query_template.safe_substitute(
         node_label=node_schema.label,
         selected_rel_clause=_build_selected_rel_clause(selected_relationship),
+        delete_clause=_delete_in_batches("r", "DELETE r"),
     )
 
 
@@ -278,14 +299,18 @@ def _build_cleanup_node_and_rel_queries(
         >>> print(queries[0])  # Node cleanup query
         MATCH (n:AWSUser)<-[s:RESOURCE]-(sub:AWSAccount{id: $account_id})
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
 
         >>> print(queries[1])  # Relationship cleanup query
         MATCH (n:AWSUser)<-[s:RESOURCE]-(sub:AWSAccount{id: $account_id})
         WHERE s.lastupdated <> $UPDATE_TAG
-        WITH s LIMIT $LIMIT_SIZE
-        DELETE s;
+        WITH s LIMIT $SCAN_LIMIT_SIZE
+        CALL (s) {
+            DELETE s
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
 
     Note:
         - For sub resource relationships, validates that the target node matcher has
@@ -320,24 +345,23 @@ def _build_cleanup_node_and_rel_queries(
             cascade_rel_clause = f"<-[:{cascade_rel_label}]-"
         # Use a unit subquery to delete many children without collecting them and without
         # risking the parent row being filtered out by OPTIONAL MATCH + WHERE.
+        cascade_delete_statement = f"""CALL (n) {{
+                OPTIONAL MATCH (n){cascade_rel_clause}(child)
+                WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+                DETACH DELETE child
+            }}
+            DETACH DELETE n"""
         delete_action_clauses = [
             f"""
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        CALL (n) {{
-            OPTIONAL MATCH (n){cascade_rel_clause}(child)
-            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
-            DETACH DELETE child
-        }}
-        DETACH DELETE n;
+        {_delete_in_batches('n', cascade_delete_statement)}
         """,
         ]
     else:
         delete_action_clauses = [
-            """
+            f"""
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        {_delete_in_batches('n', 'DETACH DELETE n')}
         """,
         ]
     # Now clean up the relationships
@@ -346,18 +370,16 @@ def _build_cleanup_node_and_rel_queries(
             node_schema.sub_resource_relationship.target_node_matcher,
         )
         delete_action_clauses.append(
-            """
+            f"""
             WHERE s.lastupdated <> $UPDATE_TAG
-            WITH s LIMIT $LIMIT_SIZE
-            DELETE s;
+            {_delete_in_batches('s', 'DELETE s')}
             """,
         )
     else:
         delete_action_clauses.append(
-            """
+            f"""
             WHERE r.lastupdated <> $UPDATE_TAG
-            WITH r LIMIT $LIMIT_SIZE
-            DELETE r;
+            {_delete_in_batches('r', 'DELETE r')}
             """,
         )
 
@@ -413,8 +435,10 @@ def _build_cleanup_node_query_unscoped(
         >>> print(query)
         MATCH (n:GlobalConfig)
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
 
     Warning:
         This function creates queries that will delete ALL stale nodes of the given type,
@@ -432,10 +456,9 @@ def _build_cleanup_node_query_unscoped(
         )
 
     # The cleanup node query must always be before the cleanup rel query
-    delete_action_clause = """
+    delete_action_clause = f"""
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        {_delete_in_batches('n', 'DETACH DELETE n')}
     """
 
     # Ensure the node is attached to the sub resource and delete the node
@@ -493,9 +516,8 @@ def _build_cleanup_rel_queries_unscoped(
         )
 
     # The cleanup node query must always be before the cleanup rel query
-    delete_action_clause = """WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+    delete_action_clause = f"""WHERE r.lastupdated <> $UPDATE_TAG
+        {_delete_in_batches('r', 'DELETE r')}
         """
 
     # Ensure the node is attached to the sub resource and delete the node
