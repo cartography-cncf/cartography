@@ -41,7 +41,10 @@ def test_nist_ai_rules_registered_and_metadata():
 
 def test_nist_ai_rule_modules():
     assert ai_third_party_app_inventory.modules == {Module.CROSS_CLOUD}
-    assert ai_third_party_app_sensitive_scopes.modules == {Module.CROSS_CLOUD}
+    assert ai_third_party_app_sensitive_scopes.modules == {
+        Module.CROSS_CLOUD,
+        Module.MICROSOFT,
+    }
     assert ai_admin_app_authorizations.modules == {Module.GOOGLEWORKSPACE}
     assert aibom_agent_inventory.modules == {Module.AIBOM}
     assert aibom_coverage_gaps.modules == {Module.AIBOM}
@@ -67,7 +70,7 @@ def test_nist_ai_fact_structure_and_maturity():
             assert "COUNT" in fact.cypher_count_query
 
     assert len(ai_third_party_app_inventory.facts) == 1
-    assert len(ai_third_party_app_sensitive_scopes.facts) == 1
+    assert len(ai_third_party_app_sensitive_scopes.facts) == 2
     assert len(ai_admin_app_authorizations.facts) == 1
     assert len(aibom_agent_inventory.facts) == 1
     assert len(aibom_coverage_gaps.facts) == 1

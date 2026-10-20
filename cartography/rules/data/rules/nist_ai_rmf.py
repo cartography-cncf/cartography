@@ -76,6 +76,10 @@ RISKY_SCOPE_PREFIXES = (
     "https://graph.microsoft.com/Chat.",
     "https://graph.microsoft.com/ChannelMessage.",
     "https://graph.microsoft.com/Notes.",
+    # Any delegated permission on Exchange Online or SharePoint Online is mailbox or
+    # file access; grants name those APIs by app id (EWS.AccessAsUser.All, AllSites.Read).
+    "00000002-0000-0ff1-ce00-000000000000/",
+    "00000003-0000-0ff1-ce00-000000000000/",
 )
 
 
@@ -282,6 +286,79 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
+_entra_nist_ai_app_admin_consented_sensitive_scopes = Fact(
+    id="entra_nist_ai_app_admin_consented_sensitive_scopes",
+    name="AI-related apps granted sensitive scopes for every Entra user",
+    description=(
+        "Finds AI-related third-party apps that an Entra administrator granted broad or "
+        "high-risk delegated permissions on behalf of every user in the tenant. An admin "
+        "consent reaches users who never authorized the app themselves."
+    ),
+    cypher_query=f"""
+    MATCH (tenant:AzureTenant)-[consent:ADMIN_CONSENTED]->(app:ThirdPartyApp)
+    WITH
+        tenant,
+        consent,
+        app,
+        toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
+        toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
+    WHERE
+        ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
+            WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
+        )
+        OR normalized_name =~ '{AI_HEURISTIC_REGEX}'
+        OR normalized_client_id =~ '{AI_HEURISTIC_REGEX}'
+    WITH
+        tenant,
+        app,
+        [scope IN coalesce(consent.scopes, [])
+            WHERE scope IN {RISKY_SCOPE_EXACT_CYPHER}
+                OR ANY(prefix IN {RISKY_SCOPE_PREFIXES_CYPHER} WHERE scope STARTS WITH prefix)
+        ] AS risky_scopes
+    WHERE size(risky_scopes) > 0
+    RETURN
+        coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
+        app.id AS asset_node_id,
+        coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
+        app._ont_source AS app_source,
+        COUNT {{ (tenant)-[:RESOURCE]->(:EntraUser) }} AS authorized_identity_count,
+        size(risky_scopes) AS risky_scope_count,
+        risky_scopes
+    ORDER BY risky_scope_count DESC, app_name
+    """,
+    cypher_visual_query=f"""
+    MATCH p=(tenant:AzureTenant)-[consent:ADMIN_CONSENTED]->(app:ThirdPartyApp)
+    WITH
+        p,
+        consent,
+        app,
+        toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
+        toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
+    WHERE
+        (
+            ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
+                WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
+            )
+            OR normalized_name =~ '{AI_HEURISTIC_REGEX}'
+            OR normalized_client_id =~ '{AI_HEURISTIC_REGEX}'
+        )
+        AND ANY(scope IN coalesce(consent.scopes, [])
+            WHERE scope IN {RISKY_SCOPE_EXACT_CYPHER}
+                OR ANY(prefix IN {RISKY_SCOPE_PREFIXES_CYPHER} WHERE scope STARTS WITH prefix)
+        )
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (:AzureTenant)-[:ADMIN_CONSENTED]->(app:ThirdPartyApp)
+    RETURN COUNT(DISTINCT app) AS count
+    """,
+    asset_label="ThirdPartyApp",
+    asset_id_field="asset_node_id",
+    identity_fields=("app_source", "asset_node_id"),
+    module=Module.MICROSOFT,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
 ai_third_party_app_sensitive_scopes = Rule(
     id="ai_third_party_app_sensitive_scopes",
     name="AI Third-Party Apps with Sensitive Scopes",
@@ -290,7 +367,10 @@ ai_third_party_app_sensitive_scopes = Rule(
         "grants and therefore increase data exposure risk."
     ),
     output_model=NistAiSensitiveScopesOutput,
-    facts=(_cross_cloud_nist_ai_app_sensitive_scopes,),
+    facts=(
+        _cross_cloud_nist_ai_app_sensitive_scopes,
+        _entra_nist_ai_app_admin_consented_sensitive_scopes,
+    ),
     tags=("ai", "identity", "oauth", "compliance"),
     version="0.1.4",
     references=NIST_REFERENCES,

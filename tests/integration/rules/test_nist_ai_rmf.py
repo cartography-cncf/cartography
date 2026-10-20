@@ -47,28 +47,55 @@ def test_ai_app_inventory_keys_each_installation_of_one_github_app(neo4j_session
     assert len(set(identities)) == len(identities)
 
 
-def test_ai_app_sensitive_scopes_flags_microsoft_365_mail_consent(neo4j_session):
-    # Arrange: scopes as Entra consent grants record them.
+def test_ai_app_sensitive_scopes_flags_microsoft_365_consents(neo4j_session):
+    # Arrange: scopes as Entra consent grants record them, from one user and from an
+    # administrator on behalf of every user.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
-        CREATE (u:EntraUser:UserAccount {id: 'user-1'})
-        CREATE (sp:EntraServicePrincipal:ThirdPartyApp {
-            id: 'sp-vendor', app_id: 'vendor-app-id', display_name: 'Example LLM Assistant',
-            _ont_source: 'microsoft', _ont_client_id: 'vendor-app-id'
+        CREATE (tenant:AzureTenant {id: 'tenant-1'})
+        CREATE (tenant)-[:RESOURCE]->(u1:EntraUser:UserAccount {id: 'user-1'})
+        CREATE (tenant)-[:RESOURCE]->(:EntraUser:UserAccount {id: 'user-2'})
+        CREATE (user_consented:EntraServicePrincipal:ThirdPartyApp {
+            id: 'sp-user-consented', display_name: 'Example LLM Assistant',
+            _ont_source: 'microsoft', _ont_client_id: 'app-1'
         })
-        CREATE (u)-[:AUTHORIZED {scopes: [
+        CREATE (u1)-[:AUTHORIZED {scopes: [
             'https://graph.microsoft.com/User.Read',
             'https://graph.microsoft.com/Mail.Read'
-        ]}]->(sp)
+        ]}]->(user_consented)
+        CREATE (admin_consented:EntraServicePrincipal:ThirdPartyApp {
+            id: 'sp-admin-consented', display_name: 'Example GPT Connector',
+            _ont_source: 'microsoft', _ont_client_id: 'app-2'
+        })
+        CREATE (tenant)-[:ADMIN_CONSENTED {scopes: [
+            'https://graph.microsoft.com/User.Read',
+            '00000003-0000-0ff1-ce00-000000000000/AllSites.Read'
+        ]}]->(admin_consented)
         """
     )
-    fact = ai_third_party_app_sensitive_scopes.facts[0]
+    user_fact, admin_fact = ai_third_party_app_sensitive_scopes.facts
 
     # Act
-    rows = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
+    user_rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx, user_fact.cypher_query
+    )
+    admin_rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx, admin_fact.cypher_query
+    )
 
     # Assert
-    assert [(row["asset_node_id"], row["risky_scopes"]) for row in rows] == [
-        ("sp-vendor", ["https://graph.microsoft.com/Mail.Read"]),
+    assert [
+        (row["asset_node_id"], row["authorized_identity_count"], row["risky_scopes"])
+        for row in user_rows
+    ] == [("sp-user-consented", 1, ["https://graph.microsoft.com/Mail.Read"])]
+    assert [
+        (row["asset_node_id"], row["authorized_identity_count"], row["risky_scopes"])
+        for row in admin_rows
+    ] == [
+        (
+            "sp-admin-consented",
+            2,
+            ["00000003-0000-0ff1-ce00-000000000000/AllSites.Read"],
+        )
     ]
