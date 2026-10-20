@@ -1,9 +1,12 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.graph.statement import GraphStatement
+from cartography.graph.statement import GraphStatementJSONEncoder
+from cartography.graph.statement import SCAN_BATCHES_PER_RUN
 
 SAMPLE_STATEMENT_AS_DICT = {
     "query": "Query goes here",
@@ -27,13 +30,12 @@ def test_create_from_json_keeps_batched_transactions():
         "Query goes here", iterationsize=5, batched_transactions=True
     )
 
-    restored = GraphStatement.create_from_json(statement.as_dict())
+    restored = GraphStatement.create_from_json(
+        json.loads(json.dumps(statement, cls=GraphStatementJSONEncoder)),
+    )
 
     assert restored.batched_transactions
-    assert (
-        restored.parameters["SCAN_LIMIT_SIZE"]
-        == statement.parameters["SCAN_LIMIT_SIZE"]
-    )
+    assert restored.parameters["SCAN_LIMIT_SIZE"] == 5 * SCAN_BATCHES_PER_RUN
 
 
 @patch("cartography.graph.statement.execute_write_with_retry")
