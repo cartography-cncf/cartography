@@ -381,7 +381,8 @@ class GraphStatement:
 
         Args:
             json_obj (Dict[str, Any]): The JSON object containing statement configuration.
-                Expected keys: "query", "parameters", "iterative", "iterationsize".
+                Expected keys: "query", "parameters", "iterative", "iterationsize",
+                "batched_transactions".
             short_job_name (Optional[str], optional): The short name of the job this statement
                 belongs to, used for logging and naming. Defaults to None.
             job_sequence_num (Optional[int], optional): The sequence number of this statement
@@ -396,6 +397,7 @@ class GraphStatement:
             - parameters: {} (empty dict)
             - iterative: False
             - iterationsize: 0
+            - batched_transactions: False
         """
         return cls(
             json_obj.get("query", ""),
@@ -404,6 +406,7 @@ class GraphStatement:
             json_obj.get("iterationsize", 0),
             short_job_name,
             job_sequence_num,
+            batched_transactions=json_obj.get("batched_transactions", False),
         )
 
     @classmethod

@@ -401,7 +401,8 @@ def run_autocommit_query_with_retry(
     :param neo4j_session: The Neo4j session
     :param query: The Cypher query to execute
     :param parameters: Parameters to pass to the query
-    :return: The summary of the query, with counters covering every committed batch
+    :return: The summary of the attempt that succeeded; its counters leave out batches an
+        earlier, failed attempt committed
     """
 
     def _operation() -> neo4j.ResultSummary:

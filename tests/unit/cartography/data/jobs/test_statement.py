@@ -22,6 +22,20 @@ def test_create_from_json():
     assert statement.parent_job_sequence_num == 1
 
 
+def test_create_from_json_keeps_batched_transactions():
+    statement = GraphStatement(
+        "Query goes here", iterationsize=5, batched_transactions=True
+    )
+
+    restored = GraphStatement.create_from_json(statement.as_dict())
+
+    assert restored.batched_transactions
+    assert (
+        restored.parameters["SCAN_LIMIT_SIZE"]
+        == statement.parameters["SCAN_LIMIT_SIZE"]
+    )
+
+
 @patch("cartography.graph.statement.execute_write_with_retry")
 def test_run_iterative_uses_retryable_write_until_no_updates(
     mock_execute_write_with_retry,

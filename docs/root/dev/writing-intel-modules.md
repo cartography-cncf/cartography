@@ -723,7 +723,7 @@ CALL (n) {
 } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
 ```
 
-Every generated cleanup query deletes in batches this way: one scan deletes up to `$SCAN_LIMIT_SIZE` stale rows and commits every `$LIMIT_SIZE` (the job's `iterationsize`), and the job reruns the query until it deletes nothing.
+Every cleanup query that `GraphJob.from_node_schema` generates deletes in batches this way: one scan deletes up to `$SCAN_LIMIT_SIZE` stale rows and commits every `$LIMIT_SIZE` (the job's `iterationsize`), and the job reruns the query until it deletes nothing.
 
 **When to use cascade_delete:**
 
