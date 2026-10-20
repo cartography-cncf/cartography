@@ -8,6 +8,7 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -204,6 +205,8 @@ def transform_ssm_parameters(
     for param in raw_parameters_data:
         param["LastModifiedDate"] = dict_date_to_epoch(param, "LastModifiedDate")
         param["PoliciesJson"] = json.dumps(param.get("Policies", []))
+        if "Tags" in param:
+            param["TagsJson"] = json.dumps(param["Tags"])
         # AWSKMSKey uses shorter UUID as their primary id
         # SSM Parameters, when encrypted, reference KMS keys using their full ARNs in the KeyId field
         # Adding a param to match on the id property of the target node
@@ -217,6 +220,55 @@ def transform_ssm_parameters(
             param["KMSKeyIdShort"] = None
         transformed_list.append(param)
     return transformed_list
+
+
+@timeit
+def get_ssm_parameter_tags(
+    boto3_session: boto3.session.Session,
+    region: str,
+    parameters: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Add each private SSM parameter's tags under the "Tags" key.
+
+    Not decorated with aws_handle_regions: it would replace the whole parameter
+    list with [] on AccessDenied or a timeout, and the SSM cleanup would then
+    delete every parameter. A parameter whose tags cannot be read is still
+    returned, without a "Tags" key, so its tags property is null rather than
+    "[]" (no tags).
+    """
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    denied_count = 0
+    for parameter in parameters:
+        try:
+            response = client.list_tags_for_resource(
+                ResourceType="Parameter",
+                ResourceId=parameter["Name"],
+            )
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code == "InvalidResourceId":
+                # Deleted between DescribeParameters and ListTagsForResource.
+                logger.info(
+                    "SSM parameter %s no longer exists while fetching tags; skipping.",
+                    parameter["Name"],
+                )
+                continue
+            if error_code in ("AccessDenied", "AccessDeniedException"):
+                # IAM can deny this per parameter, so keep trying the others.
+                denied_count += 1
+                continue
+            raise
+        parameter["Tags"] = response.get("TagList", [])
+    if denied_count:
+        logger.warning(
+            "Access denied to ssm:ListTagsForResource for %d of %d SSM parameters "
+            "in region '%s'; loading them without tags.",
+            denied_count,
+            len(parameters),
+            region,
+        )
+    return parameters
 
 
 @timeit
@@ -363,6 +415,7 @@ def sync(
         )
 
         data = get_ssm_parameters(boto3_session, region)
+        data = get_ssm_parameter_tags(boto3_session, region, data)
         data = transform_ssm_parameters(data)
         load_ssm_parameters(
             neo4j_session,
