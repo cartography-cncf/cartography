@@ -30,7 +30,7 @@ from tests.integration.util import check_rels
 @patch.object(
     cartography.intel.semgrep.findings,
     "get_sast_findings",
-    return_value=tests.data.semgrep.sast.RAW_FINDINGS,
+    return_value=[tests.data.semgrep.sast.RAW_FINDINGS],
 )
 def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_session):
     # Arrange
@@ -204,7 +204,7 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
 @patch.object(
     cartography.intel.semgrep.findings,
     "get_ai_sast_findings",
-    return_value=tests.data.semgrep.aisast.RAW_FINDINGS,
+    return_value=[tests.data.semgrep.aisast.RAW_FINDINGS],
 )
 def test_sync_ai_sast_findings(
     mock_get_ai_sast_findings,
@@ -433,7 +433,7 @@ def test_sync_ai_sast_findings_cleanup(
     with patch.object(
         cartography.intel.semgrep.findings,
         "get_ai_sast_findings",
-        return_value=tests.data.semgrep.aisast.RAW_FINDINGS,
+        return_value=[tests.data.semgrep.aisast.RAW_FINDINGS],
     ):
         sync_findings(
             neo4j_session,
@@ -512,7 +512,7 @@ def test_sync_ai_sast_findings_archived_github_repo(
     with patch.object(
         cartography.intel.semgrep.findings,
         "get_ai_sast_findings",
-        return_value=tests.data.semgrep.aisast.RAW_FINDINGS,
+        return_value=[tests.data.semgrep.aisast.RAW_FINDINGS],
     ):
         sync_findings(
             neo4j_session,
@@ -544,7 +544,7 @@ def test_sync_ai_sast_findings_archived_github_repo(
 @patch.object(
     cartography.intel.semgrep.findings,
     "get_sca_vulns",
-    return_value=tests.data.semgrep.sca.RAW_VULNS,
+    return_value=[tests.data.semgrep.sca.RAW_VULNS],
 )
 @patch.object(
     cartography.intel.semgrep.findings,

@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Tuple
 
@@ -44,13 +45,15 @@ def _get_findings(
     issue_type: str,
     finding_label: str,
     extra_params: Dict[str, Any] | None = None,
-) -> List[Dict[str, Any]]:
+) -> Iterator[List[Dict[str, Any]]]:
     """
-    Pages through the Semgrep findings API for one `issue_type`. Timeouts, 429s, and
-    5xx responses are retried up to _MAX_RETRIES times per page; other HTTP errors
-    are raised immediately.
+    Pages through the Semgrep findings API for one `issue_type`, yielding one page at a
+    time so callers can load each page before fetching the next. Large deployments can
+    have hundreds of thousands of findings, which do not fit in memory at once.
+    Timeouts, 429s, and 5xx responses are retried up to _MAX_RETRIES times per page;
+    other HTTP errors are raised immediately.
     """
-    all_findings: List[Dict[str, Any]] = []
+    total = 0
     findings_url = f"https://semgrep.dev/api/v1/deployments/{deployment_slug}/findings"
     headers = {
         "Content-Type": "application/json",
@@ -63,13 +66,12 @@ def _get_findings(
         "dedup": "true",
         **(extra_params or {}),
     }
-    has_more = True
     page = 0
     retries = 0
     logger.info(
         "Retrieving Semgrep %s for deployment '%s'.", finding_label, deployment_slug
     )
-    while has_more:
+    while True:
         try:
             response = requests.get(
                 findings_url,
@@ -90,23 +92,23 @@ def _get_findings(
             )
             continue
         findings = data["findings"]
-        has_more = len(findings) > 0
+        if not findings:
+            break
         if page % 10 == 0:
             logger.info("Processed page %d of Semgrep %s.", page, finding_label)
-        all_findings.extend(findings)
+        total += len(findings)
+        yield findings
         retries = 0
         page += 1
 
-    logger.info(
-        "Retrieved %d Semgrep %s in %d pages.", len(all_findings), finding_label, page
-    )
-    return all_findings
+    logger.info("Retrieved %d Semgrep %s in %d pages.", total, finding_label, page)
 
 
-@timeit
-def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str, Any]]:
+def get_sca_vulns(
+    semgrep_app_token: str, deployment_slug: str
+) -> Iterator[List[Dict[str, Any]]]:
     """
-    Gets the SCA vulns associated with the passed Semgrep App token and deployment slug.
+    Yields pages of the SCA vulns associated with the passed Semgrep App token and deployment slug.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
     param: deployment_slug: The Semgrep deployment slug to use for retrieving SCA vulns.
     """
@@ -265,12 +267,11 @@ def load_semgrep_sca_vulns(
     )
 
 
-@timeit
 def get_sast_findings(
     semgrep_app_token: str, deployment_slug: str
-) -> List[Dict[str, Any]]:
+) -> Iterator[List[Dict[str, Any]]]:
     """
-    Gets the SAST findings associated with the passed Semgrep App token and deployment slug.
+    Yields pages of the SAST findings associated with the passed Semgrep App token and deployment slug.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
     param: deployment_slug: The Semgrep deployment slug to use for retrieving SAST findings.
     """
@@ -336,12 +337,11 @@ def load_semgrep_sast_findings(
     )
 
 
-@timeit
 def get_ai_sast_findings(
     semgrep_app_token: str, deployment_slug: str
-) -> List[Dict[str, Any]]:
+) -> Iterator[List[Dict[str, Any]]]:
     """
-    Gets the AI-powered detection (`ai_sast`) findings associated with the passed Semgrep App token
+    Yields pages of the AI-powered detection (`ai_sast`) findings associated with the passed Semgrep App token
     and deployment slug.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
     param: deployment_slug: The Semgrep deployment slug to use for retrieving AI SAST findings.
@@ -504,21 +504,20 @@ def sync_sast_findings(
     Returns True on success, False if the API call failed.
     """
     try:
-        raw_findings = get_sast_findings(semgrep_app_token, deployment_slug)
-        logger.info("Running Semgrep FindingAssistant sync job (SAST).")
-        load_semgrep_finding_assistants(
-            neo4j_session,
-            _extract_assistants(raw_findings),
-            deployment_id,
-            update_tag,
-        )
         logger.info("Running Semgrep SAST findings sync job.")
-        load_semgrep_sast_findings(
-            neo4j_session,
-            transform_sast_findings(raw_findings),
-            deployment_id,
-            update_tag,
-        )
+        for raw_findings in get_sast_findings(semgrep_app_token, deployment_slug):
+            load_semgrep_finding_assistants(
+                neo4j_session,
+                _extract_assistants(raw_findings),
+                deployment_id,
+                update_tag,
+            )
+            load_semgrep_sast_findings(
+                neo4j_session,
+                transform_sast_findings(raw_findings),
+                deployment_id,
+                update_tag,
+            )
         run_typed_analysis_job(
             SEMGREP_SAST_RISK_ANALYSIS,
             neo4j_session,
@@ -561,18 +560,17 @@ def sync_sca_findings(
     Returns True on success, False if the API call failed.
     """
     try:
-        raw_vulns = get_sca_vulns(semgrep_app_token, deployment_slug)
-        logger.info("Running Semgrep FindingAssistant sync job (SCA).")
-        load_semgrep_finding_assistants(
-            neo4j_session,
-            _extract_assistants(raw_vulns),
-            deployment_id,
-            update_tag,
-        )
         logger.info("Running Semgrep SCA findings sync job.")
-        vulns, usages = transform_sca_vulns(raw_vulns)
-        load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
-        load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
+        for raw_vulns in get_sca_vulns(semgrep_app_token, deployment_slug):
+            load_semgrep_finding_assistants(
+                neo4j_session,
+                _extract_assistants(raw_vulns),
+                deployment_id,
+                update_tag,
+            )
+            vulns, usages = transform_sca_vulns(raw_vulns)
+            load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
+            load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
         run_typed_analysis_job(
             SEMGREP_SCA_RISK_ANALYSIS,
             neo4j_session,
@@ -620,21 +618,20 @@ def sync_ai_sast_findings(
     Returns True on success, False if the API call failed.
     """
     try:
-        raw_findings = get_ai_sast_findings(semgrep_app_token, deployment_slug)
-        logger.info("Running Semgrep FindingAssistant sync job (AI SAST).")
-        load_semgrep_finding_assistants(
-            neo4j_session,
-            _extract_assistants(raw_findings),
-            deployment_id,
-            update_tag,
-        )
         logger.info("Running Semgrep AI SAST findings sync job.")
-        load_semgrep_ai_sast_findings(
-            neo4j_session,
-            transform_ai_sast_findings(raw_findings),
-            deployment_id,
-            update_tag,
-        )
+        for raw_findings in get_ai_sast_findings(semgrep_app_token, deployment_slug):
+            load_semgrep_finding_assistants(
+                neo4j_session,
+                _extract_assistants(raw_findings),
+                deployment_id,
+                update_tag,
+            )
+            load_semgrep_ai_sast_findings(
+                neo4j_session,
+                transform_ai_sast_findings(raw_findings),
+                deployment_id,
+                update_tag,
+            )
         run_typed_analysis_job(
             SEMGREP_AI_SAST_RISK_ANALYSIS,
             neo4j_session,
