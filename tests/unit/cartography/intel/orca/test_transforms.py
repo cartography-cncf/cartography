@@ -293,7 +293,10 @@ def test_alert_transform_does_not_choose_an_ambiguous_inventory(caplog) -> None:
 
 def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
     # Arrange
-    raw = {**VULNERABILITIES[0], "CveId": [CVE_ID_1.lower(), "CVE-2026-99999"]}
+    raw = {
+        **VULNERABILITIES[0],
+        "CveId": [CVE_ID_1.lower(), "CVE-2026-99999_1", "CVE-2026-99999_2"],
+    }
 
     # Act
     first = vulnerabilities.transform([raw], ORGANIZATION_ID)
@@ -444,21 +447,34 @@ def test_vulnerability_sync_skips_duplicate_identity_across_pages(
     )
 
 
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"CveId": "GHSA-not-a-cve"},
-        {"CveId": "CVE-not-valid"},
-        {"Inventory": {}},
-    ],
-)  # type: ignore[misc]
-def test_vulnerability_transform_rejects_missing_canonical_identity(change) -> None:
+def test_vulnerability_transform_rejects_missing_target_identity() -> None:
     # Arrange
-    raw = {**VULNERABILITIES[0], **change}
+    raw = {**VULNERABILITIES[0], "Inventory": {}}
 
     # Act and assert
     with pytest.raises((KeyError, ValueError)):
         vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+
+@pytest.mark.parametrize(
+    "cve_id",
+    ["GHSA-not-a-cve", "CVE-not-valid", "CVE-2026-0001-extra", None],
+)  # type: ignore[misc]
+def test_vulnerability_transform_skips_rows_without_canonical_cve(
+    cve_id: Any,
+    caplog,
+) -> None:
+    # Arrange
+    raw = [{**VULNERABILITIES[0], "CveId": cve_id}, VULNERABILITIES[0]]
+
+    # Act
+    result = vulnerabilities.transform(raw, ORGANIZATION_ID)
+
+    # Assert
+    assert {item["cve_id"] for item in result} == {CVE_ID_1}
+    assert "Skipped 1 Orca vulnerability rows without a canonical CVE id" in (
+        caplog.text
+    )
 
 
 @pytest.mark.parametrize(
