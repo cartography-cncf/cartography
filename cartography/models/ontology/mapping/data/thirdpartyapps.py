@@ -8,6 +8,10 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # (_ont_source, _ont_client_id) to ask about the app across its instances. A user
 # account's access to an instance is (:UserAccount)-[:AUTHORIZED]->(:ThirdPartyApp).
 #
+# A vendor app consented in Entra exists in the tenant only as an EntraServicePrincipal.
+# That node carries ThirdPartyApp when its app_ownership is third_party; its mapping slot
+# is taken by ServiceAccount, so ENTRA_THIRD_PARTY_APP_PROJECTION sets the fields below.
+#
 # ThirdPartyApp ontology fields:
 # client_id (REQUIRED) - Identifier of the app (OAuth client id or the provider's
 #   closest equivalent), shared by every instance of the app
