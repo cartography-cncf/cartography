@@ -37,18 +37,25 @@ def _response(findings=None, status_code=200):
 @patch("cartography.intel.semgrep.findings.requests.get")
 def test_get_findings_requests_issue_type_and_pages(mock_get, getter, issue_type):
     # Arrange
-    mock_get.side_effect = [_response(RAW_FINDINGS), _response([])]
+    mock_get.side_effect = [
+        _response(RAW_FINDINGS),
+        _response(RAW_FINDINGS),
+        _response([]),
+    ]
 
     # Act
-    result = getter("token", "my-deployment")
+    pages = getter("token", "my-deployment")
+    first_page = next(pages)
 
-    # Assert
-    assert result == RAW_FINDINGS
+    # Assert: each page is yielded before the next one is requested
+    assert first_page == RAW_FINDINGS
+    assert mock_get.call_count == 1
+    assert list(pages) == [RAW_FINDINGS]
     calls = mock_get.call_args_list
     assert calls[0].args[0] == (
         "https://semgrep.dev/api/v1/deployments/my-deployment/findings"
     )
-    assert [c.kwargs["params"]["page"] for c in calls] == [0, 1]
+    assert [c.kwargs["params"]["page"] for c in calls] == [0, 1, 2]
     assert {c.kwargs["params"]["issue_type"] for c in calls} == {issue_type}
     assert {c.kwargs["params"]["ref"] for c in calls} == {"_default"}
 
@@ -60,7 +67,7 @@ def test_get_findings_does_not_retry_client_errors(mock_get):
 
     # Act and assert
     with pytest.raises(HTTPError):
-        semgrep_findings.get_ai_sast_findings("token", "my-deployment")
+        list(semgrep_findings.get_ai_sast_findings("token", "my-deployment"))
     assert mock_get.call_count == 1
 
 
@@ -71,7 +78,7 @@ def test_get_findings_retries_server_errors_then_raises(mock_get):
 
     # Act and assert
     with pytest.raises(HTTPError):
-        semgrep_findings.get_ai_sast_findings("token", "my-deployment")
+        list(semgrep_findings.get_ai_sast_findings("token", "my-deployment"))
     assert mock_get.call_count == semgrep_findings._MAX_RETRIES
 
 
@@ -85,10 +92,10 @@ def test_get_findings_retries_rate_limit_then_succeeds(mock_get):
     ]
 
     # Act
-    result = semgrep_findings.get_ai_sast_findings("token", "my-deployment")
+    result = list(semgrep_findings.get_ai_sast_findings("token", "my-deployment"))
 
     # Assert
-    assert result == RAW_FINDINGS
+    assert result == [RAW_FINDINGS]
     assert [c.kwargs["params"]["page"] for c in mock_get.call_args_list] == [0, 0, 1]
 
 

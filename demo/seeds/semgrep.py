@@ -72,12 +72,12 @@ class SemgrepSeed(Seed):
     @patch.object(
         cartography.intel.semgrep.findings,
         "get_sast_findings",
-        return_value=tests.data.semgrep.sast.RAW_FINDINGS,
+        return_value=[tests.data.semgrep.sast.RAW_FINDINGS],
     )
     @patch.object(
         cartography.intel.semgrep.findings,
         "get_sca_vulns",
-        return_value=tests.data.semgrep.sca.RAW_VULNS,
+        return_value=[tests.data.semgrep.sca.RAW_VULNS],
     )
     def seed(self, *args) -> None:
         self._seed_deployments()
