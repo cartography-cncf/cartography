@@ -32,8 +32,10 @@ def test_github_dependency_cleanup_scoped_to_own_label():
     expected = """
         MATCH (n:GitHubDependency)
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
     """
     assert actual == remove_leading_whitespace_and_empty_lines(expected)
     assert "MATCH (n:Dependency)" not in node_delete_query
