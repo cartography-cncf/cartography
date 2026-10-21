@@ -738,6 +738,51 @@ _tailscale_device_management_gaps = Fact(
 )
 
 
+_defender_machine_management_gaps = Fact(
+    id="defender_machine_management_gaps",
+    name="Defender for Endpoint machines without Intune enrollment",
+    description=(
+        "Detects machines that are onboarded to Microsoft Defender for Endpoint "
+        "and actively reporting, but have no Intune managed device record in a "
+        "tenant that uses Intune. Machines managed by another MDM also match."
+    ),
+    # Requiring Intune data in the tenant keeps a missing Intune dataset, such as
+    # an ungranted DeviceManagementManagedDevices.Read.All permission, from
+    # flagging every Defender machine.
+    cypher_query="""
+    MATCH (tenant:AzureTenant)-[:RESOURCE]->(device:DefenderMachine)
+    WHERE device.onboarding_status = 'Onboarded'
+      AND device.health_status = 'Active'
+      AND NOT (device)-[:ASSOCIATED_WITH]->(:IntuneManagedDevice)
+      AND EXISTS { MATCH (tenant)-[:RESOURCE]->(:IntuneManagedDevice) }
+    RETURN
+        'microsoft' AS provider,
+        device.id AS device_id,
+        device.id AS stable_device_id,
+        coalesce(device.computer_dns_name, device.machine_id) AS device_name,
+        device.os_platform AS platform,
+        'not_enrolled_in_intune' AS issue
+    """,
+    cypher_visual_query="""
+    MATCH (tenant:AzureTenant)-[:RESOURCE]->(device:DefenderMachine)
+    WHERE device.onboarding_status = 'Onboarded'
+      AND device.health_status = 'Active'
+      AND NOT (device)-[:ASSOCIATED_WITH]->(:IntuneManagedDevice)
+      AND EXISTS { MATCH (tenant)-[:RESOURCE]->(:IntuneManagedDevice) }
+    RETURN tenant, device
+    """,
+    cypher_count_query="""
+    MATCH (device:DefenderMachine)
+    RETURN COUNT(device) AS count
+    """,
+    asset_label="DefenderMachine",
+    asset_id_field="device_id",
+    identity_fields=("device_id", "issue"),
+    module=Module.MICROSOFT,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 device_security_posture_gaps = Rule(
     id="device_security_posture_gaps",
     name="Device Data Protection Gaps",
@@ -818,16 +863,18 @@ device_management_gaps = Rule(
     name="Device Management Gaps",
     description=(
         "Detects devices that are explicitly unmanaged, unsupervised, lack MDM "
-        "approval, or are noncompliant according to their management provider."
+        "approval, or are noncompliant according to their management provider, "
+        "and Defender for Endpoint machines with no Intune enrollment."
     ),
     output_model=DeviceSecurityPostureGapOutput,
     facts=(
         _jamf_computer_management_gaps,
         _jamf_mobile_device_management_gaps,
         _tailscale_device_management_gaps,
+        _defender_machine_management_gaps,
     ),
     tags=("device", "endpoint", "mdm", "compliance"),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("8.1"),
         iso27001_annex_a("8.9"),
