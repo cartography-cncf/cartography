@@ -193,14 +193,18 @@ def test_build_cleanup_queries_aws_inspector_package():
         """
         MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
         """
         MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
         WHERE s.lastupdated <> $UPDATE_TAG
-        WITH s LIMIT $LIMIT_SIZE
-        DELETE s;
+        WITH s LIMIT $SCAN_LIMIT_SIZE
+        CALL (s) {
+            DELETE s
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
