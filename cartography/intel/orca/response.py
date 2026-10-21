@@ -4,7 +4,8 @@ from typing import Any
 
 from dateutil.parser import isoparse
 
-_CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
+# Alpine secdb lists one CVE patched several times as CVE-YYYY-NNNN_1, _2, ...
+_CVE_RE = re.compile(r"^(CVE-\d{4}-\d{4,})(?:_\d+)?$", re.IGNORECASE)
 
 
 def unwrap_value(value: Any) -> Any:
@@ -134,9 +135,9 @@ def canonical_cve_ids(*values: Any) -> list[str]:
 
     return sorted(
         {
-            candidate.strip().upper()
+            match.group(1).upper()
             for candidate in candidates
-            if _CVE_RE.fullmatch(candidate.strip())
+            if (match := _CVE_RE.fullmatch(candidate.strip()))
         },
     )
 
