@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # contents (including }} and secrets.NAME) cannot become references. Keep
 # double-quoted bracket selectors for compatibility with existing inventory.
 EXPRESSION_TOKEN_PATTERN = re.compile(
-    r"(?P<end>\}\})"
+    r"(?P<start>\$\{\{)|(?P<end>\}\})"
     r"|(?<![\w.])secrets(?:"
     r"\.(?P<dot>[A-Za-z_][A-Za-z0-9_]*)"
     r"|\[\s*(?P<quote>['\"])(?P<bracket>[A-Za-z_][A-Za-z0-9_]*)(?P=quote)\s*\])"
@@ -146,6 +146,10 @@ def extract_secrets_from_string(content: str) -> set[str]:
         expression_start = start + 3
         references: set[str] = set()
         for token in EXPRESSION_TOKEN_PATTERN.finditer(content, expression_start):
+            if token.group("start"):
+                # Discard the incomplete expression and retry from the new opener.
+                position = token.start()
+                break
             if token.group("end"):
                 result.update(references)
                 position = token.end()

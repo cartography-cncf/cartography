@@ -209,5 +209,5 @@ WORKFLOW_COMPOUND_SECRETS = WORKFLOW_CI_CONTENT.replace(
     "${{ format('{0}', secrets.NPM_TOKEN || secrets['AWS_ACCESS_KEY_ID']) }}",
 ).replace(
     'NODE_VERSION: "18"',
-    "NODE_VERSION: \"18\"\n  LITERAL: ${{ 'secrets.DEPLOY_KEY' }}",
+    "NODE_VERSION: \"18\"\n  LITERAL: ${{ 'secrets.DEPLOY_KEY' }}\n  BROKEN: >-\n    ${{ secrets.DEPLOY_KEY\n    ${{ secrets.NPM_TOKEN }}",
 )

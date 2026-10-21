@@ -369,6 +369,20 @@ def test_enrich_workflow_read_all_permissions():
         ("${{ secrets[format('{0}', 'FAKE')] }}", set()),
         ("secrets.FAKE outside an expression", set()),
         ("${{ secrets.FAKE", set()),
+        ("${{ secrets.ORPHAN\n${{ secrets.VALID }}", {"VALID"}),
+        ("${{ secrets.ORPHAN\n${{ 'secrets.FAKE' }}", set()),
+        (
+            "${{ secrets.FIRST }} ${{ secrets.ORPHAN ${{ secrets.LAST || '' }}",
+            {"FIRST", "LAST"},
+        ),
+        (
+            "${{ secrets.ORPHAN ${{ secrets.ALSO_ORPHAN ${{ secrets.VALID }}",
+            {"VALID"},
+        ),
+        (
+            "${{ secrets.ORPHAN ${{ format('${{ secrets.FAKE }} {0}', secrets.REAL) }}",
+            {"REAL"},
+        ),
         ("echo '${{ secrets.REAL }}'", {"REAL"}),
         ("${{ secrets.ONE || '' }} and ${{ secrets.TWO }}", {"ONE", "TWO"}),
         ("${{\n secrets.ONE ||\n secrets['TWO']\n }}", {"ONE", "TWO"}),
@@ -392,6 +406,9 @@ on: workflow_dispatch
 env:
   TOKEN: ${{ secrets.TOKEN || secrets['BACKUP'] }}
   LITERAL: ${{ 'secrets.FAKE' }}
+  BROKEN: >-
+    ${{ secrets.ORPHAN
+    ${{ secrets['BACKUP'] }}
 jobs:
   check:
     runs-on: ubuntu-latest
