@@ -6,18 +6,12 @@ from cartography.intel.tenable.findings import transform_cves
 from cartography.intel.tenable.findings import transform_plugins
 from cartography.intel.tenable.findings import transform_scans
 from tests.data.tenable.assets import ASSET_ID_1
-from tests.data.tenable.findings import CVE_ID_1
-from tests.data.tenable.findings import CVE_ID_2
-from tests.data.tenable.findings import CVE_ID_3
 from tests.data.tenable.findings import FINDING_ID_1
 from tests.data.tenable.findings import FINDING_ID_2
 from tests.data.tenable.findings import FINDING_ID_3
 from tests.data.tenable.findings import FINDINGS_DATA
-from tests.data.tenable.findings import PLUGIN_1_CVE_NODE_IDS
-from tests.data.tenable.findings import PLUGIN_1_CVES
 from tests.data.tenable.findings import PLUGIN_ID_1
 from tests.data.tenable.findings import PLUGIN_ID_2
-from tests.data.tenable.findings import PLUGIN_ID_3
 from tests.data.tenable.findings import SCAN_UUID_1
 from tests.data.tenable.findings import SCAN_UUID_2
 
@@ -80,11 +74,6 @@ def test_transform_maps_all_fields():
     assert f1["service"] == "cifs"
     # CVE fields: finding has CVEs
     assert f1["cve_id"] == "CVE-2022-21837"
-    assert set(f1["cve_list"]) == {
-        "CVE-2022-21837",
-        "CVE-2022-21840",
-        "CVE-2022-21842",
-    }
     assert f1["has_cve"] == "true"
 
 
@@ -95,7 +84,6 @@ def test_transform_cve_fields_no_cves():
     # Assert
     f2 = next(r for r in result if r["id"] == FINDING_ID_2)
     assert f2["cve_id"] is None
-    assert f2["cve_list"] == []
     assert f2["has_cve"] == "false"
 
 
@@ -178,7 +166,7 @@ def test_transform_plugins_basic():
     assert p1["cvss3_base_score"] == 8.8
     assert p1["vpr_score"] == 6.7
     assert p1["epss_score"] == 10.647
-    assert set(p1["cve_list"]) == {"CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"}
+    assert p1["cve_list"] == ["CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"]
 
 
 def test_transform_plugins_vpr_none_when_missing():
@@ -188,15 +176,6 @@ def test_transform_plugins_vpr_none_when_missing():
     # Assert
     p2 = next(r for r in result if r["id"] == PLUGIN_ID_2)
     assert p2["vpr_score"] is None
-
-
-def test_transform_plugins_empty_cve_list():
-    # Act
-    result = transform_plugins(FINDINGS_DATA)
-
-    # Assert
-    p3 = next(r for r in result if r["id"] == PLUGIN_ID_3)
-    assert p3["cve_list"] == []
 
 
 def test_transform_plugins_deduplicates():
@@ -248,155 +227,137 @@ def test_transform_plugins_empty_input():
 
 
 # ---------------------------------------------------------------------------
+# CVE IDs on findings and plugins
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "plugin",
+    [
+        {"id": 1, "cve": []},
+        {"id": 1, "cve": None},
+        {"id": 1},
+    ],
+)
+def test_transform_plugins_gives_a_plugin_without_cves_an_empty_cve_list(plugin):
+    # Arrange
+    raw = [{"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": plugin}]
+
+    # Act
+    result = transform_plugins(raw)
+
+    # Assert
+    assert result[0]["cve_list"] == []
+
+
+@pytest.mark.parametrize("blank", ["", None])
+def test_transform_plugins_drops_blank_cve_ids(blank):
+    # Arrange
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {"id": 1, "cve": [blank, "CVE-2026-0001"]},
+        }
+    ]
+
+    # Act
+    result = transform_plugins(raw)
+
+    # Assert
+    assert result[0]["cve_list"] == ["CVE-2026-0001"]
+
+
+def test_transform_plugins_lists_each_cve_once():
+    # Arrange
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {
+                "id": 1,
+                "cve": ["CVE-2026-0001", "CVE-2026-0002", "CVE-2026-0001"],
+            },
+        }
+    ]
+
+    # Act
+    result = transform_plugins(raw)
+
+    # Assert
+    assert result[0]["cve_list"] == ["CVE-2026-0001", "CVE-2026-0002"]
+
+
+def test_transform_takes_the_first_cve_id_that_is_not_blank():
+    # Arrange
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {"id": 1, "cve": ["", "CVE-2026-0002", "CVE-2026-0001"]},
+        }
+    ]
+
+    # Act
+    finding = transform(raw)[0]
+
+    # Assert
+    assert finding["cve_id"] == "CVE-2026-0002"
+    assert finding["has_cve"] == "true"
+
+
+# ---------------------------------------------------------------------------
 # transform_cves()
 # ---------------------------------------------------------------------------
 
 
-def test_transform_cves_basic():
-    # Act
-    result = transform_cves(FINDINGS_DATA)
-
-    # Assert: only PLUGIN_ID_1 names CVEs; the other two plugins contribute none.
-    assert result == [
-        {"id": f"TNB|{cve_id}", "cve_id": cve_id} for cve_id in PLUGIN_1_CVES
+def test_transform_cves_lists_every_plugin_that_names_each_cve():
+    # Arrange
+    plugins = [
+        {"id": 1, "cve_list": ["CVE-2026-0001", "CVE-2026-0002"]},
+        {"id": 2, "cve_list": ["CVE-2026-0002"]},
     ]
 
-
-def test_transform_cves_deduplicates_across_findings():
-    # Arrange: the same plugin reported on two assets must yield one node per CVE.
-    raw = FINDINGS_DATA + [FINDINGS_DATA[0]]
-
     # Act
-    result = transform_cves(raw)
+    result = transform_cves(plugins, "tenant-a")
 
     # Assert
     assert result == [
-        {"id": f"TNB|{cve_id}", "cve_id": cve_id} for cve_id in PLUGIN_1_CVES
-    ]
-
-
-def test_transform_cves_deduplicates_across_plugins():
-    # Arrange: two different plugins naming an overlapping CVE.
-    raw = [
         {
-            "finding_id": "f1",
-            "asset": {"uuid": "a"},
-            "plugin": {"id": 1, "cve": [CVE_ID_1, CVE_ID_2]},
+            "id": "TNB|tenant-a|CVE-2026-0001",
+            "cve_id": "CVE-2026-0001",
+            "plugin_ids": [1],
         },
         {
-            "finding_id": "f2",
-            "asset": {"uuid": "b"},
-            "plugin": {"id": 2, "cve": [CVE_ID_2, CVE_ID_3]},
+            "id": "TNB|tenant-a|CVE-2026-0002",
+            "cve_id": "CVE-2026-0002",
+            "plugin_ids": [1, 2],
         },
     ]
 
-    # Act
-    result = transform_cves(raw)
 
-    # Assert
-    assert result == [
-        {"id": f"TNB|{CVE_ID_1}", "cve_id": CVE_ID_1},
-        {"id": f"TNB|{CVE_ID_2}", "cve_id": CVE_ID_2},
-        {"id": f"TNB|{CVE_ID_3}", "cve_id": CVE_ID_3},
-    ]
-
-
-@pytest.mark.parametrize(
-    "raw_finding",
-    [
-        {"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": {"id": 1, "cve": []}},
-        {"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": {"id": 1, "cve": None}},
-        {"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": {"id": 1}},
-        {"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": None},
-        {"finding_id": "f1", "asset": {"uuid": "a"}},
-    ],
-)
-def test_transform_cves_tolerates_absent_cve_lists(raw_finding):
-    # Act and assert
-    assert transform_cves([raw_finding]) == []
-
-
-@pytest.mark.parametrize("blank", ["", None])
-def test_transforms_skip_blank_cve_identifiers(blank):
-    """A blank entry names no CVE, so no transform may pass it on.
-
-    A null would abort the whole load, since Neo4j cannot store one inside a list,
-    and an empty string would leave a HAS_CVE matcher id with no node behind it.
-    """
+def test_transform_cves_returns_nothing_when_no_plugin_names_a_cve():
     # Arrange
-    raw = [
-        {
-            "finding_id": "f1",
-            "asset": {"uuid": "a"},
-            "plugin": {"id": 1, "cve": [blank, CVE_ID_1]},
-        }
-    ]
+    plugins = [{"id": 1, "cve_list": []}]
 
     # Act
-    finding = transform(raw)[0]
-    plugin = transform_plugins(raw)[0]
-    cves = transform_cves(raw)
+    result = transform_cves(plugins, "tenant-a")
 
     # Assert
-    for record in (finding, plugin):
-        assert record["cve_list"] == [CVE_ID_1]
-        assert record["cve_node_ids"] == [f"TNB|{CVE_ID_1}"]
-    assert finding["cve_id"] == CVE_ID_1
-    assert finding["has_cve"] == "true"
-    assert cves == [{"id": f"TNB|{CVE_ID_1}", "cve_id": CVE_ID_1}]
+    assert result == []
 
 
-def test_transform_only_blank_cve_identifiers_means_no_cve():
+def test_transform_cves_scopes_node_ids_to_the_tenant():
     # Arrange
-    raw = [
-        {
-            "finding_id": "f1",
-            "asset": {"uuid": "a"},
-            "plugin": {"id": 1, "cve": ["", None]},
-        }
-    ]
+    plugins = [{"id": 1, "cve_list": ["CVE-2026-0001"]}]
 
     # Act
-    finding = transform(raw)[0]
+    tenant_a_cve = transform_cves(plugins, "tenant-a")[0]
+    tenant_b_cve = transform_cves(plugins, "tenant-b")[0]
 
     # Assert
-    assert finding["cve_id"] is None
-    assert finding["cve_list"] == []
-    assert finding["cve_node_ids"] == []
-    assert finding["has_cve"] == "false"
-
-
-def test_transform_cves_empty_input():
-    # Act and assert
-    assert transform_cves([]) == []
-
-
-def test_transform_cves_namespaces_node_ids_away_from_nvd_records():
-    """Node ids must never equal a bare CVE id.
-
-    A :TenableCve carries the :CVE label, and the `cve` module MERGEs its NVD records
-    on (:CVE {id}). With a bare id it would write NVD data onto :TenableCve nodes,
-    and Tenable's tenant-scoped cleanup would delete that data with the node.
-    """
-    # Act
-    cves = transform_cves(FINDINGS_DATA)
-    findings = transform(FINDINGS_DATA)
-    plugins = transform_plugins(FINDINGS_DATA)
-
-    # Assert
-    for cve in cves:
-        assert cve["id"] == f"TNB|{cve['cve_id']}"
-        assert cve["id"] not in PLUGIN_1_CVES
-
-    # The rel matchers must use the namespaced ids, and the retained backwards-compat
-    # cve_list must keep the bare ones.
-    f1 = next(r for r in findings if r["id"] == FINDING_ID_1)
-    assert f1["cve_node_ids"] == PLUGIN_1_CVE_NODE_IDS
-    assert f1["cve_list"] == PLUGIN_1_CVES
-
-    p1 = next(r for r in plugins if r["id"] == PLUGIN_ID_1)
-    assert p1["cve_node_ids"] == PLUGIN_1_CVE_NODE_IDS
-    assert p1["cve_list"] == PLUGIN_1_CVES
+    assert tenant_a_cve["id"] == "TNB|tenant-a|CVE-2026-0001"
+    assert tenant_b_cve["id"] == "TNB|tenant-b|CVE-2026-0001"
 
 
 # ---------------------------------------------------------------------------
