@@ -136,7 +136,7 @@ def test_access_listing_failure_does_not_stop_the_next_account(failure, caplog):
         load_apps = stack.enter_context(
             patch.object(cartography.intel.cloudflare.access, "load_applications")
         )
-        stack.enter_context(
+        load_policies = stack.enter_context(
             patch.object(cartography.intel.cloudflare.access, "load_policies")
         )
         cleanup = stack.enter_context(
@@ -162,6 +162,9 @@ def test_access_listing_failure_does_not_stop_the_next_account(failure, caplog):
     assert all(stage.call_count == 2 for stage in stages.values())
     transform.assert_called_once_with([], "second-account", zones, records)
     load_apps.assert_called_once_with(session, [], "second-account", TEST_UPDATE_TAG)
+    load_policies.assert_called_once_with(
+        session, [], "second-account", TEST_UPDATE_TAG
+    )
     cleanup.assert_called_once_with(
         session, {"UPDATE_TAG": TEST_UPDATE_TAG, "account_id": "second-account"}
     )
