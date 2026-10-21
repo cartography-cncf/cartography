@@ -5,6 +5,7 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
 from cartography.models.tenable.cve import TenableCveSchema
@@ -251,6 +252,28 @@ def load_findings(
     )
 
 
+# DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
+@timeit
+def migrate_legacy_cve_data(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    has_legacy_data = neo4j_session.execute_read(
+        read_single_value_tx,
+        """
+        RETURN EXISTS { MATCH (:TenableFinding:CVE) }
+            OR EXISTS { MATCH (:TenableCve)<-[:HAS_CVE]-(:TenableFinding) }
+        """,
+    )
+    if not has_legacy_data:
+        return
+    logger.info(
+        "Migrating Tenable CVE data written by an earlier version of Cartography. "
+        "This is a one-time migration for this graph."
+    )
+    run_analysis_job("tenable_cve_migration.json", neo4j_session, common_job_parameters)
+
+
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
@@ -292,7 +315,6 @@ def sync(
     scans = transform_scans(raw_findings)
     cves = transform_cves(plugins, tenant_id)
     load_findings(neo4j_session, findings, plugins, scans, cves, tenant_id, update_tag)
-    # DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
-    run_analysis_job("tenable_cve_migration.json", neo4j_session, common_job_parameters)
+    migrate_legacy_cve_data(neo4j_session, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Tenable finding sync for tenant %s", tenant_id)
