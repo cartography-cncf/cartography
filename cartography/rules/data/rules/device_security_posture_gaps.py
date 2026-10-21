@@ -744,7 +744,9 @@ _defender_machine_management_gaps = Fact(
     description=(
         "Detects machines that are onboarded to Microsoft Defender for Endpoint "
         "and actively reporting, but have no Intune managed device record in a "
-        "tenant that uses Intune. Machines managed by another MDM also match."
+        "tenant that uses Intune. Machines managed by another MDM also match, "
+        "and so do machines that Defender reports without an Entra device ID, "
+        "because that ID is the only key that links a machine to Intune."
     ),
     # Requiring Intune data in the tenant keeps a missing Intune dataset, such as
     # an ungranted DeviceManagementManagedDevices.Read.All permission, from
