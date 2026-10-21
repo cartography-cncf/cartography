@@ -2,6 +2,8 @@
 Unit tests for GitHub Workflow YAML parser.
 """
 
+import pytest
+
 from cartography.intel.github.actions import enrich_workflow_with_parsed_content
 from cartography.intel.github.workflow_parser import deduplicate_actions
 from cartography.intel.github.workflow_parser import extract_secrets_from_string
@@ -346,3 +348,67 @@ def test_enrich_workflow_read_all_permissions():
     assert enriched["permissions_checks"] == "read"
     assert enriched["permissions_id_token"] == "read"
     assert enriched["permissions_security_events"] == "read"
+
+
+@pytest.mark.parametrize(
+    "content,expected",
+    [
+        ("${{ secrets.TOKEN || '' }}", {"TOKEN"}),
+        ("${{ format('{0}', secrets.TOKEN) }}", {"TOKEN"}),
+        ("${{ secrets.TOKEN || secrets['BACKUP'] }}", {"TOKEN", "BACKUP"}),
+        ("${{ secrets.TOKEN && secrets.TOKEN }}", {"TOKEN"}),
+        ("${{ format('}} {0}', secrets.TOKEN) }}", {"TOKEN"}),
+        ("${{ format('It''s secrets.FAKE {0}', secrets.REAL) }}", {"REAL"}),
+        ("${{ format('${{ secrets.FAKE }} {0}', secrets.REAL) }}", {"REAL"}),
+        ("${{ 'secrets.FAKE' || secrets.REAL }}", {"REAL"}),
+        ("${{ 'secrets.FAKE' }}", set()),
+        ("${{ github.event.secrets.FAKE }}", set()),
+        ("${{ inputs . secrets.FAKE }}", set()),
+        ("${{ mysecrets.FAKE }}", set()),
+        ("${{ secrets[inputs.name] }}", set()),
+        ("${{ secrets[format('{0}', 'FAKE')] }}", set()),
+        ("secrets.FAKE outside an expression", set()),
+        ("${{ secrets.FAKE", set()),
+        ("echo '${{ secrets.REAL }}'", {"REAL"}),
+        ("${{ secrets.ONE || '' }} and ${{ secrets.TWO }}", {"ONE", "TWO"}),
+        ("${{\n secrets.ONE ||\n secrets['TWO']\n }}", {"ONE", "TWO"}),
+    ],
+)
+def test_extract_static_secrets_in_compound_expressions(content, expected):
+    # Arrange: no evaluation or dynamic secret-name inference is performed.
+
+    # Act
+    result = extract_secrets_from_string(content)
+
+    # Assert
+    assert result == expected
+
+
+def test_compound_secret_refs_reach_workflow_enrichment():
+    # Arrange
+    content = """
+name: Static references
+on: workflow_dispatch
+env:
+  TOKEN: ${{ secrets.TOKEN || secrets['BACKUP'] }}
+  LITERAL: ${{ 'secrets.FAKE' }}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo test
+"""
+
+    # Act
+    parsed = parse_workflow_yaml(content)
+    assert parsed is not None
+    enriched = enrich_workflow_with_parsed_content({"id": 1}, parsed, "org", "repo")
+
+    # Assert
+    assert parsed.secret_refs == ["BACKUP", "TOKEN"]
+    assert set(enriched["secret_ids"]) == {
+        "https://github.com/org/repo/actions/secrets/TOKEN",
+        "https://github.com/org/actions/secrets/TOKEN",
+        "https://github.com/org/repo/actions/secrets/BACKUP",
+        "https://github.com/org/actions/secrets/BACKUP",
+    }
