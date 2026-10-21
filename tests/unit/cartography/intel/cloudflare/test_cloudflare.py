@@ -1,7 +1,11 @@
+from contextlib import ExitStack
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import httpx
 import pytest
+from cloudflare import APIConnectionError
+from cloudflare import APIStatusError
 
 import cartography.intel.cloudflare
 from cartography.config import Config
@@ -70,3 +74,96 @@ def test_r2_listing_failure_does_not_stop_the_later_stages(
     mock_workerroutes.assert_called_once()
     mock_rulesets.assert_called_once()
     mock_access.assert_called_once()
+
+
+@pytest.mark.parametrize("failure", ["status", "connection"])
+def test_access_listing_failure_does_not_stop_the_next_account(failure, caplog):
+    # Arrange: run real Access sync, mocking only API reads and graph writes.
+    accounts = [{"id": ACCOUNT_ID}, {"id": "second-account"}]
+    zones = [{"id": ZONE_ID, "name": "example.com"}]
+    records = [{"id": "record", "name": "app.example.com"}]
+    request = httpx.Request(
+        "GET", "https://api.cloudflare.com/client/v4/accounts/test/access/apps"
+    )
+    error = (
+        APIConnectionError(request=request)
+        if failure == "connection"
+        else APIStatusError(
+            "test failure", response=httpx.Response(500, request=request), body=None
+        )
+    )
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        cloudflare_token="synthetic",
+        update_tag=TEST_UPDATE_TAG,
+    )
+    with ExitStack() as stack:
+        stack.enter_context(patch("cartography.intel.cloudflare.Cloudflare"))
+        stack.enter_context(
+            patch.object(
+                cartography.intel.cloudflare.accounts, "sync", return_value=accounts
+            )
+        )
+        stages = {}
+        for name in (
+            "roles",
+            "members",
+            "zones",
+            "dnsrecords",
+            "r2buckets",
+            "workerscripts",
+            "workerroutes",
+            "rulesets",
+        ):
+            stages[name] = stack.enter_context(
+                patch.object(getattr(cartography.intel.cloudflare, name), "sync")
+            )
+        stages["zones"].return_value = zones
+        stages["dnsrecords"].return_value = records
+        stack.enter_context(
+            patch.object(
+                cartography.intel.cloudflare.dnsrecords,
+                "migrate_account_resource_edges",
+            )
+        )
+        get_apps = stack.enter_context(
+            patch.object(
+                cartography.intel.cloudflare.access,
+                "get_applications",
+                side_effect=[error, []],
+            )
+        )
+        load_apps = stack.enter_context(
+            patch.object(cartography.intel.cloudflare.access, "load_applications")
+        )
+        stack.enter_context(
+            patch.object(cartography.intel.cloudflare.access, "load_policies")
+        )
+        cleanup = stack.enter_context(
+            patch.object(cartography.intel.cloudflare.access, "cleanup")
+        )
+        transform = stack.enter_context(
+            patch.object(
+                cartography.intel.cloudflare.access,
+                "transform_applications",
+                wraps=cartography.intel.cloudflare.access.transform_applications,
+            )
+        )
+        session = MagicMock()
+
+        # Act
+        start_cloudflare_ingestion(session, config)
+
+    # Assert: second-account ingestion proceeds and only its Access graph is touched.
+    assert [call.args[1] for call in get_apps.call_args_list] == [
+        ACCOUNT_ID,
+        "second-account",
+    ]
+    assert all(stage.call_count == 2 for stage in stages.values())
+    transform.assert_called_once_with([], "second-account", zones, records)
+    load_apps.assert_called_once_with(session, [], "second-account", TEST_UPDATE_TAG)
+    cleanup.assert_called_once_with(
+        session, {"UPDATE_TAG": TEST_UPDATE_TAG, "account_id": "second-account"}
+    )
+    assert session.mock_calls == []
+    assert "Skipping Access loading and cleanup" in caplog.text

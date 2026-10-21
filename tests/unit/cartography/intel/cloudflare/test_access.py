@@ -4,8 +4,6 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
-from cloudflare import APIConnectionError
-from cloudflare import APIStatusError
 from cloudflare import Cloudflare
 
 from cartography.intel.cloudflare import access
@@ -69,16 +67,20 @@ def test_reusable_policy_attachments_keep_their_application_precedence():
 
 
 @pytest.mark.parametrize("with_metadata", [False, True])
-def test_sdk_paginates_both_endpoints_with_account_scoping(with_metadata):
-    # Arrange: use the real SDK to exercise its paginator and model conversion.
+def test_sdk_paginates_applications_with_embedded_policies(with_metadata):
+    # Arrange: keep the real SDK; no separate policy endpoint may be called.
     calls = []
+    records = [
+        {**APPLICATIONS[0], "policies": POLICIES},
+        {**APPLICATIONS[1], "policies": [{**POLICIES[0], "precedence": 10}]},
+    ]
 
     def handler(request):
+        assert request.url.path == "/client/v4/accounts/account/access/apps"
         page = int(request.url.params.get("page", "1"))
         assert page <= 3, "SDK requested an unexpected extra page"
-        calls.append((request.url.path.removeprefix("/client/v4"), page))
-        data = POLICIES if request.url.path.endswith("/policies") else APPLICATIONS
-        payload = {"success": True, "result": data[page - 1 : page]}
+        calls.append(page)
+        payload = {"success": True, "result": records[page - 1 : page]}
         if with_metadata:
             payload["result_info"] = {"page": page, "per_page": 1, "total_pages": 2}
         return httpx.Response(200, json=payload)
@@ -90,31 +92,31 @@ def test_sdk_paginates_both_endpoints_with_account_scoping(with_metadata):
     ) as client:
         # Act
         applications = access.get_applications(client, "account")
-        policies = access.get_policies(client, "account", "app-one")
 
     # Assert
     assert [row["id"] for row in applications] == ["app-one", "app-two"]
-    assert [row["id"] for row in policies] == ["shared-policy", "bypass-policy"]
     assert applications[0]["created_at"].startswith("2026-01-01")
-    assert policies[0]["include"] == POLICIES[0]["include"]
-    # SDK 5.8.0 uses an empty terminal page, even when total_pages is supplied.
-    assert calls == [("/accounts/account/access/apps", page) for page in (1, 2, 3)] + [
-        ("/accounts/account/access/apps/app-one/policies", page) for page in (1, 2, 3)
-    ]
+    assert applications[0]["policies"][0]["include"] == POLICIES[0]["include"]
+    assert applications[1]["policies"][0]["precedence"] == 10
+    # SDK 5.8.0 stops on an empty terminal page, even with total_pages=2.
+    assert calls == [1, 2, 3]
 
 
-@pytest.mark.parametrize("failed_endpoint", ["applications", "policies"])
-def test_failed_api_read_does_not_touch_neo4j(failed_endpoint, caplog):
-    # Arrange
+@pytest.mark.parametrize("status", [401, 403, 404, 429, 500, 503])
+@pytest.mark.parametrize("failed_page", [1, 2])
+def test_api_errors_skip_access_without_touching_neo4j(status, failed_page, caplog):
+    # Arrange: a later-page failure must not load or clean a partial inventory.
     session = MagicMock()
+    calls = []
 
     def handler(request):
-        if failed_endpoint == "applications" or request.url.path.endswith("/policies"):
-            return httpx.Response(
-                403, json={"errors": [{"message": "private-response"}]}
-            )
         page = int(request.url.params.get("page", "1"))
-        return httpx.Response(200, json={"result": APPLICATIONS if page == 1 else []})
+        calls.append(page)
+        if page == failed_page:
+            return httpx.Response(
+                status, json={"errors": [{"message": "private-response"}]}
+            )
+        return httpx.Response(200, json={"result": [APPLICATIONS[0]]})
 
     with Cloudflare(
         api_token="synthetic",
@@ -122,66 +124,34 @@ def test_failed_api_read_does_not_touch_neo4j(failed_endpoint, caplog):
         max_retries=0,
     ) as client:
         # Act
-        access.sync(session, client, {"UPDATE_TAG": 1}, "account")
+        access.sync(session, client, {"UPDATE_TAG": 1}, "account", [], [])
 
     # Assert
+    assert calls == list(range(1, failed_page + 1))
     assert session.mock_calls == []
     assert "Skipping Access loading and cleanup" in caplog.text
     assert "private-response" not in caplog.text
 
 
-@pytest.mark.parametrize("status", [401, 404, 429, 500, 503])
-@pytest.mark.parametrize("failed_endpoint", ["applications", "policies"])
-def test_unexpected_api_errors_propagate_without_touching_neo4j(
-    status, failed_endpoint
-):
+def test_connection_errors_skip_access_without_touching_neo4j(caplog):
     # Arrange
     session = MagicMock()
 
     def handler(request):
-        if failed_endpoint == "applications" or request.url.path.endswith("/policies"):
-            return httpx.Response(
-                status, json={"errors": [{"message": "test failure"}]}
-            )
-        page = int(request.url.params.get("page", "1"))
-        return httpx.Response(200, json={"result": APPLICATIONS if page == 1 else []})
+        raise httpx.ConnectError("private-response", request=request)
 
     with Cloudflare(
         api_token="synthetic",
         http_client=httpx.Client(transport=httpx.MockTransport(handler)),
         max_retries=0,
     ) as client:
-        # Act and assert
-        with pytest.raises(APIStatusError) as raised:
-            access.sync(session, client, {"UPDATE_TAG": 1}, "account")
-
-    # Assert
-    assert raised.value.status_code == status
-    assert session.mock_calls == []
-
-
-@pytest.mark.parametrize("failed_endpoint", ["applications", "policies"])
-def test_connection_errors_propagate_without_touching_neo4j(failed_endpoint):
-    # Arrange
-    session = MagicMock()
-
-    def handler(request):
-        if failed_endpoint == "applications" or request.url.path.endswith("/policies"):
-            raise httpx.ConnectError("test connection failure", request=request)
-        page = int(request.url.params.get("page", "1"))
-        return httpx.Response(200, json={"result": APPLICATIONS if page == 1 else []})
-
-    with Cloudflare(
-        api_token="synthetic",
-        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
-        max_retries=0,
-    ) as client:
-        # Act and assert
-        with pytest.raises(APIConnectionError):
-            access.sync(session, client, {"UPDATE_TAG": 1}, "account")
+        # Act
+        access.sync(session, client, {"UPDATE_TAG": 1}, "account", [], [])
 
     # Assert
     assert session.mock_calls == []
+    assert "Skipping Access loading and cleanup" in caplog.text
+    assert "private-response" not in caplog.text
 
 
 @pytest.mark.parametrize(

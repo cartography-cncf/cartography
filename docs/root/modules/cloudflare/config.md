@@ -24,11 +24,14 @@ the resources that Cartography should ingest. The individual scopes are:
 | Zone WAF:Read | Zone-level rulesets and their rules |
 | Access: Apps and Policies Read | Access applications and their attached policies |
 
-The R2 stage degrades instead of failing the run. If the bucket listing is
+The R2 and Access stages degrade instead of failing the run. If the bucket listing is
 refused, R2 is skipped with a warning and the Workers and ruleset stages still
 run; buckets from earlier runs are left in place rather than deleted. If only the
 per-bucket domain lookups are refused, the buckets are ingested with their
-internet exposure (`public`, `public_domains`) left unresolved.
+internet exposure (`public`, `public_domains`) left unresolved. If an Access
+application listing fails, Access loading and cleanup are skipped for that
+account with a warning; its previous Access graph remains intact and later
+accounts continue syncing.
 
 R2 buckets are listed once per jurisdiction (`default`, `eu` and `fedramp`), since
 each jurisdiction is a separate namespace that a single listing does not cover. The
@@ -51,8 +54,9 @@ cartography \
 
 ## Access applications and policies
 
-The Access stage inventories applications once per account and reads the policies
-attached to each application, including reusable policies. It creates
+The Access stage inventories applications once per account and reads the attached
+policies embedded in each application response, including reusable policies.
+It does not make an additional policy-list request for each application. It creates
 `CloudflareAccessApplication` and `CloudflareAccessPolicy` nodes, account
 `RESOURCE` relationships, and application `HAS_POLICY` relationships.
 
@@ -79,7 +83,7 @@ public DNS solely because they contain a hostname.
 in the same account for each configured public hostname. A zone association
 can exist even if no matching DNS record was ingested.
 
-`CloudflareAccessApplication`-`PROTECTS` links correlate configured hostnames to
+`CloudflareAccessApplication`-`MATCHES_HOSTNAME` links correlate configured hostnames to
 existing, concrete, proxied A/AAAA/CNAME records owned by the same account.
 Hostname matching is case-insensitive, normalizes IDNA and a trailing DNS dot,
 and respects hostname label boundaries. Access wildcards match within a single
@@ -88,8 +92,7 @@ label: `*.example.com` matches `one.example.com`, but not `example.com` or
 DNS records are not expanded or matched to application patterns; their DNS
 resolution and precedence rules differ from Access wildcard matching.
 
-Every `PROTECTS` edge has `match_scope="configured_hostname"`. Read the
-application's `public_domains` for path restrictions and its `HAS_POLICY` nodes
+Read the application's `public_domains` for path restrictions and its `HAS_POLICY` nodes
 for decisions. A path-restricted application may have a hostname link without
 protecting the entire host. These edges do not evaluate path inheritance,
 overlapping application precedence, bypass policies, origin reachability, or
@@ -102,15 +105,16 @@ See [Access application paths](https://developers.cloudflare.com/cloudflare-one/
 and [wildcard DNS records](https://developers.cloudflare.com/dns/manage-dns-records/reference/wildcard-dns-records/)
 for the different wildcard semantics.
 
-If an application or policy API page returns HTTP 403, Access loading and
-cleanup are skipped for that account, preserving its previous Access graph.
-Grant the token Access application/policy read permission to enable ingestion.
-Other API failures, including authentication errors, rate limits, server errors,
-and connection failures, propagate so the run cannot report a successful sync
-with stale Access data. A successful empty application listing removes stale Access
-nodes for that account. Other accounts are cleaned independently.
+If any application API page fails, including HTTP 403, authentication errors,
+rate limits, server errors or connection failures, Access loading and cleanup
+are skipped for that account. Its previous Access graph is preserved and later
+accounts continue syncing. A warning identifies the account and error type
+without logging the provider response body. Check the token's Access
+application/policy read permission and retry the sync after resolving the error.
+A successful empty application listing removes stale Access nodes for that
+account. Other accounts are cleaned independently.
 
-API references: [applications](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/list/) and [application policies](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/subresources/policies/methods/list/).
+API reference: [applications and embedded policies](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/list/).
 
 ## Real-provider validation for Access
 
@@ -138,7 +142,8 @@ Keep the token in a local environment variable (for example `CLOUDFLARE_TOKEN`);
 never paste it into chat, source files, fixtures, or evidence.
 
 Use a fresh disposable Neo4j database, with its URI and credentials supplied
-locally. Run the existing zone and DNS stages before Access. Record the exact
+locally. Run the existing zone and DNS stages before Access, passing the
+returned zones and slim proxied DNS record inventory into the Access stage. Record the exact
 Cartography revision, Python and Cloudflare SDK versions, chosen account scope,
 and commands. The account-pagination issue described in [PR #2942](https://github.com/cartography-cncf/cartography/pull/2942)
 and the R2 SDK compatibility issue in [PR #3425](https://github.com/cartography-cncf/cartography/pull/3425)
@@ -148,8 +153,8 @@ unrelated fixes separate from Access validation.
 Check these results in the graph:
 
 ```cypher
-MATCH (a:CloudflareAccessApplication)-[r:PROTECTS]->(d:CloudflareDNSRecord)
-RETURN a.public_domains, r.match_scope, d.name, d.type, d.proxied;
+MATCH (a:CloudflareAccessApplication)-[r:MATCHES_HOSTNAME]->(d:CloudflareDNSRecord)
+RETURN a.public_domains, d.name, d.type, d.proxied;
 
 MATCH (z:CloudflareZone)-[:HAS_APPLICATION]->(a:CloudflareAccessApplication)
 RETURN z.name, a.public_domains;

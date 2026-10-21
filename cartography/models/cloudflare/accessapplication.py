@@ -71,11 +71,6 @@ class CloudflareAccessApplicationToAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudflareAccessApplicationToDNSRecordRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    match_scope: PropertyRef = PropertyRef(
-        "dns_match_scope",
-        set_in_kwargs=True,
-        description="configured_hostname: a configuration match, not proof of effective protection for all paths.",
-    )
 
 
 @dataclass(frozen=True)
@@ -93,7 +88,7 @@ class CloudflareAccessApplicationToDNSRecordRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "PROTECTS"
+    rel_label: str = "MATCHES_HOSTNAME"
     properties: CloudflareAccessApplicationToDNSRecordRelProperties = (
         CloudflareAccessApplicationToDNSRecordRelProperties()
     )
@@ -126,7 +121,7 @@ class CloudflareAccessApplicationSchema(CartographyNodeSchema):
     """
     An Access application in a Cloudflare account. Its presence alone does not
     establish that a hostname is protected: policy decisions and application
-    domain/path matching must also be considered. PROTECTS records configured
+    domain/path matching must also be considered. MATCHES_HOSTNAME records configured
     hostname matches only; no effective-access inference is performed.
     """
 

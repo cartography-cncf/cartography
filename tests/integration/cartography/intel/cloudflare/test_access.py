@@ -1,10 +1,8 @@
 import json
-from contextlib import nullcontext
 from copy import deepcopy
 
 import httpx
 import pytest
-from cloudflare import APIStatusError
 from cloudflare import Cloudflare
 
 from cartography.intel.cloudflare import access
@@ -26,6 +24,9 @@ def _client(
     applications, policies, failed_path=None, failed_page=1, status=403, calls=None
 ):
     """Mock only the provider HTTP boundary; keep the real SDK and graph flows."""
+    applications = [
+        {**app, "policies": policies.get(app["id"], [])} for app in applications
+    ]
 
     def handler(request):
         page = int(request.url.params.get("page", "1"))
@@ -39,12 +40,8 @@ def _client(
             return httpx.Response(
                 status, json={"errors": [{"message": "test failure"}]}
             )
-        app_id = request.url.path.split("/")[-2]
-        records = (
-            policies.get(app_id, [])
-            if request.url.path.endswith("/policies")
-            else applications
-        )
+        assert request.url.path.endswith("/access/apps")
+        records = applications
         # SDK 5.8.0 continues until an empty page, independently of result_info.
         return httpx.Response(
             200,
@@ -66,14 +63,33 @@ def _client(
 
 
 def _sync(
-    session, applications=APPLICATIONS, policies=None, account=ACCOUNT, tag=1, **kwargs
+    session,
+    applications=APPLICATIONS,
+    policies=None,
+    account=ACCOUNT,
+    tag=1,
+    dns_records=None,
+    **kwargs,
 ):
+    zones = [{**zone, "id": f"{account}/{zone['id']}"} for zone in DNS_ZONES]
+    if dns_records is None:
+        dns_records = DNS_RECORDS
+    records = [
+        {"id": f"{account}/{record['id']}", "name": record["name"]}
+        for record in dns_records
+        if record.get("proxied") and record.get("type") in ("A", "AAAA", "CNAME")
+    ]
     policy_data = {"app-one": POLICIES, "app-two": [{**POLICIES[0], "precedence": 10}]}
     with _client(
         applications, policy_data if policies is None else policies, **kwargs
     ) as client:
         access.sync(
-            session, client, {"UPDATE_TAG": tag, "account_id": account}, account
+            session,
+            client,
+            {"UPDATE_TAG": tag, "account_id": account},
+            account,
+            zones,
+            records,
         )
 
 
@@ -143,22 +159,33 @@ def test_sync_loads_properties_and_account_and_application_relationships(neo4j_s
         (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/bypass-policy"),
         (f"{ACCOUNT}/app-two", f"{ACCOUNT}/app-two/shared-policy"),
     }
-    policy = neo4j_session.run(
-        "MATCH (p:CloudflareAccessPolicy {id: $id}) RETURN p",
-        id=f"{ACCOUNT}/app-one/shared-policy",
-    ).single()["p"]
-    for field in ("include", "require", "exclude"):
-        assert json.loads(policy[field]) == POLICIES[0][field]
-    assert policy["session_duration"] == "8h"
-    assert policy["created_at"].startswith("2026-01-01")
-    application = neo4j_session.run(
-        "MATCH (a:CloudflareAccessApplication {id: $id}) RETURN a",
-        id=f"{ACCOUNT}/app-one",
-    ).single()["a"]
-    assert application["domain"] == APPLICATIONS[0]["domain"]
-    assert application["aud"] == "aud-one"
-    assert application["session_duration"] == "24h"
-    assert application["updated_at"].startswith("2026-01-02")
+    assert check_nodes(
+        neo4j_session,
+        "CloudflareAccessPolicy",
+        ["id", "include", "require", "exclude", "session_duration", "created_at"],
+    ) >= {
+        (
+            f"{ACCOUNT}/app-one/shared-policy",
+            json.dumps(POLICIES[0]["include"], sort_keys=True),
+            json.dumps(POLICIES[0]["require"], sort_keys=True),
+            json.dumps(POLICIES[0]["exclude"], sort_keys=True),
+            "8h",
+            POLICIES[0]["created_at"],
+        )
+    }
+    assert check_nodes(
+        neo4j_session,
+        "CloudflareAccessApplication",
+        ["id", "domain", "aud", "session_duration", "updated_at"],
+    ) >= {
+        (
+            f"{ACCOUNT}/app-one",
+            APPLICATIONS[0]["domain"],
+            "aud-one",
+            "24h",
+            "2026-01-02T00:00:00Z",
+        )
+    }
 
 
 def test_repeated_sync_updates_in_place_without_duplicate_nodes_or_edges(neo4j_session):
@@ -171,33 +198,31 @@ def test_repeated_sync_updates_in_place_without_duplicate_nodes_or_edges(neo4j_s
     _sync(neo4j_session, applications=applications, tag=2)
 
     # Assert
-    assert (
-        neo4j_session.run(
-            "MATCH (a:CloudflareAccessApplication) RETURN count(a) AS count"
-        ).single()["count"]
-        == 2
-    )
-    assert (
-        neo4j_session.run(
-            "MATCH (p:CloudflareAccessPolicy) RETURN count(p) AS count"
-        ).single()["count"]
-        == 3
-    )
-    assert {
-        (row["application"], row["policy"], row["tag"])
-        for row in neo4j_session.run(
-            "MATCH (a:CloudflareAccessApplication)-[r:HAS_POLICY]->(p:CloudflareAccessPolicy) "
-            "RETURN a.id AS application, p.id AS policy, r.lastupdated AS tag"
-        )
-    } == {
-        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/shared-policy", 2),
-        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/bypass-policy", 2),
-        (f"{ACCOUNT}/app-two", f"{ACCOUNT}/app-two/shared-policy", 2),
+    assert check_nodes(
+        neo4j_session, "CloudflareAccessApplication", ["id", "name", "lastupdated"]
+    ) == {
+        (f"{ACCOUNT}/app-one", "Renamed application", 2),
+        (f"{ACCOUNT}/app-two", "Bookmark", 2),
     }
-    assert neo4j_session.run(
-        "MATCH (a:CloudflareAccessApplication {id: $id}) RETURN a.name AS name, a.lastupdated AS tag",
-        id=f"{ACCOUNT}/app-one",
-    ).single().data() == {"name": "Renamed application", "tag": 2}
+    assert check_nodes(
+        neo4j_session, "CloudflareAccessPolicy", ["id", "lastupdated"]
+    ) == {
+        (f"{ACCOUNT}/app-one/shared-policy", 2),
+        (f"{ACCOUNT}/app-one/bypass-policy", 2),
+        (f"{ACCOUNT}/app-two/shared-policy", 2),
+    }
+    assert check_rels(
+        neo4j_session,
+        "CloudflareAccessApplication",
+        "id",
+        "CloudflareAccessPolicy",
+        "id",
+        "HAS_POLICY",
+    ) == {
+        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/shared-policy"),
+        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/bypass-policy"),
+        (f"{ACCOUNT}/app-two", f"{ACCOUNT}/app-two/shared-policy"),
+    }
 
 
 def test_cleanup_removes_stale_applications_and_policies_only_in_current_account(
@@ -221,13 +246,18 @@ def test_cleanup_removes_stale_applications_and_policies_only_in_current_account
         (f"{OTHER_ACCOUNT}/app-one/bypass-policy",),
         (f"{OTHER_ACCOUNT}/app-two/shared-policy",),
     }
-    assert (
-        neo4j_session.run(
-            "MATCH (a:CloudflareAccessApplication {id: $id})-[r:HAS_POLICY]->() RETURN count(r) AS count",
-            id=f"{ACCOUNT}/app-two",
-        ).single()["count"]
-        == 0
-    )
+    assert check_rels(
+        neo4j_session,
+        "CloudflareAccessApplication",
+        "id",
+        "CloudflareAccessPolicy",
+        "id",
+        "HAS_POLICY",
+    ) == {
+        (f"{OTHER_ACCOUNT}/app-one", f"{OTHER_ACCOUNT}/app-one/shared-policy"),
+        (f"{OTHER_ACCOUNT}/app-one", f"{OTHER_ACCOUNT}/app-one/bypass-policy"),
+        (f"{OTHER_ACCOUNT}/app-two", f"{OTHER_ACCOUNT}/app-two/shared-policy"),
+    }
 
 
 def test_successfully_empty_inventory_cleans_the_account(neo4j_session):
@@ -242,34 +272,23 @@ def test_successfully_empty_inventory_cleans_the_account(neo4j_session):
     assert check_nodes(neo4j_session, "CloudflareAccessPolicy", ["id"]) == set()
 
 
-@pytest.mark.parametrize(
-    "endpoint,page",
-    [
-        ("/access/apps", 1),
-        ("/access/apps", 2),
-        ("/access/apps/app-one/policies", 1),
-        ("/access/apps/app-two/policies", 2),
-    ],
-)
+@pytest.mark.parametrize("page", [1, 2])
 @pytest.mark.parametrize("status", [403, 500])
-def test_failed_or_partial_fetch_preserves_previous_graph(
-    neo4j_session, endpoint, page, status
-):
+def test_failed_or_partial_fetch_preserves_previous_graph(neo4j_session, page, status):
     # Arrange: a failure after earlier successful pages must not change the graph.
     _sync(neo4j_session)
     calls = []
-    failed_path = f"/accounts/{ACCOUNT}{endpoint}"
+    failed_path = f"/accounts/{ACCOUNT}/access/apps"
 
-    # Act: only permission errors skip; unexpected failures abort the sync.
-    with pytest.raises(APIStatusError) if status == 500 else nullcontext():
-        _sync(
-            neo4j_session,
-            tag=2,
-            failed_path=failed_path,
-            failed_page=page,
-            status=status,
-            calls=calls,
-        )
+    # Act: any provider failure skips this account's Access writes and cleanup.
+    _sync(
+        neo4j_session,
+        tag=2,
+        failed_path=failed_path,
+        failed_page=page,
+        status=status,
+        calls=calls,
+    )
 
     # Assert: the requested failure page was reached, including later pages.
     assert (failed_path, page) in calls
@@ -286,9 +305,18 @@ def test_failed_or_partial_fetch_preserves_previous_graph(
         (f"{ACCOUNT}/app-one/bypass-policy", 1),
         (f"{ACCOUNT}/app-two/shared-policy", 1),
     }
-    assert neo4j_session.run(
-        "MATCH ()-[r:HAS_POLICY]->() RETURN count(r) AS count, collect(r.lastupdated) AS tags"
-    ).single().data() == {"count": 3, "tags": [1, 1, 1]}
+    assert check_rels(
+        neo4j_session,
+        "CloudflareAccessApplication",
+        "id",
+        "CloudflareAccessPolicy",
+        "id",
+        "HAS_POLICY",
+    ) == {
+        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/shared-policy"),
+        (f"{ACCOUNT}/app-one", f"{ACCOUNT}/app-one/bypass-policy"),
+        (f"{ACCOUNT}/app-two", f"{ACCOUNT}/app-two/shared-policy"),
+    }
 
 
 def _seed_dns(session, account=ACCOUNT):
@@ -329,7 +357,7 @@ def test_dns_links_use_known_proxied_records_and_same_account_zones(
         "id",
         "CloudflareDNSRecord",
         "id",
-        "PROTECTS",
+        "MATCHES_HOSTNAME",
     ) == {(f"{ACCOUNT}/app", f"{ACCOUNT}/{record}") for record in expected_records}
     assert check_rels(
         neo4j_session,
@@ -339,14 +367,10 @@ def test_dns_links_use_known_proxied_records_and_same_account_zones(
         "id",
         "HAS_APPLICATION",
     ) == {(f"{ACCOUNT}/{zone}", f"{ACCOUNT}/app") for zone in expected_zones}
-    edges = neo4j_session.run(
-        "MATCH ()-[r:PROTECTS]->() RETURN DISTINCT r.match_scope AS scope"
-    ).data()
-    assert edges == [{"scope": "configured_hostname"}]
-    domains = neo4j_session.run(
+    # check_nodes builds a set and cannot hash list-valued properties.
+    assert neo4j_session.run(
         "MATCH (a:CloudflareAccessApplication) RETURN a.public_domains AS domains"
-    ).single()["domains"]
-    assert domains == [domain]
+    ).single()["domains"] == [domain]
 
 
 def test_dns_links_cover_multiple_public_destinations_only(neo4j_session):
@@ -375,7 +399,7 @@ def test_dns_links_cover_multiple_public_destinations_only(neo4j_session):
         "id",
         "CloudflareDNSRecord",
         "id",
-        "PROTECTS",
+        "MATCHES_HOSTNAME",
     ) == {
         (f"{ACCOUNT}/app", f"{ACCOUNT}/child"),
         (f"{ACCOUNT}/app", f"{ACCOUNT}/net"),
@@ -414,7 +438,7 @@ def test_dns_edges_are_replaced_and_removed_without_touching_other_accounts(
         "id",
         "CloudflareDNSRecord",
         "id",
-        "PROTECTS",
+        "MATCHES_HOSTNAME",
     ) == {
         (f"{ACCOUNT}/app", f"{ACCOUNT}/net"),
         (f"{OTHER_ACCOUNT}/app", f"{OTHER_ACCOUNT}/dashboard"),
@@ -446,7 +470,7 @@ def test_dns_edges_are_replaced_and_removed_without_touching_other_accounts(
         "id",
         "CloudflareDNSRecord",
         "id",
-        "PROTECTS",
+        "MATCHES_HOSTNAME",
     ) == {
         (f"{OTHER_ACCOUNT}/app", f"{OTHER_ACCOUNT}/dashboard"),
     }
@@ -467,11 +491,12 @@ def test_dns_only_change_and_failed_access_fetch_preserve_correct_edges(neo4j_se
     _seed_dns(neo4j_session)
     _sync(neo4j_session)
 
-    # Act: fail after a successful application read but before any graph write.
+    # Act: fail on a later application page before any graph write.
     _sync(
         neo4j_session,
         tag=2,
-        failed_path=f"/accounts/{ACCOUNT}/access/apps/app-one/policies",
+        failed_path=f"/accounts/{ACCOUNT}/access/apps",
+        failed_page=2,
     )
 
     # Assert
@@ -481,16 +506,10 @@ def test_dns_only_change_and_failed_access_fetch_preserve_correct_edges(neo4j_se
         "id",
         "CloudflareDNSRecord",
         "id",
-        "PROTECTS",
+        "MATCHES_HOSTNAME",
     ) == {
         (f"{ACCOUNT}/app-one", f"{ACCOUNT}/dashboard"),
     }
-    assert (
-        neo4j_session.run(
-            "MATCH ()-[r:PROTECTS]->() RETURN r.lastupdated AS tag"
-        ).single()["tag"]
-        == 1
-    )
 
     # Arrange: the DNS record becomes DNS-only, but the application stays configured.
     load_dnsrecords(
@@ -509,7 +528,11 @@ def test_dns_only_change_and_failed_access_fetch_preserve_correct_edges(neo4j_se
     )
 
     # Act
-    _sync(neo4j_session, tag=3)
+    _sync(
+        neo4j_session,
+        tag=3,
+        dns_records=[record for record in DNS_RECORDS if record["id"] != "dashboard"],
+    )
 
     # Assert
     assert (
@@ -519,7 +542,7 @@ def test_dns_only_change_and_failed_access_fetch_preserve_correct_edges(neo4j_se
             "id",
             "CloudflareDNSRecord",
             "id",
-            "PROTECTS",
+            "MATCHES_HOSTNAME",
         )
         == set()
     )

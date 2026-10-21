@@ -6,8 +6,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import neo4j
+from cloudflare import APIError
 from cloudflare import Cloudflare
-from cloudflare import PermissionDeniedError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -26,25 +26,31 @@ def sync(
     client: Cloudflare,
     common_job_parameters: dict[str, Any],
     account_id: str,
+    zones: list[dict[str, Any]],
+    dns_records: list[dict[str, str]],
 ) -> None:
     # Finish every API read before writing. A failed application/policy page must
     # not look like an empty inventory or partially replace the previous graph.
     try:
         applications = get_applications(client, account_id)
         policies = [
-            (application["id"], get_policies(client, account_id, application["id"]))
+            (application["id"], application.get("policies") or [])
             for application in applications
         ]
-    except PermissionDeniedError:
+    except APIError as exc:
         logger.warning(
             "Unable to read Cloudflare Access applications and policies for account %s. "
-            "Skipping Access loading and cleanup; check the token's Access read permissions.",
+            "Skipping Access loading and cleanup; check the token's Access read permissions. "
+            "Error: %s (HTTP %s).",
             account_id,
+            type(exc).__name__,
+            getattr(exc, "status_code", None),
         )
         return
 
-    zones, records = get_dns_inventory(neo4j_session, account_id)
-    application_data = transform_applications(applications, account_id, zones, records)
+    application_data = transform_applications(
+        applications, account_id, zones, dns_records
+    )
     policy_data = [
         row
         for application_id, application_policies in policies
@@ -66,41 +72,6 @@ def get_applications(client: Cloudflare, account_id: str) -> list[dict[str, Any]
             account_id=account_id
         )
     ]
-
-
-@timeit
-def get_policies(
-    client: Cloudflare, account_id: str, application_id: str
-) -> list[dict[str, Any]]:
-    # This endpoint returns both application-specific and reusable policies, with
-    # their precedence in this application. The account-wide policy list does not
-    # provide the application attachments needed for HAS_POLICY.
-    return [
-        policy.to_dict(mode="json")
-        for policy in client.zero_trust.access.applications.policies.list(
-            application_id,
-            account_id=account_id,
-        )
-    ]
-
-
-def get_dns_inventory(
-    neo4j_session: neo4j.Session, account_id: str
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    # Resolve only nodes owned by this account. A matching name in another
-    # account must never supply a PROTECTS or HAS_APPLICATION target.
-    zones = neo4j_session.run(
-        "MATCH (:CloudflareAccount {id: $account_id})-[:RESOURCE]->(z:CloudflareZone) "
-        "RETURN z.id AS id, z.name AS name",
-        account_id=account_id,
-    ).data()
-    records = neo4j_session.run(
-        "MATCH (:CloudflareAccount {id: $account_id})-[:RESOURCE]->(d:CloudflareDNSRecord) "
-        "WHERE d.proxied = true AND d.type IN ['A', 'AAAA', 'CNAME'] "
-        "RETURN d.id AS id, d.name AS name",
-        account_id=account_id,
-    ).data()
-    return zones, records
 
 
 def hostname_pattern(domain: str) -> str | None:
@@ -258,7 +229,6 @@ def load_applications(
         data,
         lastupdated=update_tag,
         account_id=account_id,
-        dns_match_scope="configured_hostname",
     )
 
 
