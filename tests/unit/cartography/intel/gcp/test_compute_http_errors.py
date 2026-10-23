@@ -350,7 +350,7 @@ class TestGetGcpVpnGatewaysHttpErrors:
         assert incomplete is False
 
     def test_scope_error_keeps_partial_data_and_marks_incomplete(self):
-        """With returnPartialSuccess, failed scopes carry an `error` entry."""
+        """A scope that reports an `error` entry is treated as incomplete."""
         mock_compute = MagicMock()
         mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
             _make_request(

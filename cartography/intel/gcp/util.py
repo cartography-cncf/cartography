@@ -547,8 +547,8 @@ def aggregated_response_cleanup_safe(response: Any) -> bool:
     """
     Return whether every scope in an `aggregatedList` response was fully readable.
 
-    `returnPartialSuccess=True` makes GCP answer with the scopes it could read and a
-    per-scope warning for the ones it could not. Cleanup must be skipped in that case:
+    GCP answers `aggregatedList` with the scopes it could read and a per-scope warning
+    (e.g. `UNREACHABLE`) for the ones it could not. Cleanup must be skipped in that case:
     the response is not a complete replacement set, so deleting everything that was not
     just refreshed would drop resources that still exist.
     """

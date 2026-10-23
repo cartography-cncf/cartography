@@ -267,10 +267,13 @@ def _get_gcp_vpn_aggregated(
 ) -> tuple[list[dict], bool]:
     """
     Fetch all VPN resources of the given type ("vpnGateways" or "vpnTunnels")
-    for a project via the Compute aggregatedList endpoint with
-    returnPartialSuccess=True: a single paginated request chain covers all
-    regions, and a region that fails (e.g. transient location error) reports a
-    per-scope `error` entry in the response instead of failing the whole call.
+    for a project via the Compute aggregatedList endpoint: a single paginated
+    request chain covers all regions, and a region that cannot be read (e.g.
+    UNREACHABLE) reports a per-scope warning instead of failing the whole call.
+
+    returnPartialSuccess is intentionally not passed: the static discovery
+    document bundled with google-api-python-client, which build_client() uses,
+    does not declare it, so googleapiclient rejects it with a TypeError.
 
     Expected access/configuration failures of the whole call (missing list
     permission, API not enabled, billing disabled, project not found) return
@@ -284,7 +287,7 @@ def _get_gcp_vpn_aggregated(
     """
     api = getattr(compute, resource)()
     try:
-        req = api.aggregatedList(project=projectid, returnPartialSuccess=True)
+        req = api.aggregatedList(project=projectid)
     except HttpError as e:
         if _is_skippable_vpn_list_error(e):
             logger.warning(

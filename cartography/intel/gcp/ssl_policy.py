@@ -36,10 +36,7 @@ def get_gcp_ssl_policies(
     """
     items: dict[str, dict] = {}
     response_id = f"projects/{project_id}/aggregated/sslPolicies"
-    req = compute.sslPolicies().aggregatedList(
-        project=project_id,
-        returnPartialSuccess=True,
-    )
+    req = compute.sslPolicies().aggregatedList(project=project_id)
     while req is not None:
         try:
             res = gcp_api_execute_with_retry(req)

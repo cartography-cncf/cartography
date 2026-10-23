@@ -37,10 +37,7 @@ def get_gcp_target_https_proxies(
     """
     items: dict[str, dict] = {}
     response_id = f"projects/{project_id}/aggregated/targetHttpsProxies"
-    req = compute.targetHttpsProxies().aggregatedList(
-        project=project_id,
-        returnPartialSuccess=True,
-    )
+    req = compute.targetHttpsProxies().aggregatedList(project=project_id)
     while req is not None:
         try:
             res = gcp_api_execute_with_retry(req)
