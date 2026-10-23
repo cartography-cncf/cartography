@@ -50,7 +50,9 @@ def _get_clients(config: Config) -> Iterator[K8sClient]:
     """
     credentials = None
     if config.gke_clusters or config.managed_kubernetes == "gke":
-        credentials = gke_auth.get_credentials(config.gke_impersonate_service_account)
+        credentials = gke_auth.get_credentials(
+            config.gke_impersonate_service_account, config.gke_credentials
+        )
 
     if config.k8s_kubeconfig:
         for client in get_k8s_clients(config.k8s_kubeconfig):

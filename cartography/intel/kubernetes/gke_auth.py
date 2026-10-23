@@ -32,9 +32,17 @@ SCOPES = (
 )
 
 
-def get_credentials(service_account: str | None = None) -> Credentials:
-    """Return Google ADC, optionally impersonating `service_account`."""
-    credentials, _ = google.auth.default(scopes=SCOPES)
+def get_credentials(
+    service_account: str | None = None,
+    source: Credentials | None = None,
+) -> Credentials:
+    """
+    Return `source` credentials, or Google ADC when none are given, optionally
+    impersonating `service_account`.
+    """
+    credentials = source
+    if credentials is None:
+        credentials, _ = google.auth.default(scopes=SCOPES)
     if service_account:
         credentials = impersonated_credentials.Credentials(
             source_credentials=credentials,

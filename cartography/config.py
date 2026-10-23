@@ -1,4 +1,8 @@
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials as GoogleCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +271,8 @@ class Config:
     :param gke_endpoint: GKE control plane endpoint for `gke_clusters`: "dns", "private", or "public". Optional.
     :type gke_impersonate_service_account: str
     :param gke_impersonate_service_account: Google service account to impersonate for GKE API and Kubernetes reads. Optional.
+    :type gke_credentials: google.auth.credentials.Credentials
+    :param gke_credentials: Google credentials for GKE API and Kubernetes reads, used instead of Application Default Credentials. Programmatic use only (no CLI flag); combined with `gke_impersonate_service_account` when both are set. Optional.
     :type: pagerduty_api_key: str
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
@@ -845,6 +851,7 @@ class Config:
         gke_clusters: list[str] | None = None,
         gke_endpoint: str = "dns",
         gke_impersonate_service_account: str | None = None,
+        gke_credentials: "GoogleCredentials | None" = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -963,6 +970,7 @@ class Config:
         self.gke_clusters = gke_clusters
         self.gke_endpoint = gke_endpoint
         self.gke_impersonate_service_account = gke_impersonate_service_account
+        self.gke_credentials = gke_credentials
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host

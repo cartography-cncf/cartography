@@ -12,6 +12,7 @@ from cartography.intel.gcp.gke_utils import parse_cluster_ref
 from cartography.intel.kubernetes.clusters import get_service_account_oidc
 from cartography.intel.kubernetes.gke_auth import connect
 from cartography.intel.kubernetes.gke_auth import get_cluster
+from cartography.intel.kubernetes.gke_auth import get_credentials
 from cartography.intel.kubernetes.gke_auth import select_endpoint
 from cartography.intel.kubernetes.nodes import transform_nodes
 
@@ -248,3 +249,60 @@ def test_oidc_discovery_reads_raw_json_without_following_jwks_uri():
                 == "https://example.gke.goog/.well-known/openid-configuration"
             )
             response.release_conn.assert_called_once()
+
+
+def test_get_credentials_uses_provided_source_without_adc():
+    # Arrange
+    source = MagicMock()
+
+    # Act
+    with patch("cartography.intel.kubernetes.gke_auth.google.auth.default") as adc:
+        credentials = get_credentials(source=source)
+
+    # Assert
+    assert credentials is source
+    adc.assert_not_called()
+
+
+def test_get_credentials_impersonates_from_provided_source():
+    # Arrange
+    source = MagicMock()
+
+    # Act
+    with patch("cartography.intel.kubernetes.gke_auth.google.auth.default") as adc:
+        credentials = get_credentials(
+            "reader@example-project.iam.gserviceaccount.com", source
+        )
+
+    # Assert
+    adc.assert_not_called()
+    assert credentials.service_account_email == (
+        "reader@example-project.iam.gserviceaccount.com"
+    )
+
+
+def test_gke_clients_use_config_credentials_instead_of_adc():
+    # Arrange
+    from cartography.config import Config
+    from cartography.intel.kubernetes import _get_clients
+
+    source = MagicMock()
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        gke_clusters=[RESOURCE],
+        gke_credentials=source,
+    )
+
+    # Act
+    with (
+        patch("cartography.intel.kubernetes.gke_auth.google.auth.default") as adc,
+        patch(
+            "cartography.intel.kubernetes.gke_auth.get_cluster", return_value=None
+        ) as get_cluster_mock,
+    ):
+        clients = list(_get_clients(config))
+
+    # Assert
+    assert clients == []
+    adc.assert_not_called()
+    get_cluster_mock.assert_called_once_with(RESOURCE, source)

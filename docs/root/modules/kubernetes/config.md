@@ -266,6 +266,12 @@ cartography --neo4j-uri bolt://localhost:7687 \
   (for fleet-registered clusters) could serve them in the future.
 - A cluster whose GKE metadata cannot be read (missing, or IAM denied) is logged and
   skipped.
+- When embedding Cartography, pass a `google.auth` credentials object as
+  `Config(gke_credentials=...)` to use it instead of ADC, for example Workload
+  Identity Federation credentials built in code. It is combined with
+  `gke_impersonate_service_account` when both are set. Federated principals
+  (`principal://` and `principalSet://`) can be granted `roles/container.viewer`
+  directly; new grants can take a few minutes to reach the DNS endpoint.
 
 Required permissions for the ADC identity (or the impersonated service account):
 
