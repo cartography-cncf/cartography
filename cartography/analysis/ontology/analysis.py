@@ -357,10 +357,66 @@ def _dns_record_target_matches(target: DNSRecordTarget) -> tuple[str, ...]:
     return scalar_matches + list_matches
 
 
+def _generic_dns_target_cleanup_where(target: DNSRecordTarget) -> str:
+    # BbotDNSName carries the DNSRecord label, so the generic cleanup would otherwise
+    # delete the edges the BBOT jobs below own.
+    return " AND ".join(
+        clause for clause in (target.cleanup_where, "NOT source:BbotDNSName") if clause
+    )
+
+
+def _bbot_dns_target_matches(target: DNSRecordTarget) -> tuple[str, ...]:
+    # A provider record points to a target through its value, but an external scanner
+    # observes the target's own hostname, so BBOT names match on _ont_name instead.
+    # Starting from the target and seeking the indexed DNSRecord._ont_name also lets
+    # legacy targets normalize their raw hostname on the target side.
+    def hostname(prop: str) -> str:
+        if target.normalized:
+            return f"target.{prop}"
+        return f"toLower(rtrim(trim(target.{prop}), '.'))"
+
+    label = target.label
+    scalar_matches = tuple(
+        f"MATCH (target:{label}) WHERE target.{prop} IS NOT NULL WITH target MATCH (dns:DNSRecord {{_ont_name: {hostname(prop)}}}) WHERE dns:BbotDNSName"
+        for prop in target.properties
+    )
+    list_matches = tuple(
+        f"MATCH (target:{label}) WHERE target.{prop} IS NOT NULL UNWIND target.{prop} AS hostname WITH target, hostname MATCH (dns:DNSRecord {{_ont_name: hostname}}) WHERE dns:BbotDNSName"
+        for prop in target.list_properties
+    )
+    return scalar_matches + list_matches
+
+
+BBOT_DNS_TARGET_JOBS = tuple(
+    AnalysisJob(
+        name=f"Ontology - BbotDNSName to {target.label} linking",
+        short_name=f"ontology_bbot_dns_{target.label.lower()}",
+        cleanup_iterationsize=1000,
+        statements=tuple(
+            AnalysisStatement(
+                match=match,
+                effects=(
+                    AddRelationship(
+                        "dns",
+                        "DNS_POINTS_TO",
+                        "target",
+                        source_label="BbotDNSName",
+                        target_label=target.label,
+                    ),
+                ),
+            )
+            for match in _bbot_dns_target_matches(target)
+        ),
+    )
+    for target in DNS_RECORD_TARGETS
+)
+
+
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
     DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN,
     BBOT_DNS_MATCHES_PROVIDER,
+    *BBOT_DNS_TARGET_JOBS,
 ) + tuple(
     AnalysisJob(
         name=f"Ontology - DNSRecord to {target.label} linking",
@@ -383,7 +439,7 @@ DNS_RECORD_LINKING_JOBS = (
                         # that deletes the provider-owned edges the guard protects.
                         source_label="DNSRecord",
                         target_label=target.label,
-                        cleanup_where=target.cleanup_where,
+                        cleanup_where=_generic_dns_target_cleanup_where(target),
                     ),
                 ),
             )
@@ -409,6 +465,155 @@ BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
             ),
         ),
     ),
+)
+
+
+# BBOT observes endpoints from the internet; these jobs attach what it observed to the
+# cloud resource that serves it. A BBOT host reaches a resource in two ways:
+# - its globally routable address is a PublicIP that points to a compute instance or
+#   load balancer. A DNS name reaches the address it resolves to in one hop.
+# - its DNS name, or the CNAME target it resolves to, or the provider DNS record with
+#   the same name, points to a resource. These edges come from DNS_RECORD_LINKING_JOBS
+#   and the provider modules.
+# The Device target of PublicIP is skipped: it is an endpoint's egress address, which
+# serves nothing.
+# A PublicIP that points to several resources links each of them, since each one
+# answers on that address.
+_BBOT_IP_RESOURCE_LABELS = ("ComputeInstance", "LoadBalancer")
+_BBOT_DNS_RESOURCE_LABELS = tuple(target.label for target in DNS_RECORD_TARGETS) + (
+    "KubernetesIngress",
+    "RailwayCustomDomain",
+)
+_BBOT_HOST = "(host) WHERE host:BbotDNSName OR host:BbotIPAddress"
+
+
+def _bbot_resource_matches(source_match: str) -> tuple[tuple[str, str], ...]:
+    via_ip = tuple(
+        (
+            f"{source_match} MATCH (host)-[:RESOLVES_TO*0..1]->(:BbotIPAddress {{is_global: true}})-[:MATCHES_PUBLIC_IP]->(:PublicIP)-[:POINTS_TO]->(target:{label})",
+            label,
+        )
+        for label in _BBOT_IP_RESOURCE_LABELS
+    )
+    via_dns = tuple(
+        (
+            f"{source_match} MATCH (host)-[:RESOLVES_TO|MATCHES_DNS_RECORD*0..1]->(:DNSRecord)-[:DNS_POINTS_TO]->(target:{label})",
+            label,
+        )
+        for label in _BBOT_DNS_RESOURCE_LABELS
+    )
+    return via_ip + via_dns
+
+
+def _bbot_resource_job(
+    name: str,
+    short_name: str,
+    source: str,
+    source_label: str,
+    rel: str,
+    source_match: str,
+    extra_matches: tuple[tuple[str, str], ...] = (),
+) -> AnalysisJob:
+    return AnalysisJob(
+        name=name,
+        short_name=short_name,
+        cleanup_iterationsize=1000,
+        statements=tuple(
+            AnalysisStatement(
+                match=match,
+                effects=(
+                    AddRelationship(
+                        source,
+                        rel,
+                        "target",
+                        source_label=source_label,
+                        target_label=target_label,
+                    ),
+                ),
+            )
+            for match, target_label in _bbot_resource_matches(source_match)
+            + extra_matches
+        ),
+    )
+
+
+# S3 and Cloud Storage bucket names are globally unique, so a name match is the bucket.
+# Azure is left out: BBOT reports a guessed storage account and container pair, and
+# container names repeat across accounts.
+_BBOT_BUCKET_TARGETS = (
+    ("aws", "AWSS3Bucket"),
+    ("gcp", "GCPBucket"),
+)
+BBOT_STORAGE_BUCKET_MATCHES_OBJECT_STORAGE = AnalysisJob(
+    name="Ontology - BbotStorageBucket to ObjectStorage linking",
+    short_name="ontology_bbot_storage_bucket_object_storage",
+    statements=tuple(
+        AnalysisStatement(
+            match=f"MATCH (bucket:BbotStorageBucket {{bucket_provider: '{provider}'}}) WHERE bucket.bucket_name IS NOT NULL WITH bucket MATCH (target:{label} {{id: bucket.bucket_name}})",
+            effects=(
+                AddRelationship(
+                    "bucket",
+                    "MATCHES_OBJECT_STORAGE",
+                    "target",
+                    source_label="BbotStorageBucket",
+                    target_label=label,
+                ),
+            ),
+        )
+        for provider, label in _BBOT_BUCKET_TARGETS
+    ),
+)
+# An open port and a live URL are internet-facing entrypoints, so they EXPOSE the
+# resource behind them, the same direction as a load balancer.
+BBOT_OPEN_TCP_PORT_EXPOSES_RESOURCE = _bbot_resource_job(
+    "Ontology - BbotOpenTCPPort EXPOSE cloud resource linking",
+    "ontology_bbot_open_tcp_port_expose",
+    "port",
+    "BbotOpenTCPPort",
+    "EXPOSE",
+    f"MATCH (port:BbotOpenTCPPort)<-[:HAS_OPEN_PORT]-{_BBOT_HOST}",
+)
+BBOT_URL_EXPOSES_RESOURCE = _bbot_resource_job(
+    "Ontology - BbotURL EXPOSE cloud resource linking",
+    "ontology_bbot_url_expose",
+    "url",
+    "BbotURL",
+    "EXPOSE",
+    f"MATCH (url:BbotURL)-[:HOSTED_BY]->()<-[:HAS_OPEN_PORT*0..1]-{_BBOT_HOST}",
+)
+# BBOT attaches a finding or a technology to a URL, a port, a host or, for findings, a
+# bucket. Walk down to the host from any of them.
+BBOT_FINDING_AFFECTS_RESOURCE = _bbot_resource_job(
+    "Ontology - BbotFinding AFFECTS cloud resource linking",
+    "ontology_bbot_finding_affects",
+    "finding",
+    "BbotFinding",
+    "AFFECTS",
+    f"MATCH (finding:BbotFinding)-[:AFFECTS]->()-[:HOSTED_BY*0..1]->()<-[:HAS_OPEN_PORT*0..1]-{_BBOT_HOST}",
+    extra_matches=tuple(
+        (
+            f"MATCH (finding:BbotFinding)-[:AFFECTS]->(:BbotStorageBucket)-[:MATCHES_OBJECT_STORAGE]->(target:{label})",
+            label,
+        )
+        for _, label in _BBOT_BUCKET_TARGETS
+    ),
+)
+BBOT_TECHNOLOGY_DETECTED_ON_RESOURCE = _bbot_resource_job(
+    "Ontology - BbotTechnology DETECTED_ON cloud resource linking",
+    "ontology_bbot_technology_detected_on",
+    "tech",
+    "BbotTechnology",
+    "DETECTED_ON",
+    f"MATCH (tech:BbotTechnology)-[:DETECTED_ON]->()-[:HOSTED_BY*0..1]->()<-[:HAS_OPEN_PORT*0..1]-{_BBOT_HOST}",
+)
+# Run after DNS_RECORD_LINKING_JOBS, the PublicIP sync and BBOT_IP_MATCHES_PUBLIC_IP,
+# whose edges these jobs read. The bucket job runs before the finding job, which reads it.
+BBOT_RESOURCE_JOBS = (
+    BBOT_STORAGE_BUCKET_MATCHES_OBJECT_STORAGE,
+    BBOT_OPEN_TCP_PORT_EXPOSES_RESOURCE,
+    BBOT_URL_EXPOSES_RESOURCE,
+    BBOT_FINDING_AFFECTS_RESOURCE,
+    BBOT_TECHNOLOGY_DETECTED_ON_RESOURCE,
 )
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
     AnalysisJob(
