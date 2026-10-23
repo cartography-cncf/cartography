@@ -22,14 +22,19 @@ from cartography.intel.gcp.target_https_proxy import get_gcp_target_https_proxie
 
 
 class _RecordingHttp:
-    """Fake httplib2.Http that records request URIs and answers with `{}`."""
+    """
+    Fake httplib2.Http that records request URIs and answers with the given
+    JSON bodies in order, then with `{}`.
+    """
 
-    def __init__(self):
+    def __init__(self, bodies=()):
         self.uris = []
+        self._bodies = list(bodies)
 
     def request(self, uri, method="GET", body=None, headers=None, **kwargs):
         self.uris.append(uri)
-        return httplib2.Response({"status": "200"}), b"{}"
+        content = self._bodies.pop(0) if self._bodies else b"{}"
+        return httplib2.Response({"status": "200"}), content
 
 
 def _build_compute_client(http):
@@ -46,7 +51,7 @@ def test_get_gcp_vpn_gateways_builds_valid_request():
 
     assert get_gcp_vpn_gateways("test-project", compute) == ([], False)
     assert http.uris == [
-        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/vpnGateways?alt=json",
+        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/vpnGateways?alt=json&returnPartialSuccess=true",
     ]
 
 
@@ -56,7 +61,7 @@ def test_get_gcp_vpn_tunnels_builds_valid_request():
 
     assert get_gcp_vpn_tunnels("test-project", compute) == ([], False)
     assert http.uris == [
-        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/vpnTunnels?alt=json",
+        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/vpnTunnels?alt=json&returnPartialSuccess=true",
     ]
 
 
@@ -69,7 +74,7 @@ def test_get_gcp_ssl_policies_builds_valid_request():
         "items": {},
     }
     assert http.uris == [
-        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/sslPolicies?alt=json",
+        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/sslPolicies?alt=json&returnPartialSuccess=true",
     ]
 
 
@@ -82,5 +87,25 @@ def test_get_gcp_target_https_proxies_builds_valid_request():
         "items": {},
     }
     assert http.uris == [
-        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/targetHttpsProxies?alt=json",
+        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/targetHttpsProxies?alt=json&returnPartialSuccess=true",
+    ]
+
+
+def test_return_partial_success_is_kept_on_every_page():
+    http = _RecordingHttp(
+        bodies=[
+            b'{"items": {"regions/us-central1": {"vpnGateways": [{"name": "gw-a"}]}},'
+            b' "nextPageToken": "page-2"}',
+            b'{"items": {"regions/europe-west1": {"vpnGateways": [{"name": "gw-b"}]}}}',
+        ],
+    )
+    compute = _build_compute_client(http)
+
+    assert get_gcp_vpn_gateways("test-project", compute) == (
+        [{"name": "gw-a"}, {"name": "gw-b"}],
+        False,
+    )
+    assert http.uris == [
+        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/vpnGateways?alt=json&returnPartialSuccess=true",
+        "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/vpnGateways?alt=json&returnPartialSuccess=true&pageToken=page-2",
     ]

@@ -17,6 +17,7 @@ from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import GCP_EXPECTED_SKIP_CATEGORIES
 from cartography.intel.gcp.util import merge_aggregated_scope_items
 from cartography.intel.gcp.util import summarize_gcp_http_error
+from cartography.intel.gcp.util import with_return_partial_success
 from cartography.models.gcp.compute.ssl_policy import GCPSslPolicySchema
 from cartography.util import timeit
 
@@ -36,7 +37,9 @@ def get_gcp_ssl_policies(
     """
     items: dict[str, dict] = {}
     response_id = f"projects/{project_id}/aggregated/sslPolicies"
-    req = compute.sslPolicies().aggregatedList(project=project_id)
+    req = with_return_partial_success(
+        compute.sslPolicies().aggregatedList(project=project_id),
+    )
     while req is not None:
         try:
             res = gcp_api_execute_with_retry(req)

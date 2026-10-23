@@ -25,6 +25,7 @@ from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import summarize_gcp_http_error
+from cartography.intel.gcp.util import with_return_partial_success
 from cartography.models.gcp.compute.firewall import GCPFirewallSchema
 from cartography.models.gcp.compute.firewall_target_tag import (
     GCPFirewallTargetTagSchema,
@@ -267,13 +268,11 @@ def _get_gcp_vpn_aggregated(
 ) -> tuple[list[dict], bool]:
     """
     Fetch all VPN resources of the given type ("vpnGateways" or "vpnTunnels")
-    for a project via the Compute aggregatedList endpoint: a single paginated
-    request chain covers all regions, and a region that cannot be read (e.g.
-    UNREACHABLE) reports a per-scope warning instead of failing the whole call.
-
-    returnPartialSuccess is intentionally not passed: the static discovery
-    document bundled with google-api-python-client, which build_client() uses,
-    does not declare it, so googleapiclient rejects it with a TypeError.
+    for a project via the Compute aggregatedList endpoint with
+    returnPartialSuccess=true (see with_return_partial_success): a single
+    paginated request chain covers all regions, and a region that fails (e.g.
+    transient location error) reports a per-scope `error` entry in the response
+    instead of failing the whole call.
 
     Expected access/configuration failures of the whole call (missing list
     permission, API not enabled, billing disabled, project not found) return
@@ -287,7 +286,7 @@ def _get_gcp_vpn_aggregated(
     """
     api = getattr(compute, resource)()
     try:
-        req = api.aggregatedList(project=projectid)
+        req = with_return_partial_success(api.aggregatedList(project=projectid))
     except HttpError as e:
         if _is_skippable_vpn_list_error(e):
             logger.warning(

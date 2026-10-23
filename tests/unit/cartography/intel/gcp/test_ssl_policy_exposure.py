@@ -16,6 +16,12 @@ from tests.data.gcp.ssl_policy_exposure import TARGET_SSL_PROXY_RESPONSE
 TEST_PROJECT_ID = "sample-project-123456"
 
 
+def _make_request() -> MagicMock:
+    request = MagicMock()
+    request.uri = "https://compute.googleapis.com/compute/v1/projects/sample-project-123456/aggregated/resources?alt=json"
+    return request
+
+
 def _make_http_error(reason: str) -> HttpError:
     resp = MagicMock()
     resp.status = 403
@@ -113,8 +119,8 @@ def test_transform_gcp_target_https_proxies_sets_region_for_regional_proxies():
 
 def test_get_gcp_ssl_policies_merges_same_scope_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.sslPolicies.return_value.aggregatedList.return_value = request_1
     compute.sslPolicies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -165,8 +171,8 @@ def test_get_gcp_ssl_policies_merges_same_scope_across_pages():
 
 def test_get_gcp_target_https_proxies_merges_same_scope_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.targetHttpsProxies.return_value.aggregatedList.return_value = request_1
     compute.targetHttpsProxies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -219,8 +225,8 @@ def test_get_gcp_target_https_proxies_merges_same_scope_across_pages():
 
 def test_get_gcp_ssl_policies_preserves_unreachable_warning_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.sslPolicies.return_value.aggregatedList.return_value = request_1
     compute.sslPolicies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -263,8 +269,8 @@ def test_get_gcp_ssl_policies_preserves_unreachable_warning_across_pages():
 
 def test_get_gcp_target_https_proxies_preserves_unreachable_warning_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.targetHttpsProxies.return_value.aggregatedList.return_value = request_1
     compute.targetHttpsProxies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -311,6 +317,7 @@ def test_get_gcp_target_https_proxies_preserves_unreachable_warning_across_pages
 
 def test_sync_gcp_ssl_policies_skips_cleanup_when_global_list_denied():
     compute = MagicMock()
+    compute.sslPolicies.return_value.aggregatedList.return_value = _make_request()
 
     with (
         patch.object(
@@ -336,6 +343,9 @@ def test_sync_gcp_ssl_policies_skips_cleanup_when_global_list_denied():
 
 def test_sync_gcp_target_https_proxies_skips_cleanup_when_global_list_denied():
     compute = MagicMock()
+    compute.targetHttpsProxies.return_value.aggregatedList.return_value = (
+        _make_request()
+    )
 
     with (
         patch.object(

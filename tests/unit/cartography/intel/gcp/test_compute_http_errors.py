@@ -36,6 +36,7 @@ def _make_http_error(
 
 def _make_request(*, response=None, error: Exception | None = None) -> MagicMock:
     request = MagicMock()
+    request.uri = "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/resources?alt=json"
     if error is not None:
         request.execute.side_effect = error
     else:
@@ -350,7 +351,7 @@ class TestGetGcpVpnGatewaysHttpErrors:
         assert incomplete is False
 
     def test_scope_error_keeps_partial_data_and_marks_incomplete(self):
-        """A scope that reports an `error` entry is treated as incomplete."""
+        """With returnPartialSuccess, failed scopes carry an `error` entry."""
         mock_compute = MagicMock()
         mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
             _make_request(
