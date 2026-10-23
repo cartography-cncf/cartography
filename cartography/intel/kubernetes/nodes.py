@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1Node
 
 from cartography.client.core.tx import load
@@ -119,7 +120,20 @@ def sync_nodes(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> dict[str, str]:
-    raw_nodes = get_nodes(client)
+    try:
+        raw_nodes = get_nodes(client)
+    except ApiException as err:
+        if err.status in (401, 403):
+            # A partial nodes snapshot cannot be told apart from an empty one, so skip
+            # load + cleanup and keep the previous data, like `sync_secrets`.
+            logger.warning(
+                "Cartography lacks permission to list nodes on cluster %s (status %s). "
+                "Skipping nodes sync and preserving previously synced data.",
+                client.name,
+                err.status,
+            )
+            return {}
+        raise
     gke_ref = get_gke_cluster_ref(client)
     transformed = transform_nodes(
         raw_nodes, client.name, gke_ref.resource_name if gke_ref else None

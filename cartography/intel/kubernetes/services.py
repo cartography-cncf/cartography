@@ -3,15 +3,18 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1LoadBalancerIngress
 from kubernetes.client.models import V1PortStatus
 from kubernetes.client.models import V1Service
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import gcp_forwarding_rule_match_keys
 from cartography.intel.kubernetes.util import get_epoch
-from cartography.intel.kubernetes.util import get_gke_cluster_ref
+from cartography.intel.kubernetes.util import get_gke_network_scope
 from cartography.intel.kubernetes.util import get_qualified_resource_name
+from cartography.intel.kubernetes.util import GKENetworkScope
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.services import KubernetesServiceSchema
@@ -90,7 +93,7 @@ def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -
 def transform_services(
     services: list[V1Service],
     all_pods: list[dict[str, Any]],
-    gcp_project_id: str | None = None,
+    gke_scope: GKENetworkScope | None = None,
 ) -> list[dict[str, Any]]:
     services_list = []
     for service in services:
@@ -108,8 +111,6 @@ def transform_services(
             "cluster_ip": service.spec.cluster_ip,
             "load_balancer_ip": service.spec.load_balancer_ip,
             "load_balancer_ips": [],
-            # Scopes IP matching against GCP forwarding rules to the GKE cluster's project.
-            "gcp_project_id": gcp_project_id,
         }
 
         # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
@@ -125,6 +126,9 @@ def transform_services(
                 item["load_balancer_dns_names"] = _extract_load_balancer_dns_names(
                     service.status.load_balancer.ingress
                 )
+        item.update(
+            gcp_forwarding_rule_match_keys(item["load_balancer_ips"], gke_scope)
+        )
 
         # check if pod labels match service selector and add pod_ids to item
         pod_ids = []
@@ -180,10 +184,22 @@ def sync_services(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    services = get_services(client)
-    gke_ref = get_gke_cluster_ref(client)
+    try:
+        services = get_services(client)
+    except ApiException as err:
+        if err.status in (401, 403):
+            # A partial services snapshot cannot be told apart from an empty one, so skip
+            # load + cleanup and keep the previous data, like `sync_secrets`.
+            logger.warning(
+                "Cartography lacks permission to list services on cluster %s (status %s). "
+                "Skipping services sync and preserving previously synced data.",
+                client.name,
+                err.status,
+            )
+            return
+        raise
     transformed_services = transform_services(
-        services, all_pods, gke_ref.project if gke_ref else None
+        services, all_pods, get_gke_network_scope(client)
     )
     load_services(
         session=session,

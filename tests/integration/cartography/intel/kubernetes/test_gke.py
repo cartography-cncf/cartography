@@ -23,6 +23,7 @@ from cartography.intel.kubernetes.rbac import transform_service_accounts
 from cartography.intel.kubernetes.rbac import transform_users
 from cartography.intel.kubernetes.services import load_services
 from cartography.intel.kubernetes.services import transform_services
+from cartography.intel.kubernetes.util import GKENetworkScope
 from cartography.util import run_typed_analysis_job
 from tests.data.kubernetes.gke import GKE_CLUSTER
 from tests.data.kubernetes.gke import GKE_CLUSTER_ID
@@ -30,6 +31,7 @@ from tests.data.kubernetes.gke import GKE_CLUSTER_NAME
 from tests.data.kubernetes.gke import GKE_FORWARDING_RULES
 from tests.data.kubernetes.gke import GKE_GCP_SERVICE_ACCOUNTS
 from tests.data.kubernetes.gke import GKE_GSA_EMAIL
+from tests.data.kubernetes.gke import GKE_NETWORK
 from tests.data.kubernetes.gke import GKE_NODES
 from tests.data.kubernetes.gke import GKE_OTHER_PROJECT_ID
 from tests.data.kubernetes.gke import gke_policy_results
@@ -118,7 +120,9 @@ def _load_kubernetes(session, monkeypatch, update_tag: int) -> None:
     )
     load_services(
         session,
-        transform_services(GKE_SERVICES, [], GKE_PROJECT_ID),
+        transform_services(
+            GKE_SERVICES, [], GKENetworkScope(GKE_PROJECT_ID, GKE_NETWORK)
+        ),
         update_tag,
         GKE_CLUSTER_ID,
         GKE_CLUSTER_NAME,
@@ -176,7 +180,7 @@ def test_gke_cloud_resources_map_to_kubernetes_inventory(gke_graph):
     ) == {(GKE_GSA_EMAIL, GKE_GSA_EMAIL)}
 
 
-def test_gke_service_uses_forwarding_rule_in_cluster_project_only(gke_graph):
+def test_gke_service_uses_forwarding_rule_in_cluster_project_and_network(gke_graph):
     # Arrange
     session = gke_graph
 
@@ -186,12 +190,13 @@ def test_gke_service_uses_forwarding_rule_in_cluster_project_only(gke_graph):
         "KubernetesService",
         "name",
         "GCPForwardingRule",
-        "project_id",
+        "name",
         "USES_LOAD_BALANCER",
     )
 
-    # Assert
-    assert result == {("ilb", GKE_PROJECT_ID)}
+    # Assert: the private address also exists in another project and another VPC of
+    # the same project; neither of those rules matches.
+    assert result == {("ilb", "gke-ilb"), ("public", "gke-external-lb")}
 
 
 def test_gke_workload_identity_policies_and_bindings(gke_graph):

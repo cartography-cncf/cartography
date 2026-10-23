@@ -26,11 +26,15 @@ GKE_POOL_ID = (
 )
 GKE_GSA_EMAIL = f"workload@{GKE_PROJECT_ID}.iam.gserviceaccount.com"
 GKE_LB_IP = "10.0.0.2"
+GKE_PUBLIC_LB_IP = "34.120.0.10"
+GKE_NETWORK = f"projects/{GKE_PROJECT_ID}/global/networks/default"
+GKE_OTHER_NETWORK = f"projects/{GKE_PROJECT_ID}/global/networks/other"
 
 GKE_CLUSTER = {
     "name": "example",
     "selfLink": GKE_SELF_LINK,
     "location": GKE_LOCATION,
+    "networkConfig": {"network": GKE_NETWORK},
     "workloadIdentityConfig": {"workloadPool": GKE_WORKLOAD_POOL},
     "nodePools": [
         {
@@ -47,7 +51,8 @@ GKE_WORKLOAD_POOLS = [{"name": GKE_POOL_ID, "state": "ACTIVE"}]
 
 GKE_GCP_SERVICE_ACCOUNTS = [{"uniqueId": "1001", "email": GKE_GSA_EMAIL}]
 
-# Two projects reuse the same private address; only the GKE project's rule matches.
+# The private address is reused in another project and in another VPC of the same
+# project; only the rule in the cluster's own project and network matches.
 GKE_FORWARDING_RULES = {
     GKE_PROJECT_ID: {
         "id": f"projects/{GKE_PROJECT_ID}/regions/{GKE_LOCATION}/forwardingRules",
@@ -58,6 +63,22 @@ GKE_FORWARDING_RULES = {
                 "IPProtocol": "TCP",
                 "loadBalancingScheme": "INTERNAL",
                 "ports": ["443"],
+                "network": f"https://www.googleapis.com/compute/v1/{GKE_NETWORK}",
+            },
+            {
+                "name": "other-vpc-ilb",
+                "IPAddress": GKE_LB_IP,
+                "IPProtocol": "TCP",
+                "loadBalancingScheme": "INTERNAL",
+                "ports": ["443"],
+                "network": f"https://www.googleapis.com/compute/v1/{GKE_OTHER_NETWORK}",
+            },
+            {
+                "name": "gke-external-lb",
+                "IPAddress": GKE_PUBLIC_LB_IP,
+                "IPProtocol": "TCP",
+                "loadBalancingScheme": "EXTERNAL",
+                "portRange": "80-80",
             },
         ],
     },
@@ -70,6 +91,7 @@ GKE_FORWARDING_RULES = {
                 "IPProtocol": "TCP",
                 "loadBalancingScheme": "INTERNAL",
                 "ports": ["443"],
+                "network": f"https://www.googleapis.com/compute/v1/projects/{GKE_OTHER_PROJECT_ID}/global/networks/default",
             },
         ],
     },
@@ -158,6 +180,18 @@ GKE_SERVICES = [
         status=V1ServiceStatus(
             load_balancer=V1LoadBalancerStatus(
                 ingress=[V1LoadBalancerIngress(ip=GKE_LB_IP)],
+            ),
+        ),
+    ),
+    V1Service(
+        metadata=V1ObjectMeta(name="public", namespace="ns", uid="public-uid"),
+        spec=V1ServiceSpec(
+            type="LoadBalancer",
+            ports=[V1ServicePort(port=80, protocol="TCP")],
+        ),
+        status=V1ServiceStatus(
+            load_balancer=V1LoadBalancerStatus(
+                ingress=[V1LoadBalancerIngress(ip=GKE_PUBLIC_LB_IP)],
             ),
         ),
     ),

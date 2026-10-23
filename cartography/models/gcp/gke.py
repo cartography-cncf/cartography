@@ -245,7 +245,7 @@ class GKENodePoolNodeProperties(CartographyNodeProperties):
     )
     service_account: PropertyRef = PropertyRef(
         "service_account",
-        description="GKE API `NodePool.config.serviceAccount`: the Google service account the nodes run as. `default` means the Compute Engine default service account.",
+        description="GKE API `NodePool.config.serviceAccount`: the Google service account the nodes run as. `default` is resolved to the project's Compute Engine default service account email.",
     )
     oauth_scopes: PropertyRef = PropertyRef(
         "oauth_scopes",

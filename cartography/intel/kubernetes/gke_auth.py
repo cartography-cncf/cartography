@@ -11,6 +11,7 @@ from typing import Iterator
 import google.auth
 from google.auth import impersonated_credentials
 from google.auth.credentials import Credentials
+from google.auth.credentials import with_scopes_if_required
 from google.auth.transport.requests import Request
 from googleapiclient.errors import HttpError
 from kubernetes.client import ApiClient
@@ -40,9 +41,10 @@ def get_credentials(
     Return `source` credentials, or Google ADC when none are given, optionally
     impersonating `service_account`.
     """
-    credentials = source
-    if credentials is None:
+    if source is None:
         credentials, _ = google.auth.default(scopes=SCOPES)
+    else:
+        credentials = with_scopes_if_required(source, SCOPES)
     if service_account:
         credentials = impersonated_credentials.Credentials(
             source_credentials=credentials,

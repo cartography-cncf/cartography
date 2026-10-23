@@ -4,17 +4,23 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from google.auth.credentials import Scoped
 from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.gke import transform_gke_clusters
+from cartography.intel.gcp.gke import transform_node_pools
 from cartography.intel.gcp.gke_utils import instance_id_from_provider_id
 from cartography.intel.gcp.gke_utils import parse_cluster_ref
 from cartography.intel.kubernetes.clusters import get_service_account_oidc
 from cartography.intel.kubernetes.gke_auth import connect
 from cartography.intel.kubernetes.gke_auth import get_cluster
 from cartography.intel.kubernetes.gke_auth import get_credentials
+from cartography.intel.kubernetes.gke_auth import SCOPES
 from cartography.intel.kubernetes.gke_auth import select_endpoint
 from cartography.intel.kubernetes.nodes import transform_nodes
+from cartography.intel.kubernetes.util import gcp_forwarding_rule_match_keys
+from cartography.intel.kubernetes.util import get_gke_network_scope
+from cartography.intel.kubernetes.util import GKENetworkScope
 
 RESOURCE = "projects/example-project/locations/us-central1/clusters/example"
 DNS_CLUSTER = {
@@ -306,3 +312,94 @@ def test_gke_clients_use_config_credentials_instead_of_adc():
     assert clients == []
     adc.assert_not_called()
     get_cluster_mock.assert_called_once_with(RESOURCE, source)
+
+
+def test_get_credentials_scopes_unscoped_source():
+    # Arrange
+    source = MagicMock(spec=Scoped, requires_scopes=True)
+
+    # Act
+    with patch("cartography.intel.kubernetes.gke_auth.google.auth.default") as adc:
+        credentials = get_credentials(source=source)
+
+    # Assert
+    adc.assert_not_called()
+    assert source.with_scopes.call_args.args == (SCOPES,)
+    assert credentials is source.with_scopes.return_value
+
+
+def test_forwarding_rule_match_keys_split_private_and_public_addresses():
+    # Arrange
+    scope = GKENetworkScope(
+        "example-project", "projects/example-project/global/networks/vpc"
+    )
+
+    # Act
+    keys = gcp_forwarding_rule_match_keys(["10.0.0.2", "34.120.0.10", "bad"], scope)
+    no_gke = gcp_forwarding_rule_match_keys(["10.0.0.2"], None)
+
+    # Assert
+    assert keys == {
+        "gcp_project_id": "example-project",
+        "gcp_network": "projects/example-project/global/networks/vpc",
+        "gcp_public_lb_ips": ["34.120.0.10"],
+        "gcp_private_lb_ips": ["10.0.0.2"],
+    }
+    assert no_gke["gcp_public_lb_ips"] == no_gke["gcp_private_lb_ips"] == []
+
+
+@pytest.mark.parametrize(
+    "network",
+    [
+        {"networkConfig": {"network": "projects/host/global/networks/shared"}},
+        {
+            "networkConfig": {
+                "network": "https://www.googleapis.com/compute/v1/projects/host/global/networks/shared"
+            }
+        },
+    ],
+)
+def test_gke_network_scope_keeps_shared_vpc_host_project(network):
+    # Arrange
+    client = SimpleNamespace(gke_cluster={"resource_name": RESOURCE, **network})
+
+    # Act
+    scope = get_gke_network_scope(client)
+
+    # Assert
+    assert scope == GKENetworkScope(
+        "example-project", "projects/host/global/networks/shared"
+    )
+
+
+def test_transform_node_pools_resolves_default_service_account():
+    # Arrange
+    response = {
+        "clusters": [
+            {
+                "selfLink": "https://container.googleapis.com/v1/" + RESOURCE,
+                "nodePools": [
+                    {"name": "default-sa", "config": {"serviceAccount": "default"}},
+                    {"name": "no-sa", "config": {}},
+                    {
+                        "name": "custom",
+                        "config": {
+                            "serviceAccount": "nodes@example-project.iam.gserviceaccount.com"
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+
+    # Act
+    pools = {
+        p["name"]: p["service_account"] for p in transform_node_pools(response, "123")
+    }
+
+    # Assert
+    assert pools == {
+        "default-sa": "123-compute@developer.gserviceaccount.com",
+        "no-sa": "123-compute@developer.gserviceaccount.com",
+        "custom": "nodes@example-project.iam.gserviceaccount.com",
+    }

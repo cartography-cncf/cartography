@@ -128,6 +128,7 @@ def sync_gke_clusters(
     project_id: str,
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    project_number: str | None = None,
 ) -> None:
     """
     Get GCP GKE Clusters using the Container resource object, ingest to Neo4j, and clean up old data.
@@ -161,7 +162,7 @@ def sync_gke_clusters(
             lastupdated=gcp_update_tag,
             PROJECT_ID=project_id,
         )
-    node_pools = transform_node_pools(gke_res)
+    node_pools = transform_node_pools(gke_res, project_number)
     if node_pools:
         load(
             neo4j_session,
@@ -304,10 +305,20 @@ def transform_gke_clusters(api_result: Dict[str, Any]) -> List[Dict[str, Any]]:
     return result
 
 
-def transform_node_pools(api_result: Dict[str, Any]) -> list[dict[str, Any]]:
+def transform_node_pools(
+    api_result: Dict[str, Any],
+    project_number: str | None = None,
+) -> list[dict[str, Any]]:
     """
-    Transform the `nodePools` of each cluster in a GKE API response.
+    Transform the `nodePools` of each cluster in a GKE API response. GKE reports the
+    Compute Engine default service account as `default`; resolve it to its email when
+    the project number is known so the node pool links to the account.
     """
+    default_account = (
+        f"{project_number}-compute@developer.gserviceaccount.com"
+        if project_number
+        else None
+    )
     pools = []
     for cluster in api_result.get("clusters", []):
         ref = parse_cluster_ref(cluster.get("resource_name") or cluster["selfLink"])
@@ -319,7 +330,11 @@ def transform_node_pools(api_result: Dict[str, Any]) -> list[dict[str, Any]]:
                     "name": pool["name"],
                     "cluster_id": cluster["selfLink"],
                     "cluster_resource_name": ref.resource_name,
-                    "service_account": config.get("serviceAccount"),
+                    "service_account": (
+                        default_account
+                        if config.get("serviceAccount") in (None, "default")
+                        else config.get("serviceAccount")
+                    ),
                     "oauth_scopes": config.get("oauthScopes"),
                     "workload_metadata_mode": (
                         config.get("workloadMetadataConfig") or {}

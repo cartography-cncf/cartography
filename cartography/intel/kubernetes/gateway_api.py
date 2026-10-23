@@ -6,9 +6,11 @@ from kubernetes.client.exceptions import ApiException
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import gcp_forwarding_rule_match_keys
 from cartography.intel.kubernetes.util import get_epoch
-from cartography.intel.kubernetes.util import get_gke_cluster_ref
+from cartography.intel.kubernetes.util import get_gke_network_scope
 from cartography.intel.kubernetes.util import get_qualified_resource_name
+from cartography.intel.kubernetes.util import GKENetworkScope
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.intel.kubernetes.util import parse_rfc3339
 from cartography.models.kubernetes.gateway_api import KubernetesGatewaySchema
@@ -113,7 +115,7 @@ def get_http_routes(client: K8sClient) -> list[dict[str, Any]]:
 
 def transform_gateways(
     gateways: list[dict[str, Any]],
-    gcp_project_id: str | None = None,
+    gke_scope: GKENetworkScope | None = None,
 ) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
 
@@ -122,6 +124,13 @@ def transform_gateways(
         spec = gateway.get("spec", {})
         namespace = metadata["namespace"]
         name = metadata["name"]
+        load_balancer_ips = sorted(
+            {
+                a["value"]
+                for a in gateway.get("status", {}).get("addresses", [])
+                if a.get("type", "IPAddress") == "IPAddress" and a.get("value")
+            }
+        )
 
         transformed.append(
             {
@@ -130,15 +139,8 @@ def transform_gateways(
                 "namespace": namespace,
                 "qualified_name": get_qualified_resource_name(namespace, name),
                 "gateway_class_name": spec.get("gatewayClassName"),
-                "load_balancer_ips": sorted(
-                    {
-                        a["value"]
-                        for a in gateway.get("status", {}).get("addresses", [])
-                        if a.get("type", "IPAddress") == "IPAddress" and a.get("value")
-                    }
-                ),
-                # Scopes IP matching against GCP forwarding rules to the GKE cluster's project.
-                "gcp_project_id": gcp_project_id,
+                "load_balancer_ips": load_balancer_ips,
+                **gcp_forwarding_rule_match_keys(load_balancer_ips, gke_scope),
                 "creation_timestamp": get_epoch(
                     parse_rfc3339(metadata.get("creationTimestamp"))
                 ),
@@ -319,8 +321,7 @@ def sync_gateway_api(
             return
         raise
 
-    gke_ref = get_gke_cluster_ref(client)
-    gateways = transform_gateways(raw_gateways, gke_ref.project if gke_ref else None)
+    gateways = transform_gateways(raw_gateways, get_gke_network_scope(client))
     routes = transform_http_routes(raw_routes)
     _enrich_gateways_with_attached_routes(gateways, routes)
 
