@@ -88,6 +88,8 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="PackageVersion", dst="FilesystemSnapshot", label="DEPLOYED"),
     # A source snapshot identifies the repository whose exact revision it represents.
     RelConstraint(src="FilesystemSnapshot", dst="CodeRepository", label="SNAPSHOT_OF"),
+    # A VM filesystem target identifies the block storage volume it reads.
+    RelConstraint(src="FilesystemSnapshot", dst="BlockStorage", label="SNAPSHOT_OF"),
     # An image/function is built from a source code repository (CI provenance).
     RelConstraint(src="Image", dst="CodeRepository", label="PACKAGED_FROM"),
     # NOTE: no UserAccount->CodeRepository constraint. Several distinct edges

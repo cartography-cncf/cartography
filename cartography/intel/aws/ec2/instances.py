@@ -95,9 +95,24 @@ def _transform_metadata_options(metadata_options: Dict[str, Any]) -> Dict[str, A
     }
 
 
+def _get_root_ebs_volume_id(instance: Dict[str, Any]) -> Optional[str]:
+    root_device = instance.get("RootDeviceName")
+    return next(
+        (
+            mapping["Ebs"]["VolumeId"]
+            for mapping in instance.get("BlockDeviceMappings", [])
+            if root_device
+            and mapping.get("DeviceName") == root_device
+            and mapping.get("Ebs", {}).get("VolumeId")
+        ),
+        None,
+    )
+
+
 def _get_filesystem_snapshot_skip_reason(
     instance: Dict[str, Any],
     eks_cluster_name: Optional[str],
+    root_volume_id: Optional[str],
 ) -> Optional[str]:
     if instance.get("State", {}).get("Name") != "running":
         return "instance is not running"
@@ -109,12 +124,7 @@ def _get_filesystem_snapshot_skip_reason(
         return "Kubernetes nodes are excluded"
     if instance.get("RootDeviceType") != "ebs":
         return "root device is not EBS"
-    root_device = instance.get("RootDeviceName")
-    if not root_device or not any(
-        mapping.get("DeviceName") == root_device
-        and mapping.get("Ebs", {}).get("VolumeId")
-        for mapping in instance.get("BlockDeviceMappings", [])
-    ):
+    if not root_volume_id:
         return "root EBS volume is missing"
     return None
 
@@ -227,8 +237,9 @@ def transform_ec2_instances(
                 },
             )
 
+            root_volume_id = _get_root_ebs_volume_id(instance)
             skip_reason = _get_filesystem_snapshot_skip_reason(
-                instance, eks_cluster_name
+                instance, eks_cluster_name, root_volume_id
             )
             if skip_reason:
                 logger.debug(
@@ -241,6 +252,7 @@ def transform_ec2_instances(
                     {
                         "id": f"aws:ec2-rootfs:{instance_id}",
                         "instance_id": instance_id,
+                        "volume_id": root_volume_id,
                         "kind": "rootfs",
                     },
                 )
@@ -535,13 +547,6 @@ def load_ec2_instance_data(
         current_aws_account_id,
         update_tag,
     )
-    load_ec2_filesystem_snapshots(
-        neo4j_session,
-        filesystem_snapshot_list,
-        region,
-        current_aws_account_id,
-        update_tag,
-    )
     load_ec2_subnets(
         neo4j_session,
         subnet_list,
@@ -573,6 +578,14 @@ def load_ec2_instance_data(
     load_ec2_instance_ebs_volumes(
         neo4j_session,
         ebs_volumes_list,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+    # SNAPSHOT_OF requires the root EBS volume nodes to be loaded first.
+    load_ec2_filesystem_snapshots(
+        neo4j_session,
+        filesystem_snapshot_list,
         region,
         current_aws_account_id,
         update_tag,

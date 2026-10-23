@@ -23,6 +23,10 @@ class EC2FilesystemSnapshotNodeProperties(CartographyNodeProperties):
         "instance_id",
         description="ID of the EC2 instance whose root filesystem is assessed.",
     )
+    volume_id: PropertyRef = PropertyRef(
+        "volume_id",
+        description="ID of the EBS volume currently backing the instance's root filesystem.",
+    )
     kind: PropertyRef = PropertyRef(
         "kind",
         extra_index=True,
@@ -73,6 +77,24 @@ class EC2FilesystemSnapshotToInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EC2FilesystemSnapshotToVolumeRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class EC2FilesystemSnapshotToVolumeRel(CartographyRelSchema):
+    target_node_label: str = "AWSEBSVolume"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("volume_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SNAPSHOT_OF"
+    properties: EC2FilesystemSnapshotToVolumeRelProperties = (
+        EC2FilesystemSnapshotToVolumeRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class EC2FilesystemSnapshotSchema(CartographyNodeSchema):
     """A persistent root filesystem target, independent of temporary EBS snapshots."""
 
@@ -85,5 +107,5 @@ class EC2FilesystemSnapshotSchema(CartographyNodeSchema):
         EC2FilesystemSnapshotToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [EC2FilesystemSnapshotToInstanceRel()],
+        [EC2FilesystemSnapshotToInstanceRel(), EC2FilesystemSnapshotToVolumeRel()],
     )

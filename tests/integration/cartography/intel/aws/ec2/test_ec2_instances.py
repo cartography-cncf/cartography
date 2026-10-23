@@ -53,6 +53,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         [
             "id",
             "instance_id",
+            "volume_id",
             "kind",
             "region",
             "lastupdated",
@@ -63,13 +64,33 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         (
             f"aws:ec2-rootfs:{instance_id}",
             instance_id,
+            volume_id,
             "rootfs",
             TEST_REGION,
             TEST_UPDATE_TAG,
             "rootfs",
             "aws",
         )
-        for instance_id in ("i-01", "i-02", "i-03", "i-04")
+        for instance_id, volume_id in (
+            ("i-01", "vol-0df"),
+            ("i-02", "vol-03"),
+            ("i-03", "vol-09"),
+            ("i-04", "vol-04"),
+        )
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2FilesystemSnapshot",
+        "id",
+        "AWSEBSVolume",
+        "id",
+        "SNAPSHOT_OF",
+        rel_direction_right=True,
+    ) == {
+        ("aws:ec2-rootfs:i-01", "vol-0df"),
+        ("aws:ec2-rootfs:i-02", "vol-03"),
+        ("aws:ec2-rootfs:i-03", "vol-09"),
+        ("aws:ec2-rootfs:i-04", "vol-04"),
     }
     assert check_rels(
         neo4j_session,
@@ -390,6 +411,14 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": other_account_id},
     )
     reservations = deepcopy(DESCRIBE_INSTANCES["Reservations"])
+    # Put a data disk first to ensure only the root device becomes the scan source.
+    reservations[2]["Instances"][0]["BlockDeviceMappings"].insert(
+        0,
+        {
+            "DeviceName": "/dev/sdf",
+            "Ebs": {"VolumeId": "vol-data", "DeleteOnTermination": False},
+        },
+    )
     get_instances.return_value = reservations
 
     # Act
@@ -407,11 +436,26 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         (f"aws:ec2-rootfs:{instance_id}",)
         for instance_id in ("i-01", "i-02", "i-03", "i-04", "i-other")
     }
+    assert check_rels(
+        neo4j_session,
+        "FilesystemSnapshot",
+        "id",
+        "BlockStorage",
+        "id",
+        "SNAPSHOT_OF",
+        rel_direction_right=True,
+    ) == {
+        ("aws:ec2-rootfs:i-01", "vol-0df"),
+        ("aws:ec2-rootfs:i-02", "vol-03"),
+        ("aws:ec2-rootfs:i-03", "vol-09"),
+        ("aws:ec2-rootfs:i-04", "vol-04"),
+        ("aws:ec2-rootfs:i-other", "vol-other"),
+    }
 
     # Arrange
     reservations[0]["Instances"][0]["State"]["Name"] = "stopped"
     reservations[1]["Instances"] = []
-    reservations[2]["Instances"][0]["BlockDeviceMappings"][0]["Ebs"][
+    reservations[2]["Instances"][0]["BlockDeviceMappings"][1]["Ebs"][
         "VolumeId"
     ] = "vol-replaced-root"
     next_update_tag = TEST_UPDATE_TAG + 1
@@ -428,12 +472,29 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
 
     # Assert
     assert check_nodes(
-        neo4j_session, "FilesystemSnapshot", ["id", "region", "lastupdated"]
+        neo4j_session,
+        "FilesystemSnapshot",
+        ["id", "volume_id", "region", "lastupdated"],
     ) == {
-        ("aws:ec2-rootfs:i-03", TEST_REGION, next_update_tag),
-        ("aws:ec2-rootfs:i-04", TEST_REGION, next_update_tag),
-        ("aws:ec2-rootfs:i-other", other_region, TEST_UPDATE_TAG),
+        ("aws:ec2-rootfs:i-03", "vol-replaced-root", TEST_REGION, next_update_tag),
+        ("aws:ec2-rootfs:i-04", "vol-04", TEST_REGION, next_update_tag),
+        ("aws:ec2-rootfs:i-other", "vol-other", other_region, TEST_UPDATE_TAG),
     }
+    assert check_rels(
+        neo4j_session,
+        "FilesystemSnapshot",
+        "id",
+        "BlockStorage",
+        "id",
+        "SNAPSHOT_OF",
+        rel_direction_right=True,
+    ) == {
+        ("aws:ec2-rootfs:i-03", "vol-replaced-root"),
+        ("aws:ec2-rootfs:i-04", "vol-04"),
+        ("aws:ec2-rootfs:i-other", "vol-other"),
+    }
+    # The old volume still exists, so the stale edge was removed by target cleanup.
+    assert ("vol-09",) in check_nodes(neo4j_session, "AWSEBSVolume", ["id"])
     assert check_rels(
         neo4j_session,
         "AWSEC2Instance",

@@ -146,6 +146,11 @@ exist as a `FilesystemSnapshot` with `_ont_kind="rootfs"`, connected by
 `(ComputeInstance)-[:SCANNED_AS]->(FilesystemSnapshot)`. EC2 discovery creates
 these targets before report ingestion.
 
+Each EC2 target stores the root EBS `volume_id` and links to that volume through
+`(FilesystemSnapshot)-[:SNAPSHOT_OF]->(AWSEBSVolume:BlockStorage)`. If the root
+volume is replaced, the next EC2 sync updates this property and relationship
+while keeping the target ID stable.
+
 Cartography uses this stable ID because the temporary EBS snapshot in
 `ArtifactName` can change on every scan. Missing, invalid, or unmatched IDs are
 skipped with a warning. VM reports follow the existing filesystem-report cleanup

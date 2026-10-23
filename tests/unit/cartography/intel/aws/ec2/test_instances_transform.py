@@ -94,13 +94,48 @@ def test_transform_ec2_filesystem_snapshot_eligibility(
 
     # Assert
     assert data.filesystem_snapshot_list == (
-        [{"id": "aws:ec2-rootfs:i-01", "instance_id": "i-01", "kind": "rootfs"}]
+        [
+            {
+                "id": "aws:ec2-rootfs:i-01",
+                "instance_id": "i-01",
+                "volume_id": "vol-0df",
+                "kind": "rootfs",
+            }
+        ]
         if eligible
         else []
     )
     assert data.instance_list[0]["InstanceId"] == "i-01"
     if reason:
         assert f"Skipping EC2 filesystem target for i-01: {reason}" in caplog.text
+
+
+@pytest.mark.parametrize("root_first", [True, False])
+def test_transform_ec2_filesystem_snapshot_selects_root_volume(root_first):
+    # Arrange
+    reservations = deepcopy(DESCRIBE_INSTANCES["Reservations"][:1])
+    mappings = reservations[0]["Instances"][0]["BlockDeviceMappings"]
+    mappings.append(
+        {
+            "DeviceName": "/dev/sdf",
+            "Ebs": {"VolumeId": "vol-data", "DeleteOnTermination": False},
+        }
+    )
+    if not root_first:
+        mappings.reverse()
+
+    # Act
+    data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
+
+    # Assert
+    assert data.filesystem_snapshot_list == [
+        {
+            "id": "aws:ec2-rootfs:i-01",
+            "instance_id": "i-01",
+            "volume_id": "vol-0df",
+            "kind": "rootfs",
+        }
+    ]
 
 
 def _make_reservation(instance_id, network_interfaces, block_device_mappings=None):
