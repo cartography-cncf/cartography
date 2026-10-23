@@ -346,6 +346,88 @@ CLOUDFRONT_DISTRIBUTIONS_MULTI_ORIGIN = [
     },
 ]
 
+# Distribution that reaches an internal load balancer through a VPC origin, next to a
+# public custom origin. Two origins share the one VPC origin.
+CLOUDFRONT_DISTRIBUTIONS_VPC_ORIGIN = [
+    {
+        "Id": "E5V4P3C2O1R0G9",
+        "ARN": f"arn:aws:cloudfront::{TEST_ACCOUNT_ID}:distribution/E5V4P3C2O1R0G9",
+        "ETag": "VPCORG567890",
+        "Status": "Deployed",
+        "LastModifiedTime": "2025-01-05T12:00:00.000Z",
+        "DomainName": "d8888888888888.cloudfront.net",
+        "Aliases": {"Quantity": 0},
+        "Origins": {
+            "Quantity": 3,
+            "Items": [
+                {
+                    "Id": "internal-app",
+                    "DomainName": "internal-app-1234567890.us-east-1.elb.amazonaws.com",
+                    "OriginPath": "",
+                    "CustomHeaders": {"Quantity": 0},
+                    "VpcOriginConfig": {
+                        "VpcOriginId": "vo_EXAMPLE0000000000001",
+                        "OriginReadTimeout": 30,
+                        "OriginKeepaliveTimeout": 5,
+                    },
+                    "ConnectionAttempts": 3,
+                    "ConnectionTimeout": 10,
+                },
+                {
+                    "Id": "internal-app-failover",
+                    "DomainName": "internal-app-1234567890.us-east-1.elb.amazonaws.com",
+                    "OriginPath": "/failover",
+                    "CustomHeaders": {"Quantity": 0},
+                    "VpcOriginConfig": {
+                        "VpcOriginId": "vo_EXAMPLE0000000000001",
+                        "OriginReadTimeout": 30,
+                        "OriginKeepaliveTimeout": 5,
+                    },
+                    "ConnectionAttempts": 3,
+                    "ConnectionTimeout": 10,
+                },
+                {
+                    "Id": "public-site",
+                    "DomainName": "www.example.com",
+                    "OriginPath": "",
+                    "CustomHeaders": {"Quantity": 0},
+                    "CustomOriginConfig": {
+                        "HTTPPort": 80,
+                        "HTTPSPort": 443,
+                        "OriginProtocolPolicy": "https-only",
+                        "OriginSslProtocols": {"Quantity": 1, "Items": ["TLSv1.2"]},
+                        "OriginReadTimeout": 30,
+                        "OriginKeepaliveTimeout": 5,
+                    },
+                    "ConnectionAttempts": 3,
+                    "ConnectionTimeout": 10,
+                },
+            ],
+        },
+        "OriginGroups": {"Quantity": 0},
+        "DefaultCacheBehavior": {
+            "TargetOriginId": "internal-app",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "LambdaFunctionAssociations": {"Quantity": 0},
+        },
+        "CacheBehaviors": {"Quantity": 0},
+        "Comment": "Distribution with a VPC origin",
+        "PriceClass": "PriceClass_100",
+        "Enabled": True,
+        "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": True,
+            "MinimumProtocolVersion": "TLSv1",
+        },
+        "Restrictions": {
+            "GeoRestriction": {"RestrictionType": "none", "Quantity": 0},
+        },
+        "WebACLId": "",
+        "HttpVersion": "http2",
+        "IsIPV6Enabled": True,
+        "Staging": False,
+    },
+]
+
 # Simulated list_distributions API response
 LIST_DISTRIBUTIONS_RESPONSE = {
     "DistributionList": {

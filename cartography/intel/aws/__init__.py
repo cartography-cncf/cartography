@@ -21,11 +21,13 @@ from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
 from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
 from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_ECS_NO_MODELED_INTERNET_PATH
 from cartography.analysis.aws.analysis import AWS_EKS_ASSET_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_FOREIGN_ACCOUNTS
 from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
 from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
+from cartography.analysis.aws.analysis import AWS_UNMODELED_INTERNET_PATHS
 from cartography.config import Config
 from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
 from cartography.intel.aws.util.arns import get_account_partition
@@ -188,6 +190,12 @@ def _sync_one_account(
                     f"Some relationships may not be created if the dependency data doesn't exist in Neo4j.",
                 )
 
+    _withdraw_unmodeled_internet_paths_check(
+        neo4j_session,
+        requested_syncs_set,
+        common_job_parameters,
+    )
+
     # Iterate over RESOURCE_FUNCTIONS to preserve defined sync order (dependencies)
     # Skip modules not in the user's requested list
     for func_name in RESOURCE_FUNCTIONS:
@@ -244,6 +252,12 @@ def _sync_one_account(
             neo4j_session,
             common_job_parameters,
         )
+
+    _check_unmodeled_internet_paths(
+        neo4j_session,
+        requested_syncs_set,
+        common_job_parameters,
+    )
 
     merge_module_sync_metadata(
         neo4j_session,
@@ -758,6 +772,21 @@ AWS_LB_NACL_DIRECT_DEPS = {
     "ec2:load_balancer_v2",
     "ec2:subnet",
 }
+# The account's check of internet entry points that the graph cannot follow also
+# vouches for the load balancers, IP targets and interfaces that the ECS and
+# Kubernetes checks read, so it runs only when all of these were synced. IP targets
+# resolve through the VPC of the target's subnet, which only the subnet sync records.
+# The check records when it ran, so consumers never mistake an unchecked account for
+# a clear one.
+AWS_UNMODELED_INTERNET_PATHS_DEPS = {
+    "apigateway",
+    "apigatewayv2",
+    "cloudfront",
+    "ec2:load_balancer_v2",
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
+    "ec2:subnet",
+}
 
 # Resource syncs that feed the `exposed_internet` flag: AWS_EC2_ASSET_EXPOSURE_JOBS (which sets it on
 # load balancers, instances, etc.) only runs when all of these were requested this cycle.
@@ -785,6 +814,37 @@ AWS_LB_CONTAINER_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
     "ec2:load_balancer_v2:expose",
     "ec2:network_interface",
 }
+
+
+def _withdraw_unmodeled_internet_paths_check(
+    neo4j_session: neo4j.Session,
+    requested_syncs: set[str],
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    # Runs before the account's syncs, so a run that syncs only some of the inputs,
+    # or fails part-way after loading one, leaves the account unchecked: an older
+    # check never vouches for data that changed since.
+    if not AWS_UNMODELED_INTERNET_PATHS_DEPS & requested_syncs:
+        return
+    run_typed_analysis_job(
+        AWS_UNMODELED_INTERNET_PATHS,
+        neo4j_session,
+        {**common_job_parameters, "CHECK_INPUTS_SYNCED": False},
+    )
+
+
+def _check_unmodeled_internet_paths(
+    neo4j_session: neo4j.Session,
+    requested_syncs: set[str],
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    if not AWS_UNMODELED_INTERNET_PATHS_DEPS.issubset(requested_syncs):
+        return
+    run_typed_analysis_job(
+        AWS_UNMODELED_INTERNET_PATHS,
+        neo4j_session,
+        {**common_job_parameters, "CHECK_INPUTS_SYNCED": True},
+    )
 
 
 @timeit
@@ -872,6 +932,16 @@ def _perform_aws_analysis(
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
+    )
+
+    # Runs on every AWS run, after every account's own check and after
+    # AWS_ECS_ASSET_EXPOSURE. It needs no sync dependencies, because it checks a task
+    # only when its account was checked in the run that synced the task, and running
+    # it every time retires the results that a partial run has made stale.
+    run_typed_analysis_job(
+        AWS_ECS_NO_MODELED_INTERNET_PATH,
+        neo4j_session,
+        common_job_parameters,
     )
 
 

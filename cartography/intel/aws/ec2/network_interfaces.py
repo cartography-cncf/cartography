@@ -94,6 +94,12 @@ def transform_network_interface_data(
                 "PrivateDnsName": network_interface.get("PrivateDnsName"),
                 "PrivateIpAddress": network_interface.get("PrivateIpAddress"),
                 "PublicIp": network_interface.get("Association", {}).get("PublicIp"),
+                "Ipv6Addresses": [
+                    address["Ipv6Address"]
+                    for address in network_interface.get("Ipv6Addresses", [])
+                    if address.get("Ipv6Address")
+                ]
+                or None,
                 "RequesterId": network_interface.get("RequesterId"),
                 "RequesterManaged": network_interface["RequesterManaged"],
                 "SourceDestCheck": network_interface["SourceDestCheck"],

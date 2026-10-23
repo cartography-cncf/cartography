@@ -327,7 +327,7 @@ def test_sync_gateway_api_end_to_end(
             "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
         }
 
-        sync_gateway_api(
+        synced = sync_gateway_api(
             neo4j_session=neo4j_session,
             client=k8s_client,
             update_tag=TEST_UPDATE_TAG,
@@ -337,6 +337,7 @@ def test_sync_gateway_api_end_to_end(
         mock_get_gateways.assert_called_once_with(k8s_client)
         mock_get_http_routes.assert_called_once_with(k8s_client)
 
+        assert synced is True
         assert check_rels(
             neo4j_session,
             "KubernetesGateway",
@@ -510,7 +511,7 @@ def test_sync_gateway_api_preserves_existing_data_on_permission_error(
         k8s_client = MagicMock()
         k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
 
-        sync_gateway_api(
+        synced = sync_gateway_api(
             neo4j_session=neo4j_session,
             client=k8s_client,
             update_tag=TEST_UPDATE_TAG + 1,
@@ -520,6 +521,7 @@ def test_sync_gateway_api_preserves_existing_data_on_permission_error(
             },
         )
 
+        assert synced is False
         assert check_nodes(neo4j_session, "KubernetesGateway", ["name"]) == {
             ("public-gateway",),
         }

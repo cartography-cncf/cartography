@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
+from kubernetes.client.exceptions import ApiException
+
 import cartography.intel.kubernetes.nodes as nodes_module
 import cartography.intel.kubernetes.pods as pods_module
 from cartography.intel.kubernetes.nodes import sync_nodes
@@ -133,4 +135,53 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     ) == {
         ("arm-node-test-container", "arm64"),
         ("node-test-container", "amd64"),
+    }
+
+
+def _list_returning(items):
+    return lambda **kwargs: SimpleNamespace(
+        items=items, metadata=SimpleNamespace(_continue=None)
+    )
+
+
+def _list_failing_after_first_page(first_page):
+    def list_node(_continue=None, **kwargs):
+        if _continue:
+            raise ApiException(status=410, reason="Gone")
+        return SimpleNamespace(
+            items=first_page, metadata=SimpleNamespace(_continue="next")
+        )
+
+    return list_node
+
+
+def test_sync_nodes_keeps_the_previous_nodes_when_the_list_fails(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n:KubernetesNode) DETACH DELETE n")
+    client = SimpleNamespace(
+        name=CLUSTER_NAME, core=SimpleNamespace(list_node=_list_returning(RAW_NODES))
+    )
+    sync_nodes(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID},
+    )
+    # The continue token expires after the first page, which lists only one node.
+    # Loading that page and cleaning up would delete the other.
+    client.core.list_node = _list_failing_after_first_page(RAW_NODES[:1])
+
+    # Act
+    node_arch_map = sync_nodes(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "CLUSTER_ID": CLUSTER_ID},
+    )
+
+    # Assert
+    assert node_arch_map is None
+    assert check_nodes(neo4j_session, "KubernetesNode", ["name", "lastupdated"]) == {
+        ("my-node", TEST_UPDATE_TAG),
+        ("my-arm-node", TEST_UPDATE_TAG),
     }

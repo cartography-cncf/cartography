@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1LoadBalancerIngress
 from kubernetes.client.models import V1PortStatus
 from kubernetes.client.models import V1Service
@@ -11,6 +12,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_qualified_resource_name
+from cartography.intel.kubernetes.util import is_skippable_list_error
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.services import KubernetesServiceSchema
@@ -21,7 +23,9 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_services(client: K8sClient) -> list[V1Service]:
-    items = k8s_paginate(client.core.list_service_for_all_namespaces)
+    items = k8s_paginate(
+        client.core.list_service_for_all_namespaces, raise_on_error=True
+    )
     return items
 
 
@@ -168,8 +172,21 @@ def sync_services(
     all_pods: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
-    services = get_services(client)
+) -> bool:
+    """Return False when the list failed and the previous Services were kept."""
+    try:
+        services = get_services(client)
+    except ApiException as e:
+        if not is_skippable_list_error(e):
+            raise
+        # A partial list would let cleanup delete the Services it did not return.
+        logger.warning(
+            "Kubernetes API error listing services on cluster %s (status %s). "
+            "Skipping the service sync and keeping previously synced services.",
+            client.name,
+            e.status,
+        )
+        return False
     transformed_services = transform_services(services, all_pods)
     load_services(
         session=session,
@@ -179,3 +196,4 @@ def sync_services(
         cluster_name=client.name,
     )
     cleanup(session, common_job_parameters)
+    return True
