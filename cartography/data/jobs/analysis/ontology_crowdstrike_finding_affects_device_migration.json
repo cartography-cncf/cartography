@@ -1,0 +1,11 @@
+{
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility cleanup. #3447 stopped creating (:CrowdstrikeFinding)-[:AFFECTS]->(:Device), one edge per device and CVE that reached hundreds of millions on large Spotlight tenants. Delete the edges left by earlier syncs in batches so old graphs never build one huge transaction. Idempotent. Remove in v1.0.0.",
+      "query": "MATCH (:CrowdstrikeFinding)-[r:AFFECTS]->(:Device) WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 10000
+    }
+  ],
+  "name": "Ontology - delete legacy CrowdstrikeFinding AFFECTS Device edges"
+}

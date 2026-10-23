@@ -555,6 +555,12 @@ CLEANUP_CASES = [
         id="semgrep_sast_risk_analysis",
     ),
     pytest.param(
+        PropertyEffect("SemgrepAISASTFinding", ("risk_severity",)),
+        SEMGREP,
+        _prop_cleanup("SemgrepAISASTFinding", "risk_severity", scope=SEMGREP),
+        id="semgrep_ai_sast_risk_analysis",
+    ),
+    pytest.param(
         PropertyEffect("SemgrepSCAFinding", ("reachability_risk",)),
         SEMGREP,
         _prop_cleanup("SemgrepSCAFinding", "reachability_risk", scope=SEMGREP),

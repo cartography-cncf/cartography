@@ -153,6 +153,7 @@ def transform(
 ) -> list[dict[str, Any]]:
     transformed: dict[str, dict[str, Any]] = {}
     duplicate_count = 0
+    non_cve_ids: list[Any] = []
     for vulnerability in raw_vulnerabilities:
         inventory = require_object(
             vulnerability.get("Inventory"),
@@ -177,7 +178,8 @@ def transform(
 
         cve_ids = canonical_cve_ids(vulnerability.get("CveId"))
         if not cve_ids:
-            raise ValueError("Orca vulnerability row omitted a canonical CveId")
+            non_cve_ids.append(vulnerability.get("CveId"))
+            continue
         source_link = optional_nonempty_string(
             vulnerability.get("SourceLink"),
             "Orca vulnerability.SourceLink",
@@ -250,6 +252,12 @@ def transform(
                     duplicate_count += 1
                     continue
                 transformed[finding_id] = finding
+    if non_cve_ids:
+        logger.warning(
+            "Skipped %d Orca vulnerability rows without a canonical CVE id: %s",
+            len(non_cve_ids),
+            non_cve_ids[:5],
+        )
     if duplicate_count:
         logger.warning(
             "Skipped %d duplicate Orca vulnerability findings within a page.",
