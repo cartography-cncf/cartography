@@ -97,6 +97,34 @@ Filesystem reports must use `ArtifactType` `filesystem` or `repository` and
 include `Metadata.RepoURL` plus a 40-character `Metadata.Commit`. Reports without
 an exact graph match are skipped.
 
+### VM Reports
+
+VM reports use `ArtifactType: "vm"`. Before ingestion, the scan producer must
+add `Metadata.FilesystemSnapshotId` containing the stable graph target ID:
+
+```json
+{
+  "ArtifactType": "vm",
+  "ArtifactName": "ebs:snap-temporary",
+  "Metadata": {
+    "FilesystemSnapshotId": "aws:ec2-rootfs:i-0123456789abcdef0"
+  }
+}
+```
+
+This example shows the identity fields; retain the report's other metadata and
+results. Trivy does not add `FilesystemSnapshotId` itself. The target must already
+exist as a `FilesystemSnapshot` with `_ont_kind="rootfs"`, connected by
+`(ComputeInstance)-[:SCANNED_AS]->(FilesystemSnapshot)`. EC2 discovery creates
+these targets before report ingestion.
+
+Cartography uses this stable ID because the temporary EBS snapshot in
+`ArtifactName` can change on every scan. Missing, invalid, or unmatched IDs are
+skipped with a warning. When rootfs targets exist, filesystem cleanup only removes
+stale finding and package relationships for targets ingested in the current batch;
+targets without reports retain their prior results. A successful report with zero
+vulnerabilities clears that target's old findings.
+
 ## Advanced Configuration
 
 Deprecated local and S3 report-source flags remain accepted until Cartography

@@ -18,6 +18,7 @@ from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.auto_scaling_groups import (
     EC2InstanceAutoScalingGroupSchema,
 )
+from cartography.models.aws.ec2.filesystem_snapshot import EC2FilesystemSnapshotSchema
 from cartography.models.aws.ec2.instances import EC2InstanceSchema
 from cartography.models.aws.ec2.instances import EC2InstanceToRoleAssumesMatchLink
 from cartography.models.aws.ec2.ipv6_addresses import EC2Ipv6AddressSchema
@@ -47,6 +48,7 @@ Ec2Data = namedtuple(
         "network_interface_list",
         "instance_ebs_volumes_list",
         "ipv6_address_list",
+        "filesystem_snapshot_list",
     ],
 )
 
@@ -93,6 +95,30 @@ def _transform_metadata_options(metadata_options: Dict[str, Any]) -> Dict[str, A
     }
 
 
+def _get_filesystem_snapshot_skip_reason(
+    instance: Dict[str, Any],
+    eks_cluster_name: Optional[str],
+) -> Optional[str]:
+    if instance.get("State", {}).get("Name") != "running":
+        return "instance is not running"
+    if instance.get("Platform"):
+        return "non-Linux platform"
+    if instance.get("Architecture") in {"x86_64_mac", "arm64_mac"}:
+        return "macOS is not supported"
+    if eks_cluster_name:
+        return "Kubernetes nodes are excluded"
+    if instance.get("RootDeviceType") != "ebs":
+        return "root device is not EBS"
+    root_device = instance.get("RootDeviceName")
+    if not root_device or not any(
+        mapping.get("DeviceName") == root_device
+        and mapping.get("Ebs", {}).get("VolumeId")
+        for mapping in instance.get("BlockDeviceMappings", [])
+    ):
+        return "root EBS volume is missing"
+    return None
+
+
 @timeit
 @aws_handle_regions
 def get_ec2_instances(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
@@ -122,6 +148,7 @@ def transform_ec2_instances(
     network_interface_list = []
     instance_ebs_volumes_list = []
     ipv6_address_list = []
+    filesystem_snapshot_list = []
     partition = get_partition(region)
 
     for reservation in reservations:
@@ -199,6 +226,24 @@ def transform_ec2_instances(
                     "IPv6Address": primary_ipv6,
                 },
             )
+
+            skip_reason = _get_filesystem_snapshot_skip_reason(
+                instance, eks_cluster_name
+            )
+            if skip_reason:
+                logger.debug(
+                    "Skipping EC2 filesystem target for %s: %s",
+                    instance_id,
+                    skip_reason,
+                )
+            else:
+                filesystem_snapshot_list.append(
+                    {
+                        "id": f"aws:ec2-rootfs:{instance_id}",
+                        "instance_id": instance_id,
+                        "kind": "rootfs",
+                    },
+                )
 
             subnet_id = instance.get("SubnetId")
             if subnet_id:
@@ -294,6 +339,7 @@ def transform_ec2_instances(
         network_interface_list=network_interface_list,
         instance_ebs_volumes_list=instance_ebs_volumes_list,
         ipv6_address_list=ipv6_address_list,
+        filesystem_snapshot_list=filesystem_snapshot_list,
     )
 
 
@@ -407,6 +453,24 @@ def load_ec2_instance_nodes(
 
 
 @timeit
+def load_ec2_filesystem_snapshots(
+    neo4j_session: neo4j.Session,
+    filesystem_snapshot_list: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        EC2FilesystemSnapshotSchema(),
+        filesystem_snapshot_list,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
 def load_ec2_instance_ebs_volumes(
     neo4j_session: neo4j.Session,
     ebs_data: List[Dict[str, Any]],
@@ -455,6 +519,7 @@ def load_ec2_instance_data(
     nic_list: List[Dict[str, Any]],
     ebs_volumes_list: List[Dict[str, Any]],
     ipv6_address_list: List[Dict[str, Any]],
+    filesystem_snapshot_list: List[Dict[str, Any]],
 ) -> None:
     load_ec2_reservations(
         neo4j_session,
@@ -466,6 +531,13 @@ def load_ec2_instance_data(
     load_ec2_instance_nodes(
         neo4j_session,
         instance_list,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+    load_ec2_filesystem_snapshots(
+        neo4j_session,
+        filesystem_snapshot_list,
         region,
         current_aws_account_id,
         update_tag,
@@ -564,6 +636,9 @@ def cleanup(
     GraphJob.from_node_schema(EC2InstanceSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    GraphJob.from_node_schema(EC2FilesystemSnapshotSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
     GraphJob.from_node_schema(
         EC2InstanceAutoScalingGroupSchema(),
         common_job_parameters,
@@ -603,6 +678,7 @@ def sync_ec2_instances(
             ec2_data.network_interface_list,
             ec2_data.instance_ebs_volumes_list,
             ec2_data.ipv6_address_list,
+            ec2_data.filesystem_snapshot_list,
         )
     # Clean up stale instances / INSTANCE_PROFILE edges first so the ASSUMES
     # edges are derived from the current profile chain only (a re-profiled

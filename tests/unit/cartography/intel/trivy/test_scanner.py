@@ -15,6 +15,44 @@ from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.intel.trivy.scanner import transform_scan_results
 
 
+@pytest.mark.parametrize(
+    "metadata, matches",
+    [
+        ({"FilesystemSnapshotId": "aws:ec2-rootfs:i-01"}, True),
+        ({}, False),
+        (None, False),
+        ("invalid-metadata", False),
+        ({"FilesystemSnapshotId": ""}, False),
+        ({"FilesystemSnapshotId": ["aws:ec2-rootfs:i-01"]}, False),
+        ({"FilesystemSnapshotId": "aws:ec2-rootfs:i-unknown"}, False),
+    ],
+)
+def test_prepare_trivy_vm_requires_existing_rootfs_target(metadata, matches, caplog):
+    # Arrange: even an image alias collision must not route a VM to an image.
+    trivy_data = {
+        "ArtifactType": "vm",
+        "ArtifactName": "ebs:snap-temporary",
+        "Metadata": metadata,
+    }
+
+    # Act
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris={"ebs:snap-temporary"},
+        digest_aliases={},
+        filesystem_targets={},
+        rootfs_targets={"aws:ec2-rootfs:i-01"},
+        source="vm.json",
+    )
+
+    # Assert
+    if matches:
+        assert prepared == (trivy_data, None, ["aws:ec2-rootfs:i-01"])
+    else:
+        assert prepared is None
+        assert "Skipping Trivy VM report vm.json" in caplog.text
+
+
 def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
     # Arrange
     revision = "0123456789abcdef0123456789abcdef01234567"
@@ -32,6 +70,7 @@ def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
         image_uris=set(),
         digest_aliases={},
         filesystem_targets={("acme/api", revision, None): ["snapshot-1"]},
+        rootfs_targets=set(),
         source="repository.json",
     )
 
@@ -58,6 +97,7 @@ def test_prepare_trivy_data_matches_filesystem_root_directory():
             ("acme/api", revision, "services/api"): ["snapshot-api"],
             ("acme/api", revision, "services/web"): ["snapshot-web"],
         },
+        rootfs_targets=set(),
         source="repository.json",
     )
 
@@ -726,18 +766,22 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy._get_filesystem_scan_targets")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+@pytest.mark.parametrize("has_rootfs_targets", [False, True])
 def test_image_only_reports_preserve_existing_filesystem_scan_data(
     mock_get_targets_and_aliases,
     mock_get_filesystem_targets,
     mock_cleanup,
     mock_sync_image,
+    has_rootfs_targets,
 ):
     # Arrange
     image_uri = "registry.example/app:latest"
     mock_get_targets_and_aliases.return_value = ({image_uri}, {})
-    mock_get_filesystem_targets.return_value = {
-        ("owner/repo", "a" * 40, None): ["snapshot-1"]
-    }
+    mock_get_filesystem_targets.return_value = (
+        {("owner/repo", "a" * 40, None): ["snapshot-1"]}
+        if not has_rootfs_targets
+        else {}
+    )
     reader = MagicMock()
     reader.source_uri = "memory://trivy"
     reader.list_reports.return_value = [
@@ -753,9 +797,15 @@ def test_image_only_reports_preserve_existing_filesystem_scan_data(
     neo4j_session = MagicMock()
 
     # Act
-    with patch(
-        "cartography.intel.trivy.cleanup_image_relationships"
-    ) as mock_image_cleanup:
+    with (
+        patch(
+            "cartography.intel.trivy.cleanup_image_relationships"
+        ) as mock_image_cleanup,
+        patch(
+            "cartography.intel.trivy._get_rootfs_scan_targets",
+            return_value={"aws:ec2-rootfs:i-01"} if has_rootfs_targets else set(),
+        ),
+    ):
         sync_trivy_from_report_reader(
             neo4j_session=neo4j_session,
             reader=reader,
