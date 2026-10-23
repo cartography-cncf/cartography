@@ -2,10 +2,14 @@ import json
 
 from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.trivy import sync_trivy_from_report_reader
+from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image
 from tests.data.trivy.trivy_sample import PER_TARGET_DIGEST_A
 from tests.data.trivy.trivy_sample import PER_TARGET_DIGEST_B
 from tests.data.trivy.trivy_sample import TRIVY_MULTI_PACKAGE_REPORT
+from tests.data.trivy.trivy_sample import TRIVY_PER_TARGET_OS_REPORT_DEBIAN
+from tests.data.trivy.trivy_sample import TRIVY_PER_TARGET_OS_REPORT_FILESYSTEM
+from tests.data.trivy.trivy_sample import TRIVY_PER_TARGET_OS_REPORT_UBUNTU
 from tests.data.trivy.trivy_sample import TRIVY_PER_TARGET_REPORT_A
 from tests.data.trivy.trivy_sample import TRIVY_PER_TARGET_REPORT_A_UNSOURCED
 from tests.data.trivy.trivy_sample import TRIVY_PER_TARGET_REPORT_B
@@ -35,6 +39,16 @@ def _affects_ratings(neo4j_session, target_label: str) -> set[tuple]:
         f"""
         MATCH (f:TrivyImageFinding)-[r:AFFECTS]->(t:{target_label})
         RETURN f.id, t.id, r.severity, r.severity_source, r.status, r.data_source_id
+        """,
+    )
+    return {tuple(record.values()) for record in result}
+
+
+def _deployed_os(neo4j_session) -> set[tuple]:
+    result = neo4j_session.run(
+        """
+        MATCH (p:TrivyPackage)-[r:DEPLOYED]->(t)
+        RETURN p.id, t.id, r.os_family, r.os_name, r.os_release
         """,
     )
     return {tuple(record.values()) for record in result}
@@ -163,4 +177,42 @@ def test_filesystem_snapshot_affects_carries_the_target_rating(
     assert _affects_ratings(neo4j_session, "FilesystemSnapshot") == {
         (FINDING_ID, SNAPSHOT_IDS[0], "HIGH", "ghsa", "fixed", "ghsa"),
         (FINDING_ID, SNAPSHOT_IDS[1], "HIGH", "ghsa", "fixed", "ghsa"),
+    }
+
+
+def test_deployed_carries_each_target_os_on_its_os_packages(neo4j_session):
+    # Arrange
+    _reset_graph_with_images(neo4j_session)
+    neo4j_session.run(
+        "MERGE (:FilesystemSnapshot {id: $id})",
+        id=SNAPSHOT_IDS[0],
+    )
+
+    # Act
+    sync_single_image(
+        neo4j_session,
+        TRIVY_PER_TARGET_OS_REPORT_DEBIAN,
+        "debian.json",
+        TEST_UPDATE_TAG,
+    )
+    sync_single_image(
+        neo4j_session,
+        TRIVY_PER_TARGET_OS_REPORT_UBUNTU,
+        "ubuntu.json",
+        TEST_UPDATE_TAG,
+    )
+    sync_single_filesystem_snapshot(
+        neo4j_session,
+        TRIVY_PER_TARGET_OS_REPORT_FILESYSTEM,
+        [SNAPSHOT_IDS[0]],
+        "rootfs.json",
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    assert _deployed_os(neo4j_session) == {
+        ("1.35+dfsg-3|tar", PER_TARGET_DIGEST_A, "debian", "trixie/sid", "13"),
+        ("2.31.0|requests", PER_TARGET_DIGEST_A, None, None, None),
+        ("1.35+dfsg-3|tar", PER_TARGET_DIGEST_B, "ubuntu", "24.04", None),
+        ("1.35+dfsg-3|tar", SNAPSHOT_IDS[0], "debian", "12.13", "12"),
     }

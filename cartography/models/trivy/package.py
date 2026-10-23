@@ -53,11 +53,42 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class TrivyPackageToImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    os_family: PropertyRef = PropertyRef(
+        "OSFamily",
+        description=(
+            "Operating system family Trivy detected in this scan target "
+            "(`Metadata.OS.Family`), such as `debian`, `ubuntu` or `alpine`. Set "
+            "only when the package is one of the target's OS packages (Trivy class "
+            "`os-pkgs`), so it selects them in this target. Unset on language "
+            "packages and when Trivy detected no operating system."
+        ),
+    )
+    os_name: PropertyRef = PropertyRef(
+        "OSName",
+        description=(
+            "Operating system version Trivy detected in this scan target "
+            "(`Metadata.OS.Name`), as reported: for example `12.7` or `trixie/sid` "
+            "for Debian, `24.04` for Ubuntu. Set only when `os_family` is set."
+        ),
+    )
+    os_release: PropertyRef = PropertyRef(
+        "OSRelease",
+        description=(
+            "Major release of a Debian scan target, normalized from `os_name` "
+            "(`12` for `12.7`, `13` for `trixie/sid`) to match "
+            "`DebianSecurityTrackerEntry.release_version`. Unset when `os_family` "
+            "is unset, for other families, and for a Debian name that is not "
+            "recognized."
+        ),
+    )
 
 
 @dataclass(frozen=True)
 class TrivyPackageToOntologyImageRel(CartographyRelSchema):
-    """Links a Trivy package to the container image where it is installed."""
+    """
+    Links a Trivy package to the container image where it is installed. For an OS
+    package, it carries the operating system Trivy detected in that image.
+    """
 
     target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -70,7 +101,10 @@ class TrivyPackageToOntologyImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TrivyPackageToFilesystemSnapshotRel(CartographyRelSchema):
-    """Links a Trivy package to the filesystem snapshots where it is installed."""
+    """
+    Links a Trivy package to the filesystem snapshots where it is installed. For
+    an OS package, it carries the operating system Trivy detected in the snapshot.
+    """
 
     target_node_label: str = "FilesystemSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

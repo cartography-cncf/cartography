@@ -22,10 +22,11 @@ def test_build_default_sync():
     assert [name for name in sync._stages.keys()] == list(TOP_LEVEL_MODULES.keys())
 
 
-def test_default_sync_runs_cve_metadata_after_cve_producers():
+@pytest.mark.parametrize("consumer", ["cve_metadata", "debian"])
+def test_default_sync_runs_cve_consumers_after_cve_producers(consumer):
     # Arrange
     stage_names = list(TOP_LEVEL_MODULES.keys())
-    cve_metadata_index = stage_names.index("cve_metadata")
+    consumer_index = stage_names.index(consumer)
 
     # Act and assert
     for producer in (
@@ -38,7 +39,7 @@ def test_default_sync_runs_cve_metadata_after_cve_producers():
         "ubuntu",
         "sentinelone",
     ):
-        assert stage_names.index(producer) < cve_metadata_index
+        assert stage_names.index(producer) < consumer_index
 
 
 def test_build_sync():

@@ -19,6 +19,7 @@ modules/crowdstrike/index
 modules/cve/index
 modules/cve_metadata/index
 modules/databricks/index
+modules/debian/index
 modules/digitalocean/index
 modules/docker_scout/index
 modules/duo/index
