@@ -45,7 +45,7 @@ in addition to Trivy's snapshot reads.
 | Cartography node label | Cloud permissions required to scan with Trivy |
 |---|---|
 | [AWSECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#awsecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
-| `AWSEC2FilesystemSnapshot` | `ec2:DescribeInstances`, `ec2:DescribeSnapshots`, `ec2:CreateSnapshot`, `ec2:CreateTags`, `ec2:DeleteSnapshot`, `ebs:ListSnapshotBlocks`, `ebs:GetSnapshotBlock`; for encrypted volumes: `kms:Decrypt`, `kms:DescribeKey`, `kms:CreateGrant` on the encryption key |
+| `AWSEC2FilesystemSnapshot` | `ec2:DescribeInstances`, `ec2:DescribeSnapshots`, `ec2:CreateSnapshot`, `ec2:CreateTags`, `ec2:DeleteSnapshot`, `ebs:ListSnapshotBlocks`, `ebs:GetSnapshotBlock`; for encrypted volumes: `kms:Decrypt`, `kms:DescribeKey`, `kms:CreateGrant`, `kms:GenerateDataKeyWithoutPlaintext`, `kms:ReEncrypt` on the encryption key |
 
 For customer-managed KMS keys, the key policy must also allow the scanning
 principal to use the key. See the [AWS EBS direct API permissions
