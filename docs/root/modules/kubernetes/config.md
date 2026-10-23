@@ -250,11 +250,20 @@ cartography --neo4j-uri bolt://localhost:7687 \
 - Tokens stay in memory and refresh during ingestion. No kubeconfig is written.
 - `--gke-endpoint` picks the Kubernetes API endpoint, with no fallback:
   - `dns` (default): the DNS-based endpoint, verified against public CAs. Requires
-    `controlPlaneEndpointsConfig.dnsEndpointConfig.allowExternalTraffic`.
+    `controlPlaneEndpointsConfig.dnsEndpointConfig.allowExternalTraffic`. It works
+    for private clusters, including clusters whose IP endpoints are private or
+    disabled, because access is authorized by IAM rather than by network location.
+    VPC Service Controls can still restrict it.
   - `private`: the private IP endpoint, verified against the cluster CA. The collector
-    needs a network route to it.
+    must have a network path to that endpoint: run it inside the cluster's VPC (or a
+    peered or VPN-connected network), for example on a VM, a CI runner in the VPC, or
+    an in-cluster collector. Authorized networks, if enabled, must include the
+    collector's address.
   - `public`: the public IP endpoint, verified against the cluster CA. Must be enabled;
     an allocated public IP alone is not enough.
+- Clusters with the DNS endpoint disabled and no reachable IP endpoint are not
+  supported today. [Connect Gateway](https://cloud.google.com/kubernetes-engine/enterprise/multicluster-management/gateway)
+  (for fleet-registered clusters) could serve them in the future.
 - A cluster whose GKE metadata cannot be read (missing, or IAM denied) is logged and
   skipped.
 
