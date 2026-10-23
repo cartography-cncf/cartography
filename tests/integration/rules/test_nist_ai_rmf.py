@@ -1,6 +1,7 @@
 import cartography.intel.github.app_installations
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_inventory
+from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitive_scopes
 
 TEST_UPDATE_TAG = 123456789
 ORG_URLS = (
@@ -44,3 +45,57 @@ def test_ai_app_inventory_keys_each_installation_of_one_github_app(neo4j_session
     }
     identities = [tuple(row[field] for field in fact.identity_fields) for row in rows]
     assert len(set(identities)) == len(identities)
+
+
+def test_ai_app_sensitive_scopes_flags_microsoft_365_consents(neo4j_session):
+    # Arrange: scopes as Entra consent grants record them, from one user and from an
+    # administrator on behalf of every user.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (tenant:AzureTenant {id: 'tenant-1'})
+        CREATE (tenant)-[:RESOURCE]->(u1:EntraUser:UserAccount {id: 'user-1'})
+        CREATE (tenant)-[:RESOURCE]->(:EntraUser:UserAccount {id: 'user-2'})
+        CREATE (user_consented:EntraServicePrincipal:ThirdPartyApp {
+            id: 'sp-user-consented', display_name: 'Example LLM Assistant',
+            _ont_source: 'microsoft', _ont_client_id: 'app-1'
+        })
+        CREATE (u1)-[:AUTHORIZED {scopes: [
+            'https://graph.microsoft.com/User.Read',
+            'https://graph.microsoft.com/Mail.Read'
+        ]}]->(user_consented)
+        CREATE (admin_consented:EntraServicePrincipal:ThirdPartyApp {
+            id: 'sp-admin-consented', display_name: 'Example GPT Connector',
+            _ont_source: 'microsoft', _ont_client_id: 'app-2'
+        })
+        CREATE (tenant)-[:ADMIN_CONSENTED {scopes: [
+            'https://graph.microsoft.com/User.Read',
+            '00000003-0000-0ff1-ce00-000000000000/AllSites.Read'
+        ]}]->(admin_consented)
+        """
+    )
+    user_fact, admin_fact = ai_third_party_app_sensitive_scopes.facts
+
+    # Act
+    user_rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx, user_fact.cypher_query
+    )
+    admin_rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx, admin_fact.cypher_query
+    )
+
+    # Assert
+    assert [
+        (row["asset_node_id"], row["authorized_identity_count"], row["risky_scopes"])
+        for row in user_rows
+    ] == [("sp-user-consented", 1, ["https://graph.microsoft.com/Mail.Read"])]
+    assert [
+        (row["asset_node_id"], row["authorized_identity_count"], row["risky_scopes"])
+        for row in admin_rows
+    ] == [
+        (
+            "sp-admin-consented",
+            2,
+            ["00000003-0000-0ff1-ce00-000000000000/AllSites.Read"],
+        )
+    ]

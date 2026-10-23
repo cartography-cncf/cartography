@@ -12,6 +12,7 @@ ENTRA_RESOURCES: list[str] = [
     "applications",
     "service_principals",
     "app_role_assignments",
+    "oauth2_permission_grants",
     "directory_roles",
     "federation",
 ]

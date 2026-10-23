@@ -46,3 +46,12 @@ WHERE m.onboarding_status <> "Onboarded"
 RETURN m.computer_dns_name, m.onboarding_status, m.last_seen
 ORDER BY m.last_seen DESC
 ```
+
+### Vendor apps users consented to with access to their mail
+
+```cypher
+MATCH (u:EntraUser)-[auth:AUTHORIZED]->(sp:EntraServicePrincipal:ThirdPartyApp)
+WHERE ANY(scope IN auth.scopes WHERE scope STARTS WITH 'https://graph.microsoft.com/Mail.')
+RETURN sp.display_name AS app, count(u) AS users, collect(DISTINCT u.user_principal_name)[..10] AS sample
+ORDER BY users DESC
+```

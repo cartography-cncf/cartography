@@ -53,6 +53,9 @@ _TO_ONE_INCOMING: frozenset[tuple[str, str]] = frozenset(
         ("CONTAINS", "AnthropicApiKey"),
         # A Tailscale device has one owning user.
         ("OWNS", "TailscaleDevice"),
+        # A service principal lives in one Entra tenant, and the grants sync writes one
+        # ADMIN_CONSENTED edge per (tenant, app), from that tenant only.
+        ("ADMIN_CONSENTED", "ThirdPartyApp"),
     }
 )
 
