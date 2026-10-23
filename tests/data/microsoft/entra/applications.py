@@ -105,6 +105,17 @@ MOCK_APP_ROLE_ASSIGNMENTS = [
         resource_display_name="HR Portal",
         created_date_time=datetime(2025, 5, 4, 14, 30, 0, tzinfo=timezone.utc),
     ),
+    # A user assigned to a vendor app: resourceId is the vendor's service principal.
+    AppRoleAssignment(
+        id="assignment-5",
+        app_role_id=UUID("00000000-0000-0000-0000-000000000000"),
+        principal_id=UUID("ae4ac864-4433-4ba6-96a6-20f8cffdadcb"),
+        principal_display_name="Test User 1",
+        principal_type="User",
+        resource_id="sp-33333333-3333-3333-3333-333333333333",
+        resource_display_name="Example LLM Assistant",
+        created_date_time=datetime(2025, 5, 5, 9, 0, 0, tzinfo=timezone.utc),
+    ),
 ]
 
 # New dict-based mock data for the refactored API functions
