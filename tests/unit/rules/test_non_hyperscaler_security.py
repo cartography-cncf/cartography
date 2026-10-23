@@ -43,6 +43,7 @@ def test_identity_mfa_gaps_cover_expected_providers():
         Module.DUO,
         Module.JUMPCLOUD,
         Module.LASTPASS,
+        Module.OKTA,
     }
 
 
