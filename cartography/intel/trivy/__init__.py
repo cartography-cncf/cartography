@@ -364,7 +364,6 @@ def sync_trivy_from_report_reader(
     processed_reports = 0
     processed_filesystem_reports = 0
     processed_image_reports = 0
-    processed_filesystem_ids: set[str] = set()
     for ref in json_files:
         logger.debug(
             "Reading scan results from report source: %s",
@@ -406,7 +405,6 @@ def sync_trivy_from_report_reader(
                 update_tag,
             )
             processed_filesystem_reports += 1
-            processed_filesystem_ids.update(filesystem_snapshot_ids)
         processed_reports += 1
 
     if failed_report_count:
@@ -420,20 +418,6 @@ def sync_trivy_from_report_reader(
         logger.warning(
             "Skipping Trivy cleanup because no reports were ingested.",
         )
-        return
-
-    if rootfs_targets:
-        # VM scans may arrive independently of image or repository reports.
-        # Global node cleanup would erase findings for targets absent from this
-        # batch, so only refresh filesystem edges for successfully read targets.
-        if processed_filesystem_ids:
-            cleanup_filesystem_snapshot_relationships(
-                neo4j_session,
-                update_tag,
-                snapshot_ids=sorted(processed_filesystem_ids),
-            )
-        if processed_image_reports:
-            cleanup_image_relationships(neo4j_session, update_tag)
         return
 
     if image_uris and processed_image_reports == 0:

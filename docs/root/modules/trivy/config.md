@@ -148,10 +148,12 @@ these targets before report ingestion.
 
 Cartography uses this stable ID because the temporary EBS snapshot in
 `ArtifactName` can change on every scan. Missing, invalid, or unmatched IDs are
-skipped with a warning. When rootfs targets exist, filesystem cleanup only removes
-stale finding and package relationships for targets ingested in the current batch;
-targets without reports retain their prior results. A successful report with zero
-vulnerabilities clears that target's old findings.
+skipped with a warning. VM reports follow the existing filesystem-report cleanup
+rules. A successful report with zero vulnerabilities clears that target's old
+findings. Cleanup is not limited to target IDs in the batch: stale data for
+filesystem targets without reports can also be removed. Supply the complete set
+of reports whose results should be retained. Read or parse failures, or a batch
+with no matching reports, skip cleanup.
 
 #### Scan an EC2 root filesystem
 

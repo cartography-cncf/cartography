@@ -719,12 +719,15 @@ def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy._get_filesystem_scan_targets")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+@pytest.mark.parametrize("artifact_type", ["repository", "vm"])
 def test_filesystem_only_reports_preserve_existing_image_scan_data(
     mock_get_targets_and_aliases,
     mock_get_filesystem_targets,
     mock_cleanup,
     mock_sync_filesystem,
+    artifact_type,
 ):
+    # Arrange
     revision = "a" * 40
     mock_get_targets_and_aliases.return_value = ({"registry.example/app:latest"}, {})
     mock_get_filesystem_targets.return_value = {
@@ -737,19 +740,28 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
     ]
     reader.read_bytes.return_value = json.dumps(
         {
-            "ArtifactType": "repository",
+            "ArtifactType": artifact_type,
             "Metadata": {
                 "RepoURL": "https://github.com/owner/repo",
                 "Commit": revision,
+                "FilesystemSnapshotId": "aws:ec2-rootfs:i-01",
             },
             "Results": [],
         }
     ).encode()
 
     neo4j_session = MagicMock()
-    with patch(
-        "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
-    ) as mock_filesystem_cleanup:
+
+    # Act
+    with (
+        patch(
+            "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
+        ) as mock_filesystem_cleanup,
+        patch(
+            "cartography.intel.trivy._get_rootfs_scan_targets",
+            return_value={"aws:ec2-rootfs:i-01"},
+        ),
+    ):
         sync_trivy_from_report_reader(
             neo4j_session=neo4j_session,
             reader=reader,
@@ -757,6 +769,7 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
             common_job_parameters={"UPDATE_TAG": 123},
         )
 
+    # Assert
     mock_sync_filesystem.assert_called_once()
     mock_cleanup.assert_not_called()
     mock_filesystem_cleanup.assert_called_once_with(neo4j_session, 123)
@@ -777,11 +790,9 @@ def test_image_only_reports_preserve_existing_filesystem_scan_data(
     # Arrange
     image_uri = "registry.example/app:latest"
     mock_get_targets_and_aliases.return_value = ({image_uri}, {})
-    mock_get_filesystem_targets.return_value = (
-        {("owner/repo", "a" * 40, None): ["snapshot-1"]}
-        if not has_rootfs_targets
-        else {}
-    )
+    mock_get_filesystem_targets.return_value = {
+        ("owner/repo", "a" * 40, None): ["snapshot-1"]
+    }
     reader = MagicMock()
     reader.source_uri = "memory://trivy"
     reader.list_reports.return_value = [

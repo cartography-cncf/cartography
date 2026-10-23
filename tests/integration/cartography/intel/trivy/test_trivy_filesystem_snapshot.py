@@ -20,6 +20,8 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 SNAPSHOT_IDS = ["railway-deployment-1", "railway-deployment-2"]
 SOURCE_REVISION = "0123456789abcdef0123456789abcdef01234567"
+IMAGE_URI = "registry.example/app:latest"
+IMAGE_DIGEST = "sha256:" + "a" * 64
 
 
 @pytest.fixture
@@ -41,10 +43,34 @@ def ec2_rootfs_graph(neo4j_session):
     return neo4j_session
 
 
-def _report_reader(payload):
-    ref = ReportRef(uri="memory://report.json", name="report.json")
+def _report_reader(*payloads):
+    reports = {
+        f"report-{index}.json": json.dumps(payload).encode()
+        for index, payload in enumerate(payloads)
+    }
     return ListedReportReader(
-        "memory://trivy-reports", [ref], lambda _ref: json.dumps(payload).encode()
+        "memory://trivy-reports",
+        [ReportRef(uri=f"memory://{name}", name=name) for name in reports],
+        lambda ref: reports[ref.name],
+    )
+
+
+def _create_image_target(neo4j_session):
+    neo4j_session.run(
+        """
+        MATCH (account:AWSAccount {id: '000000000000'})
+        CREATE (account)-[:RESOURCE]->(repo:AWSECRRepository {
+            id: 'test-repository', name: 'app', region: 'us-east-1'
+        })
+        CREATE (repo)-[:REPO_IMAGE]->(tag:AWSECRRepositoryImage {
+            id: $uri, tag: 'latest'
+        })
+        CREATE (tag)-[:IMAGE]->(:AWSECRImage:Image {
+            id: $digest, digest: $digest, _ont_digest: $digest
+        })
+        """,
+        uri=IMAGE_URI,
+        digest=IMAGE_DIGEST,
     )
 
 
@@ -328,6 +354,88 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
     ]
 
 
+@pytest.mark.parametrize("include_vm_report", [False, True])
+def test_rootfs_targets_do_not_disable_full_trivy_cleanup(
+    ec2_rootfs_graph, include_vm_report
+):
+    # Arrange: ingest an image finding, package, and fix at the previous update tag.
+    neo4j_session = ec2_rootfs_graph
+    _create_image_target(neo4j_session)
+    image_report = deepcopy(TRIVY_VM_SAMPLE)
+    image_report["ArtifactType"] = "container_image"
+    image_report["ArtifactName"] = IMAGE_URI
+    image_report["Metadata"] = {
+        "RepoTags": [IMAGE_URI],
+        "RepoDigests": [f"registry.example/app@{IMAGE_DIGEST}"],
+    }
+    old_report = deepcopy(image_report)
+    old_report["Results"][0]["Packages"] = []
+    old_report["Results"][0]["Vulnerabilities"][0].update(
+        VulnerabilityID="CVE-2026-99999",
+        PkgName="retired-package",
+        InstalledVersion="0.1.0",
+        FixedVersion="0.1.1",
+    )
+    cartography.intel.trivy.sync_trivy_from_report_reader(
+        neo4j_session,
+        _report_reader(old_report),
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    assert check_nodes(neo4j_session, "TrivyImageFinding", ["id"]) == {
+        ("TIF|CVE-2026-99999",),
+    }
+    assert check_nodes(neo4j_session, "TrivyPackage", ["id"]) == {
+        ("0.1.0|retired-package",),
+    }
+    assert check_nodes(neo4j_session, "TrivyFix", ["id"]) == {
+        ("0.1.1|retired-package",),
+    }
+    reports = [image_report]
+    if include_vm_report:
+        reports.append(deepcopy(TRIVY_VM_SAMPLE))
+
+    # Act: image-only and mixed image/VM batches both reach full node cleanup.
+    cartography.intel.trivy.sync_trivy_from_report_reader(
+        neo4j_session,
+        _report_reader(*reports),
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
+
+    # Assert: stale nodes are gone and the current image/VM findings remain linked.
+    assert check_nodes(neo4j_session, "TrivyImageFinding", ["id"]) == {
+        ("TIF|CVE-2026-12345",),
+    }
+    assert check_nodes(neo4j_session, "TrivyPackage", ["id"]) == {
+        ("1.0.0|example-package",),
+        ("2.0.0|clean-package",),
+    }
+    assert check_nodes(neo4j_session, "TrivyFix", ["id"]) == {
+        ("1.0.1|example-package",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "TrivyImageFinding",
+        "id",
+        "Image",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("TIF|CVE-2026-12345", IMAGE_DIGEST)}
+    assert check_rels(
+        neo4j_session,
+        "TrivyImageFinding",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == (
+        {("TIF|CVE-2026-12345", "aws:ec2-rootfs:i-01")} if include_vm_report else set()
+    )
+
+
 @pytest.mark.parametrize(
     "results",
     [
@@ -343,24 +451,25 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
         ],
     ],
 )
-def test_clean_vm_report_preserves_other_targets(ec2_rootfs_graph, results):
+def test_clean_vm_report_uses_existing_filesystem_cleanup(ec2_rootfs_graph, results):
     # Arrange
     neo4j_session = ec2_rootfs_graph
+    _create_image_target(neo4j_session)
     neo4j_session.run(
         """
         CREATE (:FilesystemSnapshot {id: 'repository-snapshot',
                 source_repo: 'acme/api', source_revision: $revision})
-        CREATE (:Image {id: 'container-image'})
         WITH 1 AS unused
         MATCH (target)
         WHERE target.id IN ['aws:ec2-rootfs:i-01', 'aws:ec2-rootfs:i-02',
-                            'repository-snapshot', 'container-image']
+                            'repository-snapshot', $image_digest]
         MERGE (f:TrivyImageFinding {id: 'old-finding', lastupdated: 1})
         MERGE (p:TrivyPackage {id: 'old-package', lastupdated: 1})
         MERGE (f)-[:AFFECTS {lastupdated: 1}]->(target)
         MERGE (p)-[:DEPLOYED {lastupdated: 1}]->(target)
         """,
         revision=SOURCE_REVISION,
+        image_digest=IMAGE_DIGEST,
     )
     payload = deepcopy(TRIVY_VM_SAMPLE)
     payload["Results"] = results
@@ -373,23 +482,20 @@ def test_clean_vm_report_preserves_other_targets(ec2_rootfs_graph, results):
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert: only this VM's old findings and packages were removed.
-    assert check_rels(
-        neo4j_session,
-        "TrivyImageFinding",
-        "id",
-        "FilesystemSnapshot",
-        "id",
-        "AFFECTS",
-        rel_direction_right=True,
-    ) == {
-        ("old-finding", "aws:ec2-rootfs:i-02"),
-        ("old-finding", "repository-snapshot"),
-    }
-    expected_packages = {
-        ("old-package", "aws:ec2-rootfs:i-02"),
-        ("old-package", "repository-snapshot"),
-    }
+    # Assert: stale filesystem edges are removed across targets; image data survives.
+    assert (
+        check_rels(
+            neo4j_session,
+            "TrivyImageFinding",
+            "id",
+            "FilesystemSnapshot",
+            "id",
+            "AFFECTS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    expected_packages = set()
     if results:
         expected_packages.add(("2.0.0|clean-package", "aws:ec2-rootfs:i-01"))
     assert (
@@ -416,7 +522,7 @@ def test_clean_vm_report_preserves_other_targets(ec2_rootfs_graph, results):
             "id",
             edge,
             rel_direction_right=True,
-        ) == {(node_id, "container-image")}
+        ) == {(node_id, IMAGE_DIGEST)}
 
 
 @pytest.mark.parametrize(
