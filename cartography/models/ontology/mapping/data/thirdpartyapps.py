@@ -2,8 +2,15 @@ from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
+# A ThirdPartyApp node is one instance of an app in a tenant, not the app itself: a
+# GitHub App installed in two orgs is two GitHubAppInstallation nodes, and Keycloak
+# client ids repeat across realms. Key per-instance work on the node id; group on
+# (_ont_source, _ont_client_id) to ask about the app across its instances. A user
+# account's access to an instance is (:UserAccount)-[:AUTHORIZED]->(:ThirdPartyApp).
+#
 # ThirdPartyApp ontology fields:
-# client_id (REQUIRED) - OAuth client identifier
+# client_id (REQUIRED) - Identifier of the app (OAuth client id or the provider's
+#   closest equivalent), shared by every instance of the app
 # name (REQUIRED) - Display name of the third-party application
 # enabled - Whether the third-party app is enabled/active
 # native_app - Whether this is a native application (vs web)

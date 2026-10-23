@@ -245,6 +245,12 @@ Canonical relationship names between ontology labels are declared as
 `RelConstraint` entries in
 `cartography/models/ontology/constraints.py`.
 
+For example, a user account's access to a third-party app is always
+`(:UserAccount)-[:AUTHORIZED]->(:ThirdPartyApp)`. Google Workspace and Salesforce
+write that edge directly; for providers that record it under their own name (Okta
+`APPLICATION`, JumpCloud `USES`, Entra app role assignments), the
+`USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP` analysis job materializes it.
+
 A constraint validates the name and direction of an existing relationship. It
 does not create that relationship. The generated schema catalog distinguishes
 these validation constraints from the schemas and analysis jobs that materialize

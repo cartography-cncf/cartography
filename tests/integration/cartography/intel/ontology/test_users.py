@@ -2,6 +2,9 @@ from unittest.mock import patch
 
 import cartography.intel.ontology.users
 import tests.data.duo.users
+from cartography.analysis.ontology.analysis import (
+    USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP,
+)
 from cartography.analysis.ontology.analysis import USER_AUTHORIZED_THIRD_PARTY_APP
 from cartography.intel.duo.users import _transform_users
 from cartography.util import run_typed_analysis_job
@@ -259,3 +262,68 @@ def test_okta_group_authorization_does_not_overwrite_direct_scopes(neo4j_session
         """
     ).single()["scopes"]
     assert scopes == ["email", "profile"]
+
+
+def test_user_account_authorized_third_party_app_normalizes_provider_edges(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+    stale_tag = TEST_UPDATE_TAG - 1
+    neo4j_session.run(
+        """
+        MERGE (okta:OktaUser:UserAccount {id: 'okta-user'})
+        MERGE (okta_direct:OktaApplication:ThirdPartyApp {id: 'okta-direct-app'})
+        MERGE (okta)-[:APPLICATION]->(okta_direct)
+        MERGE (okta_group:OktaGroup {id: 'okta-group'})
+        MERGE (okta_via_group:OktaApplication:ThirdPartyApp {id: 'okta-group-app'})
+        MERGE (okta)-[:MEMBER_OF]->(okta_group)-[:APPLICATION]->(okta_via_group)
+
+        MERGE (jc:JumpCloudUser:UserAccount {id: 'jumpcloud-user'})
+        MERGE (jc_app:JumpCloudSaaSApplication:ThirdPartyApp {id: 'jumpcloud-app'})
+        MERGE (jc)-[:USES]->(jc_app)
+
+        MERGE (entra:EntraUser:UserAccount {id: 'entra-user'})
+        MERGE (entra_direct:EntraApplication:ThirdPartyApp {id: 'entra-direct-app'})
+        MERGE (entra)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment {id: 'assignment-1'})
+              -[:ASSIGNED_TO]->(entra_direct)
+        MERGE (entra_group:EntraGroup {id: 'entra-group'})
+        MERGE (entra_via_group:EntraApplication:ThirdPartyApp {id: 'entra-group-app'})
+        MERGE (entra)-[:MEMBER_OF]->(entra_group)
+              -[:HAS_APP_ROLE]->(:EntraAppRoleAssignment {id: 'assignment-2'})
+              -[:ASSIGNED_TO]->(entra_via_group)
+
+        // Okta no longer assigns this app, so its derived edge is stale.
+        MERGE (unassigned:OktaApplication:ThirdPartyApp {id: 'okta-unassigned-app'})
+        MERGE (okta)-[stale_derived:AUTHORIZED]->(unassigned)
+        SET stale_derived.lastupdated = $stale_tag,
+            stale_derived.match_method = 'okta_app_assignment'
+
+        // Written by the Google Workspace module under its own update tag.
+        MERGE (gw:GoogleWorkspaceUser:UserAccount {id: 'gw-user'})
+        MERGE (gw_app:GoogleWorkspaceOAuthApp:ThirdPartyApp {id: 'gw-app'})
+        MERGE (gw)-[gw_auth:AUTHORIZED]->(gw_app)
+        SET gw_auth.lastupdated = $stale_tag, gw_auth.scopes = ['email']
+        """,
+        stale_tag=stale_tag,
+    )
+
+    run_typed_analysis_job(
+        USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    edges = neo4j_session.run(
+        """
+        MATCH (ua:UserAccount)-[r:AUTHORIZED]->(app:ThirdPartyApp)
+        RETURN ua.id AS account, app.id AS app, r.match_method AS method
+        """
+    ).data()
+    assert {(e["account"], e["app"], e["method"]) for e in edges} == {
+        ("okta-user", "okta-direct-app", "okta_app_assignment"),
+        ("okta-user", "okta-group-app", "okta_group_app_assignment"),
+        ("jumpcloud-user", "jumpcloud-app", "jumpcloud_app_binding"),
+        ("entra-user", "entra-direct-app", "entra_app_role_assignment"),
+        ("entra-user", "entra-group-app", "entra_group_app_role_assignment"),
+        ("gw-user", "gw-app", None),
+    }

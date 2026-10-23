@@ -592,6 +592,12 @@ Guidelines:
 - Never key on a property the ingest path leaves nullable. An identity field built from a
   soft-mapped value (`"arn": f.get("Arn")`) is null for every record the provider omits it on, so
   all of them collide on one empty identity. Prefer the property that backs the node's own `id`.
+- Never assume an ontology field keys the node it sits on. `ThirdPartyApp._ont_client_id` names
+  the app, while a `ThirdPartyApp` node is one instance of it: a GitHub App installed in two orgs
+  is two `GitHubAppInstallation` nodes sharing one client id. A fact that returns one row per
+  instance keys on the anchor's `.id`; group on the client id only when the finding is about the
+  app as a whole. The static fan-out check cannot see this: it assumes a column read off the
+  anchor variable keys it.
 - Downstream lifecycle tracking should build its storage identity from `rule.id` + `fact.id` +
   the `identity_fields` values, so multi-fact rules cannot collide.
 - For shared ontology labels (`:UserAccount`, `:DeviceInstance`, `:Tenant`, ...) a node id is only

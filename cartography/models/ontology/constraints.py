@@ -55,6 +55,12 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="Database", dst="EncryptionKey", label="ENCRYPTED_BY"),
     RelConstraint(src="ObjectStorage", dst="EncryptionKey", label="ENCRYPTED_BY"),
     RelConstraint(src="FileStorage", dst="EncryptionKey", label="ENCRYPTED_BY"),
+    # A user account is authorized to use a third-party app (an OAuth grant, an
+    # app assignment, or an IdP app link). Provider schemas that wire this pair
+    # under their own names (Okta APPLICATION, JumpCloud USES) are raw references,
+    # exempted in constraints_whitelist.py; the canonical edge is materialized from
+    # them by USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP.
+    RelConstraint(src="UserAccount", dst="ThirdPartyApp", label="AUTHORIZED"),
     # An identity is a member of a group; groups nest into other groups.
     RelConstraint(src="UserAccount", dst="UserGroup", label="MEMBER_OF"),
     RelConstraint(src="ServiceAccount", dst="UserGroup", label="MEMBER_OF"),
