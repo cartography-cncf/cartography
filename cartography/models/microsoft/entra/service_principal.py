@@ -12,6 +12,7 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.microsoft.extra_labels import ENTRA_PRINCIPAL
 from cartography.models.ontology.labels import SERVICE_ACCOUNT
+from cartography.models.ontology.labels import THIRD_PARTY_APP
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,15 @@ class EntraServicePrincipalNodeProperties(CartographyNodeProperties):
     app_owner_organization_id: PropertyRef = PropertyRef(
         "app_owner_organization_id",
         description="Tenant ID of the application's owning organization.",
+    )
+    app_ownership: PropertyRef = PropertyRef(
+        "app_ownership",
+        description=(
+            "Who owns the application behind an application service principal: "
+            "`tenant` (registered in this tenant), `microsoft` (a Microsoft first-party "
+            "app) or `third_party` (a vendor app the tenant consented to). Null for "
+            "managed identities and other non-application service principals."
+        ),
     )
     login_url: PropertyRef = PropertyRef(
         "login_url", description="Login URL of the service principal."
@@ -161,8 +171,14 @@ class EntraServicePrincipalSchema(CartographyNodeSchema):
         EntraServicePrincipalNodeProperties()
     )
     # EntraPrincipal: cross-provider IAM principal umbrella, mirroring AWSPrincipal / GCPPrincipal.
+    # ThirdPartyApp: a vendor app's only presence in the tenant is its service
+    # principal. The tenant's own apps are represented by their EntraApplication.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [SERVICE_ACCOUNT, ENTRA_PRINCIPAL]
+        [
+            SERVICE_ACCOUNT,
+            ENTRA_PRINCIPAL,
+            THIRD_PARTY_APP.when(app_ownership="third_party"),
+        ]
     )
     sub_resource_relationship: EntraServicePrincipalToTenantRel = (
         EntraServicePrincipalToTenantRel()

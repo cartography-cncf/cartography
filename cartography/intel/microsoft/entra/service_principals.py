@@ -9,6 +9,9 @@ from msgraph import GraphServiceClient
 from msgraph.generated.models.service_principal import ServicePrincipal
 
 from cartography.analysis.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
+from cartography.analysis.microsoft.entra.analysis import (
+    ENTRA_THIRD_PARTY_APP_PROJECTION,
+)
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft import credentials
@@ -28,6 +31,29 @@ SERVICE_PRINCIPALS_PAGE_SIZE = 999
 RISKY_SERVICE_PRINCIPALS_PERMISSION = (
     "IdentityRiskyServicePrincipal.Read.All and Workload Identities Premium licensing"
 )
+# Tenants that own Microsoft's first-party apps (Graph, Exchange, Teams, ...). An
+# application service principal owned by neither these nor the synced tenant is a
+# vendor app the tenant consented to, which is what the ThirdPartyApp label marks.
+MICROSOFT_FIRST_PARTY_TENANT_IDS = frozenset(
+    {
+        "f8cdef31-a31e-4b4a-93e4-5f571e91255a",
+        "72f988bf-86f1-41af-91ab-2d7cd011db47",
+    }
+)
+
+
+def _app_ownership(
+    service_principal_type: str | None,
+    app_owner_organization_id: str | None,
+    tenant_id: str,
+) -> str | None:
+    if service_principal_type != "Application" or not app_owner_organization_id:
+        return None
+    if app_owner_organization_id == tenant_id:
+        return "tenant"
+    if app_owner_organization_id in MICROSOFT_FIRST_PARTY_TENANT_IDS:
+        return "microsoft"
+    return "third_party"
 
 
 @timeit
@@ -125,6 +151,7 @@ async def get_risky_service_principals(
 
 def transform_service_principals(
     service_principals: list[ServicePrincipal],
+    tenant_id: str,
     risky_service_principals: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     # None means Graph denied the report; the flag keeps null risk readable as unknown.
@@ -135,15 +162,19 @@ def transform_service_principals(
         aws_identity_center_instance_id = None
         match = re.search(r"d-[a-z0-9]{10}", spn.login_url or "")
         aws_identity_center_instance_id = match.group(0) if match else None
+        # uuid.UUID to string
+        app_owner_organization_id = (
+            str(spn.app_owner_organization_id)
+            if spn.app_owner_organization_id
+            else None
+        )
         transformed = {
             "id": spn.id,
             "app_id": spn.app_id,
             "account_enabled": spn.account_enabled,
-            # uuid.UUID to string
-            "app_owner_organization_id": (
-                str(spn.app_owner_organization_id)
-                if spn.app_owner_organization_id
-                else None
+            "app_owner_organization_id": app_owner_organization_id,
+            "app_ownership": _app_ownership(
+                spn.service_principal_type, app_owner_organization_id, tenant_id
             ),
             "aws_identity_center_instance_id": aws_identity_center_instance_id,
             "display_name": spn.display_name,
@@ -251,7 +282,7 @@ async def sync_service_principals(
             # Transform and load service principals in batches
             if len(service_principals_batch) >= batch_size:
                 transformed_service_principals = transform_service_principals(
-                    service_principals_batch, risky_service_principals
+                    service_principals_batch, tenant_id, risky_service_principals
                 )
                 load_service_principals(
                     neo4j_session,
@@ -274,7 +305,7 @@ async def sync_service_principals(
     # Process remaining service principals
     if service_principals_batch:
         transformed_service_principals = transform_service_principals(
-            service_principals_batch, risky_service_principals
+            service_principals_batch, tenant_id, risky_service_principals
         )
         load_service_principals(
             neo4j_session, transformed_service_principals, update_tag, tenant_id
@@ -299,6 +330,11 @@ async def sync_service_principals(
     # projects the field.
     run_typed_analysis_job(
         ENTRA_APPLICATION_PROJECTION,
+        neo4j_session,
+        common_job_parameters,
+    )
+    run_typed_analysis_job(
+        ENTRA_THIRD_PARTY_APP_PROJECTION,
         neo4j_session,
         common_job_parameters,
     )

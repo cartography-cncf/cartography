@@ -168,6 +168,7 @@ MOCK_SERVICE_PRINCIPALS = [
         service_principal_type="Application",
         login_url="https://d-1234567890.awsapps.com/start",
         sign_in_audience="AzureADMyOrg",
+        app_owner_organization_id=TEST_TENANT_ID,
     ),
     ServicePrincipal(
         id="sp-22222222-2222-2222-2222-222222222222",
@@ -178,6 +179,27 @@ MOCK_SERVICE_PRINCIPALS = [
         service_principal_type="Application",
         login_url="https://hr.example.org/login",
         sign_in_audience="AzureADMultipleOrgs",
+        app_owner_organization_id=TEST_TENANT_ID,
+    ),
+    # A vendor app the tenant consented to: owned by the vendor's tenant.
+    ServicePrincipal(
+        id="sp-33333333-3333-3333-3333-333333333333",
+        app_id="99999999-8888-7777-6666-555555555555",
+        display_name="Example LLM Assistant",
+        account_enabled=True,
+        service_principal_type="Application",
+        sign_in_audience="AzureADMultipleOrgs",
+        app_owner_organization_id="12345678-90ab-cdef-1234-567890abcdef",
+    ),
+    # A Microsoft first-party app.
+    ServicePrincipal(
+        id="sp-44444444-4444-4444-4444-444444444444",
+        app_id="00000003-0000-0000-c000-000000000000",
+        display_name="Microsoft Graph",
+        account_enabled=True,
+        service_principal_type="Application",
+        sign_in_audience="AzureADMultipleOrgs",
+        app_owner_organization_id="f8cdef31-a31e-4b4a-93e4-5f571e91255a",
     ),
 ]
 
