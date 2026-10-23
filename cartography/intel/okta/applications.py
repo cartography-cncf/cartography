@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from typing import Any
+from typing import NamedTuple
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -12,8 +13,13 @@ from okta.models.application import Application as OktaApplication
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import collect_raw_paginated
+from cartography.intel.okta.common import gather_bounded
+from cartography.intel.okta.common import is_missing_scope_error
 from cartography.intel.okta.common import is_resource_not_found_error
+from cartography.intel.okta.common import OKTA_MISSING_SCOPE_WARNING
 from cartography.intel.okta.common import OktaApiError
+from cartography.models.okta.application import OktaApplicationRoleSchema
 from cartography.models.okta.application import OktaApplicationSchema
 from cartography.models.okta.reply_uri import OktaReplyUriSchema
 from cartography.util import timeit
@@ -21,23 +27,36 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class OktaApplicationSyncResult(NamedTuple):
+    app_ids: set[str]
+    # Whether the credential could read the admin roles of service apps.
+    roles_synced: bool
+    # Whether the credential could read the OAuth scope grants of OIDC apps.
+    grants_synced: bool
+
+
 @timeit
 def sync_okta_applications(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-) -> set[str]:
+) -> OktaApplicationSyncResult:
     """
     Sync Okta applications
     :param okta_client: An Okta client object
     :param neo4j_session: Session with Neo4j server
     :param common_job_parameters: Settings used by all Okta modules
-    :return: IDs of the synced applications
+    :return: IDs of the synced applications, and which privilege data was read
     """
 
     logger.info("Syncing Okta applications")
     applications = asyncio.run(_get_okta_applications(okta_client))
-    transformed_applications = _transform_okta_applications(okta_client, applications)
+    granted_scopes, grants_synced = _get_granted_scopes(okta_client, applications)
+    transformed_applications = _transform_okta_applications(
+        okta_client,
+        applications,
+        granted_scopes,
+    )
     _load_okta_applications(
         neo4j_session, transformed_applications, common_job_parameters
     )
@@ -45,7 +64,18 @@ def sync_okta_applications(
     reply_uris = _transform_okta_reply_uris(applications)
     _load_okta_reply_uris(neo4j_session, reply_uris, common_job_parameters)
     _cleanup_okta_reply_uris(neo4j_session, common_job_parameters)
-    return {application.id for application in applications}
+    # Runs after the applications are loaded: roles link to them.
+    roles_synced = _sync_okta_application_roles(
+        okta_client,
+        neo4j_session,
+        applications,
+        common_job_parameters,
+    )
+    return OktaApplicationSyncResult(
+        {application.id for application in applications},
+        roles_synced,
+        grants_synced,
+    )
 
 
 @timeit
@@ -62,13 +92,17 @@ async def _get_okta_applications(okta_client: OktaClient) -> list[OktaApplicatio
 def _transform_okta_applications(
     okta_client: OktaClient,
     okta_applications: list[OktaApplication],
+    granted_scopes: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     :param okta_client: An Okta client object
     Convert a list of Okta applications into a format for Neo4j
     :param okta_applications: List of Okta applications
+    :param granted_scopes: Granted OAuth scopes by application ID, for the apps
+        whose grants were read
     :return: List of application dicts
     """
+    granted_scopes = granted_scopes or {}
     transformed_applications: list[OktaApplication] = []
     logger.info("Transforming %s Okta applications", len(okta_applications))
     for okta_application in okta_applications:
@@ -120,6 +154,8 @@ def _transform_okta_applications(
             user_name_template.type if user_name_template else None
         )
         application_props["features"] = okta_application.features
+        # Absent, and so null, when the grants were not read for this app.
+        application_props["granted_scopes"] = granted_scopes.get(okta_application.id)
         application_props["label"] = okta_application.label
         application_props["last_updated"] = okta_application.last_updated
         # Licensing information varies by application type and license model.
@@ -261,6 +297,16 @@ def _transform_okta_applications(
             consent_method = getattr(oauth_client, "consent_method", None)
             application_props["settings_oauth_client_consent_method"] = (
                 consent_method.value if consent_method else None
+            )
+            application_props["settings_oauth_client_dpop_bound_access_tokens"] = (
+                getattr(oauth_client, "dpop_bound_access_tokens", None)
+            )
+            credentials_oauth_client = getattr(credentials, "oauth_client", None)
+            token_endpoint_auth_method = getattr(
+                credentials_oauth_client, "token_endpoint_auth_method", None
+            )
+            application_props["credentials_oauth_client_token_endpoint_auth_method"] = (
+                token_endpoint_auth_method.value if token_endpoint_auth_method else None
             )
             application_props["settings_oauth_client_grant_Type"] = [
                 grant_type.value for grant_type in (oauth_client.grant_types or [])
@@ -483,5 +529,225 @@ def _cleanup_okta_reply_uris(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     GraphJob.from_node_schema(OktaReplyUriSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+def _get_oauth_client_settings(okta_application: OktaApplication) -> Any:
+    """Return the OAuth client settings, which only OIDC apps have."""
+    settings = getattr(okta_application, "settings", None)
+    return getattr(settings, "oauth_client", None)
+
+
+def _is_service_app(okta_application: OktaApplication) -> bool:
+    """Whether the app is an OAuth service app, the only kind that holds admin roles."""
+    application_type = getattr(
+        _get_oauth_client_settings(okta_application), "application_type", None
+    )
+    return getattr(application_type, "value", application_type) == "service"
+
+
+def _get_oauth_client_id(okta_application: OktaApplication) -> str:
+    """Return the app's OAuth client ID, which Okta sets to the app ID by default."""
+    credentials = getattr(okta_application, "credentials", None)
+    oauth_client = getattr(credentials, "oauth_client", None)
+    return getattr(oauth_client, "client_id", None) or okta_application.id
+
+
+@timeit
+def _get_granted_scopes(
+    okta_client: OktaClient,
+    okta_applications: list[OktaApplication],
+) -> tuple[dict[str, list[str]], bool]:
+    """
+    Read the Okta API scopes granted to each OIDC app.
+    :return: Granted scopes by application ID, and whether they could be read
+    """
+    app_ids = [
+        okta_application.id
+        for okta_application in okta_applications
+        if _get_oauth_client_settings(okta_application)
+    ]
+    logger.info("Fetching OAuth scope grants of %d Okta OIDC apps", len(app_ids))
+    try:
+        app_grants = asyncio.run(
+            gather_bounded(
+                lambda app_id: _get_application_grants(okta_client, app_id),
+                app_ids,
+            ),
+        )
+    except OktaApiError as exc:
+        if is_missing_scope_error(exc):
+            logger.warning(
+                OKTA_MISSING_SCOPE_WARNING,
+                "Okta application scope grants",
+                "okta.appGrants.read",
+            )
+            return {}, False
+        raise
+    return {
+        app_id: _transform_granted_scopes(grants)
+        for app_id, grants in zip(app_ids, app_grants)
+        if grants is not None
+    }, True
+
+
+async def _get_application_grants(
+    okta_client: OktaClient,
+    app_id: str,
+) -> list[dict[str, Any]] | None:
+    """
+    Get the OAuth scope grants of an app as raw JSON, or None when the app was
+    deleted during the sync.
+    """
+    try:
+        return await collect_raw_paginated(okta_client, f"/api/v1/apps/{app_id}/grants")
+    except OktaApiError as exc:
+        if is_resource_not_found_error(exc):
+            logger.warning(
+                "Okta application %s was deleted during sync; skipping its scope grants",
+                app_id,
+            )
+            return None
+        raise
+
+
+def _transform_granted_scopes(grants: list[dict[str, Any]]) -> list[str]:
+    """Return the sorted, distinct scopes of the active grants."""
+    return sorted(
+        {
+            grant["scopeId"]
+            for grant in grants
+            if grant.get("status") == "ACTIVE" and grant.get("scopeId")
+        },
+    )
+
+
+@timeit
+def _sync_okta_application_roles(
+    okta_client: OktaClient,
+    neo4j_session: neo4j.Session,
+    okta_applications: list[OktaApplication],
+    common_job_parameters: dict[str, Any],
+) -> bool:
+    """
+    Sync the admin roles assigned to OAuth service apps.
+    :return: Whether the credential could read the roles
+    """
+    service_apps = [
+        okta_application
+        for okta_application in okta_applications
+        if _is_service_app(okta_application)
+    ]
+    logger.info("Fetching admin roles of %d Okta service apps", len(service_apps))
+    # Reading role assignments needs okta.roles.read and an admin role that allows
+    # it. When Okta refuses (E0000006), log and continue so the rest of the sync
+    # runs.
+    try:
+        app_roles = asyncio.run(
+            gather_bounded(
+                lambda app: _get_application_roles(okta_client, app),
+                service_apps,
+            ),
+        )
+    except OktaApiError as exc:
+        if is_missing_scope_error(exc):
+            logger.warning(
+                OKTA_MISSING_SCOPE_WARNING,
+                "Okta application roles",
+                "okta.roles.read",
+            )
+            # Still run cleanup so stale roles from a previously privileged
+            # credential don't linger and overstate an app's access.
+            _cleanup_okta_application_roles(neo4j_session, common_job_parameters)
+            return False
+        raise
+    transformed_roles = _transform_okta_application_roles(
+        [
+            (app.id, role)
+            for app, roles in zip(service_apps, app_roles)
+            for role in roles
+        ],
+    )
+    _load_okta_application_roles(
+        neo4j_session, transformed_roles, common_job_parameters
+    )
+    _cleanup_okta_application_roles(neo4j_session, common_job_parameters)
+    return True
+
+
+async def _get_application_roles(
+    okta_client: OktaClient,
+    okta_application: OktaApplication,
+) -> list[dict[str, Any]]:
+    """
+    Get the admin roles assigned to an app's OAuth client as raw JSON. The SDK
+    model is a discriminated union that rejects role types it does not know.
+    """
+    client_id = _get_oauth_client_id(okta_application)
+    try:
+        return await collect_raw_paginated(
+            okta_client, f"/oauth2/v1/clients/{client_id}/roles"
+        )
+    except OktaApiError as exc:
+        if is_resource_not_found_error(exc):
+            logger.warning(
+                "Okta application %s was deleted during sync; skipping its roles",
+                okta_application.id,
+            )
+            return []
+        raise
+
+
+def _transform_okta_application_roles(
+    app_roles: list[tuple[str, dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """
+    Convert (application ID, role assignment) pairs into a format for Neo4j.
+    """
+    logger.info("Transforming %d Okta application roles", len(app_roles))
+    return [
+        {
+            # Okta's API reference shows standard role assignment IDs derived
+            # from the role type, which would repeat across apps, so scope the
+            # node ID to the app.
+            "id": f"{app_id}:{role['id']}",
+            "application_id": app_id,
+            "assignment_id": role["id"],
+            "role_type": role.get("type"),
+            "label": role.get("label"),
+            "status": role.get("status"),
+            "assignment_type": role.get("assignmentType"),
+            "role_id": role.get("role"),
+            "resource_set_id": role.get("resource-set"),
+            "created": role.get("created"),
+            "last_updated": role.get("lastUpdated"),
+        }
+        for app_id, role in app_roles
+    ]
+
+
+@timeit
+def _load_okta_application_roles(
+    neo4j_session: neo4j.Session,
+    application_roles: list[dict[str, Any]],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    logger.info("Loading %d Okta application roles", len(application_roles))
+    load(
+        neo4j_session,
+        OktaApplicationRoleSchema(),
+        application_roles,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
+    )
+
+
+@timeit
+def _cleanup_okta_application_roles(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(OktaApplicationRoleSchema(), common_job_parameters).run(
         neo4j_session
     )

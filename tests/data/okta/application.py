@@ -240,3 +240,121 @@ ACTIVE_DIRECTORY_APPLICATION = {
         },
     },
 }
+
+# An API Services app: an OAuth service app that authenticates with a private key
+# and requires DPoP.
+SERVICE_APPLICATION = {
+    "id": "0oaService",
+    "name": "oidc_client",
+    "label": "Inventory service",
+    "status": "ACTIVE",
+    "signOnMode": "OPENID_CONNECT",
+    "credentials": {
+        "oauthClient": {
+            "autoKeyRotation": True,
+            "client_id": "0oaService",
+            "token_endpoint_auth_method": "private_key_jwt",
+        },
+    },
+    "settings": {
+        "oauthClient": {
+            "application_type": "service",
+            "grant_types": ["client_credentials"],
+            "response_types": ["token"],
+            "dpop_bound_access_tokens": True,
+        },
+    },
+}
+
+# A web OIDC app that authenticates with a client secret.
+WEB_OIDC_APPLICATION = {
+    "id": "0oaWeb",
+    "name": "oidc_client",
+    "label": "Internal portal",
+    "status": "ACTIVE",
+    "signOnMode": "OPENID_CONNECT",
+    "credentials": {
+        "oauthClient": {
+            "autoKeyRotation": True,
+            "client_id": "0oaWeb",
+            "token_endpoint_auth_method": "client_secret_basic",
+        },
+    },
+    "settings": {
+        "oauthClient": {
+            "application_type": "web",
+            "grant_types": ["authorization_code"],
+            "redirect_uris": ["https://portal.example.com/callback"],
+            "response_types": ["code"],
+            "dpop_bound_access_tokens": False,
+        },
+    },
+}
+
+APPLICATIONS = [
+    SERVICE_APPLICATION,
+    WEB_OIDC_APPLICATION,
+    SAML_APPLICATION_WITH_UNKNOWN_FEATURE,
+]
+
+# GET /oauth2/v1/clients/{clientId}/roles, by client ID. The assignment ID has
+# the form Okta's API reference shows for standard roles: derived from the role
+# type, so it can repeat across assignees.
+CLIENT_ROLES = {
+    "0oaService": [
+        {
+            "id": "KNKVARKSL5AUITKJJY",
+            "label": "Super Administrator",
+            "type": "SUPER_ADMIN",
+            "status": "ACTIVE",
+            "created": "2026-01-05T10:00:00.000Z",
+            "lastUpdated": "2026-01-05T10:00:00.000Z",
+            "assignmentType": "CLIENT",
+            "_links": {
+                "assignee": {
+                    "href": "https://example.okta.com/oauth2/v1/clients/0oaService",
+                },
+            },
+        },
+    ],
+}
+
+# GET /api/v1/apps/{appId}/grants, by app ID.
+APP_GRANTS = {
+    "0oaService": [
+        {
+            "id": "oagUsersRead",
+            "status": "ACTIVE",
+            "issuer": "https://example.okta.com",
+            "clientId": "0oaService",
+            "scopeId": "okta.users.read",
+            "source": "ADMIN",
+        },
+        {
+            "id": "oagAppsRead",
+            "status": "ACTIVE",
+            "issuer": "https://example.okta.com",
+            "clientId": "0oaService",
+            "scopeId": "okta.apps.read",
+            "source": "ADMIN",
+        },
+        {
+            "id": "oagGroupsManage",
+            "status": "REVOKED",
+            "issuer": "https://example.okta.com",
+            "clientId": "0oaService",
+            "scopeId": "okta.groups.manage",
+            "source": "ADMIN",
+        },
+    ],
+    "0oaWeb": [
+        {
+            "id": "oagUsersManage",
+            "status": "ACTIVE",
+            "issuer": "https://example.okta.com",
+            "clientId": "0oaWeb",
+            "scopeId": "okta.users.manage",
+            "source": "ADMIN",
+        },
+    ],
+}

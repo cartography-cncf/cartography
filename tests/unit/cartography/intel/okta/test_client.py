@@ -237,10 +237,10 @@ def test_oauth_client_is_used_when_an_api_token_is_also_set(
 def test_rejected_token_request_raises_an_oauth_token_error(
     okta_api: _FakeOktaApi,
 ) -> None:
-    # Arrange
+    # Arrange: Okta refuses the token only when it grants none of the scopes.
     okta_api.reject_token(
-        "invalid_scope",
-        "The following scopes are not allowed: okta.logStreams.read",
+        "consent_required",
+        "You are not allowed any of the requested scopes.",
     )
 
     # Act
@@ -248,7 +248,7 @@ def test_rejected_token_request_raises_an_oauth_token_error(
         _fetch_org(_oauth_config(okta_dpop_enabled=False))
 
     # Assert
-    assert exc_info.value.error_code == "invalid_scope"
+    assert exc_info.value.error_code == "consent_required"
     assert is_oauth_token_error(exc_info.value)
 
 

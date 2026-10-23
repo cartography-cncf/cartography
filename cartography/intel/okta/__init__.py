@@ -132,7 +132,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             logger.error(
                 "Okta refused to issue an OAuth access token (%s). Check the "
                 "service app's client ID, private key, and key ID, and that it "
-                "is granted every requested scope.",
+                "is granted the requested scopes.",
                 exc.error_code,
             )
         raise
@@ -147,7 +147,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
     )
     users.sync_okta_user_types(okta_client, neo4j_session, common_job_parameters)
-    app_ids = applications.sync_okta_applications(
+    app_sync = applications.sync_okta_applications(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -190,7 +190,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         okta_client,
         neo4j_session,
         common_job_parameters,
-        app_ids,
+        app_sync.app_ids,
     )
 
     organization.record_okta_sync_coverage(
@@ -200,6 +200,8 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         {
             "log_streams_synced": log_streams_synced,
             "admin_roles_synced": user_roles_synced and group_roles_synced,
+            "application_roles_synced": app_sync.roles_synced,
+            "app_grants_synced": app_sync.grants_synced,
         },
     )
 
