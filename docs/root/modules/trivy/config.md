@@ -136,7 +136,7 @@ add `Metadata.FilesystemSnapshotId` containing the stable graph target ID:
 ```json
 {
   "ArtifactType": "vm",
-  "ArtifactName": "snap-0123456789abcdef0",
+  "ArtifactName": "ebs:snap-0123456789abcdef0",
   "Metadata": {
     "FilesystemSnapshotId": "aws:ec2-rootfs:i-0123456789abcdef0"
   }
