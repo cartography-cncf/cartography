@@ -34,6 +34,15 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 - **Update Tag**: Timestamp used for cleanup jobs to remove stale data
 - **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance). When a job manages relationships, put `MERGE` statements before the stale-edge `DELETE`; iterative deletion exposes a window where concurrent readers see those edges missing. See the `analysis-jobs` skill.
 
+**Parallelism and incremental sync:**
+- Keep top-level account, organization, project, and module pipelines sequential.
+- Limit in-process concurrency to bounded, independent provider reads.
+- Workers must not write to Neo4j or run cleanup, analysis, or checkpoint updates.
+- Prefer provider bulk or aggregated APIs before adding workers.
+- Treat a worker failure as incomplete input and suppress cleanup.
+- Review incremental sync separately from parallelism.
+- Follow `docs/root/dev/parallelism.md`.
+
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
 - `cartography/cli.py` - Typer-based CLI with organized help panels

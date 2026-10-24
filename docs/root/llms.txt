@@ -26,6 +26,7 @@ Use these resources to install Cartography, configure integrations, query the gr
 - [Developer guide](https://docs.cartography.dev/dev/developer-guide.html): Set up a development environment and contribute.
 - [Write an intel module](https://docs.cartography.dev/dev/writing-intel-modules.html): Build a new data ingestion module.
 - [Write an analysis job](https://docs.cartography.dev/dev/writing-analysis-jobs.html): Add graph enrichment and analysis.
+- [Parallelism and incremental sync](https://docs.cartography.dev/dev/parallelism.html): Choose safe concurrency boundaries and preserve cleanup correctness.
 - [Source code](https://github.com/cartography-cncf/cartography): Cartography's GitHub repository.
 
 ## Optional
