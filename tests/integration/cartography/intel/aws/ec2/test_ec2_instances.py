@@ -62,7 +62,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         ],
     ) == {
         (
-            f"aws:ec2-rootfs:{instance_id}",
+            f"aws:ec2:{instance_id}:rootfs",
             instance_id,
             volume_id,
             "rootfs",
@@ -87,10 +87,10 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         "SNAPSHOT_OF",
         rel_direction_right=True,
     ) == {
-        ("aws:ec2-rootfs:i-01", "vol-0df"),
-        ("aws:ec2-rootfs:i-02", "vol-03"),
-        ("aws:ec2-rootfs:i-03", "vol-09"),
-        ("aws:ec2-rootfs:i-04", "vol-04"),
+        ("aws:ec2:i-01:rootfs", "vol-0df"),
+        ("aws:ec2:i-02:rootfs", "vol-03"),
+        ("aws:ec2:i-03:rootfs", "vol-09"),
+        ("aws:ec2:i-04:rootfs", "vol-04"),
     }
     assert check_rels(
         neo4j_session,
@@ -101,7 +101,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         "SCANNED_AS",
         rel_direction_right=True,
     ) == {
-        (instance_id, f"aws:ec2-rootfs:{instance_id}")
+        (instance_id, f"aws:ec2:{instance_id}:rootfs")
         for instance_id in ("i-01", "i-02", "i-03", "i-04")
     }
     assert check_rels(
@@ -113,7 +113,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, f"aws:ec2-rootfs:{instance_id}")
+        (TEST_ACCOUNT_ID, f"aws:ec2:{instance_id}:rootfs")
         for instance_id in ("i-01", "i-02", "i-03", "i-04")
     }
 
@@ -433,7 +433,7 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
 
     # Assert
     assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == {
-        (f"aws:ec2-rootfs:{instance_id}",)
+        (f"aws:ec2:{instance_id}:rootfs",)
         for instance_id in ("i-01", "i-02", "i-03", "i-04", "i-other")
     }
     assert check_rels(
@@ -445,11 +445,11 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         "SNAPSHOT_OF",
         rel_direction_right=True,
     ) == {
-        ("aws:ec2-rootfs:i-01", "vol-0df"),
-        ("aws:ec2-rootfs:i-02", "vol-03"),
-        ("aws:ec2-rootfs:i-03", "vol-09"),
-        ("aws:ec2-rootfs:i-04", "vol-04"),
-        ("aws:ec2-rootfs:i-other", "vol-other"),
+        ("aws:ec2:i-01:rootfs", "vol-0df"),
+        ("aws:ec2:i-02:rootfs", "vol-03"),
+        ("aws:ec2:i-03:rootfs", "vol-09"),
+        ("aws:ec2:i-04:rootfs", "vol-04"),
+        ("aws:ec2:i-other:rootfs", "vol-other"),
     }
 
     # Arrange
@@ -476,9 +476,9 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         "FilesystemSnapshot",
         ["id", "volume_id", "region", "lastupdated"],
     ) == {
-        ("aws:ec2-rootfs:i-03", "vol-replaced-root", TEST_REGION, next_update_tag),
-        ("aws:ec2-rootfs:i-04", "vol-04", TEST_REGION, next_update_tag),
-        ("aws:ec2-rootfs:i-other", "vol-other", other_region, TEST_UPDATE_TAG),
+        ("aws:ec2:i-03:rootfs", "vol-replaced-root", TEST_REGION, next_update_tag),
+        ("aws:ec2:i-04:rootfs", "vol-04", TEST_REGION, next_update_tag),
+        ("aws:ec2:i-other:rootfs", "vol-other", other_region, TEST_UPDATE_TAG),
     }
     assert check_rels(
         neo4j_session,
@@ -489,9 +489,9 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         "SNAPSHOT_OF",
         rel_direction_right=True,
     ) == {
-        ("aws:ec2-rootfs:i-03", "vol-replaced-root"),
-        ("aws:ec2-rootfs:i-04", "vol-04"),
-        ("aws:ec2-rootfs:i-other", "vol-other"),
+        ("aws:ec2:i-03:rootfs", "vol-replaced-root"),
+        ("aws:ec2:i-04:rootfs", "vol-04"),
+        ("aws:ec2:i-other:rootfs", "vol-other"),
     }
     # The old volume still exists, so the stale edge was removed by target cleanup.
     assert ("vol-09",) in check_nodes(neo4j_session, "AWSEBSVolume", ["id"])
@@ -504,7 +504,7 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         "SCANNED_AS",
         rel_direction_right=True,
     ) == {
-        (instance_id, f"aws:ec2-rootfs:{instance_id}")
+        (instance_id, f"aws:ec2:{instance_id}:rootfs")
         for instance_id in ("i-03", "i-04", "i-other")
     }
     assert check_rels(
@@ -516,7 +516,7 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, "aws:ec2-rootfs:i-03"),
-        (TEST_ACCOUNT_ID, "aws:ec2-rootfs:i-04"),
-        (other_account_id, "aws:ec2-rootfs:i-other"),
+        (TEST_ACCOUNT_ID, "aws:ec2:i-03:rootfs"),
+        (TEST_ACCOUNT_ID, "aws:ec2:i-04:rootfs"),
+        (other_account_id, "aws:ec2:i-other:rootfs"),
     }

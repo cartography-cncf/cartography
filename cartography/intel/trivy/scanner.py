@@ -493,26 +493,30 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
 def cleanup_filesystem_snapshot_relationships(
     neo4j_session: Session,
     update_tag: int,
+    snapshot_ids: list[str] | None = None,
 ) -> None:
-    """Remove stale filesystem edges without touching image-scoped scan data."""
+    """Remove stale filesystem edges, optionally limited to the given snapshots."""
     run_write_query(
         neo4j_session,
         """
         CALL {
-          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:FilesystemSnapshot)
-          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(snapshot:FilesystemSnapshot)
+          WHERE (r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG)
+            AND ($snapshot_ids IS NULL OR snapshot.id IN $snapshot_ids)
           DELETE r
           RETURN count(*) AS removed_findings
         }
         CALL {
-          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:FilesystemSnapshot)
-          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(snapshot:FilesystemSnapshot)
+          WHERE (r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG)
+            AND ($snapshot_ids IS NULL OR snapshot.id IN $snapshot_ids)
           DELETE r
           RETURN count(*) AS removed_packages
         }
         RETURN removed_findings, removed_packages
         """,
         UPDATE_TAG=update_tag,
+        snapshot_ids=snapshot_ids,
     )
 
 

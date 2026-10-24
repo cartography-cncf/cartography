@@ -74,6 +74,17 @@ def _create_image_target(neo4j_session):
     )
 
 
+def _image_report():
+    report = deepcopy(TRIVY_VM_SAMPLE)
+    report["ArtifactType"] = "container_image"
+    report["ArtifactName"] = IMAGE_URI
+    report["Metadata"] = {
+        "RepoTags": [IMAGE_URI],
+        "RepoDigests": [f"registry.example/app@{IMAGE_DIGEST}"],
+    }
+    return report
+
+
 def test_sync_trivy_repository_report_to_filesystem_snapshot(neo4j_session):
     # Arrange
     neo4j_session.run(
@@ -294,7 +305,7 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
     # Assert: real EC2 discovery supplied the ontology fields and instance edges.
     assert check_nodes(
         neo4j_session, "FilesystemSnapshot", ["id", "_ont_kind", "_ont_source"]
-    ) == {(f"aws:ec2-rootfs:i-0{i}", "rootfs", "aws") for i in range(1, 5)}
+    ) == {(f"aws:ec2:i-0{i}:rootfs", "rootfs", "aws") for i in range(1, 5)}
     assert check_rels(
         neo4j_session,
         "ComputeInstance",
@@ -303,7 +314,7 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
         "id",
         "SCANNED_AS",
         rel_direction_right=True,
-    ) == {(f"i-0{i}", f"aws:ec2-rootfs:i-0{i}") for i in range(1, 5)}
+    ) == {(f"i-0{i}", f"aws:ec2:i-0{i}:rootfs") for i in range(1, 5)}
     assert check_rels(
         neo4j_session,
         "TrivyImageFinding",
@@ -312,7 +323,7 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
         "id",
         "AFFECTS",
         rel_direction_right=True,
-    ) == {("TIF|CVE-2026-12345", "aws:ec2-rootfs:i-01")}
+    ) == {("TIF|CVE-2026-12345", "aws:ec2:i-01:rootfs")}
     assert check_rels(
         neo4j_session,
         "TrivyPackage",
@@ -322,8 +333,8 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
         "DEPLOYED",
         rel_direction_right=True,
     ) == {
-        ("1.0.0|example-package", "aws:ec2-rootfs:i-01"),
-        ("2.0.0|clean-package", "aws:ec2-rootfs:i-01"),
+        ("1.0.0|example-package", "aws:ec2:i-01:rootfs"),
+        ("2.0.0|clean-package", "aws:ec2:i-01:rootfs"),
     }
     # Arrange: a later scan uses a different temporary EBS snapshot.
     payload["ArtifactName"] = "ebs:snap-next-scan"
@@ -346,7 +357,7 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
     ).data()
     assert rows == [
         {
-            "id": "aws:ec2-rootfs:i-01",
+            "id": "aws:ec2:i-01:rootfs",
             "finding": "TIF|CVE-2026-12345",
             "updated": TEST_UPDATE_TAG + 1,
         }
@@ -360,13 +371,7 @@ def test_rootfs_targets_do_not_disable_full_trivy_cleanup(
     # Arrange: ingest an image finding, package, and fix at the previous update tag.
     neo4j_session = ec2_rootfs_graph
     _create_image_target(neo4j_session)
-    image_report = deepcopy(TRIVY_VM_SAMPLE)
-    image_report["ArtifactType"] = "container_image"
-    image_report["ArtifactName"] = IMAGE_URI
-    image_report["Metadata"] = {
-        "RepoTags": [IMAGE_URI],
-        "RepoDigests": [f"registry.example/app@{IMAGE_DIGEST}"],
-    }
+    image_report = _image_report()
     old_report = deepcopy(image_report)
     old_report["Results"][0]["Packages"] = []
     old_report["Results"][0]["Vulnerabilities"][0].update(
@@ -431,8 +436,39 @@ def test_rootfs_targets_do_not_disable_full_trivy_cleanup(
         "AFFECTS",
         rel_direction_right=True,
     ) == (
-        {("TIF|CVE-2026-12345", "aws:ec2-rootfs:i-01")} if include_vm_report else set()
+        {("TIF|CVE-2026-12345", "aws:ec2:i-01:rootfs")} if include_vm_report else set()
     )
+
+
+def test_image_only_batch_preserves_vm_scan_results(ec2_rootfs_graph):
+    # Arrange: a VM scan lands first, from its own pipeline.
+    neo4j_session = ec2_rootfs_graph
+    _create_image_target(neo4j_session)
+    cartography.intel.trivy.sync_trivy_from_report_reader(
+        neo4j_session,
+        _report_reader(deepcopy(TRIVY_VM_SAMPLE)),
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Act: a later batch carries only image reports.
+    cartography.intel.trivy.sync_trivy_from_report_reader(
+        neo4j_session,
+        _report_reader(_image_report()),
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
+
+    # Assert: the VM findings were not re-checked, so they stay.
+    assert check_rels(
+        neo4j_session,
+        "TrivyImageFinding",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("TIF|CVE-2026-12345", "aws:ec2:i-01:rootfs")}
 
 
 @pytest.mark.parametrize(
@@ -450,7 +486,7 @@ def test_rootfs_targets_do_not_disable_full_trivy_cleanup(
         ],
     ],
 )
-def test_clean_vm_report_uses_existing_filesystem_cleanup(ec2_rootfs_graph, results):
+def test_vm_report_cleanup_is_limited_to_vm_targets(ec2_rootfs_graph, results):
     # Arrange
     neo4j_session = ec2_rootfs_graph
     _create_image_target(neo4j_session)
@@ -460,7 +496,7 @@ def test_clean_vm_report_uses_existing_filesystem_cleanup(ec2_rootfs_graph, resu
                 source_repo: 'acme/api', source_revision: $revision})
         WITH 1 AS unused
         MATCH (target)
-        WHERE target.id IN ['aws:ec2-rootfs:i-01', 'aws:ec2-rootfs:i-02',
+        WHERE target.id IN ['aws:ec2:i-01:rootfs', 'aws:ec2:i-02:rootfs',
                             'repository-snapshot', $image_digest]
         MERGE (f:TrivyImageFinding {id: 'old-finding', lastupdated: 1})
         MERGE (p:TrivyPackage {id: 'old-package', lastupdated: 1})
@@ -481,22 +517,20 @@ def test_clean_vm_report_uses_existing_filesystem_cleanup(ec2_rootfs_graph, resu
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert: stale filesystem edges are removed across targets; image data survives.
-    assert (
-        check_rels(
-            neo4j_session,
-            "TrivyImageFinding",
-            "id",
-            "FilesystemSnapshot",
-            "id",
-            "AFFECTS",
-            rel_direction_right=True,
-        )
-        == set()
-    )
-    expected_packages = set()
+    # Assert: stale edges are removed from every scanned VM target, while source
+    # repository and image results survive a batch without those report types.
+    assert check_rels(
+        neo4j_session,
+        "TrivyImageFinding",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("old-finding", "repository-snapshot")}
+    expected_packages = {("old-package", "repository-snapshot")}
     if results:
-        expected_packages.add(("2.0.0|clean-package", "aws:ec2-rootfs:i-01"))
+        expected_packages.add(("2.0.0|clean-package", "aws:ec2:i-01:rootfs"))
     assert (
         check_rels(
             neo4j_session,
@@ -527,8 +561,8 @@ def test_clean_vm_report_uses_existing_filesystem_cleanup(ec2_rootfs_graph, resu
 @pytest.mark.parametrize(
     "snapshot_id",
     [
-        "aws:ec2-rootfs:i-unknown",
-        "aws:ec2-rootfs:i-02",
+        "aws:ec2:i-unknown:rootfs",
+        "aws:ec2:i-02:rootfs",
         "unattached-rootfs",
     ],
 )
@@ -541,7 +575,7 @@ def test_vm_reports_require_a_rootfs_target_on_an_instance(
     neo4j_session = ec2_rootfs_graph
     neo4j_session.run(
         """
-        MATCH (s:FilesystemSnapshot {id: 'aws:ec2-rootfs:i-02'})
+        MATCH (s:FilesystemSnapshot {id: 'aws:ec2:i-02:rootfs'})
         SET s._ont_kind = 'source'
         CREATE (:FilesystemSnapshot {id: 'unattached-rootfs', _ont_kind: 'rootfs'})
         CREATE (f:TrivyImageFinding {id: 'existing-finding', lastupdated: 1})
@@ -572,4 +606,4 @@ def test_vm_reports_require_a_rootfs_target_on_an_instance(
         "id",
         "AFFECTS",
         rel_direction_right=True,
-    ) == {("existing-finding", "aws:ec2-rootfs:i-02")}
+    ) == {("existing-finding", "aws:ec2:i-02:rootfs")}

@@ -6,7 +6,7 @@ TRIVY_VM_SAMPLE = {
     "ArtifactType": "vm",
     "Metadata": {
         "OS": {"Family": "ubuntu", "Name": "20.04"},
-        "FilesystemSnapshotId": "aws:ec2-rootfs:i-01",
+        "FilesystemSnapshotId": "aws:ec2:i-01:rootfs",
     },
     "Results": [
         {

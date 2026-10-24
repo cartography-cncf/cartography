@@ -135,7 +135,7 @@ add `Metadata.FilesystemSnapshotId` containing the stable graph target ID:
   "ArtifactType": "vm",
   "ArtifactName": "ebs:snap-0123456789abcdef0",
   "Metadata": {
-    "FilesystemSnapshotId": "aws:ec2-rootfs:i-0123456789abcdef0"
+    "FilesystemSnapshotId": "aws:ec2:i-0123456789abcdef0:rootfs"
   }
 }
 ```
@@ -153,12 +153,16 @@ while keeping the target ID stable.
 
 Cartography uses this stable ID because the temporary EBS snapshot in
 `ArtifactName` can change on every scan. Missing, invalid, or unmatched IDs are
-skipped with a warning. VM reports follow the existing filesystem-report cleanup
-rules. A successful report with zero vulnerabilities clears that target's old
-findings. Cleanup is not limited to target IDs in the batch: stale data for
-filesystem targets without reports can also be removed. Supply the complete set
-of reports whose results should be retained. Read or parse failures, or a batch
-with no matching reports, skip cleanup.
+skipped with a warning. A successful report with zero vulnerabilities clears
+that target's old findings.
+
+Cleanup is scoped by report type. A batch with VM reports removes stale results
+from every scanned VM target, including targets without a report in the batch,
+so supply all current VM reports together. Image and source repository results
+are kept when the batch has no reports of that type, and the same applies to VM
+results when the batch has no VM reports. Supply one report per target: multiple
+reports for the same target in one batch are merged. Read or parse failures, or
+a batch with no matching reports, skip cleanup.
 
 #### Scan an EC2 root filesystem
 
@@ -220,7 +224,7 @@ ID for manual cleanup and exits with an error.
   trivy vm --aws-region "$scan_region" --format json --scanners vuln \
     --list-all-pkgs --timeout 30m --output "$scan_work_dir/raw.json" \
     "ebs:$snapshot_id"
-  jq --arg id "aws:ec2-rootfs:$instance_id" \
+  jq --arg id "aws:ec2:$instance_id:rootfs" \
     '.Metadata.FilesystemSnapshotId = $id' \
     "$scan_work_dir/raw.json" > "$scan_work_dir/report.json"
 

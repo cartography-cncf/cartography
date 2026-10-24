@@ -251,7 +251,7 @@ def transform_ec2_instances(
             else:
                 filesystem_snapshot_list.append(
                     {
-                        "id": f"aws:ec2-rootfs:{instance_id}",
+                        "id": f"aws:ec2:{instance_id}:rootfs",
                         "instance_id": instance_id,
                         "volume_id": root_volume_id,
                         "kind": "rootfs",

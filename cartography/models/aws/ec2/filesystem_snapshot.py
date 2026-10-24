@@ -17,7 +17,7 @@ from cartography.models.ontology.labels import FILESYSTEM_SNAPSHOT
 class EC2FilesystemSnapshotNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="Stable scan target ID in the form aws:ec2-rootfs:<instance-id>.",
+        description="Stable scan target ID in the form aws:ec2:<instance-id>:rootfs.",
     )
     instance_id: PropertyRef = PropertyRef(
         "instance_id",

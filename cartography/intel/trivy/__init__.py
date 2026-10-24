@@ -199,16 +199,17 @@ def _get_filesystem_scan_targets(
     return targets
 
 
-def _get_rootfs_scan_targets(neo4j_session: Session) -> set[str]:
-    """Return stable root filesystem targets attached to compute instances."""
+def _get_rootfs_scan_targets(neo4j_session: Session) -> dict[str, bool]:
+    """Return root filesystem targets on compute instances and whether each has scan data."""
     result = neo4j_session.run(
         """
         MATCH (:ComputeInstance)-[:SCANNED_AS]->(snapshot:FilesystemSnapshot)
         WHERE snapshot._ont_kind = "rootfs"
-        RETURN DISTINCT snapshot.id AS id
+        RETURN DISTINCT snapshot.id AS id,
+               EXISTS { (snapshot)<-[:AFFECTS|DEPLOYED]-() } AS scanned
         """,
     )
-    return {record["id"] for record in result}
+    return {record["id"]: record["scanned"] for record in result}
 
 
 @timeit
@@ -362,7 +363,8 @@ def sync_trivy_from_report_reader(
     logger.info("Processing %d Trivy result files from report source", len(json_files))
     failed_report_count = 0
     processed_reports = 0
-    processed_filesystem_reports = 0
+    processed_source_reports = 0
+    processed_rootfs_reports = 0
     processed_image_reports = 0
     for ref in json_files:
         logger.debug(
@@ -381,7 +383,7 @@ def sync_trivy_from_report_reader(
             image_uris=image_uris,
             digest_aliases=digest_aliases,
             filesystem_targets=filesystem_targets,
-            rootfs_targets=rootfs_targets,
+            rootfs_targets=set(rootfs_targets),
             source=ref.uri,
         )
         if prepared is None:
@@ -404,7 +406,10 @@ def sync_trivy_from_report_reader(
                 ref.uri,
                 update_tag,
             )
-            processed_filesystem_reports += 1
+            if prepared_data.get("ArtifactType") == "vm":
+                processed_rootfs_reports += 1
+            else:
+                processed_source_reports += 1
         processed_reports += 1
 
     if failed_report_count:
@@ -420,23 +425,40 @@ def sync_trivy_from_report_reader(
         )
         return
 
-    if image_uris and processed_image_reports == 0:
-        logger.warning(
-            "Limiting Trivy cleanup to filesystem relationships because the report "
-            "source contained only filesystem reports while image scan targets exist.",
-        )
+    source_snapshot_ids = sorted(
+        snapshot_id for ids in filesystem_targets.values() for snapshot_id in ids
+    )
+    scanned_rootfs_ids = sorted(
+        snapshot_id for snapshot_id, scanned in rootfs_targets.items() if scanned
+    )
+    # Results for a report family absent from this batch were not re-checked, so
+    # they are kept rather than treated as stale.
+    keep_images = bool(image_uris) and processed_image_reports == 0
+    keep_sources = bool(source_snapshot_ids) and processed_source_reports == 0
+    keep_rootfs = bool(scanned_rootfs_ids) and processed_rootfs_reports == 0
+    if not (keep_images or keep_sources or keep_rootfs):
+        cleanup(neo4j_session, common_job_parameters)
+        return
+
+    logger.warning(
+        "Limiting Trivy cleanup to report types in this batch. Preserving "
+        "image results: %s, source filesystem results: %s, VM results: %s.",
+        keep_images,
+        keep_sources,
+        keep_rootfs,
+    )
+    if not keep_images:
+        cleanup_image_relationships(neo4j_session, update_tag)
+    if not (keep_sources or keep_rootfs):
         cleanup_filesystem_snapshot_relationships(neo4j_session, update_tag)
         return
-
-    if filesystem_targets and processed_filesystem_reports == 0:
-        logger.warning(
-            "Limiting Trivy cleanup to image relationships because the report source "
-            "contained only image reports while filesystem scan targets exist.",
+    snapshot_ids = scanned_rootfs_ids if keep_sources else source_snapshot_ids
+    if not (keep_sources and keep_rootfs) and snapshot_ids:
+        cleanup_filesystem_snapshot_relationships(
+            neo4j_session,
+            update_tag,
+            snapshot_ids=snapshot_ids,
         )
-        cleanup_image_relationships(neo4j_session, update_tag)
-        return
-
-    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit

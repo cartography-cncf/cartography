@@ -96,7 +96,7 @@ def test_transform_ec2_filesystem_snapshot_eligibility(
     assert data.filesystem_snapshot_list == (
         [
             {
-                "id": "aws:ec2-rootfs:i-01",
+                "id": "aws:ec2:i-01:rootfs",
                 "instance_id": "i-01",
                 "volume_id": "vol-0df",
                 "kind": "rootfs",
@@ -130,7 +130,7 @@ def test_transform_ec2_filesystem_snapshot_selects_root_volume(root_first):
     # Assert
     assert data.filesystem_snapshot_list == [
         {
-            "id": "aws:ec2-rootfs:i-01",
+            "id": "aws:ec2:i-01:rootfs",
             "instance_id": "i-01",
             "volume_id": "vol-0df",
             "kind": "rootfs",
