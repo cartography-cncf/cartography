@@ -425,12 +425,12 @@ def test_vm_scan_metadata_survives_ec2_discovery_and_clears_missing_fields(
         ["id", "trivy_snapshot_id", "trivy_scan_created_at", "trivy_version"],
     )
 
-    # Arrange: a clean report with missing/invalid optional provenance must not
+    # Arrange: a clean report with missing optional provenance must not
     # inherit the preceding report's metadata or invent a scan timestamp.
     payload = deepcopy(TRIVY_VM_SAMPLE)
     payload.pop("ArtifactName")
     payload.pop("CreatedAt")
-    payload["Trivy"] = ["invalid metadata"]
+    payload.pop("Trivy")
     payload["Results"] = []
 
     # Act

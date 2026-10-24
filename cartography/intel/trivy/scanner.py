@@ -389,18 +389,7 @@ def _update_vm_scan_metadata(
     filesystem_snapshot_ids: list[str],
 ) -> None:
     """Record provenance of the successfully ingested VM report on existing targets."""
-    trivy = trivy_data.get("Trivy")
-    values = {
-        "snapshot_id": trivy_data.get("ArtifactName"),
-        "scan_created_at": trivy_data.get("CreatedAt"),
-        "version": trivy.get("Version") if isinstance(trivy, dict) else None,
-    }
-    metadata = {
-        key: value if isinstance(value, str) and value else None
-        for key, value in values.items()
-    }
-    if metadata["snapshot_id"]:
-        metadata["snapshot_id"] = metadata["snapshot_id"].removeprefix("ebs:")
+    artifact_name = trivy_data.get("ArtifactName")
 
     # These properties belong to Trivy. Update existing targets without changing
     # the discovery-owned lastupdated value or creating undiscovered targets.
@@ -415,7 +404,9 @@ def _update_vm_scan_metadata(
             snapshot.trivy_version = $version
         """,
         snapshot_ids=filesystem_snapshot_ids,
-        **metadata,
+        snapshot_id=artifact_name.removeprefix("ebs:") if artifact_name else None,
+        scan_created_at=trivy_data.get("CreatedAt"),
+        version=(trivy_data.get("Trivy") or {}).get("Version"),
     )
 
 

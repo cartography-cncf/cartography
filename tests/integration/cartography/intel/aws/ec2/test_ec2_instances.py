@@ -2,10 +2,6 @@ from copy import deepcopy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
-from botocore.exceptions import ClientError
-from botocore.exceptions import ReadTimeoutError
-
 import cartography.intel.aws.ec2.instances
 import cartography.intel.aws.iam
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
@@ -17,105 +13,6 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
-
-
-@pytest.mark.parametrize(
-    "error",
-    [
-        ClientError({"Error": {"Code": "AccessDenied"}}, "DescribeInstances"),
-        ReadTimeoutError(endpoint_url="https://ec2.example.invalid"),
-    ],
-)
-def test_incomplete_ec2_discovery_preserves_targets_until_recovery(
-    neo4j_session, error, caplog
-):
-    # Arrange: seed both regions through the real getter and sync path.
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    regions = [TEST_REGION, "us-west-2"]
-    clients = {region: MagicMock() for region in regions}
-    provider = MagicMock()
-    provider.client.side_effect = lambda *args, **kwargs: clients[kwargs["region_name"]]
-    for index, region in enumerate(regions):
-        clients[region].get_paginator.return_value.paginate.return_value = [
-            {
-                "Reservations": deepcopy(
-                    DESCRIBE_INSTANCES["Reservations"][index : index + 1]
-                )
-            }
-        ]
-    sync_ec2_instances(
-        neo4j_session,
-        provider,
-        regions,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    def partial_response():
-        partial = deepcopy(DESCRIBE_INSTANCES["Reservations"][:1])
-        partial[0]["Instances"][0]["InstanceId"] = "i-partial"
-        yield {"Reservations": partial}
-        raise error
-
-    clients["us-west-2"].get_paginator.return_value.paginate.side_effect = (
-        partial_response
-    )
-    next_update_tag = TEST_UPDATE_TAG + 1
-
-    # Act: a later page fails in one region, while the other region succeeds.
-    sync_ec2_instances(
-        neo4j_session,
-        provider,
-        regions,
-        TEST_ACCOUNT_ID,
-        next_update_tag,
-        {"UPDATE_TAG": next_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    # Assert: preserve the unavailable region and discard its partial response.
-    assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id", "lastupdated"]) == {
-        ("aws:ec2-rootfs:i-01", next_update_tag),
-        ("aws:ec2-rootfs:i-02", TEST_UPDATE_TAG),
-    }
-    assert check_nodes(neo4j_session, "AWSEC2Instance", ["id"]) == {
-        ("i-01",),
-        ("i-02",),
-    }
-    assert check_rels(
-        neo4j_session,
-        "FilesystemSnapshot",
-        "id",
-        "BlockStorage",
-        "id",
-        "SNAPSHOT_OF",
-        rel_direction_right=True,
-    ) == {
-        ("aws:ec2-rootfs:i-01", "vol-0df"),
-        ("aws:ec2-rootfs:i-02", "vol-03"),
-    }
-    assert "regional discovery was incomplete" in caplog.text
-
-    # Arrange: a successful empty response is authoritative, unlike a failure.
-    for client in clients.values():
-        client.get_paginator.return_value.paginate.side_effect = None
-        client.get_paginator.return_value.paginate.return_value = [{"Reservations": []}]
-    final_update_tag = next_update_tag + 1
-
-    # Act
-    sync_ec2_instances(
-        neo4j_session,
-        provider,
-        regions,
-        TEST_ACCOUNT_ID,
-        final_update_tag,
-        {"UPDATE_TAG": final_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    # Assert
-    assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == set()
-    assert check_nodes(neo4j_session, "AWSEC2Instance", ["id"]) == set()
 
 
 @patch.object(

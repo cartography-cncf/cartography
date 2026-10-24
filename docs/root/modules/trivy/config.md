@@ -35,9 +35,6 @@ cartography --selected-modules aws --aws-requested-syncs ec2:instance \
 
 EC2 discovery creates targets for eligible running Linux instances with an EBS
 root volume. See [VM Reports](#vm-reports) for the scan and ingestion commands.
-If discovery fails in any selected region, EC2 sync preserves existing account
-data by skipping cleanup. A successful empty regional response still allows
-stale targets to be removed after discovery completes for every region.
 
 ## Required Permissions
 
