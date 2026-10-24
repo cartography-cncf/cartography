@@ -151,22 +151,6 @@ Each EC2 target stores the root EBS `volume_id` and links to that volume through
 volume is replaced, the next EC2 sync updates this property and relationship
 while keeping the target ID stable.
 
-After successfully ingesting a VM report, Cartography records its provenance on
-the target:
-
-| Target property | Trivy report field |
-|---|---|
-| `trivy_snapshot_id` | `ArtifactName`, with an optional `ebs:` prefix removed |
-| `trivy_scan_created_at` | `CreatedAt`, the report creation timestamp |
-| `trivy_version` | `Trivy.Version` |
-
-These fields describe the most recently ingested VM report, including reports
-with zero vulnerabilities. Missing fields remain unknown and clear any previous
-value; Cartography does not substitute the import time for the scan time. EC2
-discovery preserves these fields. The target's `lastupdated` remains the EC2
-discovery timestamp. Supply one current report per target to avoid importing
-older results over newer results.
-
 Cartography uses this stable ID because the temporary EBS snapshot in
 `ArtifactName` can change on every scan. Missing, invalid, or unmatched IDs are
 skipped with a warning. VM reports follow the existing filesystem-report cleanup

@@ -374,40 +374,11 @@ def sync_single_filesystem_snapshot(
             update_tag,
             filesystem_snapshot_ids=filesystem_snapshot_ids,
         )
-        if artifact_type == "vm":
-            _update_vm_scan_metadata(neo4j_session, trivy_data, filesystem_snapshot_ids)
         stat_handler.incr("filesystem_scan_cve_count", num_findings)
         stat_handler.incr("filesystem_scans_processed_count")
     except Exception as exc:
         logger.error("Failed to process scan results for %s: %s", source, exc)
         raise
-
-
-def _update_vm_scan_metadata(
-    neo4j_session: Session,
-    trivy_data: dict[str, Any],
-    filesystem_snapshot_ids: list[str],
-) -> None:
-    """Record provenance of the successfully ingested VM report on existing targets."""
-    artifact_name = trivy_data.get("ArtifactName")
-
-    # These properties belong to Trivy. Update existing targets without changing
-    # the discovery-owned lastupdated value or creating undiscovered targets.
-    # Missing fields clear older provenance rather than attributing it to this scan.
-    run_write_query(
-        neo4j_session,
-        """
-        UNWIND $snapshot_ids AS snapshot_id
-        MATCH (snapshot:FilesystemSnapshot {id: snapshot_id})
-        SET snapshot.trivy_snapshot_id = $snapshot_id,
-            snapshot.trivy_scan_created_at = $scan_created_at,
-            snapshot.trivy_version = $version
-        """,
-        snapshot_ids=filesystem_snapshot_ids,
-        snapshot_id=artifact_name.removeprefix("ebs:") if artifact_name else None,
-        scan_created_at=trivy_data.get("CreatedAt"),
-        version=(trivy_data.get("Trivy") or {}).get("Version"),
-    )
 
 
 def _sync_scan_results(

@@ -325,34 +325,8 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
         ("1.0.0|example-package", "aws:ec2-rootfs:i-01"),
         ("2.0.0|clean-package", "aws:ec2-rootfs:i-01"),
     }
-    assert check_nodes(
-        neo4j_session,
-        "FilesystemSnapshot",
-        [
-            "id",
-            "trivy_snapshot_id",
-            "trivy_scan_created_at",
-            "trivy_version",
-            "lastupdated",
-        ],
-    ) == {
-        (
-            "aws:ec2-rootfs:i-01",
-            "snap-temporary",
-            "2026-10-23T12:00:00Z",
-            "0.76.1",
-            TEST_UPDATE_TAG,
-        ),
-        *[
-            (f"aws:ec2-rootfs:i-0{i}", None, None, None, TEST_UPDATE_TAG)
-            for i in range(2, 5)
-        ],
-    }
-
     # Arrange: a later scan uses a different temporary EBS snapshot.
     payload["ArtifactName"] = "ebs:snap-next-scan"
-    payload["CreatedAt"] = "2026-10-23T13:00:00Z"
-    payload["Trivy"]["Version"] = "0.76.2"
 
     # Act
     cartography.intel.trivy.sync_trivy_from_report_reader(
@@ -367,11 +341,7 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
         """
         MATCH (:ComputeInstance {id: 'i-01'})-[:SCANNED_AS]->(s:FilesystemSnapshot)
               <-[r:AFFECTS]-(f:TrivyImageFinding)
-        RETURN s.id AS id, f.id AS finding, r.lastupdated AS updated,
-               s.trivy_snapshot_id AS snapshot_id,
-               s.trivy_scan_created_at AS scan_created_at,
-               s.trivy_version AS trivy_version,
-               s.lastupdated AS discovery_updated
+        RETURN s.id AS id, f.id AS finding, r.lastupdated AS updated
         """
     ).data()
     assert rows == [
@@ -379,83 +349,8 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
             "id": "aws:ec2-rootfs:i-01",
             "finding": "TIF|CVE-2026-12345",
             "updated": TEST_UPDATE_TAG + 1,
-            "snapshot_id": "snap-next-scan",
-            "scan_created_at": "2026-10-23T13:00:00Z",
-            "trivy_version": "0.76.2",
-            "discovery_updated": TEST_UPDATE_TAG,
         }
     ]
-
-
-def test_vm_scan_metadata_survives_ec2_discovery_and_clears_missing_fields(
-    ec2_rootfs_graph,
-):
-    # Arrange
-    neo4j_session = ec2_rootfs_graph
-    cartography.intel.trivy.sync_trivy_from_report_reader(
-        neo4j_session,
-        _report_reader(TRIVY_VM_SAMPLE),
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
-    # Act: later inventory discovery must preserve Trivy-owned provenance.
-    with patch(
-        "cartography.intel.aws.ec2.instances.get_ec2_instances",
-        return_value=deepcopy(DESCRIBE_INSTANCES["Reservations"]),
-    ):
-        sync_ec2_instances(
-            neo4j_session,
-            MagicMock(),
-            ["us-east-1"],
-            "000000000000",
-            TEST_UPDATE_TAG + 1,
-            {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": "000000000000"},
-        )
-
-    # Assert
-    assert (
-        "aws:ec2-rootfs:i-01",
-        "snap-temporary",
-        "2026-10-23T12:00:00Z",
-        "0.76.1",
-    ) in check_nodes(
-        neo4j_session,
-        "FilesystemSnapshot",
-        ["id", "trivy_snapshot_id", "trivy_scan_created_at", "trivy_version"],
-    )
-
-    # Arrange: a clean report with missing optional provenance must not
-    # inherit the preceding report's metadata or invent a scan timestamp.
-    payload = deepcopy(TRIVY_VM_SAMPLE)
-    payload.pop("ArtifactName")
-    payload.pop("CreatedAt")
-    payload.pop("Trivy")
-    payload["Results"] = []
-
-    # Act
-    cartography.intel.trivy.sync_trivy_from_report_reader(
-        neo4j_session,
-        _report_reader(payload),
-        TEST_UPDATE_TAG + 2,
-        {"UPDATE_TAG": TEST_UPDATE_TAG + 2},
-    )
-
-    # Assert: discovery time remains separate from the report's scan time.
-    assert check_nodes(
-        neo4j_session,
-        "FilesystemSnapshot",
-        [
-            "id",
-            "trivy_snapshot_id",
-            "trivy_scan_created_at",
-            "trivy_version",
-            "lastupdated",
-        ],
-    ) == {
-        (f"aws:ec2-rootfs:i-0{i}", None, None, None, TEST_UPDATE_TAG + 1)
-        for i in range(1, 5)
-    }
 
 
 @pytest.mark.parametrize("include_vm_report", [False, True])
