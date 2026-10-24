@@ -1,6 +1,8 @@
 TRIVY_VM_SAMPLE = {
     "SchemaVersion": 2,
-    "ArtifactName": "ebs:snap-temporary",
+    "Trivy": {"Version": "0.76.1"},
+    "CreatedAt": "2026-10-23T12:00:00Z",
+    "ArtifactName": "snap-temporary",
     "ArtifactType": "vm",
     "Metadata": {
         "OS": {"Family": "ubuntu", "Name": "20.04"},
@@ -8,7 +10,7 @@ TRIVY_VM_SAMPLE = {
     },
     "Results": [
         {
-            "Target": "ebs:snap-temporary (ubuntu 20.04)",
+            "Target": "snap-temporary (ubuntu 20.04)",
             "Class": "os-pkgs",
             "Type": "ubuntu",
             "Packages": [

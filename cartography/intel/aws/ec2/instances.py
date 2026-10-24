@@ -8,6 +8,12 @@ from typing import Optional
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectionClosedError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
+from botocore.exceptions import SSLError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -33,9 +39,15 @@ from cartography.models.aws.ec2.securitygroup_instance import (
 from cartography.models.aws.ec2.subnet_instance import EC2SubnetInstanceSchema
 from cartography.models.aws.ec2.volumes import EBSVolumeInstanceSchema
 from cartography.util import aws_handle_regions
+from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+class EC2RegionDiscoveryFailure(Exception):
+    """Regional discovery failed and must not be treated as an empty inventory."""
+
 
 Ec2Data = namedtuple(
     "Ec2Data",
@@ -132,16 +144,31 @@ def _get_filesystem_snapshot_skip_reason(
 @timeit
 @aws_handle_regions
 def get_ec2_instances(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = create_boto3_client(
-        boto3_session,
-        "ec2",
-        region_name=region,
-        config=get_botocore_config(),
-    )
-    paginator = client.get_paginator("describe_instances")
-    reservations: List[Dict[str, Any]] = []
-    for page in paginator.paginate():
-        reservations.extend(page["Reservations"])
+    try:
+        client = create_boto3_client(
+            boto3_session,
+            "ec2",
+            region_name=region,
+            config=get_botocore_config(),
+        )
+        paginator = client.get_paginator("describe_instances")
+        reservations: List[Dict[str, Any]] = []
+        for page in paginator.paginate():
+            reservations.extend(page["Reservations"])
+    except ClientError as error:
+        # Preserve the shared decorator's retries and InvalidToken guidance, but
+        # do not let handled regional errors masquerade as empty inventories.
+        if is_aws_region_skippable_client_error(error):
+            raise EC2RegionDiscoveryFailure(str(error)) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        SSLError,
+    ) as error:
+        raise EC2RegionDiscoveryFailure(str(error)) from error
     return reservations
 
 
@@ -670,13 +697,24 @@ def sync_ec2_instances(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    discovery_complete = True
     for region in regions:
         logger.info(
             "Syncing EC2 instances for region '%s' in account '%s'.",
             region,
             current_aws_account_id,
         )
-        reservations = get_ec2_instances(boto3_session, region)
+        try:
+            reservations = get_ec2_instances(boto3_session, region)
+        except EC2RegionDiscoveryFailure as error:
+            discovery_complete = False
+            logger.warning(
+                "Skipping EC2 instance discovery in account %s, region %s: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         ec2_data = transform_ec2_instances(reservations, region, current_aws_account_id)
         load_ec2_instance_data(
             neo4j_session,
@@ -693,6 +731,13 @@ def sync_ec2_instances(
             ec2_data.ipv6_address_list,
             ec2_data.filesystem_snapshot_list,
         )
+    if not discovery_complete:
+        logger.warning(
+            "Skipping EC2 instance cleanup and role analysis for account %s "
+            "because regional discovery was incomplete. Preserving existing state.",
+            current_aws_account_id,
+        )
+        return
     # Clean up stale instances / INSTANCE_PROFILE edges first so the ASSUMES
     # edges are derived from the current profile chain only (a re-profiled
     # instance would otherwise keep an obsolete role binding for one cycle).

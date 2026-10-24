@@ -35,6 +35,9 @@ cartography --selected-modules aws --aws-requested-syncs ec2:instance \
 
 EC2 discovery creates targets for eligible running Linux instances with an EBS
 root volume. See [VM Reports](#vm-reports) for the scan and ingestion commands.
+If discovery fails in any selected region, EC2 sync preserves existing account
+data by skipping cleanup. A successful empty regional response still allows
+stale targets to be removed after discovery completes for every region.
 
 ## Required Permissions
 
@@ -151,6 +154,22 @@ Each EC2 target stores the root EBS `volume_id` and links to that volume through
 volume is replaced, the next EC2 sync updates this property and relationship
 while keeping the target ID stable.
 
+After successfully ingesting a VM report, Cartography records its provenance on
+the target:
+
+| Target property | Trivy report field |
+|---|---|
+| `trivy_snapshot_id` | `ArtifactName`, with an optional `ebs:` prefix removed |
+| `trivy_scan_created_at` | `CreatedAt`, the report creation timestamp |
+| `trivy_version` | `Trivy.Version` |
+
+These fields describe the most recently ingested VM report, including reports
+with zero vulnerabilities. Missing fields remain unknown and clear any previous
+value; Cartography does not substitute the import time for the scan time. EC2
+discovery preserves these fields. The target's `lastupdated` remains the EC2
+discovery timestamp. Supply one current report per target to avoid importing
+older results over newer results.
+
 Cartography uses this stable ID because the temporary EBS snapshot in
 `ArtifactName` can change on every scan. Missing, invalid, or unmatched IDs are
 skipped with a warning. VM reports follow the existing filesystem-report cleanup
@@ -251,6 +270,11 @@ only the saved JSON and the stable filesystem target in the graph.
   volumes. EC2 discovery excludes Windows, macOS, stopped instances, and
   instances identified by Kubernetes tags. It cannot detect unsupported
   filesystems such as LVM or ZFS from EC2 metadata alone.
+- Kubernetes exclusion relies on the `eks:cluster-name`,
+  `alpha.eksctl.io/cluster-name`, or `kubernetes.io/cluster/` tags. Self-managed
+  Kubernetes nodes without these tags and ECS container instances can still
+  receive targets. Scanning those hosts alongside their container images can
+  produce overlapping package and vulnerability results.
 - Encrypted volumes require access to their KMS key. A missing permission is a
   scan failure, not a report with zero vulnerabilities; do not import an empty
   replacement report after a failed scan.
