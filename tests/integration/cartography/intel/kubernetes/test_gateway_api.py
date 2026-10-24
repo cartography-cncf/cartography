@@ -320,6 +320,8 @@ def test_sync_gateway_api_end_to_end(
         mock_get_http_routes.return_value = routes_raw
 
         k8s_client = MagicMock()
+
+        k8s_client.gke_cluster = None
         k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
 
         common_job_parameters = {
@@ -381,6 +383,7 @@ def test_sync_gateway_api_cleans_up_stale_nodes_and_rels(
             "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
         }
         k8s_client = MagicMock()
+        k8s_client.gke_cluster = None
         k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
 
         first_gateways = deepcopy(KUBERNETES_GATEWAYS_RAW) + [
@@ -508,6 +511,8 @@ def test_sync_gateway_api_preserves_existing_data_on_permission_error(
         mock_get_http_routes.side_effect = ApiException(status=status)
 
         k8s_client = MagicMock()
+
+        k8s_client.gke_cluster = None
         k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
 
         sync_gateway_api(

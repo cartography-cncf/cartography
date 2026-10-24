@@ -1,7 +1,10 @@
+import ipaddress
 import json
 import logging
+import re
 from collections.abc import Callable
 from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -20,6 +23,9 @@ from kubernetes.client import StorageV1Api
 from kubernetes.client import VersionApi
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config.kube_config import KubeConfigMerger
+
+from cartography.intel.gcp.gke_utils import GKEClusterRef
+from cartography.intel.gcp.gke_utils import parse_cluster_ref
 
 logger = logging.getLogger(__name__)
 
@@ -185,18 +191,85 @@ class K8sClient:
         name: str,
         config_file: str,
         external_id: str | None = None,
+        api_client: ApiClient | None = None,
+        gke_cluster: dict[str, Any] | None = None,
+        tls_diagnostics: dict[str, Any] | None = None,
     ) -> None:
         self.name = name
         self.config_file = config_file
         self.external_id = external_id
-        self.core = K8CoreApiClient(self.name, self.config_file)
-        self.networking = K8NetworkingApiClient(self.name, self.config_file)
-        self.version = K8VersionApiClient(self.name, self.config_file)
-        self.rbac = K8RbacApiClient(self.name, self.config_file)
-        self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
-        self.apps = K8AppsApiClient(self.name, self.config_file)
-        self.batch = K8BatchApiClient(self.name, self.config_file)
-        self.storage = K8StorageApiClient(self.name, self.config_file)
+        # GKE API `Cluster` resource, set only when GKE metadata was fetched for this cluster.
+        self.gke_cluster = gke_cluster
+        # Pre-computed TLS posture for clients built without a kubeconfig.
+        self.tls_diagnostics = tls_diagnostics
+        self.core = K8CoreApiClient(self.name, self.config_file, api_client)
+        self.networking = K8NetworkingApiClient(self.name, self.config_file, api_client)
+        self.version = K8VersionApiClient(self.name, self.config_file, api_client)
+        self.rbac = K8RbacApiClient(self.name, self.config_file, api_client)
+        self.custom = K8CustomObjectsApiClient(self.name, self.config_file, api_client)
+        self.apps = K8AppsApiClient(self.name, self.config_file, api_client)
+        self.batch = K8BatchApiClient(self.name, self.config_file, api_client)
+        self.storage = K8StorageApiClient(self.name, self.config_file, api_client)
+
+
+def get_gke_cluster_ref(client: K8sClient) -> GKEClusterRef | None:
+    """Return the GKE cluster reference for a client with GKE metadata, otherwise None."""
+    if not client.gke_cluster:
+        return None
+    return parse_cluster_ref(client.gke_cluster["resource_name"])
+
+
+@dataclass(frozen=True)
+class GKENetworkScope:
+    """Where a GKE cluster's load balancers live: its project and VPC network path."""
+
+    project_id: str
+    network: str | None
+
+
+def get_gke_network_scope(client: K8sClient) -> GKENetworkScope | None:
+    """Return the project and `projects/.../global/networks/...` path of a GKE cluster."""
+    ref = get_gke_cluster_ref(client)
+    if ref is None or not client.gke_cluster:
+        return None
+    network = (client.gke_cluster.get("networkConfig") or {}).get("network")
+    if not network and client.gke_cluster.get("network"):
+        network = (
+            f"projects/{ref.project}/global/networks/{client.gke_cluster['network']}"
+        )
+    if network:
+        network = re.sub(r"^https://[a-z.]+googleapis\.com/compute/v1/", "", network)
+    return GKENetworkScope(ref.project, network)
+
+
+def gcp_forwarding_rule_match_keys(
+    ips: list[str], scope: GKENetworkScope | None
+) -> dict[str, Any]:
+    """
+    Split load balancer addresses for matching GCP forwarding rules. Non-global
+    addresses can repeat across VPCs, so they also match on network; global ones are
+    unique and match on project alone.
+    """
+    public: list[str] = []
+    private: list[str] = []
+    if scope is not None:
+        for ip in ips:
+            try:
+                is_global = ipaddress.ip_address(ip).is_global
+            except ValueError:
+                logger.warning(
+                    "Ignoring invalid load balancer address %r when matching GCP "
+                    "forwarding rules.",
+                    ip,
+                )
+                continue
+            (public if is_global else private).append(ip)
+    return {
+        "gcp_project_id": scope.project_id if scope else None,
+        "gcp_network": scope.network if scope else None,
+        "gcp_public_lb_ips": public,
+        "gcp_private_lb_ips": private,
+    }
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:

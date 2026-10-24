@@ -51,6 +51,7 @@ def test_start_k8s_ingestion_uses_external_id_for_eks_region(monkeypatch):
         update_tag=123456789,
         k8s_kubeconfig="/tmp/kubeconfig",
         managed_kubernetes="eks",
+        gke_clusters=None,
     )
 
     kubernetes.start_k8s_ingestion(session=object(), config=config)

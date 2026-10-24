@@ -14,6 +14,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class KubernetesIngressNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid", description="UID of the Kubernetes Ingress.")
+    load_balancer_ips: PropertyRef = PropertyRef(
+        "load_balancer_ips",
+        description="Assigned IP addresses from the Kubernetes `Ingress.status.loadBalancer.ingress[].ip` field, not requested spec addresses. Used to match GCP forwarding rules for GKE clusters.",
+    )
     name: PropertyRef = PropertyRef(
         "name", description="Name of the Kubernetes Ingress."
     )
@@ -163,6 +167,50 @@ class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesIngressToGCPForwardingRuleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:GCPForwardingRule)
+class KubernetesIngressToGCPForwardingRuleRel(CartographyRelSchema):
+    """Links an ingress to the external GCP forwarding rule that exposes it, matching public `status.loadBalancer.ingress[].ip` addresses against `GCPForwardingRule.ip_address` within the GKE cluster's project. Only created for clusters ingested with GKE metadata. Backend health and firewall reachability are not evaluated."""
+
+    target_node_label: str = "GCPForwardingRule"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "ip_address": PropertyRef("gcp_public_lb_ips", one_to_many=True),
+            "project_id": PropertyRef("gcp_project_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesIngressToGCPForwardingRuleRelProperties = (
+        KubernetesIngressToGCPForwardingRuleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:GCPForwardingRule)
+class KubernetesIngressToGCPInternalForwardingRuleRel(CartographyRelSchema):
+    """Links an ingress to the internal GCP forwarding rule that exposes it, matching private `status.loadBalancer.ingress[].ip` addresses against `GCPForwardingRule.ip_address` within the GKE cluster's project and VPC network, so private addresses reused in other networks do not collide."""
+
+    target_node_label: str = "GCPForwardingRule"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "ip_address": PropertyRef("gcp_private_lb_ips", one_to_many=True),
+            "project_id": PropertyRef("gcp_project_id"),
+            "network": PropertyRef("gcp_network"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesIngressToGCPForwardingRuleRelProperties = (
+        KubernetesIngressToGCPForwardingRuleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesIngressSchema(CartographyNodeSchema):
     "A Kubernetes ingress that routes external traffic to services."
 
@@ -176,5 +224,7 @@ class KubernetesIngressSchema(CartographyNodeSchema):
             KubernetesIngressToKubernetesNamespaceRel(),
             KubernetesIngressToKubernetesServiceRel(),
             KubernetesIngressToLoadBalancerV2Rel(),
+            KubernetesIngressToGCPForwardingRuleRel(),
+            KubernetesIngressToGCPInternalForwardingRuleRel(),
         ]
     )

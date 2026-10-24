@@ -1,11 +1,14 @@
 import logging
+from typing import Iterator
 
 import boto3
 from neo4j import Session
 
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.kubernetes.analysis import K8S_GKE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.config import Config
+from cartography.intel.kubernetes import gke_auth
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from cartography.intel.kubernetes.gateway_api import sync_gateway_api
@@ -19,6 +22,7 @@ from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.storage import sync_storage
 from cartography.intel.kubernetes.util import get_k8s_clients
+from cartography.intel.kubernetes.util import K8sClient
 from cartography.intel.kubernetes.workloads import sync_workloads
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
@@ -37,19 +41,50 @@ def get_region_from_arn(arn: str) -> str:
     return parts[3]
 
 
+def _get_clients(config: Config) -> Iterator[K8sClient]:
+    """
+    Yield kubeconfig clients, then clients for each `--gke-cluster`.
+
+    With `--managed-kubernetes gke`, kubeconfig still authenticates Kubernetes requests;
+    Google credentials are only used to read each cluster's GKE API metadata.
+    """
+    credentials = None
+    if config.gke_clusters or config.managed_kubernetes == "gke":
+        credentials = gke_auth.get_credentials(
+            config.gke_impersonate_service_account, config.gke_credentials
+        )
+
+    if config.k8s_kubeconfig:
+        for client in get_k8s_clients(config.k8s_kubeconfig):
+            if credentials is not None and config.managed_kubernetes == "gke":
+                client.gke_cluster = gke_auth.get_cluster(
+                    client.external_id or client.name, credentials
+                )
+            yield client
+
+    if credentials is None:
+        return
+    for resource in config.gke_clusters or []:
+        cluster = gke_auth.get_cluster(resource, credentials)
+        if cluster is None:
+            continue
+        with gke_auth.connect(cluster, credentials, config.gke_endpoint) as client:
+            yield client
+
+
 @timeit
 def start_k8s_ingestion(session: Session, config: Config) -> None:
     if not config.update_tag:
         logger.error("Cartography update tag not provided.")
         return
 
-    if not config.k8s_kubeconfig:
-        logger.error("Kubernetes kubeconfig not provided.")
+    if not config.k8s_kubeconfig and not config.gke_clusters:
+        logger.error("Kubernetes kubeconfig or --gke-cluster not provided.")
         return
 
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
-    for client in get_k8s_clients(config.k8s_kubeconfig):
+    for client in _get_clients(config):
         logger.info(f"Syncing data for k8s cluster {client.name}...")
         try:
             cluster_info = sync_kubernetes_cluster(
@@ -123,6 +158,10 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             )
             sync_gateway_api(session, client, config.update_tag, common_job_parameters)
             sync_ingress(session, client, config.update_tag, common_job_parameters)
+
+            # Runs for every cluster so generated cleanup also clears stale edges.
+            for job in K8S_GKE_JOBS:
+                run_typed_analysis_job(job, session, common_job_parameters)
 
             for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
                 run_typed_analysis_job(job, session, common_job_parameters)

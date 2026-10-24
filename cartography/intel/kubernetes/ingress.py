@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1HTTPIngressRuleValue
 from kubernetes.client.models import V1Ingress
 from kubernetes.client.models import V1IngressBackend
@@ -12,7 +13,10 @@ from kubernetes.client.models import V1IngressRule
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.dns_utils import normalize_hostname_values
+from cartography.intel.kubernetes.util import gcp_forwarding_rule_match_keys
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_gke_network_scope
+from cartography.intel.kubernetes.util import GKENetworkScope
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.ingress import KubernetesIngressSchema
@@ -22,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_ingress(client: K8sClient) -> list[V1Ingress]:
-    items = k8s_paginate(client.networking.list_ingress_for_all_namespaces)
+    items = k8s_paginate(
+        client.networking.list_ingress_for_all_namespaces, raise_on_error=True
+    )
     return items
 
 
@@ -103,7 +109,10 @@ def _extract_load_balancer_dns_names(
     return dns_names
 
 
-def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
+def transform_ingresses(
+    ingress: list[V1Ingress],
+    gke_scope: GKENetworkScope | None = None,
+) -> list[dict[str, Any]]:
     transformed_ingresses: list[dict[str, Any]] = []
 
     for item in ingress:
@@ -126,7 +135,11 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
 
         # extract load balancer DNS names from status for cloud LB matching
         load_balancer_dns_names: list[str] = []
+        load_balancer_ips: list[str] = []
         if item.status and item.status.load_balancer:
+            load_balancer_ips = sorted(
+                {i.ip for i in item.status.load_balancer.ingress or [] if i.ip}
+            )
             load_balancer_dns_names = _extract_load_balancer_dns_names(
                 item.status.load_balancer.ingress
             )
@@ -153,6 +166,8 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,
+                "load_balancer_ips": load_balancer_ips,
+                **gcp_forwarding_rule_match_keys(load_balancer_ips, gke_scope),
             }
         )
     return transformed_ingresses
@@ -190,8 +205,23 @@ def sync_ingress(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    ingresses = get_ingress(client)
-    transformed_ingresses = transform_ingresses(ingresses)
+    try:
+        ingresses = get_ingress(client)
+    except ApiException as err:
+        if err.status in (401, 403):
+            # A partial ingresses snapshot cannot be told apart from an empty one, so skip
+            # load + cleanup and keep the previous data, like `sync_secrets`.
+            logger.warning(
+                "Cartography lacks permission to list ingresses on cluster %s (status %s). "
+                "Skipping ingresses sync and preserving previously synced data.",
+                client.name,
+                err.status,
+            )
+            return
+        raise
+    transformed_ingresses = transform_ingresses(
+        ingresses, get_gke_network_scope(client)
+    )
     load_ingresses(
         neo4j_session,
         transformed_ingresses,

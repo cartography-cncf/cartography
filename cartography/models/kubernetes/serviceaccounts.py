@@ -124,14 +124,14 @@ class KubernetesServiceAccountToGCPServiceAccountRelProperties(
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToGCPServiceAccountRel(CartographyRelSchema):
-    """Links a service account to the Google Cloud service account it impersonates through Workload Identity."""
+    """Records the GCP service account annotation; this alone does not establish impersonation permission."""
 
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("gcp_service_account")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "WORKLOAD_IDENTITY_BINDING"
+    rel_label: str = "ANNOTATED_SERVICE_ACCOUNT"
     properties: KubernetesServiceAccountToGCPServiceAccountRelProperties = (
         KubernetesServiceAccountToGCPServiceAccountRelProperties()
     )
