@@ -975,10 +975,60 @@ def test_sync_github_actions_env_variables(
 
 
 @pytest.mark.parametrize(
-    "workflow_content,expected_secrets",
+    "workflow_content,expected_secret_rels",
     [
-        (WORKFLOW_CI_CONTENT, {"NPM_TOKEN", "DATABASE_URL"}),
-        (WORKFLOW_COMPOUND_SECRETS, {"NPM_TOKEN", "AWS_ACCESS_KEY_ID", "DATABASE_URL"}),
+        (
+            WORKFLOW_CI_CONTENT,
+            {
+                (12345678, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345678,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345679, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345679,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345680, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345680,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+            },
+        ),
+        (
+            WORKFLOW_COMPOUND_SECRETS,
+            {
+                (12345678, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345678,
+                    "https://github.com/simpsoncorp/actions/secrets/AWS_ACCESS_KEY_ID",
+                ),
+                (
+                    12345678,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345679, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345679,
+                    "https://github.com/simpsoncorp/actions/secrets/AWS_ACCESS_KEY_ID",
+                ),
+                (
+                    12345679,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345680, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345680,
+                    "https://github.com/simpsoncorp/actions/secrets/AWS_ACCESS_KEY_ID",
+                ),
+                (
+                    12345680,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+            },
+        ),
     ],
 )
 @patch.object(
@@ -1046,7 +1096,7 @@ def test_sync_github_actions_workflow_parsing(
     mock_org_secrets,
     neo4j_session,
     workflow_content,
-    expected_secrets,
+    expected_secret_rels,
 ):
     """Test that workflow YAML parsing extracts actions, secrets, and permissions."""
     # Arrange
@@ -1086,20 +1136,14 @@ def test_sync_github_actions_workflow_parsing(
     assert uses_action_rels >= 2
 
     # Assert: exact targets distinguish detected references from quoted literals.
-    assert check_rels(
-        neo4j_session,
-        "GitHubWorkflow",
-        "id",
-        "GitHubActionsSecret",
-        "id",
-        "REFERENCES_SECRET",
-    ) == {
-        (workflow["id"], secret_id)
-        for workflow in GET_REPO_WORKFLOWS
-        for secret_id in (
-            "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN",
-            "https://github.com/simpsoncorp/actions/secrets/AWS_ACCESS_KEY_ID",
-            "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubWorkflow",
+            "id",
+            "GitHubActionsSecret",
+            "id",
+            "REFERENCES_SECRET",
         )
-        if secret_id.rsplit("/", 1)[1] in expected_secrets
-    }
+        == expected_secret_rels
+    )

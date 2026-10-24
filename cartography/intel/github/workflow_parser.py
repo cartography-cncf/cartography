@@ -21,10 +21,11 @@ logger = logging.getLogger(__name__)
 
 # Tokenize only inside ${{ ... }}. Consume quoted literals as units so their
 # contents (including }} and secrets.NAME) cannot become references. Keep
-# double-quoted bracket selectors for compatibility with existing inventory.
+# double-quoted bracket selectors only for compatibility with existing inventory;
+# GitHub rejects double-quoted strings in expressions.
 EXPRESSION_TOKEN_PATTERN = re.compile(
     r"(?P<start>\$\{\{)|(?P<end>\}\})"
-    r"|(?<![\w.])secrets(?:"
+    r"|(?<![\w.-])secrets(?:"
     r"\.(?P<dot>[A-Za-z_][A-Za-z0-9_]*)"
     r"|\[\s*(?P<quote>['\"])(?P<bracket>[A-Za-z_][A-Za-z0-9_]*)(?P=quote)\s*\])"
     r"|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\""
@@ -155,10 +156,14 @@ def extract_secrets_from_string(content: str) -> set[str]:
                 position = token.end()
                 break
             name = token.group("dot") or token.group("bracket")
-            if name and not content[expression_start : token.start()].rstrip().endswith(
-                "."
-            ):
-                references.add(name)
+            if name:
+                # The lookbehind handles adjacent dots; also reject spaced members
+                # such as inputs . secrets.NAME without copying the whole prefix.
+                previous = token.start() - 1
+                while previous >= expression_start and content[previous].isspace():
+                    previous -= 1
+                if previous < expression_start or content[previous] != ".":
+                    references.add(name)
         else:
             # An incomplete expression cannot establish a reference.
             break

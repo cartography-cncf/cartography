@@ -364,6 +364,10 @@ def test_enrich_workflow_read_all_permissions():
         ("${{ 'secrets.FAKE' }}", set()),
         ("${{ github.event.secrets.FAKE }}", set()),
         ("${{ inputs . secrets.FAKE }}", set()),
+        ("${{ steps.import-secrets.outputs.TOKEN }}", set()),
+        ("${{ steps.import-secrets['TOKEN'] }}", set()),
+        ("${{ needs.import-secrets.outputs.TOKEN || secrets.REAL }}", {"REAL"}),
+        ("${{ inputs .\n \t secrets.FAKE || secrets.REAL }}", {"REAL"}),
         ("${{ mysecrets.FAKE }}", set()),
         ("${{ secrets[inputs.name] }}", set()),
         ("${{ secrets[format('{0}', 'FAKE')] }}", set()),
@@ -389,7 +393,7 @@ def test_enrich_workflow_read_all_permissions():
     ],
 )
 def test_extract_static_secrets_in_compound_expressions(content, expected):
-    # Arrange: no evaluation or dynamic secret-name inference is performed.
+    """Inventory static references without evaluation or dynamic name inference."""
 
     # Act
     result = extract_secrets_from_string(content)
