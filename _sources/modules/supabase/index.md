@@ -1,0 +1,6 @@
+# Supabase
+
+```{toctree}
+config
+schema
+```
