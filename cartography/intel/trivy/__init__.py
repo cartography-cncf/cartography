@@ -199,6 +199,19 @@ def _get_filesystem_scan_targets(
     return targets
 
 
+def _get_rootfs_scan_targets(neo4j_session: Session) -> dict[str, bool]:
+    """Return root filesystem targets on compute instances and whether each has scan data."""
+    result = neo4j_session.run(
+        """
+        MATCH (:ComputeInstance)-[:SCANNED_AS]->(snapshot:FilesystemSnapshot)
+        WHERE snapshot._ont_kind = "rootfs"
+        RETURN DISTINCT snapshot.id AS id,
+               EXISTS { (snapshot)<-[:AFFECTS|DEPLOYED]-() } AS scanned
+        """,
+    )
+    return {record["id"]: record["scanned"] for record in result}
+
+
 @timeit
 def get_scan_targets(
     neo4j_session: Session,
@@ -216,16 +229,39 @@ def _prepare_trivy_data(
     image_uris: set[str],
     digest_aliases: dict[str, str],
     filesystem_targets: dict[tuple[str, str, str | None], list[str]],
+    rootfs_targets: set[str],
     source: str,
 ) -> tuple[dict[str, Any], str | None, list[str]] | None:
     """
-    Determine the tag URI that corresponds to this Trivy payload.
-
-    Returns the report and its matching image or filesystem snapshot targets.
+    Return the report and its matching image or filesystem snapshot targets.
     """
 
-    artifact_name = (trivy_data.get("ArtifactName") or "").strip()
     metadata = trivy_data.get("Metadata") or {}
+    artifact_type = trivy_data.get("ArtifactType")
+    if artifact_type == "vm":
+        # ArtifactName identifies a temporary disk snapshot. The scan producer
+        # must stamp the stable graph target ID before publishing the report.
+        snapshot_id = (
+            metadata.get("FilesystemSnapshotId") if isinstance(metadata, dict) else None
+        )
+        if not isinstance(snapshot_id, str) or not snapshot_id:
+            logger.warning(
+                "Skipping Trivy VM report %s: Metadata.FilesystemSnapshotId "
+                "must be a non-empty string.",
+                source,
+            )
+            return None
+        if snapshot_id not in rootfs_targets:
+            logger.warning(
+                "Skipping Trivy VM report %s: no rootfs scan target %s "
+                "attached to a ComputeInstance was found in the graph.",
+                source,
+                snapshot_id,
+            )
+            return None
+        return trivy_data, None, [snapshot_id]
+
+    artifact_name = (trivy_data.get("ArtifactName") or "").strip()
     candidates: list[str] = []
 
     if artifact_name:
@@ -252,7 +288,6 @@ def _prepare_trivy_data(
     if display_uri:
         return trivy_data, display_uri, []
 
-    artifact_type = trivy_data.get("ArtifactType")
     repo_url = metadata.get("RepoURL")
     revision = metadata.get("Commit")
     root_directory = metadata.get("RootDirectory")
@@ -297,7 +332,7 @@ def sync_trivy_from_report_reader(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Sync Trivy scan results from a cloud object store for container images (ECR, GCP, and GitLab).
+    Sync Trivy reports for container images, source filesystems, and VM root filesystems.
 
     Args:
         neo4j_session: Neo4j session for database operations
@@ -309,6 +344,7 @@ def sync_trivy_from_report_reader(
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
     filesystem_targets = _get_filesystem_scan_targets(neo4j_session)
+    rootfs_targets = _get_rootfs_scan_targets(neo4j_session)
     json_files = filter_report_refs(
         reader.list_reports(),
         suffix=".json",
@@ -327,7 +363,8 @@ def sync_trivy_from_report_reader(
     logger.info("Processing %d Trivy result files from report source", len(json_files))
     failed_report_count = 0
     processed_reports = 0
-    processed_filesystem_reports = 0
+    processed_source_reports = 0
+    processed_rootfs_reports = 0
     processed_image_reports = 0
     for ref in json_files:
         logger.debug(
@@ -346,6 +383,7 @@ def sync_trivy_from_report_reader(
             image_uris=image_uris,
             digest_aliases=digest_aliases,
             filesystem_targets=filesystem_targets,
+            rootfs_targets=set(rootfs_targets),
             source=ref.uri,
         )
         if prepared is None:
@@ -368,7 +406,10 @@ def sync_trivy_from_report_reader(
                 ref.uri,
                 update_tag,
             )
-            processed_filesystem_reports += 1
+            if prepared_data.get("ArtifactType") == "vm":
+                processed_rootfs_reports += 1
+            else:
+                processed_source_reports += 1
         processed_reports += 1
 
     if failed_report_count:
@@ -384,23 +425,40 @@ def sync_trivy_from_report_reader(
         )
         return
 
-    if image_uris and processed_image_reports == 0:
-        logger.warning(
-            "Limiting Trivy cleanup to filesystem relationships because the report "
-            "source contained only filesystem reports while image scan targets exist.",
-        )
+    source_snapshot_ids = sorted(
+        snapshot_id for ids in filesystem_targets.values() for snapshot_id in ids
+    )
+    scanned_rootfs_ids = sorted(
+        snapshot_id for snapshot_id, scanned in rootfs_targets.items() if scanned
+    )
+    # Results for a report family absent from this batch were not re-checked, so
+    # they are kept rather than treated as stale.
+    keep_images = bool(image_uris) and processed_image_reports == 0
+    keep_sources = bool(source_snapshot_ids) and processed_source_reports == 0
+    keep_rootfs = bool(scanned_rootfs_ids) and processed_rootfs_reports == 0
+    if not (keep_images or keep_sources or keep_rootfs):
+        cleanup(neo4j_session, common_job_parameters)
+        return
+
+    logger.warning(
+        "Limiting Trivy cleanup to report types in this batch. Preserving "
+        "image results: %s, source filesystem results: %s, VM results: %s.",
+        keep_images,
+        keep_sources,
+        keep_rootfs,
+    )
+    if not keep_images:
+        cleanup_image_relationships(neo4j_session, update_tag)
+    if not (keep_sources or keep_rootfs):
         cleanup_filesystem_snapshot_relationships(neo4j_session, update_tag)
         return
-
-    if filesystem_targets and processed_filesystem_reports == 0:
-        logger.warning(
-            "Limiting Trivy cleanup to image relationships because the report source "
-            "contained only image reports while filesystem scan targets exist.",
+    snapshot_ids = scanned_rootfs_ids if keep_sources else source_snapshot_ids
+    if not (keep_sources and keep_rootfs) and snapshot_ids:
+        cleanup_filesystem_snapshot_relationships(
+            neo4j_session,
+            update_tag,
+            snapshot_ids=snapshot_ids,
         )
-        cleanup_image_relationships(neo4j_session, update_tag)
-        return
-
-    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
