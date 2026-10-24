@@ -312,7 +312,9 @@ already exist in the graph.
   `IS_INSTANCE` edge.
 - `KubernetesService`, `KubernetesIngress`, and `KubernetesGateway -[:USES_LOAD_BALANCER]->
   GCPForwardingRule`, matched on the status IP address within the cluster's project.
-  Backend health and firewall reachability are not evaluated.
+  Non-public addresses must also be in the cluster's VPC network, so private IPs
+  reused across VPCs do not collide. Backend health and firewall reachability are
+  not evaluated.
 - `GCPPrincipal -[:MAPS_TO]-> KubernetesUser`, matched on email.
 - `KubernetesServiceAccount -[:HAS_ALLOW_POLICY]-> GCPPolicyBinding` when a binding
   member names the service account through the cluster's workload pool

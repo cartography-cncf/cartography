@@ -257,6 +257,11 @@ def gcp_forwarding_rule_match_keys(
             try:
                 is_global = ipaddress.ip_address(ip).is_global
             except ValueError:
+                logger.warning(
+                    "Ignoring invalid load balancer address %r when matching GCP "
+                    "forwarding rules.",
+                    ip,
+                )
                 continue
             (public if is_global else private).append(ip)
     return {

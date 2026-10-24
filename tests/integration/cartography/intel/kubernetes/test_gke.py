@@ -16,6 +16,8 @@ from cartography.intel.gcp.policy_bindings import transform_bindings
 from cartography.intel.gcp.workload_identity import load_pools
 from cartography.intel.gcp.workload_identity import transform_pools
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
+from cartography.intel.kubernetes.ingress import load_ingresses
+from cartography.intel.kubernetes.ingress import transform_ingresses
 from cartography.intel.kubernetes.nodes import sync_nodes
 from cartography.intel.kubernetes.rbac import load_service_accounts
 from cartography.intel.kubernetes.rbac import load_users
@@ -31,6 +33,7 @@ from tests.data.kubernetes.gke import GKE_CLUSTER_NAME
 from tests.data.kubernetes.gke import GKE_FORWARDING_RULES
 from tests.data.kubernetes.gke import GKE_GCP_SERVICE_ACCOUNTS
 from tests.data.kubernetes.gke import GKE_GSA_EMAIL
+from tests.data.kubernetes.gke import GKE_INGRESSES
 from tests.data.kubernetes.gke import GKE_NETWORK
 from tests.data.kubernetes.gke import GKE_NODES
 from tests.data.kubernetes.gke import GKE_OTHER_PROJECT_ID
@@ -127,6 +130,15 @@ def _load_kubernetes(session, monkeypatch, update_tag: int) -> None:
         GKE_CLUSTER_ID,
         GKE_CLUSTER_NAME,
     )
+    load_ingresses(
+        session,
+        transform_ingresses(
+            GKE_INGRESSES, GKENetworkScope(GKE_PROJECT_ID, GKE_NETWORK)
+        ),
+        update_tag,
+        GKE_CLUSTER_ID,
+        GKE_CLUSTER_NAME,
+    )
 
 
 def _run_gke_jobs(session, update_tag: int) -> None:
@@ -197,6 +209,24 @@ def test_gke_service_uses_forwarding_rule_in_cluster_project_and_network(gke_gra
     # Assert: the private address also exists in another project and another VPC of
     # the same project; neither of those rules matches.
     assert result == {("ilb", "gke-ilb"), ("public", "gke-external-lb")}
+
+
+def test_gke_ingress_uses_internal_forwarding_rule_in_cluster_network(gke_graph):
+    # Arrange
+    session = gke_graph
+
+    # Act
+    result = check_rels(
+        session,
+        "KubernetesIngress",
+        "name",
+        "GCPForwardingRule",
+        "name",
+        "USES_LOAD_BALANCER",
+    )
+
+    # Assert: same-IP rules in another VPC and another project do not match.
+    assert result == {("internal", "gke-ilb")}
 
 
 def test_gke_workload_identity_policies_and_bindings(gke_graph):

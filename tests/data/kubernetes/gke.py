@@ -1,3 +1,10 @@
+from kubernetes.client import V1Ingress
+from kubernetes.client import V1IngressBackend
+from kubernetes.client import V1IngressLoadBalancerIngress
+from kubernetes.client import V1IngressLoadBalancerStatus
+from kubernetes.client import V1IngressServiceBackend
+from kubernetes.client import V1IngressSpec
+from kubernetes.client import V1IngressStatus
 from kubernetes.client import V1LoadBalancerIngress
 from kubernetes.client import V1LoadBalancerStatus
 from kubernetes.client import V1Node
@@ -5,6 +12,7 @@ from kubernetes.client import V1NodeSpec
 from kubernetes.client import V1ObjectMeta
 from kubernetes.client import V1Service
 from kubernetes.client import V1ServiceAccount
+from kubernetes.client import V1ServiceBackendPort
 from kubernetes.client import V1ServicePort
 from kubernetes.client import V1ServiceSpec
 from kubernetes.client import V1ServiceStatus
@@ -192,6 +200,25 @@ GKE_SERVICES = [
         status=V1ServiceStatus(
             load_balancer=V1LoadBalancerStatus(
                 ingress=[V1LoadBalancerIngress(ip=GKE_PUBLIC_LB_IP)],
+            ),
+        ),
+    ),
+]
+
+# A gce-internal Ingress sharing the internal load balancer address.
+GKE_INGRESSES = [
+    V1Ingress(
+        metadata=V1ObjectMeta(name="internal", namespace="ns", uid="internal-uid"),
+        spec=V1IngressSpec(
+            default_backend=V1IngressBackend(
+                service=V1IngressServiceBackend(
+                    name="ilb", port=V1ServiceBackendPort(number=443)
+                )
+            )
+        ),
+        status=V1IngressStatus(
+            load_balancer=V1IngressLoadBalancerStatus(
+                ingress=[V1IngressLoadBalancerIngress(ip=GKE_LB_IP)],
             ),
         ),
     ),
