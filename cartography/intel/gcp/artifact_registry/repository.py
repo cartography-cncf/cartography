@@ -56,7 +56,7 @@ def _list_repositories_for_location(
         repositories = [
             proto_message_to_dict(repository)
             for repository in list_artifact_registry_resources(
-                lambda: client.list_repositories(parent=parent)
+                lambda **kwargs: client.list_repositories(parent=parent, **kwargs)
             )
         ]
         return LocationRepositoryFetchResult(location, repositories, True)
