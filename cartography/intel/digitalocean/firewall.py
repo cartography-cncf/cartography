@@ -121,7 +121,7 @@ def _transform_firewall_rules(
             "direction": direction,
             "protocol": protocol,
             "ports": ports,
-            "action": rule.get("action"),
+            "action": rule.get("action") or "allow",
             "selectors": _canonicalize_selectors(selectors),
         }
         serialized_rule = json.dumps(
@@ -155,7 +155,7 @@ def _transform_firewall_rules(
                 "ports": ports,
                 "fromport": fromport,
                 "toport": toport,
-                "action": rule.get("action"),
+                "action": rule.get("action") or "allow",
                 "source_addresses": ip_range_raw if direction == "inbound" else None,
                 "destination_addresses": (
                     ip_range_raw if direction == "outbound" else None
