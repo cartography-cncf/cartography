@@ -111,10 +111,10 @@ def get_vertex_ai_models_for_location(
     """
     parent = f"projects/{project_id}/locations/{location}"
     return list_vertex_ai_resources_for_location(
-        fetcher=lambda: build_vertex_ai_model_client(
+        fetcher=lambda **kwargs: build_vertex_ai_model_client(
             location,
             credentials=credentials,
-        ).list_models(parent=parent),
+        ).list_models(parent=parent, **kwargs),
         resource_type="models",
         location=location,
         project_id=project_id,
