@@ -84,15 +84,14 @@ def transform_firewalls(
                 "status": firewall.get("status"),
                 "created_at": firewall.get("created_at"),
                 "tags": firewall.get("tags"),
-                "pending_changes": firewall.get("pending_changes"),
                 "droplet_ids": firewall.get("droplet_ids"),
             },
         )
 
         ip_range_ids: set[str] = set()
         for direction, rules in (
-            ("inbound", firewall.get("inbound_rules", [])),
-            ("outbound", firewall.get("outbound_rules", [])),
+            ("inbound", firewall.get("inbound_rules") or []),
+            ("outbound", firewall.get("outbound_rules") or []),
         ):
             transformed_rules, transformed_ranges = _transform_firewall_rules(
                 firewall["id"], direction, rules, ip_range_ids

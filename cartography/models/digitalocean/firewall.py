@@ -39,10 +39,6 @@ class DOFirewallProperties(CartographyNodeProperties):
         "tags",
         description="Tags assigned to the firewall.",
     )
-    pending_changes: PropertyRef = PropertyRef(
-        "pending_changes",
-        description="Pending firewall changes reported by DigitalOcean.",
-    )
     droplet_ids: PropertyRef = PropertyRef(
         "droplet_ids",
         description="IDs of Droplets protected by this firewall.",

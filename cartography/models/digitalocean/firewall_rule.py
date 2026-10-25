@@ -194,8 +194,8 @@ class DOFirewallRuleSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             IP_RULE,
-            IP_PERMISSION_INBOUND.when(direction="inbound"),
-            IP_PERMISSION_EGRESS.when(direction="outbound"),
+            IP_PERMISSION_INBOUND.when(direction="inbound", action="allow"),
+            IP_PERMISSION_EGRESS.when(direction="outbound", action="allow"),
         ],
     )
     properties: DOFirewallRuleProperties = DOFirewallRuleProperties()
