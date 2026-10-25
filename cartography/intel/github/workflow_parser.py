@@ -188,6 +188,54 @@ def parse_permissions(permissions: Any) -> dict[str, str]:
     return {}
 
 
+def _declared_permissions(permissions: Any) -> dict[str, str] | None:
+    """Normalize an explicit block; None means its defaults are unknown."""
+    if not isinstance(permissions, dict) and permissions not in (
+        "read-all",
+        "write-all",
+    ):
+        return None
+    if isinstance(permissions, dict) and any(
+        not isinstance(scope, str) for scope in permissions
+    ):
+        return None
+    parsed = parse_permissions(permissions)
+    if any(level not in ("none", "read", "write") for level in parsed.values()):
+        return None
+    # An explicit mapping replaces defaults, including scopes it omits.
+    return {scope: parsed.get(scope, "none") for scope in ALL_PERMISSION_SCOPES}
+
+
+def summarize_workflow_permissions(workflow: dict[str, Any]) -> dict[str, str]:
+    """Summarize YAML job declarations without inferring runtime token access.
+
+    Known writes survive unknown defaults. Otherwise an unknown job prevents
+    a read/none conclusion. Missing scopes in the result represent uncertainty.
+    """
+    defaults = _declared_permissions(workflow.get("permissions"))
+    jobs = workflow.get("jobs", {})
+    declarations = []
+    if isinstance(jobs, dict):
+        for job in jobs.values():
+            if isinstance(job, dict):
+                declarations.append(
+                    _declared_permissions(job["permissions"])
+                    if "permissions" in job
+                    else defaults
+                )
+    if not declarations:
+        # Retain explicit workflow declarations even when no valid jobs exist.
+        return defaults or {}
+    summary = {}
+    for scope in ALL_PERMISSION_SCOPES:
+        levels = [job[scope] if job is not None else None for job in declarations]
+        if "write" in levels:
+            summary[scope] = "write"
+        elif None not in levels:
+            summary[scope] = "read" if "read" in levels else "none"
+    return summary
+
+
 def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
     """
     Parse a GitHub Actions workflow YAML file.
@@ -217,8 +265,8 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
     elif isinstance(on_triggers, dict):
         result.trigger_events = list(on_triggers.keys())
 
-    # Extract top-level permissions
-    result.permissions = parse_permissions(workflow.get("permissions"))
+    # Resolve job overrides before summarizing declared permissions.
+    result.permissions = summarize_workflow_permissions(workflow)
 
     # Extract top-level env vars
     env = workflow.get("env", {})
@@ -252,11 +300,6 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
                     ):
                         result.reusable_workflow_calls.append(uses)
                     result.actions.append(action)
-
-            # Merge job-level permissions (not stored separately, just for completeness)
-            job_permissions = parse_permissions(job.get("permissions"))
-            if job_permissions and not result.permissions:
-                result.permissions = job_permissions
 
             # Process steps
             steps = job.get("steps", [])
