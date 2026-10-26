@@ -4,7 +4,10 @@ from urllib.parse import urlparse
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksAccountClient
+from cartography.models.databricks.workspace import DatabricksAccountToWorkspaceRel
 from cartography.models.databricks.workspace import DatabricksAccountWorkspaceSchema
 from cartography.util import timeit
 
@@ -37,9 +40,8 @@ def sync(
     the workspace's deployment-host node id, so the workspace-assignments sync
     can resolve the numeric id the permissions API reports back to the node key.
 
-    Deliberately runs no cleanup: cleanup_databricks owns DatabricksWorkspace
-    lifecycle. Here we only enrich the account-owned workspaces with their
-    numeric id / deployment / name and the DatabricksAccount -> RESOURCE edge.
+    Workspace nodes are never pruned; cleanup only drops this account's
+    DatabricksAccount -> RESOURCE edges to workspaces it no longer lists.
     """
     workspaces = get(api_session)
     transformed = transform(workspaces, _workspace_host_suffix(api_session.host))
@@ -92,5 +94,35 @@ def load_workspaces(
         DatabricksAccountWorkspaceSchema(),
         data,
         lastupdated=update_tag,
-        ACCOUNT_ID=account_id,
     )
+    load_account_links(neo4j_session, data, account_id, update_tag)
+
+
+def load_account_links(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    account_id: str,
+    update_tag: int,
+) -> None:
+    """Link each workspace in ``data`` to the account that owns it."""
+    if not data:
+        return
+    load_matchlinks(
+        neo4j_session,
+        DatabricksAccountToWorkspaceRel(),
+        data,
+        lastupdated=update_tag,
+        ACCOUNT_ID=account_id,
+        _sub_resource_label="DatabricksAccount",
+        _sub_resource_id=account_id,
+    )
+
+
+@timeit
+def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:
+    GraphJob.from_matchlink(
+        DatabricksAccountToWorkspaceRel(),
+        "DatabricksAccount",
+        account_id,
+        update_tag,
+    ).run(neo4j_session)
