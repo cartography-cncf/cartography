@@ -1,13 +1,17 @@
+import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
 from azure.mgmt.network.models import AzureFirewall
 from azure.mgmt.network.models import FirewallPolicy
+from azure.mgmt.network.models import FirewallPolicyRuleCollectionGroup
 
 import cartography.intel.azure.firewall as firewall
 from tests.data.azure.firewall import DESCRIBE_FIREWALL_POLICIES
 from tests.data.azure.firewall import DESCRIBE_FIREWALL_POLICIES_ARM
+from tests.data.azure.firewall import DESCRIBE_FIREWALL_POLICY_RULE_GROUPS
+from tests.data.azure.firewall import DESCRIBE_FIREWALL_POLICY_RULE_GROUPS_ARM
 from tests.data.azure.firewall import DESCRIBE_FIREWALLS
 from tests.data.azure.firewall import DESCRIBE_FIREWALLS_ARM
 from tests.integration.util import check_nodes
@@ -18,13 +22,21 @@ TEST_UPDATE_TAG = 123456789
 
 
 @pytest.mark.parametrize(
-    ("firewalls_response", "policies_response"),
+    ("firewalls_response", "policies_response", "rule_groups_response"),
     [
-        (DESCRIBE_FIREWALLS, DESCRIBE_FIREWALL_POLICIES),
+        (
+            DESCRIBE_FIREWALLS,
+            DESCRIBE_FIREWALL_POLICIES,
+            DESCRIBE_FIREWALL_POLICY_RULE_GROUPS,
+        ),
         # azure-mgmt-network 31+ serializes in ARM wire format.
         (
             [AzureFirewall(fw).as_dict() for fw in DESCRIBE_FIREWALLS_ARM],
             [FirewallPolicy(p).as_dict() for p in DESCRIBE_FIREWALL_POLICIES_ARM],
+            [
+                FirewallPolicyRuleCollectionGroup(g).as_dict()
+                for g in DESCRIBE_FIREWALL_POLICY_RULE_GROUPS_ARM
+            ],
         ),
     ],
     ids=["flattened_sdk_shape", "current_sdk_shape"],
@@ -42,6 +54,7 @@ def test_sync_azure_firewalls(
     mock_get_ip_groups,
     firewalls_response,
     policies_response,
+    rule_groups_response,
     neo4j_session,
 ):
     """
@@ -54,7 +67,7 @@ def test_sync_azure_firewalls(
     mock_get_client.return_value = mock_client
     mock_get_firewalls.return_value = firewalls_response
     mock_get_policies.return_value = policies_response
-    mock_get_rule_groups.return_value = []  # No rule groups for this test
+    mock_get_rule_groups.return_value = rule_groups_response
     mock_get_ip_groups.return_value = []  # No IP groups for this test
 
     # Create the prerequisite AzureSubscription node
@@ -391,6 +404,30 @@ def test_sync_azure_firewalls(
         )
         == expected_fw_vnet_rels
     )
+
+    # Assert - Rules stored as JSON keep the flattened snake_case shape on any SDK
+    firewall_rules = neo4j_session.run(
+        """
+        MATCH (f:AzureFirewall {name: 'test-firewall-1'})
+        RETURN f.network_rule_collections AS network,
+               f.application_rule_collections AS application,
+               f.nat_rule_collections AS nat
+        """
+    ).single()
+    legacy_firewall = DESCRIBE_FIREWALLS[0]
+    assert (
+        json.loads(firewall_rules["network"])
+        == legacy_firewall["network_rule_collections"]
+    )
+    assert (
+        json.loads(firewall_rules["application"])
+        == legacy_firewall["application_rule_collections"]
+    )
+    assert json.loads(firewall_rules["nat"]) == legacy_firewall["nat_rule_collections"]
+    policy_rules = neo4j_session.run(
+        "MATCH (p:AzureFirewallPolicy {name: 'test-policy-1'}) RETURN p.rule_groups_detail AS detail"
+    ).single()["detail"]
+    assert json.loads(policy_rules) == DESCRIBE_FIREWALL_POLICY_RULE_GROUPS
 
     # Assert - Security settings that live under "properties" on the wire
     assert check_nodes(

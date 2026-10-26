@@ -504,3 +504,61 @@ DESCRIBE_FIREWALL_POLICIES_ARM = [
         },
     },
 ]
+
+_RULE_GROUP_ID = (
+    f"{_RG}/firewallPolicies/test-policy-1/ruleCollectionGroups/default-rules"
+)
+
+DESCRIBE_FIREWALL_POLICY_RULE_GROUPS = [
+    {
+        "id": _RULE_GROUP_ID,
+        "name": "default-rules",
+        "priority": 100,
+        "rule_collections": [
+            {
+                "rule_collection_type": "FirewallPolicyFilterRuleCollection",
+                "name": "allow-dns",
+                "priority": 100,
+                "action": {"type": "Allow"},
+                "rules": [
+                    {
+                        "rule_type": "NetworkRule",
+                        "name": "dns",
+                        "ip_protocols": ["UDP"],
+                        "source_addresses": ["10.0.0.0/8"],
+                        "destination_addresses": ["168.63.129.16"],
+                        "destination_ports": ["53"],
+                    },
+                ],
+            },
+        ],
+    },
+]
+
+DESCRIBE_FIREWALL_POLICY_RULE_GROUPS_ARM = [
+    {
+        "id": _RULE_GROUP_ID,
+        "name": "default-rules",
+        "properties": {
+            "priority": 100,
+            "ruleCollections": [
+                {
+                    "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                    "name": "allow-dns",
+                    "priority": 100,
+                    "action": {"type": "Allow"},
+                    "rules": [
+                        {
+                            "ruleType": "NetworkRule",
+                            "name": "dns",
+                            "ipProtocols": ["UDP"],
+                            "sourceAddresses": ["10.0.0.0/8"],
+                            "destinationAddresses": ["168.63.129.16"],
+                            "destinationPorts": ["53"],
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+]

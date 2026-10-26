@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 
 import neo4j
@@ -39,12 +40,6 @@ _FIREWALL_PROPERTY_MAP = {
     "network_rule_collections": ("networkRuleCollections",),
     "application_rule_collections": ("applicationRuleCollections",),
     "nat_rule_collections": ("natRuleCollections",),
-}
-_FIREWALL_IP_CONFIGURATION_PROPERTY_MAP = {
-    "private_ip_address": ("privateIPAddress",),
-    "public_ip_address": ("publicIPAddress",),
-    "provisioning_state": ("provisioningState",),
-    "subnet": ("subnet",),
 }
 _AUTOSCALE_KEY_MAP = {"min_capacity": "minCapacity", "max_capacity": "maxCapacity"}
 _FIREWALL_POLICY_PROPERTY_MAP = {
@@ -95,15 +90,46 @@ _INTRUSION_DETECTION_CONFIGURATION_KEY_MAP = {
 _CERTIFICATE_AUTHORITY_KEY_MAP = {"key_vault_secret_id": "keyVaultSecretId"}
 
 
+# Rule collections, rule collection groups, IP configurations and IP groups are
+# stored as JSON, so they keep the flattened snake_case shape of the older SDKs
+# rather than one that depends on the installed SDK version. Their nested rule
+# types are polymorphic, so a generic conversion replaces per-type key maps; the
+# camelCase-to-snake rule matches the SDK's own attribute names for every model
+# in these payloads.
+_CAMEL_CASE_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+_FREE_FORM_KEYS = {"tags"}
+
+
+def _to_flattened_snake_case(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_to_flattened_snake_case(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    flattened = {key: item for key, item in value.items() if key != "properties"}
+    properties = value.get("properties")
+    if isinstance(properties, dict):
+        for key, item in properties.items():
+            flattened.setdefault(key, item)
+    return {
+        _CAMEL_CASE_BOUNDARY.sub("_", key).lower(): (
+            item if key in _FREE_FORM_KEYS else _to_flattened_snake_case(item)
+        )
+        for key, item in flattened.items()
+    }
+
+
 def _normalize_firewall(firewall: dict[str, Any]) -> dict[str, Any]:
     copy_properties(firewall, _FIREWALL_PROPERTY_MAP)
     rename_keys(firewall, {"extended_location": "extendedLocation"})
-    for ip_config in [
-        *(firewall.get("ip_configurations") or []),
-        firewall.get("management_ip_configuration"),
-    ]:
-        if ip_config:
-            copy_properties(ip_config, _FIREWALL_IP_CONFIGURATION_PROPERTY_MAP)
+    for key in (
+        "ip_configurations",
+        "management_ip_configuration",
+        "network_rule_collections",
+        "application_rule_collections",
+        "nat_rule_collections",
+    ):
+        if firewall.get(key):
+            firewall[key] = _to_flattened_snake_case(firewall[key])
     rename_keys(firewall.get("autoscale_configuration"), _AUTOSCALE_KEY_MAP)
     hub = rename_keys(
         firewall.get("hub_ip_addresses"), {"private_ip_address": "privateIPAddress"}
@@ -636,7 +662,7 @@ def sync(
     policies_data = [
         _normalize_firewall_policy(policy) for policy in get_firewall_policies(client)
     ]
-    ip_groups_data = get_ip_groups(client)  # Fetch IP groups for IP address resolution
+    ip_groups_data = _to_flattened_snake_case(get_ip_groups(client))
 
     # Create IP group lookup for enrichment
     ip_group_lookup = {ipg["id"]: ipg for ipg in ip_groups_data}
@@ -645,7 +671,9 @@ def sync(
     for policy in policies_data:
         policy_id = policy.get("id")
         if policy_id:
-            rule_groups = get_firewall_policy_rule_groups(client, policy_id)
+            rule_groups = _to_flattened_snake_case(
+                get_firewall_policy_rule_groups(client, policy_id)
+            )
             policy["_rule_groups_detail"] = (
                 rule_groups  # Add detailed rules to policy data
             )
