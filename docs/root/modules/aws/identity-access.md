@@ -30,6 +30,24 @@ when at least one statement grants the trust without a `Condition`. Otherwise,
 `condition_keys` lists the condition keys involved and `conditions` holds the
 raw `Condition` blocks as a JSON string.
 
+`has_external_id` is always set. It is `true` only when every statement that
+grants the trust requires the caller to pass an `sts:ExternalId`, the value a
+third party presents to show which customer it is acting for. Conditions that
+still match without one, such as `StringEqualsIfExists` or `StringNotEquals`,
+do not count. Only `sts:AssumeRole` accepts an external ID, so the property is
+relevant to trusts in other AWS accounts.
+
+Find roles that an AWS account outside the sync scope can assume without an
+external ID, which leaves them open to the confused deputy problem:
+
+```cypher
+MATCH (a:AWSAccount {inscope: true})-[:RESOURCE]->(role:AWSRole)
+      -[trust:TRUSTS_AWS_PRINCIPAL]->(p:AWSPrincipal)<-[:RESOURCE]-(ext:AWSAccount)
+WHERE coalesce(ext.inscope, false) <> true
+  AND trust.has_external_id = false
+RETURN role.arn, p.arn, trust.conditions
+```
+
 Find roles that trust GitHub Actions without a condition on the `sub` claim,
 which identifies the repository and workflow context, such as a branch or tag ref,
 an environment, or a pull request:

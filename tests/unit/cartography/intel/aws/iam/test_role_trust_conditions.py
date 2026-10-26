@@ -908,6 +908,7 @@ def test_wildcard_allow_makes_named_principal_unconditional(
             "has_condition": False,
             "condition_keys": [],
             "conditions": None,
+            "has_external_id": False,
         }
     ]
 
@@ -1064,3 +1065,214 @@ def test_unparseable_condition_fails_safe(condition_blob):
         assert trust["conditions"] is not None
     else:
         assert trust["has_condition"] is False
+
+
+def test_third_party_trusts_distinguish_required_external_id():
+    """A required external ID is flagged; one checked only if present is not."""
+    transformed = transform_role_trust_policies(
+        tests.data.aws.iam.LIST_ROLES_EXTERNAL_ID["Roles"], TEST_ACCOUNT_ID
+    )
+    trusts = _trusts_by_role(transformed)
+    vendor_arn = tests.data.aws.iam.THIRD_PARTY_ROOT_ARN
+
+    required = trusts[("arn:aws:iam::000000000000:role/vendor-external-id", vendor_arn)]
+    optional = trusts[
+        ("arn:aws:iam::000000000000:role/vendor-optional-external-id", vendor_arn)
+    ]
+
+    assert required["has_condition"] is True
+    assert required["has_external_id"] is True
+    assert optional["has_condition"] is True
+    assert optional["has_external_id"] is False
+
+
+def test_has_external_id_is_always_set():
+    """Every trust edge carries has_external_id as a boolean, never None."""
+    roles = (
+        tests.data.aws.iam.LIST_ROLES["Roles"]
+        + tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC["Roles"]
+        + tests.data.aws.iam.LIST_ROLES_EXTERNAL_ID["Roles"]
+    )
+
+    transformed = transform_role_trust_policies(roles, TEST_ACCOUNT_ID)
+
+    assert transformed.trust_relationships
+    for trust in transformed.trust_relationships:
+        assert isinstance(trust["has_external_id"], bool)
+
+
+@pytest.mark.parametrize(
+    "condition, expected",
+    [
+        ({"StringEquals": {"sts:ExternalId": "customer-1234"}}, True),
+        ({"StringLike": {"sts:ExternalId": "customer-*"}}, True),
+        # IAM condition keys are case-insensitive.
+        ({"StringEquals": {"STS:externalid": "customer-1234"}}, True),
+        ({"StringEquals": {"sts:ExternalId": ["a", "b"]}}, True),
+        ({"ForAnyValue:StringEquals": {"sts:ExternalId": "customer-1234"}}, True),
+        ({"ForAnyValue:StringNotEquals": {"sts:ExternalId": "customer-1234"}}, True),
+        ({"ForAnyValue:StringNotLike": {"sts:ExternalId": "test-*"}}, True),
+        ({"Null": {"sts:ExternalId": "false"}}, True),
+        ({"Null": {"sts:ExternalId": False}}, True),
+        # Operators ANDed with another key still require the external ID.
+        (
+            {
+                "StringEquals": {
+                    "sts:ExternalId": "customer-1234",
+                    "aws:PrincipalOrgID": "o-example",
+                },
+            },
+            True,
+        ),
+        (
+            json.dumps([{"StringEquals": {"sts:ExternalId": "customer-1234"}}]),
+            True,
+        ),
+        # Operators that are true when the key is absent do not require it.
+        ({"StringEqualsIfExists": {"sts:ExternalId": "customer-1234"}}, False),
+        ({"ForAllValues:StringEquals": {"sts:ExternalId": "customer-1234"}}, False),
+        ({"ForAllValues:StringNotEquals": {"sts:ExternalId": "customer-1234"}}, False),
+        ({"ForAnyValue:StringNotEqualsIfExists": {"sts:ExternalId": "x"}}, False),
+        ({"StringNotEquals": {"sts:ExternalId": "customer-1234"}}, False),
+        ({"StringNotLike": {"sts:ExternalId": "test-*"}}, False),
+        ({"Null": {"sts:ExternalId": "true"}}, False),
+        ({"Null": {"sts:ExternalId": []}}, False),
+        # Other keys, and conditions we cannot parse, prove nothing.
+        ({"StringEquals": {"aws:PrincipalOrgID": "o-example"}}, False),
+        ({"StringEquals": {"sts:ExternalIdentifier": "customer-1234"}}, False),
+        ("not json at all", False),
+    ],
+)
+def test_has_external_id_condition_operators(condition, expected):
+    # Arrange
+    role = _role_with_statements(
+        "external-id",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+                "Condition": condition,
+            },
+        ],
+    )
+
+    # Act
+    (trust,) = transform_role_trust_policies(
+        [role], TEST_ACCOUNT_ID
+    ).trust_relationships
+
+    # Assert
+    assert trust["has_condition"] is True
+    assert trust["has_external_id"] is expected
+
+
+@pytest.mark.parametrize(
+    "other_condition, expected",
+    [
+        # Another statement without a Condition is a path that skips the external ID.
+        (None, False),
+        # So is one gated only on other keys.
+        ({"StringEquals": {"aws:PrincipalOrgID": "o-example"}}, False),
+        # Every path requires it.
+        ({"StringEquals": {"sts:ExternalId": "other-customer"}}, True),
+    ],
+)
+def test_has_external_id_requires_every_statement(other_condition, expected):
+    # Arrange
+    other_statement = {
+        "Effect": "Allow",
+        "Principal": {"AWS": ATTACKER_ARN},
+        "Action": "sts:AssumeRole",
+    }
+    if other_condition is not None:
+        other_statement["Condition"] = other_condition
+    role = _role_with_statements(
+        "external-id-mixed",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+                "Condition": {"StringEquals": {"sts:ExternalId": "customer-1234"}},
+            },
+            other_statement,
+        ],
+    )
+
+    # Act
+    (trust,) = transform_role_trust_policies(
+        [role], TEST_ACCOUNT_ID
+    ).trust_relationships
+
+    # Assert
+    assert trust["has_external_id"] is expected
+
+
+@pytest.mark.parametrize(
+    "principal, action",
+    [
+        ({"Service": "ec2.amazonaws.com"}, "sts:AssumeRole"),
+        ({"Federated": SAML_PROVIDER_ARN}, "sts:AssumeRoleWithSAML"),
+        ({"Federated": GITHUB_OIDC_PROVIDER_ARN}, "sts:AssumeRoleWithWebIdentity"),
+    ],
+)
+def test_has_external_id_is_false_for_non_aws_principals(principal, action):
+    # Arrange
+    condition = {"StringEquals": {"sts:ExternalId": "customer-1234"}}
+    role = _role_with_statements(
+        "non-aws-external-id",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": principal,
+                "Action": action,
+                "Condition": condition,
+            },
+        ],
+    )
+
+    # Act
+    (trust,) = transform_role_trust_policies(
+        [role], TEST_ACCOUNT_ID
+    ).trust_relationships
+
+    # Assert
+    assert trust["has_external_id"] is False
+    assert trust["has_condition"] is True
+    assert trust["condition_keys"] == ["sts:ExternalId"]
+    assert json.loads(trust["conditions"]) == [condition]
+
+
+def test_has_external_id_ignores_conditional_deny():
+    """A Deny on a missing external ID is evaluated at request time, not at sync time."""
+    # Arrange
+    role = _role_with_statements(
+        "external-id-denied-path",
+        [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+                "Condition": {"StringEquals": {"sts:ExternalId": "customer-1234"}},
+            },
+            {
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "sts:AssumeRole",
+                "Condition": {"Null": {"sts:ExternalId": "true"}},
+            },
+        ],
+    )
+
+    # Act
+    (trust,) = transform_role_trust_policies(
+        [role], TEST_ACCOUNT_ID
+    ).trust_relationships
+
+    # Assert: the conditional Deny is left to request time; only the Allow
+    # contributes to the external ID requirement and stored conditions.
+    assert trust["has_external_id"] is True
+    assert json.loads(trust["conditions"]) == [
+        {"StringEquals": {"sts:ExternalId": "customer-1234"}},
+    ]

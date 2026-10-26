@@ -47,6 +47,16 @@ class AWSRoleTrustsPrincipalRelProperties(CartographyRelProperties):
         "blocks from each conditional statement trusting this principal, in document "
         "order. Null if the trust is unconditional.",
     )
+    has_external_id: PropertyRef = PropertyRef(
+        "has_external_id",
+        description="Always set. True if every statement granting this trust requires "
+        "the caller to pass an `sts:ExternalId`, which protects the role against the "
+        "confused deputy problem when a third party assumes it; False otherwise, "
+        "including for unconditional trusts and for conditions that are met without "
+        "an external ID, such as `StringEqualsIfExists` or `StringNotEquals`. Only "
+        "`sts:AssumeRole` accepts an external ID, so it is meaningful for AWS "
+        "principals and expected to be False for federated and service principals.",
+    )
 
 
 # Modelled per (role, principal) pair rather than as a relationship on AWSRoleSchema: a

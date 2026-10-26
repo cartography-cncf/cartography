@@ -244,7 +244,8 @@ def _trust_edge_properties(neo4j_session, role_arn: str) -> dict:
         RETURN p.arn AS principal_arn,
                t.has_condition AS has_condition,
                t.condition_keys AS condition_keys,
-               t.conditions AS conditions
+               t.conditions AS conditions,
+               t.has_external_id AS has_external_id
         """,
         role_arn=role_arn,
     )
@@ -299,6 +300,30 @@ def test_unconditional_trust_edge_is_not_flagged(neo4j_session):
     assert mixed["has_condition"] is False
     assert mixed["condition_keys"] == []
     assert mixed["conditions"] is None
+    assert mixed["has_external_id"] is False
+
+
+def test_external_id_requirement_is_loaded_onto_the_edge(neo4j_session):
+    """A third-party trust records whether the caller must pass an external ID."""
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_EXTERNAL_ID,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    vendor_arn = tests.data.aws.iam.THIRD_PARTY_ROOT_ARN
+
+    required = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/vendor-external-id"
+    )[vendor_arn]
+    optional = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/vendor-optional-external-id"
+    )[vendor_arn]
+
+    assert required["has_external_id"] is True
+    assert required["condition_keys"] == ["sts:ExternalId"]
+    assert optional["has_external_id"] is False
+    assert optional["condition_keys"] == ["sts:ExternalId"]
 
 
 def test_stale_trust_edges_are_cleaned_up(neo4j_session):
