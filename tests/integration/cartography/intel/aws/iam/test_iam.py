@@ -303,6 +303,7 @@ def test_unconditional_trust_edge_is_not_flagged(neo4j_session):
 
 def test_stale_trust_edges_are_cleaned_up(neo4j_session):
     """A trust removed from the policy must not survive the next sync."""
+    _create_base_account(neo4j_session)
     role_arns = [
         role["Arn"] for role in tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC["Roles"]
     ]
