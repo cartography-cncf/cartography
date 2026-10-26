@@ -31,7 +31,8 @@ when at least one statement grants the trust without a `Condition`. Otherwise,
 raw `Condition` blocks as a JSON string.
 
 Find roles that trust GitHub Actions without a condition on the `sub` claim,
-which identifies the repository and ref that a workflow runs from:
+which identifies the repository and workflow context, such as a branch or tag ref,
+an environment, or a pull request:
 
 ```cypher
 MATCH (role:AWSRole)-[trust:TRUSTS_AWS_PRINCIPAL]->(idp:AWSFederatedPrincipal)
