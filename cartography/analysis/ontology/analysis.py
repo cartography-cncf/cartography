@@ -706,6 +706,60 @@ USER_OWNS_API_KEY = AnalysisJob(
         ),
     ),
 )
+# Providers record an account's access to an app under their own edge names. The
+# canonical (:UserAccount)-[:AUTHORIZED]->(:ThirdPartyApp) edge is materialized from
+# them so a query reaches every provider through one pattern. Google Workspace and
+# Salesforce already write AUTHORIZED directly, with scopes, and own those edges:
+# cleanup is limited to the edges this job marked, or it would delete theirs whenever
+# their module last ran under another update tag.
+_USER_ACCOUNT_AUTHORIZED_MATCHES = (
+    (
+        "okta_app_assignment",
+        "MATCH (ua:OktaUser)-[:APPLICATION]->(app:OktaApplication)",
+    ),
+    (
+        "okta_group_app_assignment",
+        "MATCH (ua:OktaUser)-[:MEMBER_OF]->(:OktaGroup)-[:APPLICATION]->(app:OktaApplication)",
+    ),
+    (
+        "jumpcloud_app_binding",
+        "MATCH (ua:JumpCloudUser)-[:USES]->(app:JumpCloudSaaSApplication)",
+    ),
+    (
+        "entra_app_role_assignment",
+        "MATCH (ua:EntraUser)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment)"
+        "-[:ASSIGNED_TO]->(app:EntraApplication)",
+    ),
+    (
+        "entra_group_app_role_assignment",
+        "MATCH (ua:EntraUser)-[:MEMBER_OF]->(:EntraGroup)-[:HAS_APP_ROLE]->"
+        "(:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)",
+    ),
+)
+_USER_ACCOUNT_AUTHORIZED_CLEANUP = "r.match_method IN [{}]".format(
+    ", ".join(f"'{method}'" for method, _ in _USER_ACCOUNT_AUTHORIZED_MATCHES)
+)
+USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
+    name="Ontology - UserAccount AUTHORIZED ThirdPartyApp linking",
+    short_name="ontology_user_accounts_third_party_app",
+    statements=tuple(
+        AnalysisStatement(
+            match=match,
+            effects=(
+                AddRelationship(
+                    "ua",
+                    "AUTHORIZED",
+                    "app",
+                    properties={"match_method": method},
+                    source_label="UserAccount",
+                    target_label="ThirdPartyApp",
+                    cleanup_where=_USER_ACCOUNT_AUTHORIZED_CLEANUP,
+                ),
+            ),
+        )
+        for method, match in _USER_ACCOUNT_AUTHORIZED_MATCHES
+    ),
+)
 USER_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
     name="Ontology - User AUTHORIZED ThirdPartyApp linking",
     short_name="ontology_users_third_party_app",
@@ -741,6 +795,8 @@ USER_LINKING_JOBS = (
     USER_HAS_AWS_SSO_ACCOUNT,
     USER_HAS_GITHUB_ACCOUNT,
     USER_OWNS_API_KEY,
+    # Before the User-level job, which lifts these account edges to the User.
+    USER_ACCOUNT_AUTHORIZED_THIRD_PARTY_APP,
     USER_AUTHORIZED_THIRD_PARTY_APP,
 )
 CONTAINER_RESOLVED_IMAGE = AnalysisJob(

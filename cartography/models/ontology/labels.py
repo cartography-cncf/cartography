@@ -276,7 +276,11 @@ TENANT = ExtraNodeLabel(
 
 THIRD_PARTY_APP = ExtraNodeLabel(
     label="ThirdPartyApp",
-    description="A cross-provider ThirdPartyApp resource in Cartography's ontology.",
+    description=(
+        "One instance of a third-party app in a tenant: an OAuth grant, an "
+        "installation, an IdP app or an app registration. _ont_client_id names the "
+        "app and is shared by every instance of it, so it does not identify the node."
+    ),
     kind=LabelKind.ONTOLOGY,
 )
 
