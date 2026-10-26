@@ -332,6 +332,10 @@ def test_stale_trust_edges_are_cleaned_up(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG + 1,
     )
+    cartography.intel.aws.iam.cleanup_iam(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
 
     assert (
         _trust_edge_properties(
@@ -384,6 +388,10 @@ def test_legacy_trust_edges_are_cleaned_up(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG + 1,
     )
+    cartography.intel.aws.iam.cleanup_iam(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
 
     actual = check_rels(
         neo4j_session,
@@ -432,6 +440,13 @@ def test_sync_saml_providers(neo4j_session):
 
 
 def test_load_inline_policy(neo4j_session):
+    # Earlier cleanup tests remove the groups, so reload the policy principal.
+    group_data = cartography.intel.aws.iam.transform_groups(
+        tests.data.aws.iam.LIST_GROUPS["Groups"], {}
+    )
+    cartography.intel.aws.iam.load_groups(
+        neo4j_session, group_data, TEST_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
     # Just load in a single policy.
     inline_policy_data = [
         {

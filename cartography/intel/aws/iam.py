@@ -1825,15 +1825,6 @@ def sync_role_assumptions(
         current_aws_account_id,
         aws_update_tag,
     )
-    GraphJob.from_matchlink(
-        AWSRoleTrustsPrincipalMatchLink(),
-        sub_resource_label="AWSAccount",
-        sub_resource_id=current_aws_account_id,
-        update_tag=aws_update_tag,
-    ).run(neo4j_session)
-    # Edges written before the MatchLink migration carry none of the properties the
-    # cleanup above selects on, so stale ones from that era need their own pass.
-    _cleanup_legacy_role_trust_relationships(neo4j_session, current_aws_account_id)
 
 
 @timeit
@@ -2108,6 +2099,17 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
 
     # Clean up roles before federated and service principals
     GraphJob.from_node_schema(AWSRoleSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_matchlink(
+        AWSRoleTrustsPrincipalMatchLink(),
+        sub_resource_label="AWSAccount",
+        sub_resource_id=common_job_parameters["AWS_ID"],
+        update_tag=common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    # Edges written before the MatchLink migration carry none of the properties the
+    # cleanup above selects on, so stale ones from that era need their own pass.
+    _cleanup_legacy_role_trust_relationships(
+        neo4j_session, common_job_parameters["AWS_ID"]
+    )
     GraphJob.from_node_schema(AWSFederatedPrincipalSchema(), common_job_parameters).run(
         neo4j_session
     )
