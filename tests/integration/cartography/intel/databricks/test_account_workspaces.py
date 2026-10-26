@@ -7,8 +7,13 @@ from tests.data.databricks.account_workspaces import (
     DATABRICKS_ACCOUNT_WORKSPACE_NODE_IDS,
 )
 from tests.data.databricks.account_workspaces import DATABRICKS_ACCOUNT_WORKSPACES
+from tests.data.databricks.workspace import DATABRICKS_WORKSPACE
+from tests.data.databricks.workspace import DATABRICKS_WORKSPACE_ID
 from tests.integration.cartography.intel.databricks.test_account import (
     _ensure_local_neo4j_has_test_account,
+)
+from tests.integration.cartography.intel.databricks.test_workspaces import (
+    _ensure_local_neo4j_has_test_workspace,
 )
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -85,4 +90,26 @@ def test_load_databricks_account_workspaces(mock_get, neo4j_session):
     ) == {
         (DATABRICKS_ACCOUNT_ID, "dbc-aaeaddda-e52f.cloud.databricks.com"),
         (DATABRICKS_ACCOUNT_ID, "dbc-bbfbeeeb-f63a.cloud.databricks.com"),
+    }
+
+
+def test_workspace_and_account_paths_keep_each_others_properties(neo4j_session):
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+
+    _ensure_local_neo4j_has_test_workspace(neo4j_session)
+    _ensure_local_neo4j_has_test_account_workspaces(neo4j_session)
+    _ensure_local_neo4j_has_test_workspace(neo4j_session)
+
+    assert check_nodes(
+        neo4j_session,
+        "DatabricksWorkspace",
+        ["id", "tokens_enabled", "max_token_lifetime_days", "workspace_id"],
+    ) == {
+        (
+            DATABRICKS_WORKSPACE_ID,
+            DATABRICKS_WORKSPACE["tokens_enabled"],
+            DATABRICKS_WORKSPACE["max_token_lifetime_days"],
+            "1234567890123456",
+        ),
+        ("dbc-bbfbeeeb-f63a.cloud.databricks.com", None, None, "6543210987654321"),
     }

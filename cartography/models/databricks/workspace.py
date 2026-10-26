@@ -32,10 +32,25 @@ class DatabricksWorkspaceNodeProperties(CartographyNodeProperties):
         "max_token_lifetime_days",
         description="Maximum personal access token lifetime in days.",
     )
-    # Numeric account-API workspace id + deployment/name, set by the account
-    # workspaces sync when account creds are configured (None on the
-    # workspace-only path). Lets workspace permission assignments key off the
-    # numeric id the account API reports.
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# The workspace API and the account API each see part of a workspace. Each path
+# loads its own schema over the DatabricksWorkspace label and writes only the
+# properties it reads, so neither nulls out what the other set.
+@dataclass(frozen=True)
+class DatabricksAccountWorkspaceNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Workspace host used as the Databricks workspace ID.",
+    )
+    host: PropertyRef = PropertyRef(
+        "host",
+        extra_index=True,
+        description="Full URL of the Databricks workspace.",
+    )
+    # Lets workspace permission assignments key off the numeric id the account
+    # API reports.
     workspace_id: PropertyRef = PropertyRef(
         "workspace_id",
         extra_index=True,
@@ -75,7 +90,7 @@ class DatabricksWorkspaceToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksWorkspaceSchema(CartographyNodeSchema):
-    """A Databricks workspace identified by its host."""
+    """A Databricks workspace identified by its host, as its own API reports it."""
 
     label: str = "DatabricksWorkspace"
     properties: DatabricksWorkspaceNodeProperties = DatabricksWorkspaceNodeProperties()
@@ -85,6 +100,20 @@ class DatabricksWorkspaceSchema(CartographyNodeSchema):
     # sub-resource relationship) so the workspace-only path keeps working: when
     # no account creds are configured, ACCOUNT_ID is None, the account node is
     # absent, and this edge simply does not form. Workspace cleanup stays global.
+    other_relationships: OtherRelationships = OtherRelationships(
+        [DatabricksWorkspaceToAccountRel()],
+    )
+
+
+@dataclass(frozen=True)
+class DatabricksAccountWorkspaceSchema(CartographyNodeSchema):
+    """A Databricks workspace as the account API reports it."""
+
+    label: str = "DatabricksWorkspace"
+    properties: DatabricksAccountWorkspaceNodeProperties = (
+        DatabricksAccountWorkspaceNodeProperties()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksWorkspaceToAccountRel()],
     )
