@@ -6,6 +6,8 @@ from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.common import copy_properties
+from cartography.intel.azure.util.common import rename_keys
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.application_gateway.application_gateway import (
     AzureApplicationGatewaySchema,
@@ -29,37 +31,92 @@ from .util.credentials import Credentials
 logger = logging.getLogger(__name__)
 
 
-def _get(obj: dict, *keys: str) -> Any:
+def _get(obj: dict, key: str) -> Any:
     """
-    Read a field by any of its spellings. Older Azure SDKs flatten `as_dict()` into
-    snake_case keys; azure-mgmt-network 31+ emits the ARM wire shape, with camelCase
-    keys nested under "properties".
+    Read a field that the Azure SDK may emit either at the top level of the dict
+    or nested under "properties".
     """
-    properties = obj.get("properties") or {}
-    for key in keys:
-        if key in obj:
-            return obj[key]
-        if key in properties:
-            return properties[key]
-    return None
-
-
-def _get_list(obj: dict, *keys: str) -> list[dict]:
-    return _get(obj, *keys) or []
-
-
-def _ref_id(obj: dict, *keys: str) -> str | None:
-    return (_get(obj, *keys) or {}).get("id")
+    if key in obj:
+        return obj.get(key)
+    return obj.get("properties", {}).get(key)
 
 
 def _first_subnet_id(application_gateway: dict) -> str | None:
-    for cfg in _get_list(
-        application_gateway, "gateway_ip_configurations", "gatewayIPConfigurations"
-    ):
-        subnet_id = _ref_id(cfg, "subnet")
+    for cfg in application_gateway.get("gateway_ip_configurations", []) or []:
+        subnet = cfg.get("subnet") or cfg.get("properties", {}).get("subnet") or {}
+        subnet_id = subnet.get("id")
         if subnet_id:
             return subnet_id
     return None
+
+
+# azure-mgmt-network 31+ serializes `as_dict()` in ARM wire format: resource-specific
+# fields sit under `properties` with camelCase names. The transforms read flat
+# snake_case keys, so each payload is normalized back to that shape first.
+_APPLICATION_GATEWAY_PROPERTY_MAP = {
+    "sku": ("sku",),
+    "operational_state": ("operationalState",),
+    "provisioning_state": ("provisioningState",),
+    "enable_http2": ("enableHttp2",),
+    "firewall_policy": ("firewallPolicy",),
+    "gateway_ip_configurations": ("gatewayIPConfigurations",),
+    "frontend_ip_configurations": ("frontendIPConfigurations",),
+    "frontend_ports": ("frontendPorts",),
+    "backend_address_pools": ("backendAddressPools",),
+    "backend_http_settings_collection": ("backendHttpSettingsCollection",),
+    "http_listeners": ("httpListeners",),
+    "request_routing_rules": ("requestRoutingRules",),
+}
+_CHILD_PROPERTY_MAPS = {
+    "gateway_ip_configurations": {"subnet": ("subnet",)},
+    "frontend_ip_configurations": {
+        "private_ip_address": ("privateIPAddress",),
+        "private_ip_allocation_method": ("privateIPAllocationMethod",),
+        "public_ip_address": ("publicIPAddress",),
+        "subnet": ("subnet",),
+    },
+    "frontend_ports": {"port": ("port",)},
+    "backend_address_pools": {
+        "backend_addresses": ("backendAddresses",),
+        "backend_ip_configurations": ("backendIPConfigurations",),
+    },
+    "backend_http_settings_collection": {
+        "protocol": ("protocol",),
+        "port": ("port",),
+        "cookie_based_affinity": ("cookieBasedAffinity",),
+        "request_timeout": ("requestTimeout",),
+        "host_name": ("hostName",),
+        "pick_host_name_from_backend_address": ("pickHostNameFromBackendAddress",),
+    },
+    "http_listeners": {
+        "protocol": ("protocol",),
+        "host_name": ("hostName",),
+        "host_names": ("hostNames",),
+        "require_server_name_indication": ("requireServerNameIndication",),
+        "frontend_ip_configuration": ("frontendIPConfiguration",),
+        "frontend_port": ("frontendPort",),
+        "ssl_certificate": ("sslCertificate",),
+    },
+    "request_routing_rules": {
+        "rule_type": ("ruleType",),
+        "priority": ("priority",),
+        "http_listener": ("httpListener",),
+        "backend_address_pool": ("backendAddressPool",),
+        "backend_http_settings": ("backendHttpSettings",),
+        "url_path_map": ("urlPathMap",),
+    },
+}
+
+
+def _normalize_application_gateway(application_gateway: dict) -> dict:
+    copy_properties(application_gateway, _APPLICATION_GATEWAY_PROPERTY_MAP)
+    for key, property_map in _CHILD_PROPERTY_MAPS.items():
+        for child in application_gateway.get(key) or []:
+            copy_properties(child, property_map)
+    for pool in application_gateway.get("backend_address_pools") or []:
+        for address in pool.get("backend_addresses") or []:
+            rename_keys(address, {"ip_address": "ipAddress"})
+    return application_gateway
 
 
 @timeit
@@ -73,7 +130,12 @@ def get_application_gateways(client: NetworkManagementClient) -> list[dict]:
 def transform_application_gateways(application_gateways: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for ag in application_gateways:
-        sku = _get(ag, "sku") or {}
+        sku = ag.get("sku") or {}
+        firewall_policy = (
+            ag.get("firewall_policy")
+            or ag.get("properties", {}).get("firewall_policy")
+            or {}
+        )
         transformed.append(
             {
                 "id": ag.get("id"),
@@ -82,12 +144,10 @@ def transform_application_gateways(application_gateways: list[dict]) -> list[dic
                 "sku_name": sku.get("name"),
                 "sku_tier": sku.get("tier"),
                 "sku_capacity": sku.get("capacity"),
-                "operational_state": _get(ag, "operational_state", "operationalState"),
-                "provisioning_state": _get(
-                    ag, "provisioning_state", "provisioningState"
-                ),
-                "enable_http2": _get(ag, "enable_http2", "enableHttp2"),
-                "firewall_policy_id": _ref_id(ag, "firewall_policy", "firewallPolicy"),
+                "operational_state": _get(ag, "operational_state"),
+                "provisioning_state": _get(ag, "provisioning_state"),
+                "enable_http2": _get(ag, "enable_http2"),
+                "firewall_policy_id": firewall_policy.get("id"),
                 "subnet_id": _first_subnet_id(ag),
                 "tags": ag.get("tags"),
             }
@@ -97,25 +157,25 @@ def transform_application_gateways(application_gateways: list[dict]) -> list[dic
 
 def transform_frontend_ips(application_gateway: dict) -> list[dict]:
     transformed: list[dict[str, Any]] = []
-    for config in _get_list(
-        application_gateway, "frontend_ip_configurations", "frontendIPConfigurations"
-    ):
+    for config in application_gateway.get("frontend_ip_configurations", []) or []:
+        public_ip_ref = (
+            config.get("public_ip_address")
+            or config.get("properties", {}).get("public_ip_address")
+            or {}
+        )
+        subnet_ref = (
+            config.get("subnet") or config.get("properties", {}).get("subnet") or {}
+        )
         transformed.append(
             {
                 "id": config.get("id"),
                 "name": config.get("name"),
-                "private_ip_address": _get(
-                    config, "private_ip_address", "privateIPAddress"
-                ),
+                "private_ip_address": _get(config, "private_ip_address"),
                 "private_ip_allocation_method": _get(
-                    config,
-                    "private_ip_allocation_method",
-                    "privateIPAllocationMethod",
+                    config, "private_ip_allocation_method"
                 ),
-                "public_ip_address_id": _ref_id(
-                    config, "public_ip_address", "publicIPAddress"
-                ),
-                "subnet_id": _ref_id(config, "subnet"),
+                "public_ip_address_id": public_ip_ref.get("id"),
+                "subnet_id": subnet_ref.get("id"),
             }
         )
     return transformed
@@ -123,19 +183,24 @@ def transform_frontend_ips(application_gateway: dict) -> list[dict]:
 
 def transform_backend_pools(application_gateway: dict) -> list[dict]:
     transformed: list[dict[str, Any]] = []
-    for pool in _get_list(
-        application_gateway, "backend_address_pools", "backendAddressPools"
-    ):
-        backend_addresses = _get_list(pool, "backend_addresses", "backendAddresses")
-        fqdns = [a["fqdn"] for a in backend_addresses if a.get("fqdn")]
+    for pool in application_gateway.get("backend_address_pools", []) or []:
+        backend_addresses = (
+            pool.get("backend_addresses")
+            or pool.get("properties", {}).get("backend_addresses")
+            or []
+        )
+        fqdns = [a.get("fqdn") for a in backend_addresses if a.get("fqdn")]
         ip_addresses = [
-            ip for a in backend_addresses if (ip := _get(a, "ip_address", "ipAddress"))
+            a.get("ip_address") for a in backend_addresses if a.get("ip_address")
         ]
 
         nic_ids: list[str] = []
-        for ip_config in _get_list(
-            pool, "backend_ip_configurations", "backendIPConfigurations"
-        ):
+        ip_configs = (
+            pool.get("backend_ip_configurations")
+            or pool.get("properties", {}).get("backend_ip_configurations")
+            or []
+        )
+        for ip_config in ip_configs:
             ip_config_id = ip_config.get("id")
             # NIC ID is the parent of the ipConfiguration:
             # /.../networkInterfaces/{nic-name}/ipConfigurations/{config-name}
@@ -156,7 +221,7 @@ def transform_backend_pools(application_gateway: dict) -> list[dict]:
 
 def _build_frontend_port_lookup(application_gateway: dict) -> dict[str, int | None]:
     lookup: dict[str, int | None] = {}
-    for port in _get_list(application_gateway, "frontend_ports", "frontendPorts"):
+    for port in application_gateway.get("frontend_ports", []) or []:
         port_id = port.get("id")
         if port_id:
             lookup[port_id] = _get(port, "port")
@@ -172,29 +237,38 @@ def _build_listener_lookup(
     """
     port_lookup = _build_frontend_port_lookup(application_gateway)
     lookup: dict[str, dict[str, Any]] = {}
-    for listener in _get_list(application_gateway, "http_listeners", "httpListeners"):
+    for listener in application_gateway.get("http_listeners", []) or []:
         listener_id = listener.get("id")
         if not listener_id:
             continue
-        frontend_port_id = _ref_id(listener, "frontend_port", "frontendPort")
+        frontend_ip_ref = (
+            listener.get("frontend_ip_configuration")
+            or listener.get("properties", {}).get("frontend_ip_configuration")
+            or {}
+        )
+        frontend_port_ref = (
+            listener.get("frontend_port")
+            or listener.get("properties", {}).get("frontend_port")
+            or {}
+        )
+        ssl_cert_ref = (
+            listener.get("ssl_certificate")
+            or listener.get("properties", {}).get("ssl_certificate")
+            or {}
+        )
+        frontend_port_id = frontend_port_ref.get("id")
         lookup[listener_id] = {
             "listener_protocol": _get(listener, "protocol"),
             "listener_port": (
                 port_lookup.get(frontend_port_id) if frontend_port_id else None
             ),
-            "listener_host_name": _get(listener, "host_name", "hostName"),
-            "listener_host_names": _get(listener, "host_names", "hostNames"),
+            "listener_host_name": _get(listener, "host_name"),
+            "listener_host_names": _get(listener, "host_names"),
             "listener_require_server_name_indication": _get(
-                listener,
-                "require_server_name_indication",
-                "requireServerNameIndication",
+                listener, "require_server_name_indication"
             ),
-            "listener_ssl_certificate_id": _ref_id(
-                listener, "ssl_certificate", "sslCertificate"
-            ),
-            "FRONTEND_IP_ID": _ref_id(
-                listener, "frontend_ip_configuration", "frontendIPConfiguration"
-            ),
+            "listener_ssl_certificate_id": ssl_cert_ref.get("id"),
+            "FRONTEND_IP_ID": frontend_ip_ref.get("id"),
         }
     return lookup
 
@@ -207,10 +281,8 @@ def _build_backend_http_settings_lookup(
     Used to fold settings data onto the Rule node.
     """
     lookup: dict[str, dict[str, Any]] = {}
-    for settings in _get_list(
-        application_gateway,
-        "backend_http_settings_collection",
-        "backendHttpSettingsCollection",
+    for settings in (
+        application_gateway.get("backend_http_settings_collection", []) or []
     ):
         settings_id = settings.get("id")
         if not settings_id:
@@ -218,17 +290,11 @@ def _build_backend_http_settings_lookup(
         lookup[settings_id] = {
             "backend_protocol": _get(settings, "protocol"),
             "backend_port": _get(settings, "port"),
-            "backend_cookie_based_affinity": _get(
-                settings, "cookie_based_affinity", "cookieBasedAffinity"
-            ),
-            "backend_request_timeout": _get(
-                settings, "request_timeout", "requestTimeout"
-            ),
-            "backend_host_name": _get(settings, "host_name", "hostName"),
+            "backend_cookie_based_affinity": _get(settings, "cookie_based_affinity"),
+            "backend_request_timeout": _get(settings, "request_timeout"),
+            "backend_host_name": _get(settings, "host_name"),
             "backend_pick_host_name_from_backend_address": _get(
-                settings,
-                "pick_host_name_from_backend_address",
-                "pickHostNameFromBackendAddress",
+                settings, "pick_host_name_from_backend_address"
             ),
         }
     return lookup
@@ -268,15 +334,32 @@ def transform_rules(application_gateway: dict) -> list[dict]:
     }
 
     transformed: list[dict[str, Any]] = []
-    for rule in _get_list(
-        application_gateway, "request_routing_rules", "requestRoutingRules"
-    ):
-        listener_id = _ref_id(rule, "http_listener", "httpListener")
-        backend_pool_id = _ref_id(rule, "backend_address_pool", "backendAddressPool")
-        backend_http_settings_id = _ref_id(
-            rule, "backend_http_settings", "backendHttpSettings"
+    for rule in application_gateway.get("request_routing_rules", []) or []:
+        listener_ref = (
+            rule.get("http_listener")
+            or rule.get("properties", {}).get("http_listener")
+            or {}
         )
-        url_path_map_id = _ref_id(rule, "url_path_map", "urlPathMap")
+        backend_pool_ref = (
+            rule.get("backend_address_pool")
+            or rule.get("properties", {}).get("backend_address_pool")
+            or {}
+        )
+        backend_settings_ref = (
+            rule.get("backend_http_settings")
+            or rule.get("properties", {}).get("backend_http_settings")
+            or {}
+        )
+        url_path_map_ref = (
+            rule.get("url_path_map")
+            or rule.get("properties", {}).get("url_path_map")
+            or {}
+        )
+
+        listener_id = listener_ref.get("id")
+        backend_pool_id = backend_pool_ref.get("id")
+        backend_http_settings_id = backend_settings_ref.get("id")
+        url_path_map_id = url_path_map_ref.get("id")
 
         listener_attrs = (
             listener_lookup.get(listener_id, empty_listener)
@@ -293,7 +376,7 @@ def transform_rules(application_gateway: dict) -> list[dict]:
             {
                 "id": rule.get("id"),
                 "name": rule.get("name"),
-                "rule_type": _get(rule, "rule_type", "ruleType"),
+                "rule_type": _get(rule, "rule_type"),
                 "priority": _get(rule, "priority"),
                 "url_path_map_id": url_path_map_id,
                 "listener_id": listener_id,
@@ -421,7 +504,9 @@ def sync(
     )
     client = NetworkManagementClient(credentials.credential, subscription_id)
 
-    application_gateways = get_application_gateways(client)
+    application_gateways = [
+        _normalize_application_gateway(ag) for ag in get_application_gateways(client)
+    ]
     transformed_ags = transform_application_gateways(application_gateways)
     load_application_gateways(
         neo4j_session, transformed_ags, subscription_id, update_tag
