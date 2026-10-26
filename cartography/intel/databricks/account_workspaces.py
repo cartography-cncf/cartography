@@ -5,7 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.intel.databricks.util import DatabricksAccountClient
-from cartography.models.databricks.workspace import DatabricksWorkspaceSchema
+from cartography.models.databricks.workspace import DatabricksAccountWorkspaceSchema
 from cartography.util import timeit
 
 
@@ -89,7 +89,7 @@ def load_workspaces(
 ) -> None:
     load(
         neo4j_session,
-        DatabricksWorkspaceSchema(),
+        DatabricksAccountWorkspaceSchema(),
         data,
         lastupdated=update_tag,
         ACCOUNT_ID=account_id,
