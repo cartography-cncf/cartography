@@ -1,5 +1,10 @@
+import re
+
+import pytest
+
 from cartography.rules.data.rules import RULES
 from cartography.rules.data.rules.nist_ai_rmf import ai_admin_app_authorizations
+from cartography.rules.data.rules.nist_ai_rmf import AI_HEURISTIC_REGEX
 from cartography.rules.data.rules.nist_ai_rmf import ai_provider_api_key_hygiene
 from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_inventory
 from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitive_scopes
@@ -21,9 +26,9 @@ def test_nist_ai_rules_registered_and_metadata():
 
     expected_versions = {
         "ai_provider_api_key_hygiene": "0.2.1",
-        "ai_third_party_app_inventory": "0.1.2",
-        "ai_third_party_app_sensitive_scopes": "0.1.2",
-        "ai_admin_app_authorizations": "0.1.2",
+        "ai_third_party_app_inventory": "0.1.3",
+        "ai_third_party_app_sensitive_scopes": "0.1.3",
+        "ai_admin_app_authorizations": "0.1.3",
         "aibom_agent_inventory": "0.1.1",
     }
     for rule_id, rule_obj in expected_rules.items():
@@ -242,3 +247,18 @@ def test_aibom_agent_inventory_stages_embedding_aggregation():
     assert "count(DISTINCT embedding) AS embedding_count" in fact.cypher_query
     assert "collect(DISTINCT embedding.name) AS embedding_names" in fact.cypher_query
     assert "embedding_count,\n        embedding_names" in fact.cypher_query
+
+
+@pytest.mark.parametrize(
+    "app_name, matches",
+    [
+        pytest.param("abacus.ai chatllm", True, id="llm-suffix"),
+        pytest.param("llm gateway", True, id="llm-word"),
+        pytest.param("finalsite enrollment", False, id="enrollment"),
+        pytest.param("order fulfillment", False, id="fulfillment"),
+        pytest.param("enterprisegpt by cogniswitch", True, id="gpt-suffix"),
+    ],
+)
+def test_nist_ai_heuristic_regex(app_name, matches):
+    # Cypher `=~` is a full match, like re.fullmatch.
+    assert (re.fullmatch(AI_HEURISTIC_REGEX, app_name) is not None) is matches

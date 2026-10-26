@@ -46,10 +46,12 @@ AI_ALLOWLIST_TERMS = (
     "notegpt",
 )
 
-# Heuristic fallback for newly observed or non-standard AI app names.
+# Heuristic fallback for newly observed or non-standard AI app names. Names are
+# lowercased first, so `llm` also sits inside English words ending in -llment
+# (enrollment, fulfillment, installment); the lookahead keeps "ChatLLM" and drops those.
 AI_HEURISTIC_REGEX = (
     ".*(openai|anthropic|gpt|claude|gemini|perplexity|midjourney|cohere|"
-    "hugging ?face|genai|generative ai|llm|ai assistant).*"
+    "hugging ?face|genai|generative ai|llm(?!ent)|ai assistant).*"
 )
 
 RISKY_SCOPE_EXACT = (
@@ -169,7 +171,7 @@ ai_third_party_app_inventory = Rule(
     output_model=NistAiAppInventoryOutput,
     facts=(_cross_cloud_nist_ai_app_inventory,),
     tags=("ai", "identity", "compliance", "governance"),
-    version="0.1.2",
+    version="0.1.3",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MAP 1"),
@@ -281,7 +283,7 @@ ai_third_party_app_sensitive_scopes = Rule(
     output_model=NistAiSensitiveScopesOutput,
     facts=(_cross_cloud_nist_ai_app_sensitive_scopes,),
     tags=("ai", "identity", "oauth", "compliance"),
-    version="0.1.2",
+    version="0.1.3",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MEASURE 2"),
@@ -411,7 +413,7 @@ ai_admin_app_authorizations = Rule(
     output_model=NistAiAdminAuthorizationsOutput,
     facts=(_gw_nist_ai_admin_app_authorizations,),
     tags=("ai", "identity", "privileged_access", "compliance"),
-    version="0.1.2",
+    version="0.1.3",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),
