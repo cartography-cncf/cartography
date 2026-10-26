@@ -10,6 +10,7 @@ import cartography.intel.ontology.users
 from cartography.analysis.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
 from cartography.analysis.ontology.analysis import BBOT_IP_MATCHES_PUBLIC_IP
 from cartography.analysis.ontology.analysis import CODEBUILD_IMAGE_PACKAGED_FROM
+from cartography.analysis.ontology.analysis import DNS_RECORD_TO_PUBLIC_IP
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.analysis.ontology.analysis import TAILSCALE_DEVICE_INSTANCE_LINKING
 from cartography.analysis.ontology.analysis import WORKLOAD_HAS_RUNTIME_IMAGE
@@ -85,6 +86,12 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     )
     run_typed_analysis_job(
         BBOT_IP_MATCHES_PUBLIC_IP,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Runs after the PublicIP sync so address records link to this run's IPs.
+    run_typed_analysis_job(
+        DNS_RECORD_TO_PUBLIC_IP,
         neo4j_session,
         common_job_parameters,
     )

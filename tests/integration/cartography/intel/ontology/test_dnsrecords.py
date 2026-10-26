@@ -2,6 +2,8 @@ import cartography.intel.ontology.dnsrecords
 from cartography.analysis.ontology.analysis import DNS_RECORD_LINKING_JOBS
 from cartography.analysis.ontology.analysis import DNS_RECORD_TARGETS
 from cartography.analysis.ontology.analysis import DNS_RECORD_TO_KUBERNETES_INGRESS
+from cartography.analysis.ontology.analysis import DNS_RECORD_TO_PUBLIC_IP
+from cartography.util import run_typed_analysis_job
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
@@ -488,3 +490,43 @@ def test_service_endpoint_matches_seek_dns_record_index(neo4j_session):
     assert len(plans) == 9
     for match, plan in plans.items():
         assert "NodeIndexSeek" in _operator_names(plan), match
+
+
+def test_dns_address_records_link_to_public_ips(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord:AWSDNSRecord {id: 'route53-a', _ont_type: 'A', _ont_value: '203.0.113.10,203.0.113.11'})
+        CREATE (:DNSRecord:AWSDNSRecord {id: 'route53-aaaa', _ont_type: 'AAAA', _ont_value: '2001:DB8::1'})
+        CREATE (:DNSRecord {id: 'txt', _ont_type: 'TXT', _ont_value: '203.0.113.10'})
+        CREATE (:DNSRecord:GCPRecordSet {id: 'gcp-a', _ont_type: 'A', data: ['203.0.113.12']})
+        CREATE (:PublicIP:Ontology {id: '203.0.113.10', ip_address: '203.0.113.10'})
+        CREATE (:PublicIP:Ontology {id: '203.0.113.11', ip_address: '203.0.113.11'})
+        CREATE (:PublicIP:Ontology {id: '203.0.113.12', ip_address: '203.0.113.12'})
+        CREATE (:PublicIP:Ontology {id: '2001:db8::1', ip_address: '2001:db8::1'})
+        CREATE (stale_dns:DNSRecord {id: 'stale', _ont_type: 'A', _ont_value: '198.51.100.1'})
+        CREATE (stale_ip:PublicIP:Ontology {id: '198.51.100.9', ip_address: '198.51.100.9'})
+        CREATE (stale_dns)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(stale_ip)
+        """,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    run_typed_analysis_job(
+        DNS_RECORD_TO_PUBLIC_IP,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "PublicIP",
+        "id",
+        "DNS_POINTS_TO",
+    ) == {
+        ("route53-a", "203.0.113.10"),
+        ("route53-a", "203.0.113.11"),
+        ("route53-aaaa", "2001:db8::1"),
+        ("gcp-a", "203.0.113.12"),
+    }

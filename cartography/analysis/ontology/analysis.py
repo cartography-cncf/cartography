@@ -410,6 +410,33 @@ BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
         ),
     ),
 )
+# Address records resolve to IPs rather than hostnames, so DNS_RECORD_TARGETS cannot
+# reach them. Route53 joins a multi-value record into one comma-separated value;
+# GCPRecordSet keeps the list in `data`.
+_ADDRESS_RECORD_TYPES = "['A', 'AAAA']"
+DNS_RECORD_TO_PUBLIC_IP = AnalysisJob(
+    name="Ontology - DNSRecord to PublicIP linking",
+    short_name="ontology_dnsrecords_publicip",
+    cleanup_iterationsize=1000,
+    statements=tuple(
+        AnalysisStatement(
+            match=match,
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "public_ip",
+                    source_label="DNSRecord",
+                    target_label="PublicIP",
+                ),
+            ),
+        )
+        for match in (
+            f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL AND toUpper(dns._ont_type) IN {_ADDRESS_RECORD_TYPES} AND NOT dns:GCPRecordSet UNWIND split(toString(dns._ont_value), ',') AS value WITH dns, toLower(trim(value)) AS ip WHERE ip <> '' MATCH (public_ip:PublicIP {{id: ip}})",
+            f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL AND toUpper(dns._ont_type) IN {_ADDRESS_RECORD_TYPES} UNWIND dns.data AS value WITH dns, toLower(trim(value)) AS ip MATCH (public_ip:PublicIP {{id: ip}})",
+        )
+    ),
+)
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
     AnalysisJob(
         name="Ontology - Trivy PackageVersion DEPLOYED Image linking",
