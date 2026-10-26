@@ -303,15 +303,19 @@ def test_unconditional_trust_edge_is_not_flagged(neo4j_session):
 
 def test_stale_trust_edges_are_cleaned_up(neo4j_session):
     """A trust removed from the policy must not survive the next sync."""
+    role_arns = [
+        role["Arn"] for role in tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC["Roles"]
+    ]
     cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
         tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    assert _trust_edge_properties(
-        neo4j_session, "arn:aws:iam::000000000000:role/gha-pinned"
-    )
+    for role_arn in role_arns:
+        assert set(_trust_edge_properties(neo4j_session, role_arn)) == {
+            tests.data.aws.iam.GITHUB_OIDC_PROVIDER_ARN
+        }
 
     # Re-sync at a later tag with the trust policy emptied out.
     untrusting = {
@@ -337,12 +341,8 @@ def test_stale_trust_edges_are_cleaned_up(neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    assert (
-        _trust_edge_properties(
-            neo4j_session, "arn:aws:iam::000000000000:role/gha-pinned"
-        )
-        == {}
-    )
+    for role_arn in role_arns:
+        assert _trust_edge_properties(neo4j_session, role_arn) == {}
 
 
 def test_legacy_trust_edges_are_cleaned_up(neo4j_session):
