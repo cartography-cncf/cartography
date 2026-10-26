@@ -897,11 +897,13 @@ def transform_role_trust_policies(
     for role in roles:
         role_arn = role["Arn"]
 
-        # Principal ARN -> one (assume-role actions, Condition) entry per Allow statement
-        # naming it, in document order, keeping only the actions that principal can call.
+        # Principal ARN -> one (statement index, assume-role actions, Condition) entry
+        # per Allow statement naming it, keeping only actions that principal can call.
         # A role can trust the same principal from several statements under different
         # conditions, so these are aggregated per (role, principal) below.
-        allowed_trusts: dict[str, list[tuple[frozenset[str], Any]]] = {}
+        allowed_trusts: dict[str, list[tuple[int, frozenset[str], Any]]] = {}
+        wildcard_grants: list[tuple[int, frozenset[str], Any]] = []
+        principal_actions: dict[str, frozenset[str]] = {}
         # Principal ARN -> the assume-role actions an unconditional Deny names for it.
         # Deny beats Allow in IAM evaluation, so an Allow of a denied action draws no
         # edge. The wildcard key holds the actions denied to every principal.
@@ -909,7 +911,9 @@ def transform_role_trust_policies(
         # The allowed principals of type AWS, i.e. IAM users, roles and accounts.
         aws_principal_arns: set[str] = set()
 
-        for statement in role["AssumeRolePolicyDocument"]["Statement"]:
+        for statement_index, statement in enumerate(
+            role["AssumeRolePolicyDocument"]["Statement"]
+        ):
             actions = _statement_assume_role_actions(statement)
             if not actions:
                 # e.g. a statement granting only sts:TagSession. It names a principal but
@@ -938,13 +942,9 @@ def transform_role_trust_policies(
 
             for principal_type, principal_arn in principal_entries:
                 if principal_type == "AWS" and principal_arn == WILDCARD_PRINCIPAL:
-                    # A wildcard Allow trusts every principal. There is no node to point
-                    # the edge at, so it draws nothing.
-                    logger.debug(
-                        "Not drawing a trust edge for the wildcard principal in the "
-                        "trust policy of %s.",
-                        role_arn,
-                    )
+                    # No standalone wildcard edge, but this grant also applies to
+                    # concrete principals named elsewhere in the policy.
+                    wildcard_grants.append((statement_index, actions, condition))
                     continue
                 if principal_type == "Federated":
                     # Add this to list of federated nodes to create
@@ -990,15 +990,26 @@ def transform_role_trust_policies(
                     logger.warning(f"Unknown principal type: {principal_type}")
                     continue
 
-                usable_actions = actions & _usable_assume_role_actions(
+                principal_actions[principal_arn] = _usable_assume_role_actions(
                     principal_type, principal_arn
                 )
+                usable_actions = actions & principal_actions[principal_arn]
                 allowed_trusts.setdefault(principal_arn, []).append(
-                    (usable_actions, condition)
+                    (statement_index, usable_actions, condition)
                 )
 
         partition = role_arn.split(":")[1]
         for principal_arn, grants in allowed_trusts.items():
+            # Merge wildcard and explicit grants in document order before applying
+            # Denies and aggregating conditions for this concrete principal.
+            grants = sorted(
+                grants
+                + [
+                    (index, actions & principal_actions[principal_arn], condition)
+                    for index, actions, condition in wildcard_grants
+                ],
+                key=lambda grant: grant[0],
+            )
             denied = denied_actions.get(principal_arn, set()) | denied_actions.get(
                 WILDCARD_PRINCIPAL, set()
             )
@@ -1010,7 +1021,7 @@ def transform_role_trust_policies(
             # A statement keeps granting the trust as long as an assume-role action it
             # lets this principal call is not explicitly denied to it.
             surviving_conditions = [
-                condition for actions, condition in grants if actions - denied
+                condition for _, actions, condition in grants if actions - denied
             ]
             if not surviving_conditions:
                 continue

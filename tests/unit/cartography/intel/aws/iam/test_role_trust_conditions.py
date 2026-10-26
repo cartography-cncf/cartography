@@ -869,6 +869,164 @@ def test_wildcard_principal_allow_draws_no_edge_and_does_not_raise(wildcard):
     ]
 
 
+@pytest.mark.parametrize("wildcard", ["*", {"AWS": "*"}])
+@pytest.mark.parametrize("wildcard_first", [True, False])
+@pytest.mark.parametrize(
+    "principal,action",
+    [
+        ({"AWS": ATTACKER_ARN}, "sts:AssumeRole"),
+        ({"Service": "ec2.amazonaws.com"}, "sts:AssumeRole"),
+        ({"Federated": SAML_PROVIDER_ARN}, "sts:AssumeRoleWithSAML"),
+        ({"Federated": GITHUB_OIDC_PROVIDER_ARN}, "sts:AssumeRoleWithWebIdentity"),
+    ],
+)
+def test_wildcard_allow_makes_named_principal_unconditional(
+    wildcard, wildcard_first, principal, action
+):
+    # Arrange
+    statements = [
+        {"Effect": "Allow", "Principal": wildcard, "Action": action},
+        {
+            "Effect": "Allow",
+            "Principal": principal,
+            "Action": action,
+            "Condition": {"StringEquals": {"aws:PrincipalOrgID": "o-example"}},
+        },
+    ]
+    if not wildcard_first:
+        statements.reverse()
+    role = _role_with_statements("wildcard-ungated", statements)
+
+    # Act
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    # Assert
+    assert transformed.trust_relationships == [
+        {
+            "source_role_arn": role["Arn"],
+            "target_principal_arn": next(iter(principal.values())),
+            "has_condition": False,
+            "condition_keys": [],
+            "conditions": None,
+        }
+    ]
+
+
+@pytest.mark.parametrize("wildcard_first", [True, False])
+def test_conditional_wildcard_grants_preserve_document_order(wildcard_first):
+    # Arrange
+    wildcard_condition = {"StringEquals": {"aws:PrincipalOrgID": "o-example"}}
+    explicit_condition = {"Bool": {"aws:MultiFactorAuthPresent": "true"}}
+    statements = [
+        {
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "sts:AssumeRole",
+            "Condition": wildcard_condition,
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {"AWS": ATTACKER_ARN},
+            "Action": "sts:AssumeRole",
+            "Condition": explicit_condition,
+        },
+    ]
+    if not wildcard_first:
+        statements.reverse()
+    role = _role_with_statements("wildcard-gated", statements)
+
+    # Act
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    # Assert
+    (trust,) = transformed.trust_relationships
+    assert trust["has_condition"] is True
+    assert trust["condition_keys"] == [
+        "aws:MultiFactorAuthPresent",
+        "aws:PrincipalOrgID",
+    ]
+    assert json.loads(trust["conditions"]) == [s["Condition"] for s in statements]
+
+
+@pytest.mark.parametrize(
+    "wildcard_action",
+    [
+        {"Action": "sts:AssumeRoleWithWebIdentity"},
+        {"NotAction": "sts:AssumeRole"},
+    ],
+)
+def test_wildcard_grant_of_unusable_action_does_not_remove_condition(wildcard_action):
+    # Arrange
+    condition = {"Bool": {"aws:MultiFactorAuthPresent": "true"}}
+    role = _role_with_statements(
+        "wildcard-wrong-action",
+        [
+            {"Effect": "Allow", "Principal": "*", **wildcard_action},
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+                "Condition": condition,
+            },
+        ],
+    )
+
+    # Act
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    # Assert
+    (trust,) = transformed.trust_relationships
+    assert trust["has_condition"] is True
+    assert json.loads(trust["conditions"]) == [condition]
+
+
+@pytest.mark.parametrize(
+    "denied_principal",
+    ["*", {"AWS": ATTACKER_ARN}, {"AWS": "arn:aws:iam::999999999999:root"}],
+)
+def test_wildcard_grants_do_not_bypass_unconditional_denies(denied_principal):
+    # Arrange
+    role = _role_with_statements(
+        "wildcard-denied",
+        [
+            {"Effect": "Allow", "Principal": "*", "Action": "sts:AssumeRole"},
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": ATTACKER_ARN},
+                "Action": "sts:AssumeRole",
+            },
+            {
+                "Effect": "Deny",
+                "Principal": denied_principal,
+                "Action": "sts:AssumeRole",
+            },
+        ],
+    )
+
+    # Act
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    # Assert
+    assert transformed.trust_relationships == []
+
+
+@pytest.mark.parametrize("wildcard", ["*", {"AWS": "*"}])
+def test_wildcard_only_allow_does_not_create_principals_or_edges(wildcard):
+    # Arrange
+    role = _role_with_statements(
+        "wildcard-only", [{"Effect": "Allow", "Principal": wildcard, "Action": "sts:*"}]
+    )
+
+    # Act
+    transformed = transform_role_trust_policies([role], TEST_ACCOUNT_ID)
+
+    # Assert
+    assert transformed.trust_relationships == []
+    assert transformed.service_principals == []
+    assert transformed.federated_principals == []
+    assert transformed.external_aws_accounts == []
+
+
 @pytest.mark.parametrize(
     "condition_blob",
     ["not json at all", "{unclosed", ""],
