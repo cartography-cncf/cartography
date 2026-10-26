@@ -43,9 +43,9 @@ class AWSRoleTrustsPrincipalRelProperties(CartographyRelProperties):
     )
     conditions: PropertyRef = PropertyRef(
         "conditions",
-        description="JSON array of the raw Condition blocks from each conditional "
-        "statement trusting this principal, in document order. Null if the trust "
-        "is unconditional.",
+        description="JSON-encoded string containing an array of the raw Condition "
+        "blocks from each conditional statement trusting this principal, in document "
+        "order. Null if the trust is unconditional.",
     )
 
 
