@@ -194,7 +194,6 @@ def _cleanup_workspace(
         cartography.intel.databricks.service_principals,
         cartography.intel.databricks.users,
         cartography.intel.databricks.groups,
-        cartography.intel.databricks.workspaces,
     ):
         module.cleanup(neo4j_session, common_job_parameters)
 
@@ -228,6 +227,9 @@ def _cleanup_account(
         cartography.intel.databricks.workspace_assignments.cleanup(
             neo4j_session, account_id, update_tag
         )
+    cartography.intel.databricks.account_workspaces.cleanup(
+        neo4j_session, account_id, update_tag
+    )
     for module in (
         cartography.intel.databricks.account_service_principals,
         cartography.intel.databricks.account_users,

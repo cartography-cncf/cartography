@@ -7,8 +7,9 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import TENANT
 
@@ -68,23 +69,34 @@ class DatabricksAccountWorkspaceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksWorkspaceToAccountRelProperties(CartographyRelProperties):
+class DatabricksAccountToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksWorkspace)
-class DatabricksWorkspaceToAccountRel(CartographyRelSchema):
-    """A Databricks account owns an account-level resource."""
+# A MatchLink scoped to the account rather than the workspace's sub-resource:
+# the workspace-only path has no account, and cleanup must prune only the
+# account being cleaned, never another account's workspaces.
+class DatabricksAccountToWorkspaceRel(CartographyRelSchema):
+    """A Databricks account owns a workspace."""
 
-    target_node_label: str = "DatabricksAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+    source_node_label: str = "DatabricksAccount"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    target_node_label: str = "DatabricksWorkspace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksWorkspaceToAccountRelProperties = (
-        DatabricksWorkspaceToAccountRelProperties()
+    properties: DatabricksAccountToWorkspaceRelProperties = (
+        DatabricksAccountToWorkspaceRelProperties()
     )
 
 
@@ -96,13 +108,6 @@ class DatabricksWorkspaceSchema(CartographyNodeSchema):
     properties: DatabricksWorkspaceNodeProperties = DatabricksWorkspaceNodeProperties()
     # `Tenant` is the ontology label for the top-level resource container.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
-    # The account owns the workspace. Modelled as a plain relationship (not the
-    # sub-resource relationship) so the workspace-only path keeps working: when
-    # no account creds are configured, ACCOUNT_ID is None, the account node is
-    # absent, and this edge simply does not form. Workspace cleanup stays global.
-    other_relationships: OtherRelationships = OtherRelationships(
-        [DatabricksWorkspaceToAccountRel()],
-    )
 
 
 @dataclass(frozen=True)
@@ -114,6 +119,3 @@ class DatabricksAccountWorkspaceSchema(CartographyNodeSchema):
         DatabricksAccountWorkspaceNodeProperties()
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
-    other_relationships: OtherRelationships = OtherRelationships(
-        [DatabricksWorkspaceToAccountRel()],
-    )

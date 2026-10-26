@@ -1,7 +1,9 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import cartography.intel.databricks
 import cartography.intel.databricks.account_workspaces
+from tests.data.databricks.account import DATABRICKS_ACCOUNT
 from tests.data.databricks.account import DATABRICKS_ACCOUNT_ID
 from tests.data.databricks.account_workspaces import (
     DATABRICKS_ACCOUNT_WORKSPACE_NODE_IDS,
@@ -113,3 +115,41 @@ def test_workspace_and_account_paths_keep_each_others_properties(neo4j_session):
         ),
         ("dbc-bbfbeeeb-f63a.cloud.databricks.com", None, None, "6543210987654321"),
     }
+
+
+def test_account_cleanup_keeps_other_accounts_workspace_edges(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    other_account_id = "00000000-0000-0000-0000-0000000000aa"
+    cartography.intel.databricks.account.load(
+        neo4j_session,
+        cartography.intel.databricks.account.DatabricksAccountSchema(),
+        [DATABRICKS_ACCOUNT, {**DATABRICKS_ACCOUNT, "id": other_account_id}],
+        lastupdated=1,
+    )
+    prod, staging = cartography.intel.databricks.account_workspaces.transform(
+        DATABRICKS_ACCOUNT_WORKSPACES, "cloud.databricks.com"
+    )
+    load = cartography.intel.databricks.account_workspaces.load_workspaces
+    load(neo4j_session, [prod], DATABRICKS_ACCOUNT_ID, 1)
+    load(neo4j_session, [staging], other_account_id, 1)
+
+    # Only the first account syncs under the new tag; the other one's run failed.
+    load(neo4j_session, [prod], DATABRICKS_ACCOUNT_ID, 2)
+    cartography.intel.databricks.cleanup_databricks(
+        neo4j_session,
+        2,
+        [
+            cartography.intel.databricks.DatabricksSyncResult(
+                prod["id"], DATABRICKS_ACCOUNT_ID
+            )
+        ],
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "DatabricksAccount",
+        "id",
+        "DatabricksWorkspace",
+        "id",
+        "RESOURCE",
+    ) == {(DATABRICKS_ACCOUNT_ID, prod["id"]), (other_account_id, staging["id"])}

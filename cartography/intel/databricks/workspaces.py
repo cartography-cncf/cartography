@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
+from cartography.intel.databricks.account_workspaces import load_account_links
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.models.databricks.workspace import DatabricksWorkspaceSchema
 from cartography.util import timeit
@@ -73,19 +73,8 @@ def load_workspaces(
     update_tag: int,
     account_id: str | None = None,
 ) -> None:
-    load(
-        neo4j_session,
-        DatabricksWorkspaceSchema(),
-        data,
-        lastupdated=update_tag,
-        ACCOUNT_ID=account_id,
-    )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    GraphJob.from_node_schema(DatabricksWorkspaceSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    load(neo4j_session, DatabricksWorkspaceSchema(), data, lastupdated=update_tag)
+    # Linking here too keeps the edge for a workspace whose host the account
+    # API's derived id does not match.
+    if account_id is not None:
+        load_account_links(neo4j_session, data, account_id, update_tag)
