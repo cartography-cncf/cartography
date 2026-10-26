@@ -1,7 +1,11 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from azure.mgmt.network.models import ApplicationGateway
+
 import cartography.intel.azure.application_gateways as application_gateways
+from tests.data.azure.application_gateway import MOCK_APPLICATION_GATEWAY_ARM
 from tests.data.azure.application_gateway import MOCK_APPLICATION_GATEWAYS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -10,15 +14,25 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
+@pytest.mark.parametrize(
+    "api_response",
+    [
+        MOCK_APPLICATION_GATEWAYS,
+        # azure-mgmt-network 31+ serializes in ARM wire format.
+        [ApplicationGateway(MOCK_APPLICATION_GATEWAY_ARM).as_dict()],
+    ],
+    ids=["flattened_sdk_shape", "current_sdk_shape"],
+)
 @patch(
     "cartography.intel.azure.application_gateways.get_application_gateways",
 )
-def test_sync_application_gateways(mock_get_ags, neo4j_session):
+def test_sync_application_gateways(mock_get_ags, api_response, neo4j_session):
     """
     Test that we can correctly sync an Application Gateway and its child components and relationships.
     """
     # Arrange: Mock the single API call
-    mock_get_ags.return_value = MOCK_APPLICATION_GATEWAYS
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    mock_get_ags.return_value = api_response
 
     # Create the prerequisite AzureSubscription node
     neo4j_session.run(
