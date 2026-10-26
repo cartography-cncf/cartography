@@ -87,6 +87,10 @@ runs that succeeded. Deferring cleanup keeps one workspace's run from pruning
 data that another workspace has not loaded yet, and leaves a failed
 workspace's data in place.
 
+Unity Catalog objects are cleaned once per metastore. When a workspace fails,
+pass its metastore id in `skip_metastore_ids` so objects only that workspace
+lists are kept until its next successful run.
+
 ### Clean Room Coverage
 
 Cartography lists clean rooms only when the metastore enables external

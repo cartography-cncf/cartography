@@ -69,6 +69,7 @@ def _seed_tables(neo4j_session):
         neo4j_session,
         cartography.intel.databricks.tables.transform(DATABRICKS_TABLES),
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         TEST_UPDATE_TAG,
     )
 

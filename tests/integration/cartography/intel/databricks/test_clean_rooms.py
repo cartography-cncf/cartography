@@ -53,11 +53,11 @@ def test_load_databricks_clean_rooms(mock_get, neo4j_session):
         neo4j_session,
         "DatabricksCleanRoom",
         "id",
-        "DatabricksWorkspace",
+        "DatabricksMetastore",
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    ) == {(_CLEAN_ROOM_ID, DATABRICKS_WORKSPACE_ID)}
+    ) == {(_CLEAN_ROOM_ID, DATABRICKS_METASTORE_ID)}
 
     assert check_rels(
         neo4j_session,

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Collection
 from collections.abc import Iterable
 from dataclasses import dataclass
 from dataclasses import field
@@ -65,6 +66,10 @@ import cartography.intel.databricks.vpc_endpoints
 import cartography.intel.databricks.workspace_assignments
 import cartography.intel.databricks.workspaces
 from cartography.config import Config
+from cartography.intel.databricks._unity_catalog import (
+    cleanup_legacy_workspace_resource_edges,
+)
+from cartography.intel.databricks._unity_catalog import cleanup_visibility
 from cartography.intel.databricks.util import DatabricksAccountClient
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.util import timeit
@@ -83,40 +88,31 @@ class DatabricksSyncResult:
 
     workspace_id: str
     account_id: str | None = None
+    metastore_id: str | None = None
     partial_reads: frozenset[str] = field(default_factory=frozenset)
 
 
-def _cleanup_unity_catalog(
+def _cleanup_metastore(
     neo4j_session: neo4j.Session,
-    workspace_id: str,
-    common_job_parameters: dict,
+    metastore_id: str,
     partial_reads: frozenset[str],
+    update_tag: int,
 ) -> None:
-    """Run every Unity Catalog cleanup, in reverse dependency order.
+    """Run every Unity Catalog object cleanup for one metastore.
 
-    Deleting children before parents avoids detaching hierarchy edges or
-    orphaning child nodes. Runs on the no-metastore path too, which purges UC
-    data left over from a run when the workspace still had a metastore.
-
-    Grants, artifact allowlists and clean rooms are skipped when their read was
-    partial (a 403/404 on a securable, a 403 on an allowlist type, external
-    OpenSharing disabled): what could not be re-read is not proof of deletion.
+    Children go before parents so no hierarchy edge is detached from a child
+    that is about to be deleted anyway. Artifact allowlists and clean rooms are
+    skipped when a workspace read them partially (a 403 on an allowlist type,
+    external OpenSharing disabled): what could not be re-read is not proof of
+    deletion.
     """
-    # Grants (edges) first, then leaf resources, then up the containment
-    # hierarchy, and the metastore last.
-    if "grants" not in partial_reads:
-        cartography.intel.databricks.grants.cleanup(
-            neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
-        )
+    common_job_parameters = {"UPDATE_TAG": update_tag, "METASTORE_ID": metastore_id}
     for module in (
-        # Delta Sharing: share nodes carry the SHARED_WITH edge, so purge them
-        # before recipients. All are metastore-scoped leaves cleaned centrally
-        # (like the rest of UC) so the no-metastore path purges them too.
+        # Share nodes carry the SHARED_WITH edge, so purge them before recipients.
         cartography.intel.databricks.shares,
         cartography.intel.databricks.recipients,
         cartography.intel.databricks.providers,
         cartography.intel.databricks.online_tables,
-        cartography.intel.databricks.vector_search,
         cartography.intel.databricks.registered_models,
         cartography.intel.databricks.functions,
         cartography.intel.databricks.tables,
@@ -136,9 +132,6 @@ def _cleanup_unity_catalog(
         cartography.intel.databricks.artifact_allowlists.cleanup(
             neo4j_session, common_job_parameters
         )
-    cartography.intel.databricks.metastores.cleanup(
-        neo4j_session, common_job_parameters
-    )
 
 
 def _cleanup_workspace(
@@ -153,10 +146,20 @@ def _cleanup_workspace(
         cartography.intel.databricks.permissions.cleanup(
             neo4j_session, workspace_id, update_tag
         )
-    _cleanup_unity_catalog(
-        neo4j_session, workspace_id, common_job_parameters, result.partial_reads
+    # A workspace's links into its metastore are its own, so they are pruned
+    # here even when the metastore's objects are not. This also purges them on
+    # the no-metastore path once the workspace loses its assignment.
+    if "grants" not in result.partial_reads:
+        cartography.intel.databricks.grants.cleanup(
+            neo4j_session, workspace_id, update_tag
+        )
+    cleanup_visibility(neo4j_session, workspace_id, update_tag)
+    cartography.intel.databricks.metastores.cleanup_assignment(
+        neo4j_session, workspace_id, update_tag
     )
+    cleanup_legacy_workspace_resource_edges(neo4j_session, update_tag)
     for module in (
+        cartography.intel.databricks.vector_search,
         cartography.intel.databricks.notebooks,
         cartography.intel.databricks.jobs,
         cartography.intel.databricks.pipelines,
@@ -227,6 +230,7 @@ def cleanup_databricks(
     neo4j_session: neo4j.Session,
     update_tag: int,
     results: Iterable[DatabricksSyncResult],
+    skip_metastore_ids: Collection[str] = (),
 ) -> None:
     """Run every Databricks cleanup for workspaces that loaded under ``update_tag``.
 
@@ -237,8 +241,15 @@ def cleanup_databricks(
     Deferring cleanup until every workspace has loaded keeps nodes that several
     workspaces share from being pruned by whichever workspace runs first, and
     leaves a failed workspace's data in place until a run of it succeeds.
+
+    Unity Catalog objects belong to the metastore, so each metastore in
+    ``results`` is cleaned once: an object goes only when no workspace listed it
+    under ``update_tag``. Pass the metastore of every workspace whose run failed
+    in ``skip_metastore_ids``; otherwise objects only that workspace could list
+    are pruned.
     """
     account_partial_reads: dict[str, frozenset[str]] = {}
+    metastore_partial_reads: dict[str, frozenset[str]] = {}
     for result in results:
         _cleanup_workspace(neo4j_session, result, update_tag)
         if result.account_id is not None:
@@ -246,6 +257,14 @@ def cleanup_databricks(
                 account_partial_reads.get(result.account_id, frozenset())
                 | result.partial_reads
             )
+        if result.metastore_id is not None:
+            metastore_partial_reads[result.metastore_id] = (
+                metastore_partial_reads.get(result.metastore_id, frozenset())
+                | result.partial_reads
+            )
+    for metastore_id, partial_reads in metastore_partial_reads.items():
+        if metastore_id not in skip_metastore_ids:
+            _cleanup_metastore(neo4j_session, metastore_id, partial_reads, update_tag)
     for account_id, partial_reads in account_partial_reads.items():
         _cleanup_account(neo4j_session, account_id, partial_reads, update_tag)
 
@@ -637,7 +656,8 @@ def start_databricks_ingestion(
     if metastore_id is None:
         logger.info(
             "Databricks workspace %s has no Unity Catalog metastore assigned - "
-            "skipping the UC data-plane sync; cleanup purges any stale UC data.",
+            "skipping the UC data-plane sync; cleanup drops its links to any "
+            "metastore it was assigned before.",
             workspace_id,
         )
         # Pipelines + jobs are workspace-level: sync them even without UC. The
@@ -660,7 +680,9 @@ def start_databricks_ingestion(
         return _finish(
             neo4j_session,
             config,
-            DatabricksSyncResult(workspace_id, account_id, frozenset(partial_reads)),
+            DatabricksSyncResult(
+                workspace_id, account_id, None, frozenset(partial_reads)
+            ),
         )
 
     # Storage credentials + external locations first so catalogs / tables /
@@ -669,6 +691,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 
@@ -676,6 +699,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 
@@ -684,6 +708,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 
@@ -697,6 +722,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         catalogs,
         common_job_parameters,
     )
@@ -705,6 +731,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         schemas,
         common_job_parameters,
     )
@@ -713,6 +740,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         schemas,
         common_job_parameters,
     )
@@ -721,6 +749,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         schemas,
         common_job_parameters,
     )
@@ -729,6 +758,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 
@@ -736,6 +766,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         schemas,
         common_job_parameters,
     )
@@ -745,6 +776,7 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         workspace_id,
+        metastore_id,
         common_job_parameters,
     )
 
@@ -824,7 +856,9 @@ def start_databricks_ingestion(
     return _finish(
         neo4j_session,
         config,
-        DatabricksSyncResult(workspace_id, account_id, frozenset(partial_reads)),
+        DatabricksSyncResult(
+            workspace_id, account_id, metastore_id, frozenset(partial_reads)
+        ),
     )
 
 

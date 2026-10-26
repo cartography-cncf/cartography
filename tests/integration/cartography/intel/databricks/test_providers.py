@@ -50,11 +50,11 @@ def test_load_databricks_providers(mock_get, neo4j_session):
         neo4j_session,
         "DatabricksProvider",
         "id",
-        "DatabricksWorkspace",
+        "DatabricksMetastore",
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    ) == {(PROVIDER_ID, DATABRICKS_WORKSPACE_ID)}
+    ) == {(PROVIDER_ID, DATABRICKS_METASTORE_ID)}
 
     assert check_rels(
         neo4j_session,

@@ -40,6 +40,7 @@ def test_load_databricks_online_tables(mock_get, neo4j_session):
         neo4j_session,
         cartography.intel.databricks.tables.transform(DATABRICKS_TABLES),
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -47,6 +48,7 @@ def test_load_databricks_online_tables(mock_get, neo4j_session):
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )
 
