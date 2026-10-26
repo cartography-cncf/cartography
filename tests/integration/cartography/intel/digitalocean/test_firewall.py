@@ -76,6 +76,21 @@ def test_sync_firewalls_with_rules(neo4j_session):
     )
     rule_ids = {rule["id"] for rule in firewall_rules}
 
+    expected_actions = {
+        ("icmp", "0", "inbound"): "allow",
+        ("tcp", "22", "inbound"): "allow",
+        ("tcp", "80", "inbound"): "allow",
+        ("tcp", "443", "inbound"): "allow",
+        ("tcp", "8080", "inbound"): "deny",
+        ("tcp", "1-64293", "inbound"): "allow",
+        ("tcp", "0", "outbound"): "allow",
+    }
+
+    assert {
+        (rule["protocol"], rule["ports"], rule["direction"]): rule["action"]
+        for rule in firewall_rules
+    } == expected_actions
+
     assert check_nodes(neo4j_session, "DOFirewall", ["id", "name"]) == {
         (firewall_id, "Test Firewall"),
     }
@@ -101,7 +116,7 @@ def test_sync_firewalls_with_rules(neo4j_session):
             rule["ports"],
             rule["fromport"],
             rule["toport"],
-            "allow",
+            rule["action"],
         )
         for rule in firewall_rules
     }
@@ -219,3 +234,34 @@ def test_sync_firewalls_with_rules(neo4j_session):
     icmp_rule = next(rule for rule in firewall_rules if rule["protocol"] == "icmp")
     assert icmp_rule["fromport"] is None
     assert icmp_rule["toport"] is None
+
+    result = neo4j_session.run(
+        """
+        MATCH (r:DOFirewallRule)
+        RETURN
+            r.protocol AS protocol,
+            r.ports AS ports,
+            r.direction AS direction,
+            r.action AS action,
+            r:IpPermissionInbound AS is_inbound,
+            r:IpPermissionEgress AS is_egress
+        """
+    )
+
+    actual = {
+        (r["protocol"], r["ports"], r["direction"]): (
+            r["action"],
+            r["is_inbound"],
+            r["is_egress"],
+        )
+        for r in result
+    }
+
+    assert actual == {
+        key: (
+            action,
+            key[2] == "inbound" and action == "allow",
+            key[2] == "outbound" and action == "allow",
+        )
+        for key, action in expected_actions.items()
+    }

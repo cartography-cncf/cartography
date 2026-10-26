@@ -23,6 +23,30 @@ FIREWALLS_RESPONSE: dict[str, Any] = {
                     },
                     "action": "allow",
                 },
+                {
+                    "protocol": "tcp",
+                    "ports": "22",
+                    "sources": {"addresses": ["10.0.0.0/8"]},
+                    # action intentionally omitted
+                },
+                {
+                    "protocol": "tcp",
+                    "ports": "80",
+                    "sources": {"addresses": ["192.168.1.0/24"]},
+                    "action": None,
+                },
+                {
+                    "protocol": "tcp",
+                    "ports": "443",
+                    "sources": {"addresses": ["203.0.113.0/24"]},
+                    "action": "",
+                },
+                {
+                    "protocol": "tcp",
+                    "ports": "8080",
+                    "sources": {"addresses": ["198.51.100.0/24"]},
+                    "action": "deny",
+                },
             ],
             "outbound_rules": [
                 {
