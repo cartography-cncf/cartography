@@ -268,6 +268,59 @@ LIST_ROLES_GITHUB_OIDC = {
     ],
 }
 
+THIRD_PARTY_ROOT_ARN = "arn:aws:iam::999999999999:root"
+
+# Two roles a third party assumes from its own account: one requires the external ID the
+# vendor was given, and one only checks it if the caller happens to pass one.
+LIST_ROLES_EXTERNAL_ID = {
+    "Roles": [
+        {
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRole",
+                        "Effect": "Allow",
+                        "Principal": {"AWS": THIRD_PARTY_ROOT_ARN},
+                        "Condition": {
+                            "StringEquals": {"sts:ExternalId": "customer-1234"},
+                        },
+                    },
+                ],
+            },
+            "MaxSessionDuration": 3600,
+            "RoleId": "AROA00000000000000013",
+            "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+            "RoleName": "vendor-external-id",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/vendor-external-id",
+        },
+        {
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRole",
+                        "Effect": "Allow",
+                        "Principal": {"AWS": THIRD_PARTY_ROOT_ARN},
+                        "Condition": {
+                            "StringEqualsIfExists": {
+                                "sts:ExternalId": "customer-1234",
+                            },
+                        },
+                    },
+                ],
+            },
+            "MaxSessionDuration": 3600,
+            "RoleId": "AROA00000000000000014",
+            "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+            "RoleName": "vendor-optional-external-id",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/vendor-optional-external-id",
+        },
+    ],
+}
+
 LIST_SAML_PROVIDERS = {
     "SAMLProviderList": [
         {

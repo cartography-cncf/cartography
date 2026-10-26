@@ -830,6 +830,58 @@ def _usable_assume_role_actions(principal_type: str, principal: str) -> frozense
     return frozenset({"sts:assumerole"})
 
 
+# The condition key a third party passes to sts:AssumeRole to prove it is acting for the
+# customer that configured the trust, which guards a role against the confused deputy
+# problem. IAM condition keys are case-insensitive.
+EXTERNAL_ID_CONDITION_KEY = "sts:externalid"
+
+
+def _condition_requires_external_id(condition: Any) -> bool:
+    """Whether a trust statement's Condition only matches a request carrying sts:ExternalId.
+
+    IAM ANDs every operator in a Condition block, so a single operator that fails when the
+    key is absent is enough. Most operators are false on a missing key, but these are
+    true and so do not require one:
+
+    - `...IfExists` operators and `ForAllValues:` set operators, by definition.
+    - Negated operators such as `StringNotEquals` or `ArnNotLike`.
+    - `Null` with a value of "true", which requires the key to be absent. `Null` with
+      "false" requires it to be present, whatever its value.
+
+    A Condition that cannot be parsed is not proven to require an external ID.
+    """
+    for operator_map in parse_condition_blob(condition):
+        if not isinstance(operator_map, dict):
+            continue
+        for operator, context_map in operator_map.items():
+            if not isinstance(operator, str) or not isinstance(context_map, dict):
+                continue
+            values = next(
+                (
+                    value
+                    for key, value in context_map.items()
+                    if isinstance(key, str) and key.lower() == EXTERNAL_ID_CONDITION_KEY
+                ),
+                None,
+            )
+            if values is None:
+                continue
+            if operator.startswith("ForAllValues:") or operator.endswith("IfExists"):
+                continue
+            operator = operator.removeprefix("ForAnyValue:")
+            if operator == "Null":
+                null_values = ensure_list(values)
+                if null_values and all(
+                    str(value).lower() == "false" for value in null_values
+                ):
+                    return True
+                continue
+            if "Not" in operator:
+                continue
+            return True
+    return False
+
+
 def _aggregate_trust_conditions(
     statement_conditions: list[Any],
 ) -> dict[str, Any]:
@@ -847,7 +899,17 @@ def _aggregate_trust_conditions(
       unconditionally and we report has_condition=False. An unconditional path wins.
     - Otherwise every path to the trust is gated, so we report has_condition=True with
       the union of referenced context keys and the raw condition blobs as a JSON string.
+
+    has_external_id follows the same rule: it is True only when every statement trusting
+    the principal requires sts:ExternalId, since any other statement is a path to the role
+    that skips it.
     """
+    unconditional = {
+        "has_condition": False,
+        "condition_keys": [],
+        "conditions": None,
+        "has_external_id": False,
+    }
     conditional_blobs: list[Any] = []
     condition_keys: set[str] = set()
 
@@ -855,7 +917,7 @@ def _aggregate_trust_conditions(
         if not condition:
             # An unconditional statement trusts this principal; the edge is effectively
             # unconditional no matter what the other statements say.
-            return {"has_condition": False, "condition_keys": [], "conditions": None}
+            return unconditional
         parsed = parse_condition_blob(condition)
         if parsed:
             conditional_blobs.extend(parsed)
@@ -870,12 +932,16 @@ def _aggregate_trust_conditions(
 
     if not conditional_blobs:
         # Defensive: a principal with no statements at all should not reach here.
-        return {"has_condition": False, "condition_keys": [], "conditions": None}
+        return unconditional
 
     return {
         "has_condition": True,
         "condition_keys": sorted(condition_keys),
         "conditions": json.dumps(conditional_blobs),
+        "has_external_id": all(
+            _condition_requires_external_id(condition)
+            for condition in statement_conditions
+        ),
     }
 
 
