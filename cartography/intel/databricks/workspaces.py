@@ -34,7 +34,6 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
         account_id,
     )
-    cleanup(neo4j_session, common_job_parameters)
     return workspace
 
 

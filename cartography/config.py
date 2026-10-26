@@ -428,6 +428,10 @@ class Config:
     :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
     :type databricks_account_client_secret: str
     :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
+    :type databricks_skip_cleanup: bool
+    :param databricks_skip_cleanup: Load Databricks data without running cleanup. For orchestrators that sync several
+        workspaces into one graph with the same update tag and then call
+        cartography.intel.databricks.cleanup_databricks() once. Optional.
     :type snowflake_account: str
     :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
     :type snowflake_user: str
@@ -852,6 +856,7 @@ class Config:
         gke_endpoint: str = "dns",
         gke_impersonate_service_account: str | None = None,
         gke_credentials: "GoogleCredentials | None" = None,
+        databricks_skip_cleanup: bool = False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1056,6 +1061,7 @@ class Config:
         self.databricks_account_host = databricks_account_host
         self.databricks_account_client_id = databricks_account_client_id
         self.databricks_account_client_secret = databricks_account_client_secret
+        self.databricks_skip_cleanup = databricks_skip_cleanup
         self.bbot_source = _resolve_report_source_config(
             module="bbot",
             source=bbot_source,

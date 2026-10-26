@@ -24,7 +24,6 @@ def sync(
     load_network_connectivity_configs(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit

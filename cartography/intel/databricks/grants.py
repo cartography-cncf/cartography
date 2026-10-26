@@ -64,7 +64,9 @@ def sync(
     """
     securables = get_securables(neo4j_session, workspace_id)
     grants, complete = get(api_session, securables)
-    principals = get_principals(neo4j_session, workspace_id)
+    principals = get_principals(
+        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
     grants = resolve_principals(grants, principals)
     load_grants(
         neo4j_session, grants, workspace_id, common_job_parameters["UPDATE_TAG"]
@@ -73,7 +75,9 @@ def sync(
 
 
 @timeit
-def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str, str]:
+def get_principals(
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
+) -> dict[str, str]:
     """Map each workspace principal's UC name to its scoped node id.
 
     UC reports grant principals by name (user_name / group display name / SP
@@ -85,7 +89,8 @@ def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str,
     # service principal also has a display_name, so coalesce would mis-key it).
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(p)
-    WHERE p:DatabricksUser OR p:DatabricksGroup OR p:DatabricksServicePrincipal
+    WHERE (p:DatabricksUser OR p:DatabricksGroup OR p:DatabricksServicePrincipal)
+      AND p.lastupdated = $update_tag
     RETURN p.id AS id,
            CASE
                WHEN p:DatabricksServicePrincipal THEN p.application_id
@@ -93,7 +98,7 @@ def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str,
                ELSE p.user_name
            END AS name
     """
-    result = neo4j_session.run(query, workspace_id=workspace_id)
+    result = neo4j_session.run(query, workspace_id=workspace_id, update_tag=update_tag)
     principals: dict[str, str] = {}
     for record in result:
         if record["name"] and record["id"]:
