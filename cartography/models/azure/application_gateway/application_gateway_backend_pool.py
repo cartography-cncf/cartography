@@ -118,6 +118,50 @@ class AzureApplicationGatewayBackendPoolToDNSRecordRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToAppServiceRelProperties(
+    CartographyRelProperties,
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToAppServiceRel(CartographyRelSchema):
+    """An application gateway backend pool routes traffic to an App Service by its default host name."""
+
+    target_node_label: str = "AzureAppService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"default_host_name": PropertyRef("fqdns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: AzureApplicationGatewayBackendPoolToAppServiceRelProperties = (
+        AzureApplicationGatewayBackendPoolToAppServiceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToFunctionAppRelProperties(
+    CartographyRelProperties,
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureApplicationGatewayBackendPoolToFunctionAppRel(CartographyRelSchema):
+    """An application gateway backend pool routes traffic to a Function App by its default host name."""
+
+    target_node_label: str = "AzureFunctionApp"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"default_host_name": PropertyRef("fqdns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: AzureApplicationGatewayBackendPoolToFunctionAppRelProperties = (
+        AzureApplicationGatewayBackendPoolToFunctionAppRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolToSubscriptionRelProperties(
     CartographyRelProperties,
 ):
@@ -156,5 +200,7 @@ class AzureApplicationGatewayBackendPoolSchema(CartographyNodeSchema):
             AzureApplicationGatewayBackendPoolToNICRel(),
             AzureApplicationGatewayBackendPoolToPublicIPRel(),
             AzureApplicationGatewayBackendPoolToDNSRecordRel(),
+            AzureApplicationGatewayBackendPoolToAppServiceRel(),
+            AzureApplicationGatewayBackendPoolToFunctionAppRel(),
         ],
     )

@@ -43,6 +43,8 @@ MOCK_APPLICATION_GATEWAYS = [
                 "name": "my-appgw-backend-pool",
                 "backend_addresses": [
                     {"fqdn": "backend.example.com"},
+                    {"fqdn": "my-web-app.azurewebsites.net"},
+                    {"fqdn": "my-func-app.azurewebsites.net"},
                     {"ip_address": "10.0.1.4"},
                 ],
                 "backend_ip_configurations": [
@@ -180,6 +182,8 @@ MOCK_APPLICATION_GATEWAY_ARM = {
                 "properties": {
                     "backendAddresses": [
                         {"fqdn": "backend.example.com"},
+                        {"fqdn": "my-web-app.azurewebsites.net"},
+                        {"fqdn": "my-func-app.azurewebsites.net"},
                         {"ipAddress": "10.0.1.4"},
                     ],
                     "backendIPConfigurations": [

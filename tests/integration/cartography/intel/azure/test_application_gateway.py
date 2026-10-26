@@ -57,6 +57,17 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
+    neo4j_session.run(
+        "MERGE (a:AzureAppService{id: 'my-web-app'}) "
+        "SET a.default_host_name = 'my-web-app.azurewebsites.net', a.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (f:AzureFunctionApp{id: 'my-func-app'}) "
+        "SET f.default_host_name = 'my-func-app.azurewebsites.net', f.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
+
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
@@ -206,6 +217,26 @@ def test_sync_application_gateways(mock_get_ags, neo4j_session):
         pool_id=backend_pool_id,
     )
     assert {row["name"] for row in dns_routes} == {"backend.example.com"}
+
+    # BackendPool -> App Service / Function App (ROUTES_TO via default host name)
+    assert check_rels(
+        neo4j_session,
+        "AzureApplicationGatewayBackendPool",
+        "id",
+        "AzureAppService",
+        "id",
+        "ROUTES_TO",
+        rel_direction_right=True,
+    ) == {(backend_pool_id, "my-web-app")}
+    assert check_rels(
+        neo4j_session,
+        "AzureApplicationGatewayBackendPool",
+        "id",
+        "AzureFunctionApp",
+        "id",
+        "ROUTES_TO",
+        rel_direction_right=True,
+    ) == {(backend_pool_id, "my-func-app")}
 
     # Rule wiring (Basic + PathBasedRouting both produce edges, parallel to AzureLoadBalancerRule)
     assert check_rels(
