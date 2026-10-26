@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from functools import lru_cache
 from typing import Any
 from typing import Awaitable
 from typing import Callable
+from typing import Iterable
+from typing import TypeVar
 from urllib.parse import urlencode
 
 import okta.dpop
@@ -55,10 +58,13 @@ OKTA_MISSING_SCOPE_WARNING = (
     "it, and an OAuth service app also needs the %s scope"
 )
 
-# Read-only scopes covering every endpoint the Okta sync calls. An OAuth service
-# app must be granted all of them, or Okta refuses to issue an access token.
+# Read-only scopes covering every endpoint the Okta sync calls. Okta leaves the
+# scopes an OAuth service app was not granted out of its access token, and
+# refuses the token only when none of them is granted, so a scope added here
+# does not break existing apps: the sync skips what the token cannot read.
 OKTA_OAUTH_DEFAULT_SCOPES = (
     "okta.apiTokens.read",
+    "okta.appGrants.read",
     "okta.apps.read",
     "okta.authenticators.read",
     "okta.devices.read",
@@ -72,10 +78,19 @@ OKTA_OAUTH_DEFAULT_SCOPES = (
     "okta.users.read",
 )
 
+# Upper bound on concurrent per-resource Okta requests. Okta also caps concurrent
+# requests per org; the SDK retries requests it throttles.
+OKTA_MAX_CONCURRENT_REQUESTS = 10
+
+_T = TypeVar("_T")
+_R = TypeVar("_R")
+
 # Token endpoint errors returned when an OAuth service app cannot get an access
-# token: unknown client ID or key, scopes not granted, or a DPoP mismatch.
+# token: unknown client ID or key, no requested scope granted, an unknown scope,
+# or a DPoP mismatch.
 _OKTA_OAUTH_TOKEN_ERROR_CODES = frozenset(
     {
+        "consent_required",
         "invalid_client",
         "invalid_dpop_proof",
         "invalid_grant",
@@ -237,7 +252,18 @@ def is_resource_not_found_error(error: OktaApiError) -> bool:
 
 
 def is_missing_scope_error(error: OktaApiError) -> bool:
-    return error.error_code == OKTA_MISSING_SCOPE_ERROR_CODE
+    """
+    Return True when Okta refused a request for lack of permission: the admin
+    role does not allow it (E0000006), or the OAuth access token lacks the
+    endpoint's scope, which Okta answers with a bare 403 and an
+    `insufficient_scope` challenge.
+    """
+    if error.error_code == OKTA_MISSING_SCOPE_ERROR_CODE:
+        return True
+    if getattr(error.error, "status", None) != 403:
+        return False
+    headers = getattr(error.error, "response_headers", None) or {}
+    return 'error="insufficient_scope"' in (headers.get("WWW-Authenticate") or "")
 
 
 def is_oauth_token_error(error: OktaApiError) -> bool:
@@ -341,3 +367,21 @@ async def collect_raw_paginated(
         next_link = response.links.get("next") if response is not None else None
         url = str(next_link["url"]) if next_link else None
     return items
+
+
+async def gather_bounded(
+    func: Callable[[_T], Awaitable[_R]],
+    items: Iterable[_T],
+    limit: int = OKTA_MAX_CONCURRENT_REQUESTS,
+) -> list[_R]:
+    """
+    Await func(item) for every item, at most `limit` at a time, and return the
+    results in input order. The first exception propagates.
+    """
+    semaphore = asyncio.Semaphore(limit)
+
+    async def run(item: _T) -> _R:
+        async with semaphore:
+            return await func(item)
+
+    return await asyncio.gather(*(run(item) for item in items))
