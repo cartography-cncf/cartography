@@ -1,4 +1,7 @@
 import logging
+from collections.abc import Iterable
+from dataclasses import dataclass
+from dataclasses import field
 
 import neo4j
 
@@ -69,34 +72,39 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class DatabricksSyncResult:
+    """What one ``start_databricks_ingestion`` run loaded, for ``cleanup_databricks``.
+
+    ``partial_reads`` names the syncs that skipped part of their source (403/404)
+    this run. Their cleanup is skipped so data that could not be re-read is not
+    deleted as stale.
+    """
+
+    workspace_id: str
+    account_id: str | None = None
+    partial_reads: frozenset[str] = field(default_factory=frozenset)
+
+
 def _cleanup_unity_catalog(
     neo4j_session: neo4j.Session,
     workspace_id: str,
     common_job_parameters: dict,
-    clean_grants: bool = True,
-    clean_artifact_allowlists: bool = True,
-    clean_clean_rooms: bool = True,
+    partial_reads: frozenset[str],
 ) -> None:
     """Run every Unity Catalog cleanup, in reverse dependency order.
 
-    Cleanup runs centrally (not inside each resource sync) and only after the
-    whole UC sync succeeds. That keeps a mid-sync failure from deleting stale
-    nodes on partial data, and deleting children before parents avoids
-    detaching hierarchy edges or orphaning child nodes. Also invoked on the
-    no-metastore path to purge UC data left over from a previous run.
+    Deleting children before parents avoids detaching hierarchy edges or
+    orphaning child nodes. Runs on the no-metastore path too, which purges UC
+    data left over from a run when the workspace still had a metastore.
 
-    ``clean_grants`` is False when a securable that may hold grants was skipped
-    (403/404) during the grants sync, so its HAS_PRIVILEGE cleanup is skipped
-    rather than deleting still-valid edges we could not re-read this run.
-    ``clean_artifact_allowlists`` is False when the allowlist fetch was
-    incomplete (a 403 on a type), so its cleanup is skipped rather than deleting
-    an allowlist node we could not re-read this run. ``clean_clean_rooms`` is
-    False when the clean-rooms listing was skipped (external OpenSharing
-    disabled), for the same reason.
+    Grants, artifact allowlists and clean rooms are skipped when their read was
+    partial (a 403/404 on a securable, a 403 on an allowlist type, external
+    OpenSharing disabled): what could not be re-read is not proof of deletion.
     """
     # Grants (edges) first, then leaf resources, then up the containment
     # hierarchy, and the metastore last.
-    if clean_grants:
+    if "grants" not in partial_reads:
         cartography.intel.databricks.grants.cleanup(
             neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
         )
@@ -120,17 +128,126 @@ def _cleanup_unity_catalog(
         cartography.intel.databricks.connections,
     ):
         module.cleanup(neo4j_session, common_job_parameters)
-    if clean_clean_rooms:
+    if "clean_rooms" not in partial_reads:
         cartography.intel.databricks.clean_rooms.cleanup(
             neo4j_session, common_job_parameters
         )
-    if clean_artifact_allowlists:
+    if "artifact_allowlists" not in partial_reads:
         cartography.intel.databricks.artifact_allowlists.cleanup(
             neo4j_session, common_job_parameters
         )
     cartography.intel.databricks.metastores.cleanup(
         neo4j_session, common_job_parameters
     )
+
+
+def _cleanup_workspace(
+    neo4j_session: neo4j.Session,
+    result: DatabricksSyncResult,
+    update_tag: int,
+) -> None:
+    """Run every workspace-scoped cleanup, in reverse load order."""
+    workspace_id = result.workspace_id
+    common_job_parameters = {"UPDATE_TAG": update_tag, "WORKSPACE_ID": workspace_id}
+    if "permissions" not in result.partial_reads:
+        cartography.intel.databricks.permissions.cleanup(
+            neo4j_session, workspace_id, update_tag
+        )
+    _cleanup_unity_catalog(
+        neo4j_session, workspace_id, common_job_parameters, result.partial_reads
+    )
+    for module in (
+        cartography.intel.databricks.notebooks,
+        cartography.intel.databricks.jobs,
+        cartography.intel.databricks.pipelines,
+        cartography.intel.databricks.git_credentials,
+        cartography.intel.databricks.repos,
+        cartography.intel.databricks.apps,
+        cartography.intel.databricks.genie_spaces,
+        cartography.intel.databricks.serving_endpoints,
+        cartography.intel.databricks.dashboards,
+        cartography.intel.databricks.alerts,
+        cartography.intel.databricks.queries,
+        cartography.intel.databricks.data_sources,
+        cartography.intel.databricks.sql_warehouses,
+        cartography.intel.databricks.ip_access_lists,
+        cartography.intel.databricks.secret_scopes,
+        cartography.intel.databricks.clusters,
+        cartography.intel.databricks.instance_pools,
+        cartography.intel.databricks.cluster_policies,
+        cartography.intel.databricks.tokens,
+        cartography.intel.databricks.service_principals,
+        cartography.intel.databricks.users,
+        cartography.intel.databricks.groups,
+        cartography.intel.databricks.workspaces,
+    ):
+        module.cleanup(neo4j_session, common_job_parameters)
+
+
+def _cleanup_account(
+    neo4j_session: neo4j.Session,
+    account_id: str,
+    partial_reads: frozenset[str],
+    update_tag: int,
+) -> None:
+    """Run every account-scoped cleanup, in reverse load order."""
+    common_job_parameters = {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id}
+    for module in (
+        cartography.intel.databricks.account_settings,
+        cartography.intel.databricks.budgets,
+        cartography.intel.databricks.log_delivery,
+        cartography.intel.databricks.network_connectivity_configs,
+        cartography.intel.databricks.encryption_keys,
+        cartography.intel.databricks.vpc_endpoints,
+        cartography.intel.databricks.private_access_settings,
+        cartography.intel.databricks.network_configs,
+        cartography.intel.databricks.storage_configs,
+        cartography.intel.databricks.credential_configs,
+    ):
+        module.cleanup(neo4j_session, common_job_parameters)
+    if "federation_policies" not in partial_reads:
+        cartography.intel.databricks.federation_policies.cleanup(
+            neo4j_session, common_job_parameters
+        )
+    if "workspace_assignments" not in partial_reads:
+        cartography.intel.databricks.workspace_assignments.cleanup(
+            neo4j_session, account_id, update_tag
+        )
+    for module in (
+        cartography.intel.databricks.account_service_principals,
+        cartography.intel.databricks.account_users,
+        cartography.intel.databricks.account_groups,
+        cartography.intel.databricks.account,
+    ):
+        module.cleanup(neo4j_session, common_job_parameters)
+
+
+@timeit
+def cleanup_databricks(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    results: Iterable[DatabricksSyncResult],
+) -> None:
+    """Run every Databricks cleanup for workspaces that loaded under ``update_tag``.
+
+    ``start_databricks_ingestion`` calls this itself unless
+    ``config.databricks_skip_cleanup`` is set. Orchestrators that sync several
+    workspaces into one graph set that flag, run every workspace with the same
+    update tag, then call this once with the results of the runs that succeeded.
+    Deferring cleanup until every workspace has loaded keeps nodes that several
+    workspaces share from being pruned by whichever workspace runs first, and
+    leaves a failed workspace's data in place until a run of it succeeds.
+    """
+    account_partial_reads: dict[str, frozenset[str]] = {}
+    for result in results:
+        _cleanup_workspace(neo4j_session, result, update_tag)
+        if result.account_id is not None:
+            account_partial_reads[result.account_id] = (
+                account_partial_reads.get(result.account_id, frozenset())
+                | result.partial_reads
+            )
+    for account_id, partial_reads in account_partial_reads.items():
+        _cleanup_account(neo4j_session, account_id, partial_reads, update_tag)
 
 
 def _sync_workflows(
@@ -174,7 +291,7 @@ def _sync_account_details(
     account_client: DatabricksAccountClient,
     account_id: str,
     update_tag: int,
-) -> None:
+) -> frozenset[str]:
     """Sync the account-level surface (AWS / GCP) below the account node.
 
     Covers the Databricks Account API, which does not exist on Azure: account
@@ -190,6 +307,8 @@ def _sync_account_details(
     the workspace's account RESOURCE edge can form. Each account resource is
     scoped to ``DatabricksAccount`` for cleanup, so ``ACCOUNT_ID`` rides in the
     common job parameters.
+
+    Returns the names of the syncs whose read was partial, for cleanup.
     """
     account_job_parameters = {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id}
 
@@ -209,18 +328,21 @@ def _sync_account_details(
     workspace_node_ids = cartography.intel.databricks.account_workspaces.sync(
         neo4j_session, account_client, account_id, account_job_parameters
     )
-    cartography.intel.databricks.workspace_assignments.sync(
+    partial_reads: set[str] = set()
+    if not cartography.intel.databricks.workspace_assignments.sync(
         neo4j_session,
         account_client,
         account_id,
         workspace_node_ids,
         account_job_parameters,
-    )
+    ):
+        partial_reads.add("workspace_assignments")
 
     # Federation policies read the account service principals from the graph.
-    cartography.intel.databricks.federation_policies.sync(
+    if not cartography.intel.databricks.federation_policies.sync(
         neo4j_session, account_client, account_id, account_job_parameters
-    )
+    ):
+        partial_reads.add("federation_policies")
 
     # Workspace cloud configurations. Each links back to the AWS / GCP nodes
     # already in the graph where they exist.
@@ -237,10 +359,13 @@ def _sync_account_details(
         cartography.intel.databricks.account_settings,
     ):
         module.sync(neo4j_session, account_client, account_id, account_job_parameters)
+    return frozenset(partial_reads)
 
 
 @timeit
-def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_databricks_ingestion(
+    neo4j_session: neo4j.Session, config: Config
+) -> DatabricksSyncResult | None:
     """
     If this module is configured, perform ingestion of Databricks data. Otherwise warn and exit.
 
@@ -254,16 +379,20 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     ``--databricks-account-client-secret-env-var``; when unset the module runs
     workspace-only.
 
+    With ``config.databricks_skip_cleanup`` set, only loads; the caller must run
+    ``cleanup_databricks`` with the returned result once every workspace sharing
+    the graph has loaded.
+
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
-    :return: None
+    :return: What was loaded, or None when the module is not configured
     """
     if not config.databricks_workspace_url:
         logger.info(
             "Databricks import is not configured - skipping this module. "
             "See docs to configure.",
         )
-        return
+        return None
 
     has_token = bool(config.databricks_token)
     has_client_id = bool(config.databricks_client_id)
@@ -285,7 +414,7 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             "Set --databricks-token-env-var or "
             "--databricks-client-id + --databricks-client-secret-env-var.",
         )
-        return
+        return None
 
     # Account API (AWS / GCP only; Azure has no Databricks account API). All
     # three flags are required together: OAuth M2M against the account host
@@ -348,8 +477,9 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     # Account-level surface (SCIM, workspaces, assignments, federation, cloud
     # configs). Runs after the workspace sync so account_workspaces enriches the
     # existing workspace node rather than being overwritten by it.
+    partial_reads: set[str] = set()
     if account_client is not None and account_id is not None:
-        _sync_account_details(
+        partial_reads |= _sync_account_details(
             neo4j_session, account_client, account_id, config.update_tag
         )
 
@@ -507,10 +637,9 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     if metastore_id is None:
         logger.info(
             "Databricks workspace %s has no Unity Catalog metastore assigned - "
-            "purging any stale UC data and skipping the UC data-plane sync.",
+            "skipping the UC data-plane sync; cleanup purges any stale UC data.",
             workspace_id,
         )
-        _cleanup_unity_catalog(neo4j_session, workspace_id, common_job_parameters)
         # Pipelines + jobs are workspace-level: sync them even without UC. The
         # pipeline -> catalog edge is skipped (no metastore), but nodes, run-as
         # and job-task -> pipeline edges still land.
@@ -520,15 +649,19 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         # Object ACLs (principal -> workspace-object HAS_PERMISSION) are
         # workspace-level, so materialise them even without Unity Catalog. Runs
         # last so every ACL-bearing object (clusters, jobs, pipelines, secret
-        # scopes, ...) is already in the graph. Self-contained: it runs its own
-        # scoped MatchLink cleanup.
-        cartography.intel.databricks.permissions.sync(
+        # scopes, ...) is already in the graph.
+        if not cartography.intel.databricks.permissions.sync(
             neo4j_session,
             api_client,
             workspace_id,
             common_job_parameters,
+        ):
+            partial_reads.add("permissions")
+        return _finish(
+            neo4j_session,
+            config,
+            DatabricksSyncResult(workspace_id, account_id, frozenset(partial_reads)),
         )
-        return
 
     # Storage credentials + external locations first so catalogs / tables /
     # volumes can attach to them.
@@ -623,15 +756,14 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         common_job_parameters,
     )
 
-    artifact_allowlists_complete = (
-        cartography.intel.databricks.artifact_allowlists.sync(
-            neo4j_session,
-            api_client,
-            workspace_id,
-            metastore_id,
-            common_job_parameters,
-        )
-    )
+    if not cartography.intel.databricks.artifact_allowlists.sync(
+        neo4j_session,
+        api_client,
+        workspace_id,
+        metastore_id,
+        common_job_parameters,
+    ):
+        partial_reads.add("artifact_allowlists")
 
     # Delta Sharing. Recipients + providers before shares so the share ->
     # recipient SHARED_WITH edge resolves against recipient nodes already loaded.
@@ -651,13 +783,14 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         common_job_parameters,
     )
 
-    clean_rooms_complete = cartography.intel.databricks.clean_rooms.sync(
+    if not cartography.intel.databricks.clean_rooms.sync(
         neo4j_session,
         api_client,
         workspace_id,
         metastore_id,
         common_job_parameters,
-    )
+    ):
+        partial_reads.add("clean_rooms")
 
     cartography.intel.databricks.shares.sync(
         neo4j_session,
@@ -669,33 +802,37 @@ def start_databricks_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
 
     # Grants last: materialises principal -> securable HAS_PRIVILEGE edges by
     # reading every securable already loaded for the workspace.
-    grants_complete = cartography.intel.databricks.grants.sync(
+    if not cartography.intel.databricks.grants.sync(
         neo4j_session,
         api_client,
         workspace_id,
         common_job_parameters,
-    )
+    ):
+        partial_reads.add("grants")
 
     # Object ACLs (principal -> workspace-object HAS_PERMISSION). Workspace-level
     # like grants, so it runs on both the UC and no-UC paths; here it runs after
-    # every ACL-bearing object is loaded. Self-contained: runs its own scoped
-    # MatchLink cleanup, so it is not part of _cleanup_unity_catalog.
-    cartography.intel.databricks.permissions.sync(
+    # every ACL-bearing object is loaded.
+    if not cartography.intel.databricks.permissions.sync(
         neo4j_session,
         api_client,
         workspace_id,
         common_job_parameters,
+    ):
+        partial_reads.add("permissions")
+
+    return _finish(
+        neo4j_session,
+        config,
+        DatabricksSyncResult(workspace_id, account_id, frozenset(partial_reads)),
     )
 
-    # Cleanup runs once, centrally, only after every UC sync above succeeded, in
-    # reverse dependency order (see _cleanup_unity_catalog). Artifact-allowlist
-    # cleanup is gated: a 403-skipped type must not be deleted just because we
-    # couldn't re-read it this run.
-    _cleanup_unity_catalog(
-        neo4j_session,
-        workspace_id,
-        common_job_parameters,
-        clean_grants=grants_complete,
-        clean_artifact_allowlists=artifact_allowlists_complete,
-        clean_clean_rooms=clean_rooms_complete,
-    )
+
+def _finish(
+    neo4j_session: neo4j.Session, config: Config, result: DatabricksSyncResult
+) -> DatabricksSyncResult:
+    # Cleanup runs only after every load succeeded, so a mid-sync failure never
+    # prunes on partial data.
+    if not config.databricks_skip_cleanup:
+        cleanup_databricks(neo4j_session, config.update_tag, [result])
+    return result

@@ -33,7 +33,7 @@ def iso_to_datetime(value: Any) -> datetime | None:
 
 
 def get_run_as_principal_index(
-    neo4j_session: neo4j.Session, workspace_id: str
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> dict[str, tuple[str, bool]]:
     """Map a run-as principal name to ``(scoped node id, is_service_principal)``.
 
@@ -44,9 +44,13 @@ def get_run_as_principal_index(
     edge to the wrong principal node. Mirrors ``grants.get_principals`` but
     keeps the user/service-principal distinction the RUN_AS edge needs.
     """
+    # Cleanup runs only after every load, so stale nodes from earlier runs are
+    # still present here; filtering on the update tag keeps them from being read
+    # (a re-created principal shares its name with the stale node).
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(p)
-    WHERE p:DatabricksUser OR p:DatabricksServicePrincipal
+    WHERE (p:DatabricksUser OR p:DatabricksServicePrincipal)
+      AND p.lastupdated = $update_tag
     RETURN p.id AS id,
            p:DatabricksServicePrincipal AS is_sp,
            CASE
@@ -54,7 +58,7 @@ def get_run_as_principal_index(
                ELSE p.user_name
            END AS name
     """
-    result = neo4j_session.run(query, workspace_id=workspace_id)
+    result = neo4j_session.run(query, workspace_id=workspace_id, update_tag=update_tag)
     index: dict[str, tuple[str, bool]] = {}
     for record in result:
         if record["name"] and record["id"]:

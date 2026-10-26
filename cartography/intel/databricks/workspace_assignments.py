@@ -36,24 +36,25 @@ def sync(
     account_id: str,
     workspace_node_ids: dict[str, str],
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> bool:
+    """Load ASSIGNED_TO edges and report whether every workspace was read.
+
+    Returns False when a workspace's assignments were skipped (403/404): its
+    edges were not refreshed, so the caller must skip the whole-account
+    MatchLink cleanup rather than delete still-valid edges.
+    """
     assignments, complete = get(api_session, workspace_node_ids)
     transformed = transform(assignments, account_id)
     load_assignments(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
     )
-    # Only clean up when every workspace's assignments were read this run. A
-    # 403/404 on one workspace means its assignments were not refreshed, so a
-    # whole-account MatchLink cleanup would delete still-valid ASSIGNED_TO edges
-    # for it; skip cleanup and let a fully successful run reconcile stale edges.
-    if complete:
-        cleanup(neo4j_session, account_id, common_job_parameters["UPDATE_TAG"])
-    else:
+    if not complete:
         logger.warning(
             "Databricks workspace assignments were partially read for account "
-            "%s; skipping ASSIGNED_TO cleanup to avoid deleting valid edges.",
+            "%s; ASSIGNED_TO cleanup will be skipped to avoid deleting valid edges.",
             account_id,
         )
+    return complete
 
 
 @timeit
