@@ -401,16 +401,18 @@ def test_legacy_trust_edges_are_cleaned_up(neo4j_session):
         "arn",
         "TRUSTS_AWS_PRINCIPAL",
     )
-    # The removed trust is gone even though its edge had no MatchLink metadata...
-    assert (
-        "arn:aws:iam::000000000000:role/example-role-0",
-        "arn:aws:iam::000000000000:root",
-    ) not in actual
-    # ...and the trusts still declared were adopted by the MatchLink loader.
-    assert (
-        "arn:aws:iam::000000000000:role/example-role-1",
-        "arn:aws:iam::000000000000:role/example-role-0",
-    ) in actual
+    # Only the three trusts still declared remain after the legacy migration.
+    assert actual == {
+        (
+            "arn:aws:iam::000000000000:role/example-role-1",
+            "arn:aws:iam::000000000000:role/example-role-0",
+        ),
+        ("arn:aws:iam::000000000000:role/example-role-2", "ec2.amazonaws.com"),
+        (
+            "arn:aws:iam::000000000000:role/example-role-3",
+            "arn:aws:iam::000000000000:saml-provider/ADFS",
+        ),
+    }
     counts = neo4j_session.run(
         """
         MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(:AWSRole)-[t:TRUSTS_AWS_PRINCIPAL]->()
