@@ -201,7 +201,11 @@ def parse_permissions(permissions: Any) -> dict[str, str]:
         # Global permission level: expand to all scopes
         # e.g., "read-all" -> {"actions": "read", "contents": "read", ...}
         level = permissions.replace("-all", "")
-        return {scope: level for scope in ALL_PERMISSION_SCOPES}
+        result = {scope: level for scope in ALL_PERMISSION_SCOPES}
+        # OIDC token requests support write/none, not read access.
+        if permissions == "read-all":
+            result["id_token"] = "none"
+        return result
 
     if isinstance(permissions, dict):
         # Convert keys to use underscores for consistency
@@ -223,6 +227,9 @@ def _declared_permissions(permissions: Any) -> dict[str, str] | None:
         return None
     parsed = parse_permissions(permissions)
     if any(level not in ("none", "read", "write") for level in parsed.values()):
+        return None
+    if parsed.get("id_token") == "read":
+        # Treat an invalid explicit block as unknown, like other invalid levels.
         return None
     # An explicit mapping replaces defaults, including scopes it omits.
     return {scope: parsed.get(scope, "none") for scope in ALL_PERMISSION_SCOPES}

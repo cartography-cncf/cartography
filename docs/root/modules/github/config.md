@@ -330,6 +330,10 @@ requests read, or `none` when every job explicitly denies that scope. With no va
 jobs, the properties retain explicit workflow declarations. Missing or unparseable
 workflow content leaves all permission properties null.
 
+The `id-token` scope supports only `write` or `none`; `read-all` assigns it `none`.
+An explicit `id-token: read` block is invalid and stays unknown, consistently with
+other invalid permission blocks. It does not become a valid declared read level.
+
 These fields summarize declared configuration, not effective runtime authorization.
 Repository/organization token defaults, event and fork/Dependabot restrictions,
 conditional execution and reusable-workflow permission ceilings can change actual

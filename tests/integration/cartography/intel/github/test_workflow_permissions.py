@@ -28,6 +28,7 @@ def test_permission_summary_order_and_property_updates(neo4j_session):
     snapshots = [
         ({"jobs": jobs}, "write", "write"),
         ({"jobs": dict(reversed(list(jobs.items())))}, "write", "write"),
+        ({"permissions": "read-all", "jobs": {"check": {}}}, "read", "none"),
         (
             {
                 "permissions": {"contents": "write"},

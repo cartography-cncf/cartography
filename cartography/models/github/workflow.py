@@ -52,7 +52,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_actions: PropertyRef = PropertyRef(
         "permissions_actions",
         description=(
-            "Actions permission summary across YAML job declarations: "
+            "Actions permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -60,7 +62,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_contents: PropertyRef = PropertyRef(
         "permissions_contents",
         description=(
-            "Contents permission summary across YAML job declarations: "
+            "Contents permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -68,7 +72,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_packages: PropertyRef = PropertyRef(
         "permissions_packages",
         description=(
-            "Packages permission summary across YAML job declarations: "
+            "Packages permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -76,7 +82,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_pull_requests: PropertyRef = PropertyRef(
         "permissions_pull_requests",
         description=(
-            "Pull requests permission summary across YAML job declarations: "
+            "Pull requests permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -84,7 +92,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_issues: PropertyRef = PropertyRef(
         "permissions_issues",
         description=(
-            "Issues permission summary across YAML job declarations: "
+            "Issues permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -92,7 +102,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_deployments: PropertyRef = PropertyRef(
         "permissions_deployments",
         description=(
-            "Deployments permission summary across YAML job declarations: "
+            "Deployments permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -100,7 +112,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_statuses: PropertyRef = PropertyRef(
         "permissions_statuses",
         description=(
-            "Statuses permission summary across YAML job declarations: "
+            "Statuses permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -108,7 +122,9 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_checks: PropertyRef = PropertyRef(
         "permissions_checks",
         description=(
-            "Checks permission summary across YAML job declarations: "
+            "Checks permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),
@@ -116,15 +132,19 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     permissions_id_token: PropertyRef = PropertyRef(
         "permissions_id_token",
         description=(
-            "ID token permission summary across YAML job declarations: "
+            "ID token (write/none only) permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
-            "then read or none. This does not describe runtime token access."
+            "then none. This does not describe runtime token access."
         ),
     )
     permissions_security_events: PropertyRef = PropertyRef(
         "permissions_security_events",
         description=(
-            "Security events permission summary across YAML job declarations: "
+            "Security events permission summary across YAML job declarations, "
+            "inheriting workflow defaults when omitted; with no valid jobs, "
+            "retain explicit workflow declarations: "
             "write if any job requests write; otherwise null if defaults are unknown, "
             "then read or none. This does not describe runtime token access."
         ),

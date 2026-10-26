@@ -45,17 +45,28 @@ from cartography.intel.github.workflow_parser import parse_workflow_yaml
         (
             {"permissions": "write-all"},
             [{"permissions": "read-all"}],
-            ("read", "read", "read"),
+            ("read", "read", "none"),
         ),
         (
             {"permissions": "read-all"},
             [{}, {"permissions": {"contents": "none"}}],
-            ("read", "read", "read"),
+            ("read", "read", "none"),
         ),
         (
             {"permissions": {"contents": "write"}},
             [{"permissions": None}],
             (None, None, None),
+        ),
+        ({"permissions": "read-all"}, [{}], ("read", "read", "none")),
+        ({"permissions": {"id-token": "read"}}, [{}], (None, None, None)),
+        ({}, [{"permissions": {"id-token": "read"}}], (None, None, None)),
+        (
+            {},
+            [
+                {"permissions": {"id-token": "write"}},
+                {"permissions": {"id-token": "read"}},
+            ],
+            (None, None, "write"),
         ),
         ({"permissions": "invalid"}, [{}], (None, None, None)),
         ({}, [{"permissions": ["write"]}], (None, None, None)),
