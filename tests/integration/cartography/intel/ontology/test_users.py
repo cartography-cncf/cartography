@@ -292,6 +292,10 @@ def test_user_account_authorized_third_party_app_normalizes_provider_edges(
               -[:HAS_APP_ROLE]->(:EntraAppRoleAssignment {id: 'assignment-2'})
               -[:ASSIGNED_TO]->(entra_via_group)
 
+        // An Entra consent grant already authorized this pair; the job leaves it alone.
+        MERGE (entra)-[granted:AUTHORIZED]->(entra_direct)
+        SET granted.scopes = ['https://graph.microsoft.com/User.Read']
+
         // A vendor app exists in the tenant only as a service principal.
         MERGE (vendor:EntraServicePrincipal:ThirdPartyApp {id: 'entra-vendor-sp'})
         MERGE (entra)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment {id: 'assignment-3'})
@@ -332,7 +336,7 @@ def test_user_account_authorized_third_party_app_normalizes_provider_edges(
         ("okta-user", "okta-direct-app", "okta_app_assignment"),
         ("okta-user", "okta-group-app", "okta_group_app_assignment"),
         ("jumpcloud-user", "jumpcloud-app", "jumpcloud_app_binding"),
-        ("entra-user", "entra-direct-app", "entra_app_role_assignment"),
+        ("entra-user", "entra-direct-app", None),
         ("entra-user", "entra-group-app", "entra_group_app_role_assignment"),
         ("entra-user", "entra-vendor-sp", "entra_app_role_assignment"),
         ("gw-user", "gw-app", None),

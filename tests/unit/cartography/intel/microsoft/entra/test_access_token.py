@@ -17,6 +17,7 @@ ENTRA_SYNCS = (
     "sync_entra_applications",
     "sync_service_principals",
     "sync_app_role_assignments",
+    "sync_oauth2_permission_grants",
     "sync_entra_directory_roles",
 )
 

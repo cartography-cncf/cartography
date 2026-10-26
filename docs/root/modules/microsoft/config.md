@@ -93,6 +93,21 @@ use; background clients can produce successful non-interactive sign-ins.
 See Microsoft's [signInActivity reference](https://learn.microsoft.com/en-us/graph/api/resources/signinactivity?view=graph-rest-1.0)
 and [inactive-account guidance](https://learn.microsoft.com/en-us/entra/identity/monitoring-health/howto-manage-inactive-user-accounts).
 
+### Delegated consent grants
+
+Cartography reads `/oauth2PermissionGrants`, covered by `Directory.Read.All`, to
+record which apps users consented to and with which delegated permissions.
+
+- A user's consent becomes `(:EntraUser)-[:AUTHORIZED {scopes}]->(:EntraServicePrincipal)`,
+  the canonical `(:UserAccount)-[:AUTHORIZED]->(:ThirdPartyApp)` edge for vendor apps.
+  Graph returns one grant per API the app calls; `scopes` holds their union.
+- An administrator's consent on behalf of every user becomes
+  `(:AzureTenant)-[:ADMIN_CONSENTED {scopes}]->(:EntraServicePrincipal)`, not one
+  edge per user.
+- Microsoft Graph permissions are qualified the way they are requested
+  (`https://graph.microsoft.com/Mail.Read`), matching Google Workspace's URL scopes.
+  Other APIs are qualified by their app id (`<appId>/<permission>`).
+
 ### MFA registration and identity risk
 
 Cartography reads three optional reports once per sync and merges them into the
