@@ -18,6 +18,7 @@ from cartography.intel.gcp.util import GCP_EXPECTED_SKIP_CATEGORIES
 from cartography.intel.gcp.util import merge_aggregated_scope_items
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import summarize_gcp_http_error
+from cartography.intel.gcp.util import with_return_partial_success
 from cartography.models.gcp.compute.target_https_proxy import GCPTargetHttpsProxySchema
 from cartography.util import timeit
 
@@ -37,9 +38,8 @@ def get_gcp_target_https_proxies(
     """
     items: dict[str, dict] = {}
     response_id = f"projects/{project_id}/aggregated/targetHttpsProxies"
-    req = compute.targetHttpsProxies().aggregatedList(
-        project=project_id,
-        returnPartialSuccess=True,
+    req = with_return_partial_success(
+        compute.targetHttpsProxies().aggregatedList(project=project_id),
     )
     while req is not None:
         try:

@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.actions
 from tests.data.github.actions import GET_ENV_SECRETS_PRODUCTION
 from tests.data.github.actions import GET_ENV_SECRETS_STAGING
@@ -12,6 +14,7 @@ from tests.data.github.actions import GET_REPO_SECRETS
 from tests.data.github.actions import GET_REPO_VARIABLES
 from tests.data.github.actions import GET_REPO_WORKFLOWS
 from tests.data.github.workflow_content import WORKFLOW_CI_CONTENT
+from tests.data.github.workflow_content import WORKFLOW_COMPOUND_SECRETS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -971,6 +974,63 @@ def test_sync_github_actions_env_variables(
     }
 
 
+@pytest.mark.parametrize(
+    "workflow_content,expected_secret_rels",
+    [
+        (
+            WORKFLOW_CI_CONTENT,
+            {
+                (12345678, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345678,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345679, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345679,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345680, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345680,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+            },
+        ),
+        (
+            WORKFLOW_COMPOUND_SECRETS,
+            {
+                (12345678, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345678,
+                    "https://github.com/simpsoncorp/actions/secrets/AWS_ACCESS_KEY_ID",
+                ),
+                (
+                    12345678,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345679, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345679,
+                    "https://github.com/simpsoncorp/actions/secrets/AWS_ACCESS_KEY_ID",
+                ),
+                (
+                    12345679,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+                (12345680, "https://github.com/simpsoncorp/actions/secrets/NPM_TOKEN"),
+                (
+                    12345680,
+                    "https://github.com/simpsoncorp/actions/secrets/AWS_ACCESS_KEY_ID",
+                ),
+                (
+                    12345680,
+                    "https://github.com/simpsoncorp/sample_repo/actions/secrets/DATABASE_URL",
+                ),
+            },
+        ),
+    ],
+)
 @patch.object(
     cartography.intel.github.actions,
     "get_org_secrets",
@@ -1035,10 +1095,13 @@ def test_sync_github_actions_workflow_parsing(
     mock_org_variables,
     mock_org_secrets,
     neo4j_session,
+    workflow_content,
+    expected_secret_rels,
 ):
     """Test that workflow YAML parsing extracts actions, secrets, and permissions."""
     # Arrange
     _ensure_repo_exists(neo4j_session)
+    mock_workflow_content.return_value = workflow_content
 
     # Act
     cartography.intel.github.actions.sync(
@@ -1072,9 +1135,15 @@ def test_sync_github_actions_workflow_parsing(
     ).single()["count"]
     assert uses_action_rels >= 2
 
-    # Assert - Verify REFERENCES_SECRET relationships were created for existing secrets
-    # The workflow references NPM_TOKEN which exists as an org secret
-    refs_secret_rels = neo4j_session.run(
-        "MATCH (:GitHubWorkflow)-[r:REFERENCES_SECRET]->(:GitHubActionsSecret) RETURN count(r) as count",
-    ).single()["count"]
-    assert refs_secret_rels >= 1
+    # Assert: exact targets distinguish detected references from quoted literals.
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubWorkflow",
+            "id",
+            "GitHubActionsSecret",
+            "id",
+            "REFERENCES_SECRET",
+        )
+        == expected_secret_rels
+    )

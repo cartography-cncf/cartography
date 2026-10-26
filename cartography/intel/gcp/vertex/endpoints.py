@@ -29,10 +29,10 @@ def get_vertex_ai_endpoints_for_location(
     """
     parent = f"projects/{project_id}/locations/{location}"
     return list_vertex_ai_resources_for_location(
-        fetcher=lambda: build_vertex_ai_endpoint_client(
+        fetcher=lambda **kwargs: build_vertex_ai_endpoint_client(
             location,
             credentials=credentials,
-        ).list_endpoints(parent=parent),
+        ).list_endpoints(parent=parent, **kwargs),
         resource_type="endpoints",
         location=location,
         project_id=project_id,

@@ -186,6 +186,15 @@ and cleanup errors still propagate. Refreshing the
 ontology removes links that no longer have an identity basis; SAML and existing
 GitHub email linking share the same relationship cleanup.
 
+## Workflow secret references
+
+Workflow `REFERENCES_SECRET` relationships include static dot and bracket
+references inside `${{ ... }}` expressions, including function arguments and
+fallback branches. Quoted expression literals such as `'secrets.EXAMPLE'` do
+not create references. This is a static inventory: Cartography does not evaluate
+which branch runs or resolve dynamically computed secret names. Cartography creates
+a relationship only after it ingests metadata for the referenced secret.
+
 ## Configure Cartography
 
 Cartography accepts GitHub credentials as base64-encoded JSON. The configuration
