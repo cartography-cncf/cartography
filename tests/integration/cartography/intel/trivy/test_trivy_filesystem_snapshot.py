@@ -459,7 +459,17 @@ def test_image_only_batch_preserves_vm_scan_results(ec2_rootfs_graph):
         {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
     )
 
-    # Assert: the VM findings were not re-checked, so they stay.
+    # Assert: the image report was ingested, and the VM findings it did not
+    # re-check stay.
+    assert check_rels(
+        neo4j_session,
+        "TrivyImageFinding",
+        "id",
+        "Image",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("TIF|CVE-2026-12345", IMAGE_DIGEST)}
     assert check_rels(
         neo4j_session,
         "TrivyImageFinding",
