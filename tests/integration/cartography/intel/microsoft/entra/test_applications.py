@@ -391,6 +391,8 @@ async def test_sync_entra_applications(
             "Finance Tracker Service Principal",
         ),
         ("sp-22222222-2222-2222-2222-222222222222", "HR Portal Service Principal"),
+        ("sp-33333333-3333-3333-3333-333333333333", "Example LLM Assistant"),
+        ("sp-44444444-4444-4444-4444-444444444444", "Microsoft Graph"),
     }
     assert (
         check_nodes(
@@ -400,6 +402,28 @@ async def test_sync_entra_applications(
         )
         == expected_service_principal_nodes
     )
+
+    # Assert only the vendor app's service principal is a ThirdPartyApp, with its
+    # ThirdPartyApp fields projected: the tenant's own apps are EntraApplication
+    # nodes, and Microsoft's are first-party.
+    assert check_nodes(
+        neo4j_session,
+        "ThirdPartyApp",
+        ["id", "_ont_client_id", "_ont_name", "_ont_enabled"],
+    ) >= {
+        (
+            "sp-33333333-3333-3333-3333-333333333333",
+            "99999999-8888-7777-6666-555555555555",
+            "Example LLM Assistant",
+            True,
+        ),
+    }
+    assert {
+        record["id"]
+        for record in neo4j_session.run(
+            "MATCH (sp:EntraServicePrincipal:ThirdPartyApp) RETURN sp.id AS id"
+        )
+    } == {"sp-33333333-3333-3333-3333-333333333333"}
 
     # Assert Application-Service Principal relationships exist
     expected_app_sp_rels = {
@@ -614,5 +638,8 @@ async def test_sync_service_principals_risk(neo4j_session, denied: bool) -> None
         (r["id"], r["available"], r["level"], r["state"], r["detail"]) for r in rows
     } == {
         (risky_sp_id, not denied, *expected_risk),
-        (MOCK_SERVICE_PRINCIPALS[1].id, not denied, None, None, None),
+        *(
+            (spn.id, not denied, None, None, None)
+            for spn in MOCK_SERVICE_PRINCIPALS[1:]
+        ),
     }
