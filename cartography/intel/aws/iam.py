@@ -844,7 +844,8 @@ def _condition_requires_external_id(condition: Any) -> bool:
     true and so do not require one:
 
     - `...IfExists` operators and `ForAllValues:` set operators, by definition.
-    - Negated operators such as `StringNotEquals` or `ArnNotLike`.
+    - Negated operators such as `StringNotEquals` or `ArnNotLike`, unless qualified
+      with `ForAnyValue:`, which requires at least one request value.
     - `Null` with a value of "true", which requires the key to be absent. `Null` with
       "false" requires it to be present, whatever its value.
 
@@ -868,6 +869,7 @@ def _condition_requires_external_id(condition: Any) -> bool:
                 continue
             if operator.startswith("ForAllValues:") or operator.endswith("IfExists"):
                 continue
+            for_any_value = operator.startswith("ForAnyValue:")
             operator = operator.removeprefix("ForAnyValue:")
             if operator == "Null":
                 null_values = ensure_list(values)
@@ -876,7 +878,7 @@ def _condition_requires_external_id(condition: Any) -> bool:
                 ):
                     return True
                 continue
-            if "Not" in operator:
+            if "Not" in operator and not for_any_value:
                 continue
             return True
     return False
@@ -884,6 +886,8 @@ def _condition_requires_external_id(condition: Any) -> bool:
 
 def _aggregate_trust_conditions(
     statement_conditions: list[Any],
+    *,
+    is_aws_principal: bool,
 ) -> dict[str, Any]:
     """Fold the Condition blocks of every statement trusting one principal into edge properties.
 
@@ -902,7 +906,7 @@ def _aggregate_trust_conditions(
 
     has_external_id follows the same rule: it is True only when every statement trusting
     the principal requires sts:ExternalId, since any other statement is a path to the role
-    that skips it.
+    that skips it. It is always False for service and federated principals.
     """
     unconditional = {
         "has_condition": False,
@@ -938,7 +942,8 @@ def _aggregate_trust_conditions(
         "has_condition": True,
         "condition_keys": sorted(condition_keys),
         "conditions": json.dumps(conditional_blobs),
-        "has_external_id": all(
+        "has_external_id": is_aws_principal
+        and all(
             _condition_requires_external_id(condition)
             for condition in statement_conditions
         ),
@@ -1095,7 +1100,10 @@ def transform_role_trust_policies(
                 {
                     "source_role_arn": role_arn,
                     "target_principal_arn": principal_arn,
-                    **_aggregate_trust_conditions(surviving_conditions),
+                    **_aggregate_trust_conditions(
+                        surviving_conditions,
+                        is_aws_principal=principal_arn in aws_principal_arns,
+                    ),
                 }
             )
 
