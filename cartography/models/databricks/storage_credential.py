@@ -84,23 +84,25 @@ class DatabricksStorageCredentialNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksStorageCredentialToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksStorageCredentialToMetastoreResourceRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksStorageCredential)
-class DatabricksStorageCredentialToWorkspaceRel(CartographyRelSchema):
-    """A Databricks storage credential is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksStorageCredential)
+class DatabricksStorageCredentialToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks storage credential is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksStorageCredentialToWorkspaceRelProperties = (
-        DatabricksStorageCredentialToWorkspaceRelProperties()
+    properties: DatabricksStorageCredentialToMetastoreResourceRelProperties = (
+        DatabricksStorageCredentialToMetastoreResourceRelProperties()
     )
 
 
@@ -177,8 +179,8 @@ class DatabricksStorageCredentialSchema(CartographyNodeSchema):
     )
     # Storage credentials are grantable UC securables.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_SECURABLE])
-    sub_resource_relationship: DatabricksStorageCredentialToWorkspaceRel = (
-        DatabricksStorageCredentialToWorkspaceRel()
+    sub_resource_relationship: DatabricksStorageCredentialToMetastoreResourceRel = (
+        DatabricksStorageCredentialToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

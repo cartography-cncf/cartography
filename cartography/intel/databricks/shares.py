@@ -27,7 +27,7 @@ def sync(
     shares = get(api_session)
     transformed = transform(neo4j_session, api_session, shares, metastore_id)
     load_shares(
-        neo4j_session, transformed, workspace_id, common_job_parameters["UPDATE_TAG"]
+        neo4j_session, transformed, metastore_id, common_job_parameters["UPDATE_TAG"]
     )
 
 
@@ -134,7 +134,7 @@ def transform(
 def load_shares(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
-    workspace_id: str,
+    metastore_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -142,7 +142,7 @@ def load_shares(
         DatabricksShareSchema(),
         data,
         lastupdated=update_tag,
-        WORKSPACE_ID=workspace_id,
+        METASTORE_ID=metastore_id,
     )
 
 

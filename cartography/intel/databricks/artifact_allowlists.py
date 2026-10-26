@@ -41,7 +41,7 @@ def sync(
     load_artifact_allowlists(
         neo4j_session,
         transformed,
-        workspace_id,
+        metastore_id,
         common_job_parameters["UPDATE_TAG"],
     )
     return complete
@@ -115,7 +115,7 @@ def transform(
 def load_artifact_allowlists(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
-    workspace_id: str,
+    metastore_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -123,7 +123,7 @@ def load_artifact_allowlists(
         DatabricksArtifactAllowlistSchema(),
         data,
         lastupdated=update_tag,
-        WORKSPACE_ID=workspace_id,
+        METASTORE_ID=metastore_id,
     )
 
 

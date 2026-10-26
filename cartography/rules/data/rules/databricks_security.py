@@ -175,7 +175,7 @@ _public_delta_sharing_recipient = Fact(
         r.region AS region
     """,
     cypher_visual_query="""
-    MATCH p=(w:DatabricksWorkspace)-[:RESOURCE]->(r:DatabricksRecipient)
+    MATCH p=(m:DatabricksMetastore)-[:RESOURCE]->(r:DatabricksRecipient)
     WHERE r.authentication_type = 'TOKEN'
       AND r.activated = true
     RETURN *
