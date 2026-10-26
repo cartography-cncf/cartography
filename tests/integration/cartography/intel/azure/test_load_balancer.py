@@ -1,7 +1,11 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from azure.mgmt.network.models import LoadBalancer
+
 import cartography.intel.azure.load_balancers as load_balancer
+from tests.data.azure.load_balancer import MOCK_LOAD_BALANCER_ARM
 from tests.data.azure.load_balancer import MOCK_LOAD_BALANCERS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -10,13 +14,23 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
+@pytest.mark.parametrize(
+    "api_response",
+    [
+        MOCK_LOAD_BALANCERS,
+        # azure-mgmt-network 31+ serializes in ARM wire format.
+        [LoadBalancer(MOCK_LOAD_BALANCER_ARM).as_dict()],
+    ],
+    ids=["flattened_sdk_shape", "current_sdk_shape"],
+)
 @patch("cartography.intel.azure.load_balancers.get_load_balancers")
-def test_sync_load_balancers(mock_get_lbs, neo4j_session):
+def test_sync_load_balancers(mock_get_lbs, api_response, neo4j_session):
     """
     Test that we can correctly sync a Load Balancer and its child components and relationships.
     """
     # Arrange: Mock the single API call
-    mock_get_lbs.return_value = MOCK_LOAD_BALANCERS
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    mock_get_lbs.return_value = api_response
 
     # Create the prerequisite AzureSubscription node
     neo4j_session.run(

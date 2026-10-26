@@ -1,9 +1,15 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from azure.mgmt.network.models import AzureFirewall
+from azure.mgmt.network.models import FirewallPolicy
+
 import cartography.intel.azure.firewall as firewall
 from tests.data.azure.firewall import DESCRIBE_FIREWALL_POLICIES
+from tests.data.azure.firewall import DESCRIBE_FIREWALL_POLICIES_ARM
 from tests.data.azure.firewall import DESCRIBE_FIREWALLS
+from tests.data.azure.firewall import DESCRIBE_FIREWALLS_ARM
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -11,6 +17,18 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
+@pytest.mark.parametrize(
+    ("firewalls_response", "policies_response"),
+    [
+        (DESCRIBE_FIREWALLS, DESCRIBE_FIREWALL_POLICIES),
+        # azure-mgmt-network 31+ serializes in ARM wire format.
+        (
+            [AzureFirewall(fw).as_dict() for fw in DESCRIBE_FIREWALLS_ARM],
+            [FirewallPolicy(p).as_dict() for p in DESCRIBE_FIREWALL_POLICIES_ARM],
+        ),
+    ],
+    ids=["flattened_sdk_shape", "current_sdk_shape"],
+)
 @patch("cartography.intel.azure.firewall.get_ip_groups")
 @patch("cartography.intel.azure.firewall.get_firewall_policy_rule_groups")
 @patch("cartography.intel.azure.firewall.get_firewall_policies")
@@ -22,6 +40,8 @@ def test_sync_azure_firewalls(
     mock_get_policies,
     mock_get_rule_groups,
     mock_get_ip_groups,
+    firewalls_response,
+    policies_response,
     neo4j_session,
 ):
     """
@@ -29,10 +49,11 @@ def test_sync_azure_firewalls(
     and Firewall IP Configuration data and their relationships.
     """
     # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     mock_client = MagicMock()
     mock_get_client.return_value = mock_client
-    mock_get_firewalls.return_value = DESCRIBE_FIREWALLS
-    mock_get_policies.return_value = DESCRIBE_FIREWALL_POLICIES
+    mock_get_firewalls.return_value = firewalls_response
+    mock_get_policies.return_value = policies_response
     mock_get_rule_groups.return_value = []  # No rule groups for this test
     mock_get_ip_groups.return_value = []  # No IP groups for this test
 
@@ -370,6 +391,54 @@ def test_sync_azure_firewalls(
         )
         == expected_fw_vnet_rels
     )
+
+    # Assert - Security settings that live under "properties" on the wire
+    assert check_nodes(
+        neo4j_session,
+        "AzureFirewall",
+        [
+            "name",
+            "provisioning_state",
+            "autoscale_max_capacity",
+            "hub_private_ip_address",
+            "hub_public_ip_count",
+        ],
+    ) == {
+        ("test-firewall-1", "Succeeded", 10, None, 0),
+        ("test-firewall-2", "Succeeded", None, "10.1.0.4", 2),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AzureFirewallPolicy",
+        [
+            "name",
+            "dns_enable_proxy",
+            "explicit_proxy_https_port",
+            "intrusion_detection_mode",
+            "insights_retention_days",
+            "transport_security_key_vault_secret_id",
+            "base_policy_id",
+        ],
+    ) == {
+        (
+            "test-policy-1",
+            True,
+            8443,
+            "Alert",
+            90,
+            "https://myvault.vault.azure.net/secrets/root-ca",
+            None,
+        ),
+        (
+            "test-policy-2",
+            None,
+            None,
+            None,
+            None,
+            None,
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/firewallPolicies/test-policy-1",
+        ),
+    }
 
 
 @patch("cartography.intel.azure.firewall.get_ip_groups")
