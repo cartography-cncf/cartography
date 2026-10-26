@@ -67,7 +67,12 @@ def test_sync_azure_firewalls(
     mock_get_client.return_value = mock_client
     mock_get_firewalls.return_value = firewalls_response
     mock_get_policies.return_value = policies_response
-    mock_get_rule_groups.return_value = rule_groups_response
+    rule_groups_by_policy = {
+        DESCRIBE_FIREWALL_POLICIES[0]["id"]: rule_groups_response,
+    }
+    mock_get_rule_groups.side_effect = (
+        lambda _client, policy_id: rule_groups_by_policy.get(policy_id, [])
+    )
     mock_get_ip_groups.return_value = []  # No IP groups for this test
 
     # Create the prerequisite AzureSubscription node
@@ -424,10 +429,17 @@ def test_sync_azure_firewalls(
         == legacy_firewall["application_rule_collections"]
     )
     assert json.loads(firewall_rules["nat"]) == legacy_firewall["nat_rule_collections"]
-    policy_rules = neo4j_session.run(
-        "MATCH (p:AzureFirewallPolicy {name: 'test-policy-1'}) RETURN p.rule_groups_detail AS detail"
-    ).single()["detail"]
-    assert json.loads(policy_rules) == DESCRIBE_FIREWALL_POLICY_RULE_GROUPS
+    policy_rules = {
+        row["name"]: row["detail"]
+        for row in neo4j_session.run(
+            "MATCH (p:AzureFirewallPolicy) RETURN p.name AS name, p.rule_groups_detail AS detail"
+        )
+    }
+    assert (
+        json.loads(policy_rules["test-policy-1"])
+        == DESCRIBE_FIREWALL_POLICY_RULE_GROUPS
+    )
+    assert policy_rules["test-policy-2"] is None
 
     # Assert - Security settings that live under "properties" on the wire
     assert check_nodes(
