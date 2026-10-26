@@ -2,13 +2,23 @@
 
 ## Authentication
 
-Choose one workspace authentication method:
+Choose exactly one workspace authentication method:
 
 ### OAuth M2M
 
 Create a dedicated workspace service principal with a client ID and OAuth
 secret. Store the secret in an environment variable. Cartography requests the
 `all-apis` OAuth scope automatically.
+
+### Microsoft Entra ID Service Principal (Azure)
+
+For an Azure Databricks workspace, you can use a Microsoft Entra ID service
+principal instead of a Databricks-managed one. Add the service principal to
+the workspace, create a client secret for it in Entra, and store the secret in
+an environment variable. Cartography exchanges the client ID and secret with
+Entra for a token on the Azure Databricks resource
+(`2ff814a6-3304-4ab8-85cb-cd0e6f879c1d`). Only the Azure public cloud sign-in
+endpoint (`login.microsoftonline.com`) is supported.
 
 ### Personal Access Token
 
@@ -33,8 +43,16 @@ Pass the workspace URL with `--databricks-workspace-url`.
 For OAuth M2M, pass the client ID with `--databricks-client-id` and the secret
 environment variable name with `--databricks-client-secret-env-var`.
 
+For a Microsoft Entra ID service principal, pass the tenant ID with
+`--databricks-azure-tenant-id`, the client ID with
+`--databricks-azure-client-id`, and the secret environment variable name with
+`--databricks-azure-client-secret-env-var`.
+
 For a personal access token, pass its environment variable name with
 `--databricks-token-env-var`.
+
+Cartography stops with an error if options for more than one method are set,
+or if a method is only partly configured.
 
 ## Run Cartography
 
@@ -46,6 +64,17 @@ cartography \
   --databricks-workspace-url "$DATABRICKS_WORKSPACE_URL" \
   --databricks-client-id "$DATABRICKS_CLIENT_ID" \
   --databricks-client-secret-env-var DATABRICKS_CLIENT_SECRET
+```
+
+Run with a Microsoft Entra ID service principal:
+
+```bash
+cartography \
+  --selected-modules databricks \
+  --databricks-workspace-url "$DATABRICKS_WORKSPACE_URL" \
+  --databricks-azure-tenant-id "$AZURE_TENANT_ID" \
+  --databricks-azure-client-id "$AZURE_CLIENT_ID" \
+  --databricks-azure-client-secret-env-var AZURE_CLIENT_SECRET
 ```
 
 Run with a personal access token:

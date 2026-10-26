@@ -13,6 +13,10 @@ from urllib3 import Retry
 
 logger = logging.getLogger(__name__)
 
+# The application id of the AzureDatabricks first-party app, the resource Entra
+# issues Azure Databricks tokens for. The same in every Azure tenant.
+_AZURE_DATABRICKS_RESOURCE_ID = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+
 
 def epoch_ms_to_datetime(value: Any) -> datetime | None:
     """Convert Databricks epoch-milliseconds timestamps to a UTC datetime."""
@@ -125,6 +129,7 @@ class _BaseDatabricksClient:
       - Personal Access Token (PAT): pass ``token`` (workspace API only).
       - OAuth M2M (service principal client credentials): pass ``client_id`` and
         ``client_secret``.
+    The workspace client adds Microsoft Entra ID service principals.
     """
 
     def __init__(
@@ -163,12 +168,7 @@ class _BaseDatabricksClient:
         if self._access_token_expiry and self._access_token_expiry >= time.time():
             return
         self._session.headers.pop("Authorization", None)
-        response = self._session.post(
-            self._token_url(),
-            data={"grant_type": "client_credentials", "scope": "all-apis"},
-            auth=(self._client_id, self._client_secret),  # type: ignore[arg-type]
-            timeout=_TIMEOUT,
-        )
+        response = self._request_access_token()
         response.raise_for_status()
         data = response.json()
         self._session.headers["Authorization"] = f"Bearer {data['access_token']}"
@@ -176,6 +176,14 @@ class _BaseDatabricksClient:
         logger.debug(
             "Databricks access token renewed, expires in %s seconds.",
             data.get("expires_in", 0),
+        )
+
+    def _request_access_token(self) -> requests.Response:
+        return self._session.post(
+            self._token_url(),
+            data={"grant_type": "client_credentials", "scope": "all-apis"},
+            auth=(self._client_id, self._client_secret),  # type: ignore[arg-type]
+            timeout=_TIMEOUT,
         )
 
     def get(self, uri: str, params: dict | None = None) -> Any:
@@ -243,10 +251,45 @@ class _BaseDatabricksClient:
 
 
 class DatabricksWorkspaceClient(_BaseDatabricksClient):
-    """A thin client for the Databricks Workspace REST API."""
+    """A thin client for the Databricks Workspace REST API.
+
+    With ``azure_tenant_id`` set, ``client_id`` and ``client_secret`` belong to a
+    Microsoft Entra ID service principal rather than a Databricks-managed one,
+    and the access token comes from Entra instead of the workspace.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        token: str | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        azure_tenant_id: str | None = None,
+    ) -> None:
+        super().__init__(host, token, client_id, client_secret)
+        self._azure_tenant_id = azure_tenant_id
 
     def _token_url(self) -> str:
+        if self._azure_tenant_id:
+            return (
+                f"https://login.microsoftonline.com/{self._azure_tenant_id}"
+                "/oauth2/v2.0/token"
+            )
         return f"{self.host}/oidc/v1/token"
+
+    def _request_access_token(self) -> requests.Response:
+        if not self._azure_tenant_id:
+            return super()._request_access_token()
+        return self._session.post(
+            self._token_url(),
+            data={
+                "grant_type": "client_credentials",
+                "client_id": self._client_id,
+                "client_secret": self._client_secret,
+                "scope": f"{_AZURE_DATABRICKS_RESOURCE_ID}/.default",
+            },
+            timeout=_TIMEOUT,
+        )
 
 
 class DatabricksAccountClient(_BaseDatabricksClient):

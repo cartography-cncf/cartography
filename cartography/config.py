@@ -432,6 +432,13 @@ class Config:
     :param databricks_skip_cleanup: Load Databricks data without running cleanup. For orchestrators that sync several
         workspaces into one graph with the same update tag and then call
         cartography.intel.databricks.cleanup_databricks() once. Optional.
+    :type databricks_azure_tenant_id: str
+    :param databricks_azure_tenant_id: Microsoft Entra ID tenant ID of the service principal used for an Azure
+        Databricks workspace. Optional.
+    :type databricks_azure_client_id: str
+    :param databricks_azure_client_id: Microsoft Entra ID service principal client ID. Optional.
+    :type databricks_azure_client_secret: str
+    :param databricks_azure_client_secret: Microsoft Entra ID service principal client secret. Optional.
     :type snowflake_account: str
     :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
     :type snowflake_user: str
@@ -857,6 +864,9 @@ class Config:
         gke_impersonate_service_account: str | None = None,
         gke_credentials: "GoogleCredentials | None" = None,
         databricks_skip_cleanup: bool = False,
+        databricks_azure_tenant_id: str | None = None,
+        databricks_azure_client_id: str | None = None,
+        databricks_azure_client_secret: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1062,6 +1072,9 @@ class Config:
         self.databricks_account_client_id = databricks_account_client_id
         self.databricks_account_client_secret = databricks_account_client_secret
         self.databricks_skip_cleanup = databricks_skip_cleanup
+        self.databricks_azure_tenant_id = databricks_azure_tenant_id
+        self.databricks_azure_client_id = databricks_azure_client_id
+        self.databricks_azure_client_secret = databricks_azure_client_secret
         self.bbot_source = _resolve_report_source_config(
             module="bbot",
             source=bbot_source,
