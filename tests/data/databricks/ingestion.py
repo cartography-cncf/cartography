@@ -5,9 +5,14 @@ listed answers with an empty body or list.
 """
 
 WORKSPACE_A_HOST = "https://dbc-0000000a-0000.cloud.databricks.com"
-WORKSPACE_A_ID = "dbc-0000000a-0000.cloud.databricks.com"
+WORKSPACE_A_ID = "1000000000000001"
 WORKSPACE_B_HOST = "https://dbc-0000000b-0000.cloud.databricks.com"
-WORKSPACE_B_ID = "dbc-0000000b-0000.cloud.databricks.com"
+WORKSPACE_B_ID = "1000000000000002"
+# What the workspace API reports in its x-databricks-org-id response header.
+WORKSPACE_IDS_BY_HOST = {
+    WORKSPACE_A_HOST: WORKSPACE_A_ID,
+    WORKSPACE_B_HOST: WORKSPACE_B_ID,
+}
 METASTORE_ID = "00000000-0000-0000-0000-000000000001"
 
 CLUSTERS_URI = "/api/2.1/clusters/list"
