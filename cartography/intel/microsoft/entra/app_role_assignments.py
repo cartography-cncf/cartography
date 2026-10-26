@@ -293,10 +293,16 @@ async def sync_app_role_assignments(
     delegated_denial: APIError | None = None
 
     # Get app_ids from graph instead of streaming from API again
+    # The tenant's own apps, plus the vendor apps it consented to: those exist here
+    # only as a service principal, and users are assigned to them all the same.
     query = """
     MATCH (tenant:AzureTenant {id: $tenant_id})-[:RESOURCE]->
           (app:EntraApplication)
-    RETURN app.app_id
+    RETURN app.app_id AS app_id
+    UNION
+    MATCH (tenant:AzureTenant {id: $tenant_id})-[:RESOURCE]->
+          (sp:EntraServicePrincipal {app_ownership: 'third_party'})
+    RETURN sp.app_id AS app_id
     """
     app_ids = neo4j_session.execute_read(
         read_list_of_values_tx,
