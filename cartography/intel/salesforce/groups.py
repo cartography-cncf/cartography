@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.salesforce.util import org_scoped_id
 from cartography.intel.salesforce.util import SalesforceClient
 from cartography.models.salesforce.group import SalesforceGroupSchema
 from cartography.util import timeit
@@ -18,7 +19,7 @@ def sync(
 ) -> None:
     groups = get_groups(client)
     members = get_members(client)
-    groups = transform(groups, members)
+    groups = transform(groups, members, common_job_parameters["ORG_ID"])
     load_groups(
         neo4j_session,
         groups,
@@ -43,18 +44,21 @@ def get_members(client: SalesforceClient) -> list[dict[str, Any]]:
 def transform(
     groups: list[dict[str, Any]],
     members: list[dict[str, Any]],
+    org_id: str,
 ) -> list[dict[str, Any]]:
     group_ids = {group["Id"] for group in groups}
     users_by_group: dict[str, list[str]] = defaultdict(list)
     groups_by_group: dict[str, list[str]] = defaultdict(list)
     for member in members:
         member_id = member["UserOrGroupId"]
+        scoped_member_id = org_scoped_id(org_id, member_id)
         # A group member is either another group or a user; groups we synced win.
         if member_id in group_ids:
-            groups_by_group[member["GroupId"]].append(member_id)
+            groups_by_group[member["GroupId"]].append(scoped_member_id)
         else:
-            users_by_group[member["GroupId"]].append(member_id)
+            users_by_group[member["GroupId"]].append(scoped_member_id)
     for group in groups:
+        group["id"] = org_scoped_id(org_id, group["Id"])
         group["_member_user_ids"] = users_by_group.get(group["Id"], [])
         group["_member_group_ids"] = groups_by_group.get(group["Id"], [])
     return groups

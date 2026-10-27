@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.salesforce.util import get_salesforce_error_codes
 from cartography.intel.salesforce.util import get_salesforce_error_messages
+from cartography.intel.salesforce.util import org_scoped_id
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
 from cartography.models.salesforce.connectedapp import SalesforceConnectedAppSchema
@@ -63,7 +64,7 @@ def sync(
             "synced connected app data",
         )
         return
-    apps = transform(apps, tokens)
+    apps = transform(apps, tokens, common_job_parameters["ORG_ID"])
     load_connected_apps(
         neo4j_session,
         apps,
@@ -86,14 +87,16 @@ def get_oauth_tokens(client: SalesforceClient) -> list[dict[str, Any]]:
 def transform(
     apps: list[dict[str, Any]],
     tokens: list[dict[str, Any]],
+    org_id: str,
 ) -> list[dict[str, Any]]:
     # ponytail: OAuthToken has no ConnectedApplication FK, so join on app name.
     # Rename the connected app or its tokens and the link is lost; acceptable
     # until Salesforce exposes a proper key.
     users_by_app_name: dict[str, set[str]] = defaultdict(set)
     for token in tokens:
-        users_by_app_name[token["AppName"]].add(token["UserId"])
+        users_by_app_name[token["AppName"]].add(org_scoped_id(org_id, token["UserId"]))
     for app in apps:
+        app["id"] = org_scoped_id(org_id, app["Id"])
         app["CreatedDate"] = parse_sf_datetime(app.get("CreatedDate"))
         app["LastModifiedDate"] = parse_sf_datetime(app.get("LastModifiedDate"))
         app["_authorized_user_ids"] = list(users_by_app_name.get(app["Name"], set()))

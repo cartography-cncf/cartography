@@ -215,7 +215,7 @@ salesforce_mapping = OntologyMapping(
                 # use the ConnectedApplication record id as the client identifier.
                 OntologyFieldMapping(
                     ontology_field="client_id",
-                    node_field="id",
+                    node_field="salesforce_id",
                 ),
                 OntologyFieldMapping(
                     ontology_field="name",
