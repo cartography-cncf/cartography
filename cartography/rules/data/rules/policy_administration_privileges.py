@@ -366,7 +366,7 @@ policy_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.2.1",
+    version="0.2.2",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
