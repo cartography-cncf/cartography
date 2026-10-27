@@ -1204,8 +1204,9 @@ def sync_assumerole_relationships(
         current_aws_account_id,
     )
     query_potential_matches = """
-    MATCH (:AWSAccount{id:$AccountId})-[:RESOURCE]->(target:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(source:AWSPrincipal)
-    WHERE NOT source:AWSRootPrincipal
+    MATCH (:AWSAccount{id:$AccountId})-[:RESOURCE]->(target:AWSRole)-[trust:TRUSTS_AWS_PRINCIPAL]->(source:AWSPrincipal)
+    WHERE trust.lastupdated = $UpdateTag
+    AND NOT source:AWSRootPrincipal
     AND NOT source:AWSServicePrincipal
     AND NOT source:AWSFederatedPrincipal
     RETURN target.arn AS target_arn, source.arn AS source_arn
@@ -1214,6 +1215,7 @@ def sync_assumerole_relationships(
         read_list_of_dicts_tx,
         query_potential_matches,
         AccountId=current_aws_account_id,
+        UpdateTag=aws_update_tag,
     )
 
     # Filter potential matches to only those where the source principal has sts:AssumeRole permission
