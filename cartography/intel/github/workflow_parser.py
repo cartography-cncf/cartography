@@ -225,6 +225,8 @@ def _declared_permissions(permissions: Any) -> dict[str, str] | None:
         not isinstance(scope, str) for scope in permissions
     ):
         return None
+    # GitHub rejects workflows with invalid permission blocks; treat the whole
+    # block as unknown rather than retaining its individually valid scopes.
     parsed = parse_permissions(permissions)
     if any(level not in ("none", "read", "write") for level in parsed.values()):
         return None
