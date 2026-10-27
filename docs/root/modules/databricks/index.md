@@ -31,10 +31,12 @@ not a standalone node type.
 Unity Catalog objects belong to their `DatabricksMetastore`, which several
 workspaces can share. Each object hangs off the metastore with `RESOURCE` and
 exists once, however many workspaces list it. Each workspace links to its
-metastore with `ASSIGNED_METASTORE` and to every securable it can list with
-`VISIBLE_IN`, so catalog bindings and permissions that differ per workspace
-stay visible. An object is pruned only when no workspace listed it in the
-latest sync.
+metastore with `ASSIGNED_METASTORE`, and each securable links to every
+workspace that lists it with `VISIBLE_IN`, so catalog bindings and permissions
+that differ per workspace stay visible. An object is pruned only when no
+workspace listed it in the latest sync. Metastores themselves are not pruned:
+when no workspace is assigned to a metastore any more, it and its objects stay
+in the graph until removed by hand.
 
 ## Cross-Provider Connections
 

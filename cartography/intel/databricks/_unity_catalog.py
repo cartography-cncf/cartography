@@ -68,10 +68,10 @@ def cleanup_visibility(
 # DEPRECATED: cleanup of pre-metastore-scope workspace RESOURCE edges will be
 # removed in v1.0.0.
 def cleanup_legacy_workspace_resource_edges(
-    neo4j_session: neo4j.Session, update_tag: int
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> None:
     for label in _LEGACY_WORKSPACE_SCOPED_LABELS:
         GraphJob.from_node_schema(
             LegacyUnityCatalogWorkspaceResourceCleanupSchema(label=label),
-            {"UPDATE_TAG": update_tag},
+            {"UPDATE_TAG": update_tag, "WORKSPACE_ID": workspace_id},
         ).run(neo4j_session)

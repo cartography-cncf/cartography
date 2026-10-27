@@ -166,6 +166,7 @@ def _cleanup_workspace(
             neo4j_session, workspace_id, update_tag
         )
     cleanup_visibility(neo4j_session, workspace_id, update_tag)
+    cleanup_legacy_workspace_resource_edges(neo4j_session, workspace_id, update_tag)
     cartography.intel.databricks.metastores.cleanup_assignment(
         neo4j_session, workspace_id, update_tag
     )
@@ -261,8 +262,6 @@ def cleanup_databricks(
     the workspace's last successful result; if it is unknown, skip every
     metastore in ``results`` for that round.
     """
-    # It matches every workspace at once, so once per call is enough.
-    cleanup_legacy_workspace_resource_edges(neo4j_session, update_tag)
     account_partial_reads: dict[str, frozenset[PartialRead]] = {}
     metastore_partial_reads: dict[str, frozenset[PartialRead]] = {}
     for result in results:

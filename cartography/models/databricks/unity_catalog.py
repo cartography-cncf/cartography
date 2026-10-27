@@ -9,7 +9,6 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
@@ -79,15 +78,15 @@ class LegacyUnityCatalogToWorkspaceRel(CartographyRelSchema):
 class LegacyUnityCatalogWorkspaceResourceCleanupSchema(CartographyNodeSchema):
     """Cleanup-only template, specialised per Unity Catalog label.
 
-    Without a sub-resource, cleanup deletes only stale relationships, never
-    nodes. Nothing writes a workspace RESOURCE edge to these labels any more, so
-    every such edge is stale and goes on the first cleanup after an upgrade.
+    Scoped to the old workspace edge, so the first cleanup after an upgrade
+    deletes the objects no workspace listed (they never gained a metastore edge
+    and would otherwise be orphaned) and drops the edge from the rest.
     """
 
     __cartography_introspection_exclude__: ClassVar[bool] = True
 
     label: str = "DatabricksCatalog"
     properties: LegacyUnityCatalogNodeProperties = LegacyUnityCatalogNodeProperties()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [LegacyUnityCatalogToWorkspaceRel()],
+    sub_resource_relationship: LegacyUnityCatalogToWorkspaceRel = (
+        LegacyUnityCatalogToWorkspaceRel()
     )

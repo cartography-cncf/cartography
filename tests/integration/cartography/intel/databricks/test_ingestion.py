@@ -268,16 +268,20 @@ def test_metastore_object_pruned_only_when_no_workspace_lists_it(neo4j_session):
     }
 
 
-def test_cleanup_drops_legacy_workspace_resource_edges(neo4j_session):
+def test_cleanup_migrates_legacy_workspace_scoped_catalogs(neo4j_session):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     responses = {**METASTORE_RESPONSES, CATALOGS_URI: [catalog("shared")]}
     _ingest(neo4j_session, WORKSPACE_A_HOST, responses, OLD_TAG)
-    # The edge every Unity Catalog object had before it moved to the metastore.
+    # Before the metastore scope, every catalog hung off its workspace. "gone"
+    # was deleted in Databricks before the upgrade, so it is never reloaded.
     neo4j_session.run(
         "MATCH (w:DatabricksWorkspace {id: $w}), (c:DatabricksCatalog) "
-        "MERGE (w)-[r:RESOURCE]->(c) SET r.lastupdated = $tag",
+        "MERGE (w)-[:RESOURCE {lastupdated: $tag}]->(c) "
+        "CREATE (w)-[:RESOURCE {lastupdated: $tag}]->"
+        "(:DatabricksCatalog:DatabricksSecurable {id: $gone, lastupdated: $tag})",
         w=WORKSPACE_A_ID,
+        gone=_catalog_id("gone"),
         tag=OLD_TAG,
     )
 
@@ -285,6 +289,9 @@ def test_cleanup_drops_legacy_workspace_resource_edges(neo4j_session):
     _ingest(neo4j_session, WORKSPACE_A_HOST, responses, NEW_TAG)
 
     # Assert
+    assert check_nodes(neo4j_session, "DatabricksCatalog", ["id"]) == {
+        (_catalog_id("shared"),),
+    }
     assert (
         check_rels(
             neo4j_session,

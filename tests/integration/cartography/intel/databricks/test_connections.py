@@ -66,3 +66,14 @@ def test_load_databricks_connections(mock_get, neo4j_session):
         "CONTAINS",
         rel_direction_right=True,
     ) == {(DATABRICKS_METASTORE_ID, _uc_id("snowflake_prod"))}
+
+    # Metastore -> Connection RESOURCE: connections are scoped to the metastore.
+    assert check_rels(
+        neo4j_session,
+        "DatabricksMetastore",
+        "id",
+        "DatabricksConnection",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {(DATABRICKS_METASTORE_ID, _uc_id("snowflake_prod"))}
