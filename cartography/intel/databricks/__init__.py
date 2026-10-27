@@ -3,6 +3,7 @@ from collections.abc import Collection
 from collections.abc import Iterable
 from dataclasses import dataclass
 from dataclasses import field
+from enum import Enum
 
 import neo4j
 
@@ -77,6 +78,17 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class PartialRead(str, Enum):
+    """A sync that skipped part of its source (403/404), so its cleanup is skipped."""
+
+    GRANTS = "grants"
+    PERMISSIONS = "permissions"
+    CLEAN_ROOMS = "clean_rooms"
+    ARTIFACT_ALLOWLISTS = "artifact_allowlists"
+    FEDERATION_POLICIES = "federation_policies"
+    WORKSPACE_ASSIGNMENTS = "workspace_assignments"
+
+
 @dataclass(frozen=True)
 class DatabricksSyncResult:
     """What one ``start_databricks_ingestion`` run loaded, for ``cleanup_databricks``.
@@ -89,13 +101,13 @@ class DatabricksSyncResult:
     workspace_id: str
     account_id: str | None = None
     metastore_id: str | None = None
-    partial_reads: frozenset[str] = field(default_factory=frozenset)
+    partial_reads: frozenset[PartialRead] = field(default_factory=frozenset)
 
 
 def _cleanup_metastore(
     neo4j_session: neo4j.Session,
     metastore_id: str,
-    partial_reads: frozenset[str],
+    partial_reads: frozenset[PartialRead],
     update_tag: int,
 ) -> None:
     """Run every Unity Catalog object cleanup for one metastore.
@@ -124,11 +136,11 @@ def _cleanup_metastore(
         cartography.intel.databricks.connections,
     ):
         module.cleanup(neo4j_session, common_job_parameters)
-    if "clean_rooms" not in partial_reads:
+    if PartialRead.CLEAN_ROOMS not in partial_reads:
         cartography.intel.databricks.clean_rooms.cleanup(
             neo4j_session, common_job_parameters
         )
-    if "artifact_allowlists" not in partial_reads:
+    if PartialRead.ARTIFACT_ALLOWLISTS not in partial_reads:
         cartography.intel.databricks.artifact_allowlists.cleanup(
             neo4j_session, common_job_parameters
         )
@@ -142,14 +154,14 @@ def _cleanup_workspace(
     """Run every workspace-scoped cleanup, in reverse load order."""
     workspace_id = result.workspace_id
     common_job_parameters = {"UPDATE_TAG": update_tag, "WORKSPACE_ID": workspace_id}
-    if "permissions" not in result.partial_reads:
+    if PartialRead.PERMISSIONS not in result.partial_reads:
         cartography.intel.databricks.permissions.cleanup(
             neo4j_session, workspace_id, update_tag
         )
     # A workspace's links into its metastore are its own, so they are pruned
     # here even when the metastore's objects are not. This also purges them on
     # the no-metastore path once the workspace loses its assignment.
-    if "grants" not in result.partial_reads:
+    if PartialRead.GRANTS not in result.partial_reads:
         cartography.intel.databricks.grants.cleanup(
             neo4j_session, workspace_id, update_tag
         )
@@ -157,7 +169,6 @@ def _cleanup_workspace(
     cartography.intel.databricks.metastores.cleanup_assignment(
         neo4j_session, workspace_id, update_tag
     )
-    cleanup_legacy_workspace_resource_edges(neo4j_session, update_tag)
     for module in (
         cartography.intel.databricks.vector_search,
         cartography.intel.databricks.notebooks,
@@ -190,7 +201,7 @@ def _cleanup_workspace(
 def _cleanup_account(
     neo4j_session: neo4j.Session,
     account_id: str,
-    partial_reads: frozenset[str],
+    partial_reads: frozenset[PartialRead],
     update_tag: int,
 ) -> None:
     """Run every account-scoped cleanup, in reverse load order."""
@@ -208,11 +219,11 @@ def _cleanup_account(
         cartography.intel.databricks.credential_configs,
     ):
         module.cleanup(neo4j_session, common_job_parameters)
-    if "federation_policies" not in partial_reads:
+    if PartialRead.FEDERATION_POLICIES not in partial_reads:
         cartography.intel.databricks.federation_policies.cleanup(
             neo4j_session, common_job_parameters
         )
-    if "workspace_assignments" not in partial_reads:
+    if PartialRead.WORKSPACE_ASSIGNMENTS not in partial_reads:
         cartography.intel.databricks.workspace_assignments.cleanup(
             neo4j_session, account_id, update_tag
         )
@@ -246,10 +257,14 @@ def cleanup_databricks(
     ``results`` is cleaned once: an object goes only when no workspace listed it
     under ``update_tag``. Pass the metastore of every workspace whose run failed
     in ``skip_metastore_ids``; otherwise objects only that workspace could list
-    are pruned.
+    are pruned. A run that fails returns no result, so take that metastore from
+    the workspace's last successful result; if it is unknown, skip every
+    metastore in ``results`` for that round.
     """
-    account_partial_reads: dict[str, frozenset[str]] = {}
-    metastore_partial_reads: dict[str, frozenset[str]] = {}
+    # It matches every workspace at once, so once per call is enough.
+    cleanup_legacy_workspace_resource_edges(neo4j_session, update_tag)
+    account_partial_reads: dict[str, frozenset[PartialRead]] = {}
+    metastore_partial_reads: dict[str, frozenset[PartialRead]] = {}
     for result in results:
         _cleanup_workspace(neo4j_session, result, update_tag)
         if result.account_id is not None:
@@ -310,7 +325,7 @@ def _sync_account_details(
     account_client: DatabricksAccountClient,
     account_id: str,
     update_tag: int,
-) -> frozenset[str]:
+) -> frozenset[PartialRead]:
     """Sync the account-level surface (AWS / GCP) below the account node.
 
     Covers the Databricks Account API, which does not exist on Azure: account
@@ -347,7 +362,7 @@ def _sync_account_details(
     workspace_node_ids = cartography.intel.databricks.account_workspaces.sync(
         neo4j_session, account_client, account_id, account_job_parameters
     )
-    partial_reads: set[str] = set()
+    partial_reads: set[PartialRead] = set()
     if not cartography.intel.databricks.workspace_assignments.sync(
         neo4j_session,
         account_client,
@@ -355,13 +370,13 @@ def _sync_account_details(
         workspace_node_ids,
         account_job_parameters,
     ):
-        partial_reads.add("workspace_assignments")
+        partial_reads.add(PartialRead.WORKSPACE_ASSIGNMENTS)
 
     # Federation policies read the account service principals from the graph.
     if not cartography.intel.databricks.federation_policies.sync(
         neo4j_session, account_client, account_id, account_job_parameters
     ):
-        partial_reads.add("federation_policies")
+        partial_reads.add(PartialRead.FEDERATION_POLICIES)
 
     # Workspace cloud configurations. Each links back to the AWS / GCP nodes
     # already in the graph where they exist.
@@ -496,7 +511,7 @@ def start_databricks_ingestion(
     # Account-level surface (SCIM, workspaces, assignments, federation, cloud
     # configs). Runs after the workspace sync so account_workspaces enriches the
     # existing workspace node rather than being overwritten by it.
-    partial_reads: set[str] = set()
+    partial_reads: set[PartialRead] = set()
     if account_client is not None and account_id is not None:
         partial_reads |= _sync_account_details(
             neo4j_session, account_client, account_id, config.update_tag
@@ -676,12 +691,14 @@ def start_databricks_ingestion(
             workspace_id,
             common_job_parameters,
         ):
-            partial_reads.add("permissions")
+            partial_reads.add(PartialRead.PERMISSIONS)
         return _finish(
             neo4j_session,
             config,
             DatabricksSyncResult(
-                workspace_id, account_id, None, frozenset(partial_reads)
+                workspace_id=workspace_id,
+                account_id=account_id,
+                partial_reads=frozenset(partial_reads),
             ),
         )
 
@@ -791,18 +808,16 @@ def start_databricks_ingestion(
     if not cartography.intel.databricks.artifact_allowlists.sync(
         neo4j_session,
         api_client,
-        workspace_id,
         metastore_id,
         common_job_parameters,
     ):
-        partial_reads.add("artifact_allowlists")
+        partial_reads.add(PartialRead.ARTIFACT_ALLOWLISTS)
 
     # Delta Sharing. Recipients + providers before shares so the share ->
     # recipient SHARED_WITH edge resolves against recipient nodes already loaded.
     cartography.intel.databricks.recipients.sync(
         neo4j_session,
         api_client,
-        workspace_id,
         metastore_id,
         common_job_parameters,
     )
@@ -810,7 +825,6 @@ def start_databricks_ingestion(
     cartography.intel.databricks.providers.sync(
         neo4j_session,
         api_client,
-        workspace_id,
         metastore_id,
         common_job_parameters,
     )
@@ -818,16 +832,14 @@ def start_databricks_ingestion(
     if not cartography.intel.databricks.clean_rooms.sync(
         neo4j_session,
         api_client,
-        workspace_id,
         metastore_id,
         common_job_parameters,
     ):
-        partial_reads.add("clean_rooms")
+        partial_reads.add(PartialRead.CLEAN_ROOMS)
 
     cartography.intel.databricks.shares.sync(
         neo4j_session,
         api_client,
-        workspace_id,
         metastore_id,
         common_job_parameters,
     )
@@ -840,7 +852,7 @@ def start_databricks_ingestion(
         workspace_id,
         common_job_parameters,
     ):
-        partial_reads.add("grants")
+        partial_reads.add(PartialRead.GRANTS)
 
     # Object ACLs (principal -> workspace-object HAS_PERMISSION). Workspace-level
     # like grants, so it runs on both the UC and no-UC paths; here it runs after
@@ -851,13 +863,16 @@ def start_databricks_ingestion(
         workspace_id,
         common_job_parameters,
     ):
-        partial_reads.add("permissions")
+        partial_reads.add(PartialRead.PERMISSIONS)
 
     return _finish(
         neo4j_session,
         config,
         DatabricksSyncResult(
-            workspace_id, account_id, metastore_id, frozenset(partial_reads)
+            workspace_id=workspace_id,
+            account_id=account_id,
+            metastore_id=metastore_id,
+            partial_reads=frozenset(partial_reads),
         ),
     )
 

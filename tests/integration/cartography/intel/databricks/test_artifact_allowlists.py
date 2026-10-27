@@ -34,7 +34,6 @@ def test_load_databricks_artifact_allowlists(mock_get, neo4j_session):
     cartography.intel.databricks.artifact_allowlists.sync(
         neo4j_session,
         api_session,
-        DATABRICKS_WORKSPACE_ID,
         DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )

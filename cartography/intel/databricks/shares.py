@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
-    workspace_id: str,
     metastore_id: str,
     common_job_parameters: dict[str, Any],
 ) -> None:

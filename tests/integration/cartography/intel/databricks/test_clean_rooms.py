@@ -35,7 +35,6 @@ def test_load_databricks_clean_rooms(mock_get, neo4j_session):
     complete = cartography.intel.databricks.clean_rooms.sync(
         neo4j_session,
         api_session,
-        DATABRICKS_WORKSPACE_ID,
         DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )

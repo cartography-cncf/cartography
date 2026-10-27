@@ -47,7 +47,6 @@ def test_load_databricks_recipients(mock_get, neo4j_session):
     cartography.intel.databricks.recipients.sync(
         neo4j_session,
         api_session,
-        DATABRICKS_WORKSPACE_ID,
         DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )

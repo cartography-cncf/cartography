@@ -25,7 +25,6 @@ _ARTIFACT_TYPES = ("INIT_SCRIPT", "LIBRARY_JAR", "LIBRARY_MAVEN")
 def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
-    workspace_id: str,
     metastore_id: str,
     common_job_parameters: dict[str, Any],
 ) -> bool:
