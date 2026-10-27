@@ -37,6 +37,15 @@ _ENTRA = {
             "more than once",
             id="pat-and-oauth",
         ),
+        pytest.param(
+            {
+                **_ENTRA,
+                "databricks_client_id": "client-id",
+                "databricks_client_secret": "client-secret",
+            },
+            "more than once",
+            id="oauth-and-entra",
+        ),
     ],
 )
 def test_workspace_auth_must_be_exactly_one_complete_method(auth, error):
