@@ -429,10 +429,12 @@ def test_skipped_cleanup_keeps_a_dependency_a_failed_deployment_shares(
         neo4j_session, DEPLOYMENT_A, [BUZZ], TEST_UPDATE_TAG + 1, skip_cleanup=True
     )
 
-    # Assert
-    assert ("github.com/foo/baz|1.2.3", DEPLOYMENT_B["id"]) in (
-        _dependencies_by_deployment(neo4j_session)
-    )
+    # Assert: nothing was cleaned up, so A's stale link waits for a full run.
+    assert _dependencies_by_deployment(neo4j_session) == {
+        ("github.com/foo/baz|1.2.3", DEPLOYMENT_A["id"]),
+        ("github.com/foo/baz|1.2.3", DEPLOYMENT_B["id"]),
+        ("github.com/foo/buzz|4.5.0", DEPLOYMENT_A["id"]),
+    }
 
 
 def test_cleanup_after_every_deployment_loaded_keeps_dependencies_still_listed(
