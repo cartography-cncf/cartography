@@ -72,6 +72,7 @@ from cartography.intel.databricks._unity_catalog import (
 )
 from cartography.intel.databricks._unity_catalog import cleanup_visibility
 from cartography.intel.databricks.util import DatabricksAccountClient
+from cartography.intel.databricks.util import DatabricksEntraWorkspaceClient
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.util import timeit
 
@@ -404,10 +405,13 @@ def start_databricks_ingestion(
     """
     If this module is configured, perform ingestion of Databricks data. Otherwise warn and exit.
 
-    Workspace authentication supports either:
+    Workspace authentication takes exactly one of:
       - Personal Access Token (PAT) via ``--databricks-token-env-var``
       - OAuth M2M (workspace-level service principal) via
         ``--databricks-client-id`` + ``--databricks-client-secret-env-var``
+      - A Microsoft Entra ID service principal (Azure) via
+        ``--databricks-azure-tenant-id`` + ``--databricks-azure-client-id`` +
+        ``--databricks-azure-client-secret-env-var``
 
     The account-level surface (AWS / GCP only) is additionally enabled by
     ``--databricks-account-id`` + ``--databricks-account-client-id`` +
@@ -443,11 +447,34 @@ def start_databricks_ingestion(
             "must be set together (and the env variable must be populated).",
         )
 
-    if not has_token and not (has_client_id and has_client_secret):
+    azure_tenant_id = config.databricks_azure_tenant_id
+    azure_client_id = config.databricks_azure_client_id
+    azure_client_secret = config.databricks_azure_client_secret
+    has_azure = bool(azure_tenant_id and azure_client_id and azure_client_secret)
+    if (azure_tenant_id or azure_client_id or azure_client_secret) and not has_azure:
+        raise ValueError(
+            "Databricks Entra ID service principal auth is partially configured: "
+            "--databricks-azure-tenant-id, --databricks-azure-client-id and "
+            "--databricks-azure-client-secret-env-var must be set together (and "
+            "the env variable must be populated).",
+        )
+
+    # Several methods at once would leave which one is used to precedence rules
+    # the operator cannot see, so require exactly one.
+    auth_methods = sum((has_token, has_client_id and has_client_secret, has_azure))
+    if auth_methods > 1:
+        raise ValueError(
+            "Databricks workspace auth is configured more than once: set only "
+            "one of a personal access token, OAuth M2M, or an Entra ID service "
+            "principal.",
+        )
+    if auth_methods == 0:
         logger.info(
             "Databricks import is not configured - skipping this module. "
-            "Set --databricks-token-env-var or "
-            "--databricks-client-id + --databricks-client-secret-env-var.",
+            "Set --databricks-token-env-var, "
+            "--databricks-client-id + --databricks-client-secret-env-var, or "
+            "--databricks-azure-tenant-id + --databricks-azure-client-id + "
+            "--databricks-azure-client-secret-env-var.",
         )
         return None
 
@@ -486,12 +513,21 @@ def start_databricks_ingestion(
             neo4j_session, account_client, {"UPDATE_TAG": config.update_tag}
         )
 
-    api_client = DatabricksWorkspaceClient(
-        host=config.databricks_workspace_url,
-        token=config.databricks_token,
-        client_id=config.databricks_client_id,
-        client_secret=config.databricks_client_secret,
-    )
+    api_client: DatabricksWorkspaceClient
+    if azure_tenant_id and azure_client_id and azure_client_secret:
+        api_client = DatabricksEntraWorkspaceClient(
+            host=config.databricks_workspace_url,
+            tenant_id=azure_tenant_id,
+            client_id=azure_client_id,
+            client_secret=azure_client_secret,
+        )
+    else:
+        api_client = DatabricksWorkspaceClient(
+            host=config.databricks_workspace_url,
+            token=config.databricks_token,
+            client_id=config.databricks_client_id,
+            client_secret=config.databricks_client_secret,
+        )
 
     workspace = cartography.intel.databricks.workspaces.sync(
         neo4j_session,

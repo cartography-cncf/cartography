@@ -2065,6 +2065,33 @@ class CLI:
                     hidden=PANEL_DATABRICKS not in visible_panels,
                 ),
             ] = None,
+            databricks_azure_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-tenant-id",
+                    help="Microsoft Entra ID tenant ID of the service principal for an Azure Databricks workspace.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-client-id",
+                    help="Microsoft Entra ID service principal client ID for an Azure Databricks workspace.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-client-secret-env-var",
+                    help="Environment variable name containing the Microsoft Entra ID service principal client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
             databricks_account_id: Annotated[
                 str | None,
                 typer.Option(
@@ -3751,6 +3778,15 @@ class CLI:
                 databricks_client_secret = os.environ.get(
                     databricks_client_secret_env_var,
                 )
+            databricks_azure_client_secret = None
+            if databricks_azure_client_secret_env_var:
+                logger.debug(
+                    "Reading Databricks Entra ID client secret from environment variable %s",
+                    databricks_azure_client_secret_env_var,
+                )
+                databricks_azure_client_secret = os.environ.get(
+                    databricks_azure_client_secret_env_var,
+                )
             databricks_account_client_secret = None
             if databricks_account_client_secret_env_var:
                 # Read the secret whenever the env-var flag is set, even if
@@ -4204,6 +4240,9 @@ class CLI:
                 databricks_account_host=databricks_account_host,
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
+                databricks_azure_tenant_id=databricks_azure_tenant_id,
+                databricks_azure_client_id=databricks_azure_client_id,
+                databricks_azure_client_secret=databricks_azure_client_secret,
                 bbot_source=bbot_source,
                 zendesk_subdomain=zendesk_subdomain,
                 zendesk_oauth_token=zendesk_oauth_token,
