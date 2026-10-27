@@ -1,6 +1,9 @@
 import copy
+from typing import Any
+from typing import cast
 from unittest.mock import patch
 
+import neo4j
 import pytest
 
 import cartography.intel.ontology.packages
@@ -366,4 +369,97 @@ def test_sync_dependencies_links_gitlab_project(
         (TEST_GITLAB_PROJECT_WEB_URL, "github.com/foo/baz|1.2.3"),
         (TEST_GITLAB_PROJECT_WEB_URL, "github.com/foo/buzz|4.5.0"),
         (TEST_GITLAB_PROJECT_WEB_URL, "github.com/foo/biz|5.0.0"),
+    }
+
+
+DEPLOYMENT_A = {"id": "100001", "name": "Org A", "slug": "org-a"}
+DEPLOYMENT_B = {"id": "100002", "name": "Org B", "slug": "org-b"}
+BAZ, BUZZ = cast(list[dict[str, Any]], tests.data.semgrep.dependencies.RAW_DEPS_GOMOD)[
+    :2
+]
+
+
+def _load_deployment_dependencies(
+    neo4j_session: neo4j.Session,
+    deployment: dict[str, str],
+    raw_deps: list[dict[str, Any]],
+    update_tag: int,
+    skip_cleanup: bool = False,
+) -> None:
+    cartography.intel.semgrep.deployment.load_semgrep_deployment(
+        neo4j_session, deployment, update_tag
+    )
+    with patch.object(
+        cartography.intel.semgrep.dependencies,
+        "get_dependencies",
+        return_value=copy.deepcopy(raw_deps),
+    ):
+        sync_dependencies(
+            neo4j_session,
+            "token",
+            "gomod",
+            update_tag,
+            {"UPDATE_TAG": update_tag, "DEPLOYMENT_ID": deployment["id"]},
+            skip_cleanup=skip_cleanup,
+        )
+
+
+def _dependencies_by_deployment(neo4j_session):
+    return check_rels(
+        neo4j_session,
+        "SemgrepDependency",
+        "id",
+        "SemgrepDeployment",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    )
+
+
+def test_skipped_cleanup_keeps_a_dependency_a_failed_deployment_shares(
+    neo4j_session,
+):
+    # Arrange: last run, both deployments listed baz.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _load_deployment_dependencies(neo4j_session, DEPLOYMENT_A, [BAZ], TEST_UPDATE_TAG)
+    _load_deployment_dependencies(neo4j_session, DEPLOYMENT_B, [BAZ], TEST_UPDATE_TAG)
+
+    # Act: A dropped baz; B fails before its dependencies sync.
+    _load_deployment_dependencies(
+        neo4j_session, DEPLOYMENT_A, [BUZZ], TEST_UPDATE_TAG + 1, skip_cleanup=True
+    )
+
+    # Assert
+    assert ("github.com/foo/baz|1.2.3", DEPLOYMENT_B["id"]) in (
+        _dependencies_by_deployment(neo4j_session)
+    )
+
+
+def test_cleanup_after_every_deployment_loaded_keeps_dependencies_still_listed(
+    neo4j_session,
+):
+    # Arrange: last run, A listed baz and buzz, B listed baz.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _load_deployment_dependencies(
+        neo4j_session, DEPLOYMENT_A, [BAZ, BUZZ], TEST_UPDATE_TAG
+    )
+    _load_deployment_dependencies(neo4j_session, DEPLOYMENT_B, [BAZ], TEST_UPDATE_TAG)
+    _load_deployment_dependencies(
+        neo4j_session, DEPLOYMENT_A, [], TEST_UPDATE_TAG + 1, skip_cleanup=True
+    )
+    _load_deployment_dependencies(
+        neo4j_session, DEPLOYMENT_B, [BAZ], TEST_UPDATE_TAG + 1, skip_cleanup=True
+    )
+
+    # Act
+    cartography.intel.semgrep.dependencies.cleanup_dependencies(
+        neo4j_session,
+        "gomod",
+        [DEPLOYMENT_A["id"], DEPLOYMENT_B["id"]],
+        TEST_UPDATE_TAG + 1,
+    )
+
+    # Assert
+    assert _dependencies_by_deployment(neo4j_session) == {
+        ("github.com/foo/baz|1.2.3", DEPLOYMENT_B["id"]),
     }

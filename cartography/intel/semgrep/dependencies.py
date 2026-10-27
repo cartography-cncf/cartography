@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -238,14 +239,47 @@ def cleanup(
 
 
 @timeit
+def cleanup_dependencies(
+    neo4j_session: neo4j.Session,
+    ecosystems_str: str,
+    deployment_ids: Iterable[str],
+    update_tag: int,
+) -> None:
+    """
+    Clean up dependencies for deployments loaded with ``skip_cleanup``.
+
+    A dependency id is ``name|version``, so every deployment that lists a package
+    shares its node, and a deployment's cleanup deletes the node outright. Call
+    this once every deployment has loaded under ``update_tag``, and skip it when
+    one failed: a dependency only the failed deployment still lists would
+    otherwise be deleted for it too.
+    """
+    if not ecosystems_str:
+        return
+    for deployment_id in deployment_ids:
+        common_job_parameters = {
+            "UPDATE_TAG": update_tag,
+            "DEPLOYMENT_ID": deployment_id,
+        }
+        for ecosystem in parse_and_validate_semgrep_ecosystems(ecosystems_str):
+            cleanup(
+                neo4j_session, ECOSYSTEM_TO_SCHEMA[ecosystem], common_job_parameters
+            )
+
+
+@timeit
 def sync_dependencies(
     neo4j_session: neo4j.Session,
     semgrep_app_token: str,
     ecosystems_str: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
+    skip_cleanup: bool = False,
 ) -> None:
-
+    """
+    ``skip_cleanup`` leaves cleanup to ``cleanup_dependencies``, for orchestrators
+    that sync several deployments into one graph under the same update tag.
+    """
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
     if not deployment_id:
         logger.warning(
@@ -271,7 +305,8 @@ def sync_dependencies(
         raw_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystem)
         deps = transform_dependencies(raw_deps)
         load_dependencies(neo4j_session, schema, deps, deployment_id, update_tag)
-        cleanup(neo4j_session, schema, common_job_parameters)
+        if not skip_cleanup:
+            cleanup(neo4j_session, schema, common_job_parameters)
 
     merge_module_sync_metadata(
         neo4j_session=neo4j_session,
