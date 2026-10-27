@@ -89,39 +89,8 @@ class DatabricksWorkspaceToAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class DatabricksAccountToWorkspaceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
-    )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:DatabricksAccount)-[:RESOURCE]->(:DatabricksWorkspace)
-# The workspace path's copy of the account edge, as a MatchLink scoped to the
-# account: the workspace-only path has no account to anchor the node to.
-class DatabricksAccountToWorkspaceRel(CartographyRelSchema):
-    """A Databricks account owns a workspace."""
-
-    source_node_label: str = "DatabricksAccount"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
-    )
-    target_node_label: str = "DatabricksWorkspace"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "RESOURCE"
-    properties: DatabricksAccountToWorkspaceRelProperties = (
-        DatabricksAccountToWorkspaceRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class DatabricksWorkspaceSchema(CartographyNodeSchema):
-    """A Databricks workspace identified by its host, as its own API reports it."""
+    """A Databricks workspace as its own API reports it."""
 
     label: str = "DatabricksWorkspace"
     properties: DatabricksWorkspaceNodeProperties = DatabricksWorkspaceNodeProperties()

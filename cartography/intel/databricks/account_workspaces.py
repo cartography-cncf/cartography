@@ -3,10 +3,8 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksAccountClient
-from cartography.models.databricks.workspace import DatabricksAccountToWorkspaceRel
 from cartography.models.databricks.workspace import DatabricksAccountWorkspaceSchema
 from cartography.util import timeit
 
@@ -70,26 +68,6 @@ def load_workspaces(
     )
 
 
-def load_account_links(
-    neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
-    account_id: str,
-    update_tag: int,
-) -> None:
-    """Link each workspace in ``data`` to the account that owns it."""
-    if not data:
-        return
-    load_matchlinks(
-        neo4j_session,
-        DatabricksAccountToWorkspaceRel(),
-        data,
-        lastupdated=update_tag,
-        ACCOUNT_ID=account_id,
-        _sub_resource_label="DatabricksAccount",
-        _sub_resource_id=account_id,
-    )
-
-
 @timeit
 def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:
     """Delete workspaces the account no longer lists, with their resources.
@@ -102,10 +80,4 @@ def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> N
         DatabricksAccountWorkspaceSchema(),
         {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
         cascade_delete=True,
-    ).run(neo4j_session)
-    GraphJob.from_matchlink(
-        DatabricksAccountToWorkspaceRel(),
-        "DatabricksAccount",
-        account_id,
-        update_tag,
     ).run(neo4j_session)

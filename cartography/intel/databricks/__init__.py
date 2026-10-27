@@ -339,9 +339,8 @@ def _sync_account_details(
     federation policies, and the workspace cloud configurations (credentials /
     storage / network / encryption / ...).
 
-    The ``DatabricksAccount`` node itself is synced earlier, before the
-    workspace, so the workspace's account RESOURCE edge can form. Each account
-    resource is scoped to ``DatabricksAccount`` for cleanup, so ``ACCOUNT_ID``
+    The ``DatabricksAccount`` node itself is synced earlier so account resources
+    can attach to it. Each account resource is scoped to ``DatabricksAccount`` for cleanup, so ``ACCOUNT_ID``
     rides in the common job parameters.
 
     Returns the names of the syncs whose read was partial, for cleanup.
@@ -473,8 +472,7 @@ def start_databricks_ingestion(
             "--databricks-account-client-secret-env-var must be set together.",
         )
 
-    # Sync the DatabricksAccount node first (before the workspace) so the
-    # workspace's account RESOURCE edge can match it.
+    # Sync the DatabricksAccount node first so account resources can attach to it.
     account_id: str | None = None
     account_client: DatabricksAccountClient | None = None
     if account_configured:
@@ -499,7 +497,6 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         {"UPDATE_TAG": config.update_tag},
-        account_id,
     )
     workspace_id = workspace["id"]
     common_job_parameters = {

@@ -6,7 +6,6 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
-from cartography.intel.databricks.account_workspaces import load_account_links
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.models.databricks.workspace import DatabricksWorkspaceSchema
 from cartography.models.databricks.workspace import (
@@ -33,14 +32,12 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
     common_job_parameters: dict[str, Any],
-    account_id: str | None = None,
 ) -> dict[str, Any]:
     workspace = get(api_session)
     load_workspaces(
         neo4j_session,
         [workspace],
         common_job_parameters["UPDATE_TAG"],
-        account_id,
     )
     return workspace
 
@@ -91,7 +88,6 @@ def load_workspaces(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    account_id: str | None = None,
 ) -> None:
     load(neo4j_session, DatabricksWorkspaceSchema(), data, lastupdated=update_tag)
     for workspace in data:
@@ -104,8 +100,6 @@ def load_workspaces(
             _sub_resource_label="DatabricksWorkspace",
             _sub_resource_id=workspace["id"],
         )
-    if account_id is not None:
-        load_account_links(neo4j_session, data, account_id, update_tag)
 
 
 # DEPRECATED: migration of host-keyed workspace nodes will be removed in v1.0.0.
