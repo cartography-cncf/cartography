@@ -3,6 +3,7 @@ from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from threading import Thread
 
+from cartography.intel.databricks.util import DatabricksEntraWorkspaceClient
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import iso_to_datetime
 from cartography.intel.databricks.util import parse_storage_url
@@ -102,11 +103,11 @@ def test_parse_storage_url():
 
 def test_entra_client_gets_its_token_from_entra_for_azure_databricks(mocker):
     # Arrange
-    client = DatabricksWorkspaceClient(
+    client = DatabricksEntraWorkspaceClient(
         "https://adb-0000000000000000.0.azuredatabricks.net",
+        tenant_id="00000000-0000-0000-0000-000000000000",
         client_id="entra-client-id",
         client_secret="entra-client-secret",
-        azure_tenant_id="00000000-0000-0000-0000-000000000000",
     )
     post = mocker.patch.object(client._session, "post")
     post.return_value.json.return_value = {

@@ -129,7 +129,7 @@ class _BaseDatabricksClient:
       - Personal Access Token (PAT): pass ``token`` (workspace API only).
       - OAuth M2M (service principal client credentials): pass ``client_id`` and
         ``client_secret``.
-    The workspace client adds Microsoft Entra ID service principals.
+    DatabricksEntraWorkspaceClient adds Microsoft Entra ID service principals.
     """
 
     def __init__(
@@ -251,35 +251,29 @@ class _BaseDatabricksClient:
 
 
 class DatabricksWorkspaceClient(_BaseDatabricksClient):
-    """A thin client for the Databricks Workspace REST API.
+    """A thin client for the Databricks Workspace REST API."""
 
-    With ``azure_tenant_id`` set, ``client_id`` and ``client_secret`` belong to a
-    Microsoft Entra ID service principal rather than a Databricks-managed one,
-    and the access token comes from Entra instead of the workspace.
+    def _token_url(self) -> str:
+        return f"{self.host}/oidc/v1/token"
+
+
+class DatabricksEntraWorkspaceClient(DatabricksWorkspaceClient):
+    """A workspace client authenticated as a Microsoft Entra ID service principal.
+
+    Azure workspaces accept Entra tokens issued for the Azure Databricks
+    resource, so the client credentials go to Entra rather than the workspace.
     """
 
     def __init__(
-        self,
-        host: str,
-        token: str | None = None,
-        client_id: str | None = None,
-        client_secret: str | None = None,
-        azure_tenant_id: str | None = None,
+        self, host: str, tenant_id: str, client_id: str, client_secret: str
     ) -> None:
-        super().__init__(host, token, client_id, client_secret)
-        self._azure_tenant_id = azure_tenant_id
+        super().__init__(host, client_id=client_id, client_secret=client_secret)
+        self._tenant_id = tenant_id
 
     def _token_url(self) -> str:
-        if self._azure_tenant_id:
-            return (
-                f"https://login.microsoftonline.com/{self._azure_tenant_id}"
-                "/oauth2/v2.0/token"
-            )
-        return f"{self.host}/oidc/v1/token"
+        return f"https://login.microsoftonline.com/{self._tenant_id}/oauth2/v2.0/token"
 
     def _request_access_token(self) -> requests.Response:
-        if not self._azure_tenant_id:
-            return super()._request_access_token()
         return self._session.post(
             self._token_url(),
             data={

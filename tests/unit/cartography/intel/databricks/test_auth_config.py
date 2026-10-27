@@ -13,24 +13,34 @@ _ENTRA = {
 
 
 @pytest.mark.parametrize(
-    "auth",
+    "auth, error",
     [
         pytest.param(
-            {k: v for k, v in _ENTRA.items() if k != "databricks_azure_tenant_id"},
+            {
+                "databricks_azure_client_id": "entra-client-id",
+                "databricks_azure_client_secret": "entra-client-secret",
+            },
+            "partially configured",
             id="partial-entra",
         ),
-        pytest.param({**_ENTRA, "databricks_token": "pat"}, id="pat-and-entra"),
+        pytest.param(
+            {**_ENTRA, "databricks_token": "pat"},
+            "more than once",
+            id="pat-and-entra",
+        ),
         pytest.param(
             {
                 "databricks_token": "pat",
                 "databricks_client_id": "client-id",
                 "databricks_client_secret": "client-secret",
             },
+            "more than once",
             id="pat-and-oauth",
         ),
     ],
 )
-def test_workspace_auth_must_be_exactly_one_complete_method(auth):
+def test_workspace_auth_must_be_exactly_one_complete_method(auth, error):
+    # Arrange
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=1,
@@ -38,5 +48,6 @@ def test_workspace_auth_must_be_exactly_one_complete_method(auth):
         **auth,
     )
 
-    with pytest.raises(ValueError):
+    # Act and assert
+    with pytest.raises(ValueError, match=error):
         start_databricks_ingestion(Mock(), config)

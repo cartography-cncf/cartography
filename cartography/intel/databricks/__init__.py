@@ -72,6 +72,7 @@ from cartography.intel.databricks._unity_catalog import (
 )
 from cartography.intel.databricks._unity_catalog import cleanup_visibility
 from cartography.intel.databricks.util import DatabricksAccountClient
+from cartography.intel.databricks.util import DatabricksEntraWorkspaceClient
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.util import timeit
 
@@ -446,13 +447,11 @@ def start_databricks_ingestion(
             "must be set together (and the env variable must be populated).",
         )
 
-    azure_settings = (
-        config.databricks_azure_tenant_id,
-        config.databricks_azure_client_id,
-        config.databricks_azure_client_secret,
-    )
-    has_azure = all(azure_settings)
-    if any(azure_settings) and not has_azure:
+    azure_tenant_id = config.databricks_azure_tenant_id
+    azure_client_id = config.databricks_azure_client_id
+    azure_client_secret = config.databricks_azure_client_secret
+    has_azure = bool(azure_tenant_id and azure_client_id and azure_client_secret)
+    if (azure_tenant_id or azure_client_id or azure_client_secret) and not has_azure:
         raise ValueError(
             "Databricks Entra ID service principal auth is partially configured: "
             "--databricks-azure-tenant-id, --databricks-azure-client-id and "
@@ -514,12 +513,13 @@ def start_databricks_ingestion(
             neo4j_session, account_client, {"UPDATE_TAG": config.update_tag}
         )
 
-    if has_azure:
-        api_client = DatabricksWorkspaceClient(
+    api_client: DatabricksWorkspaceClient
+    if azure_tenant_id and azure_client_id and azure_client_secret:
+        api_client = DatabricksEntraWorkspaceClient(
             host=config.databricks_workspace_url,
-            client_id=config.databricks_azure_client_id,
-            client_secret=config.databricks_azure_client_secret,
-            azure_tenant_id=config.databricks_azure_tenant_id,
+            tenant_id=azure_tenant_id,
+            client_id=azure_client_id,
+            client_secret=azure_client_secret,
         )
     else:
         api_client = DatabricksWorkspaceClient(
