@@ -170,6 +170,9 @@ def _cleanup_workspace(
     cartography.intel.databricks.metastores.cleanup_assignment(
         neo4j_session, workspace_id, update_tag
     )
+    cartography.intel.databricks.workspaces.cleanup_legacy_workspace(
+        neo4j_session, workspace_id, update_tag
+    )
     for module in (
         cartography.intel.databricks.vector_search,
         cartography.intel.databricks.notebooks,
@@ -194,7 +197,6 @@ def _cleanup_workspace(
         cartography.intel.databricks.service_principals,
         cartography.intel.databricks.users,
         cartography.intel.databricks.groups,
-        cartography.intel.databricks.workspaces,
     ):
         module.cleanup(neo4j_session, common_job_parameters)
 
@@ -228,6 +230,9 @@ def _cleanup_account(
         cartography.intel.databricks.workspace_assignments.cleanup(
             neo4j_session, account_id, update_tag
         )
+    cartography.intel.databricks.account_workspaces.cleanup(
+        neo4j_session, account_id, update_tag
+    )
     for module in (
         cartography.intel.databricks.account_service_principals,
         cartography.intel.databricks.account_users,
@@ -334,12 +339,9 @@ def _sync_account_details(
     federation policies, and the workspace cloud configurations (credentials /
     storage / network / encryption / ...).
 
-    Runs AFTER the workspace-API workspace sync so that account_workspaces
-    enriches (rather than gets clobbered by) the DatabricksWorkspace node. The
-    ``DatabricksAccount`` node itself is synced earlier, before the workspace, so
-    the workspace's account RESOURCE edge can form. Each account resource is
-    scoped to ``DatabricksAccount`` for cleanup, so ``ACCOUNT_ID`` rides in the
-    common job parameters.
+    The ``DatabricksAccount`` node itself is synced earlier so account resources
+    can attach to it. Each account resource is scoped to ``DatabricksAccount`` for cleanup, so ``ACCOUNT_ID``
+    rides in the common job parameters.
 
     Returns the names of the syncs whose read was partial, for cleanup.
     """
@@ -355,10 +357,10 @@ def _sync_account_details(
         neo4j_session, account_client, account_id, account_job_parameters
     )
 
-    # Account workspaces create/enrich the DatabricksWorkspace nodes (numeric
-    # workspace id + account RESOURCE edge) and return the numeric-id -> node-id
-    # map the permission-assignment sweep needs.
-    workspace_node_ids = cartography.intel.databricks.account_workspaces.sync(
+    # Account workspaces create/enrich the DatabricksWorkspace nodes (keyed on
+    # the numeric workspace id, like the workspace path) and return the ids the
+    # permission-assignment sweep iterates.
+    workspace_ids = cartography.intel.databricks.account_workspaces.sync(
         neo4j_session, account_client, account_id, account_job_parameters
     )
     partial_reads: set[PartialRead] = set()
@@ -366,7 +368,7 @@ def _sync_account_details(
         neo4j_session,
         account_client,
         account_id,
-        workspace_node_ids,
+        workspace_ids,
         account_job_parameters,
     ):
         partial_reads.add(PartialRead.WORKSPACE_ASSIGNMENTS)
@@ -470,11 +472,7 @@ def start_databricks_ingestion(
             "--databricks-account-client-secret-env-var must be set together.",
         )
 
-    # Sync the DatabricksAccount node first (before the workspace) so the
-    # workspace's account RESOURCE edge can match it. The rest of the account
-    # surface runs after the workspace sync below, so account_workspaces enriches
-    # the DatabricksWorkspace node instead of being clobbered by the workspace
-    # sync (which does not carry the numeric id / deployment fields).
+    # Sync the DatabricksAccount node first so account resources can attach to it.
     account_id: str | None = None
     account_client: DatabricksAccountClient | None = None
     if account_configured:
@@ -499,7 +497,6 @@ def start_databricks_ingestion(
         neo4j_session,
         api_client,
         {"UPDATE_TAG": config.update_tag},
-        account_id,
     )
     workspace_id = workspace["id"]
     common_job_parameters = {
@@ -508,8 +505,7 @@ def start_databricks_ingestion(
     }
 
     # Account-level surface (SCIM, workspaces, assignments, federation, cloud
-    # configs). Runs after the workspace sync so account_workspaces enriches the
-    # existing workspace node rather than being overwritten by it.
+    # configs).
     partial_reads: set[PartialRead] = set()
     if account_client is not None and account_id is not None:
         partial_reads |= _sync_account_details(

@@ -22,6 +22,7 @@ from tests.data.databricks.ingestion import WORKSPACE_A_HOST
 from tests.data.databricks.ingestion import WORKSPACE_A_ID
 from tests.data.databricks.ingestion import WORKSPACE_B_HOST
 from tests.data.databricks.ingestion import WORKSPACE_B_ID
+from tests.data.databricks.ingestion import WORKSPACE_IDS_BY_HOST
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -49,6 +50,10 @@ class FakeWorkspaceClient:
 
     def get(self, uri: str, params: dict | None = None) -> Any:
         return self._respond(uri, [] if uri in LIST_URIS else {})
+
+    def get_with_headers(self, uri: str, params: dict | None = None) -> Any:
+        headers = {"x-databricks-org-id": WORKSPACE_IDS_BY_HOST[self.host]}
+        return self.get(uri, params), headers
 
     def uc_list(self, uri: str, key: str, params: dict | None = None) -> list:
         return self._respond(uri, [])

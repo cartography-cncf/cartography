@@ -1,5 +1,6 @@
 import logging
 import time
+from collections.abc import Mapping
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -179,6 +180,12 @@ class _BaseDatabricksClient:
 
     def get(self, uri: str, params: dict | None = None) -> Any:
         """Single GET that returns the parsed JSON body."""
+        return self.get_with_headers(uri, params)[0]
+
+    def get_with_headers(
+        self, uri: str, params: dict | None = None
+    ) -> tuple[Any, Mapping[str, str]]:
+        """Single GET that returns the parsed JSON body and the response headers."""
         self.authenticate()
         response = self._session.get(
             f"{self.host}{uri}",
@@ -186,7 +193,7 @@ class _BaseDatabricksClient:
             timeout=_TIMEOUT,
         )
         response.raise_for_status()
-        return response.json()
+        return response.json(), response.headers
 
     def scim_list(self, uri: str) -> list[dict[str, Any]]:
         """Paginate a SCIM listing endpoint and return all resources."""

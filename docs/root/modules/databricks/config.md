@@ -91,6 +91,20 @@ Unity Catalog objects are cleaned once per metastore. When a workspace fails,
 pass its metastore id in `skip_metastore_ids` so objects only that workspace
 lists are kept until its next successful run.
 
+### Workspace Identity
+
+`DatabricksWorkspace` nodes are keyed on the numeric workspace ID, which the
+workspace API reports in its `x-databricks-org-id` response header and the
+account API reports as `workspace_id`. The host is kept in the `host`
+property. Earlier versions keyed workspaces on their host, which split one
+workspace into two nodes when its host was not the
+`<deployment>.cloud.databricks.com` form, and prefixed every workspace-scoped
+node ID with the host. The first sync after upgrading reloads everything under
+the numeric ID, and the first cleanup after that (at the end of the same run
+unless `databricks_skip_cleanup` is set) deletes each host-keyed workspace node
+and the resources under it. Queries or saved views that reference workspace IDs or
+workspace-scoped node IDs by host need updating.
+
 ### Clean Room Coverage
 
 Cartography lists clean rooms only when the metastore enables external

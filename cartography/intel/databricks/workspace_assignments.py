@@ -34,7 +34,7 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksAccountClient,
     account_id: str,
-    workspace_node_ids: dict[str, str],
+    workspace_ids: list[str],
     common_job_parameters: dict[str, Any],
 ) -> bool:
     """Load ASSIGNED_TO edges and report whether every workspace was read.
@@ -43,7 +43,7 @@ def sync(
     edges were not refreshed, so the caller must skip the whole-account
     MatchLink cleanup rather than delete still-valid edges.
     """
-    assignments, complete = get(api_session, workspace_node_ids)
+    assignments, complete = get(api_session, workspace_ids)
     transformed = transform(assignments, account_id)
     load_assignments(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
@@ -59,7 +59,7 @@ def sync(
 
 @timeit
 def get(
-    api_session: DatabricksAccountClient, workspace_node_ids: dict[str, str]
+    api_session: DatabricksAccountClient, workspace_ids: list[str]
 ) -> tuple[list[dict[str, Any]], bool]:
     """Fetch permission assignments for each account workspace.
 
@@ -72,8 +72,10 @@ def get(
     """
     assignments: list[dict[str, Any]] = []
     complete = True
-    for numeric_id, workspace_node_id in workspace_node_ids.items():
-        uri = api_session.account_uri(f"/workspaces/{numeric_id}/permissionassignments")
+    for workspace_id in workspace_ids:
+        uri = api_session.account_uri(
+            f"/workspaces/{workspace_id}/permissionassignments"
+        )
         try:
             data = api_session.get(uri)
         except requests.HTTPError as e:
@@ -83,7 +85,7 @@ def get(
             skip_or_raise_http(e, 403, 404)
             complete = False
             logger.warning(
-                "Skipping permission assignments for workspace %s: %s", numeric_id, e
+                "Skipping permission assignments for workspace %s: %s", workspace_id, e
             )
             continue
         for entry in data.get("permission_assignments", []) or []:
@@ -95,7 +97,7 @@ def get(
             assignments.append(
                 {
                     "principal_id": principal_id,
-                    "workspace_node_id": workspace_node_id,
+                    "workspace_node_id": workspace_id,
                     "permissions": permissions,
                 }
             )
