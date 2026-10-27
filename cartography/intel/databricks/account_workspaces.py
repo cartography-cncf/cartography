@@ -37,7 +37,7 @@ def sync(
     the workspace's deployment-host node id, so the workspace-assignments sync
     can resolve the numeric id the permissions API reports back to the node key.
 
-    Deliberately runs no cleanup: the workspace-API sync owns DatabricksWorkspace
+    Deliberately runs no cleanup: cleanup_databricks owns DatabricksWorkspace
     lifecycle. Here we only enrich the account-owned workspaces with their
     numeric id / deployment / name and the DatabricksAccount -> RESOURCE edge.
     """

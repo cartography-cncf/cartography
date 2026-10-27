@@ -25,7 +25,7 @@ def _ensure_local_neo4j_has_test_recipients(neo4j_session):
         cartography.intel.databricks.recipients.transform(
             DATABRICKS_RECIPIENTS, DATABRICKS_METASTORE_ID
         ),
-        DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -47,7 +47,6 @@ def test_load_databricks_recipients(mock_get, neo4j_session):
     cartography.intel.databricks.recipients.sync(
         neo4j_session,
         api_session,
-        DATABRICKS_WORKSPACE_ID,
         DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )
@@ -65,13 +64,13 @@ def test_load_databricks_recipients(mock_get, neo4j_session):
         neo4j_session,
         "DatabricksRecipient",
         "id",
-        "DatabricksWorkspace",
+        "DatabricksMetastore",
         "id",
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        (RECIPIENT_TOKEN_ID, DATABRICKS_WORKSPACE_ID),
-        (RECIPIENT_DB_ID, DATABRICKS_WORKSPACE_ID),
+        (RECIPIENT_TOKEN_ID, DATABRICKS_METASTORE_ID),
+        (RECIPIENT_DB_ID, DATABRICKS_METASTORE_ID),
     }
 
     assert check_rels(

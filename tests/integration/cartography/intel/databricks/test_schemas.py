@@ -25,6 +25,7 @@ def _ensure_local_neo4j_has_test_schemas(neo4j_session):
         neo4j_session,
         cartography.intel.databricks.schemas.transform(DATABRICKS_SCHEMAS),
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -52,6 +53,7 @@ def test_load_databricks_schemas(mock_get, neo4j_session):
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         [],
         common_job_parameters,
     )

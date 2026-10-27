@@ -53,6 +53,7 @@ def test_load_databricks_registered_models(mock_get, mock_versions, neo4j_sessio
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         [],
         common_job_parameters,
     )

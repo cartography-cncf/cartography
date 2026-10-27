@@ -81,3 +81,21 @@ def test_load_databricks_notebooks(mock_get, neo4j_session):
         (f"{scoped(_JOB1)}/carto_task_nb", scoped(_NB1)),
         (f"{scoped(_JOB2)}/sp_task", scoped(_NB2)),
     }
+
+
+def test_tasks_from_an_earlier_run_do_not_yield_notebooks(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ensure_local_neo4j_has_test_workspace(neo4j_session)
+    _seed_job_tasks(neo4j_session)
+    next_update_tag = TEST_UPDATE_TAG + 1
+
+    # Act
+    cartography.intel.databricks.notebooks.sync(
+        neo4j_session,
+        DATABRICKS_WORKSPACE_ID,
+        {"UPDATE_TAG": next_update_tag, "WORKSPACE_ID": DATABRICKS_WORKSPACE_ID},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "DatabricksNotebook", ["id"]) == set()
