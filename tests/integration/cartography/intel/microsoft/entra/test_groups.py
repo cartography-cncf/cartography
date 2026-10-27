@@ -421,7 +421,18 @@ async def test_sync_entra_groups_skips_404(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
-    # Assert — the groups listed after the deleted one still get their members
+    # Assert — pass 1 loads every listed group, including the one deleted before
+    # its owners were read, and the groups after it still get their members
+    expected_nodes = {
+        ("11111111-1111-1111-1111-111111111111", "Security Team"),
+        (MOCK_DELETED_GROUP.id, "Deleted Group"),
+        ("22222222-2222-2222-2222-222222222222", "Developers"),
+    }
+    assert (
+        check_nodes(neo4j_session, "EntraGroup", ["id", "display_name"])
+        == expected_nodes
+    )
+
     expected_membership = {
         (
             "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
