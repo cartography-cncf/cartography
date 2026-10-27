@@ -255,7 +255,7 @@ def _okta_api_error(status: int) -> OktaAPIError:
 @pytest.mark.parametrize(  # type: ignore[misc]
     ("errors", "expected_calls", "raises"),
     [
-        ([_http_error(502)], 2, False),
+        ([_http_error(502), _okta_api_error(500)], 3, False),
         ([_http_error(502)] * 4, 4, True),
         ([_okta_api_error(404)], 1, True),
     ],
