@@ -28,6 +28,8 @@ MOCK_ENTRA_GROUPS = [
         security_enabled=True,
         group_types=["DynamicMembership"],
         visibility="Public",
+        membership_rule='user.department -eq "Engineering"',
+        membership_rule_processing_state="On",
     ),
 ]
 
