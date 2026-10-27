@@ -46,9 +46,9 @@ def test_sync_salesforce_connected_apps(mock_apps, mock_tokens, neo4j_session):
 
     # Assert nodes (also carry the ThirdPartyApp label)
     assert check_nodes(
-        neo4j_session, "SalesforceConnectedApp", ["salesforce_id", "name"]
+        neo4j_session, "SalesforceConnectedApp", ["id", "salesforce_id", "name"]
     ) == {
-        ("0Ci000000000001AAA", "Slack"),
+        (f"{test_data.ORG_ID}/0Ci000000000001AAA", "0Ci000000000001AAA", "Slack"),
     }
     assert check_nodes(neo4j_session, "ThirdPartyApp", ["salesforce_id"]) == {
         ("0Ci000000000001AAA",),
