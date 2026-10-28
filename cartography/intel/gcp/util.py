@@ -591,6 +591,8 @@ def aggregated_response_cleanup_safe(response: Any) -> bool:
     if response.get("incomplete"):
         return False
     for scoped_list in response.get("items", {}).values():
+        if scoped_list.get("error"):
+            return False
         warning = scoped_list.get("warning")
         if warning and warning.get("code") != GCP_SCOPE_NO_RESULTS_WARNING:
             return False
@@ -622,3 +624,5 @@ def merge_aggregated_scope_items(
             or existing_warning.get("code") == GCP_SCOPE_NO_RESULTS_WARNING
         ):
             target_scoped_list["warning"] = warning
+        if scoped_list.get("error"):
+            target_scoped_list["error"] = scoped_list["error"]

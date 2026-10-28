@@ -338,14 +338,18 @@ def test_get_gcp_target_https_proxies_preserves_unreachable_warning_across_pages
     ],
 )
 @pytest.mark.parametrize(
-    "page_level_signal",
+    "partial_result",
     [
         pytest.param({"unreachables": ["zones/us-central1-a"]}, id="unreachables"),
         pytest.param({"warning": {"code": "UNREACHABLE"}}, id="top_level_warning"),
+        pytest.param(
+            {"items": {"zones/us-central1-a": {"error": {"code": "TIMEOUT"}}}},
+            id="scope_error",
+        ),
     ],
 )
-def test_aggregated_getters_mark_page_level_partial_results_cleanup_unsafe(
-    module, getter, api, page_level_signal
+def test_aggregated_getters_mark_partial_results_cleanup_unsafe(
+    module, getter, api, partial_result
 ):
     compute = MagicMock()
     getattr(compute, api).return_value.aggregatedList.return_value = _make_request()
@@ -354,7 +358,7 @@ def test_aggregated_getters_mark_page_level_partial_results_cleanup_unsafe(
     with patch.object(
         module,
         "gcp_api_execute_with_retry",
-        return_value={"items": {}, **page_level_signal},
+        return_value={"items": {}, **partial_result},
     ):
         response = getattr(module, getter)(TEST_PROJECT_ID, compute)
 
