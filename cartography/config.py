@@ -335,6 +335,10 @@ class Config:
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
     :type semgrep_dependency_ecosystems: str
+    :param semgrep_skip_dependency_cleanup: Load Semgrep dependencies without cleaning them up. For orchestrators
+        that sync several deployments into one graph with the same update tag and then call
+        cartography.intel.semgrep.dependencies.cleanup_dependencies() once. Optional.
+    :type semgrep_skip_dependency_cleanup: bool
     :type snipeit_base_uri: string
     :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
     :type snipeit_token: string
@@ -867,6 +871,7 @@ class Config:
         databricks_azure_tenant_id: str | None = None,
         databricks_azure_client_id: str | None = None,
         databricks_azure_client_secret: str | None = None,
+        semgrep_skip_dependency_cleanup: bool = False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1026,6 +1031,7 @@ class Config:
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.semgrep_oss_source = semgrep_oss_source
+        self.semgrep_skip_dependency_cleanup = semgrep_skip_dependency_cleanup
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
