@@ -22,6 +22,7 @@ def build_exposure_test_data() -> dict:
 
     nlb_dns = f"nlb-{case_id}.elb.{TEST_REGION}.amazonaws.com"
     alb_dns = f"alb-{case_id}.elb.{TEST_REGION}.amazonaws.com"
+    alb_tg_arn = f"arn:aws:elasticloadbalancing:{TEST_REGION}:{TEST_AWS_ACCOUNT_ID}:targetgroup/test-alb-tg/{case_id}"
 
     test_cluster = [
         {
@@ -118,6 +119,7 @@ def build_exposure_test_data() -> dict:
         {
             "uid": svc_lb_id,
             "name": f"my-lb-svc-{case_id}",
+            "qualified_name": f"default/my-lb-svc-{case_id}",
             "creation_timestamp": 1633581666,
             "deletion_timestamp": None,
             "namespace": "default",
@@ -132,6 +134,7 @@ def build_exposure_test_data() -> dict:
         {
             "uid": svc_ing_id,
             "name": f"my-clusterip-svc-{case_id}",
+            "qualified_name": f"default/my-clusterip-svc-{case_id}",
             "creation_timestamp": 1633581666,
             "deletion_timestamp": None,
             "namespace": "default",
@@ -219,7 +222,30 @@ def build_exposure_test_data() -> dict:
                     "Protocol": "HTTP",
                 },
             ],
-            "TargetGroups": [],
+            "TargetGroups": [
+                {
+                    "TargetGroupArn": alb_tg_arn,
+                    "TargetGroupName": f"test-alb-tg-{case_id}",
+                    "TargetType": "ip",
+                    "Protocol": "HTTP",
+                    "Port": 3000,
+                    "VpcId": "vpc-12345678",
+                    "Targets": [],
+                },
+            ],
+        },
+    ]
+
+    test_target_group_bindings = [
+        {
+            "apiVersion": "elbv2.k8s.aws/v1beta1",
+            "kind": "TargetGroupBinding",
+            "metadata": {"name": f"public-{case_id}", "namespace": "default"},
+            "spec": {
+                "targetGroupARN": alb_tg_arn,
+                "targetType": "ip",
+                "serviceRef": {"name": f"my-clusterip-svc-{case_id}", "port": 80},
+            },
         },
     ]
 
@@ -231,6 +257,7 @@ def build_exposure_test_data() -> dict:
         "region": TEST_REGION,
         "nlb_dns": nlb_dns,
         "alb_dns": alb_dns,
+        "alb_tg_arn": alb_tg_arn,
         "pod_lb_id": pod_lb_id,
         "pod_ing_id": pod_ing_id,
         "cont_lb_id": cont_lb_id,
@@ -245,4 +272,5 @@ def build_exposure_test_data() -> dict:
         "ingress": test_ingress,
         "duplicate_ingress": test_duplicate_ingress,
         "lb_data": test_lb_data,
+        "target_group_bindings": test_target_group_bindings,
     }
