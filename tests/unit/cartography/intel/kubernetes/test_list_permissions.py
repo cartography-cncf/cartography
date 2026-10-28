@@ -7,6 +7,9 @@ from kubernetes.client.exceptions import ApiException
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.nodes import sync_nodes
 from cartography.intel.kubernetes.services import sync_services
+from cartography.intel.kubernetes.target_group_bindings import (
+    sync_target_group_bindings,
+)
 
 COMMON = {"CLUSTER_ID": "cluster-id", "UPDATE_TAG": 1}
 
@@ -34,6 +37,14 @@ SYNCS = [
         lambda client: sync_ingress(MagicMock(), client, 1, COMMON),
         None,
         id="ingress",
+    ),
+    pytest.param(
+        "cartography.intel.kubernetes.target_group_bindings",
+        "get_target_group_bindings",
+        "load_target_group_bindings",
+        lambda client: sync_target_group_bindings(MagicMock(), client, 1, COMMON),
+        None,
+        id="target_group_bindings",
     ),
 ]
 

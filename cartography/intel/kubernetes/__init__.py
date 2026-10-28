@@ -21,6 +21,9 @@ from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.storage import sync_storage
+from cartography.intel.kubernetes.target_group_bindings import (
+    sync_target_group_bindings,
+)
 from cartography.intel.kubernetes.util import get_k8s_clients
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.intel.kubernetes.workloads import sync_workloads
@@ -158,6 +161,9 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             )
             sync_gateway_api(session, client, config.update_tag, common_job_parameters)
             sync_ingress(session, client, config.update_tag, common_job_parameters)
+            sync_target_group_bindings(
+                session, client, config.update_tag, common_job_parameters
+            )
 
             # Runs for every cluster so generated cleanup also clears stale edges.
             for job in K8S_GKE_JOBS:

@@ -40,6 +40,18 @@ the CRDs exist but the identity cannot list them, Cartography skips ingestion
 and cleanup, preserving existing nodes. Ingested gateways and HTTP routes form
 the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path.
 
+When the AWS Load Balancer Controller CRDs are absent, Cartography treats
+TargetGroupBindings as empty and cleans stale target group edges. If the CRDs
+exist but the identity cannot list them, Cartography skips ingestion and
+cleanup, preserving existing edges. Each binding that sets
+`spec.targetGroupARN` and `spec.serviceRef.name` adds an
+`AWSELBV2TargetGroup -[:TARGETS]-> Service` edge. Bindings that only set
+`spec.targetGroupName` are skipped, because a target group name is unique only
+within one account and region. When the load balancer is exposed to the
+internet (`exposed_internet` set by the AWS asset exposure analysis, or an
+internet-facing NLB), the Service, its pods, and their containers are marked as
+exposed even when no Ingress or Service status points to that load balancer.
+
 If the identity cannot list network policies, Cartography skips both ingestion
 and cleanup and preserves existing `KubernetesNetworkPolicy` nodes. Ingested
 policies use `APPLIES_TO` edges to identify selected pods.
