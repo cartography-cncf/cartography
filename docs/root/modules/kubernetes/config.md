@@ -336,3 +336,31 @@ Before this release, `WORKLOAD_IDENTITY_BINDING` was created from the annotation
 Queries that relied on that should use `ANNOTATED_SERVICE_ACCOUNT`. Old annotation-only
 edges are removed on the next Kubernetes sync.
 ```
+
+## AKS
+
+AKS clusters connect with a kubeconfig; no extra flags are needed. Run the Azure module
+before the Kubernetes module, with load balancers, application gateways, and network
+(public IP addresses) enabled. The links below match against Azure nodes that already
+exist in the graph.
+
+The cluster's subscription and node resource group are read from each node's
+`spec.providerID` and stored on `KubernetesNode` as `azure_subscription_id` and
+`azure_resource_group`.
+
+- `KubernetesService`, `KubernetesIngress`, and `KubernetesGateway -[:USES_LOAD_BALANCER]->
+  AzureLoadBalancer`, matched on the status IP address. Public addresses match the
+  `AzurePublicIPAddress` of a frontend IP configuration, only for load balancers in the
+  cluster's subscription. Private addresses match a frontend's private IP, only for
+  load balancers in the cluster's node resource group, where AKS creates them. That
+  group belongs to a single cluster and VNet, so private IPs reused in other VNets do
+  not collide.
+- `KubernetesIngress -[:USES_LOAD_BALANCER]-> AzureApplicationGateway` for Application
+  Gateway Ingress Controller (AGIC), matched on a public frontend IP in the cluster's
+  subscription. Private Application Gateway frontends are not linked.
+- Application Gateway for Containers publishes a hostname, not an IP, in the Gateway
+  status and is not linked.
+
+Exposure analysis reads `exposed_internet` on the Azure load balancer or Application
+Gateway, which the Azure module sets when a frontend has a public IP address. Backend
+health and network security group rules are not evaluated.

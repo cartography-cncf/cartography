@@ -67,6 +67,14 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
         "gcp_instance_id",
         description="Compute Engine instance partial URI (`projects/{project}/zones/{zone}/instances/{name}`) parsed from the Kubernetes `Node.spec.providerID` (`gce://{project}/{zone}/{name}`); null for non-GCE providers.",
     )
+    azure_subscription_id: PropertyRef = PropertyRef(
+        "azure_subscription_id",
+        description="Lowercased Azure subscription ID parsed from an AKS node's `provider_id` (`azure:///subscriptions/{subscription}/resourceGroups/{resource group}/...`); null for non-Azure providers. Scopes matching of AKS load balancers.",
+    )
+    azure_resource_group: PropertyRef = PropertyRef(
+        "azure_resource_group",
+        description="Lowercased node resource group parsed from an AKS node's `provider_id`; null for non-Azure providers. AKS creates the cluster's Azure load balancers in this resource group.",
+    )
     gke_node_pool: PropertyRef = PropertyRef(
         "gke_node_pool",
         description='GKE node pool name from the Kubernetes `Node.metadata.labels["cloud.google.com/gke-nodepool"]` label; null for non-GKE nodes.',

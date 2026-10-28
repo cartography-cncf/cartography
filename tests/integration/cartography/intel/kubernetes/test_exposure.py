@@ -1,16 +1,28 @@
 import copy
 
+from kubernetes.client import V1Node
+from kubernetes.client import V1NodeSpec
+from kubernetes.client import V1ObjectMeta
+
+import cartography.intel.azure.application_gateways as application_gateways
+import cartography.intel.azure.load_balancers as load_balancers
+import cartography.intel.azure.network as network
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
+from cartography.analysis.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_LB
+from cartography.analysis.kubernetes.analysis import K8S_AKS_LOAD_BALANCER
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.ingress import load_ingresses
 from cartography.intel.kubernetes.namespaces import load_namespaces
+from cartography.intel.kubernetes.nodes import load_nodes
+from cartography.intel.kubernetes.nodes import transform_nodes
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
 from cartography.intel.kubernetes.services import load_services
 from cartography.util import run_typed_analysis_job
+from tests.data.kubernetes.exposure import build_aks_exposure_test_data
 from tests.data.kubernetes.exposure import build_exposure_test_data
 from tests.integration.cartography.intel.aws.common import create_test_account
 
@@ -299,3 +311,109 @@ def test_internal_nlb_does_not_propagate_exposure(neo4j_session):
         pod_id=case["pod_lb_id"],
     )
     assert result.single()["rel_count"] == 0
+
+
+def _seed_aks_azure_graph(neo4j_session, case: dict) -> None:
+    tag = case["update_tag"]
+    for sub in (case["subscription_id"], case["other_subscription_id"]):
+        neo4j_session.run(
+            "MERGE (s:AzureSubscription{id: $sub}) SET s.lastupdated = $tag",
+            sub=sub,
+            tag=tag,
+        )
+        network.load_public_ip_addresses(
+            neo4j_session,
+            network.transform_public_ip_addresses(case["public_ips"][sub]),
+            sub,
+            tag,
+        )
+        lbs = case["load_balancers"][sub]
+        load_balancers.load_load_balancers(
+            neo4j_session, load_balancers.transform_load_balancers(lbs), sub, tag
+        )
+        for lb in lbs:
+            load_balancers.load_frontend_ips(
+                neo4j_session,
+                load_balancers.transform_frontend_ips(lb),
+                lb["id"],
+                sub,
+                tag,
+            )
+    appgw = case["application_gateway"]
+    application_gateways.load_application_gateways(
+        neo4j_session,
+        application_gateways.transform_application_gateways([appgw]),
+        case["subscription_id"],
+        tag,
+    )
+    application_gateways.load_frontend_ips(
+        neo4j_session,
+        application_gateways.transform_frontend_ips(appgw),
+        appgw["id"],
+        case["subscription_id"],
+        tag,
+    )
+    load_nodes(
+        neo4j_session,
+        transform_nodes(
+            [
+                V1Node(
+                    metadata=V1ObjectMeta(name="aks-nodepool1-vmss000000"),
+                    spec=V1NodeSpec(provider_id=case["node_provider_id"]),
+                ),
+            ],
+            case["cluster_name"],
+        ),
+        tag,
+        case["cluster_id"],
+        case["cluster_name"],
+    )
+
+
+def test_aks_load_balancers_link_and_propagate_exposure(neo4j_session):
+    case = build_aks_exposure_test_data()
+    _seed_exposure_graph(neo4j_session, case=case, mark_alb_exposed=False)
+    _seed_aks_azure_graph(neo4j_session, case)
+    common_job_parameters = {
+        "UPDATE_TAG": case["update_tag"],
+        "CLUSTER_ID": case["cluster_id"],
+    }
+
+    run_typed_analysis_job(
+        AZURE_COMPUTE_ASSET_EXPOSURE_LB, neo4j_session, common_job_parameters
+    )
+    run_typed_analysis_job(K8S_AKS_LOAD_BALANCER, neo4j_session, common_job_parameters)
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
+
+    # Decoys reuse the public address in another subscription and the private
+    # address outside the node resource group; neither may link.
+    result = neo4j_session.run(
+        "MATCH (k:KubernetesCluster{id: $cluster_id})-[:RESOURCE]->(src)"
+        "-[:USES_LOAD_BALANCER]->(lb) "
+        "WHERE lb:AzureLoadBalancer OR lb:AzureApplicationGateway "
+        "RETURN src.id AS src, lb.id AS lb",
+        cluster_id=case["cluster_id"],
+    )
+    assert {(r["src"], r["lb"]) for r in result} == {
+        (case["svc_lb_id"], case["public_lb_id"]),
+        (case["svc_internal_id"], case["internal_lb_id"]),
+        (case["ingress"]["uid"], case["appgw_id"]),
+    }
+
+    result = neo4j_session.run(
+        "MATCH (lb:LoadBalancer)-[:EXPOSE]->(pod:KubernetesPod) "
+        "WHERE pod.id IN $pods RETURN lb.id AS lb, pod.id AS pod",
+        pods=[case["pod_lb_id"], case["pod_ing_id"]],
+    )
+    assert {(r["lb"], r["pod"]) for r in result} == {
+        (case["public_lb_id"], case["pod_lb_id"]),
+        (case["appgw_id"], case["pod_ing_id"]),
+    }
+
+    result = neo4j_session.run(
+        "MATCH (svc:KubernetesService{id: $svc_id}) "
+        "RETURN svc.exposed_internet AS exposed",
+        svc_id=case["svc_internal_id"],
+    )
+    assert result.single()["exposed"] is None

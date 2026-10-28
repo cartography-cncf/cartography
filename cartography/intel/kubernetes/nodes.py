@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 
 import neo4j
@@ -38,6 +39,22 @@ def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:
     return instance_id if instance_id.startswith("i-") else None
 
 
+# AKS sets `spec.providerID` to
+# `azure:///subscriptions/<sub>/resourceGroups/<node resource group>/providers/...`.
+_AZURE_PROVIDER_ID = re.compile(
+    r"^azure:///subscriptions/([^/]+)/resourceGroups/([^/]+)/", re.IGNORECASE
+)
+
+
+def _azure_scope_from_provider_id(
+    provider_id: str | None,
+) -> tuple[str | None, str | None]:
+    match = _AZURE_PROVIDER_ID.match(provider_id or "")
+    if not match:
+        return None, None
+    return match.group(1).lower(), match.group(2).lower()
+
+
 def transform_nodes(
     nodes: list[V1Node],
     cluster_name: str,
@@ -51,6 +68,9 @@ def transform_nodes(
         capacity = node.status.capacity if node.status else None
         allocatable = node.status.allocatable if node.status else None
         gke_node_pool = labels.get("cloud.google.com/gke-nodepool")
+        azure_subscription_id, azure_resource_group = _azure_scope_from_provider_id(
+            provider_id
+        )
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
@@ -58,6 +78,8 @@ def transform_nodes(
                 "provider_id": provider_id,
                 "instance_id": _ec2_instance_id_from_provider_id(provider_id),
                 "gcp_instance_id": instance_id_from_provider_id(provider_id),
+                "azure_subscription_id": azure_subscription_id,
+                "azure_resource_group": azure_resource_group,
                 "gke_node_pool": gke_node_pool,
                 "gke_node_pool_id": (
                     f"{gke_resource_name}/nodePools/{gke_node_pool}"

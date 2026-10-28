@@ -264,3 +264,105 @@ K8S_GKE_WORKLOAD_IDENTITY_BINDING = AnalysisJob(
     ),
 )
 K8S_GKE_JOBS = (K8S_GKE_WORKLOAD_IDENTITY_POLICY, K8S_GKE_WORKLOAD_IDENTITY_BINDING)
+
+
+# AKS: neither the Service nor the Ingress references the Azure load balancer or
+# Application Gateway (AGIC) that fronts it, so match `status.loadBalancer` addresses
+# against frontend IPs. The cluster's subscription and node resource group come from
+# its nodes' providerIDs. Public addresses match only in those subscriptions, so a
+# released address reused elsewhere never links. Private addresses match only load
+# balancers in the node resource group, where AKS creates them; that group belongs to
+# one cluster and so one VNet, so private addresses reused in other VNets never link.
+def _aks_public_frontend_link(
+    source: str, source_label: str, target_label: str, frontend_label: str
+) -> AnalysisStatement:
+    return AnalysisStatement(
+        match=f"""
+        MATCH (k:KubernetesCluster)-[:RESOURCE]->({source}:{source_label})
+        WHERE size({source}.load_balancer_ips) > 0
+        WITH {source}, [(k)-[:RESOURCE]->(n:KubernetesNode)
+             WHERE n.azure_subscription_id IS NOT NULL | n.azure_subscription_id] AS subscriptions
+        WHERE size(subscriptions) > 0
+        UNWIND {source}.load_balancer_ips AS ip
+        MATCH (:AzurePublicIPAddress {{ip_address: ip}})<-[:ASSOCIATED_WITH]-(:{frontend_label})
+              <-[:CONTAINS]-(lb:{target_label})<-[:RESOURCE]-(sub:AzureSubscription)
+        WHERE toLower(sub.id) IN subscriptions
+        WITH DISTINCT {source}, lb
+        """,
+        effects=(
+            AddRelationship(
+                source,
+                "USES_LOAD_BALANCER",
+                "lb",
+                source_label=source_label,
+                target_label=target_label,
+            ),
+        ),
+    )
+
+
+def _aks_private_frontend_link(source: str, source_label: str) -> AnalysisStatement:
+    return AnalysisStatement(
+        match=f"""
+        MATCH (k:KubernetesCluster)-[:RESOURCE]->({source}:{source_label})
+        WHERE size({source}.load_balancer_ips) > 0
+        WITH {source}, [(k)-[:RESOURCE]->(n:KubernetesNode)
+             WHERE n.azure_subscription_id IS NOT NULL AND n.azure_resource_group IS NOT NULL
+             | '/subscriptions/' + n.azure_subscription_id + '/resourcegroups/' + n.azure_resource_group + '/'] AS node_resource_groups
+        WHERE size(node_resource_groups) > 0
+        UNWIND {source}.load_balancer_ips AS ip
+        MATCH (:AzureLoadBalancerFrontendIPConfiguration {{private_ip_address: ip}})
+              <-[:CONTAINS]-(lb:AzureLoadBalancer)
+        WHERE any(prefix IN node_resource_groups WHERE toLower(lb.id) STARTS WITH prefix)
+        WITH DISTINCT {source}, lb
+        """,
+        effects=(
+            AddRelationship(
+                source,
+                "USES_LOAD_BALANCER",
+                "lb",
+                source_label=source_label,
+                target_label="AzureLoadBalancer",
+            ),
+        ),
+    )
+
+
+K8S_AKS_LOAD_BALANCER = AnalysisJob(
+    name="AKS Kubernetes Azure load balancer links",
+    short_name="k8s_aks_load_balancer",
+    scope=ScopeById(
+        "KubernetesCluster",
+        "CLUSTER_ID",
+        scope_on=("svc", "svc", "ing", "ing", "ing", "gw", "gw"),
+    ),
+    statements=(
+        _aks_public_frontend_link(
+            "svc",
+            "KubernetesService",
+            "AzureLoadBalancer",
+            "AzureLoadBalancerFrontendIPConfiguration",
+        ),
+        _aks_private_frontend_link("svc", "KubernetesService"),
+        _aks_public_frontend_link(
+            "ing",
+            "KubernetesIngress",
+            "AzureLoadBalancer",
+            "AzureLoadBalancerFrontendIPConfiguration",
+        ),
+        _aks_private_frontend_link("ing", "KubernetesIngress"),
+        _aks_public_frontend_link(
+            "ing",
+            "KubernetesIngress",
+            "AzureApplicationGateway",
+            "AzureApplicationGatewayFrontendIPConfiguration",
+        ),
+        _aks_public_frontend_link(
+            "gw",
+            "KubernetesGateway",
+            "AzureLoadBalancer",
+            "AzureLoadBalancerFrontendIPConfiguration",
+        ),
+        _aks_private_frontend_link("gw", "KubernetesGateway"),
+    ),
+)

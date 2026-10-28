@@ -20,6 +20,12 @@ machines through `EXPOSE`. Azure Firewall protection is inferred through
 virtual network topology. This is an approximation and does not validate the
 effective route path or evaluate firewall rules.
 
+`AzureLoadBalancer` and `AzureApplicationGateway` carry the `LoadBalancer` ontology
+label. `exposed_internet` is `true` on either when a frontend IP configuration has a
+public IP address. The Kubernetes module links AKS Services, Ingresses, and Gateways to
+them through `USES_LOAD_BALANCER` and reuses this signal for pod and container
+exposure; see the Kubernetes module's AKS section.
+
 ## Application Gateway Routing
 
 Application Gateway uses a parent gateway with frontend IP, backend pool, and
