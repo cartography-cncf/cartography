@@ -15,7 +15,12 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class SalesforceGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id", description="Salesforce group ID.")
+    id: PropertyRef = PropertyRef(
+        "id", description="Org-scoped node ID: ``{organization ID}/{group ID}``."
+    )
+    salesforce_id: PropertyRef = PropertyRef(
+        "Id", extra_index=True, description="Salesforce group ID."
+    )
     name: PropertyRef = PropertyRef("Name", description="Group name.")
     developer_name: PropertyRef = PropertyRef(
         "DeveloperName", extra_index=True, description="Group API developer name."

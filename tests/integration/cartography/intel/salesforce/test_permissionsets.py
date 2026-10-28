@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -27,7 +28,12 @@ def test_sync_salesforce_permission_sets(mock_sets, mock_assignments, neo4j_sess
     # Arrange: org + the assignee user must exist for the HAS_ROLE edge
     _ensure_local_neo4j_has_test_organization(neo4j_session)
     cartography.intel.salesforce.users.load_users(
-        neo4j_session, test_data.SALESFORCE_USERS, test_data.ORG_ID, TEST_UPDATE_TAG
+        neo4j_session,
+        cartography.intel.salesforce.users.transform(
+            deepcopy(test_data.SALESFORCE_USERS), test_data.ORG_ID
+        ),
+        test_data.ORG_ID,
+        TEST_UPDATE_TAG,
     )
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": test_data.ORG_ID}
 
@@ -37,7 +43,9 @@ def test_sync_salesforce_permission_sets(mock_sets, mock_assignments, neo4j_sess
     )
 
     # Assert nodes
-    assert check_nodes(neo4j_session, "SalesforcePermissionSet", ["id", "name"]) == {
+    assert check_nodes(
+        neo4j_session, "SalesforcePermissionSet", ["salesforce_id", "name"]
+    ) == {
         ("0PS000000000001AAA", "API_Access"),
     }
 
@@ -45,9 +53,9 @@ def test_sync_salesforce_permission_sets(mock_sets, mock_assignments, neo4j_sess
     assert check_rels(
         neo4j_session,
         "SalesforceUser",
-        "id",
+        "salesforce_id",
         "SalesforcePermissionSet",
-        "id",
+        "salesforce_id",
         "HAS_ROLE",
         rel_direction_right=True,
     ) == {

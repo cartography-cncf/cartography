@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.salesforce.util import org_scoped_id
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
 from cartography.models.salesforce.permissionset import SalesforcePermissionSetSchema
@@ -27,7 +28,9 @@ def sync(
 ) -> None:
     permission_sets = get_permission_sets(client)
     assignments = get_assignments(client)
-    permission_sets = transform(permission_sets, assignments)
+    permission_sets = transform(
+        permission_sets, assignments, common_job_parameters["ORG_ID"]
+    )
     load_permission_sets(
         neo4j_session,
         permission_sets,
@@ -57,11 +60,15 @@ def get_assignments(client: SalesforceClient) -> list[dict[str, Any]]:
 def transform(
     permission_sets: list[dict[str, Any]],
     assignments: list[dict[str, Any]],
+    org_id: str,
 ) -> list[dict[str, Any]]:
     assignees_by_set: dict[str, list[str]] = defaultdict(list)
     for assignment in assignments:
-        assignees_by_set[assignment["PermissionSetId"]].append(assignment["AssigneeId"])
+        assignees_by_set[assignment["PermissionSetId"]].append(
+            org_scoped_id(org_id, assignment["AssigneeId"])
+        )
     for permission_set in permission_sets:
+        permission_set["id"] = org_scoped_id(org_id, permission_set["Id"])
         permission_set["CreatedDate"] = parse_sf_datetime(
             permission_set.get("CreatedDate")
         )

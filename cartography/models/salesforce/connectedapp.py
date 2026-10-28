@@ -15,7 +15,13 @@ from cartography.models.ontology.labels import THIRD_PARTY_APP
 
 @dataclass(frozen=True)
 class SalesforceConnectedAppNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id", description="Salesforce connected app ID.")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Org-scoped node ID: ``{organization ID}/{connected app ID}``.",
+    )
+    salesforce_id: PropertyRef = PropertyRef(
+        "Id", extra_index=True, description="Salesforce connected app ID."
+    )
     name: PropertyRef = PropertyRef(
         "Name", extra_index=True, description="Connected app name."
     )
