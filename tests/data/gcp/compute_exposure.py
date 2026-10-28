@@ -34,9 +34,6 @@ NETWORK_ENDPOINT_GROUP_RESPONSE = {
                 },
             ],
         },
-        "regions/us-central1": {
-            "warning": {"code": "NO_RESULTS_ON_PAGE"},
-        },
     },
 }
 

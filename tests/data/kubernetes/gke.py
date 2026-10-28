@@ -229,29 +229,39 @@ GKE_SERVICES = [
     ),
 ]
 
+
+def _gke_neg(project_id: str, zone: str) -> dict:
+    return {
+        "name": GKE_NEG_NAME,
+        "zone": f"https://www.googleapis.com/compute/v1/projects/{project_id}/zones/{zone}",
+        "networkEndpointType": "GCE_VM_IP_PORT",
+        "size": 1,
+    }
+
+
 # The same NEG name and zone exist in another project; only the cluster's own match.
 GKE_NEGS = {
-    project_id: {
-        "id": f"projects/{project_id}/aggregated/networkEndpointGroups",
+    GKE_PROJECT_ID: {
+        "id": f"projects/{GKE_PROJECT_ID}/aggregated/networkEndpointGroups",
         "items": {
-            f"zones/{zone}": {
-                "networkEndpointGroups": [
-                    {
-                        "name": GKE_NEG_NAME,
-                        "zone": f"https://www.googleapis.com/compute/v1/projects/{project_id}/zones/{zone}",
-                        "networkEndpointType": "GCE_VM_IP_PORT",
-                        "network": f"https://www.googleapis.com/compute/v1/projects/{project_id}/global/networks/default",
-                        "size": 1,
-                    },
-                ],
-            }
-            for zone in zones
+            "zones/us-central1-a": {
+                "networkEndpointGroups": [_gke_neg(GKE_PROJECT_ID, "us-central1-a")],
+            },
+            "zones/us-central1-b": {
+                "networkEndpointGroups": [_gke_neg(GKE_PROJECT_ID, "us-central1-b")],
+            },
         },
-    }
-    for project_id, zones in (
-        (GKE_PROJECT_ID, ("us-central1-a", "us-central1-b")),
-        (GKE_OTHER_PROJECT_ID, ("us-central1-a",)),
-    )
+    },
+    GKE_OTHER_PROJECT_ID: {
+        "id": f"projects/{GKE_OTHER_PROJECT_ID}/aggregated/networkEndpointGroups",
+        "items": {
+            "zones/us-central1-a": {
+                "networkEndpointGroups": [
+                    _gke_neg(GKE_OTHER_PROJECT_ID, "us-central1-a")
+                ],
+            },
+        },
+    },
 }
 
 # A gce-internal Ingress sharing the internal load balancer address.

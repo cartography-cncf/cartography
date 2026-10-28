@@ -9,11 +9,7 @@ from cartography.graph.analysis import Var
 K8S_SERVICE_ASSET_EXPOSURE = AnalysisJob(
     name="Kubernetes service internet exposure",
     short_name="k8s_service_asset_exposure",
-    scope=ScopeById(
-        "KubernetesCluster",
-        "CLUSTER_ID",
-        scope_on=("svc", "ing", "gw", "svc", "svc"),
-    ),
+    scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="svc"),
     statements=(
         AnalysisStatement(
             match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') WITH DISTINCT svc",
@@ -100,11 +96,7 @@ K8S_COMPUTE_ASSET_EXPOSURE_JOBS = (
 K8S_LB_POD_EXPOSURE = AnalysisJob(
     name="Kubernetes LoadBalancer to pod EXPOSE relationships",
     short_name="k8s_lb_pod_exposure",
-    scope=ScopeById(
-        "KubernetesCluster",
-        "CLUSTER_ID",
-        scope_on=("svc", "ing", "gw", "svc", "svc"),
-    ),
+    scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="svc"),
     statements=(
         AnalysisStatement(
             match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)",
@@ -181,11 +173,7 @@ K8S_LB_POD_EXPOSURE = AnalysisJob(
 K8S_LB_CONTAINER_EXPOSURE = AnalysisJob(
     name="Kubernetes LoadBalancer to container EXPOSE relationships",
     short_name="k8s_lb_container_exposure",
-    scope=ScopeById(
-        "KubernetesCluster",
-        "CLUSTER_ID",
-        scope_on=("svc", "ing", "gw", "svc", "svc"),
-    ),
+    scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="svc"),
     statements=(
         AnalysisStatement(
             match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
