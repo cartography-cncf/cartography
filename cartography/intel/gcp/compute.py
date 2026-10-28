@@ -17,9 +17,13 @@ from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.network_endpoint_group import (
+    sync_gcp_network_endpoint_groups,
+)
 from cartography.intel.gcp.ssl_policy import sync_gcp_ssl_policies
 from cartography.intel.gcp.target_https_proxy import sync_gcp_target_https_proxies
 from cartography.intel.gcp.target_ssl_proxy import sync_gcp_target_ssl_proxies
+from cartography.intel.gcp.util import aggregated_page_incomplete
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_permission_denied_error
@@ -340,25 +344,14 @@ def _get_gcp_vpn_aggregated(
                     warning_code or scope_data.get("error"),
                 )
             items.extend(scope_data.get(resource, []))
-        # Missing data can also be reported at the page level, outside items:
-        # a non-empty `unreachables` list, or a top-level `warning` whose code
-        # is not the benign NO_RESULTS_ON_PAGE (e.g. UNREACHABLE).
-        if res.get("unreachables"):
+        if aggregated_page_incomplete(res):
             incomplete = True
             logger.warning(
-                "GCP: %s.aggregatedList for project %s reported unreachable scopes %s; suppressing cleanup for the project.",
+                "GCP: %s.aggregatedList for project %s reported missing scopes (unreachables: %s, warning: %s); suppressing cleanup for the project.",
                 resource,
                 projectid,
-                res["unreachables"],
-            )
-        page_warning_code = (res.get("warning") or {}).get("code")
-        if page_warning_code and page_warning_code != "NO_RESULTS_ON_PAGE":
-            incomplete = True
-            logger.warning(
-                "GCP: %s.aggregatedList for project %s returned warning %s; suppressing cleanup for the project.",
-                resource,
-                projectid,
-                page_warning_code,
+                res.get("unreachables"),
+                (res.get("warning") or {}).get("code"),
             )
         req = api.aggregatedList_next(previous_request=req, previous_response=res)
     return items, incomplete
@@ -2229,8 +2222,15 @@ def sync(
             gcp_update_tag,
             common_job_parameters,
         )
-        # Cloud Armor policies must exist before backend services so PROTECTS rels
-        # can resolve in the same sync cycle.
+        sync_gcp_network_endpoint_groups(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        # Cloud Armor policies, instance groups and NEGs must exist before backend
+        # services so PROTECTS and ROUTES_TO rels can resolve in the same sync cycle.
         sync_gcp_cloud_armor(
             neo4j_session,
             compute,

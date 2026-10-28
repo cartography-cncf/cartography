@@ -2,8 +2,10 @@ import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from googleapiclient.errors import HttpError
 
+import cartography.intel.gcp.network_endpoint_group
 import cartography.intel.gcp.ssl_policy
 import cartography.intel.gcp.target_https_proxy
 import cartography.intel.gcp.target_ssl_proxy
@@ -313,6 +315,54 @@ def test_get_gcp_target_https_proxies_preserves_unreachable_warning_across_pages
             response,
         )
     )
+
+
+@pytest.mark.parametrize(
+    "module, getter, api",
+    [
+        (
+            cartography.intel.gcp.ssl_policy,
+            "get_gcp_ssl_policies",
+            "sslPolicies",
+        ),
+        (
+            cartography.intel.gcp.target_https_proxy,
+            "get_gcp_target_https_proxies",
+            "targetHttpsProxies",
+        ),
+        (
+            cartography.intel.gcp.network_endpoint_group,
+            "get_gcp_network_endpoint_groups",
+            "networkEndpointGroups",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "partial_result",
+    [
+        pytest.param({"unreachables": ["zones/us-central1-a"]}, id="unreachables"),
+        pytest.param({"warning": {"code": "UNREACHABLE"}}, id="top_level_warning"),
+        pytest.param(
+            {"items": {"zones/us-central1-a": {"error": {"code": "TIMEOUT"}}}},
+            id="scope_error",
+        ),
+    ],
+)
+def test_aggregated_getters_mark_partial_results_cleanup_unsafe(
+    module, getter, api, partial_result
+):
+    compute = MagicMock()
+    getattr(compute, api).return_value.aggregatedList.return_value = _make_request()
+    getattr(compute, api).return_value.aggregatedList_next.return_value = None
+
+    with patch.object(
+        module,
+        "gcp_api_execute_with_retry",
+        return_value={"items": {}, **partial_result},
+    ):
+        response = getattr(module, getter)(TEST_PROJECT_ID, compute)
+
+    assert not module.aggregated_response_cleanup_safe(response)
 
 
 def test_sync_gcp_ssl_policies_skips_cleanup_when_global_list_denied():

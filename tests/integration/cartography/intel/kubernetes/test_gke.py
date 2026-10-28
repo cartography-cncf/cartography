@@ -10,6 +10,12 @@ from cartography.intel.gcp.compute import transform_gcp_forwarding_rules
 from cartography.intel.gcp.gke import sync_gke_clusters
 from cartography.intel.gcp.iam import load_gcp_service_accounts
 from cartography.intel.gcp.iam import transform_gcp_service_accounts
+from cartography.intel.gcp.network_endpoint_group import (
+    load_gcp_network_endpoint_groups,
+)
+from cartography.intel.gcp.network_endpoint_group import (
+    transform_gcp_network_endpoint_groups,
+)
 from cartography.intel.gcp.policy_bindings import cleanup as cleanup_policy_bindings
 from cartography.intel.gcp.policy_bindings import load_bindings
 from cartography.intel.gcp.policy_bindings import transform_bindings
@@ -34,6 +40,8 @@ from tests.data.kubernetes.gke import GKE_FORWARDING_RULES
 from tests.data.kubernetes.gke import GKE_GCP_SERVICE_ACCOUNTS
 from tests.data.kubernetes.gke import GKE_GSA_EMAIL
 from tests.data.kubernetes.gke import GKE_INGRESSES
+from tests.data.kubernetes.gke import GKE_NEG_NAME
+from tests.data.kubernetes.gke import GKE_NEGS
 from tests.data.kubernetes.gke import GKE_NETWORK
 from tests.data.kubernetes.gke import GKE_NODES
 from tests.data.kubernetes.gke import GKE_OTHER_PROJECT_ID
@@ -75,6 +83,13 @@ def _load_gcp(session, update_tag: int, include_impersonation: bool = True) -> N
         load_gcp_forwarding_rules(
             session,
             transform_gcp_forwarding_rules(response),
+            update_tag,
+            project_id,
+        )
+    for project_id, response in GKE_NEGS.items():
+        load_gcp_network_endpoint_groups(
+            session,
+            transform_gcp_network_endpoint_groups(response, project_id),
             update_tag,
             project_id,
         )
@@ -209,6 +224,34 @@ def test_gke_service_uses_forwarding_rule_in_cluster_project_and_network(gke_gra
     # Assert: the private address also exists in another project and another VPC of
     # the same project; neither of those rules matches.
     assert result == {("ilb", "gke-ilb"), ("public", "gke-external-lb")}
+
+
+def test_gke_service_targeted_by_neg_in_cluster_project(gke_graph):
+    # Arrange
+    session = gke_graph
+
+    # Act
+    result = check_rels(
+        session,
+        "GCPNetworkEndpointGroup",
+        "id",
+        "KubernetesService",
+        "name",
+        "TARGETS",
+    )
+
+    # Assert: one edge per zone in neg-status; the same-named NEG in another project
+    # does not match.
+    assert result == {
+        (
+            f"projects/{GKE_PROJECT_ID}/zones/us-central1-a/networkEndpointGroups/{GKE_NEG_NAME}",
+            "neg",
+        ),
+        (
+            f"projects/{GKE_PROJECT_ID}/zones/us-central1-b/networkEndpointGroups/{GKE_NEG_NAME}",
+            "neg",
+        ),
+    }
 
 
 def test_gke_ingress_uses_internal_forwarding_rule_in_cluster_network(gke_graph):

@@ -5,6 +5,14 @@ from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s
+from cartography.intel.gcp.backendservice import load_gcp_backend_services
+from cartography.intel.gcp.backendservice import transform_gcp_backend_services
+from cartography.intel.gcp.network_endpoint_group import (
+    load_gcp_network_endpoint_groups,
+)
+from cartography.intel.gcp.network_endpoint_group import (
+    transform_gcp_network_endpoint_groups,
+)
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.ingress import load_ingresses
 from cartography.intel.kubernetes.namespaces import load_namespaces
@@ -334,6 +342,49 @@ def test_target_group_binding_cleanup_removes_deleted_bindings(neo4j_session):
         )
         == set()
     )
+
+
+def test_k8s_lb_expose_via_gke_neg(neo4j_session):
+    case = build_exposure_test_data()
+    project_id = case["gcp_project_id"]
+    neo4j_session.run("MERGE (:GCPProject {id: $id})", id=project_id)
+    load_gcp_network_endpoint_groups(
+        neo4j_session,
+        transform_gcp_network_endpoint_groups(case["gcp_negs"], project_id),
+        case["update_tag"],
+        project_id,
+    )
+    load_gcp_backend_services(
+        neo4j_session,
+        transform_gcp_backend_services(case["gcp_backend_services"], project_id),
+        case["update_tag"],
+        project_id,
+    )
+    _seed_exposure_graph(neo4j_session, case=case, include_ingress=False)
+    common_job_parameters = {
+        "UPDATE_TAG": case["update_tag"],
+        "CLUSTER_ID": case["cluster_id"],
+    }
+
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
+
+    result = neo4j_session.run(
+        "MATCH (svc:KubernetesService{id: $svc}) RETURN svc.exposed_internet AS exposed",
+        svc=case["svc_ing_id"],
+    )
+    assert result.single()["exposed"] is True
+    # The internal backend service's NEG targets the other service; it exposes nothing.
+    result = neo4j_session.run(
+        "MATCH (bs:GCPBackendService{project_id: $project})-[:EXPOSE]->(n) "
+        "WHERE n:KubernetesPod OR n:KubernetesContainer "
+        "RETURN bs.id AS bs_id, n.id AS id",
+        project=project_id,
+    )
+    assert {(r["bs_id"], r["id"]) for r in result} == {
+        (case["ext_bs_id"], case["pod_ing_id"]),
+        (case["ext_bs_id"], case["cont_ing_id"]),
+    }
 
 
 def test_k8s_asset_exposure_properties(neo4j_session):

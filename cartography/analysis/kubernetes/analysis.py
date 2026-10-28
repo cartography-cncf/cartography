@@ -9,11 +9,7 @@ from cartography.graph.analysis import Var
 K8S_SERVICE_ASSET_EXPOSURE = AnalysisJob(
     name="Kubernetes service internet exposure",
     short_name="k8s_service_asset_exposure",
-    scope=ScopeById(
-        "KubernetesCluster",
-        "CLUSTER_ID",
-        scope_on=("svc", "ing", "gw", "svc"),
-    ),
+    scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="svc"),
     statements=(
         AnalysisStatement(
             match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') WITH DISTINCT svc",
@@ -44,6 +40,15 @@ K8S_SERVICE_ASSET_EXPOSURE = AnalysisJob(
         ),
         AnalysisStatement(
             match="MATCH (lb:LoadBalancer)-[:ELBV2_TARGET_GROUP]->(:AWSELBV2TargetGroup)-[:TARGETS]->(svc:KubernetesService) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') WITH DISTINCT svc",
+            effects=(
+                SetProperty("svc", "exposed_internet", True, label="KubernetesService"),
+                AddToSet(
+                    "svc", "exposed_internet_type", "lb", label="KubernetesService"
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(:GCPNetworkEndpointGroup)-[:TARGETS]->(svc:KubernetesService) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED' WITH DISTINCT svc",
             effects=(
                 SetProperty("svc", "exposed_internet", True, label="KubernetesService"),
                 AddToSet(
@@ -91,11 +96,7 @@ K8S_COMPUTE_ASSET_EXPOSURE_JOBS = (
 K8S_LB_POD_EXPOSURE = AnalysisJob(
     name="Kubernetes LoadBalancer to pod EXPOSE relationships",
     short_name="k8s_lb_pod_exposure",
-    scope=ScopeById(
-        "KubernetesCluster",
-        "CLUSTER_ID",
-        scope_on=("svc", "ing", "gw", "svc"),
-    ),
+    scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="svc"),
     statements=(
         AnalysisStatement(
             match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)",
@@ -153,16 +154,26 @@ K8S_LB_POD_EXPOSURE = AnalysisJob(
                 ),
             ),
         ),
+        AnalysisStatement(
+            match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(:GCPNetworkEndpointGroup)-[:TARGETS]->(svc:KubernetesService) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED' MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)",
+            effects=(
+                AddRelationship(
+                    "bs",
+                    "EXPOSE",
+                    "pod",
+                    properties={"exposure_type": "via_lb_only"},
+                    source_label="GCPBackendService",
+                    target_label="KubernetesPod",
+                    scoped_to="target",
+                ),
+            ),
+        ),
     ),
 )
 K8S_LB_CONTAINER_EXPOSURE = AnalysisJob(
     name="Kubernetes LoadBalancer to container EXPOSE relationships",
     short_name="k8s_lb_container_exposure",
-    scope=ScopeById(
-        "KubernetesCluster",
-        "CLUSTER_ID",
-        scope_on=("svc", "ing", "gw", "svc"),
-    ),
+    scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="svc"),
     statements=(
         AnalysisStatement(
             match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
@@ -215,6 +226,20 @@ K8S_LB_CONTAINER_EXPOSURE = AnalysisJob(
                     "c",
                     properties={"exposure_type": "via_lb_only"},
                     source_label="LoadBalancer",
+                    target_label="KubernetesContainer",
+                    scoped_to="target",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match="MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(:GCPNetworkEndpointGroup)-[:TARGETS]->(svc:KubernetesService) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED' MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
+            effects=(
+                AddRelationship(
+                    "bs",
+                    "EXPOSE",
+                    "c",
+                    properties={"exposure_type": "via_lb_only"},
+                    source_label="GCPBackendService",
                     target_label="KubernetesContainer",
                     scoped_to="target",
                 ),

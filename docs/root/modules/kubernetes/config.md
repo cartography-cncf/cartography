@@ -324,6 +324,15 @@ already exist in the graph.
   Non-public addresses must also be in the cluster's VPC network, so private IPs
   reused across VPCs do not collide. Backend health and firewall reachability are
   not evaluated.
+- `GCPNetworkEndpointGroup -[:TARGETS]-> KubernetesService` from the Service's
+  `cloud.google.com/neg-status` annotation, which GKE writes for Services annotated
+  `cloud.google.com/neg`. NEG IDs are built from the cluster's project and the
+  annotation's zones and NEG names, so same-named NEGs in other projects never match.
+  This covers standalone NEGs that a load balancer built outside the cluster (for
+  example with Terraform) routes to, which no Ingress or Service status points to.
+  When a backend service with an `EXTERNAL` or `EXTERNAL_MANAGED` load balancing
+  scheme routes to the NEG, the Service, its pods, and their containers are marked as
+  exposed, and the backend service gets `EXPOSE` edges to the pods and containers.
 - `GCPPrincipal -[:MAPS_TO]-> KubernetesUser`, matched on email.
 - `KubernetesServiceAccount -[:HAS_ALLOW_POLICY]-> GCPPolicyBinding` when a binding
   member names the service account through the cluster's workload pool

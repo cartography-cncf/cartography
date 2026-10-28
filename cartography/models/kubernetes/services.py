@@ -145,6 +145,27 @@ class KubernetesServiceToGCPInternalForwardingRuleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPNetworkEndpointGroupToKubernetesServiceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPNetworkEndpointGroup)-[:TARGETS]->(:KubernetesService)
+class GCPNetworkEndpointGroupToKubernetesServiceRel(CartographyRelSchema):
+    """Links a GKE network endpoint group to the service whose pods it holds, as recorded by GKE in the service's `cloud.google.com/neg-status` annotation. Matches NEG IDs built from the GKE cluster's project, the annotation's zones and NEG names, so same-named NEGs in other projects never match. Covers standalone NEGs that a load balancer built outside the cluster routes to, as well as NEGs GKE creates for Ingress and Gateway. Only created for clusters ingested with GKE metadata."""
+
+    target_node_label: str = "GCPNetworkEndpointGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("gcp_neg_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TARGETS"
+    properties: GCPNetworkEndpointGroupToKubernetesServiceRelProperties = (
+        GCPNetworkEndpointGroupToKubernetesServiceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesServiceToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -230,5 +251,6 @@ class KubernetesServiceSchema(CartographyNodeSchema):
             KubernetesServiceToLoadBalancerV2Rel(),
             KubernetesServiceToGCPForwardingRuleRel(),
             KubernetesServiceToGCPInternalForwardingRuleRel(),
+            GCPNetworkEndpointGroupToKubernetesServiceRel(),
         ]
     )

@@ -5,6 +5,7 @@ import cartography.intel.gcp.backendservice
 import cartography.intel.gcp.cloud_armor
 import cartography.intel.gcp.compute
 import cartography.intel.gcp.instancegroup
+import cartography.intel.gcp.network_endpoint_group
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
 from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
 from cartography.util import run_typed_analysis_job
@@ -13,6 +14,7 @@ from tests.data.gcp.compute_exposure import CLOUD_ARMOR_RESPONSE
 from tests.data.gcp.compute_exposure import GLOBAL_FORWARDING_RULES_RESPONSE
 from tests.data.gcp.compute_exposure import INSTANCE_GROUP_RESPONSES
 from tests.data.gcp.compute_exposure import INSTANCE_RESPONSES
+from tests.data.gcp.compute_exposure import NETWORK_ENDPOINT_GROUP_RESPONSE
 from tests.data.gcp.compute_exposure import REGIONAL_FORWARDING_RULES_RESPONSE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -43,6 +45,13 @@ def _sync_exposure_entities(neo4j_session, common_job_parameters: dict) -> None:
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
+    cartography.intel.gcp.network_endpoint_group.sync_gcp_network_endpoint_groups(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
     cartography.intel.gcp.cloud_armor.sync_gcp_cloud_armor(
         neo4j_session,
         MagicMock(),
@@ -60,6 +69,11 @@ def _sync_exposure_entities(neo4j_session, common_job_parameters: dict) -> None:
     )
 
 
+@patch.object(
+    cartography.intel.gcp.network_endpoint_group,
+    "get_gcp_network_endpoint_groups",
+    return_value=NETWORK_ENDPOINT_GROUP_RESPONSE,
+)
 @patch.object(
     cartography.intel.gcp.instancegroup,
     "get_gcp_zonal_instance_groups",
@@ -91,6 +105,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
     mock_get_cloud_armor,
     mock_get_regional_igs,
     mock_get_zonal_igs,
+    mock_get_negs,
     neo4j_session,
 ):
     # Arrange
@@ -134,6 +149,34 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
             f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
             "test-instance-group",
             "us-central1-a",
+        ),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "GCPNetworkEndpointGroup",
+        ["id", "zone", "network_endpoint_type", "network"],
+    ) == {
+        (
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/networkEndpointGroups/test-neg",
+            "us-central1-a",
+            "GCE_VM_IP_PORT",
+            f"projects/{TEST_PROJECT_ID}/global/networks/default",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPBackendService",
+        "id",
+        "GCPNetworkEndpointGroup",
+        "id",
+        "ROUTES_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            f"projects/{TEST_PROJECT_ID}/global/backendServices/test-backend-service",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/networkEndpointGroups/test-neg",
         ),
     }
 
@@ -200,6 +243,11 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
 
 
 @patch.object(
+    cartography.intel.gcp.network_endpoint_group,
+    "get_gcp_network_endpoint_groups",
+    return_value=NETWORK_ENDPOINT_GROUP_RESPONSE,
+)
+@patch.object(
     cartography.intel.gcp.instancegroup,
     "get_gcp_zonal_instance_groups",
     return_value=INSTANCE_GROUP_RESPONSES,
@@ -242,6 +290,7 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
     mock_get_cloud_armor,
     mock_get_regional_igs,
     mock_get_zonal_igs,
+    mock_get_negs,
     neo4j_session,
 ):
     # Arrange
