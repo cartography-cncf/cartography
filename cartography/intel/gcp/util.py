@@ -565,6 +565,20 @@ def with_return_partial_success(request: HttpRequest) -> HttpRequest:
     return request
 
 
+def aggregated_page_incomplete(page: Any) -> bool:
+    """
+    Return whether an `aggregatedList` page reports missing scopes outside `items`.
+
+    With `returnPartialSuccess=true`, GCP can report unreadable scopes at the page level,
+    as a non-empty `unreachables` list or a top-level warning, instead of as a per-scope
+    warning that `merge_aggregated_scope_items()` keeps.
+    """
+    if page.get("unreachables"):
+        return True
+    code = (page.get("warning") or {}).get("code")
+    return bool(code) and code != GCP_SCOPE_NO_RESULTS_WARNING
+
+
 def aggregated_response_cleanup_safe(response: Any) -> bool:
     """
     Return whether every scope in an `aggregatedList` response was fully readable.
@@ -574,6 +588,8 @@ def aggregated_response_cleanup_safe(response: Any) -> bool:
     the response is not a complete replacement set, so deleting everything that was not
     just refreshed would drop resources that still exist.
     """
+    if response.get("incomplete"):
+        return False
     for scoped_list in response.get("items", {}).values():
         warning = scoped_list.get("warning")
         if warning and warning.get("code") != GCP_SCOPE_NO_RESULTS_WARNING:
