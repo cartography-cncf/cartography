@@ -22,6 +22,8 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+GKE_NEG_STATUS_ANNOTATION = "cloud.google.com/neg-status"
+
 
 @timeit
 def get_services(client: K8sClient) -> list[V1Service]:
@@ -90,6 +92,37 @@ def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -
     return json.dumps(loadbalancer_ingress)
 
 
+def _gcp_neg_ids(
+    annotations: dict[str, str] | None,
+    gke_scope: GKENetworkScope | None,
+) -> list[str]:
+    """
+    Build the partial URIs of the zonal NEGs GKE lists in `cloud.google.com/neg-status`.
+    The annotation holds NEG names by service port and the zones they span; the
+    project comes from the cluster, since NEGs always live in the cluster's project.
+    """
+    if gke_scope is None or not annotations:
+        return []
+    raw_status = annotations.get(GKE_NEG_STATUS_ANNOTATION)
+    if not raw_status:
+        return []
+    try:
+        status = json.loads(raw_status)
+    except json.JSONDecodeError:
+        logger.warning(
+            "Ignoring unparseable %s annotation: %r",
+            GKE_NEG_STATUS_ANNOTATION,
+            raw_status,
+        )
+        return []
+    neg_names = sorted(set((status.get("network_endpoint_groups") or {}).values()))
+    return [
+        f"projects/{gke_scope.project_id}/zones/{zone}/networkEndpointGroups/{name}"
+        for zone in status.get("zones") or []
+        for name in neg_names
+    ]
+
+
 def transform_services(
     services: list[V1Service],
     all_pods: list[dict[str, Any]],
@@ -129,6 +162,7 @@ def transform_services(
         item.update(
             gcp_forwarding_rule_match_keys(item["load_balancer_ips"], gke_scope)
         )
+        item["gcp_neg_ids"] = _gcp_neg_ids(service.metadata.annotations, gke_scope)
 
         # check if pod labels match service selector and add pod_ids to item
         pod_ids = []

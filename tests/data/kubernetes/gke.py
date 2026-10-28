@@ -1,3 +1,5 @@
+import json
+
 from kubernetes.client import V1Ingress
 from kubernetes.client import V1IngressBackend
 from kubernetes.client import V1IngressLoadBalancerIngress
@@ -37,6 +39,7 @@ GKE_LB_IP = "10.0.0.2"
 GKE_PUBLIC_LB_IP = "34.120.0.10"
 GKE_NETWORK = f"projects/{GKE_PROJECT_ID}/global/networks/default"
 GKE_OTHER_NETWORK = f"projects/{GKE_PROJECT_ID}/global/networks/other"
+GKE_NEG_NAME = "k8s1-0a1b2c3d-ns-neg-80-4e5f6a7b"
 
 GKE_CLUSTER = {
     "name": "example",
@@ -203,7 +206,53 @@ GKE_SERVICES = [
             ),
         ),
     ),
+    # A ClusterIP service with a standalone NEG that an external load balancer uses.
+    V1Service(
+        metadata=V1ObjectMeta(
+            name="neg",
+            namespace="ns",
+            uid="neg-uid",
+            annotations={
+                "cloud.google.com/neg": '{"exposed_ports": {"80": {}}}',
+                "cloud.google.com/neg-status": json.dumps(
+                    {
+                        "network_endpoint_groups": {"80": GKE_NEG_NAME},
+                        "zones": ["us-central1-a", "us-central1-b"],
+                    }
+                ),
+            },
+        ),
+        spec=V1ServiceSpec(
+            type="ClusterIP",
+            ports=[V1ServicePort(port=80, protocol="TCP")],
+        ),
+    ),
 ]
+
+# The same NEG name and zone exist in another project; only the cluster's own match.
+GKE_NEGS = {
+    project_id: {
+        "id": f"projects/{project_id}/aggregated/networkEndpointGroups",
+        "items": {
+            f"zones/{zone}": {
+                "networkEndpointGroups": [
+                    {
+                        "name": GKE_NEG_NAME,
+                        "zone": f"https://www.googleapis.com/compute/v1/projects/{project_id}/zones/{zone}",
+                        "networkEndpointType": "GCE_VM_IP_PORT",
+                        "network": f"https://www.googleapis.com/compute/v1/projects/{project_id}/global/networks/default",
+                        "size": 1,
+                    },
+                ],
+            }
+            for zone in zones
+        },
+    }
+    for project_id, zones in (
+        (GKE_PROJECT_ID, ("us-central1-a", "us-central1-b")),
+        (GKE_OTHER_PROJECT_ID, ("us-central1-a",)),
+    )
+}
 
 # A gce-internal Ingress sharing the internal load balancer address.
 GKE_INGRESSES = [

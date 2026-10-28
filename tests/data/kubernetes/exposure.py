@@ -3,6 +3,8 @@ from uuid import uuid4
 
 TEST_AWS_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
+TEST_GCP_ZONE = "us-central1-a"
+COMPUTE_URL = "https://www.googleapis.com/compute/v1"
 
 
 def build_exposure_test_data() -> dict:
@@ -26,6 +28,14 @@ def build_exposure_test_data() -> dict:
     nlb_dns = f"nlb-{case_id}.elb.{TEST_REGION}.amazonaws.com"
     alb_dns = f"alb-{case_id}.elb.{TEST_REGION}.amazonaws.com"
     alb_tg_arn = f"arn:aws:elasticloadbalancing:{TEST_REGION}:{TEST_AWS_ACCOUNT_ID}:targetgroup/test-alb-tg/{case_id}"
+
+    gcp_project_id = f"test-project-{case_id}"
+    gcp_negs_url = (
+        f"projects/{gcp_project_id}/zones/{TEST_GCP_ZONE}/networkEndpointGroups"
+    )
+    neg_ext_id = f"{gcp_negs_url}/neg-ext-{case_id}"
+    neg_int_id = f"{gcp_negs_url}/neg-int-{case_id}"
+    ext_bs_id = f"projects/{gcp_project_id}/global/backendServices/ext-bs"
 
     test_cluster = [
         {
@@ -133,6 +143,7 @@ def build_exposure_test_data() -> dict:
             "load_balancer_ip": None,
             "load_balancer_ingress": f'[{{"hostname":"{nlb_dns}"}}]',
             "load_balancer_dns_names": [nlb_dns],
+            "gcp_neg_ids": [neg_int_id],
         },
         {
             "uid": svc_ing_id,
@@ -146,6 +157,7 @@ def build_exposure_test_data() -> dict:
             "cluster_ip": "10.0.0.20",
             "pod_ids": [pod_ing_id],
             "load_balancer_ip": None,
+            "gcp_neg_ids": [neg_ext_id],
         },
     ]
 
@@ -284,6 +296,34 @@ def build_exposure_test_data() -> dict:
         },
     ]
 
+    test_gcp_negs = {
+        "id": f"projects/{gcp_project_id}/aggregated/networkEndpointGroups",
+        "items": {
+            f"zones/{TEST_GCP_ZONE}": {
+                "networkEndpointGroups": [
+                    {"name": f"neg-ext-{case_id}"},
+                    {"name": f"neg-int-{case_id}"},
+                ],
+            },
+        },
+    }
+
+    test_gcp_backend_services = {
+        "id": f"projects/{gcp_project_id}/global/backendServices",
+        "items": [
+            {
+                "name": "ext-bs",
+                "loadBalancingScheme": "EXTERNAL_MANAGED",
+                "backends": [{"group": f"{COMPUTE_URL}/{neg_ext_id}"}],
+            },
+            {
+                "name": "int-bs",
+                "loadBalancingScheme": "INTERNAL_MANAGED",
+                "backends": [{"group": f"{COMPUTE_URL}/{neg_int_id}"}],
+            },
+        ],
+    }
+
     return {
         "update_tag": update_tag,
         "cluster_id": cluster_id,
@@ -313,4 +353,8 @@ def build_exposure_test_data() -> dict:
         "duplicate_ingress": test_duplicate_ingress,
         "lb_data": test_lb_data,
         "target_group_bindings": test_target_group_bindings,
+        "gcp_project_id": gcp_project_id,
+        "ext_bs_id": ext_bs_id,
+        "gcp_negs": test_gcp_negs,
+        "gcp_backend_services": test_gcp_backend_services,
     }

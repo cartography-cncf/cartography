@@ -11,9 +11,33 @@ BACKEND_SERVICE_RESPONSE = {
                 {
                     "group": "https://www.googleapis.com/compute/v1/projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
                 },
+                {
+                    "group": "https://www.googleapis.com/compute/v1/projects/sample-project-123456/zones/us-central1-a/networkEndpointGroups/test-neg",
+                },
             ],
         },
     ],
+}
+
+NETWORK_ENDPOINT_GROUP_RESPONSE = {
+    "id": "projects/sample-project-123456/aggregated/networkEndpointGroups",
+    "items": {
+        "zones/us-central1-a": {
+            "networkEndpointGroups": [
+                {
+                    "name": "test-neg",
+                    "zone": "https://www.googleapis.com/compute/v1/projects/sample-project-123456/zones/us-central1-a",
+                    "networkEndpointType": "GCE_VM_IP_PORT",
+                    "network": "https://www.googleapis.com/compute/v1/projects/sample-project-123456/global/networks/default",
+                    "defaultPort": 8080,
+                    "size": 2,
+                },
+            ],
+        },
+        "regions/us-central1": {
+            "warning": {"code": "NO_RESULTS_ON_PAGE"},
+        },
+    },
 }
 
 INSTANCE_RESPONSES = [

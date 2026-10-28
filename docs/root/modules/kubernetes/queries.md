@@ -101,6 +101,15 @@ MATCH (lb:GCPForwardingRule)<-[:USES_LOAD_BALANCER]-(gw:KubernetesGateway)
 RETURN lb.name, lb.load_balancing_scheme, gw.name, pod.name, ksa.name
 ```
 
+From a GCP backend service through a standalone NEG to the pods and their images:
+
+```cypher
+MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(neg:GCPNetworkEndpointGroup)
+      -[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)
+      -[:CONTAINS]->(c:KubernetesContainer)
+RETURN bs.name, bs.load_balancing_scheme, neg.zone, svc.namespace, svc.name, pod.name, c.image
+```
+
 ## GKE node credentials
 
 ```cypher
