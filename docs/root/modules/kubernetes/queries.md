@@ -79,6 +79,17 @@ MATCH (pod:KubernetesPod)-[:RUNS_AS]->(ksa:KubernetesServiceAccount)
 RETURN pod.name, ksa.name, gsa.email, binding.role, binding.resource
 ```
 
+## AWS load balancer paths
+
+From an AWS load balancer through a TargetGroupBinding to the pods and their images:
+
+```cypher
+MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_TARGET_GROUP]->(tg:AWSELBV2TargetGroup)
+      -[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)
+      -[:CONTAINS]->(c:KubernetesContainer)
+RETURN lb.dnsname, lb.scheme, tg.name, svc.namespace, svc.name, pod.name, c.image
+```
+
 ## GKE load balancer paths
 
 From a GCP forwarding rule through a Gateway to the pods and their identities:

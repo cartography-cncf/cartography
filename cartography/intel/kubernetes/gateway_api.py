@@ -12,6 +12,7 @@ from cartography.intel.kubernetes.util import get_gke_network_scope
 from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import GKENetworkScope
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import list_cluster_custom_objects
 from cartography.intel.kubernetes.util import parse_rfc3339
 from cartography.models.kubernetes.gateway_api import KubernetesGatewaySchema
 from cartography.models.kubernetes.gateway_api import KubernetesHTTPRouteSchema
@@ -42,60 +43,9 @@ def _ref_matches(
     ) == kind
 
 
-def _list_cluster_custom_objects(
-    client: K8sClient,
-    group: str,
-    version: str,
-    plural: str,
-) -> list[dict[str, Any]]:
-    resource_name = f"{group}/{version}/{plural}"
-    all_resources: list[dict[str, Any]] = []
-    continue_token: str | None = None
-
-    while True:
-        kwargs: dict[str, Any] = {}
-        if continue_token:
-            kwargs["_continue"] = continue_token
-
-        try:
-            response = client.custom.list_cluster_custom_object(
-                group=group,
-                version=version,
-                plural=plural,
-                limit=100,
-                **kwargs,
-            )
-        except ApiException as err:
-            if err.status == 404:
-                logger.info(
-                    "Skipping %s for cluster %s because the CRD is not installed.",
-                    resource_name,
-                    client.name,
-                )
-                return []
-
-            logger.warning(
-                "Failed to fetch %s resources for cluster %s: %s",
-                resource_name,
-                client.name,
-                err,
-            )
-            raise
-
-        items = response.get("items", [])
-        all_resources.extend(items)
-
-        continue_token = response.get("metadata", {}).get("continue")
-        if not continue_token:
-            break
-
-    logger.debug("Fetched %d %s resources", len(all_resources), resource_name)
-    return all_resources
-
-
 @timeit
 def get_gateways(client: K8sClient) -> list[dict[str, Any]]:
-    return _list_cluster_custom_objects(
+    return list_cluster_custom_objects(
         client,
         group=GATEWAY_API_GROUP,
         version="v1",
@@ -105,7 +55,7 @@ def get_gateways(client: K8sClient) -> list[dict[str, Any]]:
 
 @timeit
 def get_http_routes(client: K8sClient) -> list[dict[str, Any]]:
-    return _list_cluster_custom_objects(
+    return list_cluster_custom_objects(
         client,
         group=GATEWAY_API_GROUP,
         version="v1",
