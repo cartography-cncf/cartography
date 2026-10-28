@@ -508,3 +508,54 @@ def k8s_paginate_pages(
         if not continue_token:
             logger.debug("No more %s resources to retrieve.", function_name)
             return
+
+
+def list_cluster_custom_objects(
+    client: K8sClient,
+    group: str,
+    version: str,
+    plural: str,
+) -> list[dict[str, Any]]:
+    resource_name = f"{group}/{version}/{plural}"
+    all_resources: list[dict[str, Any]] = []
+    continue_token: str | None = None
+
+    while True:
+        kwargs: dict[str, Any] = {}
+        if continue_token:
+            kwargs["_continue"] = continue_token
+
+        try:
+            response = client.custom.list_cluster_custom_object(
+                group=group,
+                version=version,
+                plural=plural,
+                limit=100,
+                **kwargs,
+            )
+        except ApiException as err:
+            if err.status == 404:
+                logger.info(
+                    "Skipping %s for cluster %s because the CRD is not installed.",
+                    resource_name,
+                    client.name,
+                )
+                return []
+
+            logger.warning(
+                "Failed to fetch %s resources for cluster %s: %s",
+                resource_name,
+                client.name,
+                err,
+            )
+            raise
+
+        items = response["items"]
+        all_resources.extend(items)
+
+        continue_token = response.get("metadata", {}).get("continue")
+        if not continue_token:
+            break
+
+    logger.debug("Fetched %d %s resources", len(all_resources), resource_name)
+    return all_resources
