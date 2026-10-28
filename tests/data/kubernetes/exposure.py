@@ -11,6 +11,9 @@ def build_exposure_test_data() -> dict:
 
     cluster_id = f"arn:aws:eks:{TEST_REGION}:{TEST_AWS_ACCOUNT_ID}:cluster/test-cluster-{case_id}"
     cluster_name = f"test-cluster-{case_id}"
+    other_cluster_id = f"arn:aws:eks:{TEST_REGION}:{TEST_AWS_ACCOUNT_ID}:cluster/other-cluster-{case_id}"
+    other_cluster_name = f"other-cluster-{case_id}"
+    binding_name = f"public-{case_id}"
 
     pod_lb_id = f"pod-lb-{case_id}"
     pod_ing_id = f"pod-ing-{case_id}"
@@ -236,11 +239,43 @@ def build_exposure_test_data() -> dict:
         },
     ]
 
+    test_other_cluster = [
+        {
+            "id": other_cluster_id,
+            "name": other_cluster_name,
+            "creation_timestamp": 1234567890,
+            "external_id": other_cluster_id,
+            "git_version": "v1.30.0",
+            "version_major": 1,
+            "version_minor": 30,
+            "go_version": "go1.16.5",
+            "compiler": "gc",
+            "platform": "linux/amd64",
+        },
+    ]
+
+    # Same namespace and name as the bound service, in another cluster.
+    test_other_cluster_services = [
+        {
+            "uid": f"svc-clusterip-other-{case_id}",
+            "name": f"my-clusterip-svc-{case_id}",
+            "qualified_name": f"default/my-clusterip-svc-{case_id}",
+            "creation_timestamp": 1633581666,
+            "deletion_timestamp": None,
+            "namespace": "default",
+            "type": "ClusterIP",
+            "selector": '{"app":"ing-app"}',
+            "cluster_ip": "10.0.0.20",
+            "pod_ids": [],
+            "load_balancer_ip": None,
+        },
+    ]
+
     test_target_group_bindings = [
         {
             "apiVersion": "elbv2.k8s.aws/v1beta1",
             "kind": "TargetGroupBinding",
-            "metadata": {"name": f"public-{case_id}", "namespace": "default"},
+            "metadata": {"name": binding_name, "namespace": "default"},
             "spec": {
                 "targetGroupARN": alb_tg_arn,
                 "targetType": "ip",
@@ -253,6 +288,11 @@ def build_exposure_test_data() -> dict:
         "update_tag": update_tag,
         "cluster_id": cluster_id,
         "cluster_name": cluster_name,
+        "other_cluster_id": other_cluster_id,
+        "other_cluster_name": other_cluster_name,
+        "other_cluster": test_other_cluster,
+        "other_cluster_services": test_other_cluster_services,
+        "binding_name": binding_name,
         "aws_account_id": TEST_AWS_ACCOUNT_ID,
         "region": TEST_REGION,
         "nlb_dns": nlb_dns,

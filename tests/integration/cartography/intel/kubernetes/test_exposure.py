@@ -17,6 +17,8 @@ from cartography.intel.kubernetes.target_group_bindings import (
 from cartography.util import run_typed_analysis_job
 from tests.data.kubernetes.exposure import build_exposure_test_data
 from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 
 def _seed_exposure_graph(
@@ -153,49 +155,23 @@ def _k8s_client_listing(cluster_name, items):
     return client
 
 
-def test_k8s_lb_expose_via_target_group_binding(neo4j_session):
+def test_sync_target_group_bindings_links_target_group_to_service_in_same_cluster(
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     case = build_exposure_test_data()
     _seed_exposure_graph(neo4j_session, case=case, include_ingress=False)
-    common_job_parameters = {
-        "UPDATE_TAG": case["update_tag"],
-        "CLUSTER_ID": case["cluster_id"],
-    }
-
-    sync_target_group_bindings(
+    load_kubernetes_cluster(neo4j_session, case["other_cluster"], case["update_tag"])
+    load_services(
         neo4j_session,
-        _k8s_client_listing(case["cluster_name"], case["target_group_bindings"]),
-        case["update_tag"],
-        common_job_parameters,
+        case["other_cluster_services"],
+        update_tag=case["update_tag"],
+        cluster_id=case["other_cluster_id"],
+        cluster_name=case["other_cluster_name"],
     )
-    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
-    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
 
-    result = neo4j_session.run(
-        "MATCH (tg:AWSELBV2TargetGroup{id: $tg_arn})-[r:TARGETS]->(svc:KubernetesService) "
-        "RETURN svc.id AS svc_id, svc.exposed_internet AS exposed, "
-        "r.target_type AS target_type, r.service_port AS service_port",
-        tg_arn=case["alb_tg_arn"],
-    )
-    assert [r.data() for r in result] == [
-        {
-            "svc_id": case["svc_ing_id"],
-            "exposed": True,
-            "target_type": "ip",
-            "service_port": "80",
-        },
-    ]
-    result = neo4j_session.run(
-        "MATCH (lb:AWSLoadBalancerV2{id: $alb})-[:EXPOSE]->(n) "
-        "WHERE n:KubernetesPod OR n:KubernetesContainer "
-        "RETURN n.id AS id",
-        alb=case["alb_dns"],
-    )
-    assert {r["id"] for r in result} == {case["pod_ing_id"], case["cont_ing_id"]}
-
-
-def test_target_group_binding_cleanup_removes_deleted_bindings(neo4j_session):
-    case = build_exposure_test_data()
-    _seed_exposure_graph(neo4j_session, case=case, include_ingress=False)
+    # Act
     sync_target_group_bindings(
         neo4j_session,
         _k8s_client_listing(case["cluster_name"], case["target_group_bindings"]),
@@ -203,6 +179,142 @@ def test_target_group_binding_cleanup_removes_deleted_bindings(neo4j_session):
         {"UPDATE_TAG": case["update_tag"], "CLUSTER_ID": case["cluster_id"]},
     )
 
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSELBV2TargetGroup",
+        "id",
+        "KubernetesService",
+        "id",
+        "TARGETS",
+    ) == {(case["alb_tg_arn"], case["svc_ing_id"])}
+    result = neo4j_session.run(
+        "MATCH (:AWSELBV2TargetGroup)-[r:TARGETS]->(:KubernetesService) "
+        "RETURN r.binding_name AS binding_name, r.target_type AS target_type, "
+        "r.service_port AS service_port",
+    )
+    assert [r.data() for r in result] == [
+        {
+            "binding_name": case["binding_name"],
+            "target_type": "ip",
+            "service_port": "80",
+        },
+    ]
+
+
+def test_target_group_binding_on_exposed_alb_exposes_service_pods_and_containers(
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    case = build_exposure_test_data()
+    _seed_exposure_graph(neo4j_session, case=case, include_ingress=False)
+    common_job_parameters = {
+        "UPDATE_TAG": case["update_tag"],
+        "CLUSTER_ID": case["cluster_id"],
+    }
+    sync_target_group_bindings(
+        neo4j_session,
+        _k8s_client_listing(case["cluster_name"], case["target_group_bindings"]),
+        case["update_tag"],
+        common_job_parameters,
+    )
+
+    # Act
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "KubernetesService", ["id", "exposed_internet"]
+    ) == {(case["svc_lb_id"], True), (case["svc_ing_id"], True)}
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "KubernetesPod",
+        "id",
+        "EXPOSE",
+    ) == {
+        (case["nlb_dns"], case["pod_lb_id"]),
+        (case["alb_dns"], case["pod_ing_id"]),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "KubernetesContainer",
+        "id",
+        "EXPOSE",
+    ) == {
+        (case["nlb_dns"], case["cont_lb_id"]),
+        (case["alb_dns"], case["cont_ing_id"]),
+    }
+
+
+def test_target_group_binding_on_unexposed_alb_does_not_expose_service(
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    case = build_exposure_test_data()
+    _seed_exposure_graph(
+        neo4j_session, case=case, include_ingress=False, mark_alb_exposed=False
+    )
+    common_job_parameters = {
+        "UPDATE_TAG": case["update_tag"],
+        "CLUSTER_ID": case["cluster_id"],
+    }
+    sync_target_group_bindings(
+        neo4j_session,
+        _k8s_client_listing(case["cluster_name"], case["target_group_bindings"]),
+        case["update_tag"],
+        common_job_parameters,
+    )
+
+    # Act
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "KubernetesService", ["id", "exposed_internet"]
+    ) == {(case["svc_lb_id"], True), (case["svc_ing_id"], None)}
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "KubernetesPod",
+        "id",
+        "EXPOSE",
+    ) == {(case["nlb_dns"], case["pod_lb_id"])}
+
+
+def test_target_group_binding_cleanup_removes_deleted_bindings(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    case = build_exposure_test_data()
+    _seed_exposure_graph(neo4j_session, case=case, include_ingress=False)
+
+    # Act
+    sync_target_group_bindings(
+        neo4j_session,
+        _k8s_client_listing(case["cluster_name"], case["target_group_bindings"]),
+        case["update_tag"],
+        {"UPDATE_TAG": case["update_tag"], "CLUSTER_ID": case["cluster_id"]},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSELBV2TargetGroup",
+        "id",
+        "KubernetesService",
+        "id",
+        "TARGETS",
+    ) == {(case["alb_tg_arn"], case["svc_ing_id"])}
+
+    # Act
     sync_target_group_bindings(
         neo4j_session,
         _k8s_client_listing(case["cluster_name"], []),
@@ -210,12 +322,18 @@ def test_target_group_binding_cleanup_removes_deleted_bindings(neo4j_session):
         {"UPDATE_TAG": case["update_tag"] + 1, "CLUSTER_ID": case["cluster_id"]},
     )
 
-    result = neo4j_session.run(
-        "MATCH (:AWSELBV2TargetGroup{id: $tg_arn})-[r:TARGETS]->(:KubernetesService) "
-        "RETURN count(r) AS rel_count",
-        tg_arn=case["alb_tg_arn"],
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSELBV2TargetGroup",
+            "id",
+            "KubernetesService",
+            "id",
+            "TARGETS",
+        )
+        == set()
     )
-    assert result.single()["rel_count"] == 0
 
 
 def test_k8s_asset_exposure_properties(neo4j_session):

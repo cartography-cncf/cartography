@@ -550,7 +550,7 @@ def list_cluster_custom_objects(
             )
             raise
 
-        items = response.get("items", [])
+        items = response["items"]
         all_resources.extend(items)
 
         continue_token = response.get("metadata", {}).get("continue")
