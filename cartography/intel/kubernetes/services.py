@@ -106,15 +106,9 @@ def _gcp_neg_ids(
     raw_status = annotations.get(GKE_NEG_STATUS_ANNOTATION)
     if not raw_status:
         return []
-    try:
-        status = json.loads(raw_status)
-    except json.JSONDecodeError:
-        logger.warning(
-            "Ignoring unparseable %s annotation: %r",
-            GKE_NEG_STATUS_ANNOTATION,
-            raw_status,
-        )
-        return []
+    # Fail the sync on a malformed annotation: treating it as "no NEGs" would delete
+    # existing TARGETS edges and hide the exposure path.
+    status = json.loads(raw_status)
     neg_names = sorted(set((status.get("network_endpoint_groups") or {}).values()))
     return [
         f"projects/{gke_scope.project_id}/zones/{zone}/networkEndpointGroups/{name}"

@@ -36,9 +36,9 @@ it is removed automatically on the next sync.
 
 ## Network endpoint groups
 
-Network endpoint groups (`GCPNetworkEndpointGroup`) are fetched with the Compute
-aggregated list endpoint (`compute.networkEndpointGroups.list`), with partial
-success enabled; cleanup is skipped whenever any scope returns an error. They are
+Network endpoint groups (`GCPNetworkEndpointGroup`) are fetched with
+`networkEndpointGroups.aggregatedList` (IAM permission
+`compute.networkEndpointGroups.list`), with partial success enabled; cleanup is skipped whenever any scope returns an error. They are
 synced before backend services, so `GCPBackendService -[:ROUTES_TO]->
 GCPNetworkEndpointGroup` resolves from `backends[].group` in the same sync cycle,
 alongside the existing `ROUTES_TO` edges to instance groups. The Kubernetes module

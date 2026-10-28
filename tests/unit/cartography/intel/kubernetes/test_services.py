@@ -100,34 +100,38 @@ def test_transform_services_lowercases_load_balancer_dns_names():
     ]
 
 
-@pytest.mark.parametrize(
-    "annotations, gke_scope",
-    [
-        pytest.param(
-            {"cloud.google.com/neg-status": "{not json"},
-            GKENetworkScope("example-project", None),
-            id="unparseable_neg_status",
-        ),
-        pytest.param(
-            {
-                "cloud.google.com/neg-status": '{"network_endpoint_groups": {"80": "neg"}, "zones": ["us-central1-a"]}'
-            },
-            None,
-            id="cluster_without_gke_metadata",
-        ),
-    ],
-)
-def test_transform_services_skips_neg_ids_it_cannot_scope(annotations, gke_scope):
+def test_transform_services_needs_gke_metadata_for_neg_ids():
     service = V1Service(
         metadata=V1ObjectMeta(
             uid="service-3",
             name="neg",
             namespace="default",
-            annotations=annotations,
+            annotations={
+                "cloud.google.com/neg-status": '{"network_endpoint_groups": {"80": "neg"}, "zones": ["us-central1-a"]}'
+            },
         ),
         spec=V1ServiceSpec(type="ClusterIP", selector={"app": "neg"}),
     )
 
-    [transformed] = transform_services([service], all_pods=[], gke_scope=gke_scope)
+    [transformed] = transform_services([service], all_pods=[], gke_scope=None)
 
     assert transformed["gcp_neg_ids"] == []
+
+
+def test_transform_services_fails_on_unparseable_neg_status():
+    service = V1Service(
+        metadata=V1ObjectMeta(
+            uid="service-4",
+            name="neg",
+            namespace="default",
+            annotations={"cloud.google.com/neg-status": "{not json"},
+        ),
+        spec=V1ServiceSpec(type="ClusterIP", selector={"app": "neg"}),
+    )
+
+    with pytest.raises(json.JSONDecodeError):
+        transform_services(
+            [service],
+            all_pods=[],
+            gke_scope=GKENetworkScope("example-project", None),
+        )
