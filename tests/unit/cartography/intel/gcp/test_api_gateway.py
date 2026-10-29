@@ -318,6 +318,57 @@ def test_get_apis_and_get_gateways_follow_every_page():
     assert [g["name"] for g in gateways] == ["g1", "g2"]
 
 
+def test_get_api_configs_follows_every_page():
+    apigateway = MagicMock()
+    configs_resource = apigateway.projects().locations().apis().configs()
+    configs_resource.list_next.side_effect = [MagicMock(), None]
+    first_page = {"apiConfigs": [{"name": CONFIG_A1}]}
+    with patch.object(
+        api_gateway,
+        "gcp_api_execute_with_retry",
+        side_effect=[
+            first_page,
+            {"apiConfigs": [{"name": CONFIG_A2}]},
+            {"name": CONFIG_A1},
+            {"name": CONFIG_A2},
+        ],
+    ):
+        configs, incomplete = api_gateway.get_api_configs(apigateway, "p", [API_A])
+
+    assert [c["name"] for c in configs] == [CONFIG_A1, CONFIG_A2]
+    assert incomplete is False
+    configs_resource.list_next.assert_any_call(
+        previous_request=configs_resource.list.return_value,
+        previous_response=first_page,
+    )
+
+
+def test_get_api_configs_flags_unreachable_locations_as_incomplete():
+    """
+    The unreachable page comes first so a later clean page cannot clear the
+    flag. A missed flag lets cleanup delete configs that still exist.
+    """
+    apigateway = MagicMock()
+    apigateway.projects().locations().apis().configs().list_next.side_effect = [
+        MagicMock(),
+        None,
+    ]
+    with patch.object(
+        api_gateway,
+        "gcp_api_execute_with_retry",
+        side_effect=[
+            {"apiConfigs": [{"name": CONFIG_A1}], "unreachableLocations": ["x"]},
+            {"apiConfigs": [{"name": CONFIG_A2}]},
+            {"name": CONFIG_A1},
+            {"name": CONFIG_A2},
+        ],
+    ):
+        configs, incomplete = api_gateway.get_api_configs(apigateway, "p", [API_A])
+
+    assert [c["name"] for c in configs] == [CONFIG_A1, CONFIG_A2]
+    assert incomplete is True
+
+
 @pytest.mark.parametrize(
     ("raw", "email"),
     [
