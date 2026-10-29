@@ -3,7 +3,6 @@ import logging
 from typing import Any
 
 import neo4j
-from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1Node
 
 from cartography.client.core.tx import load
@@ -11,7 +10,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_gpu_quantity
-from cartography.intel.kubernetes.util import is_skippable_list_error
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.nodes import KubernetesNodeSchema
@@ -22,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_nodes(client: K8sClient) -> list[V1Node]:
-    return k8s_paginate(client.core.list_node, raise_on_error=True)
+    return k8s_paginate(client.core.list_node)
 
 
 def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:
@@ -106,21 +104,8 @@ def sync_nodes(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> dict[str, str] | None:
-    """Return None when the list failed and the previous Nodes were kept."""
-    try:
-        raw_nodes = get_nodes(client)
-    except ApiException as e:
-        if not is_skippable_list_error(e):
-            raise
-        # A partial list would let cleanup delete the Nodes it did not return.
-        logger.warning(
-            "Kubernetes API error listing nodes on cluster %s (status %s). "
-            "Skipping the node sync and keeping previously synced nodes.",
-            client.name,
-            e.status,
-        )
-        return None
+) -> dict[str, str]:
+    raw_nodes = get_nodes(client)
     transformed = transform_nodes(raw_nodes, client.name)
     load_nodes(
         session,

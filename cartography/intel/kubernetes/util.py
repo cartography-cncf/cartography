@@ -333,17 +333,6 @@ def parse_rfc3339(value: str | None) -> datetime | None:
     return isoparse(value)
 
 
-def is_skippable_list_error(error: ApiException) -> bool:
-    """
-    Whether a sync whose list call failed should keep its previous objects rather
-    than fail: the failure is a missing permission (401/403) or transient (no HTTP
-    status, an expired continue token, throttling, or a server error). Any other
-    status points at a problem a later run will not fix on its own, so it fails.
-    """
-    status = error.status or 0
-    return status in (0, 401, 403, 410, 429) or 500 <= status < 600
-
-
 def k8s_paginate(
     list_func: Callable,
     raise_on_forbidden: bool = False,

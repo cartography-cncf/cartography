@@ -510,7 +510,7 @@ def _(effect: PropertyEffect, scope: ScopeById | None) -> str:
     node = f"(node:{effect.node_label})"
     match = f"MATCH {node}"
     if scope and effect.node_label == scope.label:
-        # A property on the scope node itself, such as a per-cluster marker.
+        # A property on the scope node itself, such as a per-account marker.
         match = f"MATCH {_scope_match(scope, 'node')}"
     elif scope:
         match = f"MATCH {_scope_match(scope, 'scope')}-[:{scope.rel_label}]->{node}"

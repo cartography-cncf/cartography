@@ -66,6 +66,5 @@ previously supplied only by `aws-auth`.
 ```{toctree}
 config
 queries
-analysis
 schema
 ```

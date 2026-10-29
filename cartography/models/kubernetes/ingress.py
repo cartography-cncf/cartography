@@ -63,10 +63,6 @@ class KubernetesIngressNodeProperties(CartographyNodeProperties):
         "load_balancer_dns_names",
         description="List of DNS hostnames from the Ingress status. Used to match to cloud load balancers (e.g., AWS ALB).",
     )
-    load_balancer_ips: PropertyRef = PropertyRef(
-        "load_balancer_ips",
-        description="List of IP addresses from the Ingress status entries that have no hostname, such as those an in-cluster controller publishes. They are not matched to cloud load balancers.",
-    )
     # AWS Load Balancer Controller group name
     ingress_group_name: PropertyRef = PropertyRef(
         "ingress_group_name",

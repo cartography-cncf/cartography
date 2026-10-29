@@ -1,9 +1,7 @@
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
-from kubernetes.client.exceptions import ApiException
 
 import cartography.intel.kubernetes.ingress
 from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s
@@ -598,64 +596,4 @@ def test_load_ingress_to_mixed_case_loadbalancer_relationship(
         rel_direction_right=True,
     ) == {
         ("alb-ingress-mixed-case", MIXED_CASE_LB_DNS_NAME),
-    }
-
-
-def _list_returning(items):
-    return lambda **kwargs: SimpleNamespace(
-        items=items, metadata=SimpleNamespace(_continue=None)
-    )
-
-
-def _list_failing_with(status):
-    def list_ingress_for_all_namespaces(**kwargs):
-        raise ApiException(status=status)
-
-    return list_ingress_for_all_namespaces
-
-
-def test_sync_ingress_keeps_the_previous_ingresses_when_the_list_fails(
-    neo4j_session, _create_test_cluster
-):
-    # Arrange
-    neo4j_session.run("MATCH (i:KubernetesIngress) DETACH DELETE i")
-    client = SimpleNamespace(
-        name=KUBERNETES_CLUSTER_NAMES[0],
-        networking=SimpleNamespace(
-            list_ingress_for_all_namespaces=_list_returning(KUBERNETES_INGRESS_RAW),
-        ),
-    )
-
-    # Act
-    synced = sync_ingress(
-        neo4j_session,
-        client,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]},
-    )
-
-    # Assert
-    assert synced is True
-    assert check_nodes(neo4j_session, "KubernetesIngress", ["name"]) == {
-        ("my-ingress",),
-        ("simple-ingress",),
-    }
-
-    # Arrange: the service account lost permission to list Ingresses. Loading
-    # nothing and cleaning up would delete them.
-    client.networking.list_ingress_for_all_namespaces = _list_failing_with(403)
-
-    # Act
-    synced = sync_ingress(
-        neo4j_session,
-        client,
-        TEST_UPDATE_TAG + 1,
-        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0]},
-    )
-
-    # Assert
-    assert synced is False
-    assert check_nodes(neo4j_session, "KubernetesIngress", ["name"]) == {
-        ("my-ingress",),
-        ("simple-ingress",),
     }

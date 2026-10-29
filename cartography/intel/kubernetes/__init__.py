@@ -5,8 +5,6 @@ from neo4j import Session
 
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
-from cartography.analysis.kubernetes.analysis import K8S_NO_MODELED_INTERNET_PATH
-from cartography.analysis.kubernetes.analysis import K8S_UNMODELED_INTERNET_PATHS
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
@@ -109,7 +107,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 replicaset_owner_map=replicaset_owner_map,
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
-            services_synced = sync_services(
+            sync_services(
                 session,
                 client,
                 all_pods,
@@ -123,33 +121,13 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
-            gateway_api_synced = sync_gateway_api(
-                session, client, config.update_tag, common_job_parameters
-            )
-            ingresses_synced = sync_ingress(
-                session, client, config.update_tag, common_job_parameters
-            )
+            sync_gateway_api(session, client, config.update_tag, common_job_parameters)
+            sync_ingress(session, client, config.update_tag, common_job_parameters)
 
             for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
                 run_typed_analysis_job(job, session, common_job_parameters)
             for job in K8S_LB_EXPOSURE_JOBS:
                 run_typed_analysis_job(job, session, common_job_parameters)
-            # A list that failed kept the previous objects, which the cluster check
-            # cannot vouch for, so it withdraws the cluster's previous result.
-            run_typed_analysis_job(
-                K8S_UNMODELED_INTERNET_PATHS,
-                session,
-                {
-                    **common_job_parameters,
-                    "CHECK_INPUTS_SYNCED": node_arch_map is not None
-                    and services_synced
-                    and gateway_api_synced
-                    and ingresses_synced,
-                },
-            )
-            run_typed_analysis_job(
-                K8S_NO_MODELED_INTERNET_PATH, session, common_job_parameters
-            )
         except Exception:
             logger.exception(f"Failed to sync data for k8s cluster {client.name}...")
             raise

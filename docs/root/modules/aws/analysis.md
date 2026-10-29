@@ -99,7 +99,7 @@ The IDs are the distribution ARN, the integration ID
 (`apiId/resourceId/httpMethod`) and the v2 API ID.
 
 The check also vouches for the account's load balancers, their IP targets and
-its network interfaces, which the ECS and Kubernetes analyses read. It runs only
+its network interfaces, which the ECS analysis reads. It runs only
 when `cloudfront`, `apigateway`, `apigatewayv2`, `ec2:load_balancer_v2`,
 `ec2:load_balancer_v2:expose`, `ec2:network_interface` and `ec2:subnet` were all
 synced. IP targets resolve through the VPC of the target's subnet, which only
@@ -114,16 +114,15 @@ synced the task, and sets `true` only when that check's count is `0`. An account
 counts as clear for a load balancer only when its count is `0` and its check is
 at least as recent as the load balancer. An account that was never checked, or
 whose check is older, counts as unknown, and the tasks behind its load balancers
-get `false`. The Kubernetes analysis reads the same properties for the AWS load
-balancers in front of pods.
+get `false`.
 
 ## Load balancers in front of load balancer interfaces
 
 A load balancer can list another load balancer's private IPs as IP targets. This
 is the static IP pattern for an ALB, where an NLB's IP target group lists the
 private IPs of the ALB's interfaces. The graph does not link a load balancer's
-interfaces to it, so the ALB and its targets would look private. The ECS and
-Kubernetes analyses therefore treat every `internal` load balancer in an account
+interfaces to it, so the ALB and its targets would look private. The ECS
+analysis therefore treats every `internal` load balancer in an account
 as one that may face the internet when a load balancer interface of that
 account (an `AWSNetworkInterface` with `requester_id` `amazon-elb`) is reached,
 as an IP target or through an `alb` target group chained in front of one, by a
@@ -137,10 +136,10 @@ An `internal` one in the same account does not count: whatever reaches it is one
 of the account's entry points, one of its load balancer interfaces, or a load
 balancer chained in front of it, which the rules above already cover.
 
-The rule spans accounts, so it is evaluated each time the ECS and Kubernetes
-jobs run, not in the account check, and nothing about it is recorded on the
-account. A load balancer synced with another account counts as soon as its IP
-target is linked, whichever account synced first.
+The rule spans accounts, so it is evaluated each time the ECS job runs, not in
+the account check, and nothing about it is recorded on the account. A load
+balancer synced with another account counts as soon as its IP target is linked,
+whichever account synced first.
 
 ## Paths the checks do not see
 

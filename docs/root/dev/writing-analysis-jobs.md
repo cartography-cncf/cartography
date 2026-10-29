@@ -181,7 +181,7 @@ AnalysisStatement(
 
 `AWS_ECS_NO_MODELED_INTERNET_PATH` in `cartography/analysis/aws/analysis.py` writes its `no_modeled_internet_path` result the same way.
 
-A scoped job can also write on the scope node itself. When the statement matches the `scope_on` variable with the scope label, for example `MATCH (cluster:KubernetesCluster)` in a job scoped to `KubernetesCluster`, the compiler anchors that node by its ID instead of through `RESOURCE`, and cleans up property effects on the scope label on the scope node. Use this for a per-account or per-cluster result that every evaluated owner records, including owners where nothing was found.
+A scoped job can also write on the scope node itself. When the statement matches the `scope_on` variable with the scope label, for example `MATCH (account:AWSAccount)` in a job scoped to `AWSAccount`, the compiler anchors that node by its ID instead of through `RESOURCE`, and cleans up property effects on the scope label on the scope node. Use this for a per-account or per-cluster result that every evaluated owner records, including owners where nothing was found.
 
 Do not add handwritten cleanup statements to a typed job when an existing effect can express the change.
 
