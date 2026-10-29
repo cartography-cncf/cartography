@@ -1,8 +1,33 @@
+import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from googleapiclient.errors import HttpError
+
 import cartography.intel.gcp.api_gateway as api_gateway
 import tests.data.gcp.api_gateway as test_data
+
+API_A = "projects/p/locations/global/apis/a"
+API_B = "projects/p/locations/global/apis/b"
+CONFIG_A1 = "projects/1/locations/global/apis/a/configs/c1"
+CONFIG_A2 = "projects/1/locations/global/apis/a/configs/c2"
+CONFIG_B1 = "projects/1/locations/global/apis/b/configs/c1"
+
+
+def _http_error(status: int, reason: str | None = None) -> HttpError:
+    resp = MagicMock()
+    resp.status = status
+    payload: dict = {"error": {"code": status}}
+    if reason:
+        payload["error"]["errors"] = [{"reason": reason}]
+    return HttpError(resp=resp, content=json.dumps(payload).encode("utf-8"))
+
+
+def _single_page_client() -> MagicMock:
+    apigateway = MagicMock()
+    apigateway.projects().locations().apis().configs().list_next.return_value = None
+    return apigateway
 
 
 def test_transform_apis_shapes_records():
@@ -135,31 +160,178 @@ def test_get_apis_complete_listing_is_not_flagged():
     assert incomplete is False
 
 
-def test_sync_suppresses_cleanup_when_a_listing_is_incomplete():
+@pytest.mark.parametrize(
+    ("apis_incomplete", "configs_incomplete", "gateways_incomplete", "cleaned"),
+    [
+        (False, False, False, {"Gateway", "ApiConfig", "Api"}),
+        # Configs are listed per Api, so a partial Api listing leaves configs
+        # unlisted as well. Gateways are listed on their own and still clean up.
+        (True, False, False, {"Gateway"}),
+        (False, True, False, {"Gateway", "Api"}),
+        (False, False, True, {"ApiConfig", "Api"}),
+        (True, True, True, set()),
+    ],
+)
+def test_sync_cleans_up_only_what_was_listed_completely(
+    apis_incomplete, configs_incomplete, gateways_incomplete, cleaned
+):
+    """
+    Cleanup deletes whatever the run did not touch. Suppressing it for every
+    type whenever any one listing is partial would let a long regional outage
+    block cleanup of resources that were listed in full.
+    """
     with (
-        patch.object(api_gateway, "get_apis", return_value=([], True)),
-        patch.object(api_gateway, "get_api_configs", return_value=([], False)),
-        patch.object(api_gateway, "get_gateways", return_value=([], False)),
+        patch.object(api_gateway, "get_apis", return_value=([], apis_incomplete)),
+        patch.object(
+            api_gateway, "get_api_configs", return_value=([], configs_incomplete)
+        ),
+        patch.object(
+            api_gateway, "get_gateways", return_value=([], gateways_incomplete)
+        ),
         patch.object(api_gateway, "load_apis"),
         patch.object(api_gateway, "load_api_configs"),
         patch.object(api_gateway, "load_gateways"),
-        patch.object(api_gateway, "cleanup_api_gateway") as mock_cleanup,
+        patch.object(api_gateway, "GraphJob") as mock_graph_job,
     ):
         api_gateway.sync(MagicMock(), MagicMock(), "p", 1, {})
 
-    mock_cleanup.assert_not_called()
+    ran = {
+        type(call.args[0]).__name__.removeprefix("GCPApiGateway").removesuffix("Schema")
+        for call in mock_graph_job.from_node_schema.call_args_list
+    }
+    assert ran == cleaned
 
 
-def test_sync_runs_cleanup_when_every_listing_is_complete():
-    with (
-        patch.object(api_gateway, "get_apis", return_value=([], False)),
-        patch.object(api_gateway, "get_api_configs", return_value=([], False)),
-        patch.object(api_gateway, "get_gateways", return_value=([], False)),
-        patch.object(api_gateway, "load_apis"),
-        patch.object(api_gateway, "load_api_configs"),
-        patch.object(api_gateway, "load_gateways"),
-        patch.object(api_gateway, "cleanup_api_gateway") as mock_cleanup,
+def test_get_api_configs_skips_an_api_deleted_mid_sync():
+    """
+    An Api deleted between apis.list and configs.list answers 404. Its configs
+    are gone with it, so the sync moves on without raising, and the listing is
+    still complete for cleanup purposes.
+    """
+    with patch.object(
+        api_gateway,
+        "gcp_api_execute_with_retry",
+        side_effect=[
+            _http_error(404),
+            {"apiConfigs": [{"name": CONFIG_B1}]},
+            {"name": CONFIG_B1},
+        ],
     ):
-        api_gateway.sync(MagicMock(), MagicMock(), "p", 1, {})
+        configs, incomplete = api_gateway.get_api_configs(
+            _single_page_client(), "p", [API_A, API_B]
+        )
 
-    mock_cleanup.assert_called_once()
+    assert [(c["name"], c["parentApi"]) for c in configs] == [(CONFIG_B1, API_B)]
+    assert incomplete is False
+
+
+def test_get_api_configs_skips_a_config_deleted_mid_sync():
+    with patch.object(
+        api_gateway,
+        "gcp_api_execute_with_retry",
+        side_effect=[
+            {"apiConfigs": [{"name": CONFIG_A1}, {"name": CONFIG_A2}]},
+            _http_error(404),
+            {"name": CONFIG_A2},
+        ],
+    ):
+        configs, incomplete = api_gateway.get_api_configs(
+            _single_page_client(), "p", [API_A]
+        )
+
+    assert [c["name"] for c in configs] == [CONFIG_A2]
+    assert incomplete is False
+
+
+@pytest.mark.parametrize(
+    "error",
+    [_http_error(503), _http_error(403, "forbidden")],
+    ids=["transient", "permission-denied"],
+)
+def test_a_failed_full_fetch_keeps_the_config_with_the_document_unknown(error):
+    """
+    The config is known to exist from configs.list, so a failed FULL fetch must
+    neither abort the project's sync (every GCP service after API Gateway would
+    be skipped) nor report the config as having no OpenAPI document.
+    """
+    with patch.object(
+        api_gateway,
+        "gcp_api_execute_with_retry",
+        side_effect=[{"apiConfigs": [{"name": CONFIG_A1}]}, error],
+    ):
+        configs, incomplete = api_gateway.get_api_configs(
+            _single_page_client(), "p", [API_A]
+        )
+
+    assert [c["name"] for c in configs] == [CONFIG_A1]
+    assert incomplete is False
+    transformed = api_gateway.transform_api_configs(configs)[0]
+    assert transformed["hasOpenapiDocument"] is None
+    assert transformed["openapiDocumentPath"] is None
+
+
+def test_get_api_configs_records_each_configs_own_parent():
+    with patch.object(
+        api_gateway,
+        "gcp_api_execute_with_retry",
+        side_effect=[
+            {"apiConfigs": [{"name": CONFIG_A1}]},
+            {"name": CONFIG_A1},
+            {"apiConfigs": [{"name": CONFIG_B1}]},
+            {"name": CONFIG_B1},
+        ],
+    ):
+        configs, _ = api_gateway.get_api_configs(
+            _single_page_client(), "p", [API_A, API_B]
+        )
+
+    assert {c["name"]: c["parentApi"] for c in configs} == {
+        CONFIG_A1: API_A,
+        CONFIG_B1: API_B,
+    }
+
+
+def test_get_apis_and_get_gateways_follow_every_page():
+    apigateway = MagicMock()
+    apigateway.projects().locations().apis().list_next.side_effect = [
+        MagicMock(),
+        None,
+    ]
+    apigateway.projects().locations().gateways().list_next.side_effect = [
+        MagicMock(),
+        None,
+    ]
+    with patch.object(
+        api_gateway,
+        "gcp_api_execute_with_retry",
+        side_effect=[
+            {"apis": [{"name": API_A}]},
+            {"apis": [{"name": API_B}]},
+            {"gateways": [{"name": "g1"}]},
+            {"gateways": [{"name": "g2"}]},
+        ],
+    ):
+        apis, _ = api_gateway.get_apis(apigateway, "p")
+        gateways, _ = api_gateway.get_gateways(apigateway, "p")
+
+    assert [a["name"] for a in apis] == [API_A, API_B]
+    assert [g["name"] for g in gateways] == ["g1", "g2"]
+
+
+@pytest.mark.parametrize(
+    ("raw", "email"),
+    [
+        (
+            "projects/-/serviceAccounts/gw@p.iam.gserviceaccount.com",
+            "gw@p.iam.gserviceaccount.com",
+        ),
+        ("gw@p.iam.gserviceaccount.com", "gw@p.iam.gserviceaccount.com"),
+        (None, None),
+    ],
+)
+def test_transform_api_configs_extracts_the_backend_service_account_email(raw, email):
+    config = {"name": CONFIG_A1, "parentApi": API_A, "gatewayServiceAccount": raw}
+
+    result = api_gateway.transform_api_configs([config])[0]
+
+    assert result["gatewayServiceAccountEmail"] == email

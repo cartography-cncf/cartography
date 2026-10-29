@@ -98,14 +98,22 @@ class GCPApiGatewayApiConfigNodeProperties(CartographyNodeProperties):
     )
     gateway_service_account: PropertyRef = PropertyRef(
         "gatewayServiceAccount",
-        description="Service account the gateway uses when calling backends.",
+        description="Service account the gateway uses when calling backends, as the API returns it.",
+    )
+    gateway_service_account_email: PropertyRef = PropertyRef(
+        "gatewayServiceAccountEmail",
+        description="Email of the backend service account, used to link the config to its GCPServiceAccount.",
     )
     # configs.list omits openapiDocuments entirely and configs.get defaults to
     # view=BASIC, which also omits it. Both of these are only populated when the
     # module successfully fetched the config with view=FULL.
     has_openapi_document: PropertyRef = PropertyRef(
         "hasOpenapiDocument",
-        description="Whether an OpenAPI document was returned for this config. False for gRPC-backed configs.",
+        description=(
+            "Whether an OpenAPI document was returned for this config. False for "
+            "gRPC-backed configs. Null when the full view could not be fetched, so "
+            "the answer is unknown."
+        ),
     )
     openapi_document_path: PropertyRef = PropertyRef(
         "openapiDocumentPath",
@@ -161,6 +169,26 @@ class GCPApiGatewayApiConfigToApiRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPApiGatewayApiConfigToServiceAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPApiGatewayApiConfigToServiceAccountRel(CartographyRelSchema):
+    """The service account that gateways serving this config use to call backends."""
+
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("gatewayServiceAccountEmail")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SERVICE_ACCOUNT"
+    properties: GCPApiGatewayApiConfigToServiceAccountRelProperties = (
+        GCPApiGatewayApiConfigToServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPApiGatewayApiConfigSchema(CartographyNodeSchema):
     """A Google Cloud API Gateway ApiConfig: the deployable configuration for an Api."""
 
@@ -172,7 +200,10 @@ class GCPApiGatewayApiConfigSchema(CartographyNodeSchema):
         GCPApiGatewayApiConfigToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPApiGatewayApiConfigToApiRel()]
+        [
+            GCPApiGatewayApiConfigToApiRel(),
+            GCPApiGatewayApiConfigToServiceAccountRel(),
+        ]
     )
 
 

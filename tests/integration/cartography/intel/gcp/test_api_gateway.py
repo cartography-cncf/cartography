@@ -10,6 +10,69 @@ TEST_UPDATE_TAG = 123456789
 TEST_PROJECT_ID = "test-project-123"
 
 
+def _sync_gateways_only(neo4j_session, gateways, incomplete, update_tag):
+    with (
+        patch.object(
+            cartography.intel.gcp.api_gateway, "get_apis", return_value=([], False)
+        ),
+        patch.object(
+            cartography.intel.gcp.api_gateway,
+            "get_api_configs",
+            return_value=([], False),
+        ),
+        patch.object(
+            cartography.intel.gcp.api_gateway,
+            "get_gateways",
+            return_value=(gateways, incomplete),
+        ),
+    ):
+        cartography.intel.gcp.api_gateway.sync(
+            neo4j_session,
+            MagicMock(),
+            TEST_PROJECT_ID,
+            update_tag,
+            {"UPDATE_TAG": update_tag, "PROJECT_ID": TEST_PROJECT_ID},
+        )
+
+
+def test_cleanup_stays_in_its_project_and_waits_for_a_complete_listing(
+    neo4j_session,
+):
+    """
+    Cleanup must never touch another project's gateways, and must keep a gateway
+    that only looks gone because a location was unreachable.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    other = "projects/other-project/locations/us-east1/gateways/keep"
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject{id: 'other-project'})
+        MERGE (p)-[:RESOURCE]->(g:GCPApiGatewayGateway{id: $gw})
+        SET g.lastupdated = 1
+        """,
+        gw=other,
+    )
+    gateways = tests.data.gcp.api_gateway.LIST_GATEWAYS_RESPONSE
+    orders, internal = gateways[0]["name"], gateways[1]["name"]
+
+    _sync_gateways_only(neo4j_session, gateways, False, 100)
+    # internal-gw is missing, but the listing reported an unreachable location.
+    _sync_gateways_only(neo4j_session, gateways[:1], True, 200)
+    assert check_nodes(neo4j_session, "GCPApiGatewayGateway", ["id"]) == {
+        (orders,),
+        (internal,),
+        (other,),
+    }
+
+    # Now the listing is complete, so internal-gw really is gone.
+    _sync_gateways_only(neo4j_session, gateways[:1], False, 300)
+    assert check_nodes(neo4j_session, "GCPApiGatewayGateway", ["id"]) == {
+        (orders,),
+        (other,),
+    }
+
+
 def _create_test_project(neo4j_session):
     neo4j_session.run(
         """
@@ -121,6 +184,15 @@ def test_sync_api_gateway_relationships(
 ):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MERGE (sa:GCPServiceAccount{id: $sa_id})
+        SET sa.email = $email, sa.lastupdated = $update_tag
+        """,
+        sa_id="sa-gw",
+        email="gw@test-project-123.iam.gserviceaccount.com",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     cartography.intel.gcp.api_gateway.sync(
         neo4j_session,
@@ -163,6 +235,23 @@ def test_sync_api_gateway_relationships(
         (
             "projects/test-project-123/locations/global/apis/internal-api",
             "projects/123456789012/locations/global/apis/internal-api/configs/v1",
+        ),
+    }
+
+    # The config-to-service-account edge is the identity a gateway calls its
+    # backends with, which is what an attack path through the gateway runs on.
+    # Only the orders config names a service account; the other names none.
+    assert check_rels(
+        neo4j_session,
+        "GCPApiGatewayApiConfig",
+        "id",
+        "GCPServiceAccount",
+        "email",
+        "USES_SERVICE_ACCOUNT",
+    ) == {
+        (
+            "projects/123456789012/locations/global/apis/orders-api/configs/v1",
+            "gw@test-project-123.iam.gserviceaccount.com",
         ),
     }
 

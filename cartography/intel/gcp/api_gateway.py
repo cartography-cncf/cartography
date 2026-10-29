@@ -127,6 +127,14 @@ def get_api_configs(
                     .list_next(previous_request=req, previous_response=res)
                 )
         except HttpError as e:
+            if classify_gcp_http_error(e) == "not_found":
+                # Deleted after apis.list ran. Its configs went with it, so
+                # nothing is missing from the result.
+                logger.debug(
+                    "Api %s was deleted during the sync; skipping its configs.",
+                    api_name,
+                )
+                continue
             _handle_project_scoped_error(e, project_id, "api configs")
             # This Api's configs are missing from the result set, so cleanup
             # would delete config nodes that still exist upstream.
@@ -143,15 +151,22 @@ def get_api_configs(
                     .get(name=config["name"], view="FULL")
                 )
             except HttpError as e:
-                if not is_permission_denied_error(e):
-                    raise
+                if classify_gcp_http_error(e) == "not_found":
+                    logger.debug(
+                        "Api config %s was deleted during the sync; skipping it.",
+                        config["name"],
+                    )
+                    continue
+                # configs.list just returned this config, so it exists. Keep the
+                # list view with the document marked unknown. Raising here would
+                # skip every GCP service that syncs after API Gateway.
                 logger.warning(
-                    "No apigateway.apiconfigs.get access to %s, "
-                    "falling back to the list view without the OpenAPI document. %s",
+                    "Could not fetch the full view of %s; keeping the list view "
+                    "with the OpenAPI document unknown. %s",
                     config["name"],
                     summarize_gcp_http_error(e),
                 )
-                full = config
+                full = {**config, "openapiDocumentsUnknown": True}
             # The live API names configs with the project number but Apis with the
             # project id, so the config name cannot be trimmed back to its Api id.
             # Record the Api it was listed under instead.
@@ -207,6 +222,14 @@ def transform_apis(apis: List[Dict]) -> List[Dict[str, Any]]:
     ]
 
 
+def _service_account_email(value: str | None) -> str | None:
+    # The API returns projects/{project}/serviceAccounts/{email}. A bare email is
+    # accepted as well, since that is the form gcloud takes.
+    if not value:
+        return None
+    return value.rsplit("/", 1)[-1]
+
+
 def transform_api_configs(configs: List[Dict]) -> List[Dict[str, Any]]:
     transformed = []
     for config in configs:
@@ -221,7 +244,12 @@ def transform_api_configs(configs: List[Dict]) -> List[Dict[str, Any]]:
                 "state": config.get("state"),
                 "serviceConfigId": config.get("serviceConfigId"),
                 "gatewayServiceAccount": config.get("gatewayServiceAccount"),
-                "hasOpenapiDocument": bool(docs),
+                "gatewayServiceAccountEmail": _service_account_email(
+                    config.get("gatewayServiceAccount")
+                ),
+                "hasOpenapiDocument": (
+                    None if config.get("openapiDocumentsUnknown") else bool(docs)
+                ),
                 "openapiDocumentPath": first_doc.get("path"),
                 "createTime": config.get("createTime"),
                 "updateTime": config.get("updateTime"),
@@ -300,16 +328,21 @@ def load_gateways(
 def cleanup_api_gateway(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
+    *,
+    apis: bool = True,
+    configs: bool = True,
+    gateways: bool = True,
 ) -> None:
     logger.debug("Running GCP API Gateway cleanup job.")
     # Gateways first, then configs, then apis: cleanup follows the reverse of the
     # dependency order so relationships are removed before their targets.
-    for schema in (
-        GCPApiGatewayGatewaySchema(),
-        GCPApiGatewayApiConfigSchema(),
-        GCPApiGatewayApiSchema(),
+    for run, schema in (
+        (gateways, GCPApiGatewayGatewaySchema()),
+        (configs, GCPApiGatewayApiConfigSchema()),
+        (apis, GCPApiGatewayApiSchema()),
     ):
-        GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+        if run:
+            GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
 
 
 @timeit
@@ -340,14 +373,25 @@ def sync(
         neo4j_session, transform_gateways(gateways), project_id, gcp_update_tag
     )
 
-    # Cleanup deletes anything not touched by this run, so it is only safe when
-    # every listing was complete. A partial result plus cleanup silently removes
-    # inventory that still exists.
-    if apis_incomplete or configs_incomplete or gateways_incomplete:
+    # Cleanup deletes anything this run did not touch, so each type is cleaned only
+    # when its own listing was complete. Configs are listed per Api, so a partial
+    # Api listing leaves configs unlisted too.
+    clean_apis = not apis_incomplete
+    clean_configs = not (apis_incomplete or configs_incomplete)
+    clean_gateways = not gateways_incomplete
+    if not (clean_apis and clean_configs and clean_gateways):
         logger.warning(
-            "Skipping GCP API Gateway cleanup for project %s: at least one "
-            "listing was incomplete.",
+            "Partial GCP API Gateway cleanup for project %s after an incomplete "
+            "listing: apis=%s configs=%s gateways=%s.",
             project_id,
+            clean_apis,
+            clean_configs,
+            clean_gateways,
         )
-        return
-    cleanup_api_gateway(neo4j_session, common_job_parameters)
+    cleanup_api_gateway(
+        neo4j_session,
+        common_job_parameters,
+        apis=clean_apis,
+        configs=clean_configs,
+        gateways=clean_gateways,
+    )
