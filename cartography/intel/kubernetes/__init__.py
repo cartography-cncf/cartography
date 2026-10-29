@@ -4,6 +4,7 @@ from typing import Iterator
 import boto3
 from neo4j import Session
 
+from cartography.analysis.kubernetes.analysis import K8S_AKS_LOAD_BALANCER
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_GKE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
@@ -168,6 +169,9 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             # Runs for every cluster so generated cleanup also clears stale edges.
             for job in K8S_GKE_JOBS:
                 run_typed_analysis_job(job, session, common_job_parameters)
+            run_typed_analysis_job(
+                K8S_AKS_LOAD_BALANCER, session, common_job_parameters
+            )
 
             for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
                 run_typed_analysis_job(job, session, common_job_parameters)

@@ -121,3 +121,14 @@ RETURN cloud.name, cloud.autopilot_enabled, node.name,
 ```
 
 Node pools in `GCE_METADATA` mode expose the node service account to pods.
+
+## AKS load balancer paths
+
+From an internet-facing Azure load balancer or Application Gateway to the pods behind it:
+
+```cypher
+MATCH (lb:LoadBalancer)<-[:USES_LOAD_BALANCER]-(src)
+WHERE (lb:AzureLoadBalancer OR lb:AzureApplicationGateway) AND lb.exposed_internet = true
+MATCH (lb)-[:EXPOSE]->(pod:KubernetesPod)
+RETURN lb.name, labels(src), src.name, pod.namespace, pod.name
+```

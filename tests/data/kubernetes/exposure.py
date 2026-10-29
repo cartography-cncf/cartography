@@ -1,3 +1,4 @@
+import copy
 import datetime
 from uuid import uuid4
 
@@ -357,4 +358,132 @@ def build_exposure_test_data() -> dict:
         "ext_bs_id": ext_bs_id,
         "gcp_negs": test_gcp_negs,
         "gcp_backend_services": test_gcp_backend_services,
+    }
+
+
+TEST_AKS_SUBSCRIPTION_ID = "00000000-0000-0000-0000-00000000a115"
+TEST_OTHER_SUBSCRIPTION_ID = "00000000-0000-0000-0000-00000000b226"
+
+
+def _azure_lb(subscription_id: str, resource_group: str, name: str, frontend: dict):
+    lb_id = (
+        f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+        f"/providers/Microsoft.Network/loadBalancers/{name}"
+    )
+    return {
+        "id": lb_id,
+        "name": name,
+        "location": "eastus",
+        "sku": {"name": "Standard"},
+        "frontend_ip_configurations": [
+            {"id": f"{lb_id}/frontendIPConfigurations/fe", "name": "fe", **frontend}
+        ],
+    }
+
+
+def _azure_public_ip(subscription_id: str, resource_group: str, name: str, ip: str):
+    return {
+        "id": (
+            f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+            f"/providers/Microsoft.Network/publicIPAddresses/{name}"
+        ),
+        "name": name,
+        "location": "eastus",
+        "ip_address": ip,
+    }
+
+
+def build_aks_exposure_test_data() -> dict:
+    """
+    An AKS cluster whose LoadBalancer Services and AGIC Ingress are fronted by Azure
+    load balancers and an Application Gateway, plus decoys that reuse the same
+    addresses outside the cluster's subscription or node resource group.
+    """
+    case = build_exposure_test_data()
+    case_id = case["cluster_name"].rsplit("-", 1)[-1]
+    node_rg = f"MC_rg-aks_aks-{case_id}_eastus"
+    public_ip = "20.42.0.10"
+    agic_ip = "20.42.0.11"
+    internal_ip = "10.224.0.50"
+
+    sub, other_sub = TEST_AKS_SUBSCRIPTION_ID, TEST_OTHER_SUBSCRIPTION_ID
+    lb_pip = _azure_public_ip(sub, node_rg, f"kubernetes-{case_id}", public_ip)
+    agic_pip = _azure_public_ip(sub, "rg-ingress", f"appgw-pip-{case_id}", agic_ip)
+    decoy_pip = _azure_public_ip(other_sub, "rg-other", f"reused-{case_id}", public_ip)
+
+    public_lb = _azure_lb(
+        sub, node_rg, "kubernetes", {"public_ip_address": {"id": lb_pip["id"]}}
+    )
+    internal_lb = _azure_lb(
+        sub, node_rg, "kubernetes-internal", {"private_ip_address": internal_ip}
+    )
+    decoy_public_lb = _azure_lb(
+        other_sub, "rg-other", "reused", {"public_ip_address": {"id": decoy_pip["id"]}}
+    )
+    decoy_internal_lb = _azure_lb(
+        sub, "rg-other-vnet", "internal", {"private_ip_address": internal_ip}
+    )
+
+    appgw_id = (
+        f"/subscriptions/{sub}/resourceGroups/rg-ingress"
+        f"/providers/Microsoft.Network/applicationGateways/agic-{case_id}"
+    )
+    appgw = {
+        "id": appgw_id,
+        "name": f"agic-{case_id}",
+        "location": "eastus",
+        "sku": {"name": "Standard_v2", "tier": "Standard_v2"},
+        "frontend_ip_configurations": [
+            {
+                "id": f"{appgw_id}/frontendIPConfigurations/public",
+                "name": "public",
+                "public_ip_address": {"id": agic_pip["id"]},
+            },
+        ],
+    }
+
+    svc_internal_id = f"svc-internal-{case_id}"
+    services = copy.deepcopy(case["services"])
+    services[0].update(
+        load_balancer_ips=[public_ip],
+        load_balancer_ingress=f'[{{"ip":"{public_ip}"}}]',
+        load_balancer_dns_names=[],
+    )
+    services.append(
+        {
+            **services[0],
+            "uid": svc_internal_id,
+            "name": f"my-internal-svc-{case_id}",
+            "load_balancer_ips": [internal_ip],
+            "load_balancer_ingress": f'[{{"ip":"{internal_ip}"}}]',
+        },
+    )
+    ingress = {
+        **case["ingress"],
+        "ingress_class_name": "azure-application-gateway",
+        "load_balancer_ips": [agic_ip],
+        "load_balancer_dns_names": [],
+    }
+
+    return {
+        **case,
+        "subscription_id": sub,
+        "other_subscription_id": other_sub,
+        "node_provider_id": (
+            f"azure:///subscriptions/{sub}/resourceGroups/{node_rg}/providers"
+            "/Microsoft.Compute/virtualMachineScaleSets/aks-nodepool1-vmss"
+            "/virtualMachines/0"
+        ),
+        "public_ips": {sub: [lb_pip, agic_pip], other_sub: [decoy_pip]},
+        "load_balancers": {
+            sub: [public_lb, internal_lb, decoy_internal_lb],
+            other_sub: [decoy_public_lb],
+        },
+        "application_gateway": appgw,
+        "public_lb_id": public_lb["id"],
+        "internal_lb_id": internal_lb["id"],
+        "appgw_id": appgw_id,
+        "svc_internal_id": svc_internal_id,
+        "services": services,
+        "ingress": ingress,
     }
