@@ -4,8 +4,8 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 # APIGateway fields:
 # name - The name of the gateway
-# hostname - The DNS name clients actually call. Absent where the provider does
-#   not store a resolvable address on the gateway resource itself.
+# hostname - The DNS name clients actually call. Left unmapped where the node does
+#   not store it as a bare DNS name.
 # state - The provider-native lifecycle state. NOT normalized: AWS REST APIs have
 #   no lifecycle state at all, GCP uses CREATING/ACTIVE/FAILED/DELETING/UPDATING,
 #   and Azure APIM uses a different set again. Left raw, as with LoadBalancer.lb_type.
@@ -39,11 +39,13 @@ aws_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="apiendpoint"
-                ),
-                OntologyFieldMapping(
                     ontology_field="created_at", node_field="createddate"
                 ),
+                # hostname: not mapped. apiendpoint holds a full URL
+                # (https://{api-id}.execute-api.{region}.amazonaws.com), and no
+                # mapping option extracts the host. A host parsed at ingestion
+                # could still be wrong: DisableExecuteApiEndpoint turns the default
+                # endpoint off, and the v2 module does not ingest that flag.
                 # state: HTTP and WebSocket APIs have no lifecycle state field.
             ],
         ),
