@@ -773,9 +773,9 @@ AWS_LB_NACL_DIRECT_DEPS = {
     "ec2:subnet",
 }
 # The account's check of internet entry points that the graph cannot follow also
-# vouches for the load balancers, IP targets and interfaces that the ECS and
-# Kubernetes checks read, so it runs only when all of these were synced. IP targets
-# resolve through the VPC of the target's subnet, which only the subnet sync records.
+# vouches for the load balancers, IP targets and interfaces that the ECS check
+# reads, so it runs only when all of these were synced. IP targets resolve through
+# the VPC of the target's subnet, which only the subnet sync records.
 # The check records when it ran, so consumers never mistake an unchecked account for
 # a clear one.
 AWS_UNMODELED_INTERNET_PATHS_DEPS = {

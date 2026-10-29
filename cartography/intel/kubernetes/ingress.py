@@ -3,7 +3,6 @@ import logging
 from typing import Any
 
 import neo4j
-from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1HTTPIngressRuleValue
 from kubernetes.client.models import V1Ingress
 from kubernetes.client.models import V1IngressBackend
@@ -14,7 +13,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.dns_utils import normalize_hostname_values
 from cartography.intel.kubernetes.util import get_epoch
-from cartography.intel.kubernetes.util import is_skippable_list_error
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.ingress import KubernetesIngressSchema
@@ -24,9 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_ingress(client: K8sClient) -> list[V1Ingress]:
-    items = k8s_paginate(
-        client.networking.list_ingress_for_all_namespaces, raise_on_error=True
-    )
+    items = k8s_paginate(client.networking.list_ingress_for_all_namespaces)
     return items
 
 
@@ -107,16 +103,6 @@ def _extract_load_balancer_dns_names(
     return dns_names
 
 
-def _extract_load_balancer_ips(
-    ingress_status: list[V1IngressLoadBalancerIngress] | None,
-) -> list[str]:
-    """
-    Extract the IPs of the ingress load balancer status entries that have no hostname.
-    They cannot be matched to a cloud load balancer node.
-    """
-    return [item.ip for item in ingress_status or [] if item.ip and not item.hostname]
-
-
 def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
     transformed_ingresses: list[dict[str, Any]] = []
 
@@ -140,12 +126,8 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
 
         # extract load balancer DNS names from status for cloud LB matching
         load_balancer_dns_names: list[str] = []
-        load_balancer_ips: list[str] = []
         if item.status and item.status.load_balancer:
             load_balancer_dns_names = _extract_load_balancer_dns_names(
-                item.status.load_balancer.ingress
-            )
-            load_balancer_ips = _extract_load_balancer_ips(
                 item.status.load_balancer.ingress
             )
 
@@ -171,7 +153,6 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,
-                "load_balancer_ips": load_balancer_ips,
             }
         )
     return transformed_ingresses
@@ -208,21 +189,8 @@ def sync_ingress(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> bool:
-    """Return False when the list failed and the previous Ingresses were kept."""
-    try:
-        ingresses = get_ingress(client)
-    except ApiException as e:
-        if not is_skippable_list_error(e):
-            raise
-        # A partial list would let cleanup delete the Ingresses it did not return.
-        logger.warning(
-            "Kubernetes API error listing ingresses on cluster %s (status %s). "
-            "Skipping the ingress sync and keeping previously synced ingresses.",
-            client.name,
-            e.status,
-        )
-        return False
+) -> None:
+    ingresses = get_ingress(client)
     transformed_ingresses = transform_ingresses(ingresses)
     load_ingresses(
         neo4j_session,
@@ -232,4 +200,3 @@ def sync_ingress(
         cluster_name=client.name,
     )
     cleanup(neo4j_session, common_job_parameters)
-    return True

@@ -57,10 +57,6 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Whether the pod shares the host network namespace. Derived from `pod.spec.host_network`.",
     )
-    host_ports: PropertyRef = PropertyRef(
-        "host_ports",
-        description="Host ports declared by the pod's containers and native sidecars (init containers with `restartPolicy: Always`, which are not ingested as `KubernetesContainer` nodes). Derived from `ports[].host_port`.",
-    )
     seccomp_profile_type: PropertyRef = PropertyRef(
         "seccomp_profile_type",
         description="Pod-level seccomp profile type when set, such as `RuntimeDefault`. Derived from `pod.spec.security_context.seccomp_profile.type`.",

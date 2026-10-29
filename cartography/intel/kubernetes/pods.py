@@ -37,25 +37,6 @@ def _get_claim_name_by_volume_name(pod: V1Pod) -> dict[str, str]:
     return claims
 
 
-def _get_pod_host_ports(pod: V1Pod) -> list[int]:
-    # A native sidecar is an init container with restartPolicy Always. It runs for the
-    # pod's whole life, but it is not ingested as a KubernetesContainer. The client
-    # has deserialized restartPolicy on containers since 28.1.0, the minimum version.
-    containers = list(pod.spec.containers or []) + [
-        container
-        for container in getattr(pod.spec, "init_containers", None) or []
-        if container.restart_policy == "Always"
-    ]
-    return sorted(
-        {
-            port.host_port
-            for container in containers
-            for port in getattr(container, "ports", None) or []
-            if port.host_port is not None
-        }
-    )
-
-
 def _extract_pod_containers(
     pod: V1Pod,
     cluster_name: str,
@@ -436,7 +417,6 @@ def transform_pods(
                 "host_pid": getattr(pod.spec, "host_pid", None),
                 "host_ipc": getattr(pod.spec, "host_ipc", None),
                 "host_network": getattr(pod.spec, "host_network", None),
-                "host_ports": _get_pod_host_ports(pod),
                 "seccomp_profile_type": (
                     getattr(pod.spec.security_context.seccomp_profile, "type", None)
                     if getattr(pod.spec, "security_context", None)
