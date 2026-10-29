@@ -23,8 +23,9 @@ effective route path or evaluate firewall rules.
 `AzureLoadBalancer` and `AzureApplicationGateway` carry the `LoadBalancer` ontology
 label. `exposed_internet` is `true` on either when a frontend IP configuration has a
 public IP address. The Kubernetes module links AKS Services, Ingresses, and Gateways to
-them through `USES_LOAD_BALANCER` and reuses this signal for pod and container
-exposure; see the Kubernetes module's AKS section.
+`AzureLoadBalancer`, and AGIC Ingresses to `AzureApplicationGateway`, through
+`USES_LOAD_BALANCER`. Pod and container exposure reuses this signal; see the
+Kubernetes module's AKS section.
 
 ## Application Gateway Routing
 
