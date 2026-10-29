@@ -21,11 +21,15 @@ LIST_APIS_RESPONSE = [
     },
 ]
 
-# Returned by configs.get(view=FULL). configs.list has no view parameter and
-# omits openapiDocuments entirely, which is why the module fetches per config.
+# Returned by get_api_configs: configs.get(view=FULL) responses plus the Api each
+# config was listed under. configs.list has no view parameter and omits
+# openapiDocuments entirely, which is why the module fetches per config.
+# The live API names configs (and a gateway's apiConfig) with the project number,
+# while Api and gateway names use the project id. The fixtures keep that split.
 LIST_API_CONFIGS_RESPONSE = [
     {
-        "name": "projects/test-project-123/locations/global/apis/orders-api/configs/v1",
+        "name": "projects/123456789012/locations/global/apis/orders-api/configs/v1",
+        "parentApi": "projects/test-project-123/locations/global/apis/orders-api",
         "createTime": "2024-01-01T00:00:00Z",
         "updateTime": "2024-01-01T00:00:00Z",
         "displayName": "v1",
@@ -45,7 +49,8 @@ LIST_API_CONFIGS_RESPONSE = [
     },
     {
         # No openapiDocuments: a gRPC-backed config.
-        "name": "projects/test-project-123/locations/global/apis/internal-api/configs/v1",
+        "name": "projects/123456789012/locations/global/apis/internal-api/configs/v1",
+        "parentApi": "projects/test-project-123/locations/global/apis/internal-api",
         "createTime": "2024-03-01T00:00:00Z",
         "updateTime": "2024-03-01T00:00:00Z",
         "serviceConfigId": "internal-api-4d5e6f-2024-03-01r0",
@@ -60,7 +65,7 @@ LIST_GATEWAYS_RESPONSE = [
         "createTime": "2024-01-03T00:00:00Z",
         "updateTime": "2024-01-04T00:00:00Z",
         "displayName": "Orders Gateway",
-        "apiConfig": "projects/test-project-123/locations/global/apis/orders-api/configs/v1",
+        "apiConfig": "projects/123456789012/locations/global/apis/orders-api/configs/v1",
         "state": "ACTIVE",
         "defaultHostname": "orders-gw-1a2b3c.uc.gateway.dev",
         "labels": {"env": "prod"},
@@ -70,7 +75,7 @@ LIST_GATEWAYS_RESPONSE = [
         "name": "projects/test-project-123/locations/europe-west1/gateways/internal-gw",
         "createTime": "2024-03-02T00:00:00Z",
         "updateTime": "2024-03-02T00:00:00Z",
-        "apiConfig": "projects/test-project-123/locations/global/apis/internal-api/configs/v1",
+        "apiConfig": "projects/123456789012/locations/global/apis/internal-api/configs/v1",
         "state": "CREATING",
     },
 ]

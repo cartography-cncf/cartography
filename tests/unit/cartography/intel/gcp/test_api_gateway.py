@@ -28,7 +28,12 @@ def test_transform_apis_tolerates_missing_optional_fields():
     assert internal["state"] == "CREATING"
 
 
-def test_transform_api_configs_derives_api_id():
+def test_transform_api_configs_links_to_the_api_it_was_listed_under():
+    """
+    Config names carry the project number and Api names the project id, so
+    trimming a config name never matches its Api node. The link must come from
+    the Api the config was listed under.
+    """
     result = api_gateway.transform_api_configs(test_data.LIST_API_CONFIGS_RESPONSE)
 
     assert (
@@ -39,6 +44,7 @@ def test_transform_api_configs_derives_api_id():
         result[1]["apiId"]
         == "projects/test-project-123/locations/global/apis/internal-api"
     )
+    assert not result[0]["id"].startswith(result[0]["apiId"])
 
 
 def test_transform_api_configs_records_openapi_document_presence():
@@ -85,13 +91,14 @@ def test_get_api_configs_requests_full_view():
             {"name": "projects/p/locations/global/apis/a/configs/c", "state": "ACTIVE"},
         ],
     ):
-        api_gateway.get_api_configs(
+        configs, _ = api_gateway.get_api_configs(
             apigateway, "p", ["projects/p/locations/global/apis/a"]
         )
 
     configs_resource.get.assert_called_once_with(
         name="projects/p/locations/global/apis/a/configs/c", view="FULL"
     )
+    assert configs[0]["parentApi"] == "projects/p/locations/global/apis/a"
 
 
 def test_get_apis_flags_unreachable_locations_as_incomplete():

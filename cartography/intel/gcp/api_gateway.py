@@ -142,18 +142,21 @@ def get_api_configs(
                     .configs()
                     .get(name=config["name"], view="FULL")
                 )
-                configs.append(full)
             except HttpError as e:
-                if is_permission_denied_error(e):
-                    logger.warning(
-                        "No apigateway.apiconfigs.get access to %s, "
-                        "falling back to the list view without the OpenAPI document. %s",
-                        config["name"],
-                        summarize_gcp_http_error(e),
-                    )
-                    configs.append(config)
-                else:
+                if not is_permission_denied_error(e):
                     raise
+                logger.warning(
+                    "No apigateway.apiconfigs.get access to %s, "
+                    "falling back to the list view without the OpenAPI document. %s",
+                    config["name"],
+                    summarize_gcp_http_error(e),
+                )
+                full = config
+            # The live API names configs with the project number but Apis with the
+            # project id, so the config name cannot be trimmed back to its Api id.
+            # Record the Api it was listed under instead.
+            full["parentApi"] = api_name
+            configs.append(full)
     return configs, incomplete
 
 
@@ -213,8 +216,7 @@ def transform_api_configs(configs: List[Dict]) -> List[Dict[str, Any]]:
             {
                 "id": config["name"],
                 "name": config["name"],
-                # projects/*/locations/global/apis/<api>/configs/<config>
-                "apiId": config["name"].rsplit("/configs/", 1)[0],
+                "apiId": config["parentApi"],
                 "displayName": config.get("displayName"),
                 "state": config.get("state"),
                 "serviceConfigId": config.get("serviceConfigId"),

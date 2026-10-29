@@ -74,11 +74,11 @@ def test_sync_api_gateway(
         ["id", "has_openapi_document"],
     ) == {
         (
-            "projects/test-project-123/locations/global/apis/orders-api/configs/v1",
+            "projects/123456789012/locations/global/apis/orders-api/configs/v1",
             True,
         ),
         (
-            "projects/test-project-123/locations/global/apis/internal-api/configs/v1",
+            "projects/123456789012/locations/global/apis/internal-api/configs/v1",
             False,
         ),
     }
@@ -158,11 +158,11 @@ def test_sync_api_gateway_relationships(
     ) == {
         (
             "projects/test-project-123/locations/global/apis/orders-api",
-            "projects/test-project-123/locations/global/apis/orders-api/configs/v1",
+            "projects/123456789012/locations/global/apis/orders-api/configs/v1",
         ),
         (
             "projects/test-project-123/locations/global/apis/internal-api",
-            "projects/test-project-123/locations/global/apis/internal-api/configs/v1",
+            "projects/123456789012/locations/global/apis/internal-api/configs/v1",
         ),
     }
 
@@ -178,11 +178,11 @@ def test_sync_api_gateway_relationships(
     ) == {
         (
             "projects/test-project-123/locations/us-central1/gateways/orders-gw",
-            "projects/test-project-123/locations/global/apis/orders-api/configs/v1",
+            "projects/123456789012/locations/global/apis/orders-api/configs/v1",
         ),
         (
             "projects/test-project-123/locations/europe-west1/gateways/internal-gw",
-            "projects/test-project-123/locations/global/apis/internal-api/configs/v1",
+            "projects/123456789012/locations/global/apis/internal-api/configs/v1",
         ),
     }
 
