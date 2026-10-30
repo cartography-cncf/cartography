@@ -106,7 +106,7 @@ That load balancer can differ from the one the DNS record resolves to:
 ```cypher
 MATCH (ing:KubernetesIngress)-[:MATCHES_HOSTNAME]->(dns:DNSRecord)
 WHERE dns._ont_name = 'app.example.com'
-OPTIONAL MATCH (ing)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer)
+OPTIONAL MATCH (ing)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2)
 RETURN ing.namespace, ing.name, lb.dnsname, lb.scheme
 ```
 

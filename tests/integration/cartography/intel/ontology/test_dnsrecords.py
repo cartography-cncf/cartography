@@ -145,10 +145,9 @@ def test_sync_resolves_shared_hostname_to_record_target_not_ingress_lb(
     neo4j_session,
 ):
     """
-    A record aliases an internet-facing ALB bound to Services through a
-    TargetGroupBinding, while an Ingress declaring the same host is implemented by a
-    separate internal ALB. The record resolves only to the ALB it targets; the Ingress
-    is correlated by hostname and keeps its own load balancer.
+    A record aliases an internet-facing ALB, while an Ingress declaring the same host
+    uses a separate internal ALB. The record resolves only to the ALB it targets; the
+    Ingress is correlated by hostname and keeps its own load balancer.
     """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")

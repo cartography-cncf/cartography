@@ -128,7 +128,7 @@ class KubernetesIngressToKubernetesServiceRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesIngress)-[:TARGETS]->(:KubernetesService)
 class KubernetesIngressToKubernetesServiceRel(CartographyRelSchema):
-    """Links an ingress to a service named as a backend in its routing rules. This is declared configuration, not a network hop: traffic reaches the service through the load balancer the controller provisions."""
+    """Links an ingress to a service named as a backend in its routing rules or default backend. This is declared configuration, not a network hop: traffic reaches the service through the ingress controller's data path, such as a cloud load balancer or controller pods."""
 
     target_node_label: str = "KubernetesService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
