@@ -88,11 +88,13 @@ class AutoScalingGroupNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when at least one member EC2 instance is exposed. `False` otherwise.",
     )  # Populated by the AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="The paths by which member instances are exposed, inherited from them.",
     )  # Populated by the AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP analysis job.
