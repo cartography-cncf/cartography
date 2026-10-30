@@ -314,3 +314,28 @@ optional permissions above for full coverage. See
 - [Fine-grained PAT limitations](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations)
 - [Creating a GitHub App](https://docs.github.com/en/apps/creating-github-apps)
 - [GitHub dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph)
+
+
+## Workflow permission summaries
+
+The existing workflow `permissions_*` properties summarize YAML declarations across
+jobs, independently of job order. A job with no `permissions` key inherits the
+workflow block. A job with an explicit block replaces that default; unlisted scopes
+are `none`. An explicit `permissions: {}` disables every supported scope. If neither
+level declares permissions, Cartography leaves the provider defaults unknown.
+
+For each supported scope, Cartography reports `write` when any job requests it.
+Otherwise it reports null if any job has unknown defaults, then `read` if any job
+requests read, or `none` when every job explicitly denies that scope. With no valid
+jobs, the properties retain explicit workflow declarations. Missing or unparseable
+workflow content leaves all permission properties null.
+
+The `id-token` scope supports only `write` or `none`; `read-all` assigns it `none`.
+An explicit `id-token: read` block is invalid and stays unknown, consistently with
+other invalid permission blocks. It does not become a valid declared read level.
+
+These fields summarize declared configuration, not effective runtime authorization.
+Repository/organization token defaults, event and fork/Dependabot restrictions,
+conditional execution and reusable-workflow permission ceilings can change actual
+access. Reusable-workflow calls describe the caller's declarations only. See
+[GitHub's permission calculation rules](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#how-permissions-are-calculated-for-a-workflow-job).
