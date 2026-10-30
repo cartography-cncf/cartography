@@ -29,27 +29,23 @@ def _forbidden_error() -> APIError:
     return error
 
 
-@pytest.mark.parametrize(  # type: ignore[misc]
-    ("getter", "report_path", "unavailable"),
+OPTIONAL_REPORTS = pytest.mark.parametrize(
+    ("getter", "report_path"),
     (
         (
             users.get_user_mfa_registrations,
             ("reports", "authentication_methods", "user_registration_details"),
-            None,
         ),
-        (users.get_risky_users, ("identity_protection", "risky_users"), None),
+        (users.get_risky_users, ("identity_protection", "risky_users")),
         (
             service_principals.get_risky_service_principals,
             ("identity_protection", "risky_service_principals"),
-            None,
         ),
     ),
 )
-@pytest.mark.parametrize("status", [403, 401, 429, 500])  # type: ignore[misc]
-def test_optional_reports_tolerate_only_denial(
-    getter, report_path: tuple[str, ...], unavailable: Any, status: int
-) -> None:
-    # Arrange
+
+
+def _client_whose_report_fails(report_path: tuple[str, ...], status: int) -> Any:
     client = MagicMock()
     report = client
     for attribute in report_path:
@@ -57,13 +53,35 @@ def test_optional_reports_tolerate_only_denial(
     report.get = AsyncMock(
         side_effect=APIError("request failed", response_status_code=status)
     )
+    return client
+
+
+@OPTIONAL_REPORTS  # type: ignore[misc]
+@pytest.mark.parametrize("status", [403, 429])  # type: ignore[misc]
+def test_optional_reports_are_unavailable_when_denied_or_throttled(
+    getter, report_path: tuple[str, ...], status: int
+) -> None:
+    # Arrange
+    client = _client_whose_report_fails(report_path, status)
+
+    # Act
+    report = asyncio.run(getter(client))
+
+    # Assert
+    assert report is None
+
+
+@OPTIONAL_REPORTS  # type: ignore[misc]
+@pytest.mark.parametrize("status", [401, 500])  # type: ignore[misc]
+def test_optional_reports_propagate_other_errors(
+    getter, report_path: tuple[str, ...], status: int
+) -> None:
+    # Arrange
+    client = _client_whose_report_fails(report_path, status)
 
     # Act and assert
-    if status == 403:
-        assert asyncio.run(getter(client)) == unavailable
-    else:
-        with pytest.raises(APIError):
-            asyncio.run(getter(client))
+    with pytest.raises(APIError, match="request failed"):
+        asyncio.run(getter(client))
 
 
 def test_users_propagates_denial_from_later_page() -> None:

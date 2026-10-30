@@ -160,6 +160,9 @@ async def get_optional_id_map(
 
     These reports need extra permissions or licensing that the base inventory
     does not, so a 403 returns None instead of failing the caller's sync.
+    A 429 that outlasts the Graph SDK's own Retry-After handling returns None
+    too: the reporting endpoints throttle far harder than the directory APIs,
+    and one throttled enrichment should not discard the rest of the inventory.
     Other errors propagate.
     """
     rows: dict[str, dict[str, Any]] = {}
@@ -174,6 +177,13 @@ async def get_optional_id_map(
                 if value.id:
                     rows[value.id] = transform(value)
     except APIError as error:
+        if error.response_status_code == 429:
+            logger.warning(
+                "Microsoft Graph %s request is still throttled after retries; "
+                "skipping it for this sync.",
+                resource_description,
+            )
+            return None
         if error.response_status_code != 403:
             raise
         logger.warning(

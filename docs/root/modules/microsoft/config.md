@@ -104,12 +104,14 @@ inventory:
 | `/identityProtection/riskyUsers` | `IdentityRiskyUser.Read.All` | Entra ID P2 | `EntraUser.risk_level`, `risk_state`, `risk_detail`, `risk_last_updated_date_time` |
 | `/identityProtection/riskyServicePrincipals` | `IdentityRiskyServicePrincipal.Read.All` | Workload Identities Premium | The same risk properties on `EntraServicePrincipal` |
 
-If a report returns `403 Forbidden`, Cartography logs a warning, clears its
+If a report returns `403 Forbidden`, or is still throttled with `429 Too Many
+Requests` after the Graph SDK's retries, Cartography logs a warning, clears its
 properties, and still syncs users and service principals. Other errors
 propagate. Clearing follows the sign-in activity behavior above: a value the
 sync could not observe is not kept, so a revoked permission cannot leave a stale
 `atRisk` state in place. Each report has an availability flag that is false when
-it was denied, so a null property then means unknown rather than absent:
+it was denied or throttled, so a null property then means unknown rather than
+absent:
 
 - `EntraUser.mfa_registration_available` for the registration report
 - `EntraUser.risk_available` for the riskyUsers report
