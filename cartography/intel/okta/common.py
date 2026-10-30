@@ -22,6 +22,9 @@ from okta.models.bookmark_application_settings import BookmarkApplicationSetting
 from okta.models.bookmark_application_settings_application import (
     BookmarkApplicationSettingsApplication,
 )
+from okta.models.device import Device
+from okta.models.device_list import DeviceList
+from okta.models.device_profile import DeviceProfile
 from okta.models.open_id_connect_application_settings import (
     OpenIdConnectApplicationSettings,
 )
@@ -183,6 +186,16 @@ def _patch_okta_sdk_user_factor_models() -> None:
         _relax_enum_fields(model_cls, "status")
 
 
+def _patch_okta_sdk_device_models() -> None:
+    """Accept device platforms returned by Okta but rejected by SDK 3.4.x."""
+    # Okta reports LINUX for Linux devices, but DevicePlatform only declares
+    # ANDROID, IOS, MACOS and WINDOWS, so one Linux device aborts the whole
+    # okta sync.
+    _relax_enum_fields(DeviceProfile, "platform")
+    Device.model_rebuild(force=True)
+    DeviceList.model_rebuild(force=True)
+
+
 def _patch_okta_sdk_authenticator_models() -> None:
     """Accept the uppercase TAC provider type returned by Okta."""
     _remove_field_validator(
@@ -200,6 +213,10 @@ _patch_okta_sdk_user_factor_models()
 # DEPRECATED: Remove this Okta SDK 3.x compatibility shim in v1.0.0 after
 # okta/okta-sdk-python#579 is released upstream.
 _patch_okta_sdk_authenticator_models()
+
+# DEPRECATED: Remove this Okta SDK 3.x compatibility shim in v1.0.0 once
+# DevicePlatform declares LINUX upstream.
+_patch_okta_sdk_device_models()
 
 
 @lru_cache(maxsize=4)
