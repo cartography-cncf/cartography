@@ -3352,15 +3352,20 @@ class CLI:
             # Read Jamf API client secret or password
             jamf_password = None
             jamf_client_secret = None
-            if jamf_base_uri and jamf_client_id:
-                if jamf_client_secret_env_var:
-                    logger.debug(
-                        "Reading client secret for Jamf from environment variable %s",
-                        jamf_client_secret_env_var,
-                    )
-                    jamf_client_secret = os.environ.get(jamf_client_secret_env_var)
-                if not jamf_client_secret:
-                    logger.warning("A Jamf client secret could not be found.")
+            if bool(jamf_client_id) != bool(jamf_client_secret_env_var):
+                raise typer.BadParameter(
+                    "--jamf-client-id and --jamf-client-secret-env-var must be set "
+                    "together.",
+                )
+            if jamf_client_id and not jamf_base_uri:
+                raise typer.BadParameter(
+                    "--jamf-client-id requires --jamf-base-uri.",
+                )
+            if jamf_client_secret_env_var:
+                jamf_client_secret = _read_access_token_env_var(
+                    "Jamf",
+                    jamf_client_secret_env_var,
+                )
             elif jamf_base_uri:
                 if jamf_user and jamf_password_env_var:
                     logger.debug(
