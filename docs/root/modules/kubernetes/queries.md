@@ -90,6 +90,26 @@ MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_TARGET_GROUP]->(tg:AWSELBV2TargetGroup)
 RETURN lb.dnsname, lb.scheme, tg.name, svc.namespace, svc.name, pod.name, c.image
 ```
 
+From a DNS name to the Services it serves, along the path traffic takes:
+
+```cypher
+MATCH (dns:DNSRecord)-[:DNS_POINTS_TO]->(lb:AWSLoadBalancerV2)
+      -[:ELBV2_TARGET_GROUP]->(tg:AWSELBV2TargetGroup)
+      -[:TARGETS]->(svc:KubernetesService)
+WHERE dns._ont_name = 'app.example.com'
+RETURN lb.dnsname, lb.scheme, tg.name, svc.namespace, svc.name
+```
+
+Ingresses that declare the same host, with the load balancer each one configures.
+That load balancer can differ from the one the DNS record resolves to:
+
+```cypher
+MATCH (ing:KubernetesIngress)-[:MATCHES_HOSTNAME]->(dns:DNSRecord)
+WHERE dns._ont_name = 'app.example.com'
+OPTIONAL MATCH (ing)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer)
+RETURN ing.namespace, ing.name, lb.dnsname, lb.scheme
+```
+
 ## GKE load balancer paths
 
 From a GCP forwarding rule through a Gateway to the pods and their identities:

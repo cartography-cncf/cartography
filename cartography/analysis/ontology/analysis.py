@@ -195,6 +195,10 @@ DEVICE_LINKING_JOBS = (
     DEVICE_AFFECTS_S1_FINDING,
     DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT,
 )
+# An ingress host rule names the hostname, but DNS resolves that name to the load
+# balancer the controller provisions, never to the Ingress object. A shared name says
+# nothing about which load balancer serves the traffic: the record can alias a separate
+# load balancer bound through a TargetGroupBinding.
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
     short_name="ontology_dnsrecords_kubernetes_ingress",
@@ -206,6 +210,17 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
             # removed in v1.0.0.
             match="MATCH (ing:KubernetesIngress) UNWIND coalesce(ing.host_names_normalized, [host IN ing.host_names | toLower(rtrim(trim(host), '.'))]) AS hostname MATCH (dns:DNSRecord {_ont_name: hostname})",
             effects=(
+                AddRelationship(
+                    "ing",
+                    "MATCHES_HOSTNAME",
+                    "dns",
+                    source_label="KubernetesIngress",
+                    target_label="DNSRecord",
+                    rel_alias="m",
+                ),
+                # DEPRECATED: hostname correlation, not DNS resolution; replaced by
+                # (:KubernetesIngress)-[:MATCHES_HOSTNAME]->(:DNSRecord). Will be
+                # removed in v1.0.0.
                 AddRelationship(
                     "dns",
                     "DNS_POINTS_TO",

@@ -27,6 +27,16 @@ Container storage relationships currently cover regular application containers
 in `spec.containers`. Init containers and ephemeral containers aren't modeled as
 `KubernetesContainer` nodes.
 
+Ingress relationships describe configuration, not the request path.
+`KubernetesIngress -[:TARGETS]-> KubernetesService` records the backends named in
+the routing rules, and `KubernetesIngress -[:USES_LOAD_BALANCER]-> LoadBalancer`
+records the load balancer the controller provisioned for the ingress, read from its
+status. A hostname in an ingress rule is linked to matching DNS records with
+`KubernetesIngress -[:MATCHES_HOSTNAME]-> DNSRecord`, which doesn't imply that the
+record resolves to that ingress's load balancer. The runtime path for AWS follows
+`DNSRecord -[:DNS_POINTS_TO]-> AWSLoadBalancerV2 -[:ELBV2_TARGET_GROUP]->
+AWSELBV2TargetGroup -[:TARGETS]-> KubernetesService -[:TARGETS]-> KubernetesPod`.
+
 Use the configuration guide to grant read-only access and connect one or more
 clusters. The schema reference is generated from the model definitions and is
 included automatically in the built documentation. The query guide contains

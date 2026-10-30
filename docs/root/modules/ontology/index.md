@@ -250,6 +250,22 @@ does not create that relationship. The generated schema catalog distinguishes
 these validation constraints from the schemas and analysis jobs that materialize
 relationships.
 
+### DNS relationships
+
+`(:DNSRecord)-[:DNS_POINTS_TO]->(target)` means the record resolves to the target:
+an alias or CNAME target such as a load balancer, CDN distribution, or hosted
+service, an address record's IP, or a delegated name server.
+
+Objects that only declare a hostname, such as a Kubernetes Ingress host rule, are
+correlated with `(:KubernetesIngress)-[:MATCHES_HOSTNAME]->(:DNSRecord)` instead.
+A shared hostname does not mean the record resolves to that object or to its load
+balancer: the record can alias a different load balancer, for example one bound to
+Services through a TargetGroupBinding. Follow `DNS_POINTS_TO` for the runtime path.
+
+The legacy `(:DNSRecord)-[:DNS_POINTS_TO]->(:KubernetesIngress)` edge is still
+written alongside `MATCHES_HOSTNAME` for existing queries. It is deprecated and will
+be removed in v1.0.0.
+
 ```{toctree}
 config
 schema
