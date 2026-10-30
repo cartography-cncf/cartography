@@ -5,9 +5,9 @@ import pytest
 import requests
 
 from cartography.intel.jamf.util import call_jamf_api
-from cartography.intel.jamf.util import JamfClientCredentialsAuth
 from cartography.intel.jamf.util import create_jamf_api_session
 from cartography.intel.jamf.util import get_paginated_jamf_results
+from cartography.intel.jamf.util import JamfClientCredentialsAuth
 
 
 @patch("cartography.intel.jamf.util.requests.Session")
