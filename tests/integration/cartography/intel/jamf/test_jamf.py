@@ -185,9 +185,9 @@ def test_sync_computers(mock_get, mock_groups_get, neo4j_session):
             True,
         ),
         (
-            "Kwik-E-Mart Inventory.app@2.0",
+            "Internal Tool.app@2.0",
             None,
-            "Kwik-E-Mart Inventory.app",
+            "Internal Tool.app",
             "2.0",
             False,
         ),
@@ -205,7 +205,7 @@ def test_sync_computers(mock_get, mock_groups_get, neo4j_session):
         (7001, "com.google.Chrome@131.0.6778.86"),
         (7001, "com.tinyspeck.slackmacgap@4.41.105"),
         (7002, "com.google.Chrome@131.0.6778.86"),
-        (7002, "Kwik-E-Mart Inventory.app@2.0"),
+        (7002, "Internal Tool.app@2.0"),
     }
 
     assert check_rels(
@@ -219,7 +219,7 @@ def test_sync_computers(mock_get, mock_groups_get, neo4j_session):
     ) == {
         (TEST_JAMF_URI, "com.google.Chrome@131.0.6778.86"),
         (TEST_JAMF_URI, "com.tinyspeck.slackmacgap@4.41.105"),
-        (TEST_JAMF_URI, "Kwik-E-Mart Inventory.app@2.0"),
+        (TEST_JAMF_URI, "Internal Tool.app@2.0"),
     }
 
 

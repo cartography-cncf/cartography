@@ -129,8 +129,8 @@ COMPUTERS_RESPONSE = {
                     "externalVersionId": "0",
                 },
                 {
-                    "name": "Kwik-E-Mart Inventory.app",
-                    "path": "/Users/l.simpson/Applications/Kwik-E-Mart Inventory.app",
+                    "name": "Internal Tool.app",
+                    "path": "/Users/example.user/Applications/Internal Tool.app",
                     "version": "2.0",
                     "macAppStore": False,
                     "sizeMegabytes": 12,
