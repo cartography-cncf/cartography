@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import NoReturn
 
@@ -12,6 +13,9 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _CLASSIC_API_PATH = "/JSSResource"
 _AUTH_TOKEN_PATH = "/api/v1/auth/token"
+_OAUTH_TOKEN_PATH = "/api/oauth/token"
+# Refresh this many seconds before expiry, so a token is not sent as it lapses.
+_TOKEN_REFRESH_MARGIN = 30
 _DEFAULT_PAGE_SIZE = 100
 
 
@@ -58,14 +62,81 @@ def _raise_http_status(response: requests.Response) -> NoReturn:
     raise RuntimeError("requests.Response.raise_for_status() unexpectedly returned")
 
 
+class JamfClientCredentialsAuth(requests.auth.AuthBase):
+    """
+    Bearer auth for a Jamf Pro API client. API client tokens live only as long as
+    the client's configured token lifetime, often minutes, so the token is
+    re-fetched whenever it is about to expire rather than once per sync.
+    """
+
+    def __init__(self, jamf_base_uri: str, client_id: str, client_secret: str):
+        self._token_uri = f"{_get_jamf_instance_uri(jamf_base_uri)}{_OAUTH_TOKEN_PATH}"
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._token: str | None = None
+        self._expires_at = 0.0
+
+    def refresh(self) -> None:
+        try:
+            response = requests.post(
+                self._token_uri,
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": self._client_id,
+                    "client_secret": self._client_secret,
+                },
+                timeout=_TIMEOUT,
+            )
+        except requests.exceptions.Timeout:
+            logger.warning("Jamf: requests.post('%s') timed out.", self._token_uri)
+            raise
+        response.raise_for_status()
+        payload = response.json()
+        self._token = payload["access_token"]
+        self._expires_at = time.monotonic() + int(payload.get("expires_in", 0))
+
+    def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
+        if (
+            self._token is None
+            or time.monotonic() >= self._expires_at - _TOKEN_REFRESH_MARGIN
+        ):
+            self.refresh()
+        r.headers["Authorization"] = f"Bearer {self._token}"
+        return r
+
+
 @timeit
 def create_jamf_api_session(
     jamf_base_uri: str,
-    jamf_user: str,
-    jamf_password: str,
+    jamf_user: str | None = None,
+    jamf_password: str | None = None,
+    jamf_client_id: str | None = None,
+    jamf_client_secret: str | None = None,
 ) -> requests.Session:
     session = requests.Session()
     session.headers.update({"Accept": "application/json"})
+
+    if jamf_client_id and jamf_client_secret:
+        auth = JamfClientCredentialsAuth(
+            jamf_base_uri,
+            jamf_client_id,
+            jamf_client_secret,
+        )
+        try:
+            # Fetch the first token now, so bad credentials fail here.
+            auth.refresh()
+        except requests.RequestException:
+            session.close()
+            raise
+        session.auth = auth
+        logger.info("Jamf: authenticated using API client credentials.")
+        return session
+
+    if not jamf_user or not jamf_password:
+        session.close()
+        raise ValueError(
+            "Jamf: either an API client ID and secret, or a user and password, is required.",
+        )
     jamf_auth = requests.auth.HTTPBasicAuth(jamf_user, jamf_password)
     token_uri = f"{_get_jamf_instance_uri(jamf_base_uri)}{_AUTH_TOKEN_PATH}"
     try:

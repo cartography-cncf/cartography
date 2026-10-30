@@ -1266,6 +1266,24 @@ class CLI:
                     hidden=PANEL_JAMF not in visible_panels,
                 ),
             ] = None,
+            jamf_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--jamf-client-id",
+                    help="Jamf Pro API client ID. Used instead of --jamf-user when set.",
+                    rich_help_panel=PANEL_JAMF,
+                    hidden=PANEL_JAMF not in visible_panels,
+                ),
+            ] = None,
+            jamf_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--jamf-client-secret-env-var",
+                    help="Environment variable name containing the Jamf Pro API client secret.",
+                    rich_help_panel=PANEL_JAMF,
+                    hidden=PANEL_JAMF not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Kandji Options
             # =================================================================
@@ -3331,9 +3349,24 @@ class CLI:
                 )
                 digitalocean_token = os.environ.get(digitalocean_token_env_var)
 
-            # Read Jamf password
+            # Read Jamf API client secret or password
             jamf_password = None
-            if jamf_base_uri:
+            jamf_client_secret = None
+            if bool(jamf_client_id) != bool(jamf_client_secret_env_var):
+                raise typer.BadParameter(
+                    "--jamf-client-id and --jamf-client-secret-env-var must be set "
+                    "together.",
+                )
+            if jamf_client_id and not jamf_base_uri:
+                raise typer.BadParameter(
+                    "--jamf-client-id requires --jamf-base-uri.",
+                )
+            if jamf_client_secret_env_var:
+                jamf_client_secret = _read_access_token_env_var(
+                    "Jamf",
+                    jamf_client_secret_env_var,
+                )
+            elif jamf_base_uri:
                 if jamf_user and jamf_password_env_var:
                     logger.debug(
                         "Reading password for Jamf from environment variable %s",
@@ -4122,6 +4155,8 @@ class CLI:
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
                 jamf_password=jamf_password,
+                jamf_client_id=jamf_client_id,
+                jamf_client_secret=jamf_client_secret,
                 kandji_base_uri=kandji_base_uri,
                 kandji_tenant_id=kandji_tenant_id,
                 kandji_token=kandji_token,

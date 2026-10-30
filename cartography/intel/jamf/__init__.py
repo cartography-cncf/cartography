@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def start_jamf_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-
-    if not config.jamf_base_uri or not config.jamf_user or not config.jamf_password:
+    has_client = bool(config.jamf_client_id and config.jamf_client_secret)
+    has_user = bool(config.jamf_user and config.jamf_password)
+    if not config.jamf_base_uri or not (has_client or has_user):
         logger.info(
             "Jamf import is not configured - skipping this module. See docs to configure."
         )
@@ -27,8 +28,10 @@ def start_jamf_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
     api_session = create_jamf_api_session(
         config.jamf_base_uri,
-        config.jamf_user,
-        config.jamf_password,
+        jamf_user=config.jamf_user,
+        jamf_password=config.jamf_password,
+        jamf_client_id=config.jamf_client_id,
+        jamf_client_secret=config.jamf_client_secret,
     )
     try:
         groups.sync(
