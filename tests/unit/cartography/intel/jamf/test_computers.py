@@ -3,6 +3,8 @@ import pytest
 from cartography.intel.jamf.computers import transform
 from cartography.intel.jamf.computers import transform_applications
 
+TENANT = "https://test.jamfcloud.com"
+
 
 def test_transform_requires_computer_id() -> None:
     with pytest.raises(KeyError, match="id"):
@@ -13,21 +15,23 @@ def test_transform_applications_shares_one_node_per_bundle_and_version() -> None
     chrome = {"name": "Google Chrome.app", "bundleId": "com.google.Chrome"}
     apps = transform_applications(
         [
-            {"id": 1, "applications": [{**chrome, "version": "131.0"}]},
+            {"id": 2, "applications": [{**chrome, "version": "131.0"}]},
             {
-                "id": 2,
+                "id": 1,
                 "applications": [
                     {**chrome, "version": "131.0"},
                     {**chrome, "version": "130.0"},
+                    {**chrome, "version": "130.0"},
                 ],
             },
-        ]
+        ],
+        TENANT,
     )
 
-    assert {(app["id"], tuple(app["computer_ids"])) for app in apps} == {
-        ("com.google.Chrome@131.0", (1, 2)),
-        ("com.google.Chrome@130.0", (2,)),
-    }
+    assert sorted((app["id"], app["computer_ids"]) for app in apps) == [
+        (f"{TENANT}#com.google.Chrome@130.0", [1]),
+        (f"{TENANT}#com.google.Chrome@131.0", [1, 2]),
+    ]
 
 
 def test_transform_applications_falls_back_to_name_without_bundle_id() -> None:
@@ -41,9 +45,10 @@ def test_transform_applications_falls_back_to_name_without_bundle_id() -> None:
                 ],
             },
             {"id": 2, "applications": None},
-        ]
+        ],
+        TENANT,
     )
 
     assert [(app["id"], app["computer_ids"]) for app in apps] == [
-        ("Unsigned Tool.app@", [1]),
+        (f"{TENANT}#Unsigned Tool.app@", [1]),
     ]

@@ -16,8 +16,8 @@ class JamfApplicationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
         description=(
-            "Bundle ID and version, joined by '@'. Falls back to the application "
-            "name when Jamf reports no bundle ID."
+            "Tenant URI, then bundle ID and version: '<tenant>#<bundle id>@<version>'. "
+            "Uses the application name when Jamf reports no bundle ID."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
