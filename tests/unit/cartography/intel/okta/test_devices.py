@@ -7,6 +7,7 @@ from okta.models.device_list import DeviceList
 from cartography.intel.okta.devices import _get_okta_devices
 from cartography.intel.okta.devices import _transform_okta_devices
 from tests.data.okta.devices import DEVICES
+from tests.data.okta.devices import LINUX_DEVICE
 
 
 def test_transform_okta_devices() -> None:
@@ -65,6 +66,18 @@ def test_transform_okta_device_without_user() -> None:
     assert devices[0]["id"] == "device-002"
     assert devices[0]["manufacturer"] is None
     assert relationships == []
+
+
+def test_transform_okta_device_keeps_platform_missing_from_sdk() -> None:
+    # Arrange
+    raw_device = DeviceList.model_validate(LINUX_DEVICE)
+
+    # Act
+    devices, _ = _transform_okta_devices([raw_device])
+
+    # Assert
+    assert devices[0]["id"] == "device-003"
+    assert devices[0]["platform"] == "LINUX"
 
 
 def test_get_okta_devices_expands_user_summary() -> None:
