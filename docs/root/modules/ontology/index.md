@@ -258,6 +258,8 @@ service, an address record's IP, or a delegated name server.
 
 Objects that only declare a hostname, such as a Kubernetes Ingress host rule, are
 correlated with `(:KubernetesIngress)-[:MATCHES_HOSTNAME]->(:DNSRecord)` instead.
+Only host records match (`A`, `AAAA`, `CNAME`, `ALIAS`, or records without a type);
+an `NS` record with the same name delegates a zone and is not linked.
 A shared hostname does not mean the record resolves to that object or to its load
 balancer: the record can alias a different load balancer, for example one bound to
 Services through a TargetGroupBinding. Follow `DNS_POINTS_TO` for the runtime path.

@@ -141,6 +141,52 @@ def test_sync_skips_ingress_host_without_dns_record(neo4j_session):
     )
 
 
+def test_sync_links_ingress_host_only_to_host_records(neo4j_session):
+    """
+    A delegated subdomain has NS records in both the parent and the child zone with
+    the same name as its ALIAS record. Only the ALIAS record describes the host.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'alias', _ont_name: 'app.example.com', _ont_type: 'ALIAS'})
+        CREATE (:DNSRecord {id: 'parent-ns', _ont_name: 'app.example.com', _ont_type: 'NS'})
+        CREATE (:DNSRecord {id: 'child-ns', _ont_name: 'app.example.com', _ont_type: 'NS'})
+        CREATE (:DNSRecord {id: 'txt', _ont_name: 'app.example.com', _ont_type: 'txt'})
+        CREATE (:DNSRecord {id: 'untyped', _ont_name: 'app.example.com'})
+        CREATE (:KubernetesIngress {
+            id: 'ingress', host_names_normalized: ['app.example.com']
+        })
+        """
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "KubernetesIngress",
+        "id",
+        "DNSRecord",
+        "id",
+        "MATCHES_HOSTNAME",
+    ) == {("ingress", "alias"), ("ingress", "untyped")}
+    assert check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "KubernetesIngress",
+        "id",
+        "DNS_POINTS_TO",
+    ) == {("alias", "ingress"), ("untyped", "ingress")}
+
+
 def test_sync_resolves_shared_hostname_to_record_target_not_ingress_lb(
     neo4j_session,
 ):
