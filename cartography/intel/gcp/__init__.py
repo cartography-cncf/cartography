@@ -20,6 +20,7 @@ from cartography.analysis.gcp.analysis import GCP_GKE_BASIC_AUTH
 from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import api_gateway
 from cartography.intel.gcp import apikeys
 from cartography.intel.gcp import artifact_registry
 from cartography.intel.gcp import bigquery_connection
@@ -82,7 +83,7 @@ logger = logging.getLogger(__name__)
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
     "Services",
-    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run bigquery bigquery_connection apikeys",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run bigquery bigquery_connection apikeys api_gateway",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -102,6 +103,7 @@ service_names = Services(
     bigquery="bigquery.googleapis.com",
     bigquery_connection="bigqueryconnection.googleapis.com",
     apikeys="apikeys.googleapis.com",
+    api_gateway="apigateway.googleapis.com",
 )
 
 
@@ -564,6 +566,19 @@ def _sync_project_resources(
             apikeys.sync(
                 neo4j_session,
                 apikeys_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.api_gateway in enabled_services:
+            logger.info("Syncing GCP project %s for API Gateway.", project_id)
+            api_gateway_client = build_client(
+                "apigateway", "v1", credentials=credentials
+            )
+            api_gateway.sync(
+                neo4j_session,
+                api_gateway_client,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
