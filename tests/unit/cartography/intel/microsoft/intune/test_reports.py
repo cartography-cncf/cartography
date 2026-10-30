@@ -372,6 +372,7 @@ async def test_export_report_rows_resubmits_after_unusable_job(
 
     assert export_jobs_builder.post.await_count == 2
     assert mock_wait_for_export_job.await_count == 2
+    assert mock_download_export_report_rows.call_count == len(downloads)
     assert mock_download_export_report_rows.call_args == call(
         "https://example.test/report.zip",
         "AppInvAggregate",
