@@ -165,6 +165,63 @@ def test_sync_computers(mock_get, mock_groups_get, neo4j_session):
         (7002, 101),
     }
 
+    assert check_nodes(
+        neo4j_session,
+        "JamfApplication",
+        ["id", "bundle_id", "name", "version", "mac_app_store"],
+    ) == {
+        (
+            "com.google.Chrome@131.0.6778.86",
+            "com.google.Chrome",
+            "Google Chrome.app",
+            "131.0.6778.86",
+            False,
+        ),
+        (
+            "com.tinyspeck.slackmacgap@4.41.105",
+            "com.tinyspeck.slackmacgap",
+            "Slack.app",
+            "4.41.105",
+            True,
+        ),
+        (
+            "Kwik-E-Mart Inventory.app@2.0",
+            None,
+            "Kwik-E-Mart Inventory.app",
+            "2.0",
+            False,
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "JamfComputer",
+        "id",
+        "JamfApplication",
+        "id",
+        "HAS_APP",
+        rel_direction_right=True,
+    ) == {
+        (7001, "com.google.Chrome@131.0.6778.86"),
+        (7001, "com.tinyspeck.slackmacgap@4.41.105"),
+        (7002, "com.google.Chrome@131.0.6778.86"),
+        (7002, "Kwik-E-Mart Inventory.app@2.0"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "JamfTenant",
+        "id",
+        "JamfApplication",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_JAMF_URI, "com.google.Chrome@131.0.6778.86"),
+        (TEST_JAMF_URI, "com.tinyspeck.slackmacgap@4.41.105"),
+        (TEST_JAMF_URI, "Kwik-E-Mart Inventory.app@2.0"),
+    }
+
 
 @patch.object(
     cartography.intel.jamf.groups,
