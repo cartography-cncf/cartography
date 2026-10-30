@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from kiota_abstractions.api_error import APIError
@@ -23,33 +24,32 @@ async def _collect(items: AsyncIterator[Any]) -> list[Any]:
     return [item async for item in items]
 
 
+GRAPH_WAIT = "cartography.intel.microsoft.entra.utils.asyncio.sleep"
+
+
 def _forbidden_error() -> APIError:
     error = APIError("forbidden")
     error.response_status_code = 403
     return error
 
 
-@pytest.mark.parametrize(  # type: ignore[misc]
-    ("getter", "report_path", "unavailable"),
+OPTIONAL_REPORTS = pytest.mark.parametrize(
+    ("getter", "report_path"),
     (
         (
             users.get_user_mfa_registrations,
             ("reports", "authentication_methods", "user_registration_details"),
-            None,
         ),
-        (users.get_risky_users, ("identity_protection", "risky_users"), None),
+        (users.get_risky_users, ("identity_protection", "risky_users")),
         (
             service_principals.get_risky_service_principals,
             ("identity_protection", "risky_service_principals"),
-            None,
         ),
     ),
 )
-@pytest.mark.parametrize("status", [403, 401, 429, 500])  # type: ignore[misc]
-def test_optional_reports_tolerate_only_denial(
-    getter, report_path: tuple[str, ...], unavailable: Any, status: int
-) -> None:
-    # Arrange
+
+
+def _client_whose_report_fails(report_path: tuple[str, ...], status: int) -> Any:
     client = MagicMock()
     report = client
     for attribute in report_path:
@@ -57,13 +57,73 @@ def test_optional_reports_tolerate_only_denial(
     report.get = AsyncMock(
         side_effect=APIError("request failed", response_status_code=status)
     )
+    return client
+
+
+@OPTIONAL_REPORTS  # type: ignore[misc]
+@pytest.mark.parametrize("status", [403, 429])  # type: ignore[misc]
+@patch(GRAPH_WAIT, new=AsyncMock())
+def test_optional_reports_are_unavailable_when_denied_or_throttled(
+    getter, report_path: tuple[str, ...], status: int
+) -> None:
+    # Arrange
+    client = _client_whose_report_fails(report_path, status)
+
+    # Act
+    report = asyncio.run(getter(client))
+
+    # Assert
+    assert report is None
+
+
+@OPTIONAL_REPORTS  # type: ignore[misc]
+@pytest.mark.parametrize("status", [401, 500])  # type: ignore[misc]
+def test_optional_reports_propagate_other_errors(
+    getter, report_path: tuple[str, ...], status: int
+) -> None:
+    # Arrange
+    client = _client_whose_report_fails(report_path, status)
 
     # Act and assert
-    if status == 403:
-        assert asyncio.run(getter(client)) == unavailable
-    else:
-        with pytest.raises(APIError):
-            asyncio.run(getter(client))
+    with pytest.raises(APIError, match="request failed"):
+        asyncio.run(getter(client))
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    ("retry_after_header", "expected_wait"),
+    [({}, 30), ({"retry-after": "90"}, 90)],
+    ids=["default_wait", "graph_asks_for_longer"],
+)
+def test_mfa_report_survives_throttling_on_a_later_page(
+    retry_after_header: dict[str, str], expected_wait: int
+) -> None:
+    # Arrange
+    client = MagicMock()
+    report = client.reports.authentication_methods.user_registration_details
+    report.get = AsyncMock(
+        return_value=MagicMock(value=[MagicMock(id="user-1")], odata_next_link="next")
+    )
+    report.with_url.return_value.get = AsyncMock(
+        side_effect=[
+            APIError(
+                "throttled",
+                response_status_code=429,
+                response_headers=retry_after_header,
+            ),
+            MagicMock(value=[MagicMock(id="user-2")], odata_next_link=None),
+        ]
+    )
+    wait = AsyncMock()
+
+    # Act
+    with patch(GRAPH_WAIT, new=wait):
+        registrations = asyncio.run(users.get_user_mfa_registrations(client))
+
+    # Assert
+    assert registrations is not None
+    assert set(registrations) == {"user-1", "user-2"}
+    report.get.assert_awaited_once()
+    wait.assert_awaited_once_with(expected_wait)
 
 
 def test_users_propagates_denial_from_later_page() -> None:

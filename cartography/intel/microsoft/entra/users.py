@@ -155,7 +155,7 @@ def _transform_mfa_registration(
 async def get_user_mfa_registrations(
     client: GraphServiceClient,
 ) -> dict[str, dict[str, Any]] | None:
-    """Return MFA registration keyed by user ID, or None when Graph denies the report."""
+    """Return MFA registration keyed by user ID, or None when Graph denies or throttles it."""
     # The report documents $filter only, so it is read whole rather than with $select.
     builder = client.reports.authentication_methods.user_registration_details
     return await get_optional_id_map(
@@ -171,7 +171,7 @@ async def get_user_mfa_registrations(
 async def get_risky_users(
     client: GraphServiceClient,
 ) -> dict[str, dict[str, Any]] | None:
-    """Return risk state keyed by user ID, or None when Graph denies the report."""
+    """Return risk state keyed by user ID, or None when Graph denies or throttles it."""
     builder = client.identity_protection.risky_users
     return await get_optional_id_map(
         builder.get,
@@ -194,8 +194,9 @@ def transform_users(
 ) -> Generator[dict[str, Any], None, None]:
     """Convert MS Graph SDK `User` models into dicts matching our schema.
 
-    Each report is None when Graph denied it, which sets its availability flag
-    to false for every user so a null field reads as unknown, not as absent.
+    Each report is None when Graph denied or throttled it, which sets its
+    availability flag to false for every user so a null field reads as unknown,
+    not as absent.
     """
     mfa_registration_available = mfa_registrations is not None
     mfa_registrations = mfa_registrations or {}

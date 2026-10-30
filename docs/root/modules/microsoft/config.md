@@ -104,12 +104,19 @@ inventory:
 | `/identityProtection/riskyUsers` | `IdentityRiskyUser.Read.All` | Entra ID P2 | `EntraUser.risk_level`, `risk_state`, `risk_detail`, `risk_last_updated_date_time` |
 | `/identityProtection/riskyServicePrincipals` | `IdentityRiskyServicePrincipal.Read.All` | Workload Identities Premium | The same risk properties on `EntraServicePrincipal` |
 
-If a report returns `403 Forbidden`, Cartography logs a warning, clears its
-properties, and still syncs users and service principals. Other errors
+The reporting endpoints throttle harder than the directory APIs. When a report
+page is still answering `429 Too Many Requests` after the Graph SDK's own
+retries, Cartography waits 30, 60, then 120 more seconds across that report's
+pages, or longer when `Retry-After` asks for it, before giving up on it.
+
+If a report returns `403 Forbidden`, or is still throttled after those waits,
+Cartography logs a warning, clears its properties, and still syncs users and
+service principals. Other errors
 propagate. Clearing follows the sign-in activity behavior above: a value the
 sync could not observe is not kept, so a revoked permission cannot leave a stale
 `atRisk` state in place. Each report has an availability flag that is false when
-it was denied, so a null property then means unknown rather than absent:
+it was denied or throttled, so a null property then means unknown rather than
+absent:
 
 - `EntraUser.mfa_registration_available` for the registration report
 - `EntraUser.risk_available` for the riskyUsers report

@@ -112,7 +112,7 @@ async def get_service_principal_by_app_id(
 async def get_risky_service_principals(
     client: GraphServiceClient,
 ) -> dict[str, dict[str, Any]] | None:
-    """Return risk state keyed by service principal ID, or None when Graph denies the report."""
+    """Return risk state keyed by service principal ID, or None when Graph denies or throttles it."""
     builder = client.identity_protection.risky_service_principals
     return await get_optional_id_map(
         builder.get,
