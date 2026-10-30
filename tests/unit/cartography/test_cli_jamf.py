@@ -43,6 +43,33 @@ def test_jamf_api_client_cli_config(monkeypatch):
     assert config.jamf_password is None
 
 
+def test_jamf_api_client_takes_precedence_over_password(monkeypatch):
+    # Arrange
+    monkeypatch.setenv("TEST_JAMF_CLIENT_SECRET", "test-client-secret")
+    monkeypatch.setenv("TEST_JAMF_PASSWORD", "test-password")
+
+    # Act
+    exit_code, run = _run_jamf_cli(
+        "--jamf-base-uri",
+        "https://test.jamfcloud.com",
+        "--jamf-user",
+        "test-user",
+        "--jamf-password-env-var",
+        "TEST_JAMF_PASSWORD",
+        "--jamf-client-id",
+        "test-client-id",
+        "--jamf-client-secret-env-var",
+        "TEST_JAMF_CLIENT_SECRET",
+    )
+
+    # Assert
+    assert exit_code == 0
+    config = run.call_args.args[1]
+    assert config.jamf_client_id == "test-client-id"
+    assert config.jamf_client_secret == "test-client-secret"
+    assert config.jamf_password is None
+
+
 @pytest.mark.parametrize(
     "args",
     [
