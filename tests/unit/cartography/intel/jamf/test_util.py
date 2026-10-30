@@ -5,6 +5,7 @@ import pytest
 import requests
 
 from cartography.intel.jamf.util import call_jamf_api
+from cartography.intel.jamf.util import JamfClientCredentialsAuth
 from cartography.intel.jamf.util import create_jamf_api_session
 from cartography.intel.jamf.util import get_paginated_jamf_results
 
@@ -207,3 +208,122 @@ def test_get_paginated_jamf_results_collects_all_pages() -> None:
         "page": 1,
         "page-size": 100,
     }
+
+
+def _token_response(token: str, expires_in: int = 60) -> Mock:
+    response = Mock(ok=True, status_code=200)
+    response.json.return_value = {
+        "access_token": token,
+        "token_type": "Bearer",
+        "expires_in": expires_in,
+    }
+    return response
+
+
+@patch("cartography.intel.jamf.util.requests.post")
+@patch("cartography.intel.jamf.util.requests.Session")
+def test_create_jamf_api_session_uses_api_client(
+    mock_session_class: Mock,
+    mock_post: Mock,
+) -> None:
+    mock_session = Mock()
+    mock_session.headers = {}
+    mock_session_class.return_value = mock_session
+    mock_post.return_value = _token_response("client-token")
+
+    session = create_jamf_api_session(
+        "https://test.jamfcloud.com/JSSResource",
+        jamf_user="test-user",
+        jamf_password="test-password",
+        jamf_client_id="test-client-id",
+        jamf_client_secret="test-client-secret",
+    )
+
+    assert session is mock_session
+    assert isinstance(mock_session.auth, JamfClientCredentialsAuth)
+    # The user/password token endpoint is never called when a client is set.
+    mock_session.post.assert_not_called()
+    mock_post.assert_called_once_with(
+        "https://test.jamfcloud.com/api/oauth/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": "test-client-id",
+            "client_secret": "test-client-secret",
+        },
+        timeout=(60, 60),
+    )
+
+
+@patch("cartography.intel.jamf.util.requests.post")
+@patch("cartography.intel.jamf.util.requests.Session")
+def test_create_jamf_api_session_closes_session_on_bad_api_client(
+    mock_session_class: Mock,
+    mock_post: Mock,
+) -> None:
+    mock_session = Mock()
+    mock_session.headers = {}
+    mock_session_class.return_value = mock_session
+    response = Mock(ok=False, status_code=401)
+    response.raise_for_status.side_effect = requests.HTTPError("unauthorized")
+    mock_post.return_value = response
+
+    with pytest.raises(requests.HTTPError, match="unauthorized"):
+        create_jamf_api_session(
+            "https://test.jamfcloud.com",
+            jamf_client_id="test-client-id",
+            jamf_client_secret="wrong-secret",
+        )
+
+    mock_session.close.assert_called_once_with()
+
+
+@patch("cartography.intel.jamf.util.requests.Session")
+def test_create_jamf_api_session_requires_credentials(
+    mock_session_class: Mock,
+) -> None:
+    mock_session = Mock()
+    mock_session.headers = {}
+    mock_session_class.return_value = mock_session
+
+    with pytest.raises(ValueError):
+        create_jamf_api_session(
+            "https://test.jamfcloud.com",
+            jamf_client_id="test-client-id",
+        )
+
+    mock_session.close.assert_called_once_with()
+
+
+@patch("cartography.intel.jamf.util.time.monotonic")
+@patch("cartography.intel.jamf.util.requests.post")
+def test_api_client_auth_refreshes_expiring_token(
+    mock_post: Mock,
+    mock_monotonic: Mock,
+) -> None:
+    mock_post.side_effect = [
+        _token_response("first-token", expires_in=60),
+        _token_response("second-token", expires_in=60),
+    ]
+    auth = JamfClientCredentialsAuth(
+        "https://test.jamfcloud.com",
+        "test-client-id",
+        "test-client-secret",
+    )
+
+    mock_monotonic.return_value = 1000.0
+    first = auth(requests.Request("GET", "https://test.jamfcloud.com/x").prepare())
+    assert first.headers["Authorization"] == "Bearer first-token"
+
+    # Still well inside the lifetime: the token is reused.
+    mock_monotonic.return_value = 1010.0
+    reused = auth(requests.Request("GET", "https://test.jamfcloud.com/x").prepare())
+    assert reused.headers["Authorization"] == "Bearer first-token"
+    assert mock_post.call_count == 1
+
+    # Within the refresh margin of expiry: a new token is fetched.
+    mock_monotonic.return_value = 1040.0
+    refreshed = auth(
+        requests.Request("GET", "https://test.jamfcloud.com/x").prepare(),
+    )
+    assert refreshed.headers["Authorization"] == "Bearer second-token"
+    assert mock_post.call_count == 2

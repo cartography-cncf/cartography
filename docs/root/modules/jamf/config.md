@@ -2,8 +2,27 @@
 
 ## Authentication
 
-Cartography requires a Jamf Pro username and password. Store the password in an
-environment variable:
+Cartography authenticates with either a Jamf Pro API client (recommended) or a
+username and password.
+
+### API client
+
+In Jamf Pro, create an API role with read privileges for computers, mobile
+devices, smart computer groups, static computer groups, smart mobile device
+groups and static mobile device groups, then an API client assigned to that role.
+Store the client secret in an environment variable:
+
+```bash
+export JAMF_CLIENT_SECRET="<client secret>"
+```
+
+Cartography exchanges the client ID and secret at `/api/oauth/token` and
+requests a new token before each one expires, so the client's token lifetime
+can be short.
+
+### Username and password
+
+Store the password in an environment variable:
 
 ```bash
 export JAMF_PASSWORD="<password>"
@@ -16,8 +35,10 @@ compatibility with older Jamf deployments.
 ## Configure Cartography
 
 Set the Jamf base URI with `--jamf-base-uri`, for example
-`https://hostname.jamfcloud.com`. Set the username with `--jamf-user` and pass
-the password environment variable name with `--jamf-password-env-var`.
+`https://hostname.jamfcloud.com`. For an API client, set `--jamf-client-id` and
+pass the secret's environment variable name with `--jamf-client-secret-env-var`.
+For a user, set `--jamf-user` and pass the password environment variable name
+with `--jamf-password-env-var`. When both are given, the API client is used.
 
 ## Run Cartography
 
@@ -25,8 +46,8 @@ the password environment variable name with `--jamf-password-env-var`.
 cartography \
   --selected-modules jamf \
   --jamf-base-uri https://hostname.jamfcloud.com \
-  --jamf-user cartography \
-  --jamf-password-env-var JAMF_PASSWORD
+  --jamf-client-id <client id> \
+  --jamf-client-secret-env-var JAMF_CLIENT_SECRET
 ```
 
 ## Advanced Configuration
