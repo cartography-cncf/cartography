@@ -203,6 +203,12 @@ CLEANUP_CASES = [
         id="ontology_devices_linking",
     ),
     pytest.param(
+        RelationshipEffect("KubernetesIngress", "MATCHES_HOSTNAME", "DNSRecord"),
+        None,
+        _rel_cleanup("KubernetesIngress", "MATCHES_HOSTNAME", "DNSRecord"),
+        id="ontology_kubernetes_ingress_matches_dns_hostname",
+    ),
+    pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "KubernetesIngress"),
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "KubernetesIngress"),

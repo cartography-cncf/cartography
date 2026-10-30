@@ -128,7 +128,7 @@ class KubernetesIngressToKubernetesServiceRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesIngress)-[:TARGETS]->(:KubernetesService)
 class KubernetesIngressToKubernetesServiceRel(CartographyRelSchema):
-    """Links an ingress to a service it routes traffic to."""
+    """Links an ingress to a service named as a backend in its routing rules or default backend. This is declared configuration, not a network hop: traffic reaches the service through the ingress controller's data path, such as a cloud load balancer or controller pods."""
 
     target_node_label: str = "KubernetesService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -153,7 +153,7 @@ class KubernetesIngressToLoadBalancerV2RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
 class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
-    """Links an ingress to the AWS load balancer that exposes it, matched by the DNS hostname from the ingress status to the load balancer's DNS name; both are lowercased at ingestion."""
+    """Links an ingress to the AWS load balancer that implements it, matched by the DNS hostname from the ingress status to the load balancer's DNS name; both are lowercased at ingestion. This is controller configuration: a DNS record for an ingress host can resolve to a different load balancer, such as one bound to services through a TargetGroupBinding."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

@@ -29,6 +29,15 @@ def test_sync_links_canonical_dns_name_to_kubernetes_ingress(neo4j_session):
 
     assert check_rels(
         neo4j_session,
+        "KubernetesIngress",
+        "id",
+        "DNSRecord",
+        "id",
+        "MATCHES_HOSTNAME",
+    ) == {("ingress", "dns")}
+    # DEPRECATED: the legacy edge is kept for existing queries until v1.0.0.
+    assert check_rels(
+        neo4j_session,
         "DNSRecord",
         "id",
         "KubernetesIngress",
@@ -57,6 +66,15 @@ def test_sync_links_dns_name_to_ingress_created_before_hostname_normalization(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    assert check_rels(
+        neo4j_session,
+        "KubernetesIngress",
+        "id",
+        "DNSRecord",
+        "id",
+        "MATCHES_HOSTNAME",
+    ) == {("ingress", "dns")}
+    # DEPRECATED: the legacy edge is kept for existing queries until v1.0.0.
     assert check_rels(
         neo4j_session,
         "DNSRecord",
@@ -92,6 +110,186 @@ def test_sync_skips_ingress_without_host_names(neo4j_session):
             "DNS_POINTS_TO",
         )
         == set()
+    )
+
+
+def test_sync_skips_ingress_host_without_dns_record(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'dns', _ont_name: 'other.example.com'})
+        CREATE (:KubernetesIngress {
+            id: 'ingress', host_names_normalized: ['app.example.com']
+        })
+        """
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            "MATCH (:KubernetesIngress)-[r]-(:DNSRecord) RETURN count(r) AS count"
+        ).single()["count"]
+        == 0
+    )
+
+
+def test_sync_links_ingress_host_only_to_host_records(neo4j_session):
+    """
+    A delegated subdomain has NS records in both the parent and the child zone with
+    the same name as its ALIAS record. Only the ALIAS record describes the host.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'alias', _ont_name: 'app.example.com', _ont_type: 'ALIAS'})
+        CREATE (:DNSRecord {id: 'parent-ns', _ont_name: 'app.example.com', _ont_type: 'NS'})
+        CREATE (:DNSRecord {id: 'child-ns', _ont_name: 'app.example.com', _ont_type: 'NS'})
+        CREATE (:DNSRecord {id: 'txt', _ont_name: 'app.example.com', _ont_type: 'txt'})
+        CREATE (:DNSRecord {id: 'untyped', _ont_name: 'app.example.com'})
+        CREATE (:KubernetesIngress {
+            id: 'ingress', host_names_normalized: ['app.example.com']
+        })
+        """
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "KubernetesIngress",
+        "id",
+        "DNSRecord",
+        "id",
+        "MATCHES_HOSTNAME",
+    ) == {("ingress", "alias"), ("ingress", "untyped")}
+    assert check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "KubernetesIngress",
+        "id",
+        "DNS_POINTS_TO",
+    ) == {("alias", "ingress"), ("untyped", "ingress")}
+
+
+def test_sync_resolves_shared_hostname_to_record_target_not_ingress_lb(
+    neo4j_session,
+):
+    """
+    A record aliases an internet-facing ALB, while an Ingress declaring the same host
+    uses a separate internal ALB. The record resolves only to the ALB it targets; the
+    Ingress is correlated by hostname and keeps its own load balancer.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (public_lb:AWSLoadBalancerV2:LoadBalancer {
+            id: 'public-alb-1.us-east-1.elb.amazonaws.com',
+            dnsname: 'public-alb-1.us-east-1.elb.amazonaws.com',
+            scheme: 'internet-facing'
+        })
+        CREATE (internal_lb:AWSLoadBalancerV2:LoadBalancer {
+            id: 'internal-k8s-alb-2.us-east-1.elb.amazonaws.com',
+            dnsname: 'internal-k8s-alb-2.us-east-1.elb.amazonaws.com',
+            scheme: 'internal'
+        })
+        CREATE (:CloudflareDNSRecord:DNSRecord {
+            id: 'dns',
+            _ont_name: 'app.example.com',
+            _ont_type: 'CNAME',
+            _ont_value: 'public-alb-1.us-east-1.elb.amazonaws.com'
+        })
+        CREATE (ing:KubernetesIngress {
+            id: 'ingress', host_names_normalized: ['app.example.com']
+        })
+        CREATE (ing)-[:USES_LOAD_BALANCER]->(internal_lb)
+        """
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "DNSRecord",
+        "id",
+        "AWSLoadBalancerV2",
+        "id",
+        "DNS_POINTS_TO",
+    ) == {("dns", "public-alb-1.us-east-1.elb.amazonaws.com")}
+    assert check_rels(
+        neo4j_session,
+        "KubernetesIngress",
+        "id",
+        "AWSLoadBalancerV2",
+        "id",
+        "USES_LOAD_BALANCER",
+    ) == {("ingress", "internal-k8s-alb-2.us-east-1.elb.amazonaws.com")}
+    assert check_rels(
+        neo4j_session,
+        "KubernetesIngress",
+        "id",
+        "DNSRecord",
+        "id",
+        "MATCHES_HOSTNAME",
+    ) == {("ingress", "dns")}
+
+
+def test_sync_removes_stale_ingress_hostname_matches(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'dns', _ont_name: 'app.example.com'})
+        CREATE (:KubernetesIngress {
+            id: 'ingress', host_names_normalized: ['app.example.com']
+        })
+        """
+    )
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    neo4j_session.run(
+        "MATCH (ing:KubernetesIngress {id: 'ingress'}) "
+        "SET ing.host_names_normalized = ['moved.example.com']"
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            "MATCH (:KubernetesIngress)-[r]-(:DNSRecord) RETURN count(r) AS count"
+        ).single()["count"]
+        == 0
     )
 
 
