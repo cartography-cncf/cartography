@@ -190,10 +190,52 @@ DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
         ),
     ),
 )
+DEVICE_OBSERVED_AS_DEFENDER_MACHINE = AnalysisJob(
+    name="Ontology - Device OBSERVED_AS DefenderMachine linking",
+    short_name="ontology_devices_defender_machine_observed_as",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:IntuneManagedDevice)<-[:ASSOCIATED_WITH]-(m:DefenderMachine)",
+            effects=(
+                AddRelationship(
+                    "d",
+                    "OBSERVED_AS",
+                    "m",
+                    source_label="Device",
+                    target_label="DefenderMachine",
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+    ),
+)
+DEVICE_AFFECTS_DEFENDER_ALERT = AnalysisJob(
+    name="Ontology - DefenderAlert AFFECTS Device linking",
+    short_name="ontology_devices_defender_alert_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:DefenderMachine)<-[:AFFECTS]-(f:DefenderAlert)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "d",
+                    source_label="DefenderAlert",
+                    target_label="Device",
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+    ),
+)
+# DEVICE_AFFECTS_DEFENDER_ALERT walks the OBSERVED_AS edges that
+# DEVICE_OBSERVED_AS_DEFENDER_MACHINE refreshes, so it must run after it.
 DEVICE_LINKING_JOBS = (
     DEVICE_OWNS_LINKING,
     DEVICE_AFFECTS_S1_FINDING,
     DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT,
+    DEVICE_OBSERVED_AS_DEFENDER_MACHINE,
+    DEVICE_AFFECTS_DEFENDER_ALERT,
 )
 # An ingress host rule names the hostname, but DNS resolves that name to the load
 # balancer the controller provisions, never to the Ingress object. A shared name says
