@@ -9,6 +9,7 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
+from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
@@ -35,7 +36,13 @@ from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageBuiltFromMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageLayerRelSchema,
+)
+from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageProvenanceSchema,
+)
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryImageLayerNextRelSchema,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
@@ -58,9 +65,10 @@ GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
     scope_label="GCPProject",
     scope_properties=("id",),
     image_scoped=False,
-    image_layer_rel_types=(),
+    image_layer_rel_types=("HAS_LAYER", "HEAD", "TAIL"),
     stable_image_rel_types=("BUILT_FROM",),
     stable_image_rels_are_matchlinks=True,
+    has_next=True,
     layer_id_property="id",
 )
 
@@ -1193,8 +1201,8 @@ def _build_layer_dicts(
     layers_by_diff_id: dict[str, dict[str, Any]] = {}
 
     for enrichment in enrichments:
-        diff_ids = enrichment.get("layer_diff_ids", [])
-        history_entries = enrichment.get("layer_history", [])
+        diff_ids = enrichment.get("layer_diff_ids") or []
+        history_entries = enrichment.get("layer_history") or []
 
         history_by_idx: dict[int, str | None] = {}
         non_empty_idx = 0
@@ -1211,11 +1219,33 @@ def _build_layer_dicts(
                 layers_by_diff_id[diff_id] = {
                     "diff_id": diff_id,
                     "history": history,
+                    "next_diff_ids": set(),
                 }
             elif existing.get("history") is None and history is not None:
                 existing["history"] = history
+            if idx + 1 < len(diff_ids):
+                layers_by_diff_id[diff_id]["next_diff_ids"].add(diff_ids[idx + 1])
 
+    for layer in layers_by_diff_id.values():
+        layer["next_diff_ids"] = sorted(layer["next_diff_ids"])
     return list(layers_by_diff_id.values())
+
+
+def _build_image_layer_relationship_dicts(
+    provenance_updates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "digest": update["digest"],
+            "layer_diff_ids": diff_ids,
+            "head_layer_diff_id": diff_ids[0],
+            "tail_layer_diff_id": diff_ids[-1],
+        }
+        for update in provenance_updates
+        if update.get("type") == "image"
+        and update.get("digest")
+        and (diff_ids := update.get("layer_diff_ids"))
+    ]
 
 
 PROVENANCE_UPDATE_FIELDS = (
@@ -1335,9 +1365,9 @@ def load_image_provenance(
     provenance_updates: list[dict[str, Any]],
     project_id: str,
     update_tag: int,
-) -> None:
+) -> list[dict[str, Any]]:
     if not provenance_updates:
-        return
+        return []
 
     merged_updates = _merge_existing_image_provenance(
         neo4j_session,
@@ -1378,6 +1408,7 @@ def load_image_provenance(
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
+    return merged_updates
 
 
 @timeit
@@ -1415,6 +1446,29 @@ def load_image_layers(
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
+    load(
+        neo4j_session,
+        GCPArtifactRegistryImageLayerNextRelSchema(),
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
+def load_image_layer_relationships(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    relationship_dicts = _build_image_layer_relationship_dicts(provenance_updates)
+    load(
+        neo4j_session,
+        GCPArtifactRegistryImageLayerRelSchema(),
+        relationship_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        lastupdated=update_tag,
+    )
 
 
 @timeit
@@ -1437,6 +1491,7 @@ def sync(
     and Dockerfile analysis.
     """
     logger.info("Starting supply chain sync for GCP project %s", project_id)
+    merged_provenance_updates: list[dict[str, Any]] = []
 
     candidate_digests = {
         digest
@@ -1502,7 +1557,7 @@ def sync(
             }
             for e in enrichments
         ]
-        load_image_provenance(
+        merged_provenance_updates = load_image_provenance(
             neo4j_session,
             provenance_updates,
             project_id,
@@ -1512,6 +1567,11 @@ def sync(
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
         load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
+        update_tag,
+    )
     refresh_layer_closures(
         neo4j_session,
         GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,

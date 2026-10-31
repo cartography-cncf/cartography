@@ -13,6 +13,10 @@ graph LR
     Repository -->|CONTAINS| LanguagePackage[GCPArtifactRegistryLanguagePackage]
     Repository -->|CONTAINS| GenericArtifact[GCPArtifactRegistryGenericArtifact]
     RepositoryImage -->|IMAGE| Image[GCPArtifactRegistryImage]
+    Image -->|HAS_LAYER| Layer[GCPArtifactRegistryImageLayer]
+    Image -->|HEAD| Layer
+    Image -->|TAIL| Layer
+    Layer -->|NEXT| Layer
     TrivyFinding[TrivyImageFinding] -->|AFFECTS| Image
     PackageVersion[PackageVersion] -->|DEPLOYED| Image
 ```
@@ -23,8 +27,9 @@ repository-scoped, pullable image identity. Each repository-image node resolves
 through `IMAGE` to digest-scoped `GCPArtifactRegistryImage` content, so multiple
 tags, repositories, or projects may resolve to the same immutable image node.
 
-OCI image layers are modeled independently by uncompressed diff ID. The current
-model does not create a relationship between an image and its layer nodes.
+OCI image layers are modeled independently by uncompressed diff ID. `HAS_LAYER`
+links an image to every layer, `HEAD` and `TAIL` mark the ordered boundaries,
+and `NEXT` links adjacent layers.
 
 ## Trivy integration queries
 
