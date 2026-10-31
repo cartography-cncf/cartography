@@ -4,16 +4,35 @@ Use this guide for changes under `tests/`. The root `AGENTS.md` covers general
 Cartography model and sync patterns; this file is the source of truth for
 test-specific expectations.
 
+## Test Intent
+
+Start with a representative sync test that demonstrates the provider's expected
+graph relationships. Additional tests must earn their maintenance cost through a
+concrete reason: a regression, a known failure-prone boundary, or distinctive
+provider behavior. Do not add tests opportunistically because a helper exists, a
+branch is uncovered, or a generic failure is imaginable.
+
+A reader should understand why a test belongs in this module. For a non-obvious
+regression test, briefly explain the failure or reference the relevant issue; do
+not invent a failure history. Prefer a small, focused test set over exhaustive
+scenario matrices or one oversized test.
+
+At every test layer, assert observable outcomes rather than implementation
+details. Avoid exact request kwargs, mock call counts, internal call order,
+incidental result ordering, and intermediate dictionary layouts. Do not enumerate
+HTTP statuses merely to verify that `requests` raises an exception.
+
 ## Test Layering
 
 - Put fake provider/API payloads in `tests/data` when they are reused or large.
-- Add unit tests under `tests/unit/cartography/intel/...` for pure transforms,
-  input normalization, error classification, and small helper behavior.
-- Add integration tests under `tests/integration/cartography/intel/...` when the
-  behavior depends on Neo4j writes, relationship creation, cleanup, analysis
-  jobs, or idempotency across update tags.
-- Prefer the narrowest test layer that proves the contract. Do not add a broad
-  integration test for behavior that a unit test can prove directly.
+- Put justified unit tests under `tests/unit/cartography/intel/...` and graph
+  integration tests under `tests/integration/cartography/intel/...`.
+- Do not scaffold API, transform, helper, or CLI tests for every module. Simple
+  mappings already exercised by a sync test need no separate transform test.
+  A CLI test can cover configuration wiring bypassed by direct `Config`
+  construction, but is not a per-module requirement.
+- Once a test is justified, choose the narrowest layer that proves its contract.
+  Do not repeat the same behavior at transform, loader, and sync layers.
 
 ## Integration Test Boundary
 
@@ -32,8 +51,12 @@ test-specific expectations.
 
 ## Graph Setup And Assertions
 
-- Use `check_nodes()` and `check_rels()` from `tests.integration.util` for simple
-  node and relationship assertions.
+- Use `check_rels()` from `tests.integration.util` for integration assertions:
+  expected relationships establish that their endpoints exist and are connected
+  correctly. Do not routinely pair them with `check_nodes()` assertions.
+- Reserve `check_nodes()` or property-specific queries for a concrete
+  property-related requirement or issue, such as an analysis whose output is a
+  computed property rather than an edge.
 - Direct read queries with `neo4j_session.run()` are fine for assertions that
   need counts, labels, relationship properties, negative matches, or other shapes
   that `check_nodes()` / `check_rels()` do not express clearly.
@@ -46,9 +69,8 @@ test-specific expectations.
 - If a handwritten write query is necessary outside prerequisite setup or
   teardown, use `run_write_query()` so the write runs with Cartography's
   transaction retry handling, and keep the reason obvious in the test.
-- Reset and reseed graph state before sync tests that depend on scoped data; do
-  not let tests pass because of leftovers from module-scoped fixtures or earlier
-  tests.
+- Use the shared fixture lifecycle for isolation. Add custom reset/reseed setup
+  only for a concrete isolation need; never depend on leftovers from other tests.
 
 ## Test Structure
 
@@ -66,20 +88,17 @@ test-specific expectations.
   for an idempotency or cleanup test), repeat the comments for each cycle so the
   structure stays readable.
 
-## Coverage Expectations
+## Test Ownership
 
-- Assert both node existence and the relationships that make the data traversable.
-- For cleanup/idempotency changes, test the stale-data path as well as the
-  current-data path, usually with at least two update tags.
-- For scoped cleanup or partial-failure behavior, test that successful scopes are
-  cleaned up and incomplete scopes preserve prior data when that is the contract.
-- For generated IDs or canonicalization, include cases that would collide or
-  drift without the intended stable identity input.
+- Module tests establish provider-specific ingestion behavior, not the shared
+  data model's guarantees. Standard cleanup is tested by the data model; do not
+  add provider cleanup tests unless addressing a specific issue there.
+- Do not repeat generic idempotency, collision, or partial-failure scenarios for
+  every provider. Test shared behavior at its owning layer; add module-specific
+  cases only when a concrete issue or distinctive behavior warrants them.
 - For rule tests, keep `cypher_query`, `cypher_count_query`, and any visual query
   semantics aligned: count queries should count the intended eligible or failing
   population for that rule, and visual queries should not silently diverge.
-- Add negative/error-path coverage when the new behavior changes operator-facing
-  failure handling, cleanup safety, or skipped-input behavior.
 
 ## Fixtures
 
@@ -87,15 +106,19 @@ test-specific expectations.
   brittle path math such as fixed `parents[N]` indexing.
 - Avoid copy-pasting large inline JSON/YAML fixtures when a shared fixture or
   generated structure would make drift less likely.
-- Keep fixture data deterministic and minimal, but include enough fields to prove
-  relationships, cleanup scope, and ID stability.
+- Keep fixture data deterministic and minimal for the behavior being tested.
+- Do not create module-specific clearing fixtures that enumerate node labels
+  (for example, `clear_zendesk`). Adding a resource should not require updating a
+  second list of the module's node types. Reuse shared test infrastructure.
 
 ## Running Tests
 
 - Follow `docs/root/dev/developer-guide.md` for local setup.
-- Prefer the Make targets for full local validation:
+- Run in the uv-managed virtual environment. Prefer the Make targets for full
+  local validation:
 
 ```bash
+make test_lint
 make test_unit
 make test_integration
 make test
@@ -112,3 +135,6 @@ make test
 ```bash
 uv run pytest tests/integration/cartography/intel/aws/test_iam.py::test_load_groups
 ```
+
+- For focused lint, including new files not yet tracked by Git, use
+  `uv run --frozen pre-commit run --files <changed-files>`.

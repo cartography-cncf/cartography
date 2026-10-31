@@ -1,16 +1,8 @@
 # Testing reference
 
-**Key principle: test outcomes, not implementation details.**
-
-Verify data is written to the graph as expected. Mock external dependencies (APIs, credentials, network) but never internal Cartography sync / load / cleanup functions.
-
-## Contents
-
-- Test data
-- Integration test
-- What to test
-- When to mock
-- Integration test boundary
+Follow [tests/AGENTS.md](../../../../tests/AGENTS.md) for test scope, assertions,
+mocking, and fixtures. This example exercises real ingestion with provider input
+mocked at `get()` and checks the resulting relationships.
 
 ## Test data
 
@@ -48,7 +40,7 @@ from unittest.mock import patch
 
 import cartography.intel.your_service.users
 from tests.data.your_service.users import MOCK_USERS_RESPONSE
-from tests.integration.util import check_nodes, check_rels
+from tests.integration.util import check_rels
 
 
 TEST_UPDATE_TAG = 123456789
@@ -61,6 +53,13 @@ TEST_TENANT_ID = "tenant-123"
     return_value=MOCK_USERS_RESPONSE,
 )
 def test_sync_users(mock_api, neo4j_session):
+    # Arrange: provider input is supplied by the patch above.
+    # The tenant is a prerequisite normally loaded by the module entry point.
+    neo4j_session.run(
+        "MERGE (:YourServiceTenant {id: $id})", id=TEST_TENANT_ID,
+    )
+
+    # Act
     cartography.intel.your_service.users.sync(
         neo4j_session,
         "fake-api-key",
@@ -69,14 +68,7 @@ def test_sync_users(mock_api, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
-    expected_nodes = {
-        ("user-123", "alice@example.com"),
-        ("user-456", "bob@example.com"),
-    }
-    assert check_nodes(neo4j_session, "YourServiceUser", ["id", "email"]) == expected_nodes
-
-    assert check_nodes(neo4j_session, "YourServiceTenant", ["id"]) == {(TEST_TENANT_ID,)}
-
+    # Assert
     expected_rels = {
         ("user-123", TEST_TENANT_ID),
         ("user-456", TEST_TENANT_ID),
@@ -86,34 +78,6 @@ def test_sync_users(mock_api, neo4j_session):
         "YourServiceUser", "id",
         "YourServiceTenant", "id",
         "RESOURCE",
-        rel_direction_right=True,
+        rel_direction_right=False,
     ) == expected_rels
 ```
-
-## What to test
-
-**DO** test outcomes:
-- Nodes created with correct properties.
-- Relationships created between expected nodes.
-
-**DO NOT** test implementation details:
-- Mock parameter values (brittle).
-- Internal call order.
-- Mock call counts unless absolutely necessary.
-
-## When to mock
-
-**DO** mock external boundaries:
-- Third-party APIs (AWS, Azure, SaaS providers).
-- Credentials / authentication.
-- Network calls.
-
-**DO NOT** mock:
-- Internal Cartography functions.
-- Data transformation logic.
-- The function under test.
-
-## Integration test boundary
-
-- Tests may seed prerequisite graph state with Cypher, but should exercise real Cartography `sync()` / `sync_*()` flows end-to-end whenever practical.
-- Mock only external boundaries (API clients, service discovery, credentials, network responses); do not mock Cartography internal sync, load, or cleanup functions in integration tests.

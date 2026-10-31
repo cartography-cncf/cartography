@@ -28,7 +28,9 @@ Example: `cartography.intel.aws.ec2.instances.sync()`.
 
 #### 1b. Ensure an integration test exists
 
-Look in `tests/integration/cartography/intel/[module]/`. The test **must** call the sync function directly. If none exists, create one **before any refactoring**:
+Look in `tests/integration/cartography/intel/[module]/`. The test **must** call the
+sync function directly. Follow [tests/AGENTS.md](../../../tests/AGENTS.md) for
+test scope and assertions. If none exists, create one **before any refactoring**:
 
 ```python
 # tests/integration/cartography/intel/aws/ec2/test_instances.py
@@ -36,7 +38,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ec2.instances
 from tests.data.aws.ec2.instances import MOCK_INSTANCES_DATA
-from tests.integration.util import check_nodes, check_rels
+from tests.integration.util import check_rels
 
 
 TEST_UPDATE_TAG = 123456789
@@ -45,6 +47,10 @@ TEST_AWS_ACCOUNT_ID = "123456789012"
 
 @patch.object(cartography.intel.aws.ec2.instances, "get", return_value=MOCK_INSTANCES_DATA)
 def test_sync_ec2_instances(mock_get, neo4j_session):
+    # Arrange: seed the account normally loaded by the module entry point.
+    neo4j_session.run("MERGE (:AWSAccount {id: $id})", id=TEST_AWS_ACCOUNT_ID)
+
+    # Act
     cartography.intel.aws.ec2.instances.sync(
         neo4j_session,
         boto3_session=None,  # mocked
@@ -57,11 +63,17 @@ def test_sync_ec2_instances(mock_get, neo4j_session):
         },
     )
 
-    expected_nodes = {
-        ("i-1234567890abcdef0", "running"),
-        ("i-0987654321fedcba0", "stopped"),
+    # Assert
+    expected_rels = {
+        (TEST_AWS_ACCOUNT_ID, "i-1234567890abcdef0"),
+        (TEST_AWS_ACCOUNT_ID, "i-0987654321fedcba0"),
     }
-    assert check_nodes(neo4j_session, "AWSEC2Instance", ["id", "state"]) == expected_nodes
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount", "id",
+        "AWSEC2Instance", "id",
+        "RESOURCE",
+    ) == expected_rels
 ```
 
 Run the test against the legacy code and ensure it passes. If it does not exist or does not pass, fix that first — **no exceptions**.
@@ -202,7 +214,8 @@ Only remove cleanup files for fully-converted modules.
 
 - Update expected property names if the data model changes them.
 - Adjust relationship directions if needed.
-- Remove tests for manual cleanup jobs (data model handles cleanup).
+- Remove redundant manual-cleanup tests once the data model owns that behavior;
+  preserve regression coverage for specific issues per `tests/AGENTS.md`.
 
 ### Complex Cypher queries
 
@@ -210,7 +223,9 @@ Break them down: identify what nodes/relationships are being created, map to sch
 
 ## What NOT to test
 
-Do **not** explicitly test cleanup unless you have a specific concern. The data model handles complex cleanup automatically and testing it adds boilerplate. Focus tests on data ingestion outcomes.
+Follow [tests/AGENTS.md](../../../tests/AGENTS.md): standard cleanup belongs to
+the data model's tests, not each provider's tests. Add module-specific cleanup
+coverage only when addressing a specific issue there.
 
 ## When to stop and ask
 
