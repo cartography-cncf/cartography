@@ -3,7 +3,9 @@ from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Param
+from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import ScopeById
+from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import Var
 
@@ -381,6 +383,191 @@ AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
                     "exposed_internet_type",
                     "direct",
                     label="AWSECSContainer",
+                ),
+            ),
+        ),
+    ),
+)
+# The IDs of the accounts with a load balancer interface, an AWSNetworkInterface that
+# amazon-elb requested, that another load balancer reaches as an IP target, directly
+# or chained through an alb target group. This is the static IP pattern for an ALB,
+# where an NLB's IP target group lists the ALB's private IPs. The graph does not link
+# those interfaces to their load balancer, so every internal load balancer in the
+# account may be the one behind it. The front load balancer counts when it is not
+# internal, or belongs to another account whatever its scheme, since judging that one
+# would take the same rule for its own account's interfaces, and so on. An internal
+# one in the same account does not count: what reaches it is one of the account's
+# entry points, which its check counts, one of its interfaces, which this rule
+# covers, or a load balancer chained in front of it, which counts here.
+# The rule spans accounts, so it is evaluated when results are written, not in the
+# account check, and a load balancer synced with another account counts as soon as
+# it is in the graph, whichever account synced first. A statement evaluates it once,
+# as `fronted_accounts`, for AWS_LB_MAY_FACE_INTERNET to read.
+AWS_LB_INTERFACE_FRONTED_ACCOUNTS = """COLLECT {
+    MATCH (account:AWSAccount)-[:RESOURCE]->(:AWSNetworkInterface {requester_id: 'amazon-elb'})
+        -[:PRIVATE_IP_ADDRESS]->(:AWSEC2PrivateIp)<-[:EXPOSE*1..2]-(front:AWSLoadBalancerV2)
+    WHERE coalesce(front.scheme, '') <> 'internal'
+    OR NOT EXISTS { MATCH (account)-[:RESOURCE]->(front) }
+    RETURN DISTINCT account.id
+}"""
+# A Cypher predicate on `lb`, which needs `fronted_accounts` bound to
+# AWS_LB_INTERFACE_FRONTED_ACCOUNTS. A load balancer may face the internet unless it
+# is internal, its account was checked for unmodeled internet paths, with none found,
+# at or after the load balancer's own sync, and no load balancer that may face the
+# internet reaches the account's load balancer interfaces. An account that was never
+# checked, or whose check is older than the load balancer, counts as unknown rather
+# than clear.
+AWS_LB_MAY_FACE_INTERNET = """(
+    coalesce(lb.scheme, '') <> 'internal'
+    OR NOT EXISTS {
+        MATCH (lb)<-[:RESOURCE]-(lb_account:AWSAccount)
+        WHERE lb_account.unmodeled_internet_paths_checked_at >= lb.lastupdated
+        AND lb_account.unmodeled_internet_path_count = 0
+        AND NOT lb_account.id IN fronted_accounts
+    }
+)"""
+# Internet entry points whose onward path the graph does not model, because they
+# terminate on private addresses: CloudFront VPC origins, API Gateway REST VPC links,
+# and any API Gateway v2 API, since v2 VPC link integrations are not ingested. Every
+# checked account records the result, including a count of 0, so readers can tell a
+# clear account from one that was never checked. An account's sync runs the job with
+# $CHECK_INPUTS_SYNCED false before it loads any of the check's inputs: nothing is
+# written and the stamped cleanup withdraws the account's previous result. It runs it
+# again with true after them only when it synced all of them, so a sync that fails
+# part-way leaves the account unchecked.
+AWS_UNMODELED_INTERNET_PATHS = AnalysisJob(
+    name="AWS unmodeled internet paths",
+    short_name="aws_unmodeled_internet_paths",
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="account"),
+    statements=(
+        AnalysisStatement(
+            match="""
+            MATCH (account:AWSAccount)
+            WHERE $CHECK_INPUTS_SYNCED
+            WITH account,
+                COLLECT {
+                    MATCH (account)-[:RESOURCE]->(distribution:AWSCloudFrontDistribution)
+                    WHERE size(coalesce(distribution.vpc_origin_ids, [])) > 0
+                    RETURN distribution.id ORDER BY distribution.id
+                } + COLLECT {
+                    MATCH (account)-[:RESOURCE]->(integration:AWSAPIGatewayIntegration)
+                    WHERE integration.connection_type = 'VPC_LINK'
+                    RETURN integration.id ORDER BY integration.id
+                } + COLLECT {
+                    MATCH (account)-[:RESOURCE]->(api:AWSAPIGatewayV2API)
+                    RETURN api.id ORDER BY api.id
+                } AS paths
+            """,
+            effects=(
+                SetProperties(
+                    "account",
+                    {
+                        "unmodeled_internet_paths": RawCypher(
+                            "CASE WHEN size(paths) > 0 THEN paths[..10] END"
+                        ),
+                        "unmodeled_internet_path_count": RawCypher("size(paths)"),
+                        "unmodeled_internet_paths_checked_at": Param("UPDATE_TAG"),
+                    },
+                    label="AWSAccount",
+                    cleanup_stamp="unmodeled_internet_paths_checked_at",
+                ),
+            ),
+        ),
+    ),
+)
+# The job checks a task when its account was checked for unmodeled internet paths in
+# the run that synced the task, whatever the check found, its task definition is in
+# the graph, and, for an awsvpc task, its interfaces are. The account check must come
+# from the task's own run: it vouches for the account's load balancers and interfaces,
+# and only the ECS sync links a new target group to the task's service. Every task it
+# checks, and its containers, get no_modeled_internet_path, true or false, stamped
+# with the run's tag, so a reader can tell a declined task from one that was not
+# checked. A task it cannot check gets neither, and loses any earlier result.
+#
+# A task has no modeled internet path when its account's check found none, it is
+# awsvpc, no interface it uses has a public IPv4 or any IPv6 address, and every load
+# balancer that reaches it, directly, through a target group on its service, or
+# chained behind another load balancer, is internal in a checked, clear account.
+# Bridge and host tasks share the instance's network, and a task definition without a
+# network mode uses bridge. An Elastic IP linked to an interface counts as a public
+# IPv4 address, because the Elastic IP sync can link one in a run that does not
+# refresh the interface's public_ip. The task is matched to its service by name, not
+# WORKLOAD_PARENT: the ECS sync loads tasks before services, so the tasks of a new
+# service get that edge a run later.
+#
+# The job re-checks every task in the graph on every AWS run, not only the ones this
+# run synced: a load balancer synced with another account can reach a task, accounts
+# may be synced by separate runs, and a partial run can make an earlier result stale.
+# Results are replaced, not cleared first, so a reader keeps the previous result until
+# this run decides.
+AWS_ECS_NO_MODELED_INTERNET_PATH = AnalysisJob(
+    name="AWS ECS no modeled internet path",
+    short_name="aws_ecs_no_modeled_internet_path",
+    statements=(
+        AnalysisStatement(
+            match="""
+            WITH """
+            + AWS_LB_INTERFACE_FRONTED_ACCOUNTS
+            + """ AS fronted_accounts
+            MATCH (account:AWSAccount)-[:RESOURCE]->(task:AWSECSTask)
+                -[:HAS_TASK_DEFINITION]->(definition:AWSECSTaskDefinition)
+            WHERE account.unmodeled_internet_paths_checked_at = task.lastupdated
+            AND (
+                coalesce(definition.network_mode, '') <> 'awsvpc'
+                OR EXISTS { MATCH (task)-[:NETWORK_INTERFACE]->(:AWSNetworkInterface) }
+            )
+            WITH task,
+                account.unmodeled_internet_path_count = 0
+                AND coalesce(definition.network_mode, '') = 'awsvpc'
+                AND NOT EXISTS {
+                    MATCH (task)-[:NETWORK_INTERFACE]->(eni:AWSNetworkInterface)
+                    WHERE eni.public_ip IS NOT NULL
+                    OR size(coalesce(eni.ipv6_addresses, [])) > 0
+                    OR EXISTS {
+                        MATCH (eni)-[:PRIVATE_IP_ADDRESS]->(address:AWSEC2PrivateIp)
+                        WHERE address.public_ip IS NOT NULL
+                    }
+                    OR EXISTS { MATCH (eni)-[:ELASTIC_IP_ADDRESS]->(:AWSElasticIPAddress) }
+                }
+                AND NOT EXISTS {
+                    MATCH (exposed:AWSECSContainer)-[:WORKLOAD_PARENT]->(task)
+                    WHERE exposed.exposed_internet = true
+                }
+                AND NOT EXISTS {
+                    MATCH (task)-[:NETWORK_INTERFACE]->(:AWSNetworkInterface)
+                        -[:PRIVATE_IP_ADDRESS]->(:AWSEC2PrivateIp)<-[:EXPOSE*1..2]-(lb:AWSLoadBalancerV2)
+                    WHERE """
+            + AWS_LB_MAY_FACE_INTERNET
+            + """
+                }
+                AND NOT EXISTS {
+                    MATCH (:AWSECSService {cluster_arn: task.cluster_arn, name: task.service_name})
+                        <-[:TARGETS]-(:AWSELBV2TargetGroup)
+                        <-[:ELBV2_TARGET_GROUP]-(:AWSLoadBalancerV2)<-[:EXPOSE*0..1]-(lb:AWSLoadBalancerV2)
+                    WHERE """
+            + AWS_LB_MAY_FACE_INTERNET
+            + """
+                } AS clear
+            OPTIONAL MATCH (container:AWSECSContainer)-[:WORKLOAD_PARENT]->(task)
+            """,
+            effects=(
+                SetProperties(
+                    "task",
+                    {
+                        "no_modeled_internet_path": Var("clear"),
+                        "no_modeled_internet_path_checked_at": Param("UPDATE_TAG"),
+                    },
+                    label="AWSECSTask",
+                    cleanup_stamp="no_modeled_internet_path_checked_at",
+                ),
+                SetProperties(
+                    "container",
+                    {
+                        "no_modeled_internet_path": Var("clear"),
+                        "no_modeled_internet_path_checked_at": Param("UPDATE_TAG"),
+                    },
+                    label="AWSECSContainer",
+                    cleanup_stamp="no_modeled_internet_path_checked_at",
                 ),
             ),
         ),

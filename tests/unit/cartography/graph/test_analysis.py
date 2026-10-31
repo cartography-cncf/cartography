@@ -16,11 +16,13 @@ from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Case
 from cartography.graph.analysis import IncrementalMatch
+from cartography.graph.analysis import Param
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import ScopeById
+from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.analysis import SetRelationshipPropertyIfMissing
@@ -532,6 +534,41 @@ def test_property_job_prepends_cleanup_statement():
         "-[:RESOURCE]->(s)\n"
         "MATCH (g:GitHubRepository"
     )
+
+
+@pytest.mark.parametrize(
+    "properties",
+    [
+        {"private": True},
+        {"private": True, "checked_at": 123},
+        {"private": True, "checked_at": Param("OTHER_TAG")},
+    ],
+    ids=["missing", "literal", "other_parameter"],
+)
+def test_set_properties_cleanup_stamp_must_hold_the_update_tag(properties):
+    # Act and assert
+    with pytest.raises(ValueError, match="cleanup_stamp"):
+        SetProperties("n", properties, label="Node", cleanup_stamp="checked_at")
+
+
+@pytest.mark.parametrize(
+    "cleanup,error",
+    [
+        # Cleanup after the statements would clear what they just wrote.
+        ({"cleanup_before_statements": False}, "requires a cleanup_stamp"),
+        (
+            {"cleanup_before_statements": False, "cleanup_stamp": "checked_at"},
+            "one of its properties",
+        ),
+        # A stamp only tells a trailing cleanup which values are current.
+        ({"cleanup_stamp": "flag"}, "after the statements"),
+    ],
+    ids=["after_without_stamp", "stamp_not_a_property", "stamp_before"],
+)
+def test_property_effect_rejects_inconsistent_cleanup_stamp(cleanup, error):
+    # Act and assert
+    with pytest.raises(ValueError, match=error):
+        PropertyEffect("Node", ("flag",), **cleanup)
 
 
 def test_property_effect_requires_properties():

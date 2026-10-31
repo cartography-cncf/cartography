@@ -172,6 +172,18 @@ def test_transform_cloudfront_distributions_multi_origin():
     )
 
 
+def test_transform_cloudfront_distributions_vpc_origin():
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS_VPC_ORIGIN
+        + test_data.CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN,
+    )
+
+    assert [dist["vpc_origin_ids"] for dist in result] == [
+        ["vo_EXAMPLE0000000000001"],
+        None,
+    ]
+
+
 def test_transform_cloudfront_distributions_empty():
     """Test transformation with empty input."""
     result = cloudfront.transform_cloudfront_distributions([])
