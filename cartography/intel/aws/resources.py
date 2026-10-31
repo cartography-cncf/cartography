@@ -15,6 +15,7 @@ from . import cloudwatch
 from . import codebuild
 from . import cognito
 from . import config
+from . import directconnect
 from . import dynamodb
 from . import ecr
 from . import ecr_image_layers
@@ -102,6 +103,9 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:network_interface": sync_network_interfaces,
         "ec2:tgw": sync_transit_gateways,
         "ec2:tgw_route_table": sync_transit_gateway_route_tables,
+        # `directconnect` must run after `ec2:tgw` so that AWSTransitGateway nodes exist when
+        # gateway associations create ATTACHED_TO edges to the transit gateway on the other side.
+        "directconnect": directconnect.sync,
         "ec2:vpc": sync_vpc,
         # `ec2:vpc_endpoint` must be synced before `ec2:route_table` so that
         # ROUTES_TO_VPC_ENDPOINT relationships can be created when routes sync.
