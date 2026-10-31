@@ -6,8 +6,6 @@ correctly sums up from facts → findings.
 """
 
 import json
-from datetime import datetime
-from datetime import timezone
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -332,9 +330,17 @@ def test_run_rules_json_serializes_timestamp_findings(mock_driver_factory, capsy
         [
             {
                 "access_key_id": "example-key",
-                "key_create_date": DateTime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
+                "key_create_date": DateTime.from_iso_format(
+                    "2026-01-02T03:04:05+00:00"
+                ),
                 "audit": {
-                    "events": [{"at": datetime(2026, 1, 3, tzinfo=timezone.utc)}]
+                    "events": [
+                        {
+                            "at": DateTime.from_iso_format(
+                                "2026-01-03T00:00:00.123456789+00:00"
+                            )
+                        }
+                    ]
                 },
             }
         ],
@@ -365,6 +371,6 @@ def test_run_rules_json_serializes_timestamp_findings(mock_driver_factory, capsy
     assert finding["key_create_date"] == "2026-01-02T03:04:05+00:00"
     assert finding["last_used_date"] is None
     assert finding["extra"] == {
-        "audit": {"events": [{"at": "2026-01-03T00:00:00+00:00"}]}
+        "audit": {"events": [{"at": "2026-01-03T00:00:00.123456789+00:00"}]}
     }
     driver.close.assert_called_once_with()
