@@ -161,6 +161,26 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepMavenLibrarySchema(CartographyNodeSchema):
+    """A Maven library dependency reported by Semgrep."""
+
+    label: str = "SemgrepMavenLibrary"
+    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+        [DEPENDENCY, SEMGREP_DEPENDENCY],
+    )
+    properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
+    sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (
+        SemgrepDependencyToSemgrepDeploymentRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            SemgrepDependencyToGithubRepoRel(),
+            SemgrepDependencyToGitLabProjectRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepNpmLibrarySchema(CartographyNodeSchema):
     """An npm library dependency reported by Semgrep."""
 
