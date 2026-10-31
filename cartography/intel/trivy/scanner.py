@@ -24,6 +24,14 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
+_SEVERITY_RANK = {"UNKNOWN": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+# Among a finding's packages, prefer one with no fix available (affected,
+# will_not_fix, fix_deferred, ...: every status missing from this map) over one
+# with a fix available (fixed: the installed version is still vulnerable), and
+# either over not_affected.
+_STATUS_PREFERENCE = {"not_affected": 0, "fixed": 1}
+_NO_FIX_PREFERENCE = 2
+
 
 def _validate_packages(package_list: list[dict]) -> list[dict]:
     """
@@ -44,6 +52,39 @@ def _validate_packages(package_list: list[dict]) -> list[dict]:
                 "Package object does not have required fields `InstalledVersion` or `PkgName` - skipping."
             )
     return validated_packages
+
+
+def _target_rating_key(row: dict[str, Any]) -> tuple[int, bool, int, bool]:
+    source = row.get("SeveritySource")
+    return (
+        _SEVERITY_RANK.get((row.get("Severity") or "").upper(), 0),
+        # Trivy names the distribution or ecosystem database when it has one and
+        # falls back to nvd (or names nothing) otherwise; the named rating is the
+        # one that applies to the package as built.
+        bool(source) and source != "nvd",
+        _STATUS_PREFERENCE.get(row.get("Status") or "", _NO_FIX_PREFERENCE),
+        row.get("Class") == "os-pkgs",
+    )
+
+
+def _set_target_ratings(findings_list: list[dict[str, Any]]) -> None:
+    """
+    A report is one scan target, and the AFFECTS edge to that target is merged
+    once per package row, so every row of a finding must carry the same rating or
+    the edge would keep whichever package happened to come last.
+    """
+    rows_by_finding: dict[str, list[dict[str, Any]]] = {}
+    for row in findings_list:
+        rows_by_finding.setdefault(row["id"], []).append(row)
+
+    for rows in rows_by_finding.values():
+        # max() keeps the first maximal row, so a full tie goes to report order.
+        rating = max(rows, key=_target_rating_key)
+        for row in rows:
+            row["TargetSeverity"] = rating["Severity"]
+            row["TargetSeveritySource"] = rating["SeveritySource"]
+            row["TargetStatus"] = rating["Status"]
+            row["TargetDataSourceID"] = rating["DataSourceID"]
 
 
 def transform_scan_results(
@@ -196,6 +237,8 @@ def transform_scan_results(
                             "FindingId": finding["id"],
                         }
                     )
+
+    _set_target_ratings(findings_list)
 
     # Validate packages before returning
     packages_list = _validate_packages(packages_list)

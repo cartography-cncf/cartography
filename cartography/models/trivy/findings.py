@@ -58,11 +58,19 @@ class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     severity: PropertyRef = PropertyRef(
         "Severity",
         extra_index=True,
-        description="Vulnerability severity.",
+        description=(
+            "Vulnerability severity. From the last package row ingested for this "
+            "finding, across all scans. Per-target severity, source and status are on "
+            "AFFECTS."
+        ),
     )
     severity_source: PropertyRef = PropertyRef(
         "SeveritySource",
-        description="Source of the severity rating.",
+        description=(
+            "Source of the severity rating. From the last package row ingested for "
+            "this finding, across all scans. Per-target severity, source and status "
+            "are on AFFECTS."
+        ),
     )
     title: PropertyRef = PropertyRef("Title", description="Vulnerability title.")
     cvss_nvd_v2_score: PropertyRef = PropertyRef(
@@ -99,11 +107,17 @@ class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     )
     class_name: PropertyRef = PropertyRef(
         "Class",
-        description="Trivy result class, such as operating system or language package.",
+        description=(
+            "Trivy result class, such as operating system or language package. From "
+            "the last package row ingested for this finding, across all scans."
+        ),
     )
     type: PropertyRef = PropertyRef(
         "Type",
-        description="Trivy result type, such as an operating system or package ecosystem.",
+        description=(
+            "Trivy result type, such as an operating system or package ecosystem. "
+            "From the last package row ingested for this finding, across all scans."
+        ),
     )
     # Additional fields from Trivy scan results
     cwe_ids: PropertyRef = PropertyRef(
@@ -112,7 +126,11 @@ class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     )
     status: PropertyRef = PropertyRef(
         "Status",
-        description="Vulnerability remediation status.",
+        description=(
+            "Vulnerability remediation status. From the last package row ingested for "
+            "this finding, across all scans. Per-target severity, source and status "
+            "are on AFFECTS."
+        ),
     )
     references: PropertyRef = PropertyRef(
         "References",
@@ -120,19 +138,32 @@ class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     )
     data_source_id: PropertyRef = PropertyRef(
         "DataSourceID",
-        description="Trivy vulnerability data source ID.",
+        description=(
+            "Trivy vulnerability data source ID. From the last package row ingested "
+            "for this finding, across all scans. Per-target severity, source and "
+            "status are on AFFECTS."
+        ),
     )
     data_source_name: PropertyRef = PropertyRef(
         "DataSourceName",
-        description="Trivy vulnerability data source name.",
+        description=(
+            "Trivy vulnerability data source name. From the last package row ingested "
+            "for this finding, across all scans."
+        ),
     )
     layer_digest: PropertyRef = PropertyRef(
         "LayerDigest",
-        description="Digest of the image layer containing the vulnerable package.",
+        description=(
+            "Digest of the image layer containing the vulnerable package. From the "
+            "last package row ingested for this finding, across all scans."
+        ),
     )
     layer_diff_id: PropertyRef = PropertyRef(
         "LayerDiffID",
-        description="Uncompressed digest of the affected image layer.",
+        description=(
+            "Uncompressed digest of the affected image layer. From the last package "
+            "row ingested for this finding, across all scans."
+        ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -140,11 +171,48 @@ class TrivyImageFindingNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class TrivyFindingToImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    severity: PropertyRef = PropertyRef(
+        "TargetSeverity",
+        description=(
+            "Highest severity Trivy reported for this finding in this scan target, "
+            "across every package in the target that carries it. Raw Trivy value "
+            "(uppercase)."
+        ),
+    )
+    severity_source: PropertyRef = PropertyRef(
+        "TargetSeveritySource",
+        description=(
+            "Source Trivy named for that severity: a distribution or ecosystem "
+            "advisory database such as debian, ubuntu or ghsa, or nvd for its NVD "
+            "fallback. Null when Trivy used its default severity without naming a "
+            "source."
+        ),
+    )
+    status: PropertyRef = PropertyRef(
+        "TargetStatus",
+        description=(
+            "Fix status Trivy reported with that rating, in Trivy's vocabulary "
+            "(affected, fixed, will_not_fix, fix_deferred, ...). fixed means a fixed "
+            "version exists; the installed package is still vulnerable. When "
+            "packages tie, no fix available (affected, will_not_fix, ...) is "
+            "preferred over fix available (fixed), and fixed over not_affected."
+        ),
+    )
+    data_source_id: PropertyRef = PropertyRef(
+        "TargetDataSourceID",
+        description=(
+            "ID of the Trivy advisory database that matched the package behind that "
+            "rating."
+        ),
+    )
 
 
 @dataclass(frozen=True)
 class TrivyFindingToOntologyImageRel(CartographyRelSchema):
-    """Links a Trivy finding to the container image it affects."""
+    """
+    Links a Trivy finding to the container image it affects, with the severity, its
+    source and the fix status Trivy reported for that image.
+    """
 
     target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -157,7 +225,10 @@ class TrivyFindingToOntologyImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TrivyFindingToFilesystemSnapshotRel(CartographyRelSchema):
-    """Links a Trivy finding to the filesystem snapshots it affects."""
+    """
+    Links a Trivy finding to the filesystem snapshots it affects, with the severity,
+    its source and the fix status Trivy reported for that snapshot.
+    """
 
     target_node_label: str = "FilesystemSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
