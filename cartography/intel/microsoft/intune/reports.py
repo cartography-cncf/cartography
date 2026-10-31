@@ -13,6 +13,7 @@ from types import TracebackType
 from typing import IO
 
 import requests
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.device_management_export_job import (
     DeviceManagementExportJob,
@@ -42,7 +43,7 @@ MAX_REPORT_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_REPORT_UNCOMPRESSED_BYTES = 16 * 1024 * 1024 * 1024
 EXPORT_DOWNLOAD_MAX_RETRIES = 3
 EXPORT_DOWNLOAD_RETRY_BACKOFF_SECONDS = 1.0
-EXPORT_DOWNLOAD_RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
+TRANSIENT_STATUS_CODES = (429, 500, 502, 503, 504)
 
 
 class IntuneReportExportError(Exception):
@@ -127,7 +128,7 @@ async def export_report_rows(
         format=DeviceManagementReportFileFormat.Csv,
     )
 
-    last_export_error: TimeoutError | RuntimeError | None = None
+    last_export_error: Exception | None = None
     for attempt in range(1, max_attempts + 1):
         logger.info(
             "Starting Intune report export for %s (attempt %d/%d)",
@@ -161,13 +162,15 @@ async def export_report_rows(
                     f"Export job {created_job.id} for {report_name} completed "
                     "without a URL."
                 )
-        except (TimeoutError, RuntimeError) as e:
+            report_data = download_export_report_rows(completed_job.url, report_name)
+        except (TimeoutError, RuntimeError, requests.RequestException) as e:
             # Microsoft Graph intermittently strands an export job in
-            # `inProgress`, marks it `failed`, or marks it `completed` with no
-            # download URL, even for tiny tenants whose report normally
-            # completes in seconds. The bad job never recovers, but
-            # resubmitting yields a fresh job that almost always succeeds, so
-            # retry instead of failing the sync.
+            # `inProgress`, marks it `failed`, marks it `completed` with no
+            # download URL, or hands back a URL whose blob does not exist,
+            # even for tiny tenants whose report normally completes in
+            # seconds. The bad job never recovers, but resubmitting yields a
+            # fresh job that almost always succeeds, so retry instead of
+            # failing the sync.
             last_export_error = e
             logger.warning(
                 "Intune report export job %s for %s did not complete on "
@@ -180,7 +183,6 @@ async def export_report_rows(
             )
             continue
 
-        report_data = download_export_report_rows(completed_job.url, report_name)
         logger.info(
             "Downloaded Intune report %s from job %s",
             report_name,
@@ -207,28 +209,46 @@ async def wait_for_export_job(
     last_status: DeviceManagementReportStatus | None = None
 
     while True:
-        job = await client.device_management.reports.export_jobs.by_device_management_export_job_id(
-            export_job_id,
-        ).get()
-        if not job:
-            raise ValueError(
-                f"Export job {export_job_id} for {report_name} could not be fetched."
-            )
-
-        if job.status != last_status:
-            logger.info(
-                "Intune report export %s for %s is %s after %.1fs",
+        try:
+            job = await client.device_management.reports.export_jobs.by_device_management_export_job_id(
+                export_job_id,
+            ).get()
+        except APIError as e:
+            # Graph answers a poll with 5xx or 429 now and then while the job
+            # itself keeps running, so a failed poll is not a failed job. The
+            # timeout below still bounds a job that never answers.
+            if e.response_status_code not in TRANSIENT_STATUS_CODES:
+                raise
+            logger.warning(
+                "Polling Intune report export %s for %s failed with %s; "
+                "polling again.",
                 export_job_id,
                 report_name,
-                _report_status_name(job.status),
-                time.monotonic() - started_at,
+                e.response_status_code,
             )
-            last_status = job.status
+        else:
+            if not job:
+                raise ValueError(
+                    f"Export job {export_job_id} for {report_name} could not be "
+                    "fetched."
+                )
 
-        if job.status == DeviceManagementReportStatus.Completed:
-            return job
-        if job.status == DeviceManagementReportStatus.Failed:
-            raise RuntimeError(f"Export job {export_job_id} for {report_name} failed.")
+            if job.status != last_status:
+                logger.info(
+                    "Intune report export %s for %s is %s after %.1fs",
+                    export_job_id,
+                    report_name,
+                    _report_status_name(job.status),
+                    time.monotonic() - started_at,
+                )
+                last_status = job.status
+
+            if job.status == DeviceManagementReportStatus.Completed:
+                return job
+            if job.status == DeviceManagementReportStatus.Failed:
+                raise RuntimeError(
+                    f"Export job {export_job_id} for {report_name} failed."
+                )
         if time.monotonic() - started_at > timeout_seconds:
             raise TimeoutError(
                 f"Timed out waiting for export job {export_job_id} for {report_name} "
@@ -335,7 +355,7 @@ def _build_retryable_session() -> requests.Session:
         connect=EXPORT_DOWNLOAD_MAX_RETRIES,
         read=EXPORT_DOWNLOAD_MAX_RETRIES,
         backoff_factor=EXPORT_DOWNLOAD_RETRY_BACKOFF_SECONDS,
-        status_forcelist=EXPORT_DOWNLOAD_RETRY_STATUS_CODES,
+        status_forcelist=TRANSIENT_STATUS_CODES,
         allowed_methods=frozenset({"GET"}),
         raise_on_status=False,
     )

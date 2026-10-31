@@ -15,6 +15,50 @@ Federated principals are discovered from IAM role trust policies. Cartography
 does not create a federated principal solely because it exists in an external
 identity provider.
 
+### Role trust policies
+
+`TRUSTS_AWS_PRINCIPAL` connects an `AWSRole` to each principal that its trust
+policy allows to assume it. The relationship exists only where an `Allow`
+statement grants that principal an assume-role action it can call, and no
+`Deny` without a `Condition` takes that action away. A `Deny` with a
+`Condition` is evaluated at request time, so it does not remove the
+relationship.
+
+AWS evaluates the `Condition` blocks of a trust policy at request time, so
+Cartography records them instead of resolving them. `has_condition` is `false`
+when at least one statement grants the trust without a `Condition`. Otherwise,
+`condition_keys` lists the condition keys involved and `conditions` holds the
+raw `Condition` blocks as a JSON string.
+
+`has_external_id` is always set. It is `true` only when every statement that
+grants the trust requires the caller to pass an `sts:ExternalId`, the value a
+third party presents to show which customer it is acting for. Conditions that
+still match without one, such as `StringEqualsIfExists` or `StringNotEquals`,
+do not count. Only `sts:AssumeRole` accepts an external ID, so the property is
+relevant to trusts in other AWS accounts.
+
+Find roles that an AWS account outside the sync scope can assume without an
+external ID, which leaves them open to the confused deputy problem:
+
+```cypher
+MATCH (a:AWSAccount {inscope: true})-[:RESOURCE]->(role:AWSRole)
+      -[trust:TRUSTS_AWS_PRINCIPAL]->(p:AWSPrincipal)<-[:RESOURCE]-(ext:AWSAccount)
+WHERE coalesce(ext.inscope, false) <> true
+  AND trust.has_external_id = false
+RETURN role.arn, p.arn, trust.conditions
+```
+
+Find roles that trust GitHub Actions without a condition on the `sub` claim,
+which identifies the repository and workflow context, such as a branch or tag ref,
+an environment, or a pull request:
+
+```cypher
+MATCH (role:AWSRole)-[trust:TRUSTS_AWS_PRINCIPAL]->(idp:AWSFederatedPrincipal)
+WHERE idp.arn ENDS WITH ':oidc-provider/token.actions.githubusercontent.com'
+  AND NOT 'token.actions.githubusercontent.com:sub' IN trust.condition_keys
+RETURN role.arn, trust.has_condition, trust.conditions
+```
+
 ### CloudFormation execution permissions
 
 `CAN_EXEC` indicates that a principal is permitted to call

@@ -265,3 +265,300 @@ DESCRIBE_FIREWALL_POLICIES = [
         "firewalls": [],
     },
 ]
+
+_RG = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network"
+_FW1 = f"{_RG}/azureFirewalls/test-firewall-1"
+
+# The same firewalls and policies as ARM response bodies, which is what
+# azure-mgmt-network 31+ hands back from as_dict(): camelCase keys nested under
+# "properties". The firewall IP configuration has no allocation method on the wire.
+DESCRIBE_FIREWALLS_ARM = [
+    {
+        "id": _FW1,
+        "name": "test-firewall-1",
+        "type": "Microsoft.Network/azureFirewalls",
+        "location": "eastus",
+        "etag": 'W/"00000000-0000-0000-0000-000000000000"',
+        "zones": ["1", "2", "3"],
+        "tags": {"environment": "production", "team": "security"},
+        "properties": {
+            "provisioningState": "Succeeded",
+            "threatIntelMode": "Alert",
+            "sku": {"name": "AZFW_VNet", "tier": "Premium"},
+            "firewallPolicy": {"id": f"{_RG}/firewallPolicies/test-policy-1"},
+            "ipConfigurations": [
+                {
+                    "id": f"{_FW1}/azureFirewallIpConfigurations/ipconfig1",
+                    "name": "ipconfig1",
+                    "type": "Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations",
+                    "etag": 'W/"11111111-1111-1111-1111-111111111111"',
+                    "properties": {
+                        "privateIPAddress": "10.0.1.4",
+                        "provisioningState": "Succeeded",
+                        "subnet": {
+                            "id": f"{_RG}/virtualNetworks/test-vnet/subnets/AzureFirewallSubnet",
+                        },
+                        "publicIPAddress": {"id": f"{_RG}/publicIPAddresses/fw-pip-1"},
+                    },
+                },
+                {
+                    "id": f"{_FW1}/azureFirewallIpConfigurations/ipconfig2",
+                    "name": "ipconfig2",
+                    "type": "Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations",
+                    "etag": 'W/"22222222-2222-2222-2222-222222222222"',
+                    "properties": {
+                        "privateIPAddress": "10.0.1.5",
+                        "provisioningState": "Succeeded",
+                        "subnet": {
+                            "id": f"{_RG}/virtualNetworks/test-vnet/subnets/AzureFirewallSubnet",
+                        },
+                        "publicIPAddress": {"id": f"{_RG}/publicIPAddresses/fw-pip-2"},
+                    },
+                },
+            ],
+            "managementIpConfiguration": {
+                "id": f"{_FW1}/azureFirewallIpConfigurations/mgmt-ipconfig",
+                "name": "mgmt-ipconfig",
+                "type": "Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations",
+                "etag": 'W/"33333333-3333-3333-3333-333333333333"',
+                "properties": {
+                    "privateIPAddress": "10.0.1.10",
+                    "provisioningState": "Succeeded",
+                    "subnet": {
+                        "id": f"{_RG}/virtualNetworks/test-vnet/subnets/AzureFirewallManagementSubnet",
+                    },
+                    "publicIPAddress": {"id": f"{_RG}/publicIPAddresses/fw-mgmt-pip"},
+                },
+            },
+            "networkRuleCollections": [
+                {
+                    "id": f"{_FW1}/networkRuleCollections/allow-ssh",
+                    "name": "allow-ssh",
+                    "properties": {
+                        "priority": 100,
+                        "action": {"type": "Allow"},
+                        "rules": [
+                            {
+                                "name": "allow-ssh-from-trusted",
+                                "description": "Allow SSH from trusted networks",
+                                "protocols": ["TCP"],
+                                "sourceAddresses": ["10.0.0.0/8"],
+                                "destinationAddresses": ["*"],
+                                "destinationPorts": ["22"],
+                            },
+                        ],
+                    },
+                },
+            ],
+            "applicationRuleCollections": [
+                {
+                    "id": f"{_FW1}/applicationRuleCollections/allow-web",
+                    "name": "allow-web",
+                    "properties": {
+                        "priority": 200,
+                        "action": {"type": "Allow"},
+                        "rules": [
+                            {
+                                "name": "allow-https",
+                                "description": "Allow HTTPS traffic",
+                                "sourceAddresses": ["*"],
+                                "protocols": [{"protocolType": "Https", "port": 443}],
+                                "targetFqdns": ["*.microsoft.com", "*.azure.com"],
+                            },
+                        ],
+                    },
+                },
+            ],
+            "natRuleCollections": [
+                {
+                    "id": f"{_FW1}/natRuleCollections/dnat-web",
+                    "name": "dnat-web",
+                    "properties": {
+                        "priority": 300,
+                        "action": {"type": "Dnat"},
+                        "rules": [
+                            {
+                                "name": "web-dnat",
+                                "description": "DNAT for web server",
+                                "protocols": ["TCP"],
+                                "sourceAddresses": ["*"],
+                                "destinationAddresses": ["20.1.2.3"],
+                                "destinationPorts": ["80", "443"],
+                                "translatedAddress": "10.0.2.10",
+                                "translatedPort": "80",
+                            },
+                        ],
+                    },
+                },
+            ],
+            "additionalProperties": {},
+            "ipGroups": [],
+            "autoscaleConfiguration": {"minCapacity": 2, "maxCapacity": 10},
+        },
+    },
+    {
+        "id": f"{_RG}/azureFirewalls/test-firewall-2",
+        "name": "test-firewall-2",
+        "type": "Microsoft.Network/azureFirewalls",
+        "location": "westus",
+        "properties": {
+            "provisioningState": "Succeeded",
+            "threatIntelMode": "Deny",
+            "sku": {"name": "AZFW_Hub", "tier": "Standard"},
+            "firewallPolicy": {"id": f"{_RG}/firewallPolicies/test-policy-2"},
+            "virtualHub": {"id": f"{_RG}/virtualHubs/test-vhub"},
+            "hubIPAddresses": {
+                "privateIPAddress": "10.1.0.4",
+                "publicIPs": {
+                    "addresses": [{"address": "40.1.2.3"}, {"address": "40.1.2.4"}],
+                    "count": 2,
+                },
+            },
+            "networkRuleCollections": [],
+            "applicationRuleCollections": [],
+            "natRuleCollections": [],
+            "additionalProperties": {},
+        },
+    },
+]
+
+DESCRIBE_FIREWALL_POLICIES_ARM = [
+    {
+        "id": f"{_RG}/firewallPolicies/test-policy-1",
+        "name": "test-policy-1",
+        "type": "Microsoft.Network/firewallPolicies",
+        "location": "eastus",
+        "etag": 'W/"00000000-0000-0000-0000-000000000000"',
+        "tags": {"environment": "production"},
+        "properties": {
+            "provisioningState": "Succeeded",
+            "threatIntelMode": "Alert",
+            "size": "1.5MB",
+            "sku": {"tier": "Premium"},
+            "dnsSettings": {
+                "servers": ["8.8.8.8", "1.1.1.1"],
+                "enableProxy": True,
+                "requireProxyForNetworkRules": False,
+            },
+            "sql": {"allowSqlRedirect": True},
+            "snat": {
+                "privateRanges": ["10.0.0.0/8", "172.16.0.0/12"],
+                "autoLearnPrivateRanges": "Enabled",
+            },
+            "explicitProxy": {
+                "enableExplicitProxy": True,
+                "httpPort": 8080,
+                "httpsPort": 8443,
+                "enablePacFile": False,
+            },
+            "intrusionDetection": {
+                "mode": "Alert",
+                "profile": "Advanced",
+                "configuration": {
+                    "signatureOverrides": [{"id": "2525004", "mode": "Deny"}],
+                    "bypassTrafficSettings": [
+                        {
+                            "name": "bypass-internal",
+                            "description": "Bypass IDS for internal traffic",
+                            "protocol": "Any",
+                            "sourceAddresses": ["10.0.0.0/8"],
+                            "destinationAddresses": ["10.0.0.0/8"],
+                            "destinationPorts": ["*"],
+                        },
+                    ],
+                    "privateRanges": ["192.168.0.0/16"],
+                },
+            },
+            "insights": {"isEnabled": True, "retentionDays": 90},
+            "transportSecurity": {
+                "certificateAuthority": {
+                    "name": "root-ca",
+                    "keyVaultSecretId": "https://myvault.vault.azure.net/secrets/root-ca",
+                },
+            },
+            "threatIntelWhitelist": {
+                "ipAddresses": ["20.3.4.5", "30.4.5.6"],
+                "fqdns": ["trusted.example.com", "*.safe-domain.com"],
+            },
+            "ruleCollectionGroups": [
+                {
+                    "id": f"{_RG}/firewallPolicies/test-policy-1/ruleCollectionGroups/default-rules"
+                },
+            ],
+            "firewalls": [],
+            "childPolicies": [],
+        },
+    },
+    {
+        "id": f"{_RG}/firewallPolicies/test-policy-2",
+        "name": "test-policy-2",
+        "type": "Microsoft.Network/firewallPolicies",
+        "location": "westus",
+        "properties": {
+            "provisioningState": "Succeeded",
+            "threatIntelMode": "Deny",
+            "sku": {"tier": "Standard"},
+            "basePolicy": {"id": f"{_RG}/firewallPolicies/test-policy-1"},
+            "ruleCollectionGroups": [],
+            "firewalls": [],
+        },
+    },
+]
+
+_RULE_GROUP_ID = (
+    f"{_RG}/firewallPolicies/test-policy-1/ruleCollectionGroups/default-rules"
+)
+
+DESCRIBE_FIREWALL_POLICY_RULE_GROUPS = [
+    {
+        "id": _RULE_GROUP_ID,
+        "name": "default-rules",
+        "priority": 100,
+        "rule_collections": [
+            {
+                "rule_collection_type": "FirewallPolicyFilterRuleCollection",
+                "name": "allow-dns",
+                "priority": 100,
+                "action": {"type": "Allow"},
+                "rules": [
+                    {
+                        "rule_type": "NetworkRule",
+                        "name": "dns",
+                        "ip_protocols": ["UDP"],
+                        "source_addresses": ["10.0.0.0/8"],
+                        "destination_addresses": ["168.63.129.16"],
+                        "destination_ports": ["53"],
+                    },
+                ],
+            },
+        ],
+    },
+]
+
+DESCRIBE_FIREWALL_POLICY_RULE_GROUPS_ARM = [
+    {
+        "id": _RULE_GROUP_ID,
+        "name": "default-rules",
+        "properties": {
+            "priority": 100,
+            "ruleCollections": [
+                {
+                    "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                    "name": "allow-dns",
+                    "priority": 100,
+                    "action": {"type": "Allow"},
+                    "rules": [
+                        {
+                            "ruleType": "NetworkRule",
+                            "name": "dns",
+                            "ipProtocols": ["UDP"],
+                            "sourceAddresses": ["10.0.0.0/8"],
+                            "destinationAddresses": ["168.63.129.16"],
+                            "destinationPorts": ["53"],
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+]

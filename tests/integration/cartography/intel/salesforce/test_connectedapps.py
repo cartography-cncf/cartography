@@ -30,7 +30,12 @@ def test_sync_salesforce_connected_apps(mock_apps, mock_tokens, neo4j_session):
     # Arrange
     _ensure_local_neo4j_has_test_organization(neo4j_session)
     cartography.intel.salesforce.users.load_users(
-        neo4j_session, test_data.SALESFORCE_USERS, test_data.ORG_ID, TEST_UPDATE_TAG
+        neo4j_session,
+        cartography.intel.salesforce.users.transform(
+            deepcopy(test_data.SALESFORCE_USERS), test_data.ORG_ID
+        ),
+        test_data.ORG_ID,
+        TEST_UPDATE_TAG,
     )
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": test_data.ORG_ID}
 
@@ -40,10 +45,12 @@ def test_sync_salesforce_connected_apps(mock_apps, mock_tokens, neo4j_session):
     )
 
     # Assert nodes (also carry the ThirdPartyApp label)
-    assert check_nodes(neo4j_session, "SalesforceConnectedApp", ["id", "name"]) == {
-        ("0Ci000000000001AAA", "Slack"),
+    assert check_nodes(
+        neo4j_session, "SalesforceConnectedApp", ["id", "salesforce_id", "name"]
+    ) == {
+        (f"{test_data.ORG_ID}/0Ci000000000001AAA", "0Ci000000000001AAA", "Slack"),
     }
-    assert check_nodes(neo4j_session, "ThirdPartyApp", ["id"]) == {
+    assert check_nodes(neo4j_session, "ThirdPartyApp", ["salesforce_id"]) == {
         ("0Ci000000000001AAA",),
     }
 
@@ -51,9 +58,9 @@ def test_sync_salesforce_connected_apps(mock_apps, mock_tokens, neo4j_session):
     assert check_rels(
         neo4j_session,
         "SalesforceUser",
-        "id",
+        "salesforce_id",
         "SalesforceConnectedApp",
-        "id",
+        "salesforce_id",
         "AUTHORIZED",
         rel_direction_right=True,
     ) == {
@@ -69,7 +76,12 @@ def test_oauth_token_access_error_preserves_previous_connected_app_snapshot(
     # Arrange
     _ensure_local_neo4j_has_test_organization(neo4j_session)
     cartography.intel.salesforce.users.load_users(
-        neo4j_session, test_data.SALESFORCE_USERS, test_data.ORG_ID, TEST_UPDATE_TAG
+        neo4j_session,
+        cartography.intel.salesforce.users.transform(
+            deepcopy(test_data.SALESFORCE_USERS), test_data.ORG_ID
+        ),
+        test_data.ORG_ID,
+        TEST_UPDATE_TAG,
     )
     response = Mock()
     response.json.return_value = [
@@ -101,14 +113,14 @@ def test_oauth_token_access_error_preserves_previous_connected_app_snapshot(
 
     # Assert
     assert check_nodes(
-        neo4j_session, "SalesforceConnectedApp", ["id", "lastupdated"]
+        neo4j_session, "SalesforceConnectedApp", ["salesforce_id", "lastupdated"]
     ) == {("0Ci000000000001AAA", TEST_UPDATE_TAG)}
     assert check_rels(
         neo4j_session,
         "SalesforceUser",
-        "id",
+        "salesforce_id",
         "SalesforceConnectedApp",
-        "id",
+        "salesforce_id",
         "AUTHORIZED",
         rel_direction_right=True,
     ) == {("005000000000001AAA", "0Ci000000000001AAA")}

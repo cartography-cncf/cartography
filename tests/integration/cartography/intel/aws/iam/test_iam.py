@@ -237,6 +237,218 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
     assert actual == expected
 
 
+def _trust_edge_properties(neo4j_session, role_arn: str) -> dict:
+    result = neo4j_session.run(
+        """
+        MATCH (r:AWSRole{arn: $role_arn})-[t:TRUSTS_AWS_PRINCIPAL]->(p:AWSPrincipal)
+        RETURN p.arn AS principal_arn,
+               t.has_condition AS has_condition,
+               t.condition_keys AS condition_keys,
+               t.conditions AS conditions,
+               t.has_external_id AS has_external_id
+        """,
+        role_arn=role_arn,
+    )
+    return {record["principal_arn"]: dict(record) for record in result}
+
+
+def test_trust_conditions_are_loaded_onto_the_edge(neo4j_session):
+    """Two roles differing only in sub scoping must not produce identical trust edges."""
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    provider_arn = tests.data.aws.iam.GITHUB_OIDC_PROVIDER_ARN
+
+    pinned = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/gha-pinned"
+    )[provider_arn]
+    org_wide = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/gha-org-wide"
+    )[provider_arn]
+
+    assert pinned["has_condition"] is True
+    assert org_wide["has_condition"] is True
+    assert (
+        pinned["condition_keys"]
+        == org_wide["condition_keys"]
+        == [
+            "token.actions.githubusercontent.com:aud",
+            "token.actions.githubusercontent.com:sub",
+        ]
+    )
+    assert "repo:octo-org/octo-repo:ref:refs/heads/main" in pinned["conditions"]
+    assert "repo:octo-org/*" in org_wide["conditions"]
+    assert pinned["conditions"] != org_wide["conditions"]
+
+
+def test_unconditional_trust_edge_is_not_flagged(neo4j_session):
+    """An unconditional Allow anywhere in the trust policy wins for that principal."""
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    mixed = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/gha-mixed"
+    )[tests.data.aws.iam.GITHUB_OIDC_PROVIDER_ARN]
+
+    assert mixed["has_condition"] is False
+    assert mixed["condition_keys"] == []
+    assert mixed["conditions"] is None
+    assert mixed["has_external_id"] is False
+
+
+def test_external_id_requirement_is_loaded_onto_the_edge(neo4j_session):
+    """A third-party trust records whether the caller must pass an external ID."""
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_EXTERNAL_ID,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    vendor_arn = tests.data.aws.iam.THIRD_PARTY_ROOT_ARN
+
+    required = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/vendor-external-id"
+    )[vendor_arn]
+    optional = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/vendor-optional-external-id"
+    )[vendor_arn]
+
+    assert required["has_external_id"] is True
+    assert required["condition_keys"] == ["sts:ExternalId"]
+    assert optional["has_external_id"] is False
+    assert optional["condition_keys"] == ["sts:ExternalId"]
+
+
+def test_stale_trust_edges_are_cleaned_up(neo4j_session):
+    """A trust removed from the policy must not survive the next sync."""
+    _create_base_account(neo4j_session)
+    role_arns = [
+        role["Arn"] for role in tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC["Roles"]
+    ]
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    for role_arn in role_arns:
+        assert set(_trust_edge_properties(neo4j_session, role_arn)) == {
+            tests.data.aws.iam.GITHUB_OIDC_PROVIDER_ARN
+        }
+
+    # Re-sync at a later tag with the trust policy emptied out.
+    untrusting = {
+        "Roles": [
+            {
+                **role,
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [],
+                },
+            }
+            for role in tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC["Roles"]
+        ],
+    }
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        untrusting,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+    )
+    cartography.intel.aws.iam.cleanup_iam(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    for role_arn in role_arns:
+        assert _trust_edge_properties(neo4j_session, role_arn) == {}
+
+
+def test_legacy_trust_edges_are_cleaned_up(neo4j_session):
+    """A stale trust edge written before the edge became a MatchLink must still go away.
+
+    Edges from that era carry no _sub_resource_label / _sub_resource_id, which is what the
+    MatchLink cleanup selects on, so they need the dedicated migration step.
+    """
+    _create_base_account(neo4j_session)
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    # Turn every trust edge in the account into a pre-migration one.
+    neo4j_session.run(
+        """
+        MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(:AWSRole)-[t:TRUSTS_AWS_PRINCIPAL]->()
+        REMOVE t._sub_resource_label, t._sub_resource_id
+        """,
+        AccountId=TEST_ACCOUNT_ID,
+    )
+
+    # example-role-0 stops trusting root; every other trust is unchanged.
+    roles = [
+        (
+            {
+                **role,
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [],
+                },
+            }
+            if role["RoleName"] == "example-role-0"
+            else role
+        )
+        for role in tests.data.aws.iam.LIST_ROLES["Roles"]
+    ]
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        {"Roles": roles},
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+    )
+    cartography.intel.aws.iam.cleanup_iam(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    actual = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AWSPrincipal",
+        "arn",
+        "TRUSTS_AWS_PRINCIPAL",
+    )
+    # Only the three trusts still declared remain after the legacy migration.
+    assert actual == {
+        (
+            "arn:aws:iam::000000000000:role/example-role-1",
+            "arn:aws:iam::000000000000:role/example-role-0",
+        ),
+        ("arn:aws:iam::000000000000:role/example-role-2", "ec2.amazonaws.com"),
+        (
+            "arn:aws:iam::000000000000:role/example-role-3",
+            "arn:aws:iam::000000000000:saml-provider/ADFS",
+        ),
+    }
+    counts = neo4j_session.run(
+        """
+        MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(:AWSRole)-[t:TRUSTS_AWS_PRINCIPAL]->()
+        RETURN count(t) AS total, count(t._sub_resource_id) AS scoped
+        """,
+        AccountId=TEST_ACCOUNT_ID,
+    ).single()
+    assert counts["total"] == counts["scoped"] == 3
+
+
 def test_sync_saml_providers(neo4j_session):
     _create_base_account(neo4j_session)
 
@@ -256,6 +468,13 @@ def test_sync_saml_providers(neo4j_session):
 
 
 def test_load_inline_policy(neo4j_session):
+    # Earlier cleanup tests remove the groups, so reload the policy principal.
+    group_data = cartography.intel.aws.iam.transform_groups(
+        tests.data.aws.iam.LIST_GROUPS["Groups"], {}
+    )
+    cartography.intel.aws.iam.load_groups(
+        neo4j_session, group_data, TEST_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
     # Just load in a single policy.
     inline_policy_data = [
         {

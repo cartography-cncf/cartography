@@ -1,4 +1,8 @@
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials as GoogleCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +264,15 @@ class Config:
     :type: k8s_kubeconfig: str
     :param k8s_kubeconfig: Path to kubeconfig file for kubernetes cluster(s). Optional
     :type: managed_kubernetes: str
-    :param managed_kubernetes: Type of managed Kubernetes service (e.g., "eks"). Optional.
+    :param managed_kubernetes: Type of managed Kubernetes service ("eks" or "gke"). Optional.
+    :type gke_clusters: list[str]
+    :param gke_clusters: GKE cluster resource names to ingest with Google ADC instead of a kubeconfig. Optional.
+    :type gke_endpoint: str
+    :param gke_endpoint: GKE control plane endpoint for `gke_clusters`: "dns", "private", or "public". Optional.
+    :type gke_impersonate_service_account: str
+    :param gke_impersonate_service_account: Google service account to impersonate for GKE API and Kubernetes reads. Optional.
+    :type gke_credentials: google.auth.credentials.Credentials
+    :param gke_credentials: Google credentials for GKE API and Kubernetes reads, used instead of Application Default Credentials. Programmatic use only (no CLI flag); combined with `gke_impersonate_service_account` when both are set. Optional.
     :type: pagerduty_api_key: str
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
@@ -323,6 +335,10 @@ class Config:
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
     :type semgrep_dependency_ecosystems: str
+    :param semgrep_skip_dependency_cleanup: Load Semgrep dependencies without cleaning them up. For orchestrators
+        that sync several deployments into one graph with the same update tag and then call
+        cartography.intel.semgrep.dependencies.cleanup_dependencies() once. Optional.
+    :type semgrep_skip_dependency_cleanup: bool
     :type snipeit_base_uri: string
     :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
     :type snipeit_token: string
@@ -416,6 +432,17 @@ class Config:
     :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
     :type databricks_account_client_secret: str
     :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
+    :type databricks_skip_cleanup: bool
+    :param databricks_skip_cleanup: Load Databricks data without running cleanup. For orchestrators that sync several
+        workspaces into one graph with the same update tag and then call
+        cartography.intel.databricks.cleanup_databricks() once. Optional.
+    :type databricks_azure_tenant_id: str
+    :param databricks_azure_tenant_id: Microsoft Entra ID tenant ID of the service principal used for an Azure
+        Databricks workspace. Optional.
+    :type databricks_azure_client_id: str
+    :param databricks_azure_client_id: Microsoft Entra ID service principal client ID. Optional.
+    :type databricks_azure_client_secret: str
+    :param databricks_azure_client_secret: Microsoft Entra ID service principal client secret. Optional.
     :type snowflake_account: str
     :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
     :type snowflake_user: str
@@ -836,6 +863,15 @@ class Config:
         okta_private_key_id=None,
         okta_scopes=None,
         okta_dpop_enabled=True,
+        gke_clusters: list[str] | None = None,
+        gke_endpoint: str = "dns",
+        gke_impersonate_service_account: str | None = None,
+        gke_credentials: "GoogleCredentials | None" = None,
+        databricks_skip_cleanup: bool = False,
+        databricks_azure_tenant_id: str | None = None,
+        databricks_azure_client_id: str | None = None,
+        databricks_azure_client_secret: str | None = None,
+        semgrep_skip_dependency_cleanup: bool = False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -951,6 +987,10 @@ class Config:
         self.huntress_api_secret = huntress_api_secret
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
+        self.gke_clusters = gke_clusters
+        self.gke_endpoint = gke_endpoint
+        self.gke_impersonate_service_account = gke_impersonate_service_account
+        self.gke_credentials = gke_credentials
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host
@@ -991,6 +1031,7 @@ class Config:
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.semgrep_oss_source = semgrep_oss_source
+        self.semgrep_skip_dependency_cleanup = semgrep_skip_dependency_cleanup
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
@@ -1036,6 +1077,10 @@ class Config:
         self.databricks_account_host = databricks_account_host
         self.databricks_account_client_id = databricks_account_client_id
         self.databricks_account_client_secret = databricks_account_client_secret
+        self.databricks_skip_cleanup = databricks_skip_cleanup
+        self.databricks_azure_tenant_id = databricks_azure_tenant_id
+        self.databricks_azure_client_id = databricks_azure_client_id
+        self.databricks_azure_client_secret = databricks_azure_client_secret
         self.bbot_source = _resolve_report_source_config(
             module="bbot",
             source=bbot_source,

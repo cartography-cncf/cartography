@@ -75,23 +75,23 @@ class DatabricksVolumeNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksVolumeToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksVolumeToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksVolume)
-class DatabricksVolumeToWorkspaceRel(CartographyRelSchema):
-    """A Databricks volume is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksVolume)
+class DatabricksVolumeToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks volume is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksVolumeToWorkspaceRelProperties = (
-        DatabricksVolumeToWorkspaceRelProperties()
+    properties: DatabricksVolumeToMetastoreResourceRelProperties = (
+        DatabricksVolumeToMetastoreResourceRelProperties()
     )
 
 
@@ -167,8 +167,8 @@ class DatabricksVolumeSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [DATABRICKS_SECURABLE, OBJECT_STORAGE]
     )
-    sub_resource_relationship: DatabricksVolumeToWorkspaceRel = (
-        DatabricksVolumeToWorkspaceRel()
+    sub_resource_relationship: DatabricksVolumeToMetastoreResourceRel = (
+        DatabricksVolumeToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

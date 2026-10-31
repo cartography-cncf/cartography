@@ -386,6 +386,31 @@ def run_write_query(
     _run_with_retry(_operation, _run_query_tx.__qualname__)
 
 
+def run_autocommit_query_with_retry(
+    neo4j_session: neo4j.Session,
+    query: str,
+    parameters: Dict[str, Any],
+) -> neo4j.ResultSummary:
+    """
+    Execute a query in an auto-commit transaction with the same retries as run_write_query.
+
+    Neo4j only runs `CALL { ... } IN TRANSACTIONS` in an auto-commit transaction, so such
+    queries cannot go through execute_write. A retry reruns the whole query after any batches
+    it already committed, so only use this for queries that are safe to run twice.
+
+    :param neo4j_session: The Neo4j session
+    :param query: The Cypher query to execute
+    :param parameters: Parameters to pass to the query
+    :return: The summary of the attempt that succeeded; its counters leave out batches an
+        earlier, failed attempt committed
+    """
+
+    def _operation() -> neo4j.ResultSummary:
+        return neo4j_session.run(query, parameters).consume()
+
+    return _run_with_retry(_operation, "run_autocommit_query_with_retry")
+
+
 def read_list_of_values_tx(
     tx: neo4j.Transaction,
     query: str,

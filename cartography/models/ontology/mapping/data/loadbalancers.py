@@ -113,6 +113,17 @@ azure_mapping = OntologyMapping(
                 # dns_name: not directly available in AzureLoadBalancer
             ],
         ),
+        OntologyNodeMapping(
+            node_label="AzureApplicationGateway",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="lb_type", node_field="sku_tier"),
+                OntologyFieldMapping(ontology_field="region", node_field="location"),
+                # scheme / dns_name: not directly available in AzureApplicationGateway
+            ],
+        ),
     ],
 )
 

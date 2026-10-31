@@ -2,8 +2,10 @@ import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from googleapiclient.errors import HttpError
 
+import cartography.intel.gcp.network_endpoint_group
 import cartography.intel.gcp.ssl_policy
 import cartography.intel.gcp.target_https_proxy
 import cartography.intel.gcp.target_ssl_proxy
@@ -14,6 +16,12 @@ from tests.data.gcp.ssl_policy_exposure import TARGET_HTTPS_PROXY_RESPONSE
 from tests.data.gcp.ssl_policy_exposure import TARGET_SSL_PROXY_RESPONSE
 
 TEST_PROJECT_ID = "sample-project-123456"
+
+
+def _make_request() -> MagicMock:
+    request = MagicMock()
+    request.uri = "https://compute.googleapis.com/compute/v1/projects/sample-project-123456/aggregated/resources?alt=json"
+    return request
 
 
 def _make_http_error(reason: str) -> HttpError:
@@ -113,8 +121,8 @@ def test_transform_gcp_target_https_proxies_sets_region_for_regional_proxies():
 
 def test_get_gcp_ssl_policies_merges_same_scope_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.sslPolicies.return_value.aggregatedList.return_value = request_1
     compute.sslPolicies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -165,8 +173,8 @@ def test_get_gcp_ssl_policies_merges_same_scope_across_pages():
 
 def test_get_gcp_target_https_proxies_merges_same_scope_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.targetHttpsProxies.return_value.aggregatedList.return_value = request_1
     compute.targetHttpsProxies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -219,8 +227,8 @@ def test_get_gcp_target_https_proxies_merges_same_scope_across_pages():
 
 def test_get_gcp_ssl_policies_preserves_unreachable_warning_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.sslPolicies.return_value.aggregatedList.return_value = request_1
     compute.sslPolicies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -263,8 +271,8 @@ def test_get_gcp_ssl_policies_preserves_unreachable_warning_across_pages():
 
 def test_get_gcp_target_https_proxies_preserves_unreachable_warning_across_pages():
     compute = MagicMock()
-    request_1 = MagicMock()
-    request_2 = MagicMock()
+    request_1 = _make_request()
+    request_2 = _make_request()
     compute.targetHttpsProxies.return_value.aggregatedList.return_value = request_1
     compute.targetHttpsProxies.return_value.aggregatedList_next.side_effect = [
         request_2,
@@ -309,8 +317,57 @@ def test_get_gcp_target_https_proxies_preserves_unreachable_warning_across_pages
     )
 
 
+@pytest.mark.parametrize(
+    "module, getter, api",
+    [
+        (
+            cartography.intel.gcp.ssl_policy,
+            "get_gcp_ssl_policies",
+            "sslPolicies",
+        ),
+        (
+            cartography.intel.gcp.target_https_proxy,
+            "get_gcp_target_https_proxies",
+            "targetHttpsProxies",
+        ),
+        (
+            cartography.intel.gcp.network_endpoint_group,
+            "get_gcp_network_endpoint_groups",
+            "networkEndpointGroups",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "partial_result",
+    [
+        pytest.param({"unreachables": ["zones/us-central1-a"]}, id="unreachables"),
+        pytest.param({"warning": {"code": "UNREACHABLE"}}, id="top_level_warning"),
+        pytest.param(
+            {"items": {"zones/us-central1-a": {"error": {"code": "TIMEOUT"}}}},
+            id="scope_error",
+        ),
+    ],
+)
+def test_aggregated_getters_mark_partial_results_cleanup_unsafe(
+    module, getter, api, partial_result
+):
+    compute = MagicMock()
+    getattr(compute, api).return_value.aggregatedList.return_value = _make_request()
+    getattr(compute, api).return_value.aggregatedList_next.return_value = None
+
+    with patch.object(
+        module,
+        "gcp_api_execute_with_retry",
+        return_value={"items": {}, **partial_result},
+    ):
+        response = getattr(module, getter)(TEST_PROJECT_ID, compute)
+
+    assert not module.aggregated_response_cleanup_safe(response)
+
+
 def test_sync_gcp_ssl_policies_skips_cleanup_when_global_list_denied():
     compute = MagicMock()
+    compute.sslPolicies.return_value.aggregatedList.return_value = _make_request()
 
     with (
         patch.object(
@@ -336,6 +393,9 @@ def test_sync_gcp_ssl_policies_skips_cleanup_when_global_list_denied():
 
 def test_sync_gcp_target_https_proxies_skips_cleanup_when_global_list_denied():
     compute = MagicMock()
+    compute.targetHttpsProxies.return_value.aggregatedList.return_value = (
+        _make_request()
+    )
 
     with (
         patch.object(

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from functools import lru_cache
 from typing import Any
 from typing import Awaitable
@@ -9,6 +11,8 @@ from urllib.parse import urlencode
 
 import okta.dpop
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from okta.errors.http_error import HTTPError
+from okta.errors.okta_api_error import OktaAPIError
 from okta.models.application import Application
 from okta.models.application_json_converter import ApplicationJsonConverter
 from okta.models.authenticator_key_tac_all_of_provider import (
@@ -18,6 +22,9 @@ from okta.models.bookmark_application_settings import BookmarkApplicationSetting
 from okta.models.bookmark_application_settings_application import (
     BookmarkApplicationSettingsApplication,
 )
+from okta.models.device import Device
+from okta.models.device_list import DeviceList
+from okta.models.device_profile import DeviceProfile
 from okta.models.open_id_connect_application_settings import (
     OpenIdConnectApplicationSettings,
 )
@@ -45,6 +52,8 @@ from okta.models.user_factor_u2_f import UserFactorU2F
 from okta.models.user_factor_web import UserFactorWeb
 from okta.models.user_factor_web_authn import UserFactorWebAuthn
 from okta.pagination import PaginationHelper
+
+logger = logging.getLogger(__name__)
 
 OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 # Returned when the API token or OAuth client lacks the scope an endpoint needs.
@@ -177,6 +186,16 @@ def _patch_okta_sdk_user_factor_models() -> None:
         _relax_enum_fields(model_cls, "status")
 
 
+def _patch_okta_sdk_device_models() -> None:
+    """Accept device platforms returned by Okta but rejected by SDK 3.4.x."""
+    # Okta reports LINUX for Linux devices, but DevicePlatform only declares
+    # ANDROID, IOS, MACOS and WINDOWS, so one Linux device aborts the whole
+    # okta sync.
+    _relax_enum_fields(DeviceProfile, "platform")
+    Device.model_rebuild(force=True)
+    DeviceList.model_rebuild(force=True)
+
+
 def _patch_okta_sdk_authenticator_models() -> None:
     """Accept the uppercase TAC provider type returned by Okta."""
     _remove_field_validator(
@@ -194,6 +213,10 @@ _patch_okta_sdk_user_factor_models()
 # DEPRECATED: Remove this Okta SDK 3.x compatibility shim in v1.0.0 after
 # okta/okta-sdk-python#579 is released upstream.
 _patch_okta_sdk_authenticator_models()
+
+# DEPRECATED: Remove this Okta SDK 3.x compatibility shim in v1.0.0 once
+# DevicePlatform declares LINUX upstream.
+_patch_okta_sdk_device_models()
 
 
 @lru_cache(maxsize=4)
@@ -270,6 +293,36 @@ def _next_page_cursor(response: Any) -> str | None:
     return None
 
 
+# The SDK request executor only retries 429s, so a single 5xx from Okta's edge
+# would otherwise abort a sync that may be hundreds of pages in.
+_SERVER_ERROR_RETRIES = 3
+_SERVER_ERROR_BACKOFF_SECONDS = 1.0
+
+
+def _is_server_error(error: Any) -> bool:
+    return isinstance(error, (HTTPError, OktaAPIError)) and (error.status or 0) >= 500
+
+
+async def _call_retrying_server_errors(
+    api_method: Callable[..., Awaitable[tuple[Any, Any, Any]]],
+    **kwargs: Any,
+) -> tuple[Any, Any, Any]:
+    for attempt in range(_SERVER_ERROR_RETRIES):
+        result = await api_method(**kwargs)
+        error = result[2]
+        if not _is_server_error(error):
+            return result
+        delay = _SERVER_ERROR_BACKOFF_SECONDS * 2**attempt
+        logger.warning(
+            "Okta %s returned HTTP %s, retrying in %.0fs",
+            api_method.__name__,
+            error.status,
+            delay,
+        )
+        await asyncio.sleep(delay)
+    return await api_method(**kwargs)
+
+
 async def collect_paginated(
     api_method: Callable[..., Awaitable[tuple[Any, Any, Any]]],
     limit: int = 200,
@@ -285,7 +338,9 @@ async def collect_paginated(
     after = kwargs.pop("after", None)
     items: list[Any] = []
     while True:
-        data, response, error = await api_method(limit=limit, after=after, **kwargs)
+        data, response, error = await _call_retrying_server_errors(
+            api_method, limit=limit, after=after, **kwargs
+        )
         if error:
             raise OktaApiError(api_method.__name__, error)
         if data:

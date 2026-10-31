@@ -171,25 +171,6 @@ DEVICE_AFFECTS_S1_FINDING = AnalysisJob(
         ),
     ),
 )
-DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
-    name="Ontology - CrowdstrikeFinding AFFECTS Device linking",
-    short_name="ontology_devices_crowdstrike_finding_affects",
-    statements=(
-        AnalysisStatement(
-            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:CrowdstrikeSpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding)",
-            effects=(
-                AddRelationship(
-                    "f",
-                    "AFFECTS",
-                    "d",
-                    source_label="CrowdstrikeFinding",
-                    target_label="Device",
-                ),
-            ),
-            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
-        ),
-    ),
-)
 DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
     name="Ontology - HuntressIncidentReport AFFECTS Device linking",
     short_name="ontology_devices_huntress_incident_report_affects",
@@ -212,9 +193,14 @@ DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
 DEVICE_LINKING_JOBS = (
     DEVICE_OWNS_LINKING,
     DEVICE_AFFECTS_S1_FINDING,
-    DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
     DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT,
 )
+# An ingress host rule names the hostname, but DNS resolves that name to the load
+# balancer the controller provisions, never to the Ingress object. A shared name says
+# nothing about which load balancer serves the traffic: the record can alias a separate
+# load balancer bound through a TargetGroupBinding. Only host records match: an NS
+# record with the same name delegates a zone and says nothing about the host.
+_INGRESS_HOST_RECORD_TYPES = "['A', 'AAAA', 'CNAME', 'ALIAS']"
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
     short_name="ontology_dnsrecords_kubernetes_ingress",
@@ -224,8 +210,19 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
             # DEPRECATED: the host_names fallback covers ingresses loaded before
             # host_names_normalized existed, until their next Kubernetes sync. Will be
             # removed in v1.0.0.
-            match="MATCH (ing:KubernetesIngress) UNWIND coalesce(ing.host_names_normalized, [host IN ing.host_names | toLower(rtrim(trim(host), '.'))]) AS hostname MATCH (dns:DNSRecord {_ont_name: hostname})",
+            match=f"MATCH (ing:KubernetesIngress) UNWIND coalesce(ing.host_names_normalized, [host IN ing.host_names | toLower(rtrim(trim(host), '.'))]) AS hostname MATCH (dns:DNSRecord {{_ont_name: hostname}}) WHERE dns._ont_type IS NULL OR toUpper(dns._ont_type) IN {_INGRESS_HOST_RECORD_TYPES}",
             effects=(
+                AddRelationship(
+                    "ing",
+                    "MATCHES_HOSTNAME",
+                    "dns",
+                    source_label="KubernetesIngress",
+                    target_label="DNSRecord",
+                    rel_alias="m",
+                ),
+                # DEPRECATED: hostname correlation, not DNS resolution; replaced by
+                # (:KubernetesIngress)-[:MATCHES_HOSTNAME]->(:DNSRecord). Will be
+                # removed in v1.0.0.
                 AddRelationship(
                     "dns",
                     "DNS_POINTS_TO",
@@ -428,6 +425,33 @@ BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
                 ),
             ),
         ),
+    ),
+)
+# Address records resolve to IPs rather than hostnames, so DNS_RECORD_TARGETS cannot
+# reach them. Route53 joins a multi-value record into one comma-separated value;
+# GCPRecordSet keeps the list in `data`.
+_ADDRESS_RECORD_TYPES = "['A', 'AAAA']"
+DNS_RECORD_TO_PUBLIC_IP = AnalysisJob(
+    name="Ontology - DNSRecord to PublicIP linking",
+    short_name="ontology_dnsrecords_publicip",
+    cleanup_iterationsize=1000,
+    statements=tuple(
+        AnalysisStatement(
+            match=match,
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "public_ip",
+                    source_label="DNSRecord",
+                    target_label="PublicIP",
+                ),
+            ),
+        )
+        for match in (
+            f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL AND toUpper(dns._ont_type) IN {_ADDRESS_RECORD_TYPES} AND NOT dns:GCPRecordSet UNWIND split(toString(dns._ont_value), ',') AS value WITH dns, toLower(trim(value)) AS ip WHERE ip <> '' MATCH (public_ip:PublicIP {{id: ip}})",
+            f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL AND toUpper(dns._ont_type) IN {_ADDRESS_RECORD_TYPES} UNWIND dns.data AS value WITH dns, toLower(trim(value)) AS ip MATCH (public_ip:PublicIP {{id: ip}})",
+        )
     ),
 )
 PACKAGE_DEPLOYED_IMAGE_JOBS = (

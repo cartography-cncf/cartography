@@ -60,9 +60,11 @@ def _build_yearly_cve_batches(cve_ids: list[str]) -> list[list[str]]:
 @timeit
 def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
     """Query Neo4j for all CVE node IDs present in the graph."""
-    query = """
+    # NVD answers 404 for a whole cveIds= batch if any one id is malformed, so a
+    # single bad cve_id from any source would sink every valid CVE batched with it.
+    query = r"""
     MATCH (c:CVE)
-    WHERE c.cve_id STARTS WITH "CVE"
+    WHERE c.cve_id =~ 'CVE-\\d{4}-\\d{4,}'
       AND NOT (
         labels(c) = ['CVE']
         AND coalesce(c._module_name, '') = 'cartography:cve'

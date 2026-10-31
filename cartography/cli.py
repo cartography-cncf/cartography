@@ -1338,11 +1338,38 @@ class CLI:
                     hidden=PANEL_KUBERNETES not in visible_panels,
                 ),
             ] = None,
+            gke_clusters: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--gke-cluster",
+                    help="GKE resource name (projects/PROJECT/locations/LOCATION/clusters/NAME). Repeat for multiple clusters. Uses Google ADC without kubeconfig.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
+            gke_endpoint: Annotated[
+                str,
+                typer.Option(
+                    "--gke-endpoint",
+                    help="GKE API endpoint: dns, private, or public. No automatic fallback.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = "dns",
+            gke_impersonate_service_account: Annotated[
+                str | None,
+                typer.Option(
+                    "--gke-impersonate-service-account",
+                    help="Service account email to impersonate for GKE discovery and Kubernetes reads.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
             managed_kubernetes: Annotated[
                 str | None,
                 typer.Option(
                     "--managed-kubernetes",
-                    help="Type of managed Kubernetes service (e.g., 'eks').",
+                    help="Type of managed Kubernetes service ('eks' or 'gke').",
                     rich_help_panel=PANEL_KUBERNETES,
                     hidden=PANEL_KUBERNETES not in visible_panels,
                 ),
@@ -2037,6 +2064,33 @@ class CLI:
                 typer.Option(
                     "--databricks-client-secret-env-var",
                     help="Environment variable name containing the Databricks OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-tenant-id",
+                    help="Microsoft Entra ID tenant ID of the service principal for an Azure Databricks workspace.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-client-id",
+                    help="Microsoft Entra ID service principal client ID for an Azure Databricks workspace.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-client-secret-env-var",
+                    help="Environment variable name containing the Microsoft Entra ID service principal client secret.",
                     rich_help_panel=PANEL_DATABRICKS,
                     hidden=PANEL_DATABRICKS not in visible_panels,
                 ),
@@ -3727,6 +3781,15 @@ class CLI:
                 databricks_client_secret = os.environ.get(
                     databricks_client_secret_env_var,
                 )
+            databricks_azure_client_secret = None
+            if databricks_azure_client_secret_env_var:
+                logger.debug(
+                    "Reading Databricks Entra ID client secret from environment variable %s",
+                    databricks_azure_client_secret_env_var,
+                )
+                databricks_azure_client_secret = os.environ.get(
+                    databricks_azure_client_secret_env_var,
+                )
             databricks_account_client_secret = None
             if databricks_account_client_secret_env_var:
                 # Read the secret whenever the env-var flag is set, even if
@@ -3990,6 +4053,11 @@ class CLI:
                 )
                 workos_api_key = os.environ.get(workos_apikey_env_var)
 
+            if gke_endpoint not in ("dns", "private", "public"):
+                raise typer.BadParameter(
+                    "--gke-endpoint must be one of: dns, private, public."
+                )
+
             # Build the Config object
             config = Config(
                 neo4j_uri=neo4j_uri,
@@ -4068,6 +4136,9 @@ class CLI:
                 huntress_api_secret=huntress_api_secret,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
+                gke_clusters=gke_clusters,
+                gke_endpoint=gke_endpoint,
+                gke_impersonate_service_account=gke_impersonate_service_account,
                 statsd_enabled=statsd_enabled,
                 statsd_prefix=statsd_prefix,
                 statsd_host=statsd_host,
@@ -4172,6 +4243,9 @@ class CLI:
                 databricks_account_host=databricks_account_host,
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
+                databricks_azure_tenant_id=databricks_azure_tenant_id,
+                databricks_azure_client_id=databricks_azure_client_id,
+                databricks_azure_client_secret=databricks_azure_client_secret,
                 bbot_source=bbot_source,
                 zendesk_subdomain=zendesk_subdomain,
                 zendesk_oauth_token=zendesk_oauth_token,

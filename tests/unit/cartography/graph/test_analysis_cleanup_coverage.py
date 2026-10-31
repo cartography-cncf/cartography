@@ -203,6 +203,12 @@ CLEANUP_CASES = [
         id="ontology_devices_linking",
     ),
     pytest.param(
+        RelationshipEffect("KubernetesIngress", "MATCHES_HOSTNAME", "DNSRecord"),
+        None,
+        _rel_cleanup("KubernetesIngress", "MATCHES_HOSTNAME", "DNSRecord"),
+        id="ontology_kubernetes_ingress_matches_dns_hostname",
+    ),
+    pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "KubernetesIngress"),
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "KubernetesIngress"),
@@ -553,6 +559,12 @@ CLEANUP_CASES = [
         SEMGREP,
         _prop_cleanup("SemgrepSASTFinding", "risk_severity", scope=SEMGREP),
         id="semgrep_sast_risk_analysis",
+    ),
+    pytest.param(
+        PropertyEffect("SemgrepAISASTFinding", ("risk_severity",)),
+        SEMGREP,
+        _prop_cleanup("SemgrepAISASTFinding", "risk_severity", scope=SEMGREP),
+        id="semgrep_ai_sast_risk_analysis",
     ),
     pytest.param(
         PropertyEffect("SemgrepSCAFinding", ("reachability_risk",)),

@@ -200,3 +200,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 """
+
+
+# Keep the existing jobs/actions while exercising compound references and a
+# quoted literal naming a real fixture secret that must not acquire an edge.
+WORKFLOW_COMPOUND_SECRETS = WORKFLOW_CI_CONTENT.replace(
+    "${{ secrets.NPM_TOKEN }}",
+    "${{ format('{0}', secrets.NPM_TOKEN || secrets['AWS_ACCESS_KEY_ID']) }}",
+).replace(
+    'NODE_VERSION: "18"',
+    "NODE_VERSION: \"18\"\n  LITERAL: ${{ 'secrets.DEPLOY_KEY' }}\n  BROKEN: >-\n    ${{ secrets.DEPLOY_KEY\n    ${{ secrets.NPM_TOKEN }}",
+)

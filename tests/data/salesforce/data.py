@@ -14,6 +14,16 @@ SALESFORCE_ORGANIZATION = {
     "CreatedDate": "2020-01-01T00:00:00.000+0000",
 }
 
+SANDBOX_ORG_ID = "00D000000000002EAA"
+
+# A sandbox keeps the record ids of the production org it was copied from.
+SALESFORCE_SANDBOX_ORGANIZATION = {
+    **SALESFORCE_ORGANIZATION,
+    "Id": SANDBOX_ORG_ID,
+    "Name": "Simpson Corp Sandbox",
+    "IsSandbox": True,
+}
+
 SALESFORCE_PROFILES = [
     {
         "Id": "00e000000000001AAA",

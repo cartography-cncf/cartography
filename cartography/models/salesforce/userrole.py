@@ -13,7 +13,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SalesforceUserRoleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id", description="Salesforce user role ID.")
+    id: PropertyRef = PropertyRef(
+        "id", description="Org-scoped node ID: ``{organization ID}/{user role ID}``."
+    )
+    salesforce_id: PropertyRef = PropertyRef(
+        "Id", extra_index=True, description="Salesforce user role ID."
+    )
     name: PropertyRef = PropertyRef(
         "Name", extra_index=True, description="User role name."
     )
@@ -66,7 +71,7 @@ class SalesforceUserRoleToParentRel(CartographyRelSchema):
 
     target_node_label: str = "SalesforceUserRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ParentRoleId")},
+        {"id": PropertyRef("_parent_role_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"

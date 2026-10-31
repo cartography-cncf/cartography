@@ -15,7 +15,13 @@ from cartography.models.ontology.labels import PERMISSION_ROLE
 
 @dataclass(frozen=True)
 class SalesforcePermissionSetNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id", description="Salesforce permission set ID.")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Org-scoped node ID: ``{organization ID}/{permission set ID}``.",
+    )
+    salesforce_id: PropertyRef = PropertyRef(
+        "Id", extra_index=True, description="Salesforce permission set ID."
+    )
     name: PropertyRef = PropertyRef(
         "Name", extra_index=True, description="Permission set API name."
     )

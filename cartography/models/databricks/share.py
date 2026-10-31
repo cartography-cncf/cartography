@@ -49,23 +49,23 @@ class DatabricksShareNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksShareToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksShareToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksShare)
-class DatabricksShareToWorkspaceRel(CartographyRelSchema):
-    """A Databricks workspace contains this share resource."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksShare)
+class DatabricksShareToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks metastore contains this share resource."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksShareToWorkspaceRelProperties = (
-        DatabricksShareToWorkspaceRelProperties()
+    properties: DatabricksShareToMetastoreResourceRelProperties = (
+        DatabricksShareToMetastoreResourceRelProperties()
     )
 
 
@@ -119,8 +119,8 @@ class DatabricksShareSchema(CartographyNodeSchema):
 
     label: str = "DatabricksShare"
     properties: DatabricksShareNodeProperties = DatabricksShareNodeProperties()
-    sub_resource_relationship: DatabricksShareToWorkspaceRel = (
-        DatabricksShareToWorkspaceRel()
+    sub_resource_relationship: DatabricksShareToMetastoreResourceRel = (
+        DatabricksShareToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

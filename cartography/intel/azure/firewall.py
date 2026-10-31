@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.common import copy_properties
+from cartography.intel.azure.util.common import rename_keys
 from cartography.intel.azure.util.credentials import Credentials
 from cartography.models.azure.firewall.azure_firewall import AzureFirewallSchema
 from cartography.models.azure.firewall.firewall_policy import AzureFirewallPolicySchema
@@ -17,6 +20,143 @@ from cartography.models.azure.firewall.ip_configuration import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+# azure-mgmt-network 31+ serializes `as_dict()` in ARM wire format: resource-specific
+# fields sit under `properties` with camelCase names. The transforms read flat
+# snake_case keys, so each payload is normalized back to that shape first.
+_FIREWALL_PROPERTY_MAP = {
+    "provisioning_state": ("provisioningState",),
+    "threat_intel_mode": ("threatIntelMode",),
+    "sku": ("sku",),
+    "firewall_policy": ("firewallPolicy",),
+    "virtual_hub": ("virtualHub",),
+    "ip_configurations": ("ipConfigurations",),
+    "management_ip_configuration": ("managementIpConfiguration",),
+    "hub_ip_addresses": ("hubIPAddresses",),
+    "ip_groups": ("ipGroups",),
+    "autoscale_configuration": ("autoscaleConfiguration",),
+    "additional_properties": ("additionalProperties",),
+    "network_rule_collections": ("networkRuleCollections",),
+    "application_rule_collections": ("applicationRuleCollections",),
+    "nat_rule_collections": ("natRuleCollections",),
+}
+_AUTOSCALE_KEY_MAP = {"min_capacity": "minCapacity", "max_capacity": "maxCapacity"}
+_FIREWALL_POLICY_PROPERTY_MAP = {
+    "provisioning_state": ("provisioningState",),
+    "threat_intel_mode": ("threatIntelMode",),
+    "size": ("size",),
+    "sku": ("sku",),
+    "base_policy": ("basePolicy",),
+    "dns_settings": ("dnsSettings",),
+    "sql": ("sql",),
+    "snat": ("snat",),
+    "explicit_proxy": ("explicitProxy",),
+    "intrusion_detection": ("intrusionDetection",),
+    "insights": ("insights",),
+    "transport_security": ("transportSecurity",),
+    "threat_intel_whitelist": ("threatIntelWhitelist",),
+    "rule_collection_groups": ("ruleCollectionGroups",),
+    "child_policies": ("childPolicies",),
+    "firewalls": ("firewalls",),
+}
+_POLICY_NESTED_KEY_MAPS = {
+    "dns_settings": {
+        "enable_proxy": "enableProxy",
+        "require_proxy_for_network_rules": "requireProxyForNetworkRules",
+    },
+    "sql": {"allow_sql_redirect": "allowSqlRedirect"},
+    "snat": {
+        "private_ranges": "privateRanges",
+        "auto_learn_private_ranges": "autoLearnPrivateRanges",
+    },
+    "explicit_proxy": {
+        "enable_explicit_proxy": "enableExplicitProxy",
+        "http_port": "httpPort",
+        "https_port": "httpsPort",
+        "enable_pac_file": "enablePacFile",
+        "pac_file_port": "pacFilePort",
+        "pac_file": "pacFile",
+    },
+    "insights": {"is_enabled": "isEnabled", "retention_days": "retentionDays"},
+    "transport_security": {"certificate_authority": "certificateAuthority"},
+    "threat_intel_whitelist": {"ip_addresses": "ipAddresses"},
+}
+_INTRUSION_DETECTION_CONFIGURATION_KEY_MAP = {
+    "signature_overrides": "signatureOverrides",
+    "bypass_traffic_settings": "bypassTrafficSettings",
+    "private_ranges": "privateRanges",
+}
+_CERTIFICATE_AUTHORITY_KEY_MAP = {"key_vault_secret_id": "keyVaultSecretId"}
+
+
+# Rule collections, rule collection groups, IP configurations and IP groups are
+# stored as JSON, so they keep the flattened snake_case shape of the older SDKs
+# rather than one that depends on the installed SDK version. Their nested rule
+# types are polymorphic, so a generic conversion replaces per-type key maps; the
+# camelCase-to-snake rule matches the SDK's own attribute names for every model
+# in these payloads.
+_CAMEL_CASE_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+_FREE_FORM_KEYS = {"tags"}
+
+
+def _to_flattened_snake_case(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_to_flattened_snake_case(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    flattened = {key: item for key, item in value.items() if key != "properties"}
+    properties = value.get("properties")
+    if isinstance(properties, dict):
+        for key, item in properties.items():
+            flattened.setdefault(key, item)
+    return {
+        _CAMEL_CASE_BOUNDARY.sub("_", key).lower(): (
+            item if key in _FREE_FORM_KEYS else _to_flattened_snake_case(item)
+        )
+        for key, item in flattened.items()
+    }
+
+
+def _normalize_firewall(firewall: dict[str, Any]) -> dict[str, Any]:
+    copy_properties(firewall, _FIREWALL_PROPERTY_MAP)
+    rename_keys(firewall, {"extended_location": "extendedLocation"})
+    for key in (
+        "ip_configurations",
+        "management_ip_configuration",
+        "network_rule_collections",
+        "application_rule_collections",
+        "nat_rule_collections",
+    ):
+        if firewall.get(key):
+            firewall[key] = _to_flattened_snake_case(firewall[key])
+    rename_keys(firewall.get("autoscale_configuration"), _AUTOSCALE_KEY_MAP)
+    hub = rename_keys(
+        firewall.get("hub_ip_addresses"), {"private_ip_address": "privateIPAddress"}
+    )
+    # The wire shape nests the hub's public IPs as {"addresses": [...], "count": n}.
+    if isinstance(hub, dict) and "public_ip_addresses" not in hub:
+        hub["public_ip_addresses"] = (hub.get("publicIPs") or {}).get("addresses")
+    return firewall
+
+
+def _normalize_firewall_policy(policy: dict[str, Any]) -> dict[str, Any]:
+    copy_properties(policy, _FIREWALL_POLICY_PROPERTY_MAP)
+    for key, key_map in _POLICY_NESTED_KEY_MAPS.items():
+        rename_keys(policy.get(key), key_map)
+    intrusion_detection = policy.get("intrusion_detection")
+    if isinstance(intrusion_detection, dict):
+        rename_keys(
+            intrusion_detection.get("configuration"),
+            _INTRUSION_DETECTION_CONFIGURATION_KEY_MAP,
+        )
+    transport_security = policy.get("transport_security")
+    if isinstance(transport_security, dict):
+        rename_keys(
+            transport_security.get("certificate_authority"),
+            _CERTIFICATE_AUTHORITY_KEY_MAP,
+        )
+    return policy
 
 
 @timeit
@@ -518,9 +658,11 @@ def sync(
     client = get_client(credentials, subscription_id)
 
     # GET - Fetch data
-    firewalls_data = get_firewalls(client)
-    policies_data = get_firewall_policies(client)
-    ip_groups_data = get_ip_groups(client)  # Fetch IP groups for IP address resolution
+    firewalls_data = [_normalize_firewall(fw) for fw in get_firewalls(client)]
+    policies_data = [
+        _normalize_firewall_policy(policy) for policy in get_firewall_policies(client)
+    ]
+    ip_groups_data = _to_flattened_snake_case(get_ip_groups(client))
 
     # Create IP group lookup for enrichment
     ip_group_lookup = {ipg["id"]: ipg for ipg in ip_groups_data}
@@ -529,7 +671,9 @@ def sync(
     for policy in policies_data:
         policy_id = policy.get("id")
         if policy_id:
-            rule_groups = get_firewall_policy_rule_groups(client, policy_id)
+            rule_groups = _to_flattened_snake_case(
+                get_firewall_policy_rule_groups(client, policy_id)
+            )
             policy["_rule_groups_detail"] = (
                 rule_groups  # Add detailed rules to policy data
             )

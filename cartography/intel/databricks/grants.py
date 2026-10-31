@@ -62,9 +62,13 @@ def sync(
     skipped (403/404), so the caller can skip the whole-workspace grant cleanup
     rather than deleting still-valid edges for the unread securable.
     """
-    securables = get_securables(neo4j_session, workspace_id)
+    securables = get_securables(
+        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
     grants, complete = get(api_session, securables)
-    principals = get_principals(neo4j_session, workspace_id)
+    principals = get_principals(
+        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
     grants = resolve_principals(grants, principals)
     load_grants(
         neo4j_session, grants, workspace_id, common_job_parameters["UPDATE_TAG"]
@@ -73,7 +77,9 @@ def sync(
 
 
 @timeit
-def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str, str]:
+def get_principals(
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
+) -> dict[str, str]:
     """Map each workspace principal's UC name to its scoped node id.
 
     UC reports grant principals by name (user_name / group display name / SP
@@ -85,7 +91,8 @@ def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str,
     # service principal also has a display_name, so coalesce would mis-key it).
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(p)
-    WHERE p:DatabricksUser OR p:DatabricksGroup OR p:DatabricksServicePrincipal
+    WHERE (p:DatabricksUser OR p:DatabricksGroup OR p:DatabricksServicePrincipal)
+      AND p.lastupdated = $update_tag
     RETURN p.id AS id,
            CASE
                WHEN p:DatabricksServicePrincipal THEN p.application_id
@@ -93,7 +100,7 @@ def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str,
                ELSE p.user_name
            END AS name
     """
-    result = neo4j_session.run(query, workspace_id=workspace_id)
+    result = neo4j_session.run(query, workspace_id=workspace_id, update_tag=update_tag)
     principals: dict[str, str] = {}
     for record in result:
         if record["name"] and record["id"]:
@@ -121,7 +128,7 @@ def resolve_principals(
 
 @timeit
 def get_securables(
-    neo4j_session: neo4j.Session, workspace_id: str
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> list[dict[str, Any]]:
     """Read the grantable UC securables already loaded for this workspace.
 
@@ -130,8 +137,19 @@ def get_securables(
     """
     # The permissions endpoint keys most securables by full_name, but metastores
     # by metastore id and storage credentials / external locations by bare name.
+    # Only securables this workspace listed this run: other workspaces on the
+    # metastore may list ones this workspace cannot read.
     query = """
-    MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(n:DatabricksSecurable)
+    MATCH (w:DatabricksWorkspace {id: $workspace_id})
+    CALL (w) {
+        MATCH (w)<-[v:VISIBLE_IN]-(n:DatabricksSecurable)
+        WHERE v.lastupdated = $update_tag
+        RETURN n
+        UNION
+        MATCH (w)-[a:ASSIGNED_METASTORE]->(n:DatabricksSecurable)
+        WHERE a.lastupdated = $update_tag
+        RETURN n
+    }
     WITH n, [l IN labels(n) WHERE l IN $labels][0] AS label
     WHERE label IS NOT NULL
     RETURN n.id AS id,
@@ -146,6 +164,7 @@ def get_securables(
     result = neo4j_session.run(
         query,
         workspace_id=workspace_id,
+        update_tag=update_tag,
         labels=list(_SECURABLE_TYPE_BY_LABEL.keys()),
     )
     securables: list[dict[str, Any]] = []
