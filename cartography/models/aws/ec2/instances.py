@@ -74,6 +74,7 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     )
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How the instance is exposed: `direct` (public IP plus an open inbound rule), `elb` and/or `elbv2` (behind an exposed load balancer of that kind).",
     )  # Populated by the AWS_EC2_ASSET_EXPOSURE_INSTANCE analysis job.
@@ -149,6 +150,7 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="The `exposed_internet` flag on an EC2 instance is set to `True` when (1) the instance is part of an EC2 security group or is connected to a network interface connected to an EC2 security group that allows connectivity from the 0.0.0.0/0 subnet or (2) the instance is connected to an Elastic Load Balancer that has its own `exposed_internet` flag set to `True`.",
     )  # Populated by AWS_EC2_ASSET_EXPOSURE_JOBS.

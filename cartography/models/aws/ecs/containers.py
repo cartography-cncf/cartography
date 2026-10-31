@@ -78,11 +78,13 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when the container is reachable from the internet, through an exposed load balancer or an awsvpc network interface with a public IP and an open security group. `False` otherwise.",
     )  # Populated by the AWS_ECS_ASSET_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How the container is exposed: `direct` and/or `elbv2`.",
     )  # Populated by the AWS_ECS_ASSET_EXPOSURE analysis job.

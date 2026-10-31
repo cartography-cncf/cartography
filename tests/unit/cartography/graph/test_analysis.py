@@ -2,6 +2,7 @@ import json
 import pkgutil
 import re
 from collections import defaultdict
+from dataclasses import asdict
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator
@@ -29,6 +30,8 @@ from cartography.graph.analysisbuilder import properties_set
 from cartography.graph.analysisbuilder import relationships_added
 from cartography.graph.analysisbuilder import to_graph_job
 from cartography.graph.job import GraphJob
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.introspection import iter_model_classes
 from tests.unit.cartography.graph.helpers import clean_query_list
 
 MUTATING_CYPHER_RE = re.compile(
@@ -116,6 +119,46 @@ def test_typed_analysis_jobs_do_not_declare_conflicting_cleanup_guards():
                 "per distinct value and the least restrictive one deletes the edges "
                 "the others were written to keep."
             )
+
+
+# Properties that both ingestion and an analysis job write on purpose.
+INGESTED_AND_ANALYZED_PROPERTIES = {
+    ("AWSAccount", "foreign"),
+    ("AWSS3Bucket", "anonymous_access"),
+    ("AWSS3Bucket", "anonymous_actions"),
+}
+
+
+def test_node_schemas_mark_analysis_owned_properties():
+    """
+    A data-fed PropertyRef makes every load() write the property back to null when the
+    transform does not supply it, so an analysis-owned value disappears until the job
+    runs again. Analysis-owned properties must be declared with set_by_analysis=True.
+    """
+    analysis_owned: set[tuple[str, str]] = set()
+    for job in _analysis_jobs():
+        for effect in properties_set(job):
+            if isinstance(effect, PropertyEffect):
+                analysis_owned.update(
+                    (effect.node_label, prop) for prop in effect.properties
+                )
+
+    for model_class in iter_model_classes():
+        if not issubclass(model_class, CartographyNodeSchema):
+            continue
+        schema = model_class()
+        for name, prop_ref in asdict(schema.properties).items():
+            key = (schema.label, name)
+            if prop_ref.set_by_analysis:
+                assert key in analysis_owned, (
+                    f"{model_class.__name__}.{name} is set_by_analysis but no "
+                    "typed analysis job sets it."
+                )
+            elif key in analysis_owned and key not in INGESTED_AND_ANALYZED_PROPERTIES:
+                raise AssertionError(
+                    f"{model_class.__name__}.{name} is set by an analysis job; declare it "
+                    "with set_by_analysis=True so load() does not reset it.",
+                )
 
 
 def test_relationship_job_appends_cleanup_statement():

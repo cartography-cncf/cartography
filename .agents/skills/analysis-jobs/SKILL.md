@@ -69,7 +69,7 @@ AnalysisJob(scope=CleanupScopedTo(...))
         -> SetProperty / AddToSet / AddValuesToSet / AddRelationship / SetRelationshipProperty
 ```
 
-`label` is required for node-property effects so cleanup knows which label owns the property. Plain strings become quoted Cypher strings. Use `Var("node.property")`, `Param("UPDATE_TAG")`, or `RawCypher("coalesce(...)")` when the value should compile as Cypher.
+`label` is required for node-property effects so cleanup knows which label owns the property. If the node schema also declares the property (for indexes or schema docs), declare it with `PropertyRef("prop", set_by_analysis=True)` so `load()` does not reset it to null on every sync; the job's generated cleanup clears stale values. Plain strings become quoted Cypher strings. Use `Var("node.property")`, `Param("UPDATE_TAG")`, or `RawCypher("coalesce(...)")` when the value should compile as Cypher.
 
 `CleanupScopedTo(...)` on the job defines the account/project/tenant boundary used by generated cleanup. `scoped_to="source"` or `"target"` on `AddRelationship` chooses which endpoint is attached to that scoped resource; keep the default `source` unless the target node is the scoped resource.
 
