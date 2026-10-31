@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from kubernetes.client.models import V1LoadBalancerIngress
 from kubernetes.client.models import V1LoadBalancerStatus
 from kubernetes.client.models import V1ObjectMeta
@@ -9,6 +10,7 @@ from kubernetes.client.models import V1ServiceSpec
 from kubernetes.client.models import V1ServiceStatus
 
 from cartography.intel.kubernetes.services import transform_services
+from cartography.intel.kubernetes.util import GKENetworkScope
 
 
 def test_transform_services_formats_load_balancer_port_status():
@@ -96,3 +98,40 @@ def test_transform_services_lowercases_load_balancer_dns_names():
     assert transformed["load_balancer_dns_names"] == [
         "my-nlb-1234567890.us-east-1.elb.amazonaws.com"
     ]
+
+
+def test_transform_services_needs_gke_metadata_for_neg_ids():
+    service = V1Service(
+        metadata=V1ObjectMeta(
+            uid="service-3",
+            name="neg",
+            namespace="default",
+            annotations={
+                "cloud.google.com/neg-status": '{"network_endpoint_groups": {"80": "neg"}, "zones": ["us-central1-a"]}'
+            },
+        ),
+        spec=V1ServiceSpec(type="ClusterIP", selector={"app": "neg"}),
+    )
+
+    [transformed] = transform_services([service], all_pods=[], gke_scope=None)
+
+    assert transformed["gcp_neg_ids"] == []
+
+
+def test_transform_services_fails_on_unparseable_neg_status():
+    service = V1Service(
+        metadata=V1ObjectMeta(
+            uid="service-4",
+            name="neg",
+            namespace="default",
+            annotations={"cloud.google.com/neg-status": "{not json"},
+        ),
+        spec=V1ServiceSpec(type="ClusterIP", selector={"app": "neg"}),
+    )
+
+    with pytest.raises(json.JSONDecodeError):
+        transform_services(
+            [service],
+            all_pods=[],
+            gke_scope=GKENetworkScope("example-project", None),
+        )

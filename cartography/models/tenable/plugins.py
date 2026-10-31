@@ -7,7 +7,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -86,10 +85,11 @@ class TenablePluginNodeProperties(CartographyNodeProperties):
     epss_score: PropertyRef = PropertyRef(
         "epss_score", description="Exploit Prediction Scoring System score."
     )
-    # Deliberately not indexed: see the note on TenableFindingNodeProperties.cve_list.
+    # Deliberately not indexed. Neo4j indexes a list under a single key and rejects
+    # keys over ~8 KB, which the CVE list of a cumulative OS update plugin exceeds.
     cve_list: PropertyRef = PropertyRef(
         "cve_list",
-        description="CVE IDs associated with the plugin. Prefer the :HAS_CVE edge.",
+        description="CVE IDs the plugin checks for. To look up by CVE, use `HAS_CVE`.",
     )
     type: PropertyRef = PropertyRef("type", description="Plugin scan type.")
 
@@ -116,33 +116,9 @@ class TenablePluginToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class TenablePluginToCveRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-# (:TenablePlugin)-[:HAS_CVE]->(:TenableCve)
-@dataclass(frozen=True)
-class TenablePluginToCveRel(CartographyRelSchema):
-    """Links a Tenable plugin to every CVE it checks for."""
-
-    target_node_label: str = "TenableCve"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("cve_node_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_CVE"
-    properties: TenablePluginToCveRelProperties = TenablePluginToCveRelProperties()
-
-
-@dataclass(frozen=True)
 class TenablePluginSchema(CartographyNodeSchema):
     """A Tenable plugin that detected one or more findings."""
 
     label: str = "TenablePlugin"
     properties: TenablePluginNodeProperties = TenablePluginNodeProperties()
     sub_resource_relationship: TenablePluginToTenantRel = TenablePluginToTenantRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            TenablePluginToCveRel(),
-        ]
-    )

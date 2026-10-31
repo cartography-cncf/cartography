@@ -15,7 +15,12 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 @dataclass(frozen=True)
 class SalesforceUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id", description="Salesforce user ID.")
+    id: PropertyRef = PropertyRef(
+        "id", description="Org-scoped node ID: ``{organization ID}/{user ID}``."
+    )
+    salesforce_id: PropertyRef = PropertyRef(
+        "Id", extra_index=True, description="Salesforce user ID."
+    )
     username: PropertyRef = PropertyRef(
         "Username", extra_index=True, description="User login name."
     )
@@ -92,7 +97,7 @@ class SalesforceUserToProfileRel(CartographyRelSchema):
 
     target_node_label: str = "SalesforceProfile"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ProfileId")},
+        {"id": PropertyRef("_profile_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_ROLE"
@@ -113,7 +118,7 @@ class SalesforceUserToUserRoleRel(CartographyRelSchema):
 
     target_node_label: str = "SalesforceUserRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("UserRoleId")},
+        {"id": PropertyRef("_user_role_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"

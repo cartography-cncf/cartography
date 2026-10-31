@@ -26,7 +26,9 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     pipelines = get(api_session)
-    principals = get_run_as_principal_index(neo4j_session, workspace_id)
+    principals = get_run_as_principal_index(
+        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
     transformed = transform(pipelines, workspace_id, metastore_id, principals)
     load_pipelines(
         neo4j_session,
@@ -34,7 +36,6 @@ def sync(
         workspace_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit

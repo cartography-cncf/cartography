@@ -4,6 +4,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.salesforce.util import org_scoped_id
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
 from cartography.models.salesforce.profile import SalesforceProfileSchema
@@ -23,7 +24,7 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     profiles = get(client)
-    profiles = transform(profiles)
+    profiles = transform(profiles, common_job_parameters["ORG_ID"])
     load_profiles(
         neo4j_session,
         profiles,
@@ -38,8 +39,9 @@ def get(client: SalesforceClient) -> list[dict[str, Any]]:
     return client.query_all(f"SELECT {_FIELDS} FROM Profile")
 
 
-def transform(profiles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform(profiles: list[dict[str, Any]], org_id: str) -> list[dict[str, Any]]:
     for profile in profiles:
+        profile["id"] = org_scoped_id(org_id, profile["Id"])
         profile["CreatedDate"] = parse_sf_datetime(profile.get("CreatedDate"))
     return profiles
 

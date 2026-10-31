@@ -4,6 +4,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.salesforce.util import org_scoped_id
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
 from cartography.models.salesforce.user import SalesforceUserSchema
@@ -23,7 +24,7 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     users = get(client)
-    users = transform(users)
+    users = transform(users, common_job_parameters["ORG_ID"])
     load_users(
         neo4j_session,
         users,
@@ -38,8 +39,15 @@ def get(client: SalesforceClient) -> list[dict[str, Any]]:
     return client.query_all(f"SELECT {_FIELDS} FROM User")
 
 
-def transform(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform(users: list[dict[str, Any]], org_id: str) -> list[dict[str, Any]]:
     for user in users:
+        user["id"] = org_scoped_id(org_id, user["Id"])
+        profile_id = user.get("ProfileId")
+        user["_profile_id"] = org_scoped_id(org_id, profile_id) if profile_id else None
+        user_role_id = user.get("UserRoleId")
+        user["_user_role_id"] = (
+            org_scoped_id(org_id, user_role_id) if user_role_id else None
+        )
         user["CreatedDate"] = parse_sf_datetime(user.get("CreatedDate"))
         user["LastLoginDate"] = parse_sf_datetime(user.get("LastLoginDate"))
         user["LastPasswordChangeDate"] = parse_sf_datetime(

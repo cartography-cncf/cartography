@@ -2,6 +2,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import cartography.intel.databricks.storage_credentials
+from tests.data.databricks.metastore import DATABRICKS_METASTORE_ID
 from tests.data.databricks.storage_credentials import DATABRICKS_STORAGE_CRED_AWS_ARN
 from tests.data.databricks.storage_credentials import DATABRICKS_STORAGE_CRED_GCP_EMAIL
 from tests.data.databricks.storage_credentials import DATABRICKS_STORAGE_CREDENTIALS
@@ -50,6 +51,7 @@ def test_load_databricks_storage_credentials(mock_get, neo4j_session):
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )
 
@@ -67,13 +69,13 @@ def test_load_databricks_storage_credentials(mock_get, neo4j_session):
         neo4j_session,
         "DatabricksStorageCredential",
         "name",
-        "DatabricksWorkspace",
+        "DatabricksMetastore",
         "id",
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ("aws-uc-storage-cred", DATABRICKS_WORKSPACE_ID),
-        ("gcp-uc-storage-cred", DATABRICKS_WORKSPACE_ID),
+        ("aws-uc-storage-cred", DATABRICKS_METASTORE_ID),
+        ("gcp-uc-storage-cred", DATABRICKS_METASTORE_ID),
     }
 
     # AWS credential -> AWSPrincipal ASSUMES_ROLE

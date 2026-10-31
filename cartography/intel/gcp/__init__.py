@@ -290,6 +290,7 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                project_number=project.get("projectNumber"),
             )
 
         if service_names.dns in enabled_services:

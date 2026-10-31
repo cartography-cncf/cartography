@@ -14,6 +14,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class KubernetesGatewayNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid", description="UID of the Gateway.")
+    load_balancer_ips: PropertyRef = PropertyRef(
+        "load_balancer_ips",
+        description="IP addresses from the Gateway API `Gateway.status.addresses[]` entries of type `IPAddress`, not requested spec addresses. Used to match GCP forwarding rules for GKE clusters.",
+    )
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the Gateway."
     )
@@ -117,6 +121,50 @@ class KubernetesGatewayToHTTPRouteRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesGatewayToGCPForwardingRuleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesGateway)-[:USES_LOAD_BALANCER]->(:GCPForwardingRule)
+class KubernetesGatewayToGCPForwardingRuleRel(CartographyRelSchema):
+    """Links a Gateway to the external GCP forwarding rule that exposes it, matching public `status.addresses[].value` addresses against `GCPForwardingRule.ip_address` within the GKE cluster's project. Only created for clusters ingested with GKE metadata. Backend health and firewall reachability are not evaluated."""
+
+    target_node_label: str = "GCPForwardingRule"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "ip_address": PropertyRef("gcp_public_lb_ips", one_to_many=True),
+            "project_id": PropertyRef("gcp_project_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesGatewayToGCPForwardingRuleRelProperties = (
+        KubernetesGatewayToGCPForwardingRuleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesGateway)-[:USES_LOAD_BALANCER]->(:GCPForwardingRule)
+class KubernetesGatewayToGCPInternalForwardingRuleRel(CartographyRelSchema):
+    """Links a Gateway to the internal GCP forwarding rule that exposes it, matching private `status.addresses[].value` addresses against `GCPForwardingRule.ip_address` within the GKE cluster's project and VPC network, so private addresses reused in other networks do not collide."""
+
+    target_node_label: str = "GCPForwardingRule"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "ip_address": PropertyRef("gcp_private_lb_ips", one_to_many=True),
+            "project_id": PropertyRef("gcp_project_id"),
+            "network": PropertyRef("gcp_network"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesGatewayToGCPForwardingRuleRelProperties = (
+        KubernetesGatewayToGCPForwardingRuleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesGatewaySchema(CartographyNodeSchema):
     "A Gateway API gateway that accepts traffic for attached routes."
 
@@ -129,6 +177,8 @@ class KubernetesGatewaySchema(CartographyNodeSchema):
         [
             KubernetesGatewayToKubernetesNamespaceRel(),
             KubernetesGatewayToHTTPRouteRel(),
+            KubernetesGatewayToGCPForwardingRuleRel(),
+            KubernetesGatewayToGCPInternalForwardingRuleRel(),
         ]
     )
 

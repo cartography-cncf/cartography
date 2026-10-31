@@ -181,6 +181,16 @@ def get_salesforce_client(
     return SalesforceClient(session, token["instance_url"])
 
 
+def org_scoped_id(org_id: str, record_id: str) -> str:
+    """Build an org-scoped node id ``{org_id}/{record_id}``.
+
+    A sandbox keeps the record ids of the production org it was copied from, so
+    node ids must include the org to keep a sandbox and its production org from
+    collapsing same-id users, profiles, roles and permission sets into one node.
+    """
+    return f"{org_id}/{record_id}"
+
+
 def parse_sf_datetime(value: str | None) -> datetime | None:
     """Parse a Salesforce ISO 8601 timestamp (e.g. '2023-01-01T00:00:00.000+0000')
     into a native datetime so Neo4j stores a temporal type, not a string."""

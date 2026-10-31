@@ -15,6 +15,44 @@ from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.intel.trivy.scanner import transform_scan_results
 
 
+@pytest.mark.parametrize(
+    "metadata, matches",
+    [
+        ({"FilesystemSnapshotId": "aws:ec2:i-01:rootfs"}, True),
+        ({}, False),
+        (None, False),
+        ("invalid-metadata", False),
+        ({"FilesystemSnapshotId": ""}, False),
+        ({"FilesystemSnapshotId": ["aws:ec2:i-01:rootfs"]}, False),
+        ({"FilesystemSnapshotId": "aws:ec2:i-unknown:rootfs"}, False),
+    ],
+)
+def test_prepare_trivy_vm_requires_existing_rootfs_target(metadata, matches, caplog):
+    # Arrange: even an image alias collision must not route a VM to an image.
+    trivy_data = {
+        "ArtifactType": "vm",
+        "ArtifactName": "ebs:snap-temporary",
+        "Metadata": metadata,
+    }
+
+    # Act
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris={"ebs:snap-temporary"},
+        digest_aliases={},
+        filesystem_targets={},
+        rootfs_targets={"aws:ec2:i-01:rootfs"},
+        source="vm.json",
+    )
+
+    # Assert
+    if matches:
+        assert prepared == (trivy_data, None, ["aws:ec2:i-01:rootfs"])
+    else:
+        assert prepared is None
+        assert "Skipping Trivy VM report vm.json" in caplog.text
+
+
 def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
     # Arrange
     revision = "0123456789abcdef0123456789abcdef01234567"
@@ -32,6 +70,7 @@ def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
         image_uris=set(),
         digest_aliases={},
         filesystem_targets={("acme/api", revision, None): ["snapshot-1"]},
+        rootfs_targets=set(),
         source="repository.json",
     )
 
@@ -58,6 +97,7 @@ def test_prepare_trivy_data_matches_filesystem_root_directory():
             ("acme/api", revision, "services/api"): ["snapshot-api"],
             ("acme/api", revision, "services/web"): ["snapshot-web"],
         },
+        rootfs_targets=set(),
         source="repository.json",
     )
 
@@ -679,12 +719,19 @@ def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy._get_filesystem_scan_targets")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+@pytest.mark.parametrize(
+    "artifact_type,cleaned_snapshot_ids",
+    [("repository", ["snapshot-1"]), ("vm", ["aws:ec2:i-01:rootfs"])],
+)
 def test_filesystem_only_reports_preserve_existing_image_scan_data(
     mock_get_targets_and_aliases,
     mock_get_filesystem_targets,
     mock_cleanup,
     mock_sync_filesystem,
+    artifact_type,
+    cleaned_snapshot_ids,
 ):
+    # Arrange
     revision = "a" * 40
     mock_get_targets_and_aliases.return_value = ({"registry.example/app:latest"}, {})
     mock_get_filesystem_targets.return_value = {
@@ -697,19 +744,28 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
     ]
     reader.read_bytes.return_value = json.dumps(
         {
-            "ArtifactType": "repository",
+            "ArtifactType": artifact_type,
             "Metadata": {
                 "RepoURL": "https://github.com/owner/repo",
                 "Commit": revision,
+                "FilesystemSnapshotId": "aws:ec2:i-01:rootfs",
             },
             "Results": [],
         }
     ).encode()
 
     neo4j_session = MagicMock()
-    with patch(
-        "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
-    ) as mock_filesystem_cleanup:
+
+    # Act
+    with (
+        patch(
+            "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
+        ) as mock_filesystem_cleanup,
+        patch(
+            "cartography.intel.trivy._get_rootfs_scan_targets",
+            return_value={"aws:ec2:i-01:rootfs": True},
+        ),
+    ):
         sync_trivy_from_report_reader(
             neo4j_session=neo4j_session,
             reader=reader,
@@ -717,27 +773,36 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
             common_job_parameters={"UPDATE_TAG": 123},
         )
 
+    # Assert
     mock_sync_filesystem.assert_called_once()
     mock_cleanup.assert_not_called()
-    mock_filesystem_cleanup.assert_called_once_with(neo4j_session, 123)
+    mock_filesystem_cleanup.assert_called_once_with(
+        neo4j_session, 123, snapshot_ids=cleaned_snapshot_ids
+    )
 
 
 @patch("cartography.intel.trivy.sync_single_image")
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy._get_filesystem_scan_targets")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-def test_image_only_reports_preserve_existing_filesystem_scan_data(
+@pytest.mark.parametrize(
+    "has_source_targets,has_rootfs_targets",
+    [(True, False), (True, True), (False, True)],
+)
+def test_image_only_report_cleanup_depends_on_source_targets(
     mock_get_targets_and_aliases,
     mock_get_filesystem_targets,
     mock_cleanup,
     mock_sync_image,
+    has_source_targets,
+    has_rootfs_targets,
 ):
     # Arrange
     image_uri = "registry.example/app:latest"
     mock_get_targets_and_aliases.return_value = ({image_uri}, {})
-    mock_get_filesystem_targets.return_value = {
-        ("owner/repo", "a" * 40, None): ["snapshot-1"]
-    }
+    mock_get_filesystem_targets.return_value = (
+        {("owner/repo", "a" * 40, None): ["snapshot-1"]} if has_source_targets else {}
+    )
     reader = MagicMock()
     reader.source_uri = "memory://trivy"
     reader.list_reports.return_value = [
@@ -753,9 +818,18 @@ def test_image_only_reports_preserve_existing_filesystem_scan_data(
     neo4j_session = MagicMock()
 
     # Act
-    with patch(
-        "cartography.intel.trivy.cleanup_image_relationships"
-    ) as mock_image_cleanup:
+    with (
+        patch(
+            "cartography.intel.trivy.cleanup_image_relationships"
+        ) as mock_image_cleanup,
+        patch(
+            "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
+        ) as mock_filesystem_cleanup,
+        patch(
+            "cartography.intel.trivy._get_rootfs_scan_targets",
+            return_value=({"aws:ec2:i-01:rootfs": False} if has_rootfs_targets else {}),
+        ),
+    ):
         sync_trivy_from_report_reader(
             neo4j_session=neo4j_session,
             reader=reader,
@@ -765,8 +839,13 @@ def test_image_only_reports_preserve_existing_filesystem_scan_data(
 
     # Assert
     mock_sync_image.assert_called_once()
-    mock_cleanup.assert_not_called()
-    mock_image_cleanup.assert_called_once_with(neo4j_session, 123)
+    mock_filesystem_cleanup.assert_not_called()
+    if has_source_targets:
+        mock_cleanup.assert_not_called()
+        mock_image_cleanup.assert_called_once_with(neo4j_session, 123)
+    else:
+        mock_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
+        mock_image_cleanup.assert_not_called()
 
 
 @patch("cartography.intel.trivy.scanner._sync_scan_results")
@@ -785,7 +864,7 @@ def test_filesystem_scan_accepts_null_results(mock_sync_scan_results):
 
 
 def test_transform_scan_results_only_sets_cve_id_for_cves():
-    """Only CVE-prefixed ids populate cve_id; GHSA ids land in ghsa_id."""
+    """Only CVE ids populate cve_id, in canonical form; GHSA ids land in ghsa_id."""
     # Arrange
     results = [
         {
@@ -810,6 +889,12 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
                     "InstalledVersion": "5.4.1-0.2",
                     "Severity": "LOW",
                 },
+                {
+                    "VulnerabilityID": "CVE-2026-1965_1",
+                    "PkgName": "curl",
+                    "InstalledVersion": "8.14.1-r2",
+                    "Severity": "UNKNOWN",
+                },
             ],
         },
     ]
@@ -823,6 +908,7 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
         "TIF|CVE-2024-11111",
         "TIF|GHSA-aaaa-bbbb-cccc",
         "TIF|TEMP-0000000-ABCDEF",
+        "TIF|CVE-2026-1965_1",
     }
 
     cve = findings_by_id["TIF|CVE-2024-11111"]
@@ -840,11 +926,18 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
     assert temp["ghsa_id"] is None
     assert temp["has_cve"] == "false"
 
+    # Alpine's per-patch suffix is dropped from cve_id but kept on the node id
+    alpine = findings_by_id["TIF|CVE-2026-1965_1"]
+    assert alpine["cve_id"] == "CVE-2026-1965"
+    assert alpine["has_cve"] == "true"
+    assert alpine["vulnerability_ids"] == ["CVE-2026-1965_1"]
+
     # The raw identifier stays available on name regardless of its scheme
     assert {finding["VulnerabilityID"] for finding in findings_list} == {
         "CVE-2024-11111",
         "GHSA-aaaa-bbbb-cccc",
         "TEMP-0000000-ABCDEF",
+        "CVE-2026-1965_1",
     }
 
 

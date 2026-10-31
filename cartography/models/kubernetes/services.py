@@ -14,6 +14,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class KubernetesServiceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid", description="UID of the kubernetes service.")
+    load_balancer_ips: PropertyRef = PropertyRef(
+        "load_balancer_ips",
+        description="Assigned IP addresses from the Kubernetes `Service.status.loadBalancer.ingress[].ip` field, not requested spec addresses. Used to match GCP forwarding rules for GKE clusters.",
+    )
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the kubernetes service."
     )
@@ -93,6 +97,71 @@ class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
     rel_label: str = "USES_LOAD_BALANCER"
     properties: KubernetesServiceToLoadBalancerV2RelProperties = (
         KubernetesServiceToLoadBalancerV2RelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesServiceToGCPForwardingRuleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesService)-[:USES_LOAD_BALANCER]->(:GCPForwardingRule)
+class KubernetesServiceToGCPForwardingRuleRel(CartographyRelSchema):
+    """Links a service of type `LoadBalancer` to the external GCP forwarding rule that exposes it, matching public `status.loadBalancer.ingress[].ip` addresses against `GCPForwardingRule.ip_address` within the GKE cluster's project. Only created for clusters ingested with GKE metadata. Backend health and firewall reachability are not evaluated."""
+
+    target_node_label: str = "GCPForwardingRule"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "ip_address": PropertyRef("gcp_public_lb_ips", one_to_many=True),
+            "project_id": PropertyRef("gcp_project_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesServiceToGCPForwardingRuleRelProperties = (
+        KubernetesServiceToGCPForwardingRuleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesService)-[:USES_LOAD_BALANCER]->(:GCPForwardingRule)
+class KubernetesServiceToGCPInternalForwardingRuleRel(CartographyRelSchema):
+    """Links a service of type `LoadBalancer` to the internal GCP forwarding rule that exposes it, matching private `status.loadBalancer.ingress[].ip` addresses against `GCPForwardingRule.ip_address` within the GKE cluster's project and VPC network, so private addresses reused in other networks do not collide."""
+
+    target_node_label: str = "GCPForwardingRule"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "ip_address": PropertyRef("gcp_private_lb_ips", one_to_many=True),
+            "project_id": PropertyRef("gcp_project_id"),
+            "network": PropertyRef("gcp_network"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesServiceToGCPForwardingRuleRelProperties = (
+        KubernetesServiceToGCPForwardingRuleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPNetworkEndpointGroupToKubernetesServiceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPNetworkEndpointGroup)-[:TARGETS]->(:KubernetesService)
+class GCPNetworkEndpointGroupToKubernetesServiceRel(CartographyRelSchema):
+    """Links a GKE network endpoint group to the service whose pods it holds, as recorded by GKE in the service's `cloud.google.com/neg-status` annotation. Matches NEG IDs built from the GKE cluster's project, the annotation's zones and NEG names, so same-named NEGs in other projects never match. Covers standalone NEGs that a load balancer built outside the cluster routes to, as well as NEGs GKE creates for Ingress and Gateway. Only created for clusters ingested with GKE metadata."""
+
+    target_node_label: str = "GCPNetworkEndpointGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("gcp_neg_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TARGETS"
+    properties: GCPNetworkEndpointGroupToKubernetesServiceRelProperties = (
+        GCPNetworkEndpointGroupToKubernetesServiceRelProperties()
     )
 
 
@@ -180,5 +249,8 @@ class KubernetesServiceSchema(CartographyNodeSchema):
             KubernetesServiceToKubernetesNamespaceRel(),
             KubernetesServiceToKubernetesPodRel(),
             KubernetesServiceToLoadBalancerV2Rel(),
+            KubernetesServiceToGCPForwardingRuleRel(),
+            KubernetesServiceToGCPInternalForwardingRuleRel(),
+            GCPNetworkEndpointGroupToKubernetesServiceRel(),
         ]
     )

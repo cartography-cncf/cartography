@@ -26,6 +26,18 @@ connections, storage credentials, external locations, and registered models.
 The label provides a common target for `HAS_PRIVILEGE` relationships and is
 not a standalone node type.
 
+## Unity Catalog Scope
+
+Unity Catalog objects belong to their `DatabricksMetastore`, which several
+workspaces can share. Each object hangs off the metastore with `RESOURCE` and
+exists once, however many workspaces list it. Each workspace links to its
+metastore with `ASSIGNED_METASTORE`, and each securable links to every
+workspace that lists it with `VISIBLE_IN`, so catalog bindings and permissions
+that differ per workspace stay visible. An object is pruned only when no
+workspace listed it in the latest sync. Metastores themselves are not pruned:
+when no workspace is assigned to a metastore any more, it and its objects stay
+in the graph until removed by hand.
+
 ## Cross-Provider Connections
 
 Databricks cloud configurations connect to existing AWS and GCP resources when

@@ -63,20 +63,19 @@ class TenableFindingNodeProperties(CartographyNodeProperties):
     service: PropertyRef = PropertyRef(
         "service", description="Network service associated with the finding."
     )
+    # DEPRECATED: cve_id and has_cve fed the CVE ontology label findings used to carry.
+    # Kept for existing queries; will be removed in v1.0.0.
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
-        description="First CVE ID associated with the finding.",
-    )
-    # Deliberately not indexed: Neo4j keys a list property under a single index
-    # entry and rejects values over ~8 KB, which a cumulative-update plugin's CVE
-    # list exceeds. Look CVEs up over :HAS_CVE instead.
-    cve_list: PropertyRef = PropertyRef(
-        "cve_list",
-        description="CVE IDs associated with the finding. Prefer the :HAS_CVE edge.",
+        description=(
+            "Deprecated. First CVE ID named by the finding's plugin. Every CVE is "
+            "reachable over `DETECTED_BY` and then `HAS_CVE`."
+        ),
     )
     has_cve: PropertyRef = PropertyRef(
-        "has_cve", description='Whether the finding has a CVE ID, as "true" or "false".'
+        "has_cve",
+        description='Deprecated. Whether the plugin names a CVE, as "true" or "false".',
     )
 
 
@@ -163,25 +162,6 @@ class TenableFindingToScanRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class TenableFindingToCveRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-# (:TenableFinding)-[:HAS_CVE]->(:TenableCve)
-@dataclass(frozen=True)
-class TenableFindingToCveRel(CartographyRelSchema):
-    """Links a Tenable finding to every CVE its plugin reports."""
-
-    target_node_label: str = "TenableCve"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("cve_node_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_CVE"
-    properties: TenableFindingToCveRelProperties = TenableFindingToCveRelProperties()
-
-
-@dataclass(frozen=True)
 class TenableFindingSchema(CartographyNodeSchema):
     """A vulnerability finding detected by Tenable on an asset."""
 
@@ -193,6 +173,5 @@ class TenableFindingSchema(CartographyNodeSchema):
             TenableFindingToAssetRel(),
             TenableFindingToPluginRel(),
             TenableFindingToScanRel(),
-            TenableFindingToCveRel(),
         ]
     )

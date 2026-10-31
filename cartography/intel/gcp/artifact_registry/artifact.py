@@ -91,13 +91,13 @@ def _list_package_versions(
 ) -> list[dict]:
     artifacts: list[dict] = []
     packages = list_artifact_registry_resources(
-        lambda: client.list_packages(parent=repository_name)
+        lambda **kwargs: client.list_packages(parent=repository_name, **kwargs)
     )
     for package in packages:
         package_name = _extract_package_name(package)
         try:
             versions = list_artifact_registry_resources(
-                lambda: client.list_versions(parent=package.name)
+                lambda **kwargs: client.list_versions(parent=package.name, **kwargs)
             )
         except NotFound:
             logger.debug(
@@ -130,7 +130,9 @@ def get_docker_images(
         return [
             proto_message_to_dict(image)
             for image in list_artifact_registry_resources(
-                lambda: client.list_docker_images(parent=repository_name)
+                lambda **kwargs: client.list_docker_images(
+                    parent=repository_name, **kwargs
+                )
             )
         ]
     except NotFound:
@@ -166,7 +168,9 @@ def get_maven_artifacts(
         return [
             proto_message_to_dict(artifact)
             for artifact in list_artifact_registry_resources(
-                lambda: client.list_maven_artifacts(parent=repository_name)
+                lambda **kwargs: client.list_maven_artifacts(
+                    parent=repository_name, **kwargs
+                )
             )
         ]
     except NotFound:
@@ -202,7 +206,9 @@ def get_npm_packages(
         return [
             proto_message_to_dict(package)
             for package in list_artifact_registry_resources(
-                lambda: client.list_npm_packages(parent=repository_name)
+                lambda **kwargs: client.list_npm_packages(
+                    parent=repository_name, **kwargs
+                )
             )
         ]
     except NotFound:
@@ -237,7 +243,9 @@ def get_python_packages(
         return [
             proto_message_to_dict(package)
             for package in list_artifact_registry_resources(
-                lambda: client.list_python_packages(parent=repository_name)
+                lambda **kwargs: client.list_python_packages(
+                    parent=repository_name, **kwargs
+                )
             )
         ]
     except NotFound:

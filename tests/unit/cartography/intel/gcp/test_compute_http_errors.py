@@ -36,6 +36,7 @@ def _make_http_error(
 
 def _make_request(*, response=None, error: Exception | None = None) -> MagicMock:
     request = MagicMock()
+    request.uri = "https://compute.googleapis.com/compute/v1/projects/test-project/aggregated/resources?alt=json"
     if error is not None:
         request.execute.side_effect = error
     else:

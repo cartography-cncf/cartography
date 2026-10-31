@@ -23,9 +23,17 @@ def sync(
     api_session: DatabricksAccountClient,
     account_id: str,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> bool:
+    """Load federation policies and report whether every SP's policies were read.
+
+    Returns False when an SP's policies were skipped (403/404): they were not
+    refreshed, so the caller must skip the account-scoped node cleanup rather
+    than delete still-valid DatabricksFederationPolicy nodes.
+    """
     account_policies = get_account_policies(api_session)
-    service_principals = get_account_service_principals(neo4j_session, account_id)
+    service_principals = get_account_service_principals(
+        neo4j_session, account_id, common_job_parameters["UPDATE_TAG"]
+    )
     sp_policies, complete = get_service_principal_policies(
         api_session, service_principals
     )
@@ -33,18 +41,13 @@ def sync(
     load_policies(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
     )
-    # Only clean up when every service principal's policies were read this run. A
-    # 403/404 on one SP means its policies were not refreshed, so an
-    # account-scoped node cleanup would delete still-valid DatabricksFederationPolicy
-    # nodes for it; skip cleanup and let a fully successful run reconcile them.
-    if complete:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
+    if not complete:
         logger.warning(
             "Databricks federation policies were partially read for account %s; "
-            "skipping cleanup to avoid deleting valid policy nodes.",
+            "cleanup will be skipped to avoid deleting valid policy nodes.",
             account_id,
         )
+    return complete
 
 
 @timeit
@@ -57,19 +60,21 @@ def get_account_policies(api_session: DatabricksAccountClient) -> list[dict[str,
 
 @timeit
 def get_account_service_principals(
-    neo4j_session: neo4j.Session, account_id: str
+    neo4j_session: neo4j.Session, account_id: str, update_tag: int
 ) -> list[dict[str, Any]]:
     """Read account service principals to fetch their per-SP federation policies.
 
     Reads from the graph so this sync does not depend on holding the SCIM SP
     listing in memory; the SP-scoped federation policy endpoint keys off the
-    numeric SCIM id.
+    numeric SCIM id. Only SPs loaded under this update tag are read: cleanup runs
+    after every load, and a deleted SP would 404 and block policy cleanup.
     """
     query = """
     MATCH (:DatabricksAccount {id: $account_id})-[:RESOURCE]->(sp:DatabricksAccountServicePrincipal)
+    WHERE sp.lastupdated = $update_tag
     RETURN sp.id AS node_id, sp.scim_id AS scim_id
     """
-    result = neo4j_session.run(query, account_id=account_id)
+    result = neo4j_session.run(query, account_id=account_id, update_tag=update_tag)
     return [
         {"node_id": r["node_id"], "scim_id": r["scim_id"]}
         for r in result

@@ -55,23 +55,23 @@ class DatabricksOnlineTableNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksOnlineTableToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksOnlineTableToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksOnlineTable)
-class DatabricksOnlineTableToWorkspaceRel(CartographyRelSchema):
-    """A Databricks online table is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksOnlineTable)
+class DatabricksOnlineTableToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks online table is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksOnlineTableToWorkspaceRelProperties = (
-        DatabricksOnlineTableToWorkspaceRelProperties()
+    properties: DatabricksOnlineTableToMetastoreResourceRelProperties = (
+        DatabricksOnlineTableToMetastoreResourceRelProperties()
     )
 
 
@@ -104,8 +104,8 @@ class DatabricksOnlineTableSchema(CartographyNodeSchema):
     properties: DatabricksOnlineTableNodeProperties = (
         DatabricksOnlineTableNodeProperties()
     )
-    sub_resource_relationship: DatabricksOnlineTableToWorkspaceRel = (
-        DatabricksOnlineTableToWorkspaceRel()
+    sub_resource_relationship: DatabricksOnlineTableToMetastoreResourceRel = (
+        DatabricksOnlineTableToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksOnlineTableToSourceRel()],

@@ -29,10 +29,10 @@ def get_vertex_ai_datasets_for_location(
     """
     parent = f"projects/{project_id}/locations/{location}"
     return list_vertex_ai_resources_for_location(
-        fetcher=lambda: build_vertex_ai_dataset_client(
+        fetcher=lambda **kwargs: build_vertex_ai_dataset_client(
             location,
             credentials=credentials,
-        ).list_datasets(parent=parent),
+        ).list_datasets(parent=parent, **kwargs),
         resource_type="datasets",
         location=location,
         project_id=project_id,

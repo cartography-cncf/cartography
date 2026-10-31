@@ -395,7 +395,7 @@ sentinelone_mapping = OntologyMapping(
 # Tenable's vulnerability export names CVEs as bare identifier strings on a plugin
 # and supplies no per-CVE metadata, so :TenableCve carries identity only. Severity
 # and state describe a detection rather than a CVE and stay on :TenableFinding,
-# reachable from the CVE over :HAS_CVE.
+# reachable from the CVE through the plugin that names it.
 #
 # Note the shape differs from most scanners. Trivy, Inspector, SentinelOne, Orca and
 # Wiz put :CVE on the finding; of those, only Trivy maps _ont_vuln_status, as a

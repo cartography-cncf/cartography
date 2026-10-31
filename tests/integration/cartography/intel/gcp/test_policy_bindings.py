@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from google.api_core.exceptions import PermissionDenied
 
 import cartography.intel.gcp.crm.folders
@@ -848,3 +849,91 @@ def test_sync_gcp_policy_bindings_permission_denied(
         == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
     )
     mock_get_policy_bindings.assert_called_once()
+
+
+_SA_TARGET_ACCOUNT_ID = "111122223333444455556"
+_SA_TARGET_EMAIL = "workload@project-abc.iam.gserviceaccount.com"
+_SA_TARGET_BINDING_IDS = ["binding-0", "binding-1"]
+
+
+def _delete_sa_target_test_nodes(neo4j_session):
+    neo4j_session.run(
+        """
+        MATCH (n)
+        WHERE (n:GCPServiceAccount AND n.id = $account_id)
+            OR (n:GCPPolicyBinding AND n.id IN $binding_ids)
+        DETACH DELETE n
+        """,
+        account_id=_SA_TARGET_ACCOUNT_ID,
+        binding_ids=_SA_TARGET_BINDING_IDS,
+    )
+
+
+@pytest.fixture
+def sa_target_test_scope(neo4j_session):
+    _delete_sa_target_test_nodes(neo4j_session)
+    _create_test_project(neo4j_session)
+    yield neo4j_session
+    _delete_sa_target_test_nodes(neo4j_session)
+
+
+def test_service_account_email_and_numeric_policy_targets(sa_target_test_scope):
+    # Arrange: CAI identifies service account targets by numeric ID or by email.
+    neo4j_session = sa_target_test_scope
+    cartography.intel.gcp.iam.load_gcp_service_accounts(
+        neo4j_session,
+        [
+            {
+                "id": _SA_TARGET_ACCOUNT_ID,
+                "uniqueId": _SA_TARGET_ACCOUNT_ID,
+                "email": _SA_TARGET_EMAIL,
+            },
+        ],
+        TEST_PROJECT_ID,
+        1,
+    )
+    bindings = [
+        {
+            "id": binding_id,
+            "resource": f"//iam.googleapis.com/projects/{TEST_PROJECT_ID}/serviceAccounts/{target}",
+            "role": "roles/iam.workloadIdentityUser",
+        }
+        for binding_id, target in zip(
+            _SA_TARGET_BINDING_IDS, [_SA_TARGET_ACCOUNT_ID, _SA_TARGET_EMAIL]
+        )
+    ]
+
+    # Act
+    cartography.intel.gcp.policy_bindings.load_bindings(
+        neo4j_session, bindings, TEST_PROJECT_ID, 1
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPServiceAccount",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {("binding-0", _SA_TARGET_ACCOUNT_ID), ("binding-1", _SA_TARGET_ACCOUNT_ID)}
+
+    # Act: dropping the email-form binding removes its email-matched edge.
+    cartography.intel.gcp.policy_bindings.load_bindings(
+        neo4j_session, bindings[:1], TEST_PROJECT_ID, 2
+    )
+    cartography.intel.gcp.policy_bindings.cleanup(
+        neo4j_session, {"PROJECT_ID": TEST_PROJECT_ID, "UPDATE_TAG": 2}
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPServiceAccount",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {("binding-0", _SA_TARGET_ACCOUNT_ID)}

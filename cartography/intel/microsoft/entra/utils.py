@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from enum import Enum
 from typing import Any
@@ -18,6 +19,11 @@ TRANSIENT_EXCEPTIONS = (httpx.ReadError, httpx.ConnectError, httpx.RemoteProtoco
 MAX_RETRIES = 3
 DIRECTORY_EXPIRED_PAGE_TOKEN = "Directory_ExpiredPageToken"
 MAX_EXPIRED_PAGE_TOKEN_RESTARTS = 5
+# Extra waits for an optional report page once the Graph SDK's own 429 retries
+# are spent, shared by every page of one report so a throttled report adds at
+# most a few minutes to the sync.
+THROTTLED_REPORT_WAITS_S = (30, 60, 120)
+MAX_RETRY_AFTER_S = 300
 
 
 async def call_with_retries(
@@ -148,6 +154,16 @@ async def get_paginated_values_with_expired_page_retry(
     return values
 
 
+def _retry_after_seconds(error: APIError) -> float:
+    for name, value in (error.response_headers or {}).items():
+        if name.lower() == "retry-after":
+            try:
+                return min(float(value), MAX_RETRY_AFTER_S)
+            except ValueError:
+                return 0
+    return 0
+
+
 async def get_optional_id_map(
     first_page_getter: Callable[[], Awaitable[Any]],
     next_page_getter: Callable[[str], Awaitable[Any]],
@@ -160,13 +176,37 @@ async def get_optional_id_map(
 
     These reports need extra permissions or licensing that the base inventory
     does not, so a 403 returns None instead of failing the caller's sync.
-    Other errors propagate.
+    The reporting endpoints also throttle far harder than the directory APIs,
+    so a page still answering 429 after the Graph SDK's own retries is retried
+    again with longer waits. Returning None for a throttle clears the report's
+    properties for this sync, so it is the last resort once those waits are
+    spent. Other errors propagate.
     """
+    throttle_waits = iter(THROTTLED_REPORT_WAITS_S)
+
+    async def get_page(getter: Callable[..., Awaitable[Any]], *args: Any) -> Any:
+        while True:
+            try:
+                return await getter(*args)
+            except APIError as error:
+                if error.response_status_code != 429:
+                    raise
+                scheduled_wait = next(throttle_waits, None)
+                if scheduled_wait is None:
+                    raise
+                wait = max(scheduled_wait, _retry_after_seconds(error))
+                logger.info(
+                    "Microsoft Graph %s request is throttled; retrying in %ss.",
+                    resource_description,
+                    wait,
+                )
+                await asyncio.sleep(wait)
+
     rows: dict[str, dict[str, Any]] = {}
     try:
         async for values in iter_paginated_values_with_expired_page_retry(
-            first_page_getter,
-            next_page_getter,
+            lambda: get_page(first_page_getter),
+            lambda url: get_page(next_page_getter, url),
             resource_description,
             on_restart=rows.clear,
         ):
@@ -174,6 +214,13 @@ async def get_optional_id_map(
                 if value.id:
                     rows[value.id] = transform(value)
     except APIError as error:
+        if error.response_status_code == 429:
+            logger.warning(
+                "Microsoft Graph %s request is still throttled after retries; "
+                "skipping it for this sync.",
+                resource_description,
+            )
+            return None
         if error.response_status_code != 403:
             raise
         logger.warning(

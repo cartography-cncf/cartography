@@ -66,23 +66,23 @@ class DatabricksRecipientNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksRecipientToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksRecipientToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksRecipient)
-class DatabricksRecipientToWorkspaceRel(CartographyRelSchema):
-    """A Databricks workspace contains this recipient resource."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksRecipient)
+class DatabricksRecipientToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks metastore contains this recipient resource."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksRecipientToWorkspaceRelProperties = (
-        DatabricksRecipientToWorkspaceRelProperties()
+    properties: DatabricksRecipientToMetastoreResourceRelProperties = (
+        DatabricksRecipientToMetastoreResourceRelProperties()
     )
 
 
@@ -113,8 +113,8 @@ class DatabricksRecipientSchema(CartographyNodeSchema):
 
     label: str = "DatabricksRecipient"
     properties: DatabricksRecipientNodeProperties = DatabricksRecipientNodeProperties()
-    sub_resource_relationship: DatabricksRecipientToWorkspaceRel = (
-        DatabricksRecipientToWorkspaceRel()
+    sub_resource_relationship: DatabricksRecipientToMetastoreResourceRel = (
+        DatabricksRecipientToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksRecipientToMetastoreRel()],

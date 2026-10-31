@@ -27,6 +27,16 @@ Container storage relationships currently cover regular application containers
 in `spec.containers`. Init containers and ephemeral containers aren't modeled as
 `KubernetesContainer` nodes.
 
+Ingress relationships describe configuration, not the request path.
+`KubernetesIngress -[:TARGETS]-> KubernetesService` records the backends named in
+the routing rules, and `KubernetesIngress -[:USES_LOAD_BALANCER]-> LoadBalancer`
+records the load balancer the controller provisioned for the ingress, read from its
+status. A hostname in an ingress rule is linked to matching DNS records with
+`KubernetesIngress -[:MATCHES_HOSTNAME]-> DNSRecord`, which doesn't imply that the
+record resolves to that ingress's load balancer. The runtime path for AWS follows
+`DNSRecord -[:DNS_POINTS_TO]-> AWSLoadBalancerV2 -[:ELBV2_TARGET_GROUP]->
+AWSELBV2TargetGroup -[:TARGETS]-> KubernetesService -[:TARGETS]-> KubernetesPod`.
+
 Use the configuration guide to grant read-only access and connect one or more
 clusters. The schema reference is generated from the model definitions and is
 included automatically in the built documentation. The query guide contains
@@ -39,6 +49,18 @@ empty and cleans stale `KubernetesGateway` and `KubernetesHTTPRoute` nodes. If
 the CRDs exist but the identity cannot list them, Cartography skips ingestion
 and cleanup, preserving existing nodes. Ingested gateways and HTTP routes form
 the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path.
+
+When the AWS Load Balancer Controller CRDs are absent, Cartography treats
+TargetGroupBindings as empty and cleans stale target group edges. If the CRDs
+exist but the identity cannot list them, Cartography skips ingestion and
+cleanup, preserving existing edges. Each binding that sets
+`spec.targetGroupARN` and `spec.serviceRef.name` adds an
+`AWSELBV2TargetGroup -[:TARGETS]-> Service` edge. Bindings that only set
+`spec.targetGroupName` are skipped, because a target group name is unique only
+within one account and region. When the load balancer is exposed to the
+internet (`exposed_internet` set by the AWS asset exposure analysis, or an
+internet-facing NLB), the Service, its pods, and their containers are marked as
+exposed even when no Ingress or Service status points to that load balancer.
 
 If the identity cannot list network policies, Cartography skips both ingestion
 and cleanup and preserves existing `KubernetesNetworkPolicy` nodes. Ingested

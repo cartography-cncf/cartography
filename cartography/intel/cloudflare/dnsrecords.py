@@ -24,21 +24,30 @@ def sync(
     common_job_parameters: Dict[str, Any],
     account_id: str,
     zones: List[Dict[str, Any]],
-) -> None:
+) -> List[Dict[str, str]]:
     # Each zone is loaded as soon as it is fetched, so an account with many
     # records never holds all of them in memory at once. DNS records are scoped
     # to the account (the tenant), so cleanup runs once after every zone has
     # been loaded: cleaning up per zone would delete the records of zones not
     # yet synced in this run and recreate them moments later.
+    # Retain only the slim proxied inventory needed by Access correlation.
+    proxied_records: List[Dict[str, str]] = []
     for zone in zones:
+        records = get(client, zone["id"])
         load_dnsrecords(
             neo4j_session,
-            get(client, zone["id"]),
+            records,
             account_id,
             zone["id"],
             common_job_parameters["UPDATE_TAG"],
         )
+        proxied_records.extend(
+            {"id": record["id"], "name": record["name"]}
+            for record in records
+            if record.get("proxied") and record.get("type") in ("A", "AAAA", "CNAME")
+        )
     cleanup(neo4j_session, common_job_parameters)
+    return proxied_records
 
 
 @timeit

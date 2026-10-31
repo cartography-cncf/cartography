@@ -10,6 +10,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
 from cartography.models.ontology.device import DeviceSchema
 from cartography.models.ontology.device import HOSTNAME_MATCHLINKS
+from cartography.util import run_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
@@ -151,6 +152,13 @@ def cleanup(
 ) -> None:
     GraphJob.from_node_schema(DeviceSchema(), common_job_parameters).run(
         neo4j_session,
+    )
+    # DEPRECATED: compatibility migration that deletes CrowdstrikeFinding AFFECTS
+    # Device edges left by syncs before #3447. Remove in v1.0.0.
+    run_analysis_job(
+        "ontology_crowdstrike_finding_affects_device_migration.json",
+        neo4j_session,
+        common_job_parameters,
     )
     # Clean up stale hostname matchlink relationships
     for _, _, matchlink in HOSTNAME_MATCHLINKS:

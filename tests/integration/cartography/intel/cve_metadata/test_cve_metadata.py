@@ -67,6 +67,7 @@ def test_get_cve_ids_from_graph(neo4j_session):
         })
         CREATE (finding:Finding {id: 'finding'})
         CREATE (finding)-[:AFFECTS]->(preserved)
+        CREATE (:CVE {id: 'malformed', cve_id: 'CVE-2026-1965_1'})
         """,
     )
     cve_ids = get_cve_ids_from_graph(neo4j_session)

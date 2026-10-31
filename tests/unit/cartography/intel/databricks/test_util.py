@@ -3,6 +3,7 @@ from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from threading import Thread
 
+from cartography.intel.databricks.util import DatabricksEntraWorkspaceClient
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import iso_to_datetime
 from cartography.intel.databricks.util import parse_storage_url
@@ -98,3 +99,35 @@ def test_parse_storage_url():
     assert parse_storage_url(None) == (None, None)
     assert parse_storage_url("") == (None, None)
     assert parse_storage_url("not-a-url") == (None, None)
+
+
+def test_entra_client_gets_its_token_from_entra_for_azure_databricks(mocker):
+    # Arrange
+    client = DatabricksEntraWorkspaceClient(
+        "https://adb-0000000000000000.0.azuredatabricks.net",
+        tenant_id="00000000-0000-0000-0000-000000000000",
+        client_id="entra-client-id",
+        client_secret="entra-client-secret",
+    )
+    post = mocker.patch.object(client._session, "post")
+    post.return_value.json.return_value = {
+        "access_token": "entra-token",
+        "expires_in": 3600,
+    }
+
+    # Act
+    client.authenticate()
+
+    # Assert
+    post.assert_called_once_with(
+        "https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000"
+        "/oauth2/v2.0/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": "entra-client-id",
+            "client_secret": "entra-client-secret",
+            "scope": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default",
+        },
+        timeout=mocker.ANY,
+    )
+    assert client._session.headers["Authorization"] == "Bearer entra-token"

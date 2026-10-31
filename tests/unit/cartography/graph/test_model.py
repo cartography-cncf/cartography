@@ -427,8 +427,10 @@ ADDITIONAL_TOP_LEVEL_TENANT_LABELS: Set[str] = {
     "AWSOrganization",
     # DatabricksWorkspace remains the root tenant for workspace resources, while
     # DatabricksAccount is a separate top-level tenant for the account hierarchy
-    # (and is absent on the workspace-only path).
+    # (and is absent on the workspace-only path). DatabricksMetastore is the root
+    # of the Unity Catalog hierarchy, which several workspaces can share.
     "DatabricksAccount",
+    "DatabricksMetastore",
     # SnowflakeAccount remains the root tenant for every Snowflake resource, while
     # SnowflakeOrganization is a separate top-level tenant for the organization
     # hierarchy (and is absent unless the collector holds ORGADMIN).
