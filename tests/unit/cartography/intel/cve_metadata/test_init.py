@@ -5,6 +5,7 @@ from unittest.mock import patch
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel import cve_metadata
+from tests.data.cve_metadata.kev import GET_KEV_CATALOG
 
 
 def test_build_yearly_cve_batches_groups_by_feed_year():
@@ -42,6 +43,10 @@ def test_load_cve_metadata_bounds_batch_size(mock_load):
 @patch.object(cve_metadata, "run_analysis_job")
 @patch.object(cve_metadata, "load_cve_metadata_feed")
 @patch.object(cve_metadata, "load_cve_metadata")
+@patch.object(cve_metadata.vulnrichment, "merge_vulnrichment_into_cves")
+@patch.object(cve_metadata.vulnrichment, "get_vulnrichment_records")
+@patch.object(cve_metadata.kev, "merge_kev_into_cves")
+@patch.object(cve_metadata.kev, "get_kev_catalog")
 @patch.object(cve_metadata.epss, "merge_epss_into_cves")
 @patch.object(cve_metadata.epss, "get_epss_scores")
 @patch.object(cve_metadata.nvd, "merge_nvd_into_cves")
@@ -55,6 +60,10 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
     mock_merge_nvd_into_cves,
     mock_get_epss_scores,
     mock_merge_epss_into_cves,
+    mock_get_kev_catalog,
+    mock_merge_kev_into_cves,
+    mock_get_vulnrichment_records,
+    mock_merge_vulnrichment_into_cves,
     mock_load_cve_metadata,
     mock_load_cve_metadata_feed,
     mock_run_analysis_job,
@@ -87,6 +96,11 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
             "CVE-2024-0001": {"epss_score": 0.5, "epss_percentile": 0.6},
         },
     ]
+    mock_get_kev_catalog.return_value = GET_KEV_CATALOG
+    vulnrichment_snapshot = cve_metadata.vulnrichment.VulnrichmentSnapshot(
+        commit="0123abcd",
+    )
+    mock_get_vulnrichment_records.return_value = vulnrichment_snapshot
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=123,
@@ -103,11 +117,24 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
         call(http_session, ["CVE-2023-0001", "CVE-2023-0002"]),
         call(http_session, ["CVE-2024-0001"]),
     ]
+    # KEV and Vulnrichment are single downloads, fetched once for all batches.
+    mock_get_kev_catalog.assert_called_once_with(http_session)
+    mock_get_vulnrichment_records.assert_called_once_with(
+        http_session,
+        {"CVE-2023-0001", "CVE-2023-0002", "CVE-2024-0001"},
+    )
+    kev_catalog = cve_metadata.kev.transform_kev_catalog(GET_KEV_CATALOG)
     assert mock_load_cve_metadata_feed.call_args_list == [
-        call(neo4j_session, 123, {"nvd", "epss"}),
+        call(
+            neo4j_session,
+            123,
+            {"nvd", "epss", "kev", "vulnrichment"},
+            kev_catalog,
+            vulnrichment_snapshot,
+        ),
     ]
-    # merge_nvd_into_cves is mocked out, so cves stay stubs; effect_tags derivation
-    # still runs on each, resolving to []/none with no CWE or CVSS present.
+    # The merges are mocked out, so cves stay stubs; effect_tags derivation still
+    # runs on each, resolving to []/none with no CWE or CVSS present.
     assert mock_load_cve_metadata.call_args_list == [
         call(
             neo4j_session,

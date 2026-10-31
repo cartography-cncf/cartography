@@ -90,17 +90,62 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
     vuln_status: PropertyRef = PropertyRef(
         "vulnStatus", description="NVD vulnerability analysis status."
     )
-    # NVD KEV fields (from CISA data embedded in NVD responses)
     is_kev: PropertyRef = PropertyRef(
         "is_kev",
         extra_index=True,
-        description="Whether the CVE appears in the CISA KEV catalog.",
+        description=(
+            "Whether the CVE appears in the CISA Known Exploited Vulnerabilities "
+            "(KEV) catalog. Read from the catalog itself when the kev source is "
+            "enabled and the catalog was fetched; otherwise from the KEV fields "
+            "that NVD embeds in its records, which can lag the catalog. Unset when "
+            "neither source has an answer."
+        ),
     )
+    is_kev_source: PropertyRef = PropertyRef(
+        "is_kev_source",
+        description=(
+            "Where is_kev came from: kev for the CISA KEV catalog, nvd for the "
+            "copy embedded in NVD records. Unset when is_kev is unset."
+        ),
+    )
+    # CISA KEV catalog fields, set only when is_kev_source is kev
+    kev_date_added: PropertyRef = PropertyRef(
+        "kev_date_added",
+        description="Date (YYYY-MM-DD) CISA added the CVE to the KEV catalog.",
+    )
+    kev_due_date: PropertyRef = PropertyRef(
+        "kev_due_date",
+        description=(
+            "Remediation due date (YYYY-MM-DD) the KEV catalog sets for US "
+            "federal civilian agencies."
+        ),
+    )
+    kev_ransomware_use: PropertyRef = PropertyRef(
+        "kev_ransomware_use",
+        description=(
+            "KEV knownRansomwareCampaignUse: Known when the CVE is known to be "
+            "used in ransomware campaigns, otherwise Unknown."
+        ),
+    )
+    kev_forensic_triage: PropertyRef = PropertyRef(
+        "kev_forensic_triage",
+        description=(
+            "KEV forensicTriage: true when the catalog entry calls for CISA's "
+            "forensics triage requirements on affected systems in addition to "
+            "remediation, false when it does not."
+        ),
+    )
+    # NVD KEV fields (from CISA data embedded in NVD responses)
     cisa_exploit_add: PropertyRef = PropertyRef(
-        "cisaExploitAdd", description="Date when CISA added the CVE to the KEV catalog."
+        "cisaExploitAdd",
+        description=(
+            "Date when CISA added the CVE to the KEV catalog, as copied into the "
+            "NVD record."
+        ),
     )
     cisa_action_due: PropertyRef = PropertyRef(
-        "cisaActionDue", description="CISA KEV remediation due date."
+        "cisaActionDue",
+        description="CISA KEV remediation due date, as copied into the NVD record.",
     )
     cisa_required_action: PropertyRef = PropertyRef(
         "cisaRequiredAction", description="Remediation action required by CISA."
@@ -114,6 +159,43 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
     )
     epss_percentile: PropertyRef = PropertyRef(
         "epss_percentile", description="EPSS percentile ranking from 0.0 to 1.0."
+    )
+    # CISA Vulnrichment SSVC fields, from CISA's ADP container
+    ssvc_exploitation: PropertyRef = PropertyRef(
+        "ssvc_exploitation",
+        description=(
+            "SSVC Exploitation decision point: none, poc (a public proof of "
+            "concept exists), or active (evidence of exploitation in the wild)."
+        ),
+    )
+    ssvc_automatable: PropertyRef = PropertyRef(
+        "ssvc_automatable",
+        description=(
+            "SSVC Automatable decision point: yes when an attacker can reliably "
+            "automate steps 1 to 4 of the kill chain, otherwise no."
+        ),
+    )
+    ssvc_technical_impact: PropertyRef = PropertyRef(
+        "ssvc_technical_impact",
+        description=(
+            "SSVC Technical Impact decision point: total when exploitation gives "
+            "the attacker total control of the affected software or total "
+            "disclosure of its information, otherwise partial."
+        ),
+    )
+    ssvc_version: PropertyRef = PropertyRef(
+        "ssvc_version", description="Version of the SSVC decision model used."
+    )
+    ssvc_timestamp: PropertyRef = PropertyRef(
+        "ssvc_timestamp", description="When CISA made the SSVC decision."
+    )
+    vulnrichment_updated_at: PropertyRef = PropertyRef(
+        "vulnrichment_updated_at",
+        description=(
+            "When the CVE record in CISA Vulnrichment was last updated. Set "
+            "whenever Vulnrichment has a record for the CVE, even one without an "
+            "SSVC decision."
+        ),
     )
 
 
@@ -163,7 +245,10 @@ class CVEMetadataToCVERel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CVEMetadataSchema(CartographyNodeSchema):
-    """Enrichment metadata for a CVE, sourced from NVD and EPSS."""
+    """
+    Enrichment metadata for a CVE, sourced from NVD, EPSS, the CISA KEV catalog,
+    and CISA Vulnrichment.
+    """
 
     label: str = "CVEMetadata"
     properties: CVEMetadataNodeProperties = CVEMetadataNodeProperties()

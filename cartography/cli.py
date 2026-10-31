@@ -1411,7 +1411,10 @@ class CLI:
                 list[str] | None,
                 typer.Option(
                     "--cve-metadata-src",
-                    help="CVE metadata sources to enable. Valid values: nvd, epss. All enabled by default.",
+                    help=(
+                        "CVE metadata sources to enable. Valid values: nvd, epss, kev, "
+                        "vulnrichment. All enabled by default."
+                    ),
                     rich_help_panel=PANEL_CVE_METADATA,
                     hidden=PANEL_CVE_METADATA not in visible_panels,
                 ),
