@@ -5,6 +5,7 @@ import logging
 import time
 from collections import namedtuple
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -390,6 +391,11 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
         roles.extend(page["Roles"])
     return {"Roles": roles}
 
+
+# Submitting a batch takes about 100ms per principal, so its first job is polled
+# some ten seconds after it started: longer than a report job usually runs. The
+# batch also caps how many report jobs are pending at once.
+_SERVICE_LAST_ACCESSED_BATCH_SIZE = 100
 
 _IAM_THROTTLING_ERROR_CODES = {
     "Throttling",
@@ -2243,25 +2249,31 @@ def sync_root_principal(
     )
 
 
-@timeit
-@aws_handle_regions
-def get_service_last_accessed_details(
-    boto3_session: boto3.session.Session, arn: str
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    ClientError,
+    max_time=600,
+    giveup=lambda e: not _is_iam_throttling_error(e),
+    on_backoff=backoff_handler,
+)
+def _call_iam_with_throttle_retry(
+    operation: Callable[..., Dict], **kwargs: Any
 ) -> Dict:
-    """
-    Get service last accessed details for a given principal.
-    This is a two-step process: generate job, then get results.
-    Handles pagination to retrieve all services accessed.
-    """
-    client = create_boto3_client(boto3_session, "iam")
+    # Retried per call so a throttled poll keeps its job instead of starting over.
+    return operation(**kwargs)
 
+
+def _get_service_last_accessed_job_result(client: Any, arn: str, job_id: str) -> Dict:
     try:
-        response = client.generate_service_last_accessed_details(Arn=arn)
-        job_id = response["JobId"]
-
         max_attempts = 30
         for attempt in range(max_attempts):
-            job_response = client.get_service_last_accessed_details(JobId=job_id)
+            # The API maximum: at the default of 100, a principal with broad
+            # permissions needs several pages, each a call against the rate limit.
+            job_response = _call_iam_with_throttle_retry(
+                client.get_service_last_accessed_details,
+                JobId=job_id,
+                MaxItems=1000,
+            )
 
             if job_response["JobStatus"] == "COMPLETED":
                 # Handle pagination - collect all services
@@ -2271,8 +2283,11 @@ def get_service_last_accessed_details(
                     marker = job_response.get("Marker")
                     if not marker:
                         break
-                    job_response = client.get_service_last_accessed_details(
-                        JobId=job_id, Marker=marker
+                    job_response = _call_iam_with_throttle_retry(
+                        client.get_service_last_accessed_details,
+                        JobId=job_id,
+                        MaxItems=1000,
+                        Marker=marker,
                     )
                     all_services.extend(job_response.get("ServicesLastAccessed", []))
 
@@ -2296,57 +2311,85 @@ def get_service_last_accessed_details(
             exc_info=True,
         )
         return {}
-    except Exception:
-        logger.warning(
-            f"Error getting service last accessed details for {arn}", exc_info=True
+
+
+@timeit
+@aws_handle_regions
+def get_service_last_accessed_details(
+    boto3_session: boto3.session.Session, principal_arns: List[str]
+) -> List[Tuple[str, Dict]]:
+    """
+    Get service last accessed details for a batch of principals.
+
+    Every job in the batch is generated before any is polled, so IAM builds the
+    reports concurrently and a whole batch waits about as long as one job.
+    """
+    client = create_boto3_client(boto3_session, "iam")
+
+    job_ids: Dict[str, str] = {}
+    for arn in principal_arns:
+        try:
+            job_ids[arn] = _call_iam_with_throttle_retry(
+                client.generate_service_last_accessed_details, Arn=arn
+            )["JobId"]
+        except client.exceptions.NoSuchEntityException:
+            logger.warning(
+                f"Principal {arn} not found for service last accessed details",
+                exc_info=True,
+            )
+
+    return [
+        (arn, _get_service_last_accessed_job_result(client, arn, job_id))
+        for arn, job_id in job_ids.items()
+    ]
+
+
+def transform_service_last_accessed_details(
+    service_details_by_principal: List[Tuple[str, Dict]],
+) -> List[Dict]:
+    """
+    Keep only the most recently accessed service for each principal.
+    """
+    principal_data = []
+    for principal_arn, service_details in service_details_by_principal:
+        services = service_details.get("ServicesLastAccessed", [])
+        accessed_services = [s for s in services if s.get("LastAuthenticated")]
+
+        if not accessed_services:
+            continue
+
+        most_recent_service = max(
+            accessed_services, key=lambda s: s.get("LastAuthenticated")
         )
-        raise
+
+        principal_data.append(
+            {
+                "arn": principal_arn,
+                "last_accessed_service_name": most_recent_service.get("ServiceName"),
+                "last_accessed_service_namespace": most_recent_service.get(
+                    "ServiceNamespace"
+                ),
+                "last_authenticated": str(
+                    most_recent_service.get("LastAuthenticated", "")
+                ),
+                "last_authenticated_entity": most_recent_service.get(
+                    "LastAuthenticatedEntity", ""
+                ),
+                "last_authenticated_region": most_recent_service.get(
+                    "LastAuthenticatedRegion", ""
+                ),
+            }
+        )
+    return principal_data
 
 
 @timeit
 def load_service_last_accessed_details(
     neo4j_session: neo4j.Session,
-    service_details: Dict,
-    principal_arn: str,
+    principal_data: List[Dict],
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    """
-    Load only the most recently accessed service details into Neo4j.
-    Updates the principal with last accessed service information.
-    """
-    if not service_details or not service_details.get("ServicesLastAccessed"):
-        return
-
-    services = service_details.get("ServicesLastAccessed", [])
-    accessed_services = [s for s in services if s.get("LastAuthenticated")]
-
-    if not accessed_services:
-        return
-
-    most_recent_service = max(
-        accessed_services, key=lambda s: s.get("LastAuthenticated")
-    )
-
-    # Transform the data for the data model
-    principal_data = [
-        {
-            "arn": principal_arn,
-            "last_accessed_service_name": most_recent_service.get("ServiceName"),
-            "last_accessed_service_namespace": most_recent_service.get(
-                "ServiceNamespace"
-            ),
-            "last_authenticated": str(most_recent_service.get("LastAuthenticated", "")),
-            "last_authenticated_entity": most_recent_service.get(
-                "LastAuthenticatedEntity", ""
-            ),
-            "last_authenticated_region": most_recent_service.get(
-                "LastAuthenticatedRegion", ""
-            ),
-        }
-    ]
-
-    # Use the data model to load the service access information
     load(
         neo4j_session,
         AWSPrincipalServiceAccessSchema(),
@@ -2385,22 +2428,21 @@ def sync_service_last_accessed_details(
         f"Found {len(principal_arns)} principals to process for service last accessed details"
     )
 
-    for principal_arn in principal_arns:
-        logger.debug(
-            f"Getting service last accessed details for principal: {principal_arn}"
-        )
-        service_details = get_service_last_accessed_details(
-            boto3_session, principal_arn
+    principal_data: List[Dict] = []
+    for i in range(0, len(principal_arns), _SERVICE_LAST_ACCESSED_BATCH_SIZE):
+        batch = principal_arns[i : i + _SERVICE_LAST_ACCESSED_BATCH_SIZE]
+        principal_data.extend(
+            transform_service_last_accessed_details(
+                get_service_last_accessed_details(boto3_session, batch)
+            )
         )
 
-        if service_details:
-            load_service_last_accessed_details(
-                neo4j_session,
-                service_details,
-                principal_arn,
-                current_aws_account_id,
-                aws_update_tag,
-            )
+    load_service_last_accessed_details(
+        neo4j_session,
+        principal_data,
+        current_aws_account_id,
+        aws_update_tag,
+    )
 
     # Cleanup: Remove service access data from principals that weren't updated in this sync
     GraphJob.from_node_schema(

@@ -1,5 +1,11 @@
+import copy
+import itertools
 from unittest import mock
 from unittest.mock import MagicMock
+
+import boto3
+import pytest
+from botocore.exceptions import ClientError
 
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
@@ -115,73 +121,196 @@ def test_load_groups(neo4j_session):
     )
 
 
-@mock.patch.object(
-    cartography.intel.aws.iam,
-    "get_service_last_accessed_details",
-    return_value=tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS,
-)
-def test_sync_service_last_accessed_details(mock_get, neo4j_session):
-    """
-    Test that sync_service_last_accessed_details correctly fetches and loads
-    service last accessed data for principals.
-    """
-    _create_base_account(neo4j_session)
+SERVICE_ACCESS_ACCOUNT_ID = "000000000001"
+USER_A_ARN = "arn:aws:iam::000000000001:user/example-user-a"
+USER_B_ARN = "arn:aws:iam::000000000001:user/example-user-b"
+USER_C_ARN = "arn:aws:iam::000000000001:user/example-user-c"
 
-    # Create a test principal that the sync function will find
-    test_principal_arn = "arn:aws:iam::000000000000:user/example-user-0"
+COMPLETED_JOB = tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS
+FIRST_PAGE_OF_COMPLETED_JOB = (
+    tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS_FIRST_PAGE
+)
+LAST_PAGE_OF_COMPLETED_JOB = tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS_LAST_PAGE
+IN_PROGRESS_JOB = {"JobStatus": "IN_PROGRESS"}
+FAILED_JOB = {"JobStatus": "FAILED"}
+THROTTLED_POLL = ClientError(
+    {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
+    "GetServiceLastAccessedDetails",
+)
+
+EC2_ACCESS = (
+    "Amazon EC2",
+    "ec2",
+    "2019-01-02 00:00:01",
+    "role/example-role-0",
+    "us-west-2",
+)
+NO_ACCESS = (None, None, None, None, None)
+
+
+class FakeIAMClient:
+    """
+    Answers each principal's GetServiceLastAccessedDetails polls from a script, in
+    order. A job's ID is its principal's ARN so a poll can find that script.
+    """
+
+    exceptions = boto3.session.Session(region_name=TEST_REGION).client("iam").exceptions
+
+    def __init__(self, polls_by_arn, deleted_arns=()):
+        self._polls = {arn: iter(polls) for arn, polls in polls_by_arn.items()}
+        self._deleted_arns = set(deleted_arns)
+        self.submitted_job_arns = []
+
+    def generate_service_last_accessed_details(self, Arn):
+        if Arn in self._deleted_arns:
+            raise self.exceptions.NoSuchEntityException(
+                {"Error": {"Code": "NoSuchEntity", "Message": "not found"}},
+                "GenerateServiceLastAccessedDetails",
+            )
+        self.submitted_job_arns.append(Arn)
+        return {"JobId": Arn}
+
+    def get_service_last_accessed_details(self, JobId, MaxItems=None, Marker=None):
+        poll = next(self._polls[JobId])
+        if isinstance(poll, Exception):
+            raise poll
+        return copy.deepcopy(poll)
+
+
+class JobsRunWhileSubmittingIAMClient(FakeIAMClient):
+    """
+    Reports every job IN_PROGRESS until all principals' jobs are submitted, so a sync
+    sees a job complete only if it keeps submitting while earlier jobs run.
+    """
+
+    def get_service_last_accessed_details(self, JobId, MaxItems=None, Marker=None):
+        if len(self.submitted_job_arns) < len(self._polls):
+            return IN_PROGRESS_JOB
+        return super().get_service_last_accessed_details(JobId, MaxItems, Marker)
+
+
+def _create_principals(neo4j_session, arns):
     neo4j_session.run(
-        "MERGE (u:AWSUser:AWSPrincipal{id: $arn}) "
-        "SET u.arn = $arn "
-        "WITH u "
-        "MATCH (aa:AWSAccount{id: $account_id}) "
-        "MERGE (aa)-[r:RESOURCE]->(u)",
-        arn=test_principal_arn,
-        account_id=TEST_ACCOUNT_ID,
+        "MERGE (a:AWSAccount{id: $account_id}) "
+        "WITH a "
+        "OPTIONAL MATCH (a)-[:RESOURCE]->(old:AWSPrincipal) "
+        "DETACH DELETE old",
+        account_id=SERVICE_ACCESS_ACCOUNT_ID,
+    )
+    neo4j_session.run(
+        "UNWIND $arns AS arn "
+        "MATCH (a:AWSAccount{id: $account_id}) "
+        "MERGE (u:AWSUser:AWSPrincipal{id: arn}) "
+        "SET u.arn = arn "
+        "MERGE (a)-[:RESOURCE]->(u)",
+        arns=arns,
+        account_id=SERVICE_ACCESS_ACCOUNT_ID,
     )
 
-    # Call the sync function (which queries for principals and calls the API)
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "AWS_ID": TEST_ACCOUNT_ID,
-    }
+
+def _sync_service_last_accessed_details(neo4j_session, iam_client):
     cartography.intel.aws.iam.sync_service_last_accessed_details(
         neo4j_session,
-        MagicMock(),  # boto3_session - mocked via patch
-        TEST_ACCOUNT_ID,
+        MagicMock(**{"client.return_value": iam_client}),
+        SERVICE_ACCESS_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        common_job_parameters,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": SERVICE_ACCESS_ACCOUNT_ID},
     )
 
-    # Verify the service last accessed data was loaded onto the principal
-    nodes = check_nodes(
-        neo4j_session,
-        "AWSPrincipal",
-        [
-            "arn",
-            "last_accessed_service_name",
-            "last_accessed_service_namespace",
-            "last_authenticated",
-            "last_authenticated_entity",
-            "last_authenticated_region",
-        ],
+
+def _last_accessed_services(neo4j_session):
+    records = neo4j_session.run(
+        "MATCH (:AWSAccount{id: $account_id})-[:RESOURCE]->(p:AWSPrincipal) "
+        "RETURN p.arn AS arn, [p.last_accessed_service_name, "
+        "p.last_accessed_service_namespace, p.last_authenticated, "
+        "p.last_authenticated_entity, p.last_authenticated_region] AS access",
+        account_id=SERVICE_ACCESS_ACCOUNT_ID,
+    )
+    return {record["arn"]: tuple(record["access"]) for record in records}
+
+
+@mock.patch("time.sleep")
+def test_sync_service_last_accessed_details_loads_most_recent_service_per_principal(
+    mock_sleep, neo4j_session
+):
+    _create_principals(neo4j_session, [USER_A_ARN, USER_B_ARN])
+    iam_client = FakeIAMClient(
+        {
+            USER_A_ARN: [COMPLETED_JOB],
+            USER_B_ARN: [
+                IN_PROGRESS_JOB,
+                FIRST_PAGE_OF_COMPLETED_JOB,
+                LAST_PAGE_OF_COMPLETED_JOB,
+            ],
+        }
     )
 
-    test_principal_data = {
-        node for node in nodes if node[0] == test_principal_arn and node[1] is not None
+    _sync_service_last_accessed_details(neo4j_session, iam_client)
+
+    assert _last_accessed_services(neo4j_session) == {
+        USER_A_ARN: EC2_ACCESS,
+        USER_B_ARN: EC2_ACCESS,
     }
 
-    expected_data = {
-        (
-            test_principal_arn,
-            "Amazon EC2",
-            "ec2",
-            "2019-01-02 00:00:01",
-            "role/example-role-0",
-            "us-west-2",
-        ),
+
+@pytest.mark.parametrize(
+    "user_b_polls, deleted_arns",
+    [
+        pytest.param([], {USER_B_ARN}, id="principal-deleted"),
+        pytest.param([FAILED_JOB], set(), id="job-failed"),
+        pytest.param(itertools.repeat(IN_PROGRESS_JOB), set(), id="job-timed-out"),
+    ],
+)
+@mock.patch("time.sleep")
+def test_sync_service_last_accessed_details_skips_principal_without_report(
+    mock_sleep, neo4j_session, user_b_polls, deleted_arns
+):
+    _create_principals(neo4j_session, [USER_A_ARN, USER_B_ARN])
+    iam_client = FakeIAMClient(
+        {USER_A_ARN: [COMPLETED_JOB], USER_B_ARN: user_b_polls}, deleted_arns
+    )
+
+    _sync_service_last_accessed_details(neo4j_session, iam_client)
+
+    assert _last_accessed_services(neo4j_session) == {
+        USER_A_ARN: EC2_ACCESS,
+        USER_B_ARN: NO_ACCESS,
     }
 
-    assert test_principal_data == expected_data
+
+@mock.patch("time.sleep")
+def test_sync_service_last_accessed_details_keeps_job_after_throttled_poll(
+    mock_sleep, neo4j_session
+):
+    _create_principals(neo4j_session, [USER_A_ARN])
+    iam_client = FakeIAMClient({USER_A_ARN: [THROTTLED_POLL, COMPLETED_JOB]})
+
+    _sync_service_last_accessed_details(neo4j_session, iam_client)
+
+    assert _last_accessed_services(neo4j_session) == {USER_A_ARN: EC2_ACCESS}
+    assert iam_client.submitted_job_arns == [USER_A_ARN]
+
+
+@mock.patch("time.sleep")
+def test_sync_service_last_accessed_details_runs_report_jobs_concurrently(
+    mock_sleep, neo4j_session
+):
+    _create_principals(neo4j_session, [USER_A_ARN, USER_B_ARN, USER_C_ARN])
+    iam_client = JobsRunWhileSubmittingIAMClient(
+        {
+            USER_A_ARN: [COMPLETED_JOB],
+            USER_B_ARN: [COMPLETED_JOB],
+            USER_C_ARN: [COMPLETED_JOB],
+        }
+    )
+
+    _sync_service_last_accessed_details(neo4j_session, iam_client)
+
+    assert _last_accessed_services(neo4j_session) == {
+        USER_A_ARN: EC2_ACCESS,
+        USER_B_ARN: EC2_ACCESS,
+        USER_C_ARN: EC2_ACCESS,
+    }
 
 
 def _get_principal_role_nodes(neo4j_session):
