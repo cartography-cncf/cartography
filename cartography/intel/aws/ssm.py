@@ -127,11 +127,8 @@ def transform_instance_information(
     return data_list
 
 
-def _is_ssm_throttling_error(error: Exception) -> bool:
-    return (
-        isinstance(error, ClientError)
-        and error.response.get("Error", {}).get("Code") in _SSM_THROTTLING_ERROR_CODES
-    )
+def _is_ssm_throttling_error(error: ClientError) -> bool:
+    return error.response.get("Error", {}).get("Code") in _SSM_THROTTLING_ERROR_CODES
 
 
 @backoff.on_exception(  # type: ignore[misc]

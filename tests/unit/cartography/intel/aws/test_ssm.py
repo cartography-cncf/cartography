@@ -101,9 +101,9 @@ def test_get_public_ssm_parameters_by_path_handles_pagination() -> None:
             "ThrottlingException",
             ["i-01", "i-02", "i-02", "i-03"],
             [
-                {"Title": "patch-for-i-01", "_instance_id": "i-01"},
-                {"Title": "patch-for-i-02", "_instance_id": "i-02"},
-                {"Title": "patch-for-i-03", "_instance_id": "i-03"},
+                {"Title": "patch-1", "_instance_id": "i-01"},
+                {"Title": "patch-2", "_instance_id": "i-02"},
+                {"Title": "patch-3", "_instance_id": "i-03"},
             ],
             id="throttle-resumes-from-the-throttled-instance",
         ),
@@ -115,7 +115,7 @@ def test_get_public_ssm_parameters_by_path_handles_pagination() -> None:
         ),
     ],
 )
-def test_get_instance_patches_handles_error_on_one_instance(
+def test_get_instance_patches_handles_error_on_second_instance(
     mocker: MockerFixture,
     error_code: str,
     expected_calls: list[str],
@@ -123,19 +123,16 @@ def test_get_instance_patches_handles_error_on_one_instance(
 ) -> None:
     # Arrange
     mocker.patch("time.sleep")
-    failed: list[str] = []
-
-    def paginate(InstanceId: str) -> list[dict[str, Any]]:
-        if InstanceId == "i-02" and not failed:
-            failed.append(InstanceId)
-            raise ClientError(
-                {"Error": {"Code": error_code, "Message": "Request failed"}},
-                "DescribeInstancePatches",
-            )
-        return [{"Patches": [{"Title": f"patch-for-{InstanceId}"}]}]
-
     paginator = MagicMock()
-    paginator.paginate.side_effect = paginate
+    paginator.paginate.side_effect = [
+        [{"Patches": [{"Title": "patch-1"}]}],
+        ClientError(
+            {"Error": {"Code": error_code, "Message": "Request failed"}},
+            "DescribeInstancePatches",
+        ),
+        [{"Patches": [{"Title": "patch-2"}]}],
+        [{"Patches": [{"Title": "patch-3"}]}],
+    ]
     boto3_session = MagicMock()
     boto3_session.client.return_value.get_paginator.return_value = paginator
 
