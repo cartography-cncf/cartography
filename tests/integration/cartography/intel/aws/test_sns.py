@@ -102,6 +102,11 @@ def test_sync_sns(
     "first_error_code, expected_display_name",
     [
         pytest.param("Throttling", "Test Topic", id="throttled-call-is-retried"),
+        pytest.param(
+            "ThrottlingException",
+            "Test Topic",
+            id="sns-throttling-exception-is-retried",
+        ),
         pytest.param("NotFound", "", id="deleted-topic-loads-without-attributes"),
     ],
 )
