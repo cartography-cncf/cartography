@@ -6,8 +6,10 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+import backoff
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -22,10 +24,17 @@ from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
 from cartography.models.aws.ssm.parameters import PublicSSMParameterSchema
 from cartography.models.aws.ssm.parameters import SSMParameterSchema
 from cartography.util import aws_handle_regions
+from cartography.util import backoff_handler
 from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+_SSM_THROTTLING_ERROR_CODES = {
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+}
 
 
 def _normalize_allowlisted_prefixes(raw_prefixes: str | None) -> list[str]:
@@ -118,6 +127,31 @@ def transform_instance_information(
     return data_list
 
 
+def _is_ssm_throttling_error(error: Exception) -> bool:
+    return (
+        isinstance(error, ClientError)
+        and error.response.get("Error", {}).get("Code") in _SSM_THROTTLING_ERROR_CODES
+    )
+
+
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    ClientError,
+    max_time=600,
+    giveup=lambda e: not _is_ssm_throttling_error(e),
+    on_backoff=backoff_handler,
+)
+def _get_patches_for_instance(client: Any, instance_id: str) -> List[Dict[str, Any]]:
+    # DescribeInstancePatches takes one instance per call, so a large region makes
+    # thousands of calls. Retrying per instance resumes from the throttled one
+    # instead of letting aws_handle_regions restart the region from the first.
+    patches: List[Dict[str, Any]] = []
+    paginator = client.get_paginator("describe_instance_patches")
+    for page in paginator.paginate(InstanceId=instance_id):
+        patches.extend(page["Patches"])
+    return patches
+
+
 @timeit
 @aws_handle_regions
 def get_instance_patches(
@@ -127,11 +161,8 @@ def get_instance_patches(
 ) -> List[Dict[str, Any]]:
     client = create_boto3_client(boto3_session, "ssm", region_name=region)
     instance_patches: List[Dict[str, Any]] = []
-    paginator = client.get_paginator("describe_instance_patches")
     for instance_id in instance_ids:
-        patches = []
-        for page in paginator.paginate(InstanceId=instance_id):
-            patches.extend(page["Patches"])
+        patches = _get_patches_for_instance(client, instance_id)
         # to avoid complicating the load function, inject the instance ID into the patch
         for patch in patches:
             patch["_instance_id"] = instance_id

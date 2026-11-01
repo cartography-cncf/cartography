@@ -6,8 +6,13 @@ from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from botocore.exceptions import ClientError
+from pytest_mock import MockerFixture
+
 from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
+from cartography.intel.aws.ssm import get_instance_patches
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
 from cartography.intel.aws.ssm import sync_public_parameters
 from cartography.intel.aws.ssm import transform_ssm_parameters
@@ -87,6 +92,65 @@ def test_get_public_ssm_parameters_by_path_handles_pagination() -> None:
             PaginationConfig={"PageSize": 10},
         ),
     ]
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    ("error_code", "expected_calls", "expected_patches"),
+    [
+        pytest.param(
+            "ThrottlingException",
+            ["i-01", "i-02", "i-02", "i-03"],
+            [
+                {"Title": "patch-for-i-01", "_instance_id": "i-01"},
+                {"Title": "patch-for-i-02", "_instance_id": "i-02"},
+                {"Title": "patch-for-i-03", "_instance_id": "i-03"},
+            ],
+            id="throttle-resumes-from-the-throttled-instance",
+        ),
+        pytest.param(
+            "AccessDeniedException",
+            ["i-01", "i-02"],
+            [],
+            id="access-denied-skips-the-region-without-retrying",
+        ),
+    ],
+)
+def test_get_instance_patches_handles_error_on_one_instance(
+    mocker: MockerFixture,
+    error_code: str,
+    expected_calls: list[str],
+    expected_patches: list[dict[str, str]],
+) -> None:
+    # Arrange
+    mocker.patch("time.sleep")
+    failed: list[str] = []
+
+    def paginate(InstanceId: str) -> list[dict[str, Any]]:
+        if InstanceId == "i-02" and not failed:
+            failed.append(InstanceId)
+            raise ClientError(
+                {"Error": {"Code": error_code, "Message": "Request failed"}},
+                "DescribeInstancePatches",
+            )
+        return [{"Patches": [{"Title": f"patch-for-{InstanceId}"}]}]
+
+    paginator = MagicMock()
+    paginator.paginate.side_effect = paginate
+    boto3_session = MagicMock()
+    boto3_session.client.return_value.get_paginator.return_value = paginator
+
+    # Act
+    patches = get_instance_patches(
+        boto3_session,
+        "us-east-1",
+        ["i-01", "i-02", "i-03"],
+    )
+
+    # Assert
+    assert [
+        c.kwargs["InstanceId"] for c in paginator.paginate.call_args_list
+    ] == expected_calls
+    assert patches == expected_patches
 
 
 def test_transform_ssm_parameters_preserves_arn_identity_and_dates() -> None:
