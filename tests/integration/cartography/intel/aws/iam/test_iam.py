@@ -150,6 +150,10 @@ POLL_ACCESS_DENIED = ClientError(
     {"Error": {"Code": "AccessDenied", "Message": "not authorized"}},
     "GetServiceLastAccessedDetails",
 )
+INVALID_CREDENTIALS = ClientError(
+    {"Error": {"Code": "InvalidClientTokenId", "Message": "invalid token"}},
+    "GenerateServiceLastAccessedDetails",
+)
 
 EC2_ACCESS = (
     "Amazon EC2",
@@ -290,6 +294,16 @@ def test_sync_service_last_accessed_details_skips_principal_without_report(
         USER_A_ARN: EC2_ACCESS,
         USER_B_ARN: NO_ACCESS,
     }
+
+
+def test_sync_service_last_accessed_details_fails_on_invalid_credentials(
+    neo4j_session,
+):
+    _create_principals(neo4j_session, [USER_A_ARN])
+    iam_client = FakeIAMClient({USER_A_ARN: []}, {USER_A_ARN: INVALID_CREDENTIALS})
+
+    with pytest.raises(ClientError):
+        _sync_service_last_accessed_details(neo4j_session, iam_client)
 
 
 @mock.patch("time.sleep")

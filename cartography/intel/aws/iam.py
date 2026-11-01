@@ -52,7 +52,6 @@ from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import backoff_handler
-from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -2264,6 +2263,15 @@ def _call_iam_with_throttle_retry(
     return operation(**kwargs)
 
 
+def _is_access_denied(error: ClientError) -> bool:
+    # Only a denial is per principal. Credential failures such as
+    # InvalidClientTokenId affect every principal and must fail the sync.
+    return error.response.get("Error", {}).get("Code") in (
+        "AccessDenied",
+        "AccessDeniedException",
+    )
+
+
 def _get_service_last_accessed_job_result(client: Any, arn: str, job_id: str) -> Dict:
     try:
         max_attempts = 30
@@ -2313,7 +2321,7 @@ def _get_service_last_accessed_job_result(client: Any, arn: str, job_id: str) ->
         )
         return {}
     except ClientError as e:
-        if not is_aws_region_skippable_client_error(e):
+        if not _is_access_denied(e):
             raise
         logger.warning(f"Skipping service last accessed details for {arn}: {e}")
         return {}
@@ -2345,7 +2353,7 @@ def get_service_last_accessed_details(
         # Skipped here rather than by @aws_handle_regions, which would drop the
         # whole batch for one principal's denial.
         except ClientError as e:
-            if not is_aws_region_skippable_client_error(e):
+            if not _is_access_denied(e):
                 raise
             logger.warning(f"Skipping service last accessed details for {arn}: {e}")
 
