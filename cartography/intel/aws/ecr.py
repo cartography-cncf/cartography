@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
@@ -29,6 +30,9 @@ MANIFEST_LIST_MEDIA_TYPES = {
 
 
 REPO_BATCH_SIZE = 100
+# API maximums for describe_images maxResults and batch_get_image imageIds.
+DESCRIBE_IMAGES_PAGE_SIZE = 1000
+BATCH_GET_IMAGE_MAX_IMAGE_IDS = 100
 
 
 @timeit
@@ -46,38 +50,13 @@ def get_ecr_repositories(
     return ecr_repositories
 
 
-def _get_platform_specific_digests(
-    client: Any, repository_name: str, manifest_list_digest: str
-) -> tuple[List[Dict[str, Any]], set[str]]:
+def _parse_manifest_list(
+    repository_name: str, manifest_list_digest: str, image_manifest: str
+) -> List[Dict[str, Any]]:
     """
-    Fetch manifest list and extract platform-specific image digests and attestations.
-
-    Returns:
-        - List of all images (platform-specific + attestations) with digest, type, architecture, os, variant
-        - Set of ALL digests referenced in the manifest list
+    Extract platform-specific images and attestations from a manifest list.
     """
-    response = client.batch_get_image(
-        repositoryName=repository_name,
-        imageIds=[{"imageDigest": manifest_list_digest}],
-        acceptedMediaTypes=list(MANIFEST_LIST_MEDIA_TYPES),
-    )
-
-    if not response.get("images"):
-        # Image is not actually a manifest list despite the media type hint.
-        # This can happen with single-platform images where describe_images reports
-        # a manifest list media type but batch_get_image with restrictive acceptedMediaTypes
-        # returns empty results. Return empty results so caller treats it as a regular image.
-        logger.debug(
-            "Digest %s in repository %s is not a manifest list despite media type hint",
-            manifest_list_digest,
-            repository_name,
-        )
-        return [], set()
-
-    # batch_get_image returns a single manifest list (hence [0])
-    # The manifests[] array inside contains all platform-specific images and attestations
-    manifest_json = json.loads(response["images"][0]["imageManifest"])
-    manifests = manifest_json.get("manifests", [])
+    manifests = json.loads(image_manifest).get("manifests", [])
 
     if not manifests:
         raise ValueError(
@@ -85,7 +64,6 @@ def _get_platform_specific_digests(
         )
 
     all_images = []
-    all_referenced_digests = set()
 
     for manifest_ref in manifests:
         digest = manifest_ref.get("digest")
@@ -93,8 +71,6 @@ def _get_platform_specific_digests(
             raise ValueError(
                 f"Manifest in list {manifest_list_digest} has no digest in repository {repository_name}"
             )
-
-        all_referenced_digests.add(digest)
 
         platform_info = manifest_ref.get("platform", {})
         architecture = platform_info.get("architecture")
@@ -132,7 +108,45 @@ def _get_platform_specific_digests(
             }
         )
 
-    return all_images, all_referenced_digests
+    return all_images
+
+
+def _get_manifest_list_images(
+    client: Any, repository_name: str, manifest_list_digests: List[str]
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Map each manifest list digest to its platform-specific images and attestations.
+
+    Fetching many manifest lists per batch_get_image call matters at scale: modern
+    BuildKit pushes an image index for nearly every build, so one call per manifest
+    list made this the bulk of ECR API calls.
+
+    A digest is absent from the result when batch_get_image returns no manifest list
+    for it. describe_images can report a manifest list media type for single-platform
+    images, which batch_get_image then omits because of the restrictive
+    acceptedMediaTypes, and the caller treats those as regular images.
+    """
+    manifest_list_images: Dict[str, List[Dict[str, Any]]] = {}
+    for digests in batch(manifest_list_digests, size=BATCH_GET_IMAGE_MAX_IMAGE_IDS):
+        response = client.batch_get_image(
+            repositoryName=repository_name,
+            imageIds=[{"imageDigest": digest} for digest in digests],
+            acceptedMediaTypes=list(MANIFEST_LIST_MEDIA_TYPES),
+        )
+        for image in response.get("images", []):
+            digest = image["imageId"]["imageDigest"]
+            manifest_list_images[digest] = _parse_manifest_list(
+                repository_name, digest, image["imageManifest"]
+            )
+
+    for digest in manifest_list_digests:
+        if digest not in manifest_list_images:
+            logger.debug(
+                "Digest %s in repository %s is not a manifest list despite media type hint",
+                digest,
+                repository_name,
+            )
+    return manifest_list_images
 
 
 @timeit
@@ -146,39 +160,34 @@ def get_ecr_repository_images(
         region,
     )
     client = create_boto3_client(boto3_session, "ecr", region_name=region)
-    list_paginator = client.get_paginator("list_images")
 
-    # First pass: Collect all image details and track manifest list referenced digests
+    # Paging describe_images directly at its maximum page size replaces a
+    # list_images call plus a describe_images call for every 100 image IDs.
     all_image_details: List[Dict] = []
-    manifest_list_referenced_digests: set[str] = set()
+    for page in client.get_paginator("describe_images").paginate(
+        repositoryName=repository_name,
+        PaginationConfig={"PageSize": DESCRIBE_IMAGES_PAGE_SIZE},
+    ):
+        all_image_details.extend(page["imageDetails"])
 
-    for page in list_paginator.paginate(repositoryName=repository_name):
-        image_ids = page["imageIds"]
-        if not image_ids:
-            continue
-        describe_paginator = client.get_paginator("describe_images")
-        describe_response = describe_paginator.paginate(
-            repositoryName=repository_name, imageIds=image_ids
-        )
-        for response in describe_response:
-            image_details = response["imageDetails"]
-            for detail in image_details:
-                # Check if this is a manifest list
-                media_type = detail.get("imageManifestMediaType")
-                if media_type in MANIFEST_LIST_MEDIA_TYPES:
-                    # Fetch all images from manifest list (platform-specific + attestations)
-                    manifest_list_digest = detail["imageDigest"]
-                    manifest_images, all_digests = _get_platform_specific_digests(
-                        client, repository_name, manifest_list_digest
-                    )
-                    detail["_manifest_images"] = manifest_images
+    manifest_list_images = _get_manifest_list_images(
+        client,
+        repository_name,
+        [
+            detail["imageDigest"]
+            for detail in all_image_details
+            if detail.get("imageManifestMediaType") in MANIFEST_LIST_MEDIA_TYPES
+        ],
+    )
+    # Track ALL digests so we don't create ECRRepositoryImages for them
+    manifest_list_referenced_digests = {
+        image["digest"] for images in manifest_list_images.values() for image in images
+    }
+    for detail in all_image_details:
+        if detail["imageDigest"] in manifest_list_images:
+            detail["_manifest_images"] = manifest_list_images[detail["imageDigest"]]
 
-                    # Track ALL digests so we don't create ECRRepositoryImages for them
-                    manifest_list_referenced_digests.update(all_digests)
-
-                all_image_details.append(detail)
-
-    # Second pass: Only add images that should have AWSECRRepositoryImage nodes
+    # Only add images that should have AWSECRRepositoryImage nodes
     ecr_repository_images: List[Dict] = []
     for detail in all_image_details:
         tags = detail.get("imageTags") or []
