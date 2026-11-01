@@ -500,19 +500,6 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     mock_client = MagicMock()
 
-    # Mock list_images paginator
-    mock_list_paginator = MagicMock()
-    mock_list_paginator.paginate.return_value = [
-        {
-            "imageIds": [
-                {
-                    "imageDigest": tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
-                    "imageTag": "v1.0",
-                }
-            ]
-        }
-    ]
-
     # Mock describe_images paginator
     mock_describe_paginator = MagicMock()
     mock_describe_paginator.paginate.return_value = [
@@ -521,9 +508,7 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
 
     # Configure get_paginator to return the appropriate paginator
     def get_paginator(name):
-        if name == "list_images":
-            return mock_list_paginator
-        elif name == "describe_images":
+        if name == "describe_images":
             return mock_describe_paginator
         raise ValueError(f"Unexpected paginator: {name}")
 
@@ -718,19 +703,6 @@ def test_sync_single_platform_image_marked_as_manifest_list(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     mock_client = MagicMock()
 
-    # Mock list_images paginator
-    mock_list_paginator = MagicMock()
-    mock_list_paginator.paginate.return_value = [
-        {
-            "imageIds": [
-                {
-                    "imageDigest": tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
-                    "imageTag": "latest",
-                }
-            ]
-        }
-    ]
-
     # Mock describe_images paginator
     mock_describe_paginator = MagicMock()
     mock_describe_paginator.paginate.return_value = [
@@ -739,9 +711,7 @@ def test_sync_single_platform_image_marked_as_manifest_list(
 
     # Configure get_paginator to return the appropriate paginator
     def get_paginator(name):
-        if name == "list_images":
-            return mock_list_paginator
-        elif name == "describe_images":
+        if name == "describe_images":
             return mock_describe_paginator
         raise ValueError(f"Unexpected paginator: {name}")
 

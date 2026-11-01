@@ -1352,19 +1352,6 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     mock_client = MagicMock()
 
-    # Mock list_images paginator
-    mock_list_paginator = MagicMock()
-    mock_list_paginator.paginate.return_value = [
-        {
-            "imageIds": [
-                {
-                    "imageDigest": test_data.MANIFEST_LIST_DIGEST,
-                    "imageTag": "v1.0",
-                }
-            ]
-        }
-    ]
-
     # Mock describe_images paginator
     mock_describe_paginator = MagicMock()
     mock_describe_paginator.paginate.return_value = [
@@ -1373,9 +1360,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Configure get_paginator
     def get_paginator(name):
-        if name == "list_images":
-            return mock_list_paginator
-        elif name == "describe_images":
+        if name == "describe_images":
             return mock_describe_paginator
         raise ValueError(f"Unexpected paginator: {name}")
 
