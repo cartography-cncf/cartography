@@ -137,6 +137,19 @@ THROTTLED_POLL = ClientError(
     {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
     "GetServiceLastAccessedDetails",
 )
+IAM_EXCEPTIONS = boto3.session.Session(region_name=TEST_REGION).client("iam").exceptions
+PRINCIPAL_NOT_FOUND = IAM_EXCEPTIONS.NoSuchEntityException(
+    {"Error": {"Code": "NoSuchEntity", "Message": "not found"}},
+    "GenerateServiceLastAccessedDetails",
+)
+GENERATE_ACCESS_DENIED = ClientError(
+    {"Error": {"Code": "AccessDenied", "Message": "not authorized"}},
+    "GenerateServiceLastAccessedDetails",
+)
+POLL_ACCESS_DENIED = ClientError(
+    {"Error": {"Code": "AccessDenied", "Message": "not authorized"}},
+    "GetServiceLastAccessedDetails",
+)
 
 EC2_ACCESS = (
     "Amazon EC2",
@@ -154,19 +167,16 @@ class FakeIAMClient:
     order. A job's ID is its principal's ARN so a poll can find that script.
     """
 
-    exceptions = boto3.session.Session(region_name=TEST_REGION).client("iam").exceptions
+    exceptions = IAM_EXCEPTIONS
 
-    def __init__(self, polls_by_arn, deleted_arns=()):
+    def __init__(self, polls_by_arn, generate_errors_by_arn=None):
         self._polls = {arn: iter(polls) for arn, polls in polls_by_arn.items()}
-        self._deleted_arns = set(deleted_arns)
+        self._generate_errors = generate_errors_by_arn or {}
         self.submitted_job_arns = []
 
     def generate_service_last_accessed_details(self, Arn):
-        if Arn in self._deleted_arns:
-            raise self.exceptions.NoSuchEntityException(
-                {"Error": {"Code": "NoSuchEntity", "Message": "not found"}},
-                "GenerateServiceLastAccessedDetails",
-            )
+        if Arn in self._generate_errors:
+            raise self._generate_errors[Arn]
         self.submitted_job_arns.append(Arn)
         return {"JobId": Arn}
 
@@ -254,20 +264,24 @@ def test_sync_service_last_accessed_details_loads_most_recent_service_per_princi
 
 
 @pytest.mark.parametrize(
-    "user_b_polls, deleted_arns",
+    "user_b_polls, generate_errors_by_arn",
     [
-        pytest.param([], {USER_B_ARN}, id="principal-deleted"),
-        pytest.param([FAILED_JOB], set(), id="job-failed"),
-        pytest.param(itertools.repeat(IN_PROGRESS_JOB), set(), id="job-timed-out"),
+        pytest.param([], {USER_B_ARN: PRINCIPAL_NOT_FOUND}, id="principal-deleted"),
+        pytest.param(
+            [], {USER_B_ARN: GENERATE_ACCESS_DENIED}, id="report-generation-denied"
+        ),
+        pytest.param([POLL_ACCESS_DENIED], {}, id="report-read-denied"),
+        pytest.param([FAILED_JOB], {}, id="job-failed"),
+        pytest.param(itertools.repeat(IN_PROGRESS_JOB), {}, id="job-timed-out"),
     ],
 )
 @mock.patch("time.sleep")
 def test_sync_service_last_accessed_details_skips_principal_without_report(
-    mock_sleep, neo4j_session, user_b_polls, deleted_arns
+    mock_sleep, neo4j_session, user_b_polls, generate_errors_by_arn
 ):
     _create_principals(neo4j_session, [USER_A_ARN, USER_B_ARN])
     iam_client = FakeIAMClient(
-        {USER_A_ARN: [COMPLETED_JOB], USER_B_ARN: user_b_polls}, deleted_arns
+        {USER_A_ARN: [COMPLETED_JOB], USER_B_ARN: user_b_polls}, generate_errors_by_arn
     )
 
     _sync_service_last_accessed_details(neo4j_session, iam_client)

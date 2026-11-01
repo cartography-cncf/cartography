@@ -52,6 +52,7 @@ from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import backoff_handler
+from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -2311,10 +2312,14 @@ def _get_service_last_accessed_job_result(client: Any, arn: str, job_id: str) ->
             exc_info=True,
         )
         return {}
+    except ClientError as e:
+        if not is_aws_region_skippable_client_error(e):
+            raise
+        logger.warning(f"Skipping service last accessed details for {arn}: {e}")
+        return {}
 
 
 @timeit
-@aws_handle_regions
 def get_service_last_accessed_details(
     boto3_session: boto3.session.Session, principal_arns: List[str]
 ) -> List[Tuple[str, Dict]]:
@@ -2337,6 +2342,12 @@ def get_service_last_accessed_details(
                 f"Principal {arn} not found for service last accessed details",
                 exc_info=True,
             )
+        # Skipped here rather than by @aws_handle_regions, which would drop the
+        # whole batch for one principal's denial.
+        except ClientError as e:
+            if not is_aws_region_skippable_client_error(e):
+                raise
+            logger.warning(f"Skipping service last accessed details for {arn}: {e}")
 
     return [
         (arn, _get_service_last_accessed_job_result(client, arn, job_id))
