@@ -1,3 +1,4 @@
+import inspect
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -6,9 +7,13 @@ from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from botocore.exceptions import ClientError
+
 from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
+from cartography.intel.aws.ssm import get_instance_patches
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
+from cartography.intel.aws.ssm import sync
 from cartography.intel.aws.ssm import sync_public_parameters
 from cartography.intel.aws.ssm import transform_ssm_parameters
 
@@ -174,3 +179,113 @@ def test_sync_public_parameters_preserves_stale_data_when_region_is_unreadable(
     mock_get_parameters.assert_called_once()
     mock_load_parameters.assert_not_called()
     mock_cleanup.assert_not_called()
+
+
+def _throttling_error() -> ClientError:
+    return ClientError(
+        {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}},
+        "DescribeInstancePatches",
+    )
+
+
+@patch("time.sleep")
+def test_get_instance_patches_resumes_after_throttling(mock_sleep) -> None:
+    # Arrange: the second instance's first page is throttled once
+    client = MagicMock()
+    client.describe_instance_patches.side_effect = [
+        {"Patches": [{"Title": "p1"}]},
+        _throttling_error(),
+        {"Patches": [{"Title": "p2"}], "NextToken": "token-1"},
+        {"Patches": [{"Title": "p3"}]},
+    ]
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+
+    # Act
+    results = inspect.unwrap(get_instance_patches)(
+        boto3_session,
+        "us-east-1",
+        ["i-01", "i-02"],
+    )
+
+    # Assert: only the throttled page is retried; i-01 is not refetched
+    assert results == [
+        {"Title": "p1", "_instance_id": "i-01"},
+        {"Title": "p2", "_instance_id": "i-02"},
+        {"Title": "p3", "_instance_id": "i-02"},
+    ]
+    assert client.describe_instance_patches.call_args_list == [
+        call(InstanceId="i-01"),
+        call(InstanceId="i-02"),
+        call(InstanceId="i-02"),
+        call(InstanceId="i-02", NextToken="token-1"),
+    ]
+
+
+def test_get_instance_patches_does_not_retry_non_throttling_errors() -> None:
+    client = MagicMock()
+    client.describe_instance_patches.side_effect = ClientError(
+        {"Error": {"Code": "ValidationException", "Message": "bad"}},
+        "DescribeInstancePatches",
+    )
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+
+    try:
+        inspect.unwrap(get_instance_patches)(
+            boto3_session,
+            "us-east-1",
+            ["i-01"],
+        )
+    except ClientError:
+        pass
+    else:
+        raise AssertionError("expected ClientError")
+    client.describe_instance_patches.assert_called_once()
+
+
+@patch("cartography.intel.aws.ssm.cleanup_ssm")
+@patch("cartography.intel.aws.ssm.load_ssm_parameters")
+@patch("cartography.intel.aws.ssm.get_ssm_parameters", return_value=[])
+@patch("cartography.intel.aws.ssm.load_instance_patches")
+@patch("cartography.intel.aws.ssm.get_instance_patches", return_value=[])
+@patch("cartography.intel.aws.ssm.load_instance_information")
+@patch(
+    "cartography.intel.aws.ssm.get_instance_information",
+    return_value=[{"InstanceId": "i-managed"}],
+)
+@patch(
+    "cartography.intel.aws.ssm.get_instance_ids",
+    return_value=["i-managed", "i-unmanaged"],
+)
+def test_sync_only_fetches_patches_for_managed_instances(
+    mock_get_instance_ids,
+    mock_get_instance_information,
+    mock_load_instance_information,
+    mock_get_instance_patches,
+    mock_load_instance_patches,
+    mock_get_ssm_parameters,
+    mock_load_ssm_parameters,
+    mock_cleanup,
+) -> None:
+    boto3_session = MagicMock()
+
+    sync(
+        MagicMock(),
+        boto3_session,
+        ["us-east-1"],
+        "123456789012",
+        123,
+        {"UPDATE_TAG": 123, "AWS_ID": "123456789012"},
+    )
+
+    mock_get_instance_information.assert_called_once_with(
+        boto3_session,
+        "us-east-1",
+        ["i-managed", "i-unmanaged"],
+    )
+    mock_get_instance_patches.assert_called_once_with(
+        boto3_session,
+        "us-east-1",
+        ["i-managed"],
+    )

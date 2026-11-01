@@ -6,13 +6,16 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+import backoff
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import GraphStatement
+from cartography.helpers import backoff_handler
 from cartography.intel.aws.label_migrations import (
     migrate_legacy_public_ssm_parameter_label,
 )
@@ -118,6 +121,44 @@ def transform_instance_information(
     return data_list
 
 
+_SSM_THROTTLING_ERROR_CODES = {
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+    "RequestLimitExceeded",
+}
+
+
+def _is_ssm_throttling_error(error: Exception) -> bool:
+    return (
+        isinstance(error, ClientError)
+        and error.response.get("Error", {}).get("Code") in _SSM_THROTTLING_ERROR_CODES
+    )
+
+
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    ClientError,
+    max_time=600,
+    giveup=lambda e: not _is_ssm_throttling_error(e),
+    on_backoff=backoff_handler,
+)
+def _describe_instance_patches_page(
+    client: Any,
+    instance_id: str,
+    next_token: str | None,
+) -> Dict[str, Any]:
+    # DescribeInstancePatches is called once per instance, so large regions
+    # easily exceed the API rate limit. Retry per page so a throttle resumes
+    # from the current instance instead of restarting the whole region from
+    # the outer @aws_handle_regions retry, whose 600s budget is usually already
+    # spent by the time a throttle hits in a large account.
+    kwargs: Dict[str, Any] = {"InstanceId": instance_id}
+    if next_token:
+        kwargs["NextToken"] = next_token
+    return client.describe_instance_patches(**kwargs)
+
+
 @timeit
 @aws_handle_regions
 def get_instance_patches(
@@ -127,11 +168,15 @@ def get_instance_patches(
 ) -> List[Dict[str, Any]]:
     client = create_boto3_client(boto3_session, "ssm", region_name=region)
     instance_patches: List[Dict[str, Any]] = []
-    paginator = client.get_paginator("describe_instance_patches")
     for instance_id in instance_ids:
-        patches = []
-        for page in paginator.paginate(InstanceId=instance_id):
-            patches.extend(page["Patches"])
+        patches: List[Dict[str, Any]] = []
+        next_token: str | None = None
+        while True:
+            page = _describe_instance_patches_page(client, instance_id, next_token)
+            patches.extend(page.get("Patches", []))
+            next_token = page.get("NextToken")
+            if not next_token:
+                break
         # to avoid complicating the load function, inject the instance ID into the patch
         for patch in patches:
             patch["_instance_id"] = instance_id
@@ -352,7 +397,10 @@ def sync(
             update_tag,
         )
 
-        data = get_instance_patches(boto3_session, region, instance_ids)
+        # Patch data only exists for SSM-managed instances, so skip the
+        # per-instance DescribeInstancePatches call for everything else.
+        managed_instance_ids = [ii["InstanceId"] for ii in data]
+        data = get_instance_patches(boto3_session, region, managed_instance_ids)
         data = transform_instance_patches(data)
         load_instance_patches(
             neo4j_session,
