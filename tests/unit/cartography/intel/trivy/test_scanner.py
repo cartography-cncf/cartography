@@ -1349,11 +1349,11 @@ def _go_binary(target: str) -> dict:
                     "Type": "node-pkg",
                     "Packages": [
                         {
-                            "Name": "lodash",
-                            "Version": "4.17.20",
-                            "FilePath": "app/node_modules/lodash/package.json",
+                            "Name": "minimist",
+                            "Version": "1.2.5",
+                            "FilePath": "app/node_modules/minimist/package.json",
                         },
-                        {"Name": "minimist", "Version": "1.2.5"},
+                        {"Name": "ms", "Version": "2.1.3"},
                     ],
                     "Vulnerabilities": [
                         {
@@ -1368,7 +1368,8 @@ def _go_binary(target: str) -> dict:
             ],
             {
                 "4.17.20|lodash": ["app/node_modules/lodash/package.json"],
-                "1.2.5|minimist": None,
+                "1.2.5|minimist": ["app/node_modules/minimist/package.json"],
+                "2.1.3|ms": None,
             },
             id="aggregated-ecosystem",
         ),
