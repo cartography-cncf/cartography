@@ -237,6 +237,10 @@ class Config:
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string
     :param jamf_password: Password used to authenticate to the Jamf data provider. Optional.
+    :type jamf_client_id: string
+    :param jamf_client_id: Jamf Pro API client ID. Used instead of jamf_user when set. Optional.
+    :type jamf_client_secret: string
+    :param jamf_client_secret: Jamf Pro API client secret. Optional.
     :type kandji_base_uri: string
     :param kandji_base_uri: Kandji data provider base URI, e.g. https://company.api.kandji.io. Optional.
     :type kandji_tenant_id: string
@@ -872,6 +876,8 @@ class Config:
         databricks_azure_client_id: str | None = None,
         databricks_azure_client_secret: str | None = None,
         semgrep_skip_dependency_cleanup: bool = False,
+        jamf_client_id: str | None = None,
+        jamf_client_secret: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -976,6 +982,8 @@ class Config:
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
+        self.jamf_client_id = jamf_client_id
+        self.jamf_client_secret = jamf_client_secret
         self.kandji_base_uri = kandji_base_uri
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
