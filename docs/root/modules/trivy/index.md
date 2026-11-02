@@ -48,6 +48,18 @@ rating of one package, chosen by, in order:
 4. an operating system package over a language package;
 5. report order.
 
+## Package Locations
+
+`TrivyPackage` nodes are shared by every scan target that contains the same
+package version, so the files that contain a package are recorded per target, in
+`locations` on the `DEPLOYED` relationship from the package to the `Image` or
+`FilesystemSnapshot`. A location is the lockfile or binary that Trivy read the
+package from, such as `usr/local/bin/app` for a Go module compiled into that
+binary, or the package's own manifest in an ecosystem that Trivy groups into one
+result, such as `app/node_modules/lodash/package.json`. Operating system
+packages have no location. The ontology `PackageVersion` relationship to the
+same target merges the locations of its Trivy packages.
+
 See [configuration](config.md) for report requirements and source options,
 [queries](queries.md) for query examples, and the generated [schema](schema.md)
 for fields and relationships.

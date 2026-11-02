@@ -41,6 +41,19 @@ class PackageVersionToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+@dataclass(frozen=True)
+class PackageVersionDeployedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    locations: PropertyRef = PropertyRef(
+        "locations",
+        description=(
+            "Files in the scan target that contain the package, merged from the "
+            "DEPLOYED relationships of its Trivy packages. Not set when Trivy reports "
+            "no file, as for operating system packages."
+        ),
+    )
+
+
 # (:PackageVersion)-[:DETECTED_AS]->(:TrivyPackage)
 @dataclass(frozen=True)
 class PackageVersionToTrivyPackageRel(CartographyRelSchema):
@@ -135,7 +148,9 @@ class PackageVersionToOntologyImageRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DEPLOYED"
-    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+    properties: PackageVersionDeployedRelProperties = (
+        PackageVersionDeployedRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -148,7 +163,9 @@ class PackageVersionToFilesystemSnapshotRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DEPLOYED"
-    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+    properties: PackageVersionDeployedRelProperties = (
+        PackageVersionDeployedRelProperties()
+    )
 
 
 @dataclass(frozen=True)

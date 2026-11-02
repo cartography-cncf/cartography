@@ -454,13 +454,29 @@ DNS_RECORD_TO_PUBLIC_IP = AnalysisJob(
         )
     ),
 )
+
+
+def _trivy_deployed_match(target: str, label: str) -> str:
+    # Several TrivyPackage nodes can resolve to one PackageVersion, so the canonical
+    # edge carries the union of their locations rather than whichever row ran last.
+    return f"""
+    MATCH (p:PackageVersion)-[:DETECTED_AS]->(:TrivyPackage)-[deployed:DEPLOYED]->({target}:{label})
+    UNWIND coalesce(deployed.locations, [null]) AS location
+    WITH p, {target}, location ORDER BY location
+    WITH p, {target}, collect(DISTINCT location) AS locations
+    """
+
+
+_TRIVY_DEPLOYED_PROPERTIES: dict[str, CypherValue] = {
+    "locations": RawCypher("CASE WHEN locations = [] THEN null ELSE locations END"),
+}
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
     AnalysisJob(
         name="Ontology - Trivy PackageVersion DEPLOYED Image linking",
         short_name="ontology_packages_trivy_deployed",
         statements=(
             AnalysisStatement(
-                match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image)",
+                match=_trivy_deployed_match("img", "Image"),
                 effects=(
                     AddRelationship(
                         "p",
@@ -468,6 +484,7 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
                         "img",
                         source_label="PackageVersion",
                         target_label="Image",
+                        properties=_TRIVY_DEPLOYED_PROPERTIES,
                     ),
                 ),
             ),
@@ -497,7 +514,7 @@ PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT = AnalysisJob(
     short_name="ontology_packages_trivy_deployed_filesystem_snapshot",
     statements=(
         AnalysisStatement(
-            match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(snapshot:FilesystemSnapshot)",
+            match=_trivy_deployed_match("snapshot", "FilesystemSnapshot"),
             effects=(
                 AddRelationship(
                     "p",
@@ -505,6 +522,7 @@ PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT = AnalysisJob(
                     "snapshot",
                     source_label="PackageVersion",
                     target_label="FilesystemSnapshot",
+                    properties=_TRIVY_DEPLOYED_PROPERTIES,
                 ),
             ),
         ),

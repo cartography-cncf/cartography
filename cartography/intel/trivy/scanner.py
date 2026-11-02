@@ -31,6 +31,12 @@ _SEVERITY_RANK = {"UNKNOWN": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 # either over not_affected.
 _STATUS_PREFERENCE = {"not_affected": 0, "fixed": 1}
 _NO_FIX_PREFERENCE = 2
+# Trivy reports the packages it finds in site-packages, node_modules, gemspecs, and
+# JARs as one result per ecosystem, whose Target is a label such as "Python", and
+# records each package's own file on the package instead.
+_AGGREGATED_LANG_TYPES = frozenset(
+    {"conda-pkg", "gemspec", "jar", "node-pkg", "python-pkg"},
+)
 
 
 def _validate_packages(package_list: list[dict]) -> list[dict]:
@@ -52,6 +58,40 @@ def _validate_packages(package_list: list[dict]) -> list[dict]:
                 "Package object does not have required fields `InstalledVersion` or `PkgName` - skipping."
             )
     return validated_packages
+
+
+def _result_file(scan_class: dict) -> str | None:
+    # An OS package result's Target names the artifact and its distribution.
+    if (
+        scan_class.get("Class") != "lang-pkgs"
+        or scan_class.get("Type") in _AGGREGATED_LANG_TYPES
+    ):
+        return None
+    return scan_class.get("Target") or None
+
+
+def _package_locations(results: list[dict]) -> dict[str, list[str]]:
+    """
+    Map each package ID to the files in the scanned artifact that contain it.
+
+    One report can list the same package in several results, for example the Go
+    standard library compiled into several binaries, so the files of every result
+    are merged before they are written to the package's DEPLOYED relationship.
+    """
+    locations: dict[str, set[str]] = {}
+    for scan_class in results:
+        result_file = _result_file(scan_class)
+        found = [
+            (vuln.get("InstalledVersion"), vuln.get("PkgName"), vuln.get("PkgPath"))
+            for vuln in scan_class.get("Vulnerabilities") or []
+        ] + [
+            (pkg.get("Version"), pkg.get("Name"), pkg.get("FilePath"))
+            for pkg in scan_class.get("Packages") or []
+        ]
+        for version, name, path in found:
+            if path := path or result_file:
+                locations.setdefault(f"{version}|{name}", set()).add(path)
+    return {package_id: sorted(files) for package_id, files in locations.items()}
 
 
 def _target_rating_key(row: dict[str, Any]) -> tuple[int, bool, int, bool]:
@@ -99,6 +139,7 @@ def transform_scan_results(
     findings_list = []
     packages_list = []
     fixes_list = []
+    package_locations = _package_locations(results)
 
     for scan_class in results:
         # Sometimes a scan class will have no vulns and Trivy will leave the key undefined instead of showing [].
@@ -219,6 +260,7 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
+                        "Locations": package_locations.get(package_id),
                         "FindingId": finding["id"],  # For AFFECTS relationship
                         # Additional fields
                         "PURL": purl,
@@ -268,6 +310,7 @@ def transform_all_packages(
         List of package dicts ready for load_scan_packages()
     """
     packages_list: list[dict] = []
+    package_locations = _package_locations(results)
     for scan_class in results:
         if "Packages" not in scan_class or not scan_class["Packages"]:
             continue
@@ -306,6 +349,7 @@ def transform_all_packages(
                     "Type": pkg_type,
                     "ImageDigest": image_digest,
                     "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
+                    "Locations": package_locations.get(package_id),
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),

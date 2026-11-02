@@ -293,6 +293,14 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
     # Arrange
     neo4j_session = ec2_rootfs_graph
     payload = deepcopy(TRIVY_VM_SAMPLE)
+    payload["Results"].append(
+        {
+            "Target": "usr/local/bin/agent",
+            "Class": "lang-pkgs",
+            "Type": "gobinary",
+            "Packages": [{"Name": "stdlib", "Version": "v1.18.0"}],
+        },
+    )
 
     # Act
     cartography.intel.trivy.sync_trivy_from_report_reader(
@@ -335,7 +343,24 @@ def test_sync_trivy_vm_report_to_ec2_filesystem_snapshot(ec2_rootfs_graph):
     ) == {
         ("1.0.0|example-package", "aws:ec2:i-01:rootfs"),
         ("2.0.0|clean-package", "aws:ec2:i-01:rootfs"),
+        ("v1.18.0|stdlib", "aws:ec2:i-01:rootfs"),
     }
+    assert (
+        {
+            row["package"]: row["locations"]
+            for row in neo4j_session.run(
+                """
+            MATCH (p:TrivyPackage)-[r:DEPLOYED]->(:FilesystemSnapshot)
+            RETURN p.id AS package, r.locations AS locations
+            """
+            ).data()
+        }
+        == {
+            "1.0.0|example-package": None,
+            "2.0.0|clean-package": None,
+            "v1.18.0|stdlib": ["usr/local/bin/agent"],
+        }
+    )
     # Arrange: a later scan uses a different temporary EBS snapshot.
     payload["ArtifactName"] = "ebs:snap-next-scan"
 
