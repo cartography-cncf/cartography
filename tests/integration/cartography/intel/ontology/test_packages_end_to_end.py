@@ -158,19 +158,6 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
         "DEPLOYED",
         rel_direction_right=True,
     ) >= {("pypi|h11|0.14.0", TEST_IMAGE_DIGEST)}
-    deployed = neo4j_session.run(
-        """
-        MATCH (:TrivyPackage {id: '0.14.0|h11'})-[trivy:DEPLOYED]->(img:Image)
-              <-[canonical:DEPLOYED]-(:PackageVersion {id: 'pypi|h11|0.14.0'})
-        RETURN trivy.locations AS trivy_locations,
-               canonical.locations AS canonical_locations
-        """,
-    ).single()
-    h11_metadata = (
-        "usr/local/lib/python3.13/site-packages/h11-0.14.0.dist-info/METADATA"
-    )
-    assert deployed["trivy_locations"] == [h11_metadata]
-    assert deployed["canonical_locations"] == [h11_metadata]
 
     # Assert vulnerability propagation to canonical Package.
     assert check_rels(

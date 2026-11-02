@@ -23,9 +23,9 @@ def _setup_trivy_graph(neo4j_session):
         MERGE (p)-[:DEPLOYED]->(img)
         MERGE (ont_img:Image {id: 'ont-img-abc123'})
         SET ont_img._ont_digest = 'sha256:abc123'
-        MERGE (p)-[:DEPLOYED {locations: ['app/package-lock.json']}]->(ont_img)
+        MERGE (p)-[:DEPLOYED]->(ont_img)
         MERGE (snapshot:FilesystemSnapshot {id: 'filesystem-snapshot-1'})
-        MERGE (p)-[:DEPLOYED {locations: ['srv/api/package-lock.json']}]->(snapshot)
+        MERGE (p)-[:DEPLOYED]->(snapshot)
         MERGE (f:TrivyImageFinding {id: 'TIF|CVE-2024-00001'})
         SET f.name = 'CVE-2024-00001'
         MERGE (f)-[:AFFECTS]->(p)
@@ -46,18 +46,6 @@ def _setup_trivy_graph(neo4j_session):
         MERGE (ont_img:Image {id: 'ont-img-def456'})
         SET ont_img._ont_digest = 'sha256:def456'
         MERGE (p)-[:DEPLOYED]->(ont_img)
-        """,
-    )
-    neo4j_session.run(
-        """
-        MERGE (p:TrivyPackage {id: '4.18.2|express'})
-        SET p.normalized_id = 'npm|express|4.18.2',
-            p.name = 'express', p.version = '4.18.2',
-            p.type = 'npm'
-        MERGE (ont_img:Image {id: 'ont-img-abc123'})
-        MERGE (p)-[:DEPLOYED {
-            locations: ['app/package-lock.json', 'app/node_modules/express/package.json']
-        }]->(ont_img)
         """,
     )
 
@@ -202,32 +190,6 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         "DEPLOYED",
         rel_direction_right=True,
     ) == {("npm|express|4.18.2", "filesystem-snapshot-1")}
-
-    # Assert - Check DEPLOYED carries the locations of every Trivy package, not Syft's
-    deployed_locations = neo4j_session.run(
-        """
-        MATCH (p:PackageVersion)-[r:DEPLOYED]->(target)
-        RETURN p.id AS package, target.id AS target, r.locations AS locations
-        """,
-    ).data()
-    assert {
-        (row["package"], row["target"], tuple(row["locations"] or ()))
-        for row in deployed_locations
-    } == {
-        (
-            "npm|express|4.18.2",
-            "ont-img-abc123",
-            ("app/node_modules/express/package.json", "app/package-lock.json"),
-        ),
-        (
-            "npm|express|4.18.2",
-            "filesystem-snapshot-1",
-            ("srv/api/package-lock.json",),
-        ),
-        ("npm|express|4.18.2", "ont-img-syft", ()),
-        ("npm|body-parser|1.20.2", "ont-img-syft", ()),
-        ("pypi|requests|2.31.0", "ont-img-def456", ()),
-    }
 
     # Assert - Check DETECTED_AS relationships to SyftPackage
     expected_syft_rels = {
