@@ -1,7 +1,9 @@
+import asyncio
 import operator
 from types import SimpleNamespace
 
 import botocore.exceptions
+import pytest
 
 from cartography.intel.aws.inspector import sync
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
@@ -40,7 +42,8 @@ class FakeInspector2Client:
     """
     An in-memory inspector2 regional endpoint. ListFindings applies the filter
     criteria it receives, returns one finding per page and records the ARN of each
-    finding it serves; either operation can be made to fail.
+    finding it serves. Either operation can be made to fail, and ListFindings can
+    fail differently per finding ID prefix.
     """
 
     def __init__(
@@ -48,12 +51,14 @@ class FakeInspector2Client:
         findings=(),
         member_account_ids=(),
         list_findings_error=None,
+        list_findings_errors_by_prefix=None,
         list_members_error=None,
     ):
         self.meta = SimpleNamespace(partition="aws", region_name=TEST_REGION)
         self._findings = findings
         self._member_account_ids = member_account_ids
         self._list_findings_error = list_findings_error
+        self._list_findings_errors_by_prefix = list_findings_errors_by_prefix or {}
         self._list_members_error = list_members_error
         self.served_finding_arns = []
 
@@ -80,8 +85,14 @@ class FakeInspector2Client:
         }
 
     async def _list_findings_pages(self, filterCriteria):
+        # Lets every concurrent request start before any fails, as they do against
+        # a real endpoint.
+        await asyncio.sleep(0)
         if self._list_findings_error:
             raise self._list_findings_error
+        finding_id_prefix = filterCriteria["findingArn"][0]["value"][-1]
+        if finding_id_prefix in self._list_findings_errors_by_prefix:
+            raise self._list_findings_errors_by_prefix[finding_id_prefix]
         for finding in self._findings:
             if all(
                 _COMPARISONS[f["comparison"]](finding[_FINDING_FIELDS[key]], f["value"])
@@ -478,3 +489,73 @@ def test_sync_inspector_preserves_data_on_member_listing_timeout(neo4j_session):
     assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
         ("arn:aws:stale-member",),
     }
+
+
+INSPECTOR_NOT_ENABLED = botocore.exceptions.ClientError(
+    error_response={"Error": {"Code": "ValidationException", "Message": ""}},
+    operation_name="ListFindings",
+)
+
+
+def test_sync_inspector_preserves_data_when_one_shard_times_out(neo4j_session):
+    # Arrange: one shard is rejected as "not enabled" while another times out.
+    aioboto3_session = FakeAioboto3Session(
+        FakeInspector2Client(
+            list_findings_errors_by_prefix={
+                "0": INSPECTOR_NOT_ENABLED,
+                "1": botocore.exceptions.ConnectTimeoutError(
+                    endpoint_url="https://inspector2.us-west-2.amazonaws.com/findings/list",
+                ),
+            },
+        ),
+    )
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _add_stale_finding(neo4j_session, "arn:aws:stale")
+
+    # Act
+    sync(
+        neo4j_session,
+        aioboto3_session,
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+    )
+
+    # Assert: the timeout, not the rejection, decides the outcome, so cleanup was
+    # skipped and the finding from the previous run was preserved.
+    assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
+        ("arn:aws:stale",),
+    }
+
+
+def test_sync_inspector_raises_when_one_shard_fails_unexpectedly(neo4j_session):
+    # Arrange: one shard is rejected as "not enabled" while another hits an
+    # unexpected server error.
+    aioboto3_session = FakeAioboto3Session(
+        FakeInspector2Client(
+            list_findings_errors_by_prefix={
+                "0": INSPECTOR_NOT_ENABLED,
+                "1": botocore.exceptions.ClientError(
+                    error_response={
+                        "Error": {"Code": "InternalServerException", "Message": ""},
+                    },
+                    operation_name="ListFindings",
+                ),
+            },
+        ),
+    )
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act and assert
+    with pytest.raises(
+        botocore.exceptions.ClientError, match="InternalServerException"
+    ):
+        sync(
+            neo4j_session,
+            aioboto3_session,
+            [TEST_REGION],
+            TEST_ACC_ID_1,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+        )

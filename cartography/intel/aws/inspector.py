@@ -424,10 +424,27 @@ async def _load_inspector_findings(
                     current_aws_account_id,
                 )
     except ExceptionGroup as errors:
-        # The shards share one endpoint and one set of credentials, so they fail
-        # for the same reason, and the task group cancels the rest after the first
-        # failure. Raising that failure keeps the error types callers handle.
-        raise errors.exceptions[0]
+        # Raising one failure keeps the error types callers handle. Requests from
+        # every shard are in flight at once, so more than one can fail before the
+        # task group cancels the rest; raise the most severe so a skippable error
+        # never hides one that must stop cleanup or the sync.
+        raise max(errors.exceptions, key=_shard_failure_severity)
+
+
+def _is_skippable_findings_error(error: BaseException) -> bool:
+    return (
+        isinstance(error, botocore.exceptions.ClientError)
+        and error.response.get("Error", {}).get("Code")
+        in _SKIPPABLE_FINDINGS_ERROR_CODES
+    )
+
+
+def _shard_failure_severity(error: BaseException) -> int:
+    if _is_skippable_findings_error(error):
+        return 0
+    if isinstance(error, _INSPECTOR_TRANSIENT_CONNECTION_ERRORS):
+        return 1
+    return 2
 
 
 async def _sync_findings_for_account(
@@ -470,8 +487,7 @@ async def _sync_findings_for_account(
         )
         return False
     except botocore.exceptions.ClientError as e:
-        error_code = e.response.get("Error", {}).get("Code")
-        if error_code not in _SKIPPABLE_FINDINGS_ERROR_CODES:
+        if not _is_skippable_findings_error(e):
             raise
         logger.warning(
             "Skipping Inspector findings for account %s in region %s: %s",
@@ -549,6 +565,10 @@ def sync(
     batch_size = common_job_parameters.get(
         "experimental_aws_inspector_batch", BATCH_SIZE
     )
+    if batch_size < 1:
+        raise ValueError(
+            f"experimental_aws_inspector_batch must be at least 1, got {batch_size}",
+        )
 
     inspector_regions = [
         region for region in regions if region in AWS_INSPECTOR_REGIONS
