@@ -1,28 +1,25 @@
+import asyncio
 import logging
-from functools import wraps
 from typing import Any
 from typing import Dict
-from typing import Iterator
 from typing import List
 from typing import Set
 from typing import Tuple
 
-import boto3
+import aioboto3
 import botocore
 import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
-from cartography.helpers import batch
-from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import create_aioboto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.findings import InspectorFindingToPackageMatchLink
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
-from cartography.util import aws_handle_regions
-from cartography.util import aws_paginate
 from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
-from cartography.util import is_service_control_policy_explicit_deny
+from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -59,6 +56,16 @@ AWS_INSPECTOR_REGIONS = {
 
 BATCH_SIZE = 1000
 
+# ListFindings returns at most 100 findings per page, so one paginator spends most
+# of a large account's sync waiting on round trips. The API pins finding IDs to 32
+# lowercase hex characters, so one finding ARN prefix per hex digit splits an
+# account's findings into disjoint shards that together cover every finding, and
+# the shards can be paged concurrently.
+FINDING_ID_SHARDS = "0123456789abcdef"
+
+# Bounds the findings held in memory when fetching outpaces loading.
+MAX_BUFFERED_PAGES = 2 * len(FINDING_ID_SHARDS)
+
 # Connection-level failures that indicate a regional inspector2 endpoint could not
 # be reached (e.g. an opt-in region listed in AWS_INSPECTOR_REGIONS but not enabled
 # on the account). These are NOT botocore ClientError subclasses.
@@ -69,94 +76,57 @@ _INSPECTOR_TRANSIENT_CONNECTION_ERRORS = (
     botocore.exceptions.ConnectionClosedError,
 )
 
+# Errors that mean the account's findings cannot be read in this region, either
+# because access is denied or because Inspector is not enabled there.
+_SKIPPABLE_FINDINGS_ERROR_CODES = {
+    *AWS_REGION_ACCESS_DENIED_ERROR_CODES,
+    "ValidationException",
+}
 
-class InspectorTransientRegionFailure(Exception):
+
+async def get_member_accounts(client: Any) -> List[str]:
     """
-    Raised when a regional inspector2 endpoint fails at the connection level.
-
-    The generic @aws_handle_regions decorator catches most of these connection
-    errors and returns [], which makes a transient failure indistinguishable from
-    a region that legitimately has no data. We re-raise them as this distinct type
-    (which @aws_handle_regions does not catch) so sync() can skip the region and
-    skip cleanup, preserving last-known-good data.
+    List all the accounts that have delegated access to the account the client belongs to.
     """
+    try:
+        return [
+            member["accountId"]
+            async for page in client.get_paginator("list_members").paginate()
+            for member in page["members"]
+        ]
+    except botocore.exceptions.ClientError as e:
+        if not is_aws_region_skippable_client_error(e):
+            raise
+        logger.warning(
+            "Cannot list Inspector member accounts in region %s. Skipping members: %s",
+            client.meta.region_name,
+            e,
+        )
+        return []
 
 
-def _reraise_inspector_connection_errors(func: Any) -> Any:
-    """
-    Convert connection-level endpoint failures into InspectorTransientRegionFailure.
-
-    Stacked *inside* @aws_handle_regions so the re-raised exception bubbles past
-    that decorator (it only handles ClientError and the raw connection errors)
-    instead of being swallowed into an empty result.
-    """
-
-    @wraps(func)
-    def inner(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return func(*args, **kwargs)
-        except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS as e:
-            raise InspectorTransientRegionFailure(str(e)) from e
-
-    return inner
-
-
-@aws_handle_regions
-@_reraise_inspector_connection_errors
-def get_member_accounts(
-    session: boto3.session.Session,
-    region: str,
-) -> List[str]:
-    """
-    List all the accounts that have delegated access to the account specified by current_aws_account_id.
-    """
-    client = create_boto3_client(session, "inspector2", region_name=region)
-    members = list(aws_paginate(client, "list_members", "members"))
-    accounts = [m["accountId"] for m in members]
-    return accounts
-
-
-@timeit
-def get_inspector_findings(
-    session: boto3.session.Session,
-    region: str,
+async def _get_inspector_findings_shard(
+    client: Any,
     account_id: str,
-    batch_size: int,
-) -> Iterator[List[Dict[str, Any]]]:
-    """
-    Query inspector2.list_findings by filtering the request, otherwise the request could timeout.
-    First, we filter by account_id. And since there may be millions of CLOSED findings that may never go away,
-    only fetch those in ACTIVE or SUPPRESSED statuses.
-    Run the query in batches and return an iterator to fetch the results.
-    """
-    # Note: We can't use @aws_handle_regions decorator here because this function returns a generator.
-    # The decorator would only catch exceptions during function call, not during iteration.
-    # Instead, we rely on aws_handle_regions being applied at get_member_accounts level,
-    # and the paginate operation itself will raise errors that bubble up naturally.
-    client = create_boto3_client(session, "inspector2", region_name=region)
-    logger.info(
-        f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
+    shard: str,
+    pages: asyncio.Queue[List[Dict[str, Any]] | None],
+) -> None:
+    finding_arn_prefix = (
+        f"arn:{client.meta.partition}:inspector2:{client.meta.region_name}:"
+        f"{account_id}:finding/{shard}"
     )
-    aws_args: Dict[str, Any] = {
-        "filterCriteria": {
-            "awsAccountId": [
-                {
-                    "comparison": "EQUALS",
-                    "value": account_id,
-                },
-            ],
-            "findingStatus": [
-                {
-                    "comparison": "NOT_EQUALS",
-                    "value": "CLOSED",
-                },
-            ],
-        }
-    }
-    findings_batches = batch(
-        aws_paginate(client, "list_findings", "findings", None, **aws_args), batch_size
-    )
-    yield from findings_batches
+    paginator = client.get_paginator("list_findings")
+    async for page in paginator.paginate(
+        filterCriteria={
+            "awsAccountId": [{"comparison": "EQUALS", "value": account_id}],
+            # There may be millions of CLOSED findings that never go away, so only
+            # fetch those in ACTIVE or SUPPRESSED statuses.
+            "findingStatus": [{"comparison": "NOT_EQUALS", "value": "CLOSED"}],
+            "findingArn": [{"comparison": "PREFIX", "value": finding_arn_prefix}],
+        },
+    ):
+        await pages.put(page["findings"])
+    await pages.put(None)
 
 
 def transform_inspector_findings(
@@ -368,17 +338,125 @@ def cleanup(
     )
 
 
-def _sync_findings_for_account(
+def _load_inspector_findings_batch(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    findings: List[Dict[str, Any]],
     region: str,
+    account_id: str,
+    update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    finding_data, package_data, finding_to_package_map = transform_inspector_findings(
+        findings
+    )
+    logger.info(f"Loading {len(finding_data)} findings from account {account_id}")
+    load_inspector_findings(
+        neo4j_session,
+        finding_data,
+        region,
+        update_tag,
+        current_aws_account_id,
+    )
+    load_inspector_packages(
+        neo4j_session,
+        package_data,
+        update_tag,
+        current_aws_account_id,
+    )
+    logger.info(
+        f"Loading {len(finding_to_package_map)} finding to package relationships"
+    )
+    load_inspector_finding_to_package_match_links(
+        neo4j_session,
+        finding_to_package_map,
+        update_tag,
+        current_aws_account_id,
+    )
+
+
+async def _load_inspector_findings(
+    neo4j_session: neo4j.Session,
+    client: Any,
+    account_id: str,
+    update_tag: int,
+    current_aws_account_id: str,
+    batch_size: int,
+) -> None:
+    region = client.meta.region_name
+    pages: asyncio.Queue[List[Dict[str, Any]] | None] = asyncio.Queue(
+        maxsize=MAX_BUFFERED_PAGES,
+    )
+    try:
+        async with asyncio.TaskGroup() as shards:
+            for shard in FINDING_ID_SHARDS:
+                shards.create_task(
+                    _get_inspector_findings_shard(client, account_id, shard, pages),
+                )
+
+            # Loads run here, on the event loop, rather than in a worker thread: the
+            # Neo4j session is not safe to use from more than one thread, and the
+            # shards keep their requests in flight while a load runs.
+            findings: List[Dict[str, Any]] = []
+            unfinished_shards = len(FINDING_ID_SHARDS)
+            while unfinished_shards:
+                page = await pages.get()
+                if page is None:
+                    unfinished_shards -= 1
+                    continue
+                findings.extend(page)
+                while len(findings) >= batch_size:
+                    _load_inspector_findings_batch(
+                        neo4j_session,
+                        findings[:batch_size],
+                        region,
+                        account_id,
+                        update_tag,
+                        current_aws_account_id,
+                    )
+                    del findings[:batch_size]
+            if findings:
+                _load_inspector_findings_batch(
+                    neo4j_session,
+                    findings,
+                    region,
+                    account_id,
+                    update_tag,
+                    current_aws_account_id,
+                )
+    except ExceptionGroup as errors:
+        # Raising one failure keeps the error types callers handle. Requests from
+        # every shard are in flight at once, so more than one can fail before the
+        # task group cancels the rest; raise the most severe so a skippable error
+        # never hides one that must stop cleanup or the sync.
+        raise max(errors.exceptions, key=_shard_failure_severity)
+
+
+def _is_skippable_findings_error(error: BaseException) -> bool:
+    return (
+        isinstance(error, botocore.exceptions.ClientError)
+        and error.response.get("Error", {}).get("Code")
+        in _SKIPPABLE_FINDINGS_ERROR_CODES
+    )
+
+
+def _shard_failure_severity(error: BaseException) -> int:
+    if _is_skippable_findings_error(error):
+        return 0
+    if isinstance(error, _INSPECTOR_TRANSIENT_CONNECTION_ERRORS):
+        return 1
+    return 2
+
+
+async def _sync_findings_for_account(
+    neo4j_session: neo4j.Session,
+    client: Any,
     account_id: str,
     update_tag: int,
     current_aws_account_id: str,
     batch_size: int = BATCH_SIZE,
 ) -> bool:
     """
-    Syncs the findings for a given account in a given region.
+    Syncs the findings for a given account in the client's region.
 
     Returns True if the sync completed (including the cases where the region was
     skipped due to a ClientError such as AccessDenied or "Inspector not enabled",
@@ -387,50 +465,20 @@ def _sync_findings_for_account(
     inspector2 endpoint, in which case the caller must not run cleanup for this
     account so that last-known-good findings are preserved.
     """
+    region = client.meta.region_name
+    logger.info(
+        f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
+    )
     try:
-        findings = get_inspector_findings(boto3_session, region, account_id, batch_size)
-        if not findings:
-            logger.info(
-                f"No findings to sync for account {account_id} in region {region}"
-            )
-            return True
-        for f_batch in findings:
-            finding_data, package_data, finding_to_package_map = (
-                transform_inspector_findings(f_batch)
-            )
-            logger.info(
-                f"Loading {len(finding_data)} findings from account {account_id}"
-            )
-            load_inspector_findings(
-                neo4j_session,
-                finding_data,
-                region,
-                update_tag,
-                current_aws_account_id,
-            )
-            load_inspector_packages(
-                neo4j_session,
-                package_data,
-                update_tag,
-                current_aws_account_id,
-            )
-            logger.info(
-                f"Loading {len(finding_to_package_map)} finding to package relationships"
-            )
-            load_inspector_finding_to_package_match_links(
-                neo4j_session,
-                finding_to_package_map,
-                update_tag,
-                current_aws_account_id,
-            )
-        return True
+        await _load_inspector_findings(
+            neo4j_session,
+            client,
+            account_id,
+            update_tag,
+            current_aws_account_id,
+            batch_size,
+        )
     except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS:
-        # Connection-level failures are not ClientError subclasses, so the
-        # @aws_handle_regions decorator and the ClientError handler below cannot
-        # catch them. They occur during iteration of the get_inspector_findings
-        # generator (e.g. opt-in regions whose inspector2 endpoint is not routable
-        # connect-time out). Skip just this region and signal the caller to skip
-        # cleanup so last-known-good findings are preserved.
         logger.warning(
             "Transient connection failure to Inspector endpoint for account %s "
             "in region %s. Skipping region.",
@@ -439,40 +487,76 @@ def _sync_findings_for_account(
         )
         return False
     except botocore.exceptions.ClientError as e:
-        error_code = e.response.get("Error", {}).get("Code")
-        # Handle the same error codes as aws_handle_regions decorator
-        if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
-            error_message = e.response.get("Error", {}).get("Message")
-            if is_service_control_policy_explicit_deny(e):
-                logger.warning(
-                    "Service control policy denied access to Inspector findings for account %s in region %s: %s",
-                    account_id,
-                    region,
-                    error_message,
-                )
-            else:
-                logger.warning(
-                    "Access denied to Inspector findings for account %s in region %s. Skipping...",
-                    account_id,
-                    region,
-                )
-            return True
-        elif error_code == "ValidationException":
-            logger.warning(
-                "AWS Inspector returned ValidationException for account %s in region %s. "
-                "Inspector may not be enabled. Skipping.",
-                account_id,
-                region,
-            )
-            return True
-        else:
+        if not _is_skippable_findings_error(e):
             raise
+        logger.warning(
+            "Skipping Inspector findings for account %s in region %s: %s",
+            account_id,
+            region,
+            e,
+        )
+    return True
+
+
+async def _sync_findings(
+    neo4j_session: neo4j.Session,
+    aioboto3_session: aioboto3.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    batch_size: int,
+) -> bool:
+    """
+    Syncs the findings delegated to the current account in every region.
+
+    Returns whether every regional endpoint was reached, which makes cleanup safe.
+    """
+    cleanup_safe = True
+    for region in regions:
+        logger.info(
+            f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
+        )
+        async with create_aioboto3_client(
+            aioboto3_session,
+            "inspector2",
+            region_name=region,
+            config=get_botocore_config(max_pool_connections=len(FINDING_ID_SHARDS)),
+        ) as client:
+            try:
+                member_accounts = await get_member_accounts(client)
+            except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS:
+                # Reaching the regional inspector2 endpoint failed at the connection
+                # level (e.g. an opt-in region listed in AWS_INSPECTOR_REGIONS that
+                # is not enabled on this account). Skip the whole region.
+                logger.warning(
+                    "Transient connection failure to Inspector endpoint for account %s "
+                    "in region %s while listing member accounts. Skipping region.",
+                    current_aws_account_id,
+                    region,
+                )
+                cleanup_safe = False
+                continue
+            # the current host account may not be considered a "member", but we still fetch its findings
+            member_accounts.append(current_aws_account_id)
+            logger.info(f"Member accounts to be synced: {member_accounts}")
+            for account_id in member_accounts:
+                synced = await _sync_findings_for_account(
+                    neo4j_session,
+                    client,
+                    account_id,
+                    update_tag,
+                    current_aws_account_id,
+                    batch_size,
+                )
+                if not synced:
+                    cleanup_safe = False
+    return cleanup_safe
 
 
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    aioboto3_session: aioboto3.Session,
     regions: List[str],
     current_aws_account_id: str,
     update_tag: int,
@@ -481,6 +565,10 @@ def sync(
     batch_size = common_job_parameters.get(
         "experimental_aws_inspector_batch", BATCH_SIZE
     )
+    if batch_size < 1:
+        raise ValueError(
+            f"experimental_aws_inspector_batch must be at least 1, got {batch_size}",
+        )
 
     inspector_regions = [
         region for region in regions if region in AWS_INSPECTOR_REGIONS
@@ -489,41 +577,16 @@ def sync(
     # If any region is skipped because of a transient connection-level failure to
     # its inspector2 endpoint, we must not run cleanup: deleting findings for a
     # region we couldn't reach would wipe out last-known-good data.
-    cleanup_safe = True
-
-    for region in inspector_regions:
-        logger.info(
-            f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
-        )
-        try:
-            member_accounts = get_member_accounts(boto3_session, region)
-        except InspectorTransientRegionFailure:
-            # Reaching the regional inspector2 endpoint failed at the connection
-            # level (e.g. an opt-in region listed in AWS_INSPECTOR_REGIONS that is
-            # not enabled on this account). Skip the whole region.
-            logger.warning(
-                "Transient connection failure to Inspector endpoint for account %s "
-                "in region %s while listing member accounts. Skipping region.",
-                current_aws_account_id,
-                region,
-            )
-            cleanup_safe = False
-            continue
-        # the current host account may not be considered a "member", but we still fetch its findings
-        member_accounts.append(current_aws_account_id)
-        logger.info(f"Member accounts to be synced: {member_accounts}")
-        for account_id in member_accounts:
-            synced = _sync_findings_for_account(
-                neo4j_session,
-                boto3_session,
-                region,
-                account_id,
-                update_tag,
-                current_aws_account_id,
-                batch_size,
-            )
-            if not synced:
-                cleanup_safe = False
+    cleanup_safe = asyncio.run(
+        _sync_findings(
+            neo4j_session,
+            aioboto3_session,
+            inspector_regions,
+            current_aws_account_id,
+            update_tag,
+            batch_size,
+        ),
+    )
 
     if cleanup_safe:
         common_job_parameters["ACCOUNT_ID"] = current_aws_account_id

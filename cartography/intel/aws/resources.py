@@ -174,3 +174,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:load_balancer_v2:expose": sync_load_balancer_v2_expose,
     }
 )
+
+# These syncs call AWS through aioboto3, so they take an aioboto3_session in place
+# of boto3_session.
+AIOBOTO3_RESOURCE_FUNCTIONS = frozenset({"ecr:image_layers", "inspector"})

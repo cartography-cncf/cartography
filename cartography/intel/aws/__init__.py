@@ -47,6 +47,7 @@ from . import ec2
 from . import organizations
 from . import resourcegroupstaggingapi
 from . import ssm as ssm_intel
+from .resources import AIOBOTO3_RESOURCE_FUNCTIONS
 from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
@@ -201,13 +202,12 @@ def _sync_one_account(
     for func_name in RESOURCE_FUNCTIONS:
         if func_name not in requested_syncs_set:
             continue
+        if func_name in AIOBOTO3_RESOURCE_FUNCTIONS and aioboto3_session is None:
+            aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
+            aioboto3_session = aioboto3_session_factory()
+
         # Skip permission relationships and tags for now because they rely on data already being in the graph
         if func_name == "ecr:image_layers":
-            # has a different signature than the other functions (aioboto3_session replaces boto3_session)
-            if aioboto3_session is None:
-                aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
-                aioboto3_session = aioboto3_session_factory()
-
             RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,
                 aioboto3_session,
@@ -216,6 +216,15 @@ def _sync_one_account(
                 update_tag,
                 common_job_parameters,
                 aioboto3_session_factory=aioboto3_session_factory,
+            )
+        elif func_name == "inspector":
+            RESOURCE_FUNCTIONS[func_name](
+                neo4j_session,
+                aioboto3_session,
+                regions,
+                current_aws_account_id,
+                update_tag,
+                common_job_parameters,
             )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue

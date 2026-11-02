@@ -13,8 +13,8 @@ def test_transform_inspector_findings_network():
     )
     assert findings == [
         {
-            "id": "arn:aws:test123",
-            "arn": "arn:aws:test123",
+            "id": "arn:aws:inspector2:us-west-2:123456789011:finding/0123456789abcdef0123456789abc123",
+            "arn": "arn:aws:inspector2:us-west-2:123456789011:finding/0123456789abcdef0123456789abc123",
             "instanceid": "i-instanceid",
             "severity": "INFORMATIONAL",
             "name": "string",
@@ -44,8 +44,8 @@ def test_transform_inspector_findings_package():
     )
     assert findings == [
         {
-            "id": "arn:aws:test456",
-            "arn": "arn:aws:test456",
+            "id": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
+            "arn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
             "vulnerabilityid": "CVE-2017-9059",
             "instanceid": "i-88503981029833100",
             "severity": "MEDIUM",
@@ -87,8 +87,8 @@ def test_transform_inspector_findings_package():
             "epss_score_inspector": 0.42,
         },
         {
-            "id": "arn:aws:test789",
-            "arn": "arn:aws:test789",
+            "id": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
+            "arn": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
             "vulnerabilityid": "CVE-2023-1234",
             "instanceid": "i-88503981029833101",
             "severity": "HIGH",
@@ -164,7 +164,7 @@ def test_transform_inspector_findings_package():
     expected_finding_to_package_map = [
         {
             "filePath": None,
-            "findingarn": "arn:aws:test456",
+            "findingarn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
             "packageid": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
@@ -173,7 +173,7 @@ def test_transform_inspector_findings_package():
         },
         {
             "filePath": None,
-            "findingarn": "arn:aws:test456",
+            "findingarn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
             "packageid": "kernel|0:4.9.17-6.29.amzn1.X86_64",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
@@ -182,7 +182,7 @@ def test_transform_inspector_findings_package():
         },
         {
             "filePath": None,
-            "findingarn": "arn:aws:test789",
+            "findingarn": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
             "packageid": "openssl|0:1.0.2k-1.amzn2.X86_64",
             "remediation": None,
             "fixedInVersion": None,
