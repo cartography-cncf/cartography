@@ -1376,6 +1376,18 @@ def _go_binary(target: str) -> dict:
         pytest.param(
             [
                 {
+                    "Target": "Kubernetes",
+                    "Class": "lang-pkgs",
+                    "Type": "kubernetes",
+                    "Packages": [{"Name": "k8s.io/kubelet", "Version": "1.29.0"}],
+                },
+            ],
+            {"1.29.0|k8s.io/kubelet": None},
+            id="kubernetes-components",
+        ),
+        pytest.param(
+            [
+                {
                     "Target": "registry.example/app:latest (debian 12.8)",
                     **_os_packages(
                         _vulnerability("libc6", "HIGH", "debian", "affected"),

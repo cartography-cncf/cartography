@@ -57,8 +57,10 @@ package version, so the files that contain a package are recorded per target, in
 package from, such as `usr/local/bin/app` for a Go module compiled into that
 binary, or the package's own manifest in an ecosystem that Trivy groups into one
 result, such as `app/node_modules/lodash/package.json`. Operating system
-packages have no location. To find the locations of an ontology
-`PackageVersion`, follow `DETECTED_AS` to its `TrivyPackage` nodes.
+packages have no location, and neither do grouped packages that Trivy reports
+without their own file, such as the packages vendored inside pip. To find the
+locations of an ontology `PackageVersion`, follow `DETECTED_AS` to its
+`TrivyPackage` nodes.
 
 See [configuration](config.md) for report requirements and source options,
 [queries](queries.md) for query examples, and the generated [schema](schema.md)

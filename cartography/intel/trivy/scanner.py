@@ -31,11 +31,14 @@ _SEVERITY_RANK = {"UNKNOWN": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 # either over not_affected.
 _STATUS_PREFERENCE = {"not_affected": 0, "fixed": 1}
 _NO_FIX_PREFERENCE = 2
-# Trivy reports the packages it finds in site-packages, node_modules, gemspecs, and
-# JARs as one result per ecosystem, whose Target is a label such as "Python", and
-# records each package's own file on the package instead.
-_AGGREGATED_LANG_TYPES = frozenset(
-    {"conda-pkg", "gemspec", "jar", "node-pkg", "python-pkg"},
+# Trivy names the results of these types after their ecosystem, such as "Python",
+# instead of a file. It merges the packages it finds in site-packages, node_modules,
+# gemspecs, and JARs into one result and records each package's own file on the
+# package, but not for every package: pip's vendored packages have none. The report has
+# no field that marks these results, so this mirrors the keys of PkgTargets in Trivy's
+# pkg/scan/langpkg/scan.go.
+_LABELED_TARGET_TYPES = frozenset(
+    {"conda-pkg", "gemspec", "jar", "kubernetes", "node-pkg", "python-pkg"},
 )
 
 
@@ -64,7 +67,7 @@ def _result_file(scan_class: dict) -> str | None:
     # An OS package result's Target names the artifact and its distribution.
     if (
         scan_class.get("Class") != "lang-pkgs"
-        or scan_class.get("Type") in _AGGREGATED_LANG_TYPES
+        or scan_class.get("Type") in _LABELED_TARGET_TYPES
     ):
         return None
     return scan_class.get("Target") or None
