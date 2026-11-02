@@ -12,6 +12,7 @@ from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
+from cartography.intel.trivy.scanner import transform_all_packages
 from cartography.intel.trivy.scanner import transform_scan_results
 
 
@@ -1304,3 +1305,112 @@ def test_transform_scan_results_keeps_each_package_rating_on_its_finding_row():
         ("LOW", "debian", "affected", "low-package-db"),
         ("HIGH", "nvd", "fixed", "high-package-db"),
     ]
+
+
+def _go_binary(target: str) -> dict:
+    return {
+        "Target": target,
+        "Class": "lang-pkgs",
+        "Type": "gobinary",
+        "Packages": [
+            {"Name": "stdlib", "Version": "v1.18.0"},
+            {"Name": "github.com/example/cli", "Version": "v1.2.0"},
+        ],
+        "Vulnerabilities": [
+            {
+                "VulnerabilityID": "CVE-2023-24538",
+                "PkgName": "stdlib",
+                "InstalledVersion": "v1.18.0",
+                "Severity": "CRITICAL",
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "results, expected_locations",
+    [
+        pytest.param(
+            [_go_binary("usr/local/bin/api"), _go_binary("opt/tools/worker")],
+            {
+                "v1.18.0|stdlib": ["opt/tools/worker", "usr/local/bin/api"],
+                "v1.2.0|github.com/example/cli": [
+                    "opt/tools/worker",
+                    "usr/local/bin/api",
+                ],
+            },
+            id="go-binaries",
+        ),
+        pytest.param(
+            [
+                {
+                    "Target": "Node.js",
+                    "Class": "lang-pkgs",
+                    "Type": "node-pkg",
+                    "Packages": [
+                        {
+                            "Name": "minimist",
+                            "Version": "1.2.5",
+                            "FilePath": "app/node_modules/minimist/package.json",
+                        },
+                        {"Name": "ms", "Version": "2.1.3"},
+                    ],
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-2021-23337",
+                            "PkgName": "lodash",
+                            "InstalledVersion": "4.17.20",
+                            "PkgPath": "app/node_modules/lodash/package.json",
+                            "Severity": "HIGH",
+                        },
+                    ],
+                },
+            ],
+            {
+                "4.17.20|lodash": ["app/node_modules/lodash/package.json"],
+                "1.2.5|minimist": ["app/node_modules/minimist/package.json"],
+                "2.1.3|ms": None,
+            },
+            id="aggregated-ecosystem",
+        ),
+        pytest.param(
+            [
+                {
+                    "Target": "Kubernetes",
+                    "Class": "lang-pkgs",
+                    "Type": "kubernetes",
+                    "Packages": [{"Name": "k8s.io/kubelet", "Version": "1.29.0"}],
+                },
+            ],
+            {"1.29.0|k8s.io/kubelet": None},
+            id="kubernetes-components",
+        ),
+        pytest.param(
+            [
+                {
+                    "Target": "registry.example/app:latest (debian 12.8)",
+                    **_os_packages(
+                        _vulnerability("libc6", "HIGH", "debian", "affected"),
+                    ),
+                },
+            ],
+            {"1.0.0|libc6": None},
+            id="os-packages",
+        ),
+    ],
+)
+def test_transform_records_the_files_that_contain_each_package(
+    results, expected_locations
+):
+    # Act
+    _, packages, _ = transform_scan_results(results, "sha256:testdigest")
+    packages += transform_all_packages(
+        results,
+        "sha256:testdigest",
+        {package["id"] for package in packages},
+    )
+
+    # Assert
+    assert {
+        package["id"]: package["Locations"] for package in packages
+    } == expected_locations
