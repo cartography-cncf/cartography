@@ -11,7 +11,7 @@ LIST_FINDINGS_NETWORK = [
         "exploitabilityDetails": {
             "lastKnownExploitAt": datetime(2015, 1, 1),
         },
-        "findingArn": "arn:aws:test123",
+        "findingArn": "arn:aws:inspector2:us-west-2:123456789011:finding/0123456789abcdef0123456789abc123",
         "firstObservedAt": datetime(2015, 1, 1),
         "fixAvailable": "YES",
         "inspectorScore": 123.0,
@@ -116,7 +116,7 @@ LIST_FINDINGS_EC2_PACKAGE = [
         "exploitabilityDetails": {
             "lastKnownExploitAt": datetime(2022, 5, 4, 16, 23, 3, 692000),
         },
-        "findingArn": "arn:aws:test456",
+        "findingArn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
         "firstObservedAt": datetime(2022, 5, 4, 16, 23, 3, 692000),
         "fixAvailable": "PARTIAL",
         "inspectorScore": 5.5,
@@ -217,7 +217,7 @@ LIST_FINDINGS_EC2_PACKAGE = [
         "description": "A buffer overflow vulnerability in OpenSSL allows remote attackers "
         "to execute arbitrary code or cause a denial of service via crafted "
         "SSL/TLS handshake messages.",
-        "findingArn": "arn:aws:test789",
+        "findingArn": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
         "firstObservedAt": datetime(2022, 5, 4, 16, 23, 3, 692000),
         "inspectorScore": 7.5,
         "inspectorScoreDetails": {

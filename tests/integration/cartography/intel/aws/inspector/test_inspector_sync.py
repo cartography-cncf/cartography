@@ -1,11 +1,8 @@
-from unittest.mock import MagicMock
-from unittest.mock import patch
+import operator
+from types import SimpleNamespace
 
 import botocore.exceptions
 
-import cartography.intel.aws.inspector
-from cartography.intel.aws.inspector import _sync_findings_for_account
-from cartography.intel.aws.inspector import BATCH_SIZE
 from cartography.intel.aws.inspector import sync
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
@@ -17,15 +14,113 @@ TEST_REGION = "us-west-2"
 TEST_ACC_ID_1 = "123456789011"
 TEST_ACC_ID_2 = "123456789012"
 
-
-@patch.object(
-    cartography.intel.aws.inspector,
-    "get_inspector_findings",
-    return_value=[LIST_FINDINGS_NETWORK],
+NETWORK_FINDING_ARN = (
+    "arn:aws:inspector2:us-west-2:123456789011:finding/0123456789abcdef0123456789abc123"
 )
-def test_sync_inspector_network_findings(mock_get, neo4j_session):
+KERNEL_FINDING_ARN = (
+    "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456"
+)
+OPENSSL_FINDING_ARN = (
+    "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789"
+)
+
+_COMPARISONS = {
+    "EQUALS": operator.eq,
+    "NOT_EQUALS": operator.ne,
+    "PREFIX": str.startswith,
+}
+_FINDING_FIELDS = {
+    "awsAccountId": "awsAccountId",
+    "findingArn": "findingArn",
+    "findingStatus": "status",
+}
+
+
+class FakeInspector2Client:
+    """
+    An in-memory inspector2 regional endpoint. ListFindings applies the filter
+    criteria it receives, returns one finding per page and records the ARN of each
+    finding it serves; either operation can be made to fail.
+    """
+
+    def __init__(
+        self,
+        findings=(),
+        member_account_ids=(),
+        list_findings_error=None,
+        list_members_error=None,
+    ):
+        self.meta = SimpleNamespace(partition="aws", region_name=TEST_REGION)
+        self._findings = findings
+        self._member_account_ids = member_account_ids
+        self._list_findings_error = list_findings_error
+        self._list_members_error = list_members_error
+        self.served_finding_arns = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc_info):
+        return None
+
+    def get_paginator(self, operation_name):
+        paginate = {
+            "list_findings": self._list_findings_pages,
+            "list_members": self._list_members_pages,
+        }[operation_name]
+        return SimpleNamespace(paginate=paginate)
+
+    async def _list_members_pages(self):
+        if self._list_members_error:
+            raise self._list_members_error
+        yield {
+            "members": [
+                {"accountId": account_id} for account_id in self._member_account_ids
+            ],
+        }
+
+    async def _list_findings_pages(self, filterCriteria):
+        if self._list_findings_error:
+            raise self._list_findings_error
+        for finding in self._findings:
+            if all(
+                _COMPARISONS[f["comparison"]](finding[_FINDING_FIELDS[key]], f["value"])
+                for key, filters in filterCriteria.items()
+                for f in filters
+            ):
+                self.served_finding_arns.append(finding["findingArn"])
+                yield {"findings": [finding]}
+
+
+class FakeAioboto3Session:
+    def __init__(self, inspector2_client):
+        self._inspector2_client = inspector2_client
+
+    def client(self, service_name, **kwargs):
+        assert service_name == "inspector2"
+        return self._inspector2_client
+
+
+def _add_stale_finding(neo4j_session, finding_arn):
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id: $acc})
+        MERGE (f:AWSInspectorFinding{id: $arn})
+        SET f.lastupdated = $old_tag
+        MERGE (a)-[r:RESOURCE]->(f)
+        SET r.lastupdated = $old_tag
+        """,
+        acc=TEST_ACC_ID_1,
+        arn=finding_arn,
+        old_tag=TEST_UPDATE_TAG - 1,
+    )
+
+
+def test_sync_inspector_network_findings(neo4j_session):
     # Arrange
-    boto3_session = MagicMock()
+    aioboto3_session = FakeAioboto3Session(
+        FakeInspector2Client(findings=LIST_FINDINGS_NETWORK),
+    )
     # Add some fake accounts
     neo4j_session.run(
         """
@@ -43,7 +138,7 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
     # Act
     sync(
         neo4j_session,
-        boto3_session,
+        aioboto3_session,
         [TEST_REGION],
         TEST_ACC_ID_1,
         TEST_UPDATE_TAG,
@@ -60,7 +155,7 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
         "AFFECTS",
         rel_direction_right=True,
     ) == {
-        ("arn:aws:test123", "i-instanceid"),
+        (NETWORK_FINDING_ARN, "i-instanceid"),
     }
 
     # Assert AWSAccount to Finding exists
@@ -73,26 +168,28 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        ("123456789011", "arn:aws:test123"),
+        ("123456789011", NETWORK_FINDING_ARN),
     }
 
     # Network-reachability findings are labeled as configuration security issues,
     # not CVEs.
     labels = neo4j_session.run(
-        "MATCH (f:AWSInspectorFinding {id: 'arn:aws:test123'}) RETURN labels(f) AS labels",
+        "MATCH (f:AWSInspectorFinding {id: $arn}) RETURN labels(f) AS labels",
+        arn=NETWORK_FINDING_ARN,
     ).single()["labels"]
     assert "SecurityIssue" in labels
     assert "CVE" not in labels
 
 
-@patch.object(
-    cartography.intel.aws.inspector,
-    "get_inspector_findings",
-    return_value=[LIST_FINDINGS_EC2_PACKAGE],
-)
-def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
-    # Arrange
-    boto3_session = MagicMock()
+def test_sync_inspector_ec2_package_findings(neo4j_session):
+    # Arrange: account 123456789011 delegates its findings to 123456789012, the
+    # account being synced.
+    aioboto3_session = FakeAioboto3Session(
+        FakeInspector2Client(
+            findings=LIST_FINDINGS_EC2_PACKAGE,
+            member_account_ids=[TEST_ACC_ID_1],
+        ),
+    )
     # Remove everything previously put in the test graph since the fixture scope is set to module and not function.
     neo4j_session.run(
         """
@@ -117,7 +214,7 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     # Act
     sync(
         neo4j_session,
-        boto3_session,
+        aioboto3_session,
         [TEST_REGION],
         TEST_ACC_ID_2,
         TEST_UPDATE_TAG,
@@ -134,8 +231,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         "AFFECTS",
         rel_direction_right=True,
     ) == {
-        ("arn:aws:test456", "i-88503981029833100"),
-        ("arn:aws:test789", "i-88503981029833101"),
+        (KERNEL_FINDING_ARN, "i-88503981029833100"),
+        (OPENSSL_FINDING_ARN, "i-88503981029833101"),
     }
 
     assert check_rels(
@@ -147,9 +244,9 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         "HAS",
         rel_direction_right=True,
     ) == {
-        ("arn:aws:test456", "kernel-tools|0:4.9.17-6.29.amzn1.X86_64"),
-        ("arn:aws:test456", "kernel|0:4.9.17-6.29.amzn1.X86_64"),
-        ("arn:aws:test789", "openssl|0:1.0.2k-1.amzn2.X86_64"),
+        (KERNEL_FINDING_ARN, "kernel-tools|0:4.9.17-6.29.amzn1.X86_64"),
+        (KERNEL_FINDING_ARN, "kernel|0:4.9.17-6.29.amzn1.X86_64"),
+        (OPENSSL_FINDING_ARN, "openssl|0:1.0.2k-1.amzn2.X86_64"),
     }
 
     # Assert AWSAccount RESOURCE to Finding exists
@@ -162,8 +259,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        ("123456789012", "arn:aws:test456"),
-        ("123456789012", "arn:aws:test789"),
+        ("123456789012", KERNEL_FINDING_ARN),
+        ("123456789012", OPENSSL_FINDING_ARN),
     }
 
     # Assert AWSAccount MEMBER to Finding exists
@@ -176,8 +273,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         "MEMBER",
         rel_direction_right=True,
     ) == {
-        ("123456789011", "arn:aws:test789"),
-        ("123456789012", "arn:aws:test456"),
+        ("123456789011", OPENSSL_FINDING_ARN),
+        ("123456789012", KERNEL_FINDING_ARN),
     }
 
     # Assert AWSAccount RESOURCE to Package exists
@@ -197,7 +294,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
 
     # Package-vulnerability findings are CVE-backed and labeled as such.
     labels = neo4j_session.run(
-        "MATCH (f:AWSInspectorFinding {id: 'arn:aws:test456'}) RETURN labels(f) AS labels",
+        "MATCH (f:AWSInspectorFinding {id: $arn}) RETURN labels(f) AS labels",
+        arn=KERNEL_FINDING_ARN,
     ).single()["labels"]
     assert "CVE" in labels
     assert "SecurityIssue" not in labels
@@ -209,8 +307,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         "AWSInspectorFinding",
         ["id", "cve_id"],
     ) == {
-        ("arn:aws:test456", "CVE-2017-9059"),
-        ("arn:aws:test789", "CVE-2023-1234"),
+        (KERNEL_FINDING_ARN, "CVE-2017-9059"),
+        (OPENSSL_FINDING_ARN, "CVE-2023-1234"),
     }
 
     # Inspector's adjusted CVSS vector (inspectorScoreDetails.adjustedCvss.scoringVector)
@@ -220,8 +318,8 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         "AWSInspectorFinding",
         ["id", "cvssvector"],
     ) == {
-        ("arn:aws:test456", "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"),
-        ("arn:aws:test789", "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"),
+        (KERNEL_FINDING_ARN, "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"),
+        (OPENSSL_FINDING_ARN, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"),
     }
 
     # packageVulnerabilityDetails.cvss[].scoringVector (vendor/NVD entries) are
@@ -233,12 +331,12 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         )
     }
     assert vendorcvssvectors_by_id == {
-        "arn:aws:test456": [
+        KERNEL_FINDING_ARN: [
             "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
             "AV:L/AC:L/Au:N/C:N/I:N/A:C",
             "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
         ],
-        "arn:aws:test789": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
+        OPENSSL_FINDING_ARN: ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
     }
 
     # packageVulnerabilityDetails.cvss[].baseScore (vendor/NVD entries) are
@@ -250,91 +348,93 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         )
     }
     assert vendorcvssscores_by_id == {
-        "arn:aws:test456": [5.5, 4.9, 5.5],
-        "arn:aws:test789": [7.5],
+        KERNEL_FINDING_ARN: [5.5, 4.9, 5.5],
+        OPENSSL_FINDING_ARN: [7.5],
     }
 
 
-@patch.object(
-    cartography.intel.aws.inspector,
-    "get_inspector_findings",
-    side_effect=botocore.exceptions.ClientError(
-        error_response={"Error": {"Code": "ValidationException", "Message": ""}},
-        operation_name="ListFindings",
-    ),
-)
-def test_sync_findings_for_account_skips_validation_exception(
-    mock_get,
-    neo4j_session,
-):
-    boto3_session = MagicMock()
+def test_sync_inspector_loads_findings_from_every_finding_id_prefix(neo4j_session):
+    # Arrange: one finding for each hex digit a finding ID can start with, more
+    # findings than one load batch holds.
+    finding_arns = {
+        f"arn:aws:inspector2:us-west-2:123456789011:finding/{digit}{'0' * 31}"
+        for digit in "0123456789abcdef"
+    }
+    findings = [{**LIST_FINDINGS_NETWORK[0], "findingArn": arn} for arn in finding_arns]
+    inspector2 = FakeInspector2Client(findings=findings)
+    aioboto3_session = FakeAioboto3Session(inspector2)
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    neo4j_session.run("MERGE (:AWSAccount{id: $id})", id=TEST_ACC_ID_1)
+    neo4j_session.run("MERGE (:AWSAccount{id: $acc})", acc=TEST_ACC_ID_1)
 
-    _sync_findings_for_account(
+    # Act
+    sync(
         neo4j_session,
-        boto3_session,
-        TEST_REGION,
+        aioboto3_session,
+        [TEST_REGION],
         TEST_ACC_ID_1,
         TEST_UPDATE_TAG,
-        TEST_ACC_ID_1,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACC_ID_1,
+            "experimental_aws_inspector_batch": 5,
+        },
     )
 
-    mock_get.assert_called_once_with(
-        boto3_session,
-        TEST_REGION,
-        TEST_ACC_ID_1,
-        BATCH_SIZE,
+    # Assert: every finding was loaded, and fetched exactly once.
+    assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
+        (arn,) for arn in finding_arns
+    }
+    assert sorted(inspector2.served_finding_arns) == sorted(finding_arns)
+
+
+def test_sync_inspector_cleans_up_when_inspector_is_not_enabled(neo4j_session):
+    # Arrange: a finding from a previous run, and a region where Inspector now
+    # rejects the request because it is not enabled.
+    aioboto3_session = FakeAioboto3Session(
+        FakeInspector2Client(
+            list_findings_error=botocore.exceptions.ClientError(
+                error_response={
+                    "Error": {"Code": "ValidationException", "Message": ""},
+                },
+                operation_name="ListFindings",
+            ),
+        ),
     )
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _add_stale_finding(neo4j_session, "arn:aws:stale")
+
+    # Act
+    sync(
+        neo4j_session,
+        aioboto3_session,
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+    )
+
+    # Assert: the region counts as having no findings, so cleanup removed the
+    # finding the previous run left behind.
     assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == set()
 
 
-def _raising_findings_generator(*args, **kwargs):
-    # Mimics get_inspector_findings raising a connection-level error while the
-    # paginator is being iterated (the failure mode reported for unreachable /
-    # opt-in inspector2 regional endpoints).
-    raise botocore.exceptions.ConnectTimeoutError(
-        endpoint_url="https://inspector2.me-south-1.amazonaws.com/findings/list",
-    )
-    yield  # pragma: no cover - makes this function a generator
-
-
-@patch.object(
-    cartography.intel.aws.inspector,
-    "get_member_accounts",
-    return_value=[],
-)
-@patch.object(
-    cartography.intel.aws.inspector,
-    "get_inspector_findings",
-    side_effect=_raising_findings_generator,
-)
-def test_sync_inspector_survives_connection_timeout(
-    mock_get,
-    mock_members,
-    neo4j_session,
-):
+def test_sync_inspector_survives_connection_timeout(neo4j_session):
     # Arrange: a finding from a previous (successful) run already lives in the
     # graph, stamped with an older update tag.
-    old_update_tag = TEST_UPDATE_TAG - 1
-    boto3_session = MagicMock()
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    neo4j_session.run(
-        """
-        MERGE (a:AWSAccount{id: $acc})
-        MERGE (f:AWSInspectorFinding{id: 'arn:aws:stale'})
-        SET f.lastupdated = $old_tag
-        MERGE (a)-[r:RESOURCE]->(f)
-        SET r.lastupdated = $old_tag
-        """,
-        acc=TEST_ACC_ID_1,
-        old_tag=old_update_tag,
+    aioboto3_session = FakeAioboto3Session(
+        FakeInspector2Client(
+            list_findings_error=botocore.exceptions.ConnectTimeoutError(
+                endpoint_url="https://inspector2.me-south-1.amazonaws.com/findings/list",
+            ),
+        ),
     )
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _add_stale_finding(neo4j_session, "arn:aws:stale")
 
     # Act: a fresh sync hits a transient connection failure for the region.
     sync(
         neo4j_session,
-        boto3_session,
+        aioboto3_session,
         [TEST_REGION],
         TEST_ACC_ID_1,
         TEST_UPDATE_TAG,
@@ -348,48 +448,25 @@ def test_sync_inspector_survives_connection_timeout(
     }
 
 
-@patch.object(
-    cartography.intel.aws.inspector,
-    "get_inspector_findings",
-    return_value=[],
-)
-@patch.object(cartography.intel.aws.inspector, "create_boto3_client")
-@patch.object(
-    cartography.intel.aws.inspector,
-    "aws_paginate",
-    side_effect=botocore.exceptions.ConnectTimeoutError(
-        endpoint_url="https://inspector2.me-south-1.amazonaws.com/members/list",
-    ),
-)
-def test_sync_inspector_preserves_data_on_member_listing_timeout(
-    mock_paginate,
-    mock_client,
-    mock_findings,
-    neo4j_session,
-):
-    # This exercises the real get_member_accounts() decorator stack: a transient
-    # connection failure while listing members must NOT be swallowed into an empty
-    # member list (which would let cleanup run and delete stale member findings).
-    old_update_tag = TEST_UPDATE_TAG - 1
-    boto3_session = MagicMock()
+def test_sync_inspector_preserves_data_on_member_listing_timeout(neo4j_session):
+    # A transient connection failure while listing members must NOT be swallowed
+    # into an empty member list (which would let cleanup run and delete stale
+    # member findings).
+    aioboto3_session = FakeAioboto3Session(
+        FakeInspector2Client(
+            list_members_error=botocore.exceptions.ConnectTimeoutError(
+                endpoint_url="https://inspector2.me-south-1.amazonaws.com/members/list",
+            ),
+        ),
+    )
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     # A delegated-member finding from a previous successful run, stamped older.
-    neo4j_session.run(
-        """
-        MERGE (a:AWSAccount{id: $acc})
-        MERGE (f:AWSInspectorFinding{id: 'arn:aws:stale-member'})
-        SET f.lastupdated = $old_tag
-        MERGE (a)-[r:RESOURCE]->(f)
-        SET r.lastupdated = $old_tag
-        """,
-        acc=TEST_ACC_ID_1,
-        old_tag=old_update_tag,
-    )
+    _add_stale_finding(neo4j_session, "arn:aws:stale-member")
 
     # Act: list_members connect-times-out for the region.
     sync(
         neo4j_session,
-        boto3_session,
+        aioboto3_session,
         [TEST_REGION],
         TEST_ACC_ID_1,
         TEST_UPDATE_TAG,
