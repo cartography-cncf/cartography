@@ -115,7 +115,7 @@ class EMRClusterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EMRClusterSchema(CartographyNodeSchema):
-    """Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html)."""
+    """Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html). Cartography syncs only clusters that are not terminated."""
 
     label: str = "AWSEMRCluster"
     # DEPRECATED: legacy EMRCluster node label will be removed in v1.0.0.
