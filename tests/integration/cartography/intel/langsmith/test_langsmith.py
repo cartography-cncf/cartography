@@ -27,6 +27,10 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 NEXT_UPDATE_TAG = TEST_UPDATE_TAG + 1
 
+ORG_ADMIN_ROLE = f"{LANGSMITH_ORG_ID}|{ORG_ADMIN_ROLE_ID}"
+WORKSPACE_VIEWER_ROLE = f"{LANGSMITH_ORG_ID}|{WORKSPACE_VIEWER_ROLE_ID}"
+CUSTOM_ROLE = f"{LANGSMITH_ORG_ID}|{CUSTOM_ROLE_ID}"
+
 SUPPORT_AGENT = f"{LANGSMITH_ORG_ID}|{SUPPORT_AGENT_ID}"
 TRIAGE_AGENT = f"{LANGSMITH_ORG_ID}|{TRIAGE_AGENT_ID}"
 TRIAGE_CREDENTIAL_ID = "cc11cc11-0003-4003-8003-cc11cc11cc11"
@@ -81,18 +85,18 @@ def test_sync_loads_the_organization_its_workspaces_and_roles(neo4j_session):
     assert check_nodes(
         neo4j_session, "LangSmithRole", ["id", "name", "is_custom", "role_type"]
     ) == {
-        (ORG_ADMIN_ROLE_ID, "Organization Admin", False, "builtin"),
-        (WORKSPACE_VIEWER_ROLE_ID, "Viewer", False, "builtin"),
-        (CUSTOM_ROLE_ID, "Deployment Auditor", True, "custom"),
+        (ORG_ADMIN_ROLE, "Organization Admin", False, "builtin"),
+        (WORKSPACE_VIEWER_ROLE, "Viewer", False, "builtin"),
+        (CUSTOM_ROLE, "Deployment Auditor", True, "custom"),
     }
     assert check_rels(
         neo4j_session, "LangSmithRole", "id", "LangSmithPermission", "name", "GRANTS"
     ) == {
-        (ORG_ADMIN_ROLE_ID, "organization:manage"),
-        (ORG_ADMIN_ROLE_ID, "organization:read"),
-        (WORKSPACE_VIEWER_ROLE_ID, "workspaces:read"),
-        (CUSTOM_ROLE_ID, "workspaces:read"),
-        (CUSTOM_ROLE_ID, "deployments:read"),
+        (ORG_ADMIN_ROLE, "organization:manage"),
+        (ORG_ADMIN_ROLE, "organization:read"),
+        (WORKSPACE_VIEWER_ROLE, "workspaces:read"),
+        (CUSTOM_ROLE, "workspaces:read"),
+        (CUSTOM_ROLE, "deployments:read"),
     }
 
 
@@ -121,7 +125,7 @@ def test_sync_loads_members_with_per_workspace_roles(neo4j_session):
         "LangSmithRole",
         "id",
         "HAS_ROLE",
-    ) == {(MARGE_LS_USER_ID, ORG_ADMIN_ROLE_ID)}
+    ) == {(MARGE_LS_USER_ID, ORG_ADMIN_ROLE)}
     assert check_rels(
         neo4j_session, "LangSmithUser", "id", "LangSmithWorkspace", "id", "MEMBER_OF"
     ) == {
@@ -141,9 +145,9 @@ def test_sync_loads_members_with_per_workspace_roles(neo4j_session):
         """
     ).data()
     assert {(r["user"], r["workspace"], r["role"]) for r in role_by_membership} == {
-        (MARGE_LS_USER_ID, WORKSPACE_PROD_ID, CUSTOM_ROLE_ID),
-        (HOMER_LS_USER_ID, WORKSPACE_PROD_ID, WORKSPACE_VIEWER_ROLE_ID),
-        (BART_LS_USER_ID, WORKSPACE_DEV_ID, CUSTOM_ROLE_ID),
+        (MARGE_LS_USER_ID, WORKSPACE_PROD_ID, CUSTOM_ROLE),
+        (HOMER_LS_USER_ID, WORKSPACE_PROD_ID, WORKSPACE_VIEWER_ROLE),
+        (BART_LS_USER_ID, WORKSPACE_DEV_ID, CUSTOM_ROLE),
     }
 
 
@@ -172,8 +176,8 @@ def test_sync_attributes_every_credential_to_its_owner(neo4j_session):
     assert check_rels(
         neo4j_session, "LangSmithApiKey", "short_key", "LangSmithRole", "id", "ASSUMES"
     ) == {
-        ("lsv2_sk_abcd", CUSTOM_ROLE_ID),
-        ("lsv2_pt_wxyz", ORG_ADMIN_ROLE_ID),
+        ("lsv2_sk_abcd", CUSTOM_ROLE),
+        ("lsv2_pt_wxyz", ORG_ADMIN_ROLE),
     }
     assert check_rels(
         neo4j_session,
@@ -208,7 +212,7 @@ def test_sync_links_sso_and_access_policies_to_roles(neo4j_session):
         "LangSmithRole",
         "id",
         "DEFAULT_ROLE",
-    ) == {("okta-saml", CUSTOM_ROLE_ID)}
+    ) == {("okta-saml", CUSTOM_ROLE)}
     assert check_rels(
         neo4j_session,
         "LangSmithSSOProvider",
@@ -227,7 +231,7 @@ def test_sync_links_sso_and_access_policies_to_roles(neo4j_session):
         "LangSmithRole",
         "id",
         "ATTACHED_TO",
-    ) == {("Production projects only", CUSTOM_ROLE_ID)}
+    ) == {("Production projects only", CUSTOM_ROLE)}
 
 
 def test_sync_links_deployments_to_the_agents_they_run(neo4j_session):
@@ -500,6 +504,56 @@ def test_resync_keeps_agents_on_a_deployment_that_did_not_answer(neo4j_session):
     # A scaled-to-zero deployment timing out is not evidence its agent was deleted.
     assert TRIAGE_AGENT in _ids(neo4j_session, "LangSmithAgent")
     assert TRIAGE_CREDENTIAL_ID in _ids(neo4j_session, "LangSmithAgentCredential")
+    assert (TRIAGE_DEPLOYMENT_ID, TRIAGE_AGENT) in check_rels(
+        neo4j_session, "LangSmithDeployment", "id", "LangSmithAgent", "id", "RUNS"
+    )
+
+
+def test_resync_keeps_agents_on_a_deployment_that_stopped_serving(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    triage = {
+        **SIMPSON_CORP_ROUTES[("/v2/deployments", WORKSPACE_DEV_ID)][0],
+        "status": "UNUSED",
+    }
+    stopped = FakeLangSmithClient(
+        routes={**SIMPSON_CORP_ROUTES, ("/v2/deployments", WORKSPACE_DEV_ID): [triage]}
+    )
+
+    # Act
+    _sync(neo4j_session, stopped, NEXT_UPDATE_TAG)
+
+    # Assert
+    # The deployment still exists, so its agent and that agent's live credentials do too;
+    # they just cannot be listed until it serves again.
+    assert TRIAGE_AGENT in _ids(neo4j_session, "LangSmithAgent")
+    assert TRIAGE_CREDENTIAL_ID in _ids(neo4j_session, "LangSmithAgentCredential")
+
+
+def test_resync_keeps_credential_providers_when_providers_cannot_be_read(
+    neo4j_session,
+):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    no_providers = FakeLangSmithClient(
+        failures={
+            ("/v2/auth/providers", WORKSPACE_PROD_ID): 403,
+            ("/v2/auth/providers", WORKSPACE_DEV_ID): 403,
+        }
+    )
+
+    # Act
+    _sync(neo4j_session, no_providers, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert (TRIAGE_CREDENTIAL_ID, GITHUB_PROVIDER_ID) in check_rels(
+        neo4j_session,
+        "LangSmithAgentCredential",
+        "id",
+        "LangSmithOAuthProvider",
+        "id",
+        "FOR_PROVIDER",
+    )
 
 
 def test_syncing_another_organization_keeps_this_organizations_graph(neo4j_session):
@@ -512,6 +566,15 @@ def test_syncing_another_organization_keeps_this_organizations_graph(neo4j_sessi
         routes={
             ("/api/v1/orgs/current/info", None): {"display_name": "Flanders Ltd"},
             ("/api/v1/orgs/current/roles", None): [
+                # Built-in roles keep the same UUID in every organization.
+                {
+                    "id": WORKSPACE_VIEWER_ROLE_ID,
+                    "name": "WORKSPACE_VIEWER",
+                    "display_name": "Viewer",
+                    "organization_id": None,
+                    "access_scope": "workspace",
+                    "permissions": ["workspaces:read"],
+                },
                 {
                     "id": "44444444-4444-4444-8444-444444444444",
                     "name": "CUSTOM",
@@ -559,8 +622,15 @@ def test_syncing_another_organization_keeps_this_organizations_graph(neo4j_sessi
         (HOMER_LS_USER_ID, WORKSPACE_PROD_ID),
         (BART_LS_USER_ID, WORKSPACE_DEV_ID),
     }
-    # Each organization owns its own permission nodes, so neither cleanup can reach
-    # the other's.
+    # Each organization owns its own role and permission nodes, so neither cleanup can
+    # reach the other's, even for a built-in role both organizations share.
+    assert (WORKSPACE_VIEWER_ROLE, f"{LANGSMITH_ORG_ID}|workspaces:read") in check_rels(
+        neo4j_session, "LangSmithRole", "id", "LangSmithPermission", "id", "GRANTS"
+    )
+    assert {
+        WORKSPACE_VIEWER_ROLE,
+        f"{other_org_id}|{WORKSPACE_VIEWER_ROLE_ID}",
+    } <= _ids(neo4j_session, "LangSmithRole")
     assert _ids(neo4j_session, "LangSmithPermission") == {
         f"{LANGSMITH_ORG_ID}|organization:manage",
         f"{LANGSMITH_ORG_ID}|organization:read",

@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import org_scoped_id
 from cartography.intel.langsmith.util import resolve_ls_user_id
 from cartography.models.langsmith.apikey import LangSmithApiKeySchema
 from cartography.models.langsmith.serviceaccount import LangSmithServiceAccountSchema
@@ -38,7 +39,7 @@ def sync(
         keys.extend(rows)
         keys_complete = keys_complete and ok
 
-    transformed = transform_keys(keys, user_lookup, workspaces)
+    transformed = transform_keys(keys, user_lookup, workspaces, org_id)
     load_api_keys(
         neo4j_session,
         service_accounts,
@@ -118,6 +119,7 @@ def transform_keys(
     keys: list[dict[str, Any]],
     user_lookup: dict[str, str],
     workspaces: list[dict[str, Any]],
+    org_id: str,
 ) -> list[dict[str, Any]]:
     """Shape credentials for ingest. Only the non-secret short prefix is retained."""
     # Keys name their default workspace by display name only. Display names are not
@@ -142,7 +144,7 @@ def transform_keys(
             workspace_id = workspace_by_name.get(key["default_workspace_name"])
 
         role_ids = [
-            role_id
+            org_scoped_id(org_id, role_id)
             for role_id in (key.get("role_id"), key.get("org_role_id"))
             if role_id
         ]

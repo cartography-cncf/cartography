@@ -95,15 +95,19 @@ def get_assistants(
         for deployment in deployments
         if deployment.get("url") and deployment.get("status") == _SERVING_STATUS
     ]
+    # A deployment that is not serving still exists and may still hold agents with live
+    # credentials. Its agents cannot be listed, so the inventory is incomplete and agent
+    # cleanup must wait until it serves again or is deleted.
     skipped = len(deployments) - len(candidates)
     if skipped:
-        logger.debug(
-            "Skipping assistant search for %d deployment(s) that are not %s or have no URL",
+        logger.info(
+            "Skipping assistant search for %d deployment(s) that are not %s or have no "
+            "URL; agent cleanup will be skipped this run.",
             skipped,
             _SERVING_STATUS,
         )
     if not candidates:
-        return [], True
+        return [], not skipped
 
     worker_count = min(_MAX_ASSISTANT_WORKERS, len(candidates))
     logger.info(
@@ -118,7 +122,7 @@ def get_assistants(
                 candidates,
             )
         )
-    complete = all(ok for _, ok in results)
+    complete = not skipped and all(ok for _, ok in results)
     if not complete:
         logger.warning(
             "Assistant discovery was incomplete for at least one deployment; agent "

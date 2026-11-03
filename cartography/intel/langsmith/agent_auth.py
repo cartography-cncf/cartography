@@ -73,17 +73,19 @@ def sync(
     # Credentials are only fetched for agents we know about, and agents are loaded by
     # both this module and the deployments sync, so both depend on a complete agent
     # inventory. A cold deployment must not be mistaken for "these no longer exist".
-    credentials_complete = agents_complete and connections_complete
+    agents_and_connections_complete = agents_complete and connections_complete
+    # A credential's FOR_PROVIDER edge is resolved through the provider listing, so
+    # cleaning credentials after a failed provider fetch would prune those edges.
     cleanup_if_complete(
         neo4j_session,
         LangSmithAgentCredentialSchema(),
-        credentials_complete,
+        agents_and_connections_complete and providers_complete,
         common_job_parameters,
     )
     cleanup_if_complete(
         neo4j_session,
         LangSmithAgentSchema(),
-        credentials_complete,
+        agents_and_connections_complete,
         common_job_parameters,
     )
 

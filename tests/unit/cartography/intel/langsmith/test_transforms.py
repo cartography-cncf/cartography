@@ -122,7 +122,7 @@ class TestCustomRoleDetection:
         ]
 
         # Act
-        out = {r["id"]: r for r in roles.transform_roles(raw, ORG)}
+        out = {r["role_id"]: r for r in roles.transform_roles(raw, ORG)}
 
         # Assert
         assert out["r1"]["is_custom"] is True
@@ -185,7 +185,7 @@ class TestUserIdentityIsSeparateFromOrgState:
         assert membership["identity_id"] == "identity-1"
         assert membership["is_disabled"] is True
         # Live member rows carry the org role in role_id, leaving org_role_id null.
-        assert membership["role_id"] == "role-1"
+        assert membership["role_id"] == f"{ORG}|role-1"
         assert membership["role_name"] == "Organization Admin"
 
     def test_two_orgs_produce_one_user_and_two_memberships(self):
@@ -548,7 +548,8 @@ class TestAssistantDiscovery:
         out, complete = deployments.get_assistants(client, deps, ORG)
 
         # Assert
-        assert complete is True
+        # d2 has no URL, so its agents cannot be listed this run.
+        assert complete is False
         assert [a["id"] for a in out] == [f"{ORG}|asst-1"]
         assert out[0]["graph_id"] == "support_graph"
         assert out[0]["deployment_ids"] == ["d1"]
@@ -637,7 +638,16 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
         assert len(out) == 1
         assert complete is False
 
-    def test_nothing_to_probe_is_complete_not_failed(self):
+    def test_no_deployments_is_a_complete_empty_inventory(self):
+        # Act
+        out, complete = deployments.get_assistants(self._FailingClient(), [], ORG)
+
+        # Assert
+        assert out == []
+        assert complete is True
+
+    def test_a_deployment_without_a_url_leaves_the_inventory_incomplete(self):
+        """It still exists, so its agents may too; they just cannot be listed."""
         # Arrange
         deps = [{"id": "d", "tenant_id": "w", "url": None, "status": "READY"}]
 
@@ -646,7 +656,7 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
 
         # Assert
         assert out == []
-        assert complete is True
+        assert complete is False
 
 
 class TestAssistantSearchIsScopedAndConcurrent:
@@ -695,7 +705,7 @@ class TestAssistantSearchIsScopedAndConcurrent:
         # Assert
         assert client.asked == ["https://a"]
         assert [a["assistant_id"] for a in out] == ["asst-a"]
-        assert complete is True
+        assert complete is False
 
     def test_nothing_serving_means_no_requests(self):
         # Arrange
@@ -706,7 +716,7 @@ class TestAssistantSearchIsScopedAndConcurrent:
         result = deployments.get_assistants(client, deps, ORG)
 
         # Assert
-        assert result == ([], True)
+        assert result == ([], False)
         assert client.asked == []
 
     def test_searches_run_concurrently(self):
@@ -778,7 +788,7 @@ class TestNonServingDeploymentsAreStillInventoried:
         assert transformed[0]["status"] == "AWAITING_DELETE"
 
         # Act and assert
-        assert deployments.get_assistants(_Boom(), transformed, ORG) == ([], True)
+        assert deployments.get_assistants(_Boom(), transformed, ORG) == ([], False)
 
 
 class TestCredentialsAreNotLeakedToRedirectTargets:

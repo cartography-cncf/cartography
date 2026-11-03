@@ -15,7 +15,16 @@ from cartography.models.ontology.labels import PERMISSION_ROLE
 
 @dataclass(frozen=True)
 class LangSmithRoleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="Role UUID.")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Synthetic identifier of the form <organization_id>|<role UUID>. Built-in "
+            "roles keep the same UUID in every organization."
+        ),
+    )
+    role_id: PropertyRef = PropertyRef(
+        "role_id", extra_index=True, description="LangSmith role UUID."
+    )
     name: PropertyRef = PropertyRef(
         "display_name",
         extra_index=True,

@@ -105,6 +105,7 @@ A `405 Method Not Allowed` from the agent-auth endpoints means
 | No other members' `LangSmithApiKey` nodes with `key_type = pat` | The token lacks `organization:pats:read`. |
 | `401 Unauthorized` on every route | The token expired, or the owning identity was deactivated — LangSmith rejects tokens belonging to a disabled identity. |
 | Empty `LangSmithRole` custom roles | RBAC is not enabled on the organization's plan. |
+| Deleted agents remain in the graph | A deployment is not `READY` or has no URL, so its agents cannot be listed. Agent cleanup resumes once every deployment serves again or is deleted. |
 
 ## References
 

@@ -113,27 +113,6 @@ class LangSmithDeploymentToWorkspaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class LangSmithDeploymentToAgentRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithDeployment)-[:RUNS]->(:LangSmithAgent)
-class LangSmithDeploymentToAgentRel(CartographyRelSchema):
-    """Links a deployment to the agent it serves."""
-
-    target_node_label: str = "LangSmithAgent"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("agent_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "RUNS"
-    properties: LangSmithDeploymentToAgentRelProperties = (
-        LangSmithDeploymentToAgentRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithDeploymentSchema(CartographyNodeSchema):
     """A LangGraph Platform deployment serving an agent."""
 
@@ -145,6 +124,5 @@ class LangSmithDeploymentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             LangSmithDeploymentToWorkspaceRel(),
-            LangSmithDeploymentToAgentRel(),
         ],
     )

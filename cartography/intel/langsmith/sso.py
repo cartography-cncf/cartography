@@ -7,6 +7,7 @@ from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import org_scoped_id
 from cartography.models.langsmith.accesspolicy import LangSmithAccessPolicySchema
 from cartography.models.langsmith.dataplane import LangSmithDataPlaneSchema
 from cartography.models.langsmith.ssoprovider import LangSmithSSOProviderSchema
@@ -27,8 +28,8 @@ def sync(
     data_planes, data_planes_complete = get_data_planes(client, org_id)
     load_sso(
         neo4j_session,
-        transform_providers(raw_providers),
-        transform_policies(raw_policies),
+        transform_providers(raw_providers, org_id),
+        transform_policies(raw_policies, org_id),
         data_planes,
         org_id,
         common_job_parameters["UPDATE_TAG"],
@@ -104,7 +105,9 @@ def get_data_planes(
     return payload or [], complete
 
 
-def transform_providers(providers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_providers(
+    providers: list[dict[str, Any]], org_id: str
+) -> list[dict[str, Any]]:
     """
     Shape SSO providers for ingest.
 
@@ -128,7 +131,9 @@ def transform_providers(providers: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "sso_groups_role_sync_enabled": provider.get(
                     "sso_groups_role_sync_enabled"
                 ),
-                "default_workspace_role_id": provider.get("default_workspace_role_id"),
+                "default_workspace_role_id": org_scoped_id(
+                    org_id, provider.get("default_workspace_role_id")
+                ),
                 "default_workspace_ids": provider.get("default_workspace_ids") or [],
             }
         )
@@ -154,7 +159,9 @@ def _summarize_conditions(condition_groups: list[dict[str, Any]] | None) -> str 
     return " AND ".join(parts) if parts else None
 
 
-def transform_policies(policies: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_policies(
+    policies: list[dict[str, Any]], org_id: str
+) -> list[dict[str, Any]]:
     transformed = []
     for policy in policies:
         transformed.append(
@@ -166,7 +173,10 @@ def transform_policies(policies: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "condition_summary": _summarize_conditions(
                     policy.get("condition_groups")
                 ),
-                "role_ids": policy.get("role_ids") or [],
+                "role_ids": [
+                    org_scoped_id(org_id, role_id)
+                    for role_id in policy.get("role_ids") or []
+                ],
             }
         )
     return transformed

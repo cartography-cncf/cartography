@@ -10,6 +10,7 @@ from cartography.intel.langsmith.util import build_user_lookup
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import org_scoped_id
 from cartography.models.langsmith.orgmembership import LangSmithOrgMembershipSchema
 from cartography.models.langsmith.user import LangSmithUserSchema
 from cartography.models.langsmith.user import LangSmithUserToWorkspaceRel
@@ -54,7 +55,9 @@ def sync(
                 workspace_memberships_complete and err.not_found
             )
             continue
-        memberships.extend(transform_memberships(workspace_id, workspace_members))
+        memberships.extend(
+            transform_memberships(org_id, workspace_id, workspace_members)
+        )
 
     load_users(
         neo4j_session,
@@ -166,7 +169,9 @@ def transform_users(
                     "identity_id": member.get("id"),
                     "ls_user_id": ls_user_id,
                     "email": member.get("email"),
-                    "role_id": member.get("org_role_id") or member.get("role_id"),
+                    "role_id": org_scoped_id(
+                        org_id, member.get("org_role_id") or member.get("role_id")
+                    ),
                     "role_name": member.get("org_role_name") or member.get("role_name"),
                     "is_disabled": member.get("is_disabled"),
                     "is_pending": is_pending,
@@ -195,6 +200,7 @@ def transform_workspace_links(active: list[dict[str, Any]]) -> list[dict[str, An
 
 
 def transform_memberships(
+    org_id: str,
     workspace_id: str,
     payload: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -226,7 +232,7 @@ def transform_memberships(
                     "ls_user_id": ls_user_id,
                     "workspace_id": workspace_id,
                     "email": member.get("email"),
-                    "role_id": member.get("role_id"),
+                    "role_id": org_scoped_id(org_id, member.get("role_id")),
                     "role_name": member.get("role_name"),
                     "is_disabled": member.get("is_disabled"),
                     "is_pending": is_pending,

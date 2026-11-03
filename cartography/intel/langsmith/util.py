@@ -292,6 +292,16 @@ class LangSmithClient:
             offset += len(page)
 
 
+def org_scoped_id(org_id: str, raw_id: str | None) -> str | None:
+    """
+    Namespace an id LangSmith reuses across organizations, such as a built-in role's.
+
+    Nodes keyed on such an id would otherwise be shared between organizations, and one
+    organization's cleanup would prune the other's relationships on them.
+    """
+    return f"{org_id}|{raw_id}" if raw_id else None
+
+
 def build_user_lookup(
     users: list[dict[str, Any]], org_memberships: list[dict[str, Any]]
 ) -> dict[str, str]:

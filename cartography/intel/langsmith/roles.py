@@ -7,6 +7,7 @@ from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import org_scoped_id
 from cartography.models.langsmith.permission import LangSmithPermissionSchema
 from cartography.models.langsmith.role import LangSmithRoleSchema
 from cartography.util import timeit
@@ -96,12 +97,16 @@ def transform_roles(roles: list[dict[str, Any]], org_id: str) -> list[dict[str, 
     LangSmith stores every organization-defined role under the system name CUSTOM, so the
     only way to tell a custom role from a built-in is that a custom role carries an owning
     organization_id. That distinction is materialized here as is_custom.
+
+    Built-in roles carry no organization_id and keep the same UUID in every organization,
+    so role nodes are keyed by organization as well.
     """
     transformed = []
     for role in roles:
         transformed.append(
             {
-                "id": role["id"],
+                "id": org_scoped_id(org_id, role["id"]),
+                "role_id": role["id"],
                 "name": role["name"],
                 "display_name": role["display_name"],
                 "description": role.get("description"),
