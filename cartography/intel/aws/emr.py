@@ -42,17 +42,33 @@ def get_emr_clusters(
         config=get_botocore_config(),
     )
     paginator = client.get_paginator("list_clusters")
-    cluster_ids = [
-        cluster["Id"]
+    return [
+        cluster
         for page in paginator.paginate(ClusterStates=ACTIVE_CLUSTER_STATES)
         for cluster in page["Clusters"]
     ]
-    clusters: List[Dict[str, Any]] = []
-    for cluster_id in cluster_ids:
-        cluster_details = get_emr_describe_cluster(client, cluster_id)
+
+
+# Not wrapped in aws_handle_regions: a timeout while describing must fail the sync,
+# not read as an empty region whose clusters cleanup would then delete.
+@timeit
+def get_emr_cluster_details(
+    boto3_session: boto3.session.Session,
+    region: str,
+    clusters: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    client = create_boto3_client(
+        boto3_session,
+        "emr",
+        region_name=region,
+        config=get_botocore_config(),
+    )
+    cluster_data: List[Dict[str, Any]] = []
+    for cluster in clusters:
+        cluster_details = get_emr_describe_cluster(client, cluster["Id"])
         if cluster_details:
-            clusters.append(cluster_details)
-    return clusters
+            cluster_data.append(cluster_details)
+    return cluster_data
 
 
 @timeit
@@ -119,10 +135,11 @@ def sync(
         )
 
         clusters = get_emr_clusters(boto3_session, region)
+        cluster_data = get_emr_cluster_details(boto3_session, region, clusters)
 
         load_emr_clusters(
             neo4j_session,
-            clusters,
+            cluster_data,
             region,
             current_aws_account_id,
             update_tag,
