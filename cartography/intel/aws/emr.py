@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -18,9 +17,16 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# EMR API is subject to aggressive throttling, so we need to sleep a second between each call.
-LIST_SLEEP = 1
-DESCRIBE_SLEEP = 1
+# ListClusters also returns clusters terminated in the last two months. Those no longer
+# run anything, and describing each of them dominates the sync in accounts that launch
+# short-lived clusters, so only clusters that can still run work are synced.
+ACTIVE_CLUSTER_STATES = [
+    "STARTING",
+    "BOOTSTRAPPING",
+    "RUNNING",
+    "WAITING",
+    "TERMINATING",
+]
 
 
 @timeit
@@ -35,27 +41,25 @@ def get_emr_clusters(
         region_name=region,
         config=get_botocore_config(),
     )
-    clusters: List[Dict[str, Any]] = []
     paginator = client.get_paginator("list_clusters")
-    for page in paginator.paginate():
-        cluster = page["Clusters"]
-        clusters.extend(cluster)
-        time.sleep(LIST_SLEEP)
+    cluster_ids = [
+        cluster["Id"]
+        for page in paginator.paginate(ClusterStates=ACTIVE_CLUSTER_STATES)
+        for cluster in page["Clusters"]
+    ]
+    clusters: List[Dict[str, Any]] = []
+    for cluster_id in cluster_ids:
+        cluster_details = get_emr_describe_cluster(client, cluster_id)
+        if cluster_details:
+            clusters.append(cluster_details)
     return clusters
 
 
 @timeit
 def get_emr_describe_cluster(
-    boto3_session: boto3.session.Session,
-    region: str,
+    client: Any,
     cluster_id: str,
 ) -> Dict[str, Any]:
-    client = create_boto3_client(
-        boto3_session,
-        "emr",
-        region_name=region,
-        config=get_botocore_config(),
-    )
     cluster_details: Dict[str, Any] = {}
     try:
         response = client.describe_cluster(ClusterId=cluster_id)
@@ -116,21 +120,9 @@ def sync(
 
         clusters = get_emr_clusters(boto3_session, region)
 
-        cluster_data: List[Dict[str, Any]] = []
-        for cluster in clusters:
-            cluster_id = cluster["Id"]
-            cluster_details = get_emr_describe_cluster(
-                boto3_session,
-                region,
-                cluster_id,
-            )
-            if cluster_details:
-                cluster_data.append(cluster_details)
-            time.sleep(DESCRIBE_SLEEP)
-
         load_emr_clusters(
             neo4j_session,
-            cluster_data,
+            clusters,
             region,
             current_aws_account_id,
             update_tag,

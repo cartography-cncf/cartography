@@ -1,3 +1,6 @@
+import boto3
+from moto import mock_aws
+
 import cartography.intel.aws.emr
 import tests.data.aws.emr
 from cartography.intel.aws.emr import cleanup
@@ -141,3 +144,61 @@ def test_cleanup_emr(neo4j_session):
     ) == {
         (TEST_ACCOUNT_ID, 1234),
     }
+
+
+SYNC_TEST_ACCOUNT_ID = "000000000001"
+
+
+def _launch_cluster(emr_client, name):
+    return emr_client.run_job_flow(
+        Name=name,
+        ReleaseLabel="emr-7.0.0",
+        Instances={
+            "InstanceCount": 1,
+            "MasterInstanceType": "m5.xlarge",
+            "KeepJobFlowAliveWhenNoSteps": True,
+        },
+        JobFlowRole="EMR_EC2_DefaultRole",
+        ServiceRole="EMR_DefaultRole",
+    )["JobFlowId"]
+
+
+def _synced_cluster_ids(neo4j_session):
+    result = neo4j_session.run(
+        """
+        MATCH (:AWSAccount{id: $aws_account_id})-[:RESOURCE]->(c:AWSEMRCluster)
+        RETURN c.id AS id
+        """,
+        aws_account_id=SYNC_TEST_ACCOUNT_ID,
+    )
+    return {record["id"] for record in result}
+
+
+def _sync_emr(neo4j_session, boto3_session, update_tag):
+    cartography.intel.aws.emr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        SYNC_TEST_ACCOUNT_ID,
+        update_tag,
+        {"UPDATE_TAG": update_tag, "AWS_ID": SYNC_TEST_ACCOUNT_ID},
+    )
+
+
+@mock_aws
+def test_sync_emr_removes_clusters_once_they_terminate(neo4j_session):
+    neo4j_session.run(
+        "MERGE (:AWSAccount{id: $aws_account_id})",
+        aws_account_id=SYNC_TEST_ACCOUNT_ID,
+    )
+    boto3_session = boto3.session.Session()
+    emr_client = boto3_session.client("emr", region_name=TEST_REGION)
+    long_running = _launch_cluster(emr_client, "long-running")
+    short_lived = _launch_cluster(emr_client, "short-lived")
+
+    _sync_emr(neo4j_session, boto3_session, TEST_UPDATE_TAG)
+    assert _synced_cluster_ids(neo4j_session) == {long_running, short_lived}
+
+    emr_client.terminate_job_flows(JobFlowIds=[short_lived])
+    _sync_emr(neo4j_session, boto3_session, TEST_UPDATE_TAG + 1)
+    assert _synced_cluster_ids(neo4j_session) == {long_running}
