@@ -26,6 +26,11 @@ OPENSSL_FINDING_ARN = (
     "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789"
 )
 
+THROTTLED = botocore.exceptions.ClientError(
+    error_response={"Error": {"Code": "ThrottlingException", "Message": ""}},
+    operation_name="ListFindings",
+)
+
 _COMPARISONS = {
     "EQUALS": operator.eq,
     "NOT_EQUALS": operator.ne,
@@ -42,8 +47,9 @@ class FakeInspector2Client:
     """
     An in-memory inspector2 regional endpoint. ListFindings applies the filter
     criteria it receives, returns one finding per page and records the ARN of each
-    finding it serves. Either operation can be made to fail, and ListFindings can
-    fail differently per finding ID prefix.
+    finding it serves. Either operation can be made to fail, ListFindings can fail
+    differently per finding ID prefix, and it can throttle the first request for
+    each page.
     """
 
     def __init__(
@@ -53,6 +59,7 @@ class FakeInspector2Client:
         list_findings_error=None,
         list_findings_errors_by_prefix=None,
         list_members_error=None,
+        throttle_each_page_once=False,
     ):
         self.meta = SimpleNamespace(partition="aws", region_name=TEST_REGION)
         self._findings = findings
@@ -60,6 +67,8 @@ class FakeInspector2Client:
         self._list_findings_error = list_findings_error
         self._list_findings_errors_by_prefix = list_findings_errors_by_prefix or {}
         self._list_members_error = list_members_error
+        self._throttle_each_page_once = throttle_each_page_once
+        self._throttled_pages = set()
         self.served_finding_arns = []
 
     async def __aenter__(self):
@@ -69,11 +78,8 @@ class FakeInspector2Client:
         return None
 
     def get_paginator(self, operation_name):
-        paginate = {
-            "list_findings": self._list_findings_pages,
-            "list_members": self._list_members_pages,
-        }[operation_name]
-        return SimpleNamespace(paginate=paginate)
+        assert operation_name == "list_members"
+        return SimpleNamespace(paginate=self._list_members_pages)
 
     async def _list_members_pages(self):
         if self._list_members_error:
@@ -84,7 +90,7 @@ class FakeInspector2Client:
             ],
         }
 
-    async def _list_findings_pages(self, filterCriteria):
+    async def list_findings(self, filterCriteria, nextToken="0"):
         # Lets every concurrent request start before any fails, as they do against
         # a real endpoint.
         await asyncio.sleep(0)
@@ -93,14 +99,25 @@ class FakeInspector2Client:
         finding_id_prefix = filterCriteria["findingArn"][0]["value"][-1]
         if finding_id_prefix in self._list_findings_errors_by_prefix:
             raise self._list_findings_errors_by_prefix[finding_id_prefix]
-        for finding in self._findings:
+        page_key = (finding_id_prefix, nextToken)
+        if self._throttle_each_page_once and page_key not in self._throttled_pages:
+            self._throttled_pages.add(page_key)
+            raise THROTTLED
+        matching = [
+            finding
+            for finding in self._findings
             if all(
                 _COMPARISONS[f["comparison"]](finding[_FINDING_FIELDS[key]], f["value"])
                 for key, filters in filterCriteria.items()
                 for f in filters
-            ):
-                self.served_finding_arns.append(finding["findingArn"])
-                yield {"findings": [finding]}
+            )
+        ]
+        index = int(nextToken)
+        page = {"findings": matching[index : index + 1]}
+        self.served_finding_arns.extend(f["findingArn"] for f in page["findings"])
+        if index + 1 < len(matching):
+            page["nextToken"] = str(index + 1)
+        return page
 
 
 class FakeAioboto3Session:
@@ -396,6 +413,42 @@ def test_sync_inspector_loads_findings_from_every_finding_id_prefix(neo4j_sessio
         (arn,) for arn in finding_arns
     }
     assert sorted(inspector2.served_finding_arns) == sorted(finding_arns)
+
+
+def test_sync_inspector_resumes_throttled_pages(neo4j_session):
+    # Arrange: three findings share a finding ID prefix, so their shard spans
+    # three pages, and the endpoint throttles the first request for every page. A
+    # finding from a previous run is still in the graph.
+    finding_arns = [
+        "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000001",
+        "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000002",
+        "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000003",
+    ]
+    findings = [{**LIST_FINDINGS_NETWORK[0], "findingArn": arn} for arn in finding_arns]
+    inspector2 = FakeInspector2Client(findings=findings, throttle_each_page_once=True)
+    aioboto3_session = FakeAioboto3Session(inspector2)
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _add_stale_finding(neo4j_session, "arn:aws:stale")
+
+    # Act
+    sync(
+        neo4j_session,
+        aioboto3_session,
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+    )
+
+    # Assert: each retry resumed from the throttled page, so every finding was
+    # fetched exactly once, and the sync completed, so cleanup removed the finding
+    # the previous run left behind.
+    assert inspector2.served_finding_arns == finding_arns
+    assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
+        (finding_arns[0],),
+        (finding_arns[1],),
+        (finding_arns[2],),
+    }
 
 
 def test_sync_inspector_cleans_up_when_inspector_is_not_enabled(neo4j_session):
