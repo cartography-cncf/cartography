@@ -155,7 +155,7 @@ class LangSmithApiKeyToWorkspaceRel(CartographyRelSchema):
 class LangSmithApiKeySchema(CartographyNodeSchema):
     """
     A LangSmith credential: a personal access token, an organization service key, a
-    workspace API key, or a SCIM token. Only the non-secret short prefix is stored.
+    workspace API key, or a SCIM token. Cartography stores only the non-secret short prefix.
     """
 
     label: str = "LangSmithApiKey"

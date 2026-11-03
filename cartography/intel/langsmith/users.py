@@ -207,7 +207,7 @@ def transform_memberships(
     """
     Flatten a workspace's member listing into (user, workspace, role) membership records.
 
-    A membership is modelled as its own node because LangSmith supports organization-defined
+    A membership is modeled as its own node because LangSmith supports organization-defined
     custom roles, so the role held in a workspace cannot be encoded as a fixed relationship
     label.
     """

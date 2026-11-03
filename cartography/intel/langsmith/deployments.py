@@ -159,7 +159,7 @@ def merge_assistants(
     agents: list[dict[str, Any]], assistants: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """
-    Combine agents named by a deployment's agent block with those found via assistants.
+    Combine agents named by a deployment's agent block with those found through assistant search.
 
     LangGraph derives an assistant id from its graph, so two deployments running the same
     graph expose the same assistant id. Serving deployments therefore accumulate into a

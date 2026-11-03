@@ -12,7 +12,7 @@ schema
 
 ## Example queries
 
-Which agents can act as which humans, against which provider, with which scopes:
+Which agents can act as which users, against which provider, and with which scopes:
 
 ```cypher
 MATCH (a:LangSmithAgent)-[:HAS_CREDENTIAL]->(c:LangSmithAgentCredential)
@@ -21,7 +21,7 @@ MATCH (c)-[:ON_BEHALF_OF]->(u:LangSmithUser)
 RETURN u.email, a.id, p.name, c.scopes, c.expires_at
 ```
 
-Deactivated members who still hold live tokens, and agents still acting as them:
+Deactivated members who still hold live tokens, and the agents that still act as them:
 
 ```cypher
 MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(:LangSmithOrgMembership {is_disabled: true})
@@ -39,7 +39,7 @@ MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(:LangSmithOrgMembership)
 RETURN u.email, r.name
 ```
 
-Who can read agent credentials in each workspace, since `deployments:read` alone is
+Who can read agent credentials in each workspace, because `deployments:read` alone is
 enough:
 
 ```cypher

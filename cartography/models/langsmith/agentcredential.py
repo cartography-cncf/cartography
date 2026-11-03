@@ -138,8 +138,8 @@ class LangSmithAgentCredentialSchema(CartographyNodeSchema):
     A third-party OAuth token a LangSmith agent holds on a human's behalf, letting the
     agent call that provider's API as them.
 
-    Only metadata is ingested: oauth_token_id is an opaque reference, and no access token,
-    refresh token or client secret is requested or returned.
+    Cartography ingests only metadata. oauth_token_id is an opaque reference, and
+    Cartography never requests or receives an access token, refresh token, or client secret.
     """
 
     label: str = "LangSmithAgentCredential"

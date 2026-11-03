@@ -103,7 +103,7 @@ class LangSmithOAuthClientToWorkspaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithOAuthClientSchema(CartographyNodeSchema):
     """
-    A third-party application registered to call the LangSmith API via OAuth. This is
+    A third-party application registered to call the LangSmith API through OAuth. This is
     LangSmith acting as the authorization server, the reverse direction from
     LangSmithOAuthProvider.
     """

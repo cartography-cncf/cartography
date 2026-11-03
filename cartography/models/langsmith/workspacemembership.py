@@ -136,9 +136,9 @@ class LangSmithWorkspaceMembershipToRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithWorkspaceMembershipSchema(CartographyNodeSchema):
     """
-    A user's membership of a single workspace, together with the role they hold there.
+    A user's membership in a single workspace, together with the role they hold there.
 
-    This is modelled as a node rather than a relationship because role assignment is a
+    This is modeled as a node rather than a relationship because role assignment is a
     (user, workspace, role) triple and LangSmith supports organization-defined custom roles,
     so the role cannot be encoded in a fixed set of relationship labels.
     """

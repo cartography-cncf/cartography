@@ -75,8 +75,9 @@ class LangSmithResourceTagSchema(CartographyNodeSchema):
     A workspace resource tag. Tags are the attributes that attribute-based access policies
     match on.
 
-    The tagging edges that attach these tags to individual projects, datasets and prompts are
-    not ingested, because those resource types are outside this module's scope.
+    Cartography doesn't ingest the tagging edges that attach these tags to individual
+    projects, datasets, and prompts, because those resource types are outside this module's
+    scope.
     """
 
     label: str = "LangSmithResourceTag"

@@ -170,7 +170,7 @@ def get_tags(
 def get_oauth_clients(
     client: LangSmithClient, org_id: str, workspace_id: str
 ) -> tuple[list[dict[str, Any]], bool]:
-    """Fetch third-party apps registered to call the LangSmith API via OAuth."""
+    """Fetch third-party apps registered to call the LangSmith API through OAuth."""
     try:
         payload = client.get(
             "/api/v1/platform/oauth/clients",

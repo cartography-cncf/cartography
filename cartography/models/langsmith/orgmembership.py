@@ -128,9 +128,9 @@ class LangSmithOrgMembershipToRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithOrgMembershipSchema(CartographyNodeSchema):
     """
-    A user's membership of a single organization, together with the role they hold there.
+    A user's membership in a single organization, together with the role they hold there.
 
-    Modelled as a node so that organization-specific state stays organization-specific: a
+    Modeled as a node so that organization-specific state stays organization-specific: a
     user can belong to several organizations, and each has its own view of whether that
     identity is disabled, what role it holds and how it was provisioned.
     """

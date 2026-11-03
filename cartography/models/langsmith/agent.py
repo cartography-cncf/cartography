@@ -85,9 +85,9 @@ class LangSmithAgentToDeploymentRel(CartographyRelSchema):
     """
     Links an agent to the deployment serving it.
 
-    Set when the agent was discovered by listing the deployment's assistants, which is the
-    usual case; a deployment's own agent block is populated only for deployments created
-    with an explicit agent binding.
+    Set when Cartography discovers the agent by listing the deployment's assistants, which
+    is the usual case. LangSmith fills a deployment's own agent block only for deployments
+    created with an explicit agent binding.
 
     One-to-many: LangGraph derives an assistant id from its graph, so the same agent can be
     served by several deployments.
@@ -109,9 +109,9 @@ class LangSmithAgentSchema(CartographyNodeSchema):
     """
     An agent (assistant) that can hold OAuth credentials.
 
-    Agents are discovered by listing each deployment's assistants on its own data plane,
-    since a LangGraph Platform agent id is an assistant id and the control plane does not
-    expose it. Deployments that declare an agent block, and credential records that name an
+    Cartography discovers agents by listing each deployment's assistants on its own data
+    plane, because a LangGraph Platform agent id is an assistant id and the control plane
+    doesn't expose it. Deployments that declare an agent block, and credential records that name an
     agent, top up the inventory.
     """
 

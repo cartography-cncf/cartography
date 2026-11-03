@@ -77,16 +77,16 @@ class LangSmithUserSchema(CartographyNodeSchema):
     A LangSmith user account, keyed on the stable ls_user_id.
 
     A user can belong to several organizations, so this node deliberately carries only
-    identity that is true of the person everywhere. Everything organization-specific —
-    whether the identity is disabled, which organization role it holds, how it was
-    provisioned — lives on LangSmithOrgMembership, because storing it here would mean one
+    identity that is true of the person everywhere. Everything organization-specific, such as
+    whether the identity is disabled, which organization role it holds, and how it was
+    provisioned, lives on LangSmithOrgMembership, because storing it here would mean one
     organization's sync overwriting another's view of the same human.
 
     For the same reason the node has no sub-resource relationship: it is not owned by any
     single organization, and cleanup never deletes it, so one organization's sync cannot
     destroy an identity another organization still references. Its relationships are all
     owned by organization-scoped schemas (memberships, keys, credentials) or by the
-    organization-scoped MEMBER_OF matchlink, and are pruned with them.
+    organization-scoped MEMBER_OF matchlink, and cleanup prunes them with their owner.
     """
 
     label: str = "LangSmithUser"

@@ -74,8 +74,8 @@ class LangSmithSecretToWorkspaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithSecretSchema(CartographyNodeSchema):
     """
-    A workspace secret. Only the key name is ingested; LangSmith's encrypted-secrets endpoint
-    is never called.
+    A workspace secret. Cartography ingests only the key name and never calls LangSmith's
+    encrypted-secrets endpoint.
     """
 
     label: str = "LangSmithSecret"
