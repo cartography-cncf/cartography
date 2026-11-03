@@ -89,8 +89,14 @@ LANGSMITH_OAUTH_CLIENTS = {
     WORKSPACE_DEV_ID: {"clients": []},
 }
 
+# MCP gateways are listed per vendor, so the vendor listing comes first.
+LANGSMITH_MCP_VENDORS = {
+    WORKSPACE_PROD_ID: {"mcp_vendors": [{"vendor_id": "arcade", "name": "Arcade"}]},
+    WORKSPACE_DEV_ID: {"mcp_vendors": []},
+}
+
 LANGSMITH_MCP_SERVERS = {
-    WORKSPACE_PROD_ID: [
+    "arcade": [
         {
             "id": "af11af11-0001-4001-8001-af11af11af11",
             "name": "Internal Docs",
@@ -104,7 +110,4 @@ LANGSMITH_MCP_SERVERS = {
             "updated_at": "2026-02-06T09:00:00Z",
         },
     ],
-    WORKSPACE_DEV_ID: [],
 }
-
-LANGSMITH_MCP_VENDORS: dict[str, list] = {"mcp_vendors": []}

@@ -4,7 +4,6 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.models.langsmith.organization import LangSmithOrganizationSchema
 from cartography.util import timeit
@@ -24,10 +23,12 @@ def sync(
     organizations = [
         transform_organization(org_id, get_info(client, org_id)) for org_id in org_ids
     ]
+    # Organizations are not cleaned up. They are the root of every scoped cleanup, and a
+    # run restricted with --langsmith-org-id sees only one of them, so absence from this
+    # run is not evidence that an organization was deleted.
     load_organizations(
         neo4j_session, organizations, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup(neo4j_session, common_job_parameters)
     return organizations
 
 
@@ -97,13 +98,4 @@ def load_organizations(
         LangSmithOrganizationSchema(),
         data,
         lastupdated=update_tag,
-    )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    GraphJob.from_node_schema(LangSmithOrganizationSchema(), common_job_parameters).run(
-        neo4j_session
     )

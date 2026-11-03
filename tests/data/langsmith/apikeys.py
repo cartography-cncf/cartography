@@ -3,6 +3,7 @@ from tests.data.langsmith.roles import CUSTOM_ROLE_ID
 from tests.data.langsmith.roles import ORG_ADMIN_ROLE_ID
 from tests.data.langsmith.users import BART_LS_USER_ID
 from tests.data.langsmith.users import MARGE_ORG_IDENTITY_ID
+from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 
 LANGSMITH_SERVICE_ACCOUNTS = [
@@ -67,3 +68,21 @@ LANGSMITH_SCIM_TOKENS = [
         "updated_at": "2026-01-02T09:00:00Z",
     },
 ]
+
+# Workspace API keys are listed per workspace and carry no workspace field of their own.
+LANGSMITH_WORKSPACE_KEYS = {
+    WORKSPACE_PROD_ID: [
+        {
+            "id": "9b9b9b9b-0001-4001-8001-9b9b9b9b9b9b",
+            "short_key": "lsv2_ws_prod",
+            "description": "Tracing from the support bot",
+            "read_only": True,
+            "created_at": "2026-02-01T09:00:00Z",
+            "last_used_at": "2026-03-04T09:00:00Z",
+            "expires_at": None,
+            "revoked_at": None,
+            "created_by": "hjsimpson",
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
+}

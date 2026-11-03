@@ -5,7 +5,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
+from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithPermissionError
 from cartography.models.langsmith.agent import LangSmithAgentSchema
@@ -29,15 +29,16 @@ def sync(
     org_id: str,
     workspaces: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
-) -> tuple[list[dict[str, Any]], dict[str, list[str]], bool]:
+) -> tuple[list[dict[str, Any]], dict[str, str], bool]:
     """
     Load deployments and any agents they serve.
 
-    Returns the agent inventory, a workspace -> deployment ids mapping, and whether the
-    collection completed. Callers must not clean up on an incomplete collection.
+    Returns the agent inventory, a deployment id -> workspace id mapping, and whether the
+    agent inventory is complete. Agents are cleaned up by the agent_auth sync, which also
+    loads them, so it must not clean up on an incomplete inventory.
     """
     raw: list[dict[str, Any]] = []
-    complete = True
+    deployments_complete = True
     for workspace in workspaces:
         try:
             raw.extend(get(client, org_id, workspace["id"]))
@@ -48,34 +49,31 @@ def sync(
                 workspace["id"],
                 err,
             )
-            complete = False
+            deployments_complete = False
             continue
 
     deployments = transform_deployments(raw)
     agents = transform_agents(deployments, org_id)
     assistants, assistants_complete = get_assistants(client, deployments, org_id)
-    complete = complete and assistants_complete
     agents = merge_assistants(agents, assistants)
     load_deployments(
         neo4j_session, agents, deployments, org_id, common_job_parameters["UPDATE_TAG"]
     )
-    if complete:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
-        # Deleting on a partial collection would erase deployments and agents that still
-        # exist, and their credentials with them. Stale nodes are the lesser harm.
-        logger.warning(
-            "Skipping LangSmith deployment cleanup for organization %s: collection was "
-            "incomplete, so existing nodes are preserved rather than deleted.",
-            org_id,
-        )
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithDeploymentSchema(),
+        deployments_complete,
+        common_job_parameters,
+    )
 
-    deployments_by_workspace: dict[str, list[str]] = {}
-    for deployment in deployments:
-        deployments_by_workspace.setdefault(deployment["tenant_id"], []).append(
-            deployment["id"]
-        )
-    return agents, deployments_by_workspace, complete
+    workspace_by_deployment = {
+        deployment["id"]: deployment["tenant_id"] for deployment in deployments
+    }
+    return (
+        agents,
+        workspace_by_deployment,
+        deployments_complete and assistants_complete,
+    )
 
 
 @timeit
@@ -298,13 +296,4 @@ def load_deployments(
         agents,
         lastupdated=update_tag,
         ORG_ID=org_id,
-    )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    GraphJob.from_node_schema(LangSmithDeploymentSchema(), common_job_parameters).run(
-        neo4j_session
     )

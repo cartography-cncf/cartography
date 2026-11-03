@@ -743,10 +743,6 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
-        langsmith_pat=None,
-        langsmith_api_url=None,
-        langsmith_host_api_url=None,
-        langsmith_org_id=None,
         databricks_workspace_url=None,
         databricks_token=None,
         databricks_client_id=None,
@@ -884,6 +880,10 @@ class Config:
         databricks_azure_client_id: str | None = None,
         databricks_azure_client_secret: str | None = None,
         semgrep_skip_dependency_cleanup: bool = False,
+        langsmith_pat: str | None = None,
+        langsmith_api_url: str | None = None,
+        langsmith_host_api_url: str | None = None,
+        langsmith_org_id: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

@@ -16,8 +16,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
-from cartography.intel.langsmith.util import build_user_lookup
+from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithPermissionError
 from cartography.intel.langsmith.util import resolve_ls_user_id
@@ -36,15 +35,14 @@ def sync(
     org_id: str,
     workspaces: list[dict[str, Any]],
     agents: list[dict[str, Any]],
-    users: list[dict[str, Any]],
-    deployments_complete: bool,
+    workspace_by_deployment: dict[str, str],
+    user_lookup: dict[str, str],
+    agents_complete: bool,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    user_lookup = build_user_lookup(users)
-
     providers, providers_complete = get_providers(client, org_id, workspaces)
     connections, connections_complete = get_connections(
-        client, org_id, workspaces, agents
+        client, org_id, agents, workspace_by_deployment
     )
     # Resolve each credential's provider slug to that provider's UUID within this
     # organization. Slugs are operator-chosen, so matching on one would happily link a
@@ -66,17 +64,28 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    if providers_complete and connections_complete and deployments_complete:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
-        # Cleanup here deletes agents and their credentials. A cold deployment or a
-        # workspace we could not read must not be mistaken for "these no longer exist".
-        logger.warning(
-            "Skipping LangSmith agent credential cleanup for organization %s: collection "
-            "was incomplete, so existing agents and credentials are preserved rather than "
-            "deleted.",
-            org_id,
-        )
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithOAuthProviderSchema(),
+        providers_complete,
+        common_job_parameters,
+    )
+    # Credentials are only fetched for agents we know about, and agents are loaded by
+    # both this module and the deployments sync, so both depend on a complete agent
+    # inventory. A cold deployment must not be mistaken for "these no longer exist".
+    credentials_complete = agents_complete and connections_complete
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithAgentCredentialSchema(),
+        credentials_complete,
+        common_job_parameters,
+    )
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithAgentSchema(),
+        credentials_complete,
+        common_job_parameters,
+    )
 
 
 @timeit
@@ -121,44 +130,53 @@ def get_providers(
 def get_connections(
     client: LangSmithClient,
     org_id: str,
-    workspaces: list[dict[str, Any]],
     agents: list[dict[str, Any]],
+    workspace_by_deployment: dict[str, str],
 ) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch each agent's OAuth connections.
 
     This route takes the agent from the path rather than from the caller's identity, so it
-    gives the organization-wide view of which agent holds which user's token.
+    gives the organization-wide view of which agent holds which user's token. It is
+    workspace-scoped, so each agent is queried in the workspaces of the deployments that
+    serve it.
     """
-    connections: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    connections: dict[str, dict[str, Any]] = {}
     complete = True
-    for workspace in workspaces:
-        for agent in agents:
-            # The API is keyed by the raw assistant id; agent["id"] is namespaced by
-            # organization for the graph and is not a valid path segment here.
-            assistant_id = agent.get("assistant_id") or agent["id"]
+    for agent in agents:
+        # The API is keyed by the raw assistant id; agent["id"] is namespaced by
+        # organization for the graph and is not a valid path segment here.
+        assistant_id = agent["assistant_id"]
+        workspace_ids = sorted(
+            {
+                workspace_by_deployment[deployment_id]
+                for deployment_id in agent.get("deployment_ids") or []
+                if deployment_id in workspace_by_deployment
+            }
+        )
+        for workspace_id in workspace_ids:
             try:
                 payload = client.get(
                     f"/v2/auth/agents/{assistant_id}/connections",
                     org_id=org_id,
-                    tenant_id=workspace["id"],
+                    tenant_id=workspace_id,
                     host=True,
                 )
             except LangSmithPermissionError as err:
-                logger.debug(
-                    "No LangSmith agent connections for agent %s in workspace %s: %s",
-                    assistant_id,
-                    workspace["id"],
-                    err,
-                )
+                # 404 means agent auth has never seen this agent: it holds no
+                # connections. Anything else hides connections that may exist.
+                if not err.not_found:
+                    logger.warning(
+                        "Skipping LangSmith connections for agent %s in workspace %s: %s",
+                        assistant_id,
+                        workspace_id,
+                        err,
+                    )
+                    complete = False
                 continue
             for row in payload.get("data") or []:
-                if row["id"] in seen:
-                    continue
-                seen.add(row["id"])
-                connections.append(row)
-    return connections, complete
+                connections.setdefault(row["id"], row)
+    return list(connections.values()), complete
 
 
 def transform_provider(
@@ -283,21 +301,4 @@ def load_agent_auth(
         credentials,
         lastupdated=update_tag,
         ORG_ID=org_id,
-    )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    GraphJob.from_node_schema(
-        LangSmithAgentCredentialSchema(), common_job_parameters
-    ).run(neo4j_session)
-    GraphJob.from_node_schema(
-        LangSmithOAuthProviderSchema(), common_job_parameters
-    ).run(neo4j_session)
-    # Agents are loaded by both this module and the deployments sync, so they are cleaned
-    # up here, once both have run.
-    GraphJob.from_node_schema(LangSmithAgentSchema(), common_job_parameters).run(
-        neo4j_session
     )

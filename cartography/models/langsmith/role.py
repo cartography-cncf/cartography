@@ -85,7 +85,7 @@ class LangSmithRoleToPermissionRel(CartographyRelSchema):
 
     target_node_label: str = "LangSmithPermission"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("permissions", one_to_many=True)},
+        {"id": PropertyRef("permission_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "GRANTS"

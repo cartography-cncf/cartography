@@ -1,11 +1,11 @@
 import logging
+from collections import Counter
 from typing import Any
 
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
-from cartography.intel.langsmith.util import build_user_lookup
+from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithPermissionError
 from cartography.intel.langsmith.util import resolve_ls_user_id
@@ -21,24 +21,24 @@ def sync(
     neo4j_session: neo4j.Session,
     client: LangSmithClient,
     org_id: str,
-    users: list[dict[str, Any]],
+    user_lookup: dict[str, str],
     workspaces: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> None:
-    service_accounts = get_service_accounts(client, org_id)
+    service_accounts, service_accounts_complete = get_service_accounts(client, org_id)
 
     keys: list[dict[str, Any]] = []
-    complete = True
+    keys_complete = True
     for key_type in ("service_key", "pat", "scim_token"):
         rows, ok = _fetch_optional(client, org_id, key_type)
         keys.extend(rows)
-        complete = complete and ok
+        keys_complete = keys_complete and ok
     for workspace in workspaces:
         rows, ok = _fetch_workspace_keys(client, org_id, workspace["id"])
         keys.extend(rows)
-        complete = complete and ok
+        keys_complete = keys_complete and ok
 
-    transformed = transform_keys(keys, users, workspaces)
+    transformed = transform_keys(keys, user_lookup, workspaces)
     load_api_keys(
         neo4j_session,
         service_accounts,
@@ -46,14 +46,15 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    if complete:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
-        logger.warning(
-            "Skipping LangSmith credential cleanup for organization %s: part of the "
-            "inventory was unreadable, so existing keys are preserved rather than deleted.",
-            org_id,
-        )
+    cleanup_if_complete(
+        neo4j_session, LangSmithApiKeySchema(), keys_complete, common_job_parameters
+    )
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithServiceAccountSchema(),
+        service_accounts_complete,
+        common_job_parameters,
+    )
 
 
 _ORG_KEY_SOURCES = {
@@ -78,7 +79,9 @@ def _fetch_optional(
         rows = client.get(path, org_id=org_id)
     except LangSmithPermissionError as err:
         logger.warning("Skipping LangSmith %s inventory: %s", key_type, err)
-        return [], False
+        # A 404 means the feature is off for this organization (for example SCIM), so
+        # there is nothing to list; only a hidden listing is incomplete.
+        return [], err.not_found
     for row in rows:
         row["key_type"] = key_type
     return rows, True
@@ -101,21 +104,33 @@ def _fetch_workspace_keys(
 
 
 @timeit
-def get_service_accounts(client: LangSmithClient, org_id: str) -> list[dict[str, Any]]:
-    return client.get("/api/v1/service-accounts", org_id=org_id)
+def get_service_accounts(
+    client: LangSmithClient, org_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    try:
+        return client.get("/api/v1/service-accounts", org_id=org_id), True
+    except LangSmithPermissionError as err:
+        logger.warning("Skipping LangSmith service accounts: %s", err)
+        return [], False
 
 
 def transform_keys(
     keys: list[dict[str, Any]],
-    users: list[dict[str, Any]],
+    user_lookup: dict[str, str],
     workspaces: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Shape credentials for ingest. Only the non-secret short prefix is retained."""
-    user_lookup = build_user_lookup(users)
+    # Keys name their default workspace by display name only. Display names are not
+    # unique, so an ambiguous name links to no workspace rather than to the wrong one.
+    name_counts = Counter(
+        workspace["display_name"]
+        for workspace in workspaces
+        if workspace.get("display_name")
+    )
     workspace_by_name = {
         workspace["display_name"]: workspace["id"]
         for workspace in workspaces
-        if workspace.get("display_name")
+        if name_counts[workspace.get("display_name")] == 1
     }
 
     transformed = []
@@ -177,15 +192,3 @@ def load_api_keys(
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    GraphJob.from_node_schema(LangSmithApiKeySchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(
-        LangSmithServiceAccountSchema(), common_job_parameters
-    ).run(neo4j_session)

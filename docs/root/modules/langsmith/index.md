@@ -44,10 +44,13 @@ holds, how it was provisioned) lives on `LangSmithOrgMembership`. Writing that o
 shared node would mean the last organization synced silently overwrote the others.
 
 For the same reason `LangSmithUser` has no sub-resource relationship: it is not owned by
-any single organization, so Cartography prunes its stale relationships but never deletes
-the node. One organization's sync therefore cannot destroy an identity another
-organization still references. This follows the same pattern as `GitHubUser`,
-`ModalUser` and `RailwayUser`.
+any single organization, and cleanup never deletes it. One organization's sync therefore
+cannot destroy an identity another organization still references. This follows the same
+pattern as `GitHubUser`, `ModalUser` and `RailwayUser`. Every relationship touching a
+user is owned by an organization-scoped node or, for the `MEMBER_OF` shortcut to a
+workspace, by an organization-scoped matchlink, so each organization only ever prunes its
+own edges. Permission strings repeat across organizations too, so `LangSmithPermission`
+is keyed `<organization_id>|<permission string>` and matched on `name`.
 
 ## Roles, permissions and memberships
 
@@ -60,6 +63,10 @@ relationship labels. Workspace role assignments are therefore modelled as their 
 (:LangSmithUser)-[:HAS_MEMBERSHIP]->(:LangSmithWorkspaceMembership)-[:IN_WORKSPACE]->(:LangSmithWorkspace)
 (:LangSmithWorkspaceMembership)-[:HAS_ROLE]->(:LangSmithRole)-[:GRANTS]->(:LangSmithPermission)
 ```
+
+`(:LangSmithUser)-[:MEMBER_OF]->(:LangSmithWorkspace)` is a shortcut for the same
+membership, taken from the organization-level member listing so it survives a workspace
+the token cannot read.
 
 Organization roles work the same way, one membership per organization:
 
@@ -149,9 +156,18 @@ to a logged warning rather than failing the module.
 Crucially, a degraded fetch is tracked as an **incomplete collection**, not as an empty
 one. Cleanup deletes nodes whose `lastupdated` does not match the current run, so a
 failed listing that silently returned nothing would look exactly like "these no longer
-exist" and delete live agents along with their credentials. When any fetch in a scope
-fails — a permission error, a timeout, a deployment that will not answer — the cleanup
-for that scope is skipped and a warning is logged. Stale nodes are the lesser harm.
+exist" and delete live agents along with their credentials. When a fetch fails with a
+401 or 403, a timeout, or a deployment that will not answer, cleanup for that node type
+is skipped and a warning is logged. Other node types still clean up. Stale nodes are the
+lesser harm.
+
+A 404 is different: LangSmith answers it for features an organization does not have,
+such as SCIM tokens, access policies or hybrid data planes, and for an agent that agent
+auth has never seen. That is a complete, empty answer, so cleanup proceeds.
+
+`LangSmithOrganization` nodes are never cleaned up. A run restricted with
+`--langsmith-org-id` sees only one organization, so absence from a run is not evidence
+of deletion.
 
 ```{note}
 Credentials are never sent to a deployment over plaintext HTTP, and redirects from a
@@ -171,10 +187,10 @@ MATCH (c)-[:ON_BEHALF_OF]->(u:LangSmithUser)
 RETURN u.email, a.id, p.name, c.scopes, c.expires_at
 ```
 
-Deactivated users who still hold live tokens, and agents still acting as them:
+Deactivated members who still hold live tokens, and agents still acting as them:
 
 ```cypher
-MATCH (u:LangSmithUser {is_disabled: true})
+MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(:LangSmithOrgMembership {is_disabled: true})
 OPTIONAL MATCH (u)<-[:OWNED_BY]-(k:LangSmithApiKey) WHERE k.revoked_at IS NULL
 OPTIONAL MATCH (u)<-[:ON_BEHALF_OF]-(c:LangSmithAgentCredential)
 RETURN u.email, collect(DISTINCT k.short_key), collect(DISTINCT c.id)
@@ -183,8 +199,9 @@ RETURN u.email, collect(DISTINCT k.short_key), collect(DISTINCT c.id)
 Everyone who can administer the organization, including through custom roles:
 
 ```cypher
-MATCH (u:LangSmithUser)-[:HAS_ROLE]->(r:LangSmithRole)
-      -[:GRANTS]->(:LangSmithPermission {id: 'organization:manage'})
+MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(:LangSmithOrgMembership)
+      -[:HAS_ROLE]->(r:LangSmithRole)
+      -[:GRANTS]->(:LangSmithPermission {name: 'organization:manage'})
 RETURN u.email, r.name
 ```
 
@@ -192,7 +209,7 @@ Who can read raw agent credentials, since `deployments:read` alone is sufficient
 
 ```cypher
 MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(m:LangSmithWorkspaceMembership)
-      -[:HAS_ROLE]->(r:LangSmithRole)-[:GRANTS]->(:LangSmithPermission {id: 'deployments:read'})
+      -[:HAS_ROLE]->(r:LangSmithRole)-[:GRANTS]->(:LangSmithPermission {name: 'deployments:read'})
 MATCH (m)-[:IN_WORKSPACE]->(w:LangSmithWorkspace)
 RETURN w.name, r.name, collect(u.email)
 ```

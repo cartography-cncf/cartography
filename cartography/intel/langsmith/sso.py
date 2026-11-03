@@ -4,7 +4,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
+from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithPermissionError
 from cartography.models.langsmith.accesspolicy import LangSmithAccessPolicySchema
@@ -22,48 +22,86 @@ def sync(
     org_id: str,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    providers = transform_providers(get_sso_settings(client, org_id))
-    policies = transform_policies(get_access_policies(client, org_id))
-    data_planes = get_data_planes(client, org_id)
+    raw_providers, providers_complete = get_sso_settings(client, org_id)
+    raw_policies, policies_complete = get_access_policies(client, org_id)
+    data_planes, data_planes_complete = get_data_planes(client, org_id)
     load_sso(
         neo4j_session,
-        providers,
-        policies,
+        transform_providers(raw_providers),
+        transform_policies(raw_policies),
         data_planes,
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithSSOProviderSchema(),
+        providers_complete,
+        common_job_parameters,
+    )
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithAccessPolicySchema(),
+        policies_complete,
+        common_job_parameters,
+    )
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithDataPlaneSchema(),
+        data_planes_complete,
+        common_job_parameters,
+    )
 
 
-@timeit
-def get_sso_settings(client: LangSmithClient, org_id: str) -> list[dict[str, Any]]:
-    return client.get("/api/v1/orgs/current/sso-settings", org_id=org_id)
-
-
-@timeit
-def get_access_policies(client: LangSmithClient, org_id: str) -> list[dict[str, Any]]:
-    payload = client.get("/api/v1/platform/orgs/current/access-policies", org_id=org_id)
-    return payload.get("access_policies") or []
-
-
-@timeit
-def get_data_planes(client: LangSmithClient, org_id: str) -> list[dict[str, Any]]:
+def _get_optional(client: LangSmithClient, org_id: str, path: str) -> tuple[Any, bool]:
     """
-    Fetch the organization's registered data planes, tolerating an unavailable route.
+    Fetch an organization-level listing that a credential or plan may not expose.
 
-    Data planes only exist for hybrid and self-hosted deployments, and the route is not
-    served for organizations without one. Losing this listing should narrow the graph,
-    not fail the module.
+    A 404 means the route is not served for this organization (no SSO configured, no
+    hybrid data plane, or a plan without access policies), which is a complete empty
+    answer. A 401/403 means the listing exists but is hidden, so it is reported incomplete.
     """
     try:
-        payload = client.get("/orgs/current/data-planes", org_id=org_id)
+        return client.get(path, org_id=org_id), True
     except LangSmithPermissionError as err:
-        logger.warning("Skipping LangSmith data planes: %s", err)
-        return []
+        logger.warning("Skipping LangSmith %s: %s", path, err)
+        return None, err.not_found
+
+
+@timeit
+def get_sso_settings(
+    client: LangSmithClient, org_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    payload, complete = _get_optional(
+        client, org_id, "/api/v1/orgs/current/sso-settings"
+    )
+    return payload or [], complete
+
+
+@timeit
+def get_access_policies(
+    client: LangSmithClient, org_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    payload, complete = _get_optional(
+        client, org_id, "/api/v1/platform/orgs/current/access-policies"
+    )
+    return (payload or {}).get("access_policies") or [], complete
+
+
+@timeit
+def get_data_planes(
+    client: LangSmithClient, org_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """
+    Fetch the organization's registered data planes.
+
+    Data planes only exist for hybrid and self-hosted deployments, and the route is not
+    served for organizations without one.
+    """
+    payload, complete = _get_optional(client, org_id, "/orgs/current/data-planes")
     if isinstance(payload, dict):
-        return payload.get("data_planes") or []
-    return payload
+        return payload.get("data_planes") or [], complete
+    return payload or [], complete
 
 
 def transform_providers(providers: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -164,15 +202,3 @@ def load_sso(
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    for schema in (
-        LangSmithSSOProviderSchema(),
-        LangSmithAccessPolicySchema(),
-        LangSmithDataPlaneSchema(),
-    ):
-        GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)

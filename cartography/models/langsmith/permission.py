@@ -13,11 +13,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class LangSmithPermissionNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Synthetic identifier of the form <organization_id>|<permission string>. "
+            "Permission strings repeat across organizations, and each organization's "
+            "cleanup must only ever touch its own nodes."
+        ),
+    )
+    name: PropertyRef = PropertyRef(
         "name",
         extra_index=True,
         description="Permission string, for example organization:manage or deployments:read.",
     )
-    name: PropertyRef = PropertyRef("name", description="Permission string.")
     description: PropertyRef = PropertyRef(
         "description",
         description="Human-readable description of what the permission allows.",

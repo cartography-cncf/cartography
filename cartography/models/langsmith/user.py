@@ -7,8 +7,9 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import USER_ACCOUNT
 
@@ -41,16 +42,27 @@ class LangSmithUserNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class LangSmithUserToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
+# The user node is shared across organizations, so a relationship declared on its schema
+# could only be cleaned up globally and one organization's sync would prune another's
+# edges. This is therefore a matchlink scoped to the organization.
 @dataclass(frozen=True)
 # (:LangSmithUser)-[:MEMBER_OF]->(:LangSmithWorkspace)
 class LangSmithUserToWorkspaceRel(CartographyRelSchema):
     """A user is a member of a workspace. The role held there is on the membership node."""
 
+    source_node_label: str = "LangSmithUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("ls_user_id")},
+    )
     target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("tenant_ids", one_to_many=True)},
+        {"id": PropertyRef("workspace_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
@@ -71,9 +83,10 @@ class LangSmithUserSchema(CartographyNodeSchema):
     organization's sync overwriting another's view of the same human.
 
     For the same reason the node has no sub-resource relationship: it is not owned by any
-    single organization. Cartography therefore prunes its stale relationships but never
-    deletes the node, so one organization's sync cannot destroy an identity another
-    organization still references.
+    single organization, and cleanup never deletes it, so one organization's sync cannot
+    destroy an identity another organization still references. Its relationships are all
+    owned by organization-scoped schemas (memberships, keys, credentials) or by the
+    organization-scoped MEMBER_OF matchlink, and are pruned with them.
     """
 
     label: str = "LangSmithUser"
@@ -81,8 +94,3 @@ class LangSmithUserSchema(CartographyNodeSchema):
         [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
     properties: LangSmithUserNodeProperties = LangSmithUserNodeProperties()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            LangSmithUserToWorkspaceRel(),
-        ],
-    )

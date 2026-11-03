@@ -2,9 +2,13 @@ import logging
 import threading
 from typing import Any
 
+import neo4j
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
+
+from cartography.graph.job import GraphJob
+from cartography.models.core.nodes import CartographyNodeSchema
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +44,20 @@ def _build_session() -> requests.Session:
 
 class LangSmithPermissionError(Exception):
     """Raised when the configured credential cannot read a LangSmith resource."""
+
+    def __init__(self, path: str, status_code: int) -> None:
+        super().__init__(
+            f"GET {path} returned {status_code}: "
+            "the configured LangSmith credential cannot read this resource."
+        )
+        self.status_code = status_code
+
+    @property
+    def not_found(self) -> bool:
+        # A 404 means the route or resource does not exist for this organization, which
+        # is a complete (empty) answer. A 401/403 means data may exist that we could not
+        # see, so callers must not treat it as an empty inventory.
+        return self.status_code == 404
 
 
 class LangSmithClient:
@@ -113,10 +131,7 @@ class LangSmithClient:
             timeout=_TIMEOUT,
         )
         if response.status_code in (401, 403, 404):
-            raise LangSmithPermissionError(
-                f"GET {path} returned {response.status_code}: "
-                f"the configured LangSmith credential cannot read this resource."
-            )
+            raise LangSmithPermissionError(path, response.status_code)
         response.raise_for_status()
         return response.json()
 
@@ -314,7 +329,9 @@ class LangSmithClient:
             offset += len(page)
 
 
-def build_user_lookup(users: list[dict[str, Any]]) -> dict[str, str]:
+def build_user_lookup(
+    users: list[dict[str, Any]], org_memberships: list[dict[str, Any]]
+) -> dict[str, str]:
     """
     Build a tolerant lookup from whatever a created_by/owner_id field might hold to a stable
     ls_user_id.
@@ -322,13 +339,15 @@ def build_user_lookup(users: list[dict[str, Any]]) -> dict[str, str]:
     LangSmith does not document whether these fields carry an ls_user_id, an identity UUID or
     an email address, and the answer differs between the control plane and the two agent-auth
     subsystems. Every identifier we know for a user therefore maps back to its ls_user_id.
+    Identity UUIDs are per organization, so they come from the organization memberships.
     """
     lookup: dict[str, str] = {}
+    for membership in org_memberships:
+        if membership.get("identity_id"):
+            lookup[membership["identity_id"]] = membership["ls_user_id"]
     for user in users:
         ls_user_id = user["ls_user_id"]
         lookup[ls_user_id] = ls_user_id
-        if user.get("org_identity_id"):
-            lookup[user["org_identity_id"]] = ls_user_id
         if user.get("email"):
             lookup[user["email"].lower()] = ls_user_id
         # created_by on the key endpoints is frequently a bare username rather than an id
@@ -343,3 +362,26 @@ def resolve_ls_user_id(candidate: str | None, lookup: dict[str, str]) -> str | N
     if not candidate:
         return None
     return lookup.get(candidate) or lookup.get(str(candidate).lower())
+
+
+def cleanup_if_complete(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    complete: bool,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Run a schema's cleanup only when the collection that fed it completed.
+
+    Deleting on a partial collection would erase nodes that still exist in a workspace or
+    listing the credential could not read. Stale nodes are the lesser harm.
+    """
+    if not complete:
+        logger.warning(
+            "Skipping %s cleanup for LangSmith organization %s: collection was incomplete, "
+            "so existing nodes are preserved rather than deleted.",
+            schema.label,
+            common_job_parameters["ORG_ID"],
+        )
+        return
+    GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)

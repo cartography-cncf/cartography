@@ -21,8 +21,8 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     raw_roles = get_roles(client, org_id)
-    roles = transform_roles(raw_roles)
-    permissions = transform_permissions(raw_roles)
+    roles = transform_roles(raw_roles, org_id)
+    permissions = transform_permissions(raw_roles, org_id)
     load_roles(
         neo4j_session,
         permissions,
@@ -33,7 +33,13 @@ def sync(
     cleanup(neo4j_session, common_job_parameters)
 
 
-def transform_permissions(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _permission_id(org_id: str, permission: str) -> str:
+    return f"{org_id}|{permission}"
+
+
+def transform_permissions(
+    roles: list[dict[str, Any]], org_id: str
+) -> list[dict[str, Any]]:
     """
     Derive the permission catalog from the permissions the roles grant.
 
@@ -50,7 +56,12 @@ def transform_permissions(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if scopes.get(permission) is None:
                 scopes[permission] = role.get("access_scope")
     return [
-        {"name": name, "description": None, "access_scope": scope}
+        {
+            "id": _permission_id(org_id, name),
+            "name": name,
+            "description": None,
+            "access_scope": scope,
+        }
         for name, scope in sorted(scopes.items())
     ]
 
@@ -60,7 +71,7 @@ def get_roles(client: LangSmithClient, org_id: str) -> list[dict[str, Any]]:
     return client.get("/api/v1/orgs/current/roles", org_id=org_id)
 
 
-def transform_roles(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_roles(roles: list[dict[str, Any]], org_id: str) -> list[dict[str, Any]]:
     """
     Shape roles for ingest.
 
@@ -79,7 +90,10 @@ def transform_roles(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "access_scope": role.get("access_scope"),
                 "is_custom": role.get("organization_id") is not None,
                 "is_restricted": role.get("is_restricted"),
-                "permissions": role.get("permissions") or [],
+                "permission_ids": [
+                    _permission_id(org_id, permission)
+                    for permission in role.get("permissions") or []
+                ],
             }
         )
     return transformed

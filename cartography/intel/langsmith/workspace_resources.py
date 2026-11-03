@@ -3,7 +3,7 @@ Workspace-scoped resources: secrets, resource tags, OAuth clients and MCP server
 
 These all need an ``X-Tenant-Id`` header and are fetched per workspace. A credential
 commonly holds ``workspaces:read`` in only some workspaces, so each fetch degrades to a
-warning rather than failing the module.
+warning rather than failing the module, and the resource type it belongs to skips cleanup.
 """
 
 import logging
@@ -13,9 +13,10 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
+from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.langsmith.mcpserver import LangSmithMcpServerSchema
 from cartography.models.langsmith.oauthclient import LangSmithOAuthClientSchema
 from cartography.models.langsmith.resourcetag import LangSmithResourceTagSchema
@@ -37,16 +38,28 @@ def sync(
     tags: list[dict[str, Any]] = []
     oauth_clients: list[dict[str, Any]] = []
     mcp_servers: list[dict[str, Any]] = []
+    secrets_complete = tags_complete = oauth_clients_complete = mcp_servers_complete = (
+        True
+    )
 
-    complete = True
     for workspace in workspaces:
         workspace_id = workspace["id"]
-        raw_secrets, secrets_ok = get_secrets(client, org_id, workspace_id)
-        complete = complete and secrets_ok
+
+        raw_secrets, ok = get_secrets(client, org_id, workspace_id)
         secrets.extend(transform_secrets(workspace_id, raw_secrets))
-        tags.extend(get_tags(client, org_id, workspace_id))
-        oauth_clients.extend(get_oauth_clients(client, org_id, workspace_id))
-        mcp_servers.extend(get_mcp_servers(client, org_id, workspace_id))
+        secrets_complete = secrets_complete and ok
+
+        rows, ok = get_tags(client, org_id, workspace_id)
+        tags.extend(rows)
+        tags_complete = tags_complete and ok
+
+        rows, ok = get_oauth_clients(client, org_id, workspace_id)
+        oauth_clients.extend(rows)
+        oauth_clients_complete = oauth_clients_complete and ok
+
+        rows, ok = get_mcp_servers(client, org_id, workspace_id)
+        mcp_servers.extend(rows)
+        mcp_servers_complete = mcp_servers_complete and ok
 
     load_workspace_resources(
         neo4j_session,
@@ -57,14 +70,16 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    if complete:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
-        logger.warning(
-            "Skipping LangSmith workspace resource cleanup for organization %s: not every "
-            "workspace could be read, so existing nodes are preserved.",
-            org_id,
-        )
+    cleanup(
+        neo4j_session,
+        common_job_parameters,
+        [
+            (LangSmithSecretSchema(), secrets_complete),
+            (LangSmithResourceTagSchema(), tags_complete),
+            (LangSmithOAuthClientSchema(), oauth_clients_complete),
+            (LangSmithMcpServerSchema(), mcp_servers_complete),
+        ],
+    )
 
 
 @timeit
@@ -109,7 +124,7 @@ def transform_secrets(
 @timeit
 def get_tags(
     client: LangSmithClient, org_id: str, workspace_id: str
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Fetch the workspace's attribute-based access control tag vocabulary."""
     try:
         tag_keys = client.get(
@@ -121,9 +136,10 @@ def get_tags(
         logger.warning(
             "Skipping LangSmith resource tags for workspace %s: %s", workspace_id, err
         )
-        return []
+        return [], False
 
     tags = []
+    complete = True
     for tag_key in tag_keys:
         try:
             tag_values = client.get(
@@ -135,6 +151,7 @@ def get_tags(
             logger.warning(
                 "Skipping LangSmith tag values for tag key %s: %s", tag_key["id"], err
             )
+            complete = False
             continue
         for tag_value in tag_values:
             tags.append(
@@ -146,13 +163,13 @@ def get_tags(
                     "workspace_id": workspace_id,
                 }
             )
-    return tags
+    return tags, complete
 
 
 @timeit
 def get_oauth_clients(
     client: LangSmithClient, org_id: str, workspace_id: str
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Fetch third-party apps registered to call the LangSmith API via OAuth."""
     try:
         payload = client.get(
@@ -164,24 +181,23 @@ def get_oauth_clients(
         logger.warning(
             "Skipping LangSmith OAuth clients for workspace %s: %s", workspace_id, err
         )
-        return []
+        return [], False
     clients = payload.get("clients") or []
     for oauth_client in clients:
         oauth_client["workspace_id"] = workspace_id
-    return clients
+    return clients, True
 
 
 @timeit
 def get_mcp_servers(
     client: LangSmithClient, org_id: str, workspace_id: str
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch the vendor-managed MCP gateways a workspace exposes.
 
     Each MCP vendor is listed first, then its gateways, because the gateway route is
     keyed by vendor slug.
     """
-    servers: list[dict[str, Any]] = []
     try:
         vendor_payload = client.get(
             "/api/v1/platform/mcp-vendors", org_id=org_id, tenant_id=workspace_id
@@ -190,8 +206,10 @@ def get_mcp_servers(
         logger.warning(
             "Skipping LangSmith MCP vendors for workspace %s: %s", workspace_id, err
         )
-        return servers
+        return [], False
 
+    servers: list[dict[str, Any]] = []
+    complete = True
     for vendor in vendor_payload.get("mcp_vendors") or []:
         vendor_slug = vendor.get("vendor_id") or vendor.get("name")
         if not vendor_slug:
@@ -204,9 +222,13 @@ def get_mcp_servers(
                 tenant_id=workspace_id,
             )
         except LangSmithPermissionError as err:
-            logger.debug(
-                "Skipping LangSmith MCP gateways for vendor %s: %s", vendor_slug, err
+            logger.warning(
+                "Skipping LangSmith MCP gateways for vendor %s in workspace %s: %s",
+                vendor_slug,
+                workspace_id,
+                err,
             )
+            complete = complete and err.not_found
             continue
         except requests.HTTPError as err:
             # A vendor that is registered but not yet OAuth-connected in this workspace
@@ -226,7 +248,7 @@ def get_mcp_servers(
             servers.append(
                 _transform_mcp_server(gateway, workspace_id, vendor=vendor_slug)
             )
-    return servers
+    return servers, complete
 
 
 def _transform_mcp_server(
@@ -270,12 +292,9 @@ def load_workspace_resources(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    schemas: list[tuple[CartographyNodeSchema, bool]],
 ) -> None:
-    for schema in (
-        LangSmithSecretSchema(),
-        LangSmithResourceTagSchema(),
-        LangSmithOAuthClientSchema(),
-        LangSmithMcpServerSchema(),
-    ):
-        GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+    for schema, complete in schemas:
+        cleanup_if_complete(neo4j_session, schema, complete, common_job_parameters)

@@ -4,11 +4,15 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.langsmith.util import build_user_lookup
+from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithPermissionError
 from cartography.models.langsmith.orgmembership import LangSmithOrgMembershipSchema
 from cartography.models.langsmith.user import LangSmithUserSchema
+from cartography.models.langsmith.user import LangSmithUserToWorkspaceRel
 from cartography.models.langsmith.workspacemembership import (
     LangSmithWorkspaceMembershipSchema,
 )
@@ -24,12 +28,17 @@ def sync(
     org_id: str,
     workspace_ids: list[str],
     common_job_parameters: dict[str, Any],
-) -> list[dict[str, Any]]:
+) -> dict[str, str]:
+    """
+    Load users and their memberships, and return a lookup from every identifier LangSmith
+    uses for a user to their ls_user_id, for attributing keys and credentials.
+    """
     active = get_active_members(client, org_id)
     pending = get_pending_members(client, org_id)
     users, org_memberships = transform_users(org_id, active, pending)
+    workspace_links = transform_workspace_links(active)
 
-    complete = True
+    workspace_memberships_complete = True
     memberships: list[dict[str, Any]] = []
     for workspace_id in workspace_ids:
         try:
@@ -41,7 +50,7 @@ def sync(
                 workspace_id,
                 err,
             )
-            complete = False
+            workspace_memberships_complete = False
             continue
         memberships.extend(transform_memberships(workspace_id, workspace_members))
 
@@ -50,18 +59,12 @@ def sync(
         users,
         org_memberships,
         memberships,
+        workspace_links,
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    if complete:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
-        logger.warning(
-            "Skipping LangSmith membership cleanup for organization %s: not every "
-            "workspace could be read, so existing memberships are preserved.",
-            org_id,
-        )
-    return users
+    cleanup(neo4j_session, common_job_parameters, workspace_memberships_complete)
+    return build_user_lookup(users, org_memberships)
 
 
 @timeit
@@ -146,16 +149,12 @@ def transform_users(
                     "full_name": None,
                     "display_name": None,
                     "avatar_url": None,
-                    "tenant_ids": [],
                     "usernames": [],
                 },
             )
             for field in ("email", "full_name", "display_name", "avatar_url"):
                 if user[field] is None:
                     user[field] = member.get(field)
-            for tenant_id in member.get("tenant_ids") or []:
-                if tenant_id not in user["tenant_ids"]:
-                    user["tenant_ids"].append(tenant_id)
             for username in usernames:
                 if username not in user["usernames"]:
                     user["usernames"].append(username)
@@ -176,6 +175,22 @@ def transform_users(
                 }
             )
     return list(users.values()), memberships
+
+
+def transform_workspace_links(active: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Pair each active member with the workspaces the organization listing says they belong
+    to, for the MEMBER_OF shortcut edge.
+
+    This comes from the organization-level listing rather than the per-workspace ones, so
+    it stays complete even when some workspaces cannot be read.
+    """
+    return [
+        {"ls_user_id": member["ls_user_id"], "workspace_id": workspace_id}
+        for member in active
+        if member.get("ls_user_id")
+        for workspace_id in sorted(set(member.get("tenant_ids") or []))
+    ]
 
 
 def transform_memberships(
@@ -227,6 +242,7 @@ def load_users(
     users: list[dict[str, Any]],
     org_memberships: list[dict[str, Any]],
     memberships: list[dict[str, Any]],
+    workspace_links: list[dict[str, Any]],
     org_id: str,
     update_tag: int,
 ) -> None:
@@ -251,20 +267,36 @@ def load_users(
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
+    load_matchlinks(
+        neo4j_session,
+        LangSmithUserToWorkspaceRel(),
+        workspace_links,
+        lastupdated=update_tag,
+        _sub_resource_label="LangSmithOrganization",
+        _sub_resource_id=org_id,
+    )
 
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    workspace_memberships_complete: bool,
 ) -> None:
-    GraphJob.from_node_schema(
-        LangSmithWorkspaceMembershipSchema(), common_job_parameters
-    ).run(neo4j_session)
+    # LangSmithUser itself is never cleaned up: it has no sub-resource because a user can
+    # span organizations. Its relationships are pruned through the schemas below.
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithWorkspaceMembershipSchema(),
+        workspace_memberships_complete,
+        common_job_parameters,
+    )
     GraphJob.from_node_schema(
         LangSmithOrgMembershipSchema(), common_job_parameters
     ).run(neo4j_session)
-    # LangSmithUser has no sub-resource because a user can span organizations, so this
-    # prunes stale relationships without ever deleting a shared identity node.
-    GraphJob.from_node_schema(LangSmithUserSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_matchlink(
+        LangSmithUserToWorkspaceRel(),
+        "LangSmithOrganization",
+        common_job_parameters["ORG_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
