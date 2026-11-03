@@ -159,6 +159,17 @@ def _require_total_items(value: Any, error_message: str) -> int:
     return value
 
 
+def identity_digest(identity: str) -> bytes:
+    """Compact key for remembering an identity across every page of a sync.
+
+    Large organizations return millions of findings, and holding each full id
+    string in a run-long set grows the worker by hundreds of megabytes. A
+    128-bit digest takes less than half the memory, with collisions negligible
+    at that scale.
+    """
+    return hashlib.blake2b(identity.encode(), digest_size=16).digest()
+
+
 @dataclass
 class PaginationProgress:
     fetched_rows: int = 0

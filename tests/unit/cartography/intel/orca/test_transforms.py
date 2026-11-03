@@ -422,10 +422,13 @@ def test_vulnerability_sync_skips_duplicate_identity_across_pages(
     duplicate = deepcopy(VULNERABILITIES[0])
     duplicate["id"] = "another-orca-row"
     duplicate["Description"] = "Different advisory for the same occurrence."
+    other_asset = deepcopy(VULNERABILITIES[0])
+    other_asset["id"] = "orca-row-on-another-asset"
+    other_asset["Inventory"]["AssetUniqueId"] = ASSET_UNIQUE_ID_2
     mocker.patch.object(
         api,
         "iter_serving_layer_pages",
-        return_value=[[VULNERABILITIES[0]], [duplicate]],
+        return_value=[[VULNERABILITIES[0]], [duplicate], [other_asset]],
     )
     load_vulnerabilities = mocker.patch.object(
         vulnerabilities,
@@ -442,7 +445,11 @@ def test_vulnerability_sync_skips_duplicate_identity_across_pages(
     )
 
     # Assert
-    load_vulnerabilities.assert_called_once()
+    loaded_assets = [
+        [finding["target_orca_asset_unique_id"] for finding in call.args[1]]
+        for call in load_vulnerabilities.call_args_list
+    ]
+    assert loaded_assets == [[ASSET_UNIQUE_ID_1], [ASSET_UNIQUE_ID_2]]
     assert "Skipped 1 duplicate Orca vulnerability findings across pages" in (
         caplog.text
     )

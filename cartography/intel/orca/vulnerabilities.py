@@ -290,7 +290,7 @@ def sync(
     update_tag: int,
 ) -> bool:
     """Load Orca vulnerabilities and return whether the fetch is safe to clean up."""
-    seen_ids: set[str] = set()
+    seen_ids: set[bytes] = set()
     row_count = 0
     cross_page_duplicates = 0
     progress = api.PaginationProgress()
@@ -304,11 +304,12 @@ def sync(
     ):
         row_count += len(page)
         vulnerabilities = transform(page, organization_id)
-        new_vulnerabilities = [
-            vulnerability
-            for vulnerability in vulnerabilities
-            if vulnerability["id"] not in seen_ids
-        ]
+        new_vulnerabilities = []
+        for vulnerability in vulnerabilities:
+            digest = api.identity_digest(vulnerability["id"])
+            if digest not in seen_ids:
+                seen_ids.add(digest)
+                new_vulnerabilities.append(vulnerability)
         duplicate_count = len(vulnerabilities) - len(new_vulnerabilities)
         cross_page_duplicates += duplicate_count
         if duplicate_count:
@@ -316,7 +317,6 @@ def sync(
                 "Skipped %d duplicate Orca vulnerability findings across pages.",
                 duplicate_count,
             )
-        seen_ids.update(vulnerability["id"] for vulnerability in new_vulnerabilities)
         if new_vulnerabilities:
             load_vulnerabilities(
                 neo4j_session,

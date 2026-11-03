@@ -207,7 +207,7 @@ def sync(
     update_tag: int,
 ) -> bool:
     """Load Orca alerts and return whether the fetch is safe to clean up."""
-    seen_ids: set[str] = set()
+    seen_ids: set[bytes] = set()
     progress = api.PaginationProgress()
     for page in api.iter_serving_layer_pages(
         session,
@@ -218,7 +218,7 @@ def sync(
         progress=progress,
     ):
         alerts = transform(page, organization_id)
-        page_ids = {alert["id"] for alert in alerts}
+        page_ids = {api.identity_digest(alert["id"]) for alert in alerts}
         if len(page_ids) != len(alerts) or page_ids & seen_ids:
             raise RuntimeError("Orca alerts response contained duplicate identities")
         seen_ids.update(page_ids)
