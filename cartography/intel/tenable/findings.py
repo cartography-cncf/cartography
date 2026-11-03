@@ -5,12 +5,15 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
+from cartography.models.tenable.cve import TenableCveSchema
 from cartography.models.tenable.findings import TenableFindingSchema
 from cartography.models.tenable.plugins import TenablePluginSchema
 from cartography.models.tenable.scans import TenableScanSchema
 from cartography.models.tenable.tenant import TenableTenantSchema
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -53,6 +56,11 @@ def get(
     )
 
 
+def _cve_ids(plugin: dict[str, Any]) -> list[str]:
+    # Blank entries name no CVE, and Neo4j cannot store a null inside a list.
+    return list(dict.fromkeys(cve_id for cve_id in plugin.get("cve") or [] if cve_id))
+
+
 def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for finding in raw_findings:
@@ -69,7 +77,9 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "and a non-null plugin.id"
             )
 
-        cve_ids: list[str] = plugin.get("cve") or []
+        first_cve_id = next(
+            (cve_id for cve_id in plugin.get("cve") or [] if cve_id), None
+        )
 
         result.append(
             {
@@ -93,10 +103,8 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "port": port_info.get("port"),
                 "protocol": port_info.get("protocol"),
                 "service": port_info.get("service"),
-                # First CVE for CVEMetadata ontology matching
-                "cve_id": cve_ids[0] if cve_ids else None,
-                "cve_list": cve_ids,
-                "has_cve": "true" if cve_ids else "false",
+                "cve_id": first_cve_id,
+                "has_cve": "true" if first_cve_id else "false",
             }
         )
     return result
@@ -142,11 +150,39 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
                 "cvss4_base_score": plugin.get("cvss4_base_score"),
                 "vpr_score": vpr.get("score"),
                 "epss_score": plugin.get("epss_score"),
-                "cve_list": plugin.get("cve") or [],
+                "cve_list": _cve_ids(plugin),
                 "type": plugin.get("type"),
             }
         )
     return result
+
+
+def transform_cves(
+    plugins: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Turn the CVE IDs named by the transformed ``plugins`` into one record per CVE,
+    listing the plugins that name it.
+
+    Each CVE links to plugins rather than findings. A plugin for a cumulative OS
+    update can name hundreds of CVEs and is reported once per affected host, so
+    edges from every finding would multiply by the number of hosts. A finding
+    reaches its CVEs through its plugin instead.
+    """
+    plugin_ids_by_cve: dict[str, list[int]] = {}
+    for plugin in plugins:
+        for cve_id in plugin["cve_list"]:
+            plugin_ids_by_cve.setdefault(cve_id, []).append(plugin["id"])
+    return [
+        {
+            # The id format is explained on TenableCveSchema.
+            "id": f"TNB|{tenant_id}|{cve_id}",
+            "cve_id": cve_id,
+            "plugin_ids": plugin_ids,
+        }
+        for cve_id, plugin_ids in plugin_ids_by_cve.items()
+    ]
 
 
 def transform_scans(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -175,6 +211,7 @@ def load_findings(
     findings: list[dict[str, Any]],
     plugins: list[dict[str, Any]],
     scans: list[dict[str, Any]],
+    cves: list[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -184,7 +221,7 @@ def load_findings(
         [{"id": tenant_id}],
         lastupdated=update_tag,
     )
-    # Plugins and scans must exist before findings so outward rel targets are present.
+    # Plugins and scans must exist before the CVEs and findings that link to them.
     load(
         neo4j_session,
         TenablePluginSchema(),
@@ -201,11 +238,40 @@ def load_findings(
     )
     load(
         neo4j_session,
+        TenableCveSchema(),
+        cves,
+        lastupdated=update_tag,
+        TENABLE_TENANT_ID=tenant_id,
+    )
+    load(
+        neo4j_session,
         TenableFindingSchema(),
         findings,
         lastupdated=update_tag,
         TENABLE_TENANT_ID=tenant_id,
     )
+
+
+# DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
+@timeit
+def migrate_legacy_cve_data(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    has_legacy_data = neo4j_session.execute_read(
+        read_single_value_tx,
+        """
+        RETURN EXISTS { MATCH (:TenableFinding:CVE) }
+            OR EXISTS { MATCH (:TenableCve)<-[:HAS_CVE]-(:TenableFinding) }
+        """,
+    )
+    if not has_legacy_data:
+        return
+    logger.info(
+        "Migrating Tenable CVE data written by an earlier version of Cartography. "
+        "This is a one-time migration for this graph."
+    )
+    run_analysis_job("tenable_cve_migration.json", neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -220,6 +286,9 @@ def cleanup(
         neo4j_session
     )
     GraphJob.from_node_schema(TenableScanSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(TenableCveSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -244,6 +313,8 @@ def sync(
     findings = transform(raw_findings)
     plugins = transform_plugins(raw_findings)
     scans = transform_scans(raw_findings)
-    load_findings(neo4j_session, findings, plugins, scans, tenant_id, update_tag)
+    cves = transform_cves(plugins, tenant_id)
+    load_findings(neo4j_session, findings, plugins, scans, cves, tenant_id, update_tag)
+    migrate_legacy_cve_data(neo4j_session, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Tenable finding sync for tenant %s", tenant_id)

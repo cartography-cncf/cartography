@@ -12,12 +12,17 @@ from typing import cast
 from typing import Collection
 from typing import Dict
 from typing import List
+from urllib.parse import parse_qsl
+from urllib.parse import urlencode
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 import backoff
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
 from google.protobuf.json_format import MessageToDict
 from googleapiclient.errors import HttpError
+from googleapiclient.http import HttpRequest
 
 logger = logging.getLogger(__name__)
 
@@ -543,16 +548,51 @@ def is_gcp_http_error_category(
     )
 
 
+def with_return_partial_success(request: HttpRequest) -> HttpRequest:
+    """
+    Add `returnPartialSuccess=true` to a Compute `aggregatedList` request.
+
+    The Compute API supports this parameter, but the static discovery document
+    bundled with google-api-python-client (used by `build_client()`) does not always
+    declare it, and googleapiclient rejects undeclared kwargs with a TypeError. Setting
+    it on the request URI avoids that check. `aggregatedList_next()` copies the
+    previous request's URI and only replaces `pageToken`, so every page keeps it.
+    """
+    scheme, netloc, path, query, fragment = urlsplit(request.uri)
+    params = dict(parse_qsl(query))
+    params["returnPartialSuccess"] = "true"
+    request.uri = urlunsplit((scheme, netloc, path, urlencode(params), fragment))
+    return request
+
+
+def aggregated_page_incomplete(page: Any) -> bool:
+    """
+    Return whether an `aggregatedList` page reports missing scopes outside `items`.
+
+    With `returnPartialSuccess=true`, GCP can report unreadable scopes at the page level,
+    as a non-empty `unreachables` list or a top-level warning, instead of as a per-scope
+    warning that `merge_aggregated_scope_items()` keeps.
+    """
+    if page.get("unreachables"):
+        return True
+    code = (page.get("warning") or {}).get("code")
+    return bool(code) and code != GCP_SCOPE_NO_RESULTS_WARNING
+
+
 def aggregated_response_cleanup_safe(response: Any) -> bool:
     """
     Return whether every scope in an `aggregatedList` response was fully readable.
 
-    `returnPartialSuccess=True` makes GCP answer with the scopes it could read and a
+    `returnPartialSuccess=true` makes GCP answer with the scopes it could read and a
     per-scope warning for the ones it could not. Cleanup must be skipped in that case:
     the response is not a complete replacement set, so deleting everything that was not
     just refreshed would drop resources that still exist.
     """
+    if response.get("incomplete"):
+        return False
     for scoped_list in response.get("items", {}).values():
+        if scoped_list.get("error"):
+            return False
         warning = scoped_list.get("warning")
         if warning and warning.get("code") != GCP_SCOPE_NO_RESULTS_WARNING:
             return False
@@ -584,3 +624,5 @@ def merge_aggregated_scope_items(
             or existing_warning.get("code") == GCP_SCOPE_NO_RESULTS_WARNING
         ):
             target_scoped_list["warning"] = warning
+        if scoped_list.get("error"):
+            target_scoped_list["error"] = scoped_list["error"]

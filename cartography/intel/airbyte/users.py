@@ -1,15 +1,29 @@
+import logging
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
+from urllib.parse import urlsplit
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.airbyte.util import AirbyteClient
+from cartography.models.airbyte.user import AirbyteUserAdminOfOrganizationMatchLink
+from cartography.models.airbyte.user import AirbyteUserAdminOfWorkspaceMatchLink
+from cartography.models.airbyte.user import AirbyteUserMemberOfWorkspaceMatchLink
 from cartography.models.airbyte.user import AirbyteUserSchema
+from cartography.models.airbyte.user import AirbyteUserToOrganizationMatchLink
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
+
+_USERS_URI = "/users"
+_PERMISSIONS_URI = "/permissions"
 
 
 @timeit
@@ -18,18 +32,76 @@ def sync(
     api_session: AirbyteClient,
     org_id: str,
     common_job_parameters: Dict[str, Any],
-) -> None:
-    users = get(api_session, org_id=org_id)
-    for user in users:
-        permissions = get_permissions(api_session, user["id"], org_id=org_id)
-        org_admin, workspace_admin, workspace_member = transform_permissions(
-            permissions
+) -> bool:
+    """
+    Sync the users of an organization and their permissions.
+
+    Listing users requires an organization role and reading another user's
+    permissions requires Organization Admin, so the application's user may be
+    denied here while still being able to read the organization's workspaces and
+    pipelines. A 403 from GET /users or GET /permissions skips this organization's
+    users entirely: nothing is loaded and cleanup does not run, so the previously
+    ingested users and access relationships are preserved instead of being
+    replaced by a partial snapshot. Any other error is re-raised.
+
+    :return: True if users and permissions were fully collected, False if the
+        API denied access and the organization's users were not refreshed.
+    """
+    try:
+        users = get(api_session, org_id=org_id)
+        for user in users:
+            # Keep only this organization's roles, so it writes edges about
+            # itself alone. For the application's own user Airbyte ignores
+            # organizationId and returns every organization's permissions,
+            # including workspace grants; sync_own_workspace_permissions() loads
+            # those. For other users it returns organization roles only.
+            permissions = [
+                p
+                for p in get_permissions(api_session, user["id"], org_id=org_id)
+                if p["scope"] == "organization" and p["scopeId"] == org_id
+            ]
+            user["adminOfOrganization"], _, _ = transform_permissions(permissions)
+    except requests.HTTPError as e:
+        endpoint = _denied_identity_endpoint(api_session, e)
+        if endpoint is None:
+            raise
+        logger.warning(
+            "Airbyte denied GET %s for organization %s (HTTP 403). Skipping users "
+            "and permissions for this organization; previously ingested Airbyte "
+            "users and their access relationships are kept and not cleaned up. "
+            "Collecting them requires the user that owns the Airbyte application "
+            "to be an Organization Admin of this organization.",
+            endpoint,
+            org_id,
         )
-        user["adminOfOrganization"] = org_admin
-        user["adminOfWorkspace"] = workspace_admin
-        user["memberOfWorkspace"] = workspace_member
+        return False
     load_users(neo4j_session, users, org_id, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
+    return True
+
+
+def _denied_identity_endpoint(
+    api_session: AirbyteClient,
+    error: requests.HTTPError,
+) -> str | None:
+    """
+    Return the endpoint if the error is a 403 on the users or permissions GET.
+
+    The check uses the request that produced the response, so a 403 from the
+    token exchange (POST /applications/token), which AirbyteClient.get() performs
+    before the resource request, is not mistaken for an identity denial.
+    """
+    response = error.response
+    if response is None or response.status_code != 403:
+        return None
+    request = response.request
+    if request is None or request.method != "GET" or request.url is None:
+        return None
+    request_path = urlsplit(request.url).path
+    for uri in (_USERS_URI, _PERMISSIONS_URI):
+        if request_path == urlsplit(f"{api_session.base_url}{uri}").path:
+            return uri
+    return None
 
 
 @timeit
@@ -37,7 +109,7 @@ def get(
     api_session: AirbyteClient,
     org_id: str,
 ) -> List[Dict[str, Any]]:
-    return api_session.get("/users", params={"organizationId": org_id})
+    return api_session.get(_USERS_URI, params={"organizationId": org_id})
 
 
 @timeit
@@ -47,7 +119,7 @@ def get_permissions(
     org_id: str,
 ) -> List[Dict[str, Any]]:
     return api_session.get(
-        "/permissions",
+        _PERMISSIONS_URI,
         params={"organizationId": org_id, "userId": user_id},
     )
 
@@ -77,6 +149,23 @@ def transform_permissions(
     return org_admin, workspace_admin, workspace_member
 
 
+# The user node is shared across organizations, so its organization edges are
+# MatchLinks scoped to the organization that wrote them. See
+# cartography/models/airbyte/user.py. Each MatchLink is paired with the user
+# field holding its target ids; None means the organization being synced.
+_MATCHLINKS = (
+    (AirbyteUserToOrganizationMatchLink(), None),
+    (AirbyteUserAdminOfOrganizationMatchLink(), "adminOfOrganization"),
+)
+# Workspace edges come only from the application's own permissions, which Airbyte
+# returns in full whatever organization is asked about, and which do not say
+# which organization a workspace belongs to. They are scoped to that user.
+_OWN_WORKSPACE_MATCHLINKS = (
+    (AirbyteUserAdminOfWorkspaceMatchLink(), "adminOfWorkspace"),
+    (AirbyteUserMemberOfWorkspaceMatchLink(), "memberOfWorkspace"),
+)
+
+
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
@@ -84,19 +173,92 @@ def load_users(
     org_id: str,
     update_tag: int,
 ) -> None:
-    load(
-        neo4j_session,
-        AirbyteUserSchema(),
-        data,
-        ORG_ID=org_id,
-        lastupdated=update_tag,
-    )
+    load(neo4j_session, AirbyteUserSchema(), data, lastupdated=update_tag)
+    for matchlink, field in _MATCHLINKS:
+        load_matchlinks(
+            neo4j_session,
+            matchlink,
+            [
+                {"user_id": user["id"], "scope_id": scope_id}
+                for user in data
+                for scope_id in (user[field] if field else [org_id])
+            ],
+            lastupdated=update_tag,
+            _sub_resource_label="AirbyteOrganization",
+            _sub_resource_id=org_id,
+        )
 
 
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(AirbyteUserSchema(), common_job_parameters).run(
-        neo4j_session
+    for matchlink, _ in _MATCHLINKS:
+        GraphJob.from_matchlink(
+            matchlink,
+            "AirbyteOrganization",
+            common_job_parameters["ORG_ID"],
+            common_job_parameters["UPDATE_TAG"],
+        ).run(neo4j_session)
+
+
+@timeit
+def sync_own_workspace_permissions(
+    neo4j_session: neo4j.Session,
+    api_session: AirbyteClient,
+    update_tag: int,
+) -> None:
+    """
+    Sync the workspace roles of the user that owns the Airbyte application.
+
+    Airbyte returns workspace permissions only when a user reads its own, and
+    returns all of them, so this runs once per sync and its cleanup is scoped to
+    that user rather than to an organization. Cleanup also covers every owner an
+    earlier sync recorded, so the roles of a previous owner, or of an owner with
+    no permissions left, do not linger.
+    """
+    try:
+        permissions = api_session.get(_PERMISSIONS_URI)
+    except requests.HTTPError as e:
+        if _denied_identity_endpoint(api_session, e) is None:
+            raise
+        logger.warning(
+            "Airbyte denied GET /permissions for the application's own user "
+            "(HTTP 403). Skipping its workspace roles; previously ingested ones "
+            "are kept and not cleaned up.",
+        )
+        return
+    owner_ids = set(
+        neo4j_session.execute_read(
+            read_list_of_values_tx,
+            """
+            MATCH (:AirbyteUser)-[r:ADMIN_OF|MEMBER_OF]->(:AirbyteWorkspace)
+            WHERE r._sub_resource_label = 'AirbyteUser'
+            RETURN DISTINCT r._sub_resource_id
+            """,
+        ),
     )
+    if permissions:
+        owner_id = permissions[0]["userId"]
+        owner_ids.add(owner_id)
+        owner: Dict[str, Any] = {}
+        _, owner["adminOfWorkspace"], owner["memberOfWorkspace"] = (
+            transform_permissions(permissions)
+        )
+        for matchlink, field in _OWN_WORKSPACE_MATCHLINKS:
+            load_matchlinks(
+                neo4j_session,
+                matchlink,
+                [
+                    {"user_id": owner_id, "scope_id": scope_id}
+                    for scope_id in owner[field]
+                ],
+                lastupdated=update_tag,
+                _sub_resource_label="AirbyteUser",
+                _sub_resource_id=owner_id,
+            )
+    for scope_id in owner_ids:
+        for matchlink, _ in _OWN_WORKSPACE_MATCHLINKS:
+            GraphJob.from_matchlink(
+                matchlink, "AirbyteUser", str(scope_id), update_tag
+            ).run(neo4j_session)

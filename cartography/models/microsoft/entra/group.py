@@ -46,6 +46,17 @@ class EntraGroupNodeProperties(CartographyNodeProperties):
         "is_assignable_to_role",
         description="Whether directory roles can be assigned to the group.",
     )
+    membership_rule: PropertyRef = PropertyRef(
+        "membership_rule",
+        description=(
+            "Rule that sets the members of a dynamic group, e.g. "
+            '`user.department -eq "Sales"`. Null for assigned groups.'
+        ),
+    )
+    membership_rule_processing_state: PropertyRef = PropertyRef(
+        "membership_rule_processing_state",
+        description="Whether the dynamic membership rule is applied: `On` or `Paused`.",
+    )
     created_date_time: PropertyRef = PropertyRef(
         "created_date_time", description="Timestamp when the group was created."
     )

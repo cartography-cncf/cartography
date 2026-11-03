@@ -5,13 +5,14 @@ from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
 from cartography.rules.data.frameworks.soc2 import soc2_tsc
+from cartography.rules.data.frameworks.stig import stig_okta
 
 
 def test_framework_helpers_preserve_framework_metadata():
     helpers = [
         (
             cis_aws("4.1"),
-            "cis aws foundations benchmark",
+            "CIS AWS Foundations Benchmark",
             "cis",
             "aws",
             "6.0.0",
@@ -20,7 +21,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             cis_gcp("3.1"),
-            "cis gcp foundations benchmark",
+            "CIS GCP Foundations Benchmark",
             "cis",
             "gcp",
             "4.0",
@@ -29,7 +30,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             cis_kubernetes("5.1.1"),
-            "cis kubernetes benchmark",
+            "CIS Kubernetes Benchmark",
             "cis",
             "kubernetes",
             "1.12",
@@ -38,7 +39,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             cis_google_workspace("4.1.1.3"),
-            "cis google workspace foundations benchmark",
+            "CIS Google Workspace Foundations Benchmark",
             "cis",
             "googleworkspace",
             "1.3",
@@ -47,7 +48,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             iso27001_annex_a("8.15"),
-            "iso/iec 27001:2022 annex a",
+            "ISO/IEC 27001:2022 Annex A",
             "iso",
             "27001",
             "2022",
@@ -56,7 +57,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             nist_ai_rmf("MAP 1"),
-            "nist ai risk management framework",
+            "NIST AI Risk Management Framework",
             "nist",
             "ai-rmf",
             "1.0",
@@ -65,13 +66,22 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             soc2_tsc("CC6.6"),
-            "soc 2: trust services criteria",
+            "SOC 2: Trust Services Criteria",
             "soc2",
             "tsc",
             "2022",
             "cc6.6",
             "The entity implements logical access security measures to protect "
             "against threats from sources outside its system boundaries.",
+        ),
+        (
+            stig_okta("V-273188"),
+            "DISA Okta Identity as a Service (IDaaS) STIG",
+            "stig",
+            "okta",
+            "v1r2",
+            "v-273188",
+            "Okta must automatically disable accounts after a 35-day period of account inactivity.",
         ),
     ]
 
@@ -100,3 +110,10 @@ def test_framework_helpers_allow_explicit_control_title_override():
     soc2_framework = soc2_tsc("CC6.1", control_title="Custom SOC 2 criterion")
 
     assert soc2_framework.control_title == "Custom SOC 2 criterion"
+
+
+def test_stig_okta_control_title_lookup_tolerates_casing():
+    assert stig_okta(" v-273205 ").control_title == (
+        "The Okta Verify application must be configured to connect only to "
+        "FIPS-compliant devices."
+    )

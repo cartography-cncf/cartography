@@ -289,6 +289,21 @@ def test_sync_artifact_registry(
         (TEST_PLATFORM_IMAGE_AMD64_ID,),
         (TEST_PLATFORM_IMAGE_ARM64_ID,),
     }
+    platform_rows = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {id: $parent})-[:CONTAINS_IMAGE]->(child)
+        RETURN child.id AS id, child.architecture AS architecture,
+               child._ont_architecture AS ont_architecture, child.variant AS variant
+        """,
+        parent=TEST_DOCKER_IMAGE_DIGEST,
+    ).data()
+    assert {
+        (row["id"], row["architecture"], row["ont_architecture"], row["variant"])
+        for row in platform_rows
+    } == {
+        (TEST_PLATFORM_IMAGE_AMD64_ID, "amd64", "amd64", None),
+        (TEST_PLATFORM_IMAGE_ARM64_ID, "arm64", "arm64", "v8"),
+    }
 
     # Assert: Check Helm chart nodes
     assert check_nodes(neo4j_session, "GCPArtifactRegistryHelmChart", ["id"]) == {
@@ -1066,6 +1081,89 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["ont_os"] == "linux"
     assert result["ont_variant"] == "v9"
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
+def test_load_image_provenance_slsa_replaces_label_source(neo4j_session):
+    project_id = "test-gar-provenance-slsa-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    docker_image = _make_docker_image(repo_id, 9002)
+    load_docker_images(neo4j_session, [docker_image], project_id, TEST_UPDATE_TAG)
+
+    base_update = {
+        "digest": docker_image["digest"],
+        "type": "image",
+        "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+        "architecture": "amd64",
+        "os": "linux",
+        "os_version": None,
+        "os_features": None,
+        "variant": None,
+        "parent_image_uri": None,
+        "parent_image_digest": None,
+        "layer_diff_ids": ["sha256:layer-1"],
+    }
+    # A first sync only saw OCI labels inherited from the base image.
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                **base_update,
+                "source_uri": "https://github.com/example-base/base-images",
+                "source_revision": "revision-base",
+                "source_file": None,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                **base_update,
+                "source_uri": "https://github.com/example-org/widgets",
+                "source_revision": "revision-app",
+                "source_file": "services/api/Dockerfile",
+                "provenance_from_slsa": True,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
+    # A later label-only pass must not revert the SLSA values.
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                **base_update,
+                "source_uri": "https://github.com/example-base/base-images",
+                "source_revision": "revision-base",
+                "source_file": None,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG + 2,
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (image:GCPArtifactRegistryImage {id: $image_id})
+        RETURN
+            image.source_uri AS source_uri,
+            image.source_revision AS source_revision,
+            image.source_file AS source_file,
+            image.provenance_from_slsa AS provenance_from_slsa
+        """,
+        image_id=docker_image["digest"],
+    ).single()
+
+    assert result["source_uri"] == "https://github.com/example-org/widgets"
+    assert result["source_revision"] == "revision-app"
+    assert result["source_file"] == "services/api/Dockerfile"
+    assert result["provenance_from_slsa"] is None
 
 
 def test_load_image_provenance_creates_parent_image_lineage(neo4j_session):

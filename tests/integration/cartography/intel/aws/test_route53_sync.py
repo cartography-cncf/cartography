@@ -8,6 +8,7 @@ from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LOAD_BALANCER_V2_DAT
 from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 from tests.data.aws.route53 import GET_ZONES_MIXED_CASE_ALIAS_RESPONSE
 from tests.data.aws.route53 import GET_ZONES_SAMPLE_RESPONSE
+from tests.data.aws.route53 import GET_ZONES_WILDCARD_RESPONSE
 from tests.data.aws.route53 import GET_ZONES_WITH_SUBZONE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -451,5 +452,61 @@ def test_sync_route53_links_alias_to_mixed_case_load_balancer(
         (
             "/hostedzone/MIXED_CASE_ZONE/mixed.example.com/ALIAS",
             MIXED_CASE_LB_DNS_NAME,
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.route53,
+    "get_zones",
+    return_value=GET_ZONES_WILDCARD_RESPONSE,
+)
+def test_sync_route53_decodes_wildcard_escapes_for_ontology(
+    mock_get_zones, neo4j_session
+):
+    """
+    Route53 returns `*` as `\\052`. The record keeps the raw name and id, while the ontology
+    fields use the decoded name so a wildcard matches the same name from other providers.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AWSDNSRecord",
+        ["id", "name", "value", "_ont_name", "_ont_target_hostname"],
+    ) == {
+        (
+            "/hostedzone/WILDCARD_ZONE/\\052.example.com/CNAME",
+            "\\052.example.com",
+            "ingress.example.net",
+            "*.example.com",
+            "ingress.example.net",
+        ),
+        (
+            "/hostedzone/WILDCARD_ZONE/\\052.apps.example.com/ALIAS",
+            "\\052.apps.example.com",
+            "\\052.endpoint.example.net",
+            "*.apps.example.com",
+            "*.endpoint.example.net",
+        ),
+        (
+            "/hostedzone/WILDCARD_ZONE/\\052.static.example.com/A",
+            "\\052.static.example.com",
+            "192.0.2.20",
+            "*.static.example.com",
+            None,
         ),
     }

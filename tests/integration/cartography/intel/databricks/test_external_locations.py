@@ -7,6 +7,7 @@ from tests.data.databricks.external_locations import (
     DATABRICKS_EXTERNAL_LOCATION_S3_BUCKET,
 )
 from tests.data.databricks.external_locations import DATABRICKS_EXTERNAL_LOCATIONS
+from tests.data.databricks.metastore import DATABRICKS_METASTORE_ID
 from tests.data.databricks.storage_credentials import DATABRICKS_STORAGE_CREDENTIALS
 from tests.data.databricks.workspace import DATABRICKS_WORKSPACE_ID
 from tests.integration.cartography.intel.databricks.test_metastores import (
@@ -28,6 +29,7 @@ def _seed_storage_credentials(neo4j_session):
             DATABRICKS_STORAGE_CREDENTIALS
         ),
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -56,6 +58,7 @@ def test_load_databricks_external_locations(mock_get, neo4j_session):
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )
 

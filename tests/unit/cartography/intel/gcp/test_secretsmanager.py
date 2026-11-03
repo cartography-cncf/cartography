@@ -124,6 +124,23 @@ def test_get_secret_versions_returns_empty_when_iam_permission_denied(monkeypatc
     )
 
 
+def test_get_secret_versions_returns_empty_when_secret_not_found(monkeypatch):
+    secretmanager, _req = _make_secretmanager_client()
+    error = _make_http_error(
+        404,
+        {"error": {"message": "Secret not found"}},
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.secretsmanager.gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(error),
+    )
+
+    assert (
+        get_secret_versions(secretmanager, "projects/test-project/secrets/example")
+        == []
+    )
+
+
 def test_get_secret_versions_reraises_generic_403(monkeypatch):
     secretmanager, _req = _make_secretmanager_client()
     error = _make_http_error(

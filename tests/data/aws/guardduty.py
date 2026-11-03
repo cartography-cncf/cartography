@@ -592,6 +592,49 @@ GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE = {
 # true` nested inside the JSON-encoded service.additionalInfo.value string, with
 # the placeholder instance i-99999999); the other is a real finding. Used to prove
 # the sample is ingested but excluded from the rule.
+GET_ECS_RUNTIME_FINDINGS = {
+    "Findings": [
+        {
+            "Id": "e1c5678901234abcdef5678901234abcd",
+            "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d56e78f901234567890abcdef/finding/e1c5678901234abcdef5678901234abcd",
+            "Type": "UnauthorizedAccess:Runtime/MetadataDNSRebind",
+            "Title": "A process in a container performed DNS lookups that may indicate a DNS rebinding attack.",
+            "Description": "A process in a task in the ECS cluster test-ecs-cluster queried a domain that resolves to the instance metadata service.",
+            "Severity": 8.0,
+            "Confidence": 8.0,
+            "CreatedAt": datetime(2023, 1, 19, 14, 0, 0),
+            "UpdatedAt": datetime(2023, 1, 19, 14, 15, 0),
+            "EventFirstSeen": datetime(2023, 1, 19, 14, 0, 0),
+            "EventLastSeen": datetime(2023, 1, 19, 14, 15, 0),
+            "AccountId": "123456789012",
+            "Region": "us-east-1",
+            "DetectorId": "12abc34d56e78f901234567890abcdef",
+            "Archived": False,
+            "Resource": {
+                "ResourceType": "ECSCluster",
+                "EcsClusterDetails": {
+                    "Name": "test-ecs-cluster",
+                    "Arn": "arn:aws:ecs:us-east-1:123456789012:cluster/test-ecs-cluster",
+                    "Status": "ACTIVE",
+                    "TaskDetails": {
+                        "Arn": "arn:aws:ecs:us-east-1:123456789012:task/test-ecs-cluster/0123456789abcdef0123456789abcdef",
+                        "DefinitionArn": "arn:aws:ecs:us-east-1:123456789012:task-definition/test-task:1",
+                    },
+                },
+            },
+            "Service": {
+                "Archived": False,
+                "Count": 1,
+                "DetectorId": "12abc34d56e78f901234567890abcdef",
+                "EventFirstSeen": datetime(2023, 1, 19, 14, 0, 0),
+                "EventLastSeen": datetime(2023, 1, 19, 14, 15, 0),
+                "ResourceRole": "TARGET",
+                "ServiceName": "guardduty",
+            },
+        },
+    ]
+}
+
 GET_SAMPLE_FINDINGS = {
     "Findings": [
         {
@@ -742,6 +785,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "resource_type": "Instance",
         "resource_id": "i-99999999",
         "eks_cluster_arn": None,
+        "ecs_cluster_arn": None,
         "access_key_id": None,
         "principal_user_id": None,
         "principal_role_id": None,
@@ -786,6 +830,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "resource_type": "S3Bucket",
         "resource_id": "test-bucket",
         "eks_cluster_arn": None,
+        "ecs_cluster_arn": None,
         "access_key_id": None,
         "principal_user_id": None,
         "principal_role_id": None,
@@ -830,6 +875,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "resource_type": "AccessKey",
         "resource_id": None,  # AccessKey doesn't have resource_id
         "eks_cluster_arn": None,
+        "ecs_cluster_arn": None,
         "access_key_id": "AKIAIOSFODNN7EXAMPLE",
         "principal_user_id": "AIDACKCEVSQ6C2EXAMPLE",
         "principal_role_id": None,
@@ -874,6 +920,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "resource_type": "AccessKey",
         "resource_id": None,
         "eks_cluster_arn": None,
+        "ecs_cluster_arn": None,
         "access_key_id": "ASIAEXAMPLEASSUMEDKEY",
         "principal_user_id": None,
         "principal_role_id": "AROAEXAMPLEROLEID",
@@ -918,6 +965,7 @@ EXPECTED_TRANSFORM_RESULTS = [
         "resource_type": "EKSCluster",
         "resource_id": None,
         "eks_cluster_arn": "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster",
+        "ecs_cluster_arn": None,
         "access_key_id": None,
         "principal_user_id": None,
         "principal_role_id": None,

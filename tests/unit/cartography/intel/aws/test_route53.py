@@ -1,5 +1,6 @@
 import pytest
 
+from cartography.intel.aws.route53 import _decode_route53_escapes
 from cartography.intel.aws.route53 import _normalize_alias_target
 from cartography.intel.aws.route53 import _normalize_dns_target
 from cartography.intel.aws.route53 import transform_record_set
@@ -113,3 +114,44 @@ def test_transform_record_set_leaves_ip_values_alone():
     assert transformed is not None
     assert transformed["value"] == "1.2.3.4,5.6.7.8"
     assert transformed["ip_addresses"] == ["1.2.3.4", "5.6.7.8"]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("\\052.example.com", "*.example.com"),
+        ("\\100.example.com", "@.example.com"),
+        ("https\\072\\057\\057api.example.com", "https://api.example.com"),
+        ("www.example.com", "www.example.com"),
+        # These would change how the name splits into labels, so they stay escaped.
+        ("a\\056b.example.com", "a\\056b.example.com"),
+        ("a\\134052.example.com", "a\\134052.example.com"),
+        # Whitespace, control characters and non-ASCII bytes cannot be part of a hostname.
+        (
+            "ns-1.example.net.\\040ns-2.example.net",
+            "ns-1.example.net.\\040ns-2.example.net",
+        ),
+        ("mail\\000.example.com", "mail\\000.example.com"),
+        ("caf\\303\\251.example.com", "caf\\303\\251.example.com"),
+    ],
+)
+def test_decode_route53_escapes(value, expected):
+    assert _decode_route53_escapes(value) == expected
+
+
+def test_transform_record_set_decodes_wildcard_only_in_hostname_fields():
+    record = transform_record_set(
+        {
+            "Name": "\\052.example.com.",
+            "Type": "A",
+            "AliasTarget": {"DNSName": "\\052.Endpoint.example.net."},
+        },
+        "/hostedzone/ZONE",
+        "\\052.example.com",
+    )
+
+    assert record["id"] == "/hostedzone/ZONE/\\052.example.com/ALIAS"
+    assert record["name"] == "\\052.example.com"
+    assert record["value"] == "\\052.endpoint.example.net"
+    assert record["name_normalized"] == "*.example.com"
+    assert record["target_hostname"] == "*.endpoint.example.net"

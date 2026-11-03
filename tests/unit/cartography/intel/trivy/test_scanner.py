@@ -12,7 +12,46 @@ from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
+from cartography.intel.trivy.scanner import transform_all_packages
 from cartography.intel.trivy.scanner import transform_scan_results
+
+
+@pytest.mark.parametrize(
+    "metadata, matches",
+    [
+        ({"FilesystemSnapshotId": "aws:ec2:i-01:rootfs"}, True),
+        ({}, False),
+        (None, False),
+        ("invalid-metadata", False),
+        ({"FilesystemSnapshotId": ""}, False),
+        ({"FilesystemSnapshotId": ["aws:ec2:i-01:rootfs"]}, False),
+        ({"FilesystemSnapshotId": "aws:ec2:i-unknown:rootfs"}, False),
+    ],
+)
+def test_prepare_trivy_vm_requires_existing_rootfs_target(metadata, matches, caplog):
+    # Arrange: even an image alias collision must not route a VM to an image.
+    trivy_data = {
+        "ArtifactType": "vm",
+        "ArtifactName": "ebs:snap-temporary",
+        "Metadata": metadata,
+    }
+
+    # Act
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris={"ebs:snap-temporary"},
+        digest_aliases={},
+        filesystem_targets={},
+        rootfs_targets={"aws:ec2:i-01:rootfs"},
+        source="vm.json",
+    )
+
+    # Assert
+    if matches:
+        assert prepared == (trivy_data, None, ["aws:ec2:i-01:rootfs"])
+    else:
+        assert prepared is None
+        assert "Skipping Trivy VM report vm.json" in caplog.text
 
 
 def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
@@ -32,6 +71,7 @@ def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
         image_uris=set(),
         digest_aliases={},
         filesystem_targets={("acme/api", revision, None): ["snapshot-1"]},
+        rootfs_targets=set(),
         source="repository.json",
     )
 
@@ -58,6 +98,7 @@ def test_prepare_trivy_data_matches_filesystem_root_directory():
             ("acme/api", revision, "services/api"): ["snapshot-api"],
             ("acme/api", revision, "services/web"): ["snapshot-web"],
         },
+        rootfs_targets=set(),
         source="repository.json",
     )
 
@@ -679,12 +720,19 @@ def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy._get_filesystem_scan_targets")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+@pytest.mark.parametrize(
+    "artifact_type,cleaned_snapshot_ids",
+    [("repository", ["snapshot-1"]), ("vm", ["aws:ec2:i-01:rootfs"])],
+)
 def test_filesystem_only_reports_preserve_existing_image_scan_data(
     mock_get_targets_and_aliases,
     mock_get_filesystem_targets,
     mock_cleanup,
     mock_sync_filesystem,
+    artifact_type,
+    cleaned_snapshot_ids,
 ):
+    # Arrange
     revision = "a" * 40
     mock_get_targets_and_aliases.return_value = ({"registry.example/app:latest"}, {})
     mock_get_filesystem_targets.return_value = {
@@ -697,19 +745,28 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
     ]
     reader.read_bytes.return_value = json.dumps(
         {
-            "ArtifactType": "repository",
+            "ArtifactType": artifact_type,
             "Metadata": {
                 "RepoURL": "https://github.com/owner/repo",
                 "Commit": revision,
+                "FilesystemSnapshotId": "aws:ec2:i-01:rootfs",
             },
             "Results": [],
         }
     ).encode()
 
     neo4j_session = MagicMock()
-    with patch(
-        "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
-    ) as mock_filesystem_cleanup:
+
+    # Act
+    with (
+        patch(
+            "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
+        ) as mock_filesystem_cleanup,
+        patch(
+            "cartography.intel.trivy._get_rootfs_scan_targets",
+            return_value={"aws:ec2:i-01:rootfs": True},
+        ),
+    ):
         sync_trivy_from_report_reader(
             neo4j_session=neo4j_session,
             reader=reader,
@@ -717,27 +774,36 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
             common_job_parameters={"UPDATE_TAG": 123},
         )
 
+    # Assert
     mock_sync_filesystem.assert_called_once()
     mock_cleanup.assert_not_called()
-    mock_filesystem_cleanup.assert_called_once_with(neo4j_session, 123)
+    mock_filesystem_cleanup.assert_called_once_with(
+        neo4j_session, 123, snapshot_ids=cleaned_snapshot_ids
+    )
 
 
 @patch("cartography.intel.trivy.sync_single_image")
 @patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy._get_filesystem_scan_targets")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-def test_image_only_reports_preserve_existing_filesystem_scan_data(
+@pytest.mark.parametrize(
+    "has_source_targets,has_rootfs_targets",
+    [(True, False), (True, True), (False, True)],
+)
+def test_image_only_report_cleanup_depends_on_source_targets(
     mock_get_targets_and_aliases,
     mock_get_filesystem_targets,
     mock_cleanup,
     mock_sync_image,
+    has_source_targets,
+    has_rootfs_targets,
 ):
     # Arrange
     image_uri = "registry.example/app:latest"
     mock_get_targets_and_aliases.return_value = ({image_uri}, {})
-    mock_get_filesystem_targets.return_value = {
-        ("owner/repo", "a" * 40, None): ["snapshot-1"]
-    }
+    mock_get_filesystem_targets.return_value = (
+        {("owner/repo", "a" * 40, None): ["snapshot-1"]} if has_source_targets else {}
+    )
     reader = MagicMock()
     reader.source_uri = "memory://trivy"
     reader.list_reports.return_value = [
@@ -753,9 +819,18 @@ def test_image_only_reports_preserve_existing_filesystem_scan_data(
     neo4j_session = MagicMock()
 
     # Act
-    with patch(
-        "cartography.intel.trivy.cleanup_image_relationships"
-    ) as mock_image_cleanup:
+    with (
+        patch(
+            "cartography.intel.trivy.cleanup_image_relationships"
+        ) as mock_image_cleanup,
+        patch(
+            "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
+        ) as mock_filesystem_cleanup,
+        patch(
+            "cartography.intel.trivy._get_rootfs_scan_targets",
+            return_value=({"aws:ec2:i-01:rootfs": False} if has_rootfs_targets else {}),
+        ),
+    ):
         sync_trivy_from_report_reader(
             neo4j_session=neo4j_session,
             reader=reader,
@@ -765,8 +840,13 @@ def test_image_only_reports_preserve_existing_filesystem_scan_data(
 
     # Assert
     mock_sync_image.assert_called_once()
-    mock_cleanup.assert_not_called()
-    mock_image_cleanup.assert_called_once_with(neo4j_session, 123)
+    mock_filesystem_cleanup.assert_not_called()
+    if has_source_targets:
+        mock_cleanup.assert_not_called()
+        mock_image_cleanup.assert_called_once_with(neo4j_session, 123)
+    else:
+        mock_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
+        mock_image_cleanup.assert_not_called()
 
 
 @patch("cartography.intel.trivy.scanner._sync_scan_results")
@@ -785,7 +865,7 @@ def test_filesystem_scan_accepts_null_results(mock_sync_scan_results):
 
 
 def test_transform_scan_results_only_sets_cve_id_for_cves():
-    """Only CVE-prefixed ids populate cve_id; GHSA ids land in ghsa_id."""
+    """Only CVE ids populate cve_id, in canonical form; GHSA ids land in ghsa_id."""
     # Arrange
     results = [
         {
@@ -810,6 +890,12 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
                     "InstalledVersion": "5.4.1-0.2",
                     "Severity": "LOW",
                 },
+                {
+                    "VulnerabilityID": "CVE-2026-1965_1",
+                    "PkgName": "curl",
+                    "InstalledVersion": "8.14.1-r2",
+                    "Severity": "UNKNOWN",
+                },
             ],
         },
     ]
@@ -823,6 +909,7 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
         "TIF|CVE-2024-11111",
         "TIF|GHSA-aaaa-bbbb-cccc",
         "TIF|TEMP-0000000-ABCDEF",
+        "TIF|CVE-2026-1965_1",
     }
 
     cve = findings_by_id["TIF|CVE-2024-11111"]
@@ -840,11 +927,18 @@ def test_transform_scan_results_only_sets_cve_id_for_cves():
     assert temp["ghsa_id"] is None
     assert temp["has_cve"] == "false"
 
+    # Alpine's per-patch suffix is dropped from cve_id but kept on the node id
+    alpine = findings_by_id["TIF|CVE-2026-1965_1"]
+    assert alpine["cve_id"] == "CVE-2026-1965"
+    assert alpine["has_cve"] == "true"
+    assert alpine["vulnerability_ids"] == ["CVE-2026-1965_1"]
+
     # The raw identifier stays available on name regardless of its scheme
     assert {finding["VulnerabilityID"] for finding in findings_list} == {
         "CVE-2024-11111",
         "GHSA-aaaa-bbbb-cccc",
         "TEMP-0000000-ABCDEF",
+        "CVE-2026-1965_1",
     }
 
 
@@ -928,3 +1022,395 @@ def test_transform_scan_results_dedupes_vulnerability_ids():
 
     # Assert
     assert findings_list[0]["vulnerability_ids"] == ["CVE-2025-31115", "DSA-5895-1"]
+
+
+def _vulnerability(
+    pkg_name: str,
+    severity: str,
+    severity_source: str | None,
+    status: str,
+) -> dict:
+    return {
+        "VulnerabilityID": "CVE-2023-4039",
+        "PkgName": pkg_name,
+        "InstalledVersion": "1.0.0",
+        "Severity": severity,
+        "SeveritySource": severity_source,
+        "Status": status,
+        "DataSource": {"ID": f"{pkg_name}-db"},
+    }
+
+
+def _os_packages(*vulnerabilities: dict) -> dict:
+    return {
+        "Class": "os-pkgs",
+        "Type": "debian",
+        "Vulnerabilities": list(vulnerabilities),
+    }
+
+
+def _language_packages(*vulnerabilities: dict) -> dict:
+    return {
+        "Class": "lang-pkgs",
+        "Type": "pip",
+        "Vulnerabilities": list(vulnerabilities),
+    }
+
+
+def _target_ratings(findings_list: list[dict]) -> list[tuple]:
+    return [
+        (
+            row["TargetSeverity"],
+            row["TargetSeveritySource"],
+            row["TargetStatus"],
+            row["TargetDataSourceID"],
+        )
+        for row in findings_list
+    ]
+
+
+@pytest.mark.parametrize(
+    "results",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("low-package", "LOW", "debian", "affected"),
+                    _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+                ),
+            ],
+            id="most-severe-last",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+                    _vulnerability("low-package", "LOW", "debian", "affected"),
+                ),
+            ],
+            id="most-severe-first",
+        ),
+    ],
+)
+def test_transform_scan_results_rates_a_finding_by_its_most_severe_package(results):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "results, expected_rating",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                    _vulnerability("vendor-rated", "MEDIUM", "debian", "affected"),
+                ),
+            ],
+            ("MEDIUM", "debian", "affected", "vendor-rated-db"),
+            id="named-source-after-nvd",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("vendor-rated", "MEDIUM", "debian", "affected"),
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                ),
+            ],
+            ("MEDIUM", "debian", "affected", "vendor-rated-db"),
+            id="named-source-before-nvd",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                    _vulnerability("vendor-rated", "MEDIUM", "ubuntu", "affected"),
+                ),
+            ],
+            ("MEDIUM", "ubuntu", "affected", "vendor-rated-db"),
+            id="named-source-after-unsourced",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                ),
+            ],
+            ("MEDIUM", None, "affected", "unsourced-db"),
+            id="unsourced-ties-with-nvd-unsourced-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("nvd-rated", "MEDIUM", "nvd", "affected"),
+                    _vulnerability("unsourced", "MEDIUM", None, "affected"),
+                ),
+            ],
+            ("MEDIUM", "nvd", "affected", "nvd-rated-db"),
+            id="unsourced-ties-with-nvd-nvd-first",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_a_named_severity_source_on_a_tie(
+    results,
+    expected_rating,
+):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
+
+
+@pytest.mark.parametrize(
+    "results, expected_rating",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                    _vulnerability("unfixed", "LOW", "debian", "affected"),
+                ),
+            ],
+            ("LOW", "debian", "affected", "unfixed-db"),
+            id="affected-after-fixed",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unfixed", "LOW", "debian", "affected"),
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                ),
+            ],
+            ("LOW", "debian", "affected", "unfixed-db"),
+            id="affected-before-fixed",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                    _vulnerability("unfixable", "LOW", "debian", "will_not_fix"),
+                ),
+            ],
+            ("LOW", "debian", "will_not_fix", "unfixable-db"),
+            id="will-not-fix-after-fixed",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("unaffected", "LOW", "debian", "not_affected"),
+                    _vulnerability("fixable", "LOW", "debian", "fixed"),
+                ),
+            ],
+            ("LOW", "debian", "fixed", "fixable-db"),
+            id="fixed-after-not-affected",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_no_fix_available_on_a_tie(
+    results,
+    expected_rating,
+):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
+
+
+@pytest.mark.parametrize(
+    "results, expected_rating",
+    [
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("os-package", "HIGH", "debian", "affected"),
+                ),
+                _language_packages(
+                    _vulnerability("language-package", "HIGH", "ghsa", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "os-package-db"),
+            id="os-package-first",
+        ),
+        pytest.param(
+            [
+                _language_packages(
+                    _vulnerability("language-package", "HIGH", "ghsa", "affected"),
+                ),
+                _os_packages(
+                    _vulnerability("os-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "os-package-db"),
+            id="language-package-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("alpha-package", "HIGH", "debian", "affected"),
+                    _vulnerability("beta-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "alpha-package-db"),
+            id="full-tie-alpha-reported-first",
+        ),
+        pytest.param(
+            [
+                _os_packages(
+                    _vulnerability("beta-package", "HIGH", "debian", "affected"),
+                    _vulnerability("alpha-package", "HIGH", "debian", "affected"),
+                ),
+            ],
+            ("HIGH", "debian", "affected", "beta-package-db"),
+            id="full-tie-beta-reported-first",
+        ),
+    ],
+)
+def test_transform_scan_results_prefers_os_packages_then_report_order_on_a_tie(
+    results,
+    expected_rating,
+):
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert _target_ratings(findings_list) == [expected_rating, expected_rating]
+
+
+def test_transform_scan_results_keeps_each_package_rating_on_its_finding_row():
+    # Arrange
+    results = [
+        _os_packages(
+            _vulnerability("low-package", "LOW", "debian", "affected"),
+            _vulnerability("high-package", "HIGH", "nvd", "fixed"),
+        ),
+    ]
+
+    # Act
+    findings_list, _, _ = transform_scan_results(results, "sha256:testdigest")
+
+    # Assert
+    assert [
+        (row["Severity"], row["SeveritySource"], row["Status"], row["DataSourceID"])
+        for row in findings_list
+    ] == [
+        ("LOW", "debian", "affected", "low-package-db"),
+        ("HIGH", "nvd", "fixed", "high-package-db"),
+    ]
+
+
+def _go_binary(target: str) -> dict:
+    return {
+        "Target": target,
+        "Class": "lang-pkgs",
+        "Type": "gobinary",
+        "Packages": [
+            {"Name": "stdlib", "Version": "v1.18.0"},
+            {"Name": "github.com/example/cli", "Version": "v1.2.0"},
+        ],
+        "Vulnerabilities": [
+            {
+                "VulnerabilityID": "CVE-2023-24538",
+                "PkgName": "stdlib",
+                "InstalledVersion": "v1.18.0",
+                "Severity": "CRITICAL",
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "results, expected_locations",
+    [
+        pytest.param(
+            [_go_binary("usr/local/bin/api"), _go_binary("opt/tools/worker")],
+            {
+                "v1.18.0|stdlib": ["opt/tools/worker", "usr/local/bin/api"],
+                "v1.2.0|github.com/example/cli": [
+                    "opt/tools/worker",
+                    "usr/local/bin/api",
+                ],
+            },
+            id="go-binaries",
+        ),
+        pytest.param(
+            [
+                {
+                    "Target": "Node.js",
+                    "Class": "lang-pkgs",
+                    "Type": "node-pkg",
+                    "Packages": [
+                        {
+                            "Name": "minimist",
+                            "Version": "1.2.5",
+                            "FilePath": "app/node_modules/minimist/package.json",
+                        },
+                        {"Name": "ms", "Version": "2.1.3"},
+                    ],
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-2021-23337",
+                            "PkgName": "lodash",
+                            "InstalledVersion": "4.17.20",
+                            "PkgPath": "app/node_modules/lodash/package.json",
+                            "Severity": "HIGH",
+                        },
+                    ],
+                },
+            ],
+            {
+                "4.17.20|lodash": ["app/node_modules/lodash/package.json"],
+                "1.2.5|minimist": ["app/node_modules/minimist/package.json"],
+                "2.1.3|ms": None,
+            },
+            id="aggregated-ecosystem",
+        ),
+        pytest.param(
+            [
+                {
+                    "Target": "Kubernetes",
+                    "Class": "lang-pkgs",
+                    "Type": "kubernetes",
+                    "Packages": [{"Name": "k8s.io/kubelet", "Version": "1.29.0"}],
+                },
+            ],
+            {"1.29.0|k8s.io/kubelet": None},
+            id="kubernetes-components",
+        ),
+        pytest.param(
+            [
+                {
+                    "Target": "registry.example/app:latest (debian 12.8)",
+                    **_os_packages(
+                        _vulnerability("libc6", "HIGH", "debian", "affected"),
+                    ),
+                },
+            ],
+            {"1.0.0|libc6": None},
+            id="os-packages",
+        ),
+    ],
+)
+def test_transform_records_the_files_that_contain_each_package(
+    results, expected_locations
+):
+    # Act
+    _, packages, _ = transform_scan_results(results, "sha256:testdigest")
+    packages += transform_all_packages(
+        results,
+        "sha256:testdigest",
+        {package["id"] for package in packages},
+    )
+
+    # Assert
+    assert {
+        package["id"]: package["Locations"] for package in packages
+    } == expected_locations

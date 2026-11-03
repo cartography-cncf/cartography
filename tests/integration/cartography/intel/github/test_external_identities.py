@@ -7,12 +7,11 @@ import pytest
 import requests
 
 from cartography.intel.github import external_identities
-from cartography.intel.github.users import load_organization
+from cartography.intel.github.organizations import load_organization
 from cartography.intel.github.users import load_users
 from cartography.intel.github.users import transform_users as transform_github_users
 from cartography.intel.okta.users import _load_okta_users
 from cartography.intel.ontology.users import sync as sync_ontology_users
-from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.github.external_identities import API_URL
 from tests.data.github.external_identities import FORBIDDEN
@@ -37,7 +36,7 @@ def available_rate_limit():
 
 def _seed_org(session, org_url=ORG_URL, alice_fields=None):
     org = {"url": org_url, "login": org_url.rsplit("/", 1)[1]}
-    load_organization(session, GitHubOrganizationSchema(), [org], 100)
+    load_organization(session, org, 100)
     edges = [
         {
             "node": {

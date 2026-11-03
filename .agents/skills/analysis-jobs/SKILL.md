@@ -24,12 +24,13 @@ Use them when you need to:
 
 ## Critical rules
 
-1. **Pick the right scope.** Global typed jobs run after all accounts/projects/tenants. Scoped typed jobs run once per account. Both use `run_typed_analysis_job`; the scope lives on `AnalysisJob.scope`. Use dependency checking (`run_typed_analysis_and_ensure_deps`) when a job needs specific upstream modules.
+1. **Pick the right scope.** Global typed jobs run after all accounts/projects/tenants. Scoped typed jobs run once per account. Both use `run_typed_analysis_job`; the scope lives on `AnalysisJob.scope`. Use dependency checking (`run_typed_analysis_and_ensure_deps`) when a job needs specific upstream modules. To write on the scope node itself (a per-account or per-cluster result), match the `scope_on` variable with the scope label, for example `MATCH (account:AWSAccount)` with `ScopeById("AWSAccount", "AWS_ID", scope_on="account")`; the statement and its property cleanup then anchor that node by ID.
 2. **Use iterative queries for large datasets.** They must return `COUNT(*) AS TotalCompleted`.
 3. **Document each query** with `__comment__`.
 4. **Clean up stale data** that the analysis job creates (don't leave orphan edges between syncs).
 5. **Order statements correctly to avoid read windows.**
-    - **Properties:** clean up first (`REMOVE n.attr`), then SET. Cleanup of attributes can usually run in a single transaction.
+    - **Properties:** clean up first (`REMOVE n.attr`), then SET. Cleanup of attributes can usually run in a single transaction. This is what `SetProperty`, `SetProperties` and `AddToSet` generate by default.
+    - **Properties readers must not lose mid-run:** for a value that should stay visible until the run decides, such as a positive check result, use `SetProperties(..., cleanup_stamp="<prop>")` where `<prop>` is one of the properties and is set to `Param("UPDATE_TAG")`. The properties are written first, and the generated cleanup then removes them only from nodes whose stamp is not the current update tag, so a failed run keeps the previous values. `PropertyEffect(cleanup_before_statements=False)` without a stamp is rejected, because that cleanup would remove what the statements just wrote.
     - **Relationships:** MERGE first, then DELETE stale (`WHERE r.lastupdated <> $UPDATE_TAG`). Iterative DELETE commits per batch, so a leading DELETE of relationships exposes a graph with those edges missing to concurrent readers until the MERGE finishes. MERGE is idempotent and bumps `r.lastupdated`, so the trailing DELETE only targets edges that genuinely no longer have a current basis. Canonical example: `AWS_LAMBDA_ECR` in `cartography/analysis/aws/analysis.py`.
 
 ## Instructions

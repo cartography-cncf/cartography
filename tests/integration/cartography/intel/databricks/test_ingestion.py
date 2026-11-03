@@ -1,0 +1,310 @@
+from typing import Any
+from unittest.mock import Mock
+from unittest.mock import patch
+
+import pytest
+import requests
+
+import cartography.intel.databricks
+from cartography.config import Config
+from tests.data.databricks.ingestion import catalog
+from tests.data.databricks.ingestion import CATALOG_GRANT
+from tests.data.databricks.ingestion import catalog_grant_uri
+from tests.data.databricks.ingestion import CATALOGS_URI
+from tests.data.databricks.ingestion import CLUSTER
+from tests.data.databricks.ingestion import CLUSTERS_URI
+from tests.data.databricks.ingestion import METASTORE_ID
+from tests.data.databricks.ingestion import METASTORE_RESPONSES
+from tests.data.databricks.ingestion import METASTORE_SUMMARY_URI
+from tests.data.databricks.ingestion import USER
+from tests.data.databricks.ingestion import USERS_URI
+from tests.data.databricks.ingestion import WORKSPACE_A_HOST
+from tests.data.databricks.ingestion import WORKSPACE_A_ID
+from tests.data.databricks.ingestion import WORKSPACE_B_HOST
+from tests.data.databricks.ingestion import WORKSPACE_B_ID
+from tests.data.databricks.ingestion import WORKSPACE_IDS_BY_HOST
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
+
+OLD_TAG = 1
+NEW_TAG = 2
+# The one workspace endpoint whose empty answer is a list rather than a dict.
+LIST_URIS = {"/api/2.0/preview/sql/data_sources"}
+
+
+class FakeWorkspaceClient:
+    """Answers each request from canned responses; unlisted URIs are empty.
+
+    A response that is an exception is raised instead, to fail a sync partway.
+    """
+
+    def __init__(self, host: str, responses: dict[str, Any]) -> None:
+        self.host = host
+        self._responses = responses
+
+    def _respond(self, uri: str, empty: Any) -> Any:
+        response = self._responses.get(uri, empty)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    def get(self, uri: str, params: dict | None = None) -> Any:
+        return self._respond(uri, [] if uri in LIST_URIS else {})
+
+    def get_with_headers(self, uri: str, params: dict | None = None) -> Any:
+        headers = {"x-databricks-org-id": WORKSPACE_IDS_BY_HOST[self.host]}
+        return self.get(uri, params), headers
+
+    def uc_list(self, uri: str, key: str, params: dict | None = None) -> list:
+        return self._respond(uri, [])
+
+    def scim_list(self, uri: str) -> list:
+        return self._respond(uri, [])
+
+
+def _ingest(
+    neo4j_session,
+    host: str,
+    responses: dict[str, Any],
+    update_tag: int,
+    skip_cleanup: bool = False,
+) -> Any:
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=update_tag,
+        databricks_workspace_url=host,
+        databricks_token="fake-token",
+        databricks_skip_cleanup=skip_cleanup,
+    )
+    with patch.object(
+        cartography.intel.databricks,
+        "DatabricksWorkspaceClient",
+        return_value=FakeWorkspaceClient(host, responses),
+    ):
+        return cartography.intel.databricks.start_databricks_ingestion(
+            neo4j_session, config
+        )
+
+
+def _cluster_ids(neo4j_session):
+    return check_nodes(neo4j_session, "DatabricksCluster", ["cluster_id"])
+
+
+def _catalog_id(name: str) -> str:
+    return f"{METASTORE_ID}/{name}"
+
+
+def _visible_catalogs(neo4j_session):
+    return check_rels(
+        neo4j_session,
+        "DatabricksCatalog",
+        "id",
+        "DatabricksWorkspace",
+        "id",
+        "VISIBLE_IN",
+    )
+
+
+def _grants(neo4j_session):
+    return check_rels(
+        neo4j_session,
+        "DatabricksUser",
+        "user_name",
+        "DatabricksCatalog",
+        "id",
+        "HAS_PRIVILEGE",
+    )
+
+
+def test_skip_cleanup_defers_pruning_to_cleanup_databricks(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ingest(
+        neo4j_session,
+        WORKSPACE_A_HOST,
+        {CLUSTERS_URI: {"clusters": [CLUSTER]}},
+        OLD_TAG,
+    )
+
+    # Act
+    result = _ingest(neo4j_session, WORKSPACE_A_HOST, {}, NEW_TAG, skip_cleanup=True)
+
+    # Assert
+    assert _cluster_ids(neo4j_session) == {(CLUSTER["cluster_id"],)}
+
+    # Act
+    cartography.intel.databricks.cleanup_databricks(neo4j_session, NEW_TAG, [result])
+
+    # Assert
+    assert _cluster_ids(neo4j_session) == set()
+
+
+def test_failed_load_prunes_nothing(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ingest(
+        neo4j_session,
+        WORKSPACE_A_HOST,
+        {CLUSTERS_URI: {"clusters": [CLUSTER]}},
+        OLD_TAG,
+    )
+    # The metastore lookup runs after clusters load, so the run fails midway.
+    failing = {METASTORE_SUMMARY_URI: RuntimeError("boom")}
+
+    # Act
+    with pytest.raises(RuntimeError):
+        _ingest(neo4j_session, WORKSPACE_A_HOST, failing, NEW_TAG)
+
+    # Assert
+    assert _cluster_ids(neo4j_session) == {(CLUSTER["cluster_id"],)}
+
+
+def test_unreadable_grant_survives_deferred_cleanup(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    shared = {
+        **METASTORE_RESPONSES,
+        CATALOGS_URI: [catalog("shared")],
+        USERS_URI: [USER],
+    }
+    _ingest(
+        neo4j_session,
+        WORKSPACE_A_HOST,
+        {**shared, catalog_grant_uri("shared"): CATALOG_GRANT},
+        OLD_TAG,
+    )
+    forbidden = requests.HTTPError(response=Mock(status_code=403))
+
+    # Act
+    _ingest(
+        neo4j_session,
+        WORKSPACE_A_HOST,
+        {**shared, catalog_grant_uri("shared"): forbidden},
+        NEW_TAG,
+    )
+
+    # Assert
+    assert _grants(neo4j_session) == {(USER["userName"], _catalog_id("shared"))}
+
+
+def test_skip_metastore_ids_keeps_a_failed_workspaces_data(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    shared = {**METASTORE_RESPONSES, CATALOGS_URI: [catalog("shared")]}
+    a_old = _ingest(neo4j_session, WORKSPACE_A_HOST, shared, OLD_TAG, skip_cleanup=True)
+    b_old = _ingest(
+        neo4j_session,
+        WORKSPACE_B_HOST,
+        {
+            **shared,
+            USERS_URI: [USER],
+            catalog_grant_uri("shared"): CATALOG_GRANT,
+        },
+        OLD_TAG,
+        skip_cleanup=True,
+    )
+    cartography.intel.databricks.cleanup_databricks(
+        neo4j_session, OLD_TAG, [a_old, b_old]
+    )
+    # A now lists only catalog x; B fails before listing anything.
+    a_new = _ingest(
+        neo4j_session,
+        WORKSPACE_A_HOST,
+        {**METASTORE_RESPONSES, CATALOGS_URI: [catalog("x")]},
+        NEW_TAG,
+        skip_cleanup=True,
+    )
+    with pytest.raises(RuntimeError):
+        _ingest(
+            neo4j_session,
+            WORKSPACE_B_HOST,
+            {METASTORE_SUMMARY_URI: RuntimeError("boom")},
+            NEW_TAG,
+            skip_cleanup=True,
+        )
+
+    # Act
+    cartography.intel.databricks.cleanup_databricks(
+        neo4j_session, NEW_TAG, [a_new], skip_metastore_ids={METASTORE_ID}
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "DatabricksCatalog", ["id"]) == {
+        (_catalog_id("shared"),),
+        (_catalog_id("x"),),
+    }
+    assert _visible_catalogs(neo4j_session) == {
+        (_catalog_id("shared"), WORKSPACE_B_ID),
+        (_catalog_id("x"), WORKSPACE_A_ID),
+    }
+    assert _grants(neo4j_session) == {(USER["userName"], _catalog_id("shared"))}
+
+
+def test_metastore_object_pruned_only_when_no_workspace_lists_it(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    old_a = {**METASTORE_RESPONSES, CATALOGS_URI: [catalog("shared"), catalog("a")]}
+    shared = {**METASTORE_RESPONSES, CATALOGS_URI: [catalog("shared")]}
+    results = [
+        _ingest(neo4j_session, WORKSPACE_A_HOST, old_a, OLD_TAG, skip_cleanup=True),
+        _ingest(neo4j_session, WORKSPACE_B_HOST, shared, OLD_TAG, skip_cleanup=True),
+    ]
+    cartography.intel.databricks.cleanup_databricks(neo4j_session, OLD_TAG, results)
+    results = [
+        _ingest(
+            neo4j_session,
+            WORKSPACE_A_HOST,
+            METASTORE_RESPONSES,
+            NEW_TAG,
+            skip_cleanup=True,
+        ),
+        _ingest(neo4j_session, WORKSPACE_B_HOST, shared, NEW_TAG, skip_cleanup=True),
+    ]
+
+    # Act
+    cartography.intel.databricks.cleanup_databricks(neo4j_session, NEW_TAG, results)
+
+    # Assert
+    assert check_nodes(neo4j_session, "DatabricksCatalog", ["id"]) == {
+        (_catalog_id("shared"),),
+    }
+    assert _visible_catalogs(neo4j_session) == {
+        (_catalog_id("shared"), WORKSPACE_B_ID),
+    }
+
+
+def test_cleanup_migrates_legacy_workspace_scoped_catalogs(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    responses = {**METASTORE_RESPONSES, CATALOGS_URI: [catalog("shared")]}
+    _ingest(neo4j_session, WORKSPACE_A_HOST, responses, OLD_TAG)
+    # Before the metastore scope, every catalog hung off its workspace. "gone"
+    # was deleted in Databricks before the upgrade, so it is never reloaded.
+    neo4j_session.run(
+        "MATCH (w:DatabricksWorkspace {id: $w}), (c:DatabricksCatalog) "
+        "MERGE (w)-[:RESOURCE {lastupdated: $tag}]->(c) "
+        "CREATE (w)-[:RESOURCE {lastupdated: $tag}]->"
+        "(:DatabricksCatalog:DatabricksSecurable {id: $gone, lastupdated: $tag})",
+        w=WORKSPACE_A_ID,
+        gone=_catalog_id("gone"),
+        tag=OLD_TAG,
+    )
+
+    # Act
+    _ingest(neo4j_session, WORKSPACE_A_HOST, responses, NEW_TAG)
+
+    # Assert
+    assert check_nodes(neo4j_session, "DatabricksCatalog", ["id"]) == {
+        (_catalog_id("shared"),),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "DatabricksWorkspace",
+            "id",
+            "DatabricksCatalog",
+            "id",
+            "RESOURCE",
+        )
+        == set()
+    )

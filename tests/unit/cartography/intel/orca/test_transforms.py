@@ -49,8 +49,17 @@ def test_alert_query_requests_related_inventory_context() -> None:
 
     # Assert
     assert query["additional_models[]"] == ["Inventory"]
+    assert query["order_by[]"] == ["CreatedAt"]
     assert query["full_graph_fetch"] == {"enabled": True}
     assert query["max_tier"] == 2
+
+
+def test_vulnerability_query_requests_deterministic_order() -> None:
+    # Act
+    query = vulnerabilities.build_query()
+
+    # Assert
+    assert query["order_by[]"] == ["FirstSeen", "CveId"]
 
 
 def test_alert_transform_retains_exact_target_context_and_missing_target(
@@ -126,6 +135,68 @@ def test_alert_transform_normalizes_identifiers_and_timestamps() -> None:
     assert result["target_orca_inventory_id"] == INVENTORY_ID_1
     assert result["target_orca_asset_unique_id"] == ASSET_UNIQUE_ID_1
     assert result["created_at"] == datetime.fromisoformat("2026-08-02T12:00:00+00:00")
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["closed", "dismissed", " Closed ", "DISMISSED", "close", "dismiss"],
+)  # type: ignore[misc]
+def test_alert_transform_skips_terminal_statuses(status: str) -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"]["Status"] = {"value": status}
+
+    # Act
+    result = alerts.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert result == []
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["OPEN", "in_progress", "unexpected", None],
+)  # type: ignore[misc]
+def test_alert_transform_retains_non_terminal_statuses(status: str | None) -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"]["Status"] = {"value": status}
+
+    # Act
+    result = alerts.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert [alert["status"] for alert in result] == [status]
+
+
+def test_alert_transform_retains_alert_without_status() -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"].pop("Status")
+
+    # Act
+    result = alerts.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert [alert["status"] for alert in result] == [None]
+
+
+def test_alert_cleanup_uses_bounded_iteration_size(mocker) -> None:
+    # Arrange
+    from_node_schema = mocker.patch(
+        "cartography.intel.orca.alerts.GraphJob.from_node_schema",
+    )
+    neo4j_session = mocker.MagicMock()
+
+    # Act
+    alerts.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": 12345, "ORCA_ORGANIZATION_ID": ORGANIZATION_ID},
+    )
+
+    # Assert
+    assert from_node_schema.call_args.kwargs["iterationsize"] == 2000
+    from_node_schema.return_value.run.assert_called_once_with(neo4j_session)
 
 
 def test_alert_transform_reports_missing_alert_id() -> None:
@@ -222,7 +293,10 @@ def test_alert_transform_does_not_choose_an_ambiguous_inventory(caplog) -> None:
 
 def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
     # Arrange
-    raw = {**VULNERABILITIES[0], "CveId": [CVE_ID_1.lower(), "CVE-2026-99999"]}
+    raw = {
+        **VULNERABILITIES[0],
+        "CveId": [CVE_ID_1.lower(), "CVE-2026-99999_1", "CVE-2026-99999_2"],
+    }
 
     # Act
     first = vulnerabilities.transform([raw], ORGANIZATION_ID)
@@ -230,6 +304,7 @@ def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
 
     # Assert
     assert [item["id"] for item in first] == [item["id"] for item in second]
+    assert len(first) == 2
     assert {item["cve_id"] for item in first} == {CVE_ID_1, "CVE-2026-99999"}
     assert {item["target_orca_asset_unique_id"] for item in first} == {
         ASSET_UNIQUE_ID_1
@@ -373,21 +448,35 @@ def test_vulnerability_sync_skips_duplicate_identity_across_pages(
     )
 
 
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"CveId": "GHSA-not-a-cve"},
-        {"CveId": "CVE-not-valid"},
-        {"Inventory": {}},
-    ],
-)  # type: ignore[misc]
-def test_vulnerability_transform_rejects_missing_canonical_identity(change) -> None:
+def test_vulnerability_transform_rejects_missing_target_identity() -> None:
     # Arrange
-    raw = {**VULNERABILITIES[0], **change}
+    raw = {**VULNERABILITIES[0], "Inventory": {}}
 
     # Act and assert
     with pytest.raises((KeyError, ValueError)):
         vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+
+@pytest.mark.parametrize(
+    "cve_id",
+    ["GHSA-not-a-cve", "CVE-not-valid", "CVE-2026-0001-extra", None],
+)  # type: ignore[misc]
+def test_vulnerability_transform_skips_rows_without_canonical_cve(
+    cve_id: Any,
+    caplog,
+) -> None:
+    # Arrange
+    raw = [{**VULNERABILITIES[0], "CveId": cve_id}, VULNERABILITIES[0]]
+
+    # Act
+    result = vulnerabilities.transform(raw, ORGANIZATION_ID)
+
+    # Assert
+    assert {item["cve_id"] for item in result} == {CVE_ID_1}
+    assert "Skipped 1 Orca vulnerability rows without a canonical CVE id" in (
+        caplog.text
+    )
+    assert repr(cve_id) in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -519,3 +608,24 @@ def test_vulnerability_query_matches_official_serving_layer_shape() -> None:
     }
     assert query["additional_models[]"] == ["InstalledPackage", "Inventory"]
     assert query["flat_json"] is True
+
+
+def test_vulnerability_cleanup_uses_bounded_iteration_size(mocker) -> None:
+    # Arrange
+    from_node_schema = mocker.patch(
+        "cartography.intel.orca.vulnerabilities.GraphJob.from_node_schema",
+    )
+    neo4j_session = mocker.MagicMock()
+
+    # Act
+    vulnerabilities.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": 12345, "ORCA_ORGANIZATION_ID": ORGANIZATION_ID},
+    )
+
+    # Assert
+    assert (
+        from_node_schema.call_args.kwargs["iterationsize"]
+        == vulnerabilities.CLEANUP_ITERATION_SIZE
+    )
+    from_node_schema.return_value.run.assert_called_once_with(neo4j_session)

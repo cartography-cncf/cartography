@@ -6,6 +6,7 @@ import cartography.intel.aws.iam
 import cartography.intel.aws.identitycenter
 from cartography.intel.aws.cloudtrail_management_events import sync
 from cartography.intel.aws.iam import transform_users
+from tests.data.aws import govcloud
 from tests.data.aws.cloudtrail_management_events import (
     AGGREGATION_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
 )
@@ -662,3 +663,64 @@ def test_cloudtrail_web_identity_events_aggregates_multiple_users_and_tracks_ind
     assert aggregated_usage["times_used"] == 3
     assert aggregated_usage["first_seen_in_time_window"] == "2024-01-15T09:10:25.123000"
     assert aggregated_usage["last_used"] == "2024-01-15T14:15:30.456000"
+
+
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_assume_role_events",
+    return_value=govcloud.ROLE_CHAINING_CLOUDTRAIL_EVENTS,
+)
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_saml_role_events",
+    return_value=[],
+)
+def test_cloudtrail_management_events_govcloud_role_chaining(
+    mock_get_saml_events, mock_get_assume_role_events, neo4j_session
+):
+    """
+    In AWS GovCloud (US), a role session that assumes another role appears in CloudTrail as an
+    "arn:aws-us-gov:sts::...:assumed-role/..." ARN. The sync maps it to the IAM role in the same
+    partition, so the ASSUMED_ROLE edge starts at the existing role node.
+    """
+    # Arrange
+    _cleanup_cloudtrail_test_data(neo4j_session)
+    create_test_account(
+        neo4j_session, INTEGRATION_TEST_BASIC_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        {"Roles": govcloud.INTEGRATION_TEST_BASIC_IAM_ROLES},
+        INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [govcloud.GOV_REGION],
+        INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+            "aws_cloudtrail_management_events_lookback_hours": 24,
+        },
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws-us-gov:iam::123456789012:role/ApplicationRole",
+            "arn:aws-us-gov:iam::123456789012:role/SAMLRole",
+        ),
+    }

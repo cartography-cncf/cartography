@@ -19,15 +19,16 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-# Regex pattern to match secret references in both notations:
-#   dot:     ${{ secrets.SECRET_NAME }}
-#   bracket: ${{ secrets['SECRET_NAME'] }}
-SECRET_PATTERN = re.compile(
-    r"\$\{\{\s*secrets(?:"
-    r"\.([A-Za-z_][A-Za-z0-9_]*)"
-    r"|"
-    r"\[\s*['\"]([A-Za-z_][A-Za-z0-9_]*?)['\"]\s*\]"
-    r")\s*\}\}",
+# Tokenize only inside ${{ ... }}. Consume quoted literals as units so their
+# contents (including }} and secrets.NAME) cannot become references. Keep
+# double-quoted bracket selectors only for compatibility with existing inventory;
+# GitHub rejects double-quoted strings in expressions.
+EXPRESSION_TOKEN_PATTERN = re.compile(
+    r"(?P<start>\$\{\{)|(?P<end>\}\})"
+    r"|(?<![\w.-])secrets(?:"
+    r"\.(?P<dot>[A-Za-z_][A-Za-z0-9_]*)"
+    r"|\[\s*(?P<quote>['\"])(?P<bracket>[A-Za-z_][A-Za-z0-9_]*)(?P=quote)\s*\])"
+    r"|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\""
 )
 
 # SHA commit pattern (40 hex characters)
@@ -135,17 +136,38 @@ def parse_action_reference(uses: str | None) -> ParsedAction | None:
 
 
 def extract_secrets_from_string(content: str) -> set[str]:
-    """
-    Extract all secret references from a string.
+    """Extract static secret references, including those in compound expressions.
 
-    Supports both dot notation (${{ secrets.NAME }}) and
-    bracket notation (${{ secrets['NAME'] }}).
-
-    :param content: String that may contain secret references
-    :return: Set of secret names found
+    Quoted expression literals are skipped; this inventories references without
+    evaluating branches, functions, or dynamic secret names.
     """
-    # findall returns tuples (dot_group, bracket_group); exactly one is non-empty
-    return {dot or bracket for dot, bracket in SECRET_PATTERN.findall(content)}
+    result: set[str] = set()
+    position = 0
+    while (start := content.find("${{", position)) != -1:
+        expression_start = start + 3
+        references: set[str] = set()
+        for token in EXPRESSION_TOKEN_PATTERN.finditer(content, expression_start):
+            if token.group("start"):
+                # Discard the incomplete expression and retry from the new opener.
+                position = token.start()
+                break
+            if token.group("end"):
+                result.update(references)
+                position = token.end()
+                break
+            name = token.group("dot") or token.group("bracket")
+            if name:
+                # The lookbehind handles adjacent dots; also reject spaced members
+                # such as inputs . secrets.NAME without copying the whole prefix.
+                previous = token.start() - 1
+                while previous >= expression_start and content[previous].isspace():
+                    previous -= 1
+                if previous < expression_start or content[previous] != ".":
+                    references.add(name)
+        else:
+            # An incomplete expression cannot establish a reference.
+            break
+    return result
 
 
 ALL_PERMISSION_SCOPES = [

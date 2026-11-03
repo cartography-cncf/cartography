@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -12,7 +14,7 @@ from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_controller_owner_reference
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_gpu_quantity
-from cartography.intel.kubernetes.util import k8s_paginate
+from cartography.intel.kubernetes.util import k8s_paginate_pages
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.containers import KubernetesContainerSchema
 from cartography.models.kubernetes.pods import KubernetesPodSchema
@@ -42,6 +44,13 @@ def _extract_pod_containers(
     node_arch: str | None = None,
 ) -> dict[str, Any]:
     pod_containers: list[V1Container] = pod.spec.containers
+    # A PVC volume marked readOnly at the pod level forces every mount of it to
+    # read-only, regardless of the container's own volumeMounts[].readOnly.
+    read_only_claim_volumes = {
+        volume.name
+        for volume in pod.spec.volumes or []
+        if volume.persistent_volume_claim and volume.persistent_volume_claim.read_only
+    }
     containers = dict()
     for container in pod_containers:
         containers[container.name] = {
@@ -77,7 +86,8 @@ def _extract_pod_containers(
                 continue
             claim_id = _claim_id(cluster_name, pod.metadata.namespace, claim_name)
             claim_ids.add(claim_id)
-            if not mount.read_only:
+            read_only = bool(mount.read_only) or mount.name in read_only_claim_volumes
+            if not read_only:
                 read_write_claim_ids.add(claim_id)
             mount_details.append(
                 {
@@ -85,7 +95,7 @@ def _extract_pod_containers(
                     "claim_name": claim_name,
                     "volume_name": mount.name,
                     "mount_path": mount.mount_path,
-                    "read_only": bool(mount.read_only),
+                    "read_only": read_only,
                     "sub_path": mount.sub_path,
                     "sub_path_expr": mount.sub_path_expr,
                     "mount_propagation": mount.mount_propagation,
@@ -299,10 +309,11 @@ def _extract_pod_secrets(pod: V1Pod, cluster_name: str) -> tuple[list[str], list
     return list(volume_secrets), list(env_secrets)
 
 
-@timeit
-def get_pods(client: K8sClient) -> list[V1Pod]:
-    items = k8s_paginate(client.core.list_pod_for_all_namespaces)
-    return items
+def get_pods(client: K8sClient) -> Iterator[V1Pod]:
+    # Stream page by page: a deserialized V1Pod is ~10x larger than its transformed
+    # dict, so materializing every pod first OOMs the sync on large clusters.
+    for page in k8s_paginate_pages(client.core.list_pod_for_all_namespaces):
+        yield from page
 
 
 def _format_pod_labels(labels: dict[str, str]) -> str:
@@ -365,7 +376,7 @@ def _resolve_pod_workload_parent(
 
 
 def transform_pods(
-    pods: list[V1Pod],
+    pods: Iterable[V1Pod],
     cluster_name: str,
     node_arch_map: dict[str, str] | None = None,
     replicaset_owner_map: dict[str, str] | None = None,

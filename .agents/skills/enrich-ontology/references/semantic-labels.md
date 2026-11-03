@@ -133,21 +133,4 @@ OntologyNodeMapping(
 
 ## Documenting ontology integration in schema docs
 
-In `docs/root/modules/your_service/schema.md`, add the standard blockquote phrase right under the node description. See the `enrich-ontology` SKILL.md for the table of standard phrases by semantic label.
-
-Example:
-
-```markdown
-### AWSAccount
-
-Representation of an AWS Account.
-
-> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
-
-| Field | Description |
-|-------|-------------|
-| firstseen   | Timestamp of when a sync job discovered this node |
-| name        | The name of the account                           |
-| lastupdated | Timestamp of the last time the node was updated   |
-| **id**      | The AWS Account ID number                         |
-```
+Schema pages are generated from the data model, so do not add the `> **Ontology Mapping**` note by hand. It is emitted for any node whose `extra_node_labels` include an ontology label constant. Add a docstring to the node schema and `description=` to each displayed `PropertyRef`, then build the docs (`uv run ./docs/build.sh`) to check the generated page.

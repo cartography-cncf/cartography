@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.internet_gateways import AWSInternetGatewaySchema
@@ -40,11 +41,11 @@ def transform_internet_gateways(
     Each attachment becomes a separate entry to handle IGWs attached to multiple VPCs.
     """
     result = []
+    partition = get_partition(region)
     for igw in internet_gateways:
         igw_id = igw["InternetGatewayId"]
         owner_id = igw.get("OwnerId", current_aws_account_id)
-        # TODO: Right now this won't work in non-AWS commercial (GovCloud, China) as partition is hardcoded
-        arn = f"arn:aws:ec2:{region}:{owner_id}:internet-gateway/{igw_id}"
+        arn = f"arn:{partition}:ec2:{region}:{owner_id}:internet-gateway/{igw_id}"
 
         attachments = igw.get("Attachments", [])
         if attachments:

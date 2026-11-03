@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 from typing import Dict
+from typing import Iterator
 from typing import List
 
 import neo4j
@@ -8,6 +9,8 @@ from falconpy.hosts import Hosts
 from falconpy.oauth2 import OAuth2
 
 from cartography.client.core.tx import load
+from cartography.intel.crowdstrike.util import call_with_retries
+from cartography.intel.crowdstrike.util import REQUEST_TIMEOUT_SECONDS
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
 from cartography.util import timeit
@@ -21,9 +24,8 @@ def sync_hosts(
     update_tag: int,
     authorization: OAuth2,
 ) -> None:
-    client = Hosts(auth_object=authorization)
-    all_ids = get_host_ids(client)
-    for ids in all_ids:
+    client = Hosts(auth_object=authorization, timeout=REQUEST_TIMEOUT_SECONDS)
+    for ids in get_host_ids(client):
         host_data = get_hosts(client, ids)
         load_host_data(neo4j_session, host_data, update_tag)
 
@@ -73,30 +75,40 @@ def get_host_ids(
     client: Hosts,
     crowdstrikeapi_filter: str = "",
     crowdstrikeapi_limit: int = 5000,
-) -> List[List[str]]:
-    ids = []
-    parameters = {"filter": crowdstrikeapi_filter, "limit": crowdstrikeapi_limit}
-    response = client.QueryDevicesByFilter(parameters=parameters)
-    body = response.get("body", {})
-    resources = body.get("resources", [])
-    if not resources:
-        logger.warning("No host IDs in QueryDevicesByFilter.")
-        return []
-    ids.append(resources)
-    offset = body.get("meta", {}).get("pagination", {}).get("offset")
-    while offset:
-        parameters["offset"] = offset
-        response = client.QueryDevicesByFilter(parameters=parameters)
-        body = response.get("body", {})
-        resources = body.get("resources", [])
+) -> Iterator[List[str]]:
+    """
+    Yield host IDs one page at a time.
+
+    Uses the scroll endpoint because QueryDevicesByFilter cannot page past an
+    offset of 10,000, which silently capped larger tenants at 10,000 hosts.
+    """
+    parameters: dict[str, str | int] = {
+        "filter": crowdstrikeapi_filter,
+        "limit": crowdstrikeapi_limit,
+    }
+    seen = 0
+    while True:
+        body = call_with_retries(
+            lambda: client.QueryDevicesByFilterScroll(parameters=parameters),
+            "QueryDevicesByFilterScroll",
+        )
+        resources = body.get("resources") or []
         if not resources:
-            break
-        ids.append(resources)
-        offset = body.get("meta", {}).get("pagination", {}).get("offset")
-    return ids
+            if seen == 0:
+                logger.warning("No host IDs in QueryDevicesByFilterScroll.")
+            return
+        seen += len(resources)
+        yield resources
+        pagination = body.get("meta", {}).get("pagination", {})
+        offset = pagination.get("offset")
+        total = pagination.get("total")
+        if not offset or (total is not None and seen >= total):
+            return
+        parameters["offset"] = offset
 
 
 def get_hosts(client: Hosts, ids: List[str]) -> List[Dict]:
-    response = client.GetDeviceDetails(ids=",".join(ids))
-    body = response.get("body", {})
+    body = call_with_retries(
+        lambda: client.GetDeviceDetails(ids=",".join(ids)), "GetDeviceDetails"
+    )
     return body.get("resources", [])

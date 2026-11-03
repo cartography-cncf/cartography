@@ -274,7 +274,7 @@ def test_start_orca_ingestion_loads_finding_only_ontology_graph(
             "Deleted asset retained for investigation",
             "low",
             "DATA_AT_RISK",
-            "ignored",
+            "open",
             "orca",
         ),
     }
@@ -457,6 +457,99 @@ def test_cve_metadata_enriches_orca_vulnerability_finding(
     ) == {(CVE_ID_1, CVE_ID_1)}
 
 
+def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    state, _ = _patch_orca_api(mocker)
+    state["organization"] = {
+        "id": OTHER_ORGANIZATION_ID,
+        "name": "Other synthetic Orca organization",
+        "api_url": API_ENDPOINT,
+    }
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    state["organization"] = deepcopy(ORGANIZATION)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    closed_alert = deepcopy(ALERTS[0])
+    closed_alert["data"]["Status"] = {"value": "closed"}
+    state["Alert"] = [closed_alert, deepcopy(ALERTS[1])]
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "OrcaAlert", ["id", "lastupdated"]) == {
+        (f"orca:{ORGANIZATION_ID}:{ALERT_ID_2}", TEST_UPDATE_TAG + 1),
+        (f"orca:{OTHER_ORGANIZATION_ID}:{ALERT_ID_1}", TEST_UPDATE_TAG),
+        (f"orca:{OTHER_ORGANIZATION_ID}:{ALERT_ID_2}", TEST_UPDATE_TAG),
+    }
+
+    # Act
+    state["Alert"] = deepcopy(ALERTS)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 2),
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaAlert",
+        "orca_id",
+        "RESOURCE",
+    ) == {
+        (ORGANIZATION_ID, ALERT_ID_1),
+        (ORGANIZATION_ID, ALERT_ID_2),
+        (OTHER_ORGANIZATION_ID, ALERT_ID_1),
+        (OTHER_ORGANIZATION_ID, ALERT_ID_2),
+    }
+
+
+def test_sync_with_only_terminal_alerts_is_complete_and_cleans_up(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    state, _ = _patch_orca_api(mocker)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    terminal_alerts = deepcopy(ALERTS)
+    terminal_alerts[0]["data"]["Status"] = {"value": "closed"}
+    terminal_alerts[1]["data"]["Status"] = {"value": "dismissed"}
+    state["Alert"] = terminal_alerts
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
+    metadata = neo4j_session.run(
+        """
+        MATCH (n:ModuleSyncMetadata {id: $id})
+        RETURN n.lastupdated AS lastupdated
+        """,
+        id=_sync_metadata_id(ORGANIZATION_ID),
+    ).single()
+    assert metadata["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
 def test_complete_sync_cleans_stale_findings_and_retargets_alert_context(
     neo4j_session,
     mocker,
@@ -533,6 +626,68 @@ def test_complete_sync_cleans_stale_findings_and_retargets_alert_context(
         id=_sync_metadata_id(ORGANIZATION_ID),
     ).single()
     assert metadata["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
+def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    rows = []
+    for index in range(5):
+        row = deepcopy(VULNERABILITIES[0])
+        row["id"] = f"vulnerability-row-{index}"
+        row["CveId"] = f"CVE-2024-{1000 + index}"
+        rows.append(row)
+    state, _ = _patch_orca_api(mocker, vulnerabilities=rows)
+    state["organization"] = {
+        "id": OTHER_ORGANIZATION_ID,
+        "name": "Other synthetic Orca organization",
+        "api_url": API_ENDPOINT,
+    }
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    state["organization"] = deepcopy(ORGANIZATION)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    state["VulnerabilityV2"] = [deepcopy(rows[0])]
+    mocker.patch(
+        "cartography.intel.orca.vulnerabilities.CLEANUP_ITERATION_SIZE",
+        2,
+    )
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert
+    assert {
+        (organization_id, cve_id, lastupdated)
+        for organization_id, cve_id, lastupdated in check_nodes(
+            neo4j_session,
+            "OrcaVulnerabilityFinding",
+            ["organization_id", "cve_id", "lastupdated"],
+        )
+    } == {(ORGANIZATION_ID, "CVE-2024-1000", TEST_UPDATE_TAG + 1)} | {
+        (OTHER_ORGANIZATION_ID, f"CVE-2024-{1000 + index}", TEST_UPDATE_TAG)
+        for index in range(5)
+    }
+    assert check_rels(
+        neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "RESOURCE",
+    ) == {(ORGANIZATION_ID, "CVE-2024-1000")} | {
+        (OTHER_ORGANIZATION_ID, f"CVE-2024-{1000 + index}") for index in range(5)
+    }
 
 
 def test_vulnerability_target_change_replaces_the_occurrence(
@@ -657,6 +812,69 @@ def test_failed_second_sync_preserves_last_known_good_findings(
     )
     assert _resource_edges(neo4j_session) == original_resource_edges
     assert _affects_count(neo4j_session) == 0
+    metadata = neo4j_session.run(
+        """
+        MATCH (n:ModuleSyncMetadata {id: $id})
+        RETURN n.lastupdated AS lastupdated
+        """,
+        id=_sync_metadata_id(ORGANIZATION_ID),
+    ).single()
+    assert metadata["lastupdated"] == TEST_UPDATE_TAG
+
+
+def test_short_but_ended_fetch_loads_rows_and_skips_cleanup(
+    neo4j_session,
+    mocker,
+    caplog,
+):
+    # Arrange: a result set that changes during a long scan reports more rows
+    # than offset pagination returns before its empty end-of-results page.
+    state, query_mock = _patch_orca_api(mocker)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    original_vulnerabilities = check_nodes(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        ["id"],
+    )
+    retargeted_vulnerability = deepcopy(VULNERABILITIES[0])
+    retargeted_vulnerability["Inventory"] = _second_target_inventory()
+    state["Alert"] = []
+    state["VulnerabilityV2"] = [retargeted_vulnerability]
+    original_query = query_mock.side_effect
+
+    def overstate_vulnerability_count(session, api_endpoint, payload):
+        response = original_query(session, api_endpoint, payload)
+        if payload["query"]["models"] == ["VulnerabilityV2"]:
+            response["total_items"] = 10
+        return response
+
+    query_mock.side_effect = overstate_vulnerability_count
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert: the fetched row is loaded and nothing it missed is deleted.
+    current_vulnerabilities = check_nodes(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        ["id", "lastupdated"],
+    )
+    assert {row[0] for row in current_vulnerabilities} > {
+        row[0] for row in original_vulnerabilities
+    }
+    assert {row[1] for row in current_vulnerabilities} == {
+        TEST_UPDATE_TAG,
+        TEST_UPDATE_TAG + 1,
+    }
+    # The complete alerts feed is still cleaned up.
+    assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
+    assert "ended after 1 of 10 reported rows" in caplog.text
     metadata = neo4j_session.run(
         """
         MATCH (n:ModuleSyncMetadata {id: $id})

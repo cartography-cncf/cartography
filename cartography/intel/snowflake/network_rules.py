@@ -1,23 +1,20 @@
 """Snowflake network rules: the reusable network identifier lists policies reference.
 
-Network rules are listed per schema. A 403 or 404 on one schema is recorded as
-incomplete rather than fatal, so a collector role missing ``USAGE`` on a single schema
-does not cost the whole account.
+Network rules are listed per schema. A 400, 403, or 404 on one schema is recorded as
+incomplete rather than fatal, so an unavailable schema does not cost the whole account.
 """
 
 import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import list_schema_objects
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
-from cartography.intel.snowflake.util import sf_path_segment
-from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.network_rule import SnowflakeNetworkRuleSchema
 from cartography.util import timeit
@@ -32,19 +29,7 @@ def get_schema_network_rules(
     schema_name: str,
 ) -> list[dict[str, Any]] | None:
     """Network rules of one schema, or None when the role cannot read that schema."""
-    try:
-        return client.list_all(
-            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}/network-rules",
-        )
-    except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
-        logger.warning(
-            "Cannot list network rules of Snowflake schema %s.%s (permission denied); "
-            "they will be missing from the graph.",
-            database_name,
-            schema_name,
-        )
-        return None
+    return list_schema_objects(client, database_name, schema_name, "network-rules")
 
 
 @timeit

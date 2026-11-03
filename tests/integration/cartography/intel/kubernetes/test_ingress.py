@@ -320,6 +320,7 @@ def test_sync_ingress_end_to_end(mock_get_ingress, neo4j_session, _create_test_c
 
     # Create a mock K8s client
     k8s_client = MagicMock()
+    k8s_client.gke_cluster = None
     k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
 
     # Define common job parameters
@@ -463,6 +464,7 @@ def test_load_ingress_to_loadbalancer_relationship(
 
     # Act: Run sync_ingress (the production entry point)
     k8s_client = MagicMock()
+    k8s_client.gke_cluster = None
     k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -519,6 +521,7 @@ def test_load_ingress_no_loadbalancer_relationship_when_no_match(
 
     # Act: Run sync_ingress (the production entry point)
     k8s_client = MagicMock()
+    k8s_client.gke_cluster = None
     k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -574,6 +577,7 @@ def test_load_ingress_to_mixed_case_loadbalancer_relationship(
 
     # Act
     k8s_client = MagicMock()
+    k8s_client.gke_cluster = None
     k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
     sync_ingress(
         neo4j_session=neo4j_session,

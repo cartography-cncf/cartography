@@ -45,7 +45,6 @@ def test_load_databricks_shares(mock_get, mock_perms, neo4j_session):
     cartography.intel.databricks.shares.sync(
         neo4j_session,
         api_session,
-        DATABRICKS_WORKSPACE_ID,
         DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )

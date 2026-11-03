@@ -6,6 +6,7 @@ from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.common import copy_properties
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.load_balancer.load_balancer import AzureLoadBalancerSchema
 from cartography.models.azure.load_balancer.load_balancer_backend_pool import (
@@ -32,6 +33,44 @@ def _get_resource_group_from_id(resource_id: str) -> str:
     parts = resource_id.lower().split("/")
     rg_index = parts.index("resourcegroups")
     return parts[rg_index + 1]
+
+
+# azure-mgmt-network 31+ serializes `as_dict()` in ARM wire format: resource-specific
+# fields sit under `properties` with camelCase names. The transforms read flat
+# snake_case keys, so each payload is normalized back to that shape first.
+_LOAD_BALANCER_PROPERTY_MAP = {
+    "frontend_ip_configurations": ("frontendIPConfigurations",),
+    "backend_address_pools": ("backendAddressPools",),
+    "load_balancing_rules": ("loadBalancingRules",),
+    "inbound_nat_rules": ("inboundNatRules",),
+}
+_FRONTEND_IP_PROPERTY_MAP = {
+    "private_ip_address": ("privateIPAddress",),
+    "public_ip_address": ("publicIPAddress",),
+}
+_BACKEND_POOL_PROPERTY_MAP = {
+    "backend_ip_configurations": ("backendIPConfigurations",),
+}
+_RULE_PROPERTY_MAP = {
+    "protocol": ("protocol",),
+    "frontend_port": ("frontendPort",),
+    "backend_port": ("backendPort",),
+    "frontend_ip_configuration": ("frontendIPConfiguration",),
+    "backend_address_pool": ("backendAddressPool",),
+}
+
+
+def _normalize_load_balancer(load_balancer: dict) -> dict:
+    copy_properties(load_balancer, _LOAD_BALANCER_PROPERTY_MAP)
+    for config in load_balancer.get("frontend_ip_configurations") or []:
+        copy_properties(config, _FRONTEND_IP_PROPERTY_MAP)
+    for pool in load_balancer.get("backend_address_pools") or []:
+        copy_properties(pool, _BACKEND_POOL_PROPERTY_MAP)
+    for rule in (load_balancer.get("load_balancing_rules") or []) + (
+        load_balancer.get("inbound_nat_rules") or []
+    ):
+        copy_properties(rule, _RULE_PROPERTY_MAP)
+    return load_balancer
 
 
 @timeit
@@ -276,7 +315,7 @@ def sync(
     logger.info(f"Syncing Azure Load Balancers for subscription {subscription_id}.")
     client = NetworkManagementClient(credentials.credential, subscription_id)
 
-    load_balancers = get_load_balancers(client)
+    load_balancers = [_normalize_load_balancer(lb) for lb in get_load_balancers(client)]
     transformed_lbs = transform_load_balancers(load_balancers)
     load_load_balancers(neo4j_session, transformed_lbs, subscription_id, update_tag)
     load_load_balancer_tags(neo4j_session, subscription_id, transformed_lbs, update_tag)

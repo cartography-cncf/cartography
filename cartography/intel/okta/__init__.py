@@ -1,19 +1,28 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import neo4j
 from okta.client import Client as OktaClient
 
 from cartography.config import Config
+from cartography.intel.okta import api_tokens
 from cartography.intel.okta import applications
 from cartography.intel.okta import authenticators
 from cartography.intel.okta import awssaml
+from cartography.intel.okta import devices
 from cartography.intel.okta import factors
 from cartography.intel.okta import groups
+from cartography.intel.okta import log_streams
+from cartography.intel.okta import network_zones
 from cartography.intel.okta import organization
 from cartography.intel.okta import origins
+from cartography.intel.okta import policies
 from cartography.intel.okta import users
+from cartography.intel.okta.common import is_oauth_token_error
+from cartography.intel.okta.common import OKTA_OAUTH_DEFAULT_SCOPES
+from cartography.intel.okta.common import OktaApiError
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -46,6 +55,45 @@ def cleanup_okta_groups(
     run_cleanup_job("okta_groups_cleanup.json", neo4j_session, common_job_parameters)
 
 
+def _has_oauth_credentials(config: Config) -> bool:
+    return bool(config.okta_client_id and config.okta_private_key)
+
+
+def create_okta_client(config: Config) -> OktaClient:
+    """
+    Build an Okta SDK client that authenticates with an OAuth service app when
+    one is configured, and with an API token otherwise.
+    """
+    client_config: dict[str, Any] = {
+        "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
+    }
+    if not _has_oauth_credentials(config):
+        client_config["token"] = config.okta_api_key
+        return OktaClient(client_config)
+
+    if config.okta_api_key:
+        logger.warning(
+            "Both an Okta API key and OAuth client credentials are set; using the "
+            "OAuth client.",
+        )
+    client_config.update(
+        {
+            "authorizationMode": "PrivateKey",
+            "clientId": config.okta_client_id,
+            # A PEM string or a JWK; the SDK also accepts a path to a PEM file.
+            "privateKey": config.okta_private_key,
+            "scopes": (config.okta_scopes or "").replace(",", " ").split()
+            or list(OKTA_OAUTH_DEFAULT_SCOPES),
+            # Okta requires DPoP on new service apps by default. The SDK uses
+            # whichever token type Okta returns, DPoP or Bearer.
+            "dpopEnabled": config.okta_dpop_enabled,
+        }
+    )
+    if config.okta_private_key_id:
+        client_config["kid"] = config.okta_private_key_id
+    return OktaClient(client_config)
+
+
 @timeit
 def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
@@ -54,9 +102,12 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A `cartography.config` object
     :return: Nothing
     """
-    if not config.okta_api_key:
+    if not config.okta_org_id or not (
+        config.okta_api_key or _has_oauth_credentials(config)
+    ):
         logger.warning(
-            "No valid Okta credentials could be found. Exiting Okta sync stage.",
+            "No Okta org ID or valid Okta credentials could be found. Exiting "
+            "Okta sync stage.",
         )
         return
 
@@ -67,18 +118,36 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "OKTA_ORG_ID": config.okta_org_id,
     }
 
-    okta_client = OktaClient(
-        {
-            "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
-            "token": config.okta_api_key,
-        }
-    )
+    okta_client = create_okta_client(config)
 
-    organization.sync_okta_organization(neo4j_session, common_job_parameters)
-    user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)
-    groups.sync_okta_groups(okta_client, neo4j_session, common_job_parameters)
+    try:
+        # The first request fetches the OAuth access token.
+        org_properties = organization.sync_okta_organization(
+            neo4j_session,
+            common_job_parameters,
+            okta_client,
+        )
+    except OktaApiError as exc:
+        if is_oauth_token_error(exc):
+            logger.error(
+                "Okta refused to issue an OAuth access token (%s). Check the "
+                "service app's client ID, private key, and key ID, and that it "
+                "is granted every requested scope.",
+                exc.error_code,
+            )
+        raise
+    user_ids, user_roles_synced = users.sync_okta_users(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    group_roles_synced = groups.sync_okta_groups(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
     users.sync_okta_user_types(okta_client, neo4j_session, common_job_parameters)
-    applications.sync_okta_applications(
+    app_ids = applications.sync_okta_applications(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -94,6 +163,44 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
         user_ids,
+    )
+    devices.sync_okta_devices(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    log_streams_synced = log_streams.sync_okta_log_streams(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    network_zones.sync_okta_network_zones(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Runs after users and network zones: tokens link to both.
+    api_tokens.sync_okta_api_tokens(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Runs after applications and network zones: policies link to both.
+    policies.sync_okta_policies(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+        app_ids,
+    )
+
+    organization.record_okta_sync_coverage(
+        neo4j_session,
+        common_job_parameters,
+        org_properties,
+        {
+            "log_streams_synced": log_streams_synced,
+            "admin_roles_synced": user_roles_synced and group_roles_synced,
+        },
     )
 
     # Sync Okta groups to AWS roles via SAML

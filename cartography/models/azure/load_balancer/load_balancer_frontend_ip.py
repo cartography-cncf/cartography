@@ -24,7 +24,9 @@ class AzureLoadBalancerFrontendIPProperties(CartographyNodeProperties):
         "name", description="Name of the load balancer frontend IP configuration."
     )
     private_ip_address: PropertyRef = PropertyRef(
-        "private_ip_address", description="Private IP address assigned to the frontend."
+        "private_ip_address",
+        extra_index=True,
+        description="Private IP address assigned to the frontend.",
     )
     public_ip_address_id: PropertyRef = PropertyRef(
         "public_ip_address_id",

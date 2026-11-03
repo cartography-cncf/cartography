@@ -23,6 +23,7 @@ from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import is_github_dotcom_api_url
+from cartography.intel.github.util import parse_github_timestamp
 from cartography.intel.github.util import sleep_with_jitter
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
@@ -31,6 +32,31 @@ from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 def deterministic_jitter():
     with patch("cartography.intel.github.util.random.random", return_value=0):
         yield
+
+
+@pytest.fixture(autouse=True)
+def posture_syncs():
+    """Stub the organization posture syncs so ingestion tests never call GitHub."""
+    with (
+        patch(
+            "cartography.intel.github.users.get_organization",
+            side_effect=lambda token, api_url, org: (
+                [],
+                [],
+                {"url": f"https://github.com/{org}", "login": org},
+            ),
+        ),
+        patch("cartography.intel.github.organizations.sync") as organizations_sync,
+        patch(
+            "cartography.intel.github.app_installations.sync"
+        ) as app_installations_sync,
+        patch("cartography.intel.github.webhooks.sync") as webhooks_sync,
+    ):
+        yield {
+            "organizations": organizations_sync,
+            "app_installations": app_installations_sync,
+            "webhooks": webhooks_sync,
+        }
 
 
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
@@ -85,6 +111,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_users_cleanup: Mock,
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
+    posture_syncs: dict[str, Mock],
 ) -> None:
     github_config = {
         "organization": [
@@ -102,11 +129,13 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
             repos=[{"id": "https://github.com/org-1/repo"}],
             manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
             manifests_cleanup_safe=True,
+            repos_complete=True,
         ),
         GitHubRepoSyncResult(
             repos=[{"id": "https://github.com/org-2/repo"}],
             manifests=[{"id": "https://github.com/org-2/repo#/package.json"}],
             manifests_cleanup_safe=False,
+            repos_complete=True,
         ),
     ]
     github_users_by_org = [
@@ -142,6 +171,9 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_users_sync.call_count == 2
     assert mock_repos_sync.call_count == 2
     assert mock_personal_access_tokens_sync.call_count == 2
+    assert posture_syncs["organizations"].call_count == 2
+    assert posture_syncs["app_installations"].call_count == 2
+    assert posture_syncs["webhooks"].call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
     assert mock_codeowners_sync.call_count == 2
     assert mock_codeowners_sync.call_args_list[0].args[-2:] == (
@@ -245,6 +277,7 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
         repos=[{"id": "https://github.com/org-1/repo"}],
         manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
         manifests_cleanup_safe=True,
+        repos_complete=True,
     )
     mock_repos_sync.return_value = repo_sync_result
     github_users = [{"login": "owner-1", "url": "https://github.com/owner-1"}]
@@ -759,7 +792,9 @@ def test_identity_failure_does_not_stop_later_resources_or_organizations() -> No
                 later_stages[name] = stack.enter_context(
                     patch(f"cartography.intel.github.{name}", return_value=[])
                 )
-            later_stages["repos.sync"].return_value = GitHubRepoSyncResult([], [], True)
+            later_stages["repos.sync"].return_value = GitHubRepoSyncResult(
+                [], [], True, True
+            )
             later_stages["packages.sync_packages"].return_value = (
                 cartography.intel.github.packages.ContainerPackagesFetchResult(
                     [], False
@@ -810,3 +845,27 @@ def test_retry_jitter_never_shortens_provider_wait(mock_sleep, mock_random, dela
         mock_sleep.assert_not_called()
     else:
         mock_sleep.assert_called_once_with(delay * 1.125)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["2024-01-02T03:04:05Z", "2024-01-02T03:04:05z", "2024-01-01T20:04:05.000-07:00"],
+)
+def test_parse_github_timestamp_accepts_rfc3339(value):
+    # Act
+    parsed = parse_github_timestamp(value)
+
+    # Assert - every form GitHub sends resolves to the same aware instant.
+    assert parsed == datetime(2024, 1, 2, 3, 4, 5, tzinfo=tz.utc)
+
+
+def test_parse_github_timestamp_missing_is_none_but_malformed_raises():
+    # Act and assert - absence is unknown; a format change must not look like absence.
+    assert parse_github_timestamp(None) is None
+    assert parse_github_timestamp("") is None
+    with pytest.raises(ValueError):
+        parse_github_timestamp("yesterday")
+    with pytest.raises(ValueError):
+        parse_github_timestamp("2024-01-02T03:04:05")  # no UTC offset
+    with pytest.raises(TypeError):
+        parse_github_timestamp(0)

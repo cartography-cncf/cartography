@@ -1,6 +1,16 @@
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from kiota_abstractions.api_error import APIError
+from msgraph.generated.models.risk_detail import RiskDetail
+from msgraph.generated.models.risk_level import RiskLevel
+from msgraph.generated.models.risk_state import RiskState
+from msgraph.generated.models.risky_service_principal import RiskyServicePrincipal
+from msgraph.generated.models.risky_service_principal_collection_response import (
+    RiskyServicePrincipalCollectionResponse,
+)
 
 import cartography.client.core.tx
 import cartography.intel.aws.identitycenter
@@ -114,7 +124,9 @@ async def _mock_get_entra_service_principals(client):
         yield spn
 
 
-async def _mock_get_app_role_assignments_for_app(client, neo4j_session, app_id):
+async def _mock_get_app_role_assignments_for_app(
+    client, neo4j_session, tenant_id, app_id
+):
     """Mock async generator for get_app_role_assignments_for_app"""
     # Return assignments that match this app_id
     assignments, _ = _prepare_mock_assignments()
@@ -143,6 +155,69 @@ async def _mock_get_app_role_assignments_for_app(client, neo4j_session, app_id):
             }
 
 
+@pytest.mark.asyncio
+async def test_app_role_assignments_only_query_the_requested_tenant(
+    neo4j_session,
+):
+    tenant_id = "tenant-a"
+    other_tenant_id = "tenant-b"
+    shared_app_id = "shared-client-id"
+    neo4j_session.run(
+        """
+        CREATE (a:AzureTenant {id: $tenant_id})
+        CREATE (b:AzureTenant {id: $other_tenant_id})
+        CREATE (a_app:EntraApplication {id: 'app-a', app_id: $shared_app_id})
+        CREATE (b_app:EntraApplication {id: 'app-b', app_id: $shared_app_id})
+        CREATE (a_sp:EntraServicePrincipal {id: 'sp-a', app_id: $shared_app_id})
+        CREATE (b_sp:EntraServicePrincipal {id: 'sp-b', app_id: $shared_app_id})
+        CREATE (a)-[:RESOURCE]->(a_app)
+        CREATE (b)-[:RESOURCE]->(b_app)
+        CREATE (a)-[:RESOURCE]->(a_sp)
+        CREATE (b)-[:RESOURCE]->(b_sp)
+        """,
+        tenant_id=tenant_id,
+        other_tenant_id=other_tenant_id,
+        shared_app_id=shared_app_id,
+    )
+
+    client = MagicMock()
+    client.service_principals.by_service_principal_id.return_value.app_role_assigned_to.get = AsyncMock(
+        return_value=None
+    )
+
+    try:
+        results = [
+            assignment
+            async for assignment in cartography.intel.microsoft.entra.app_role_assignments.get_app_role_assignments_for_app(
+                client,
+                neo4j_session,
+                tenant_id,
+                shared_app_id,
+            )
+        ]
+
+        assert results == []
+        assert {
+            call.args[0]
+            for call in client.service_principals.by_service_principal_id.call_args_list
+        } == {"sp-a"}
+    finally:
+        neo4j_session.run(
+            """
+            MATCH (n)
+            WHERE n.id IN [$tenant_id, $other_tenant_id, 'app-a', 'app-b', 'sp-a', 'sp-b']
+            DETACH DELETE n
+            """,
+            tenant_id=tenant_id,
+            other_tenant_id=other_tenant_id,
+        )
+
+
+@patch.object(
+    cartography.intel.microsoft.entra.service_principals,
+    "get_risky_service_principals",
+    new=AsyncMock(return_value={}),
+)
 @patch.object(
     cartography.intel.microsoft.entra.app_role_assignments,
     "get_app_role_assignments_for_app",
@@ -477,4 +552,67 @@ async def test_sync_entra_applications(
         # scoped to TEST_TENANT_ID does not touch apps owned by other
         # tenants (would otherwise be False from foreign_sp.account_enabled).
         ("Foreign Tenant App", True),
+    }
+
+
+@pytest.mark.parametrize("denied", [False, True])  # type: ignore[misc]
+@pytest.mark.asyncio  # type: ignore[misc]
+async def test_sync_service_principals_risk(neo4j_session, denied: bool) -> None:
+    # Arrange: a separate tenant keeps cleanup away from other tests' nodes.
+    tenant_id = "synthetic-risk-tenant"
+    load_tenant(neo4j_session, {"id": tenant_id}, TEST_UPDATE_TAG)
+    risky_sp_id = MOCK_SERVICE_PRINCIPALS[0].id
+    client = MagicMock()
+    client.identity_protection.risky_service_principals.get = AsyncMock(
+        return_value=RiskyServicePrincipalCollectionResponse(
+            value=[
+                RiskyServicePrincipal(
+                    id=risky_sp_id,
+                    risk_level=RiskLevel.High,
+                    risk_state=RiskState.AtRisk,
+                    risk_detail=RiskDetail.None_,
+                ),
+            ]
+        ),
+        side_effect=(
+            APIError("forbidden", response_status_code=403) if denied else None
+        ),
+    )
+
+    # Act
+    with (
+        patch.object(
+            cartography.intel.microsoft.entra.service_principals,
+            "GraphServiceClient",
+            return_value=client,
+        ),
+        patch.object(
+            cartography.intel.microsoft.entra.service_principals,
+            "get_entra_service_principals",
+            side_effect=_mock_get_entra_service_principals,
+        ),
+    ):
+        await sync_service_principals(
+            neo4j_session,
+            tenant_id,
+            TEST_CLIENT_ID,
+            TEST_CLIENT_SECRET,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": tenant_id},
+        )
+
+    # Assert: service principals load either way; risk is null and flagged
+    # unavailable when denied, so null does not read as "no risk".
+    rows = neo4j_session.run(
+        "MATCH (:AzureTenant {id: $tenant_id})-[:RESOURCE]->(sp:EntraServicePrincipal) "
+        "RETURN sp.id AS id, sp.risk_available AS available, sp.risk_level AS level, "
+        "sp.risk_state AS state, sp.risk_detail AS detail",
+        tenant_id=tenant_id,
+    )
+    expected_risk = (None, None, None) if denied else ("high", "atRisk", "none")
+    assert {
+        (r["id"], r["available"], r["level"], r["state"], r["detail"]) for r in rows
+    } == {
+        (risky_sp_id, not denied, *expected_risk),
+        (MOCK_SERVICE_PRINCIPALS[1].id, not denied, None, None, None),
     }

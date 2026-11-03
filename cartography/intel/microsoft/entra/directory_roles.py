@@ -144,10 +144,13 @@ def cleanup_directory_roles(
 async def sync_entra_directory_roles(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> None:
     """
     Sync Entra directory role definitions and role assignments to the graph.
@@ -158,8 +161,17 @@ async def sync_entra_directory_roles(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
+    :param delegated_auth: Use a user's identity and skip cleanup
+    :param access_token: Pre-issued Graph access token for delegated auth; the
+        current Azure CLI user is used when it is not set
     """
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+        access_token=access_token,
+    )
     client = GraphServiceClient(
         credential,
         scopes=["https://graph.microsoft.com/.default"],
@@ -184,4 +196,5 @@ async def sync_entra_directory_roles(
     )
     logger.info("Loaded %d Entra role assignments", len(role_assignments))
 
-    cleanup_directory_roles(neo4j_session, common_job_parameters)
+    if not delegated_auth:
+        cleanup_directory_roles(neo4j_session, common_job_parameters)

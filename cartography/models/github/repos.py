@@ -76,6 +76,40 @@ class GitHubRepositoryNodeProperties(CartographyNodeProperties):
         "parent",
         description="Web URL of the repository this repository was forked from.",
     )
+    visibility: PropertyRef = PropertyRef(
+        "visibility",
+        description="Repository visibility: `public`, `private` or `internal`.",
+    )
+    # Security and analysis features. GitHub only reports these to repository
+    # administrators and security managers; they are null when not visible.
+    advanced_security_enabled: PropertyRef = PropertyRef(
+        "advanced_security_enabled",
+        description="Whether GitHub Advanced Security is enabled.",
+    )
+    code_security_enabled: PropertyRef = PropertyRef(
+        "code_security_enabled",
+        description="Whether GitHub Code Security is enabled.",
+    )
+    secret_scanning_enabled: PropertyRef = PropertyRef(
+        "secret_scanning_enabled",
+        description="Whether secret scanning is enabled.",
+    )
+    secret_scanning_push_protection_enabled: PropertyRef = PropertyRef(
+        "secret_scanning_push_protection_enabled",
+        description="Whether secret scanning push protection blocks pushes that contain secrets.",
+    )
+    secret_scanning_non_provider_patterns_enabled: PropertyRef = PropertyRef(
+        "secret_scanning_non_provider_patterns_enabled",
+        description="Whether secret scanning also detects generic, non-provider secret patterns.",
+    )
+    secret_scanning_validity_checks_enabled: PropertyRef = PropertyRef(
+        "secret_scanning_validity_checks_enabled",
+        description="Whether secret scanning checks detected secrets for validity.",
+    )
+    dependabot_security_updates_enabled: PropertyRef = PropertyRef(
+        "dependabot_security_updates_enabled",
+        description="Whether Dependabot security updates are enabled.",
+    )
 
 
 @dataclass(frozen=True)

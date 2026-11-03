@@ -55,14 +55,16 @@ def test_sync_workload_identity_pools_and_providers(
         COMMON_JOB_PARAMS,
     )
 
-    assert check_nodes(neo4j_session, "GCPWorkloadIdentityPool", ["id"]) == {
+    assert check_nodes(neo4j_session, "GCPWorkloadIdentityPool", ["id", "pool_id"]) == {
         (
             f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
             "workloadIdentityPools/github-pool",
+            "github-pool",
         ),
         (
             f"projects/{wif_data.TEST_PROJECT_NUMBER}/locations/global/"
             "workloadIdentityPools/aws-pool",
+            "aws-pool",
         ),
     }
 

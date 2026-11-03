@@ -8,6 +8,7 @@ from dataclasses import fields
 import pytest
 
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.semgrep.aisast import SemgrepAISASTFindingSchema
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
 from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
@@ -38,6 +39,12 @@ def _matcher_to_dict(matcher):
         ),
         (
             SemgrepSASTFindingSchema(),
+            "FOUND_IN",
+            LinkDirection.OUTWARD,
+            "repositoryUrl",
+        ),
+        (
+            SemgrepAISASTFindingSchema(),
             "FOUND_IN",
             LinkDirection.OUTWARD,
             "repositoryUrl",

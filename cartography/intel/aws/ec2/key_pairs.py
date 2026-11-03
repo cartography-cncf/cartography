@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.keypair import EC2KeyPairSchema
@@ -37,11 +38,12 @@ def transform_ec2_key_pairs(
     current_aws_account_id: str,
 ) -> list[dict[str, Any]]:
     transformed_key_pairs = []
+    partition = get_partition(region)
     for key_pair in key_pairs:
         key_name = key_pair["KeyName"]
         transformed_key_pairs.append(
             {
-                "KeyPairArn": f"arn:aws:ec2:{region}:{current_aws_account_id}:key-pair/{key_name}",
+                "KeyPairArn": f"arn:{partition}:ec2:{region}:{current_aws_account_id}:key-pair/{key_name}",
                 "KeyName": key_name,
                 "KeyFingerprint": key_pair.get("KeyFingerprint"),
             },

@@ -77,8 +77,10 @@ def test_build_cleanup_queries_unscoped():
     expected_delete_node = """
         MATCH (n:UnscopedNode)
         WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n;
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
     """
 
     actual_delete_rel = remove_leading_whitespace_and_empty_lines(queries[1])
@@ -86,8 +88,10 @@ def test_build_cleanup_queries_unscoped():
         MATCH (n:UnscopedNode)
         MATCH (n)-[r:RELATES_TO]->(:SimpleNode)
         WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
     """
 
     # Assert

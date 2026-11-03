@@ -7,6 +7,7 @@ import requests
 
 from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.supply_chain import ContainerImage
@@ -70,7 +71,9 @@ def _get_unmatched_ghcr_image_owner_repos(
     RETURN img.digest AS image_digest, repo_ids[0] AS repo_url
     """
     org_url = f"https://github.com/{organization}"
-    result = neo4j_session.run(query, org_url=org_url, update_tag=update_tag)
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx, query, org_url=org_url, update_tag=update_tag
+    )
     return [
         {"image_digest": record["image_digest"], "repo_url": record["repo_url"]}
         for record in result
@@ -112,50 +115,50 @@ def get_unmatched_container_images_with_history(
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitHubOrganization'}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $organization}]->())
           )
-        WITH repo, img, repo_img
-        ORDER BY
-            CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
-            repo_img.image_pushed_at DESC
-        WITH repo, collect({
-            digest: img.digest,
-            uri: repo_img.uri,
-            repo_uri: repo.uri,
-            repo_name: repo.name,
-            tag: repo_img.tag,
-            layer_diff_ids: img.layer_diff_ids,
-            type: img.type,
-            architecture: img.architecture,
-            os: img.os
-        })[0] AS best
-        // Get layer history for each best image
-        WITH best
-        UNWIND range(0, size(best.layer_diff_ids) - 1) AS idx
-        WITH best, best.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH best, idx, {
-            diff_id: diff_id,
-            history: layer.history,
-            is_empty: layer.is_empty
-        } AS layer_info
-        ORDER BY idx
-        WITH best, collect(layer_info) AS layer_history
+        // Retain one candidate per repository; DESC timestamps put nulls first.
+        WITH repo, max([
+            CASE WHEN repo_img.tag = 'latest' THEN 1 ELSE 0 END,
+            repo_img.image_pushed_at IS NULL,
+            repo_img.image_pushed_at,
+            img, repo_img
+        ]) AS selected
+        WITH repo, selected[3] AS img, selected[4] AS repo_img
+    """
+
+    if limit is not None:
+        query += f"        ORDER BY coalesce(repo.uri, img.digest)\n        LIMIT {int(limit)}\n"
+
+    query += """
+        // Aggregate one image at a time, including when no limit is set.
+        CALL {
+            WITH img
+            UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+            WITH img.layer_diff_ids[idx] AS diff_id, idx
+            OPTIONAL MATCH (layer:ImageLayer {id: diff_id})
+            WITH idx, {
+                diff_id: diff_id,
+                history: layer.history,
+                is_empty: layer.is_empty
+            } AS layer_info
+            ORDER BY idx
+            RETURN collect(layer_info) AS layer_history
+        }
         RETURN
-            best.digest AS digest,
-            best.uri AS uri,
-            best.repo_uri AS repo_uri,
-            best.repo_name AS repo_name,
-            best.tag AS tag,
-            best.layer_diff_ids AS layer_diff_ids,
-            best.type AS type,
-            best.architecture AS architecture,
-            best.os AS os,
+            img.digest AS digest,
+            repo_img.uri AS uri,
+            repo.uri AS repo_uri,
+            repo.name AS repo_name,
+            repo_img.tag AS tag,
+            img.layer_diff_ids AS layer_diff_ids,
+            img.type AS type,
+            img.architecture AS architecture,
+            img.os AS os,
             layer_history
     """
 
-    if limit:
-        query += f" LIMIT {limit}"
-
-    result = neo4j_session.run(query, update_tag=update_tag, organization=organization)
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx, query, update_tag=update_tag, organization=organization
+    )
     images = []
 
     for record in result:

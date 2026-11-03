@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -27,7 +28,12 @@ def test_sync_salesforce_groups(mock_groups, mock_members, neo4j_session):
     # Arrange
     _ensure_local_neo4j_has_test_organization(neo4j_session)
     cartography.intel.salesforce.users.load_users(
-        neo4j_session, test_data.SALESFORCE_USERS, test_data.ORG_ID, TEST_UPDATE_TAG
+        neo4j_session,
+        cartography.intel.salesforce.users.transform(
+            deepcopy(test_data.SALESFORCE_USERS), test_data.ORG_ID
+        ),
+        test_data.ORG_ID,
+        TEST_UPDATE_TAG,
     )
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": test_data.ORG_ID}
 
@@ -37,7 +43,7 @@ def test_sync_salesforce_groups(mock_groups, mock_members, neo4j_session):
     )
 
     # Assert nodes
-    assert check_nodes(neo4j_session, "SalesforceGroup", ["id", "name"]) == {
+    assert check_nodes(neo4j_session, "SalesforceGroup", ["salesforce_id", "name"]) == {
         ("00G000000000001AAA", "All Internal Users"),
         ("00G000000000002AAA", "Admins"),
     }
@@ -46,9 +52,9 @@ def test_sync_salesforce_groups(mock_groups, mock_members, neo4j_session):
     assert check_rels(
         neo4j_session,
         "SalesforceUser",
-        "id",
+        "salesforce_id",
         "SalesforceGroup",
-        "id",
+        "salesforce_id",
         "MEMBER_OF",
         rel_direction_right=True,
     ) == {
@@ -61,9 +67,9 @@ def test_sync_salesforce_groups(mock_groups, mock_members, neo4j_session):
     assert check_rels(
         neo4j_session,
         "SalesforceGroup",
-        "id",
+        "salesforce_id",
         "SalesforceGroup",
-        "id",
+        "salesforce_id",
         "MEMBER_OF",
         rel_direction_right=True,
     ) == {

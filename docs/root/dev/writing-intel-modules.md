@@ -712,11 +712,18 @@ When `cascade_delete=True`, the cleanup query becomes:
 
 ```cypher
 WHERE n.lastupdated <> $UPDATE_TAG
-WITH n LIMIT $LIMIT_SIZE
-OPTIONAL MATCH (n)-[:RESOURCE]->(child)
-WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
-DETACH DELETE child, n;
+WITH n LIMIT $SCAN_LIMIT_SIZE
+CALL (n) {
+    CALL (n) {
+        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
+        WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+        DETACH DELETE child
+    }
+    DETACH DELETE n
+} IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
 ```
+
+Every cleanup query that `GraphJob.from_node_schema` generates deletes in batches this way: one scan deletes up to `$SCAN_LIMIT_SIZE` stale rows and commits every `$LIMIT_SIZE` (the job's `iterationsize`), and the job reruns the query until it deletes nothing.
 
 **When to use cascade_delete:**
 

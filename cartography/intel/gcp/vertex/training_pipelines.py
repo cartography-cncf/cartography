@@ -28,10 +28,10 @@ def get_vertex_ai_training_pipelines_for_location(
 ) -> list[dict]:
     parent = f"projects/{project_id}/locations/{location}"
     return list_vertex_ai_resources_for_location(
-        fetcher=lambda: build_vertex_ai_pipeline_client(
+        fetcher=lambda **kwargs: build_vertex_ai_pipeline_client(
             location,
             credentials=credentials,
-        ).list_training_pipelines(parent=parent),
+        ).list_training_pipelines(parent=parent, **kwargs),
         resource_type="training pipelines",
         location=location,
         project_id=project_id,

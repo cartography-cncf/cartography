@@ -148,6 +148,7 @@ def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
         side_effect=[
             {"data": [{"id": "1"}, {"id": "2"}], "total_items": 3},
             {"data": [{"id": "3"}]},
+            {"data": []},
         ],
     )
 
@@ -166,47 +167,26 @@ def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
     assert pages == [[{"id": "1"}, {"id": "2"}], [{"id": "3"}]]
     first_payload = query_call.call_args_list[0].args[2]
     second_payload = query_call.call_args_list[1].args[2]
+    third_payload = query_call.call_args_list[2].args[2]
     assert first_payload["start_at_index"] == 0
     assert first_payload["get_results_and_count"] is True
     assert second_payload["start_at_index"] == 2
     assert second_payload["get_results_and_count"] is False
+    assert third_payload["start_at_index"] == 3
     assert "limit" not in query
 
 
-@pytest.mark.parametrize(
-    ("responses", "message"),
-    [
-        ([{"data": []}], "omitted integer total_items"),
-        (
-            [
-                {"data": [{"id": "1"}], "total_items": 2},
-                {"data": []},
-            ],
-            "pagination stopped",
-        ),
-        (
-            [
-                {"data": [{"id": "1"}], "total_items": 2},
-                {"data": [{"id": "1"}]},
-            ],
-            "repeated a page",
-        ),
-        ([{"data": [{"id": "1"}], "total_items": 0}], "more rows"),
-    ],
-)  # type: ignore[misc]
-def test_iter_serving_layer_pages_rejects_incomplete_responses(
+def test_iter_serving_layer_pages_requires_a_count_for_the_first_response(
     mocker,
-    responses: list[dict],
-    message: str,
 ) -> None:
     # Arrange
     mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
-        side_effect=responses,
+        return_value={"data": []},
     )
 
     # Act and assert
-    with pytest.raises(RuntimeError, match=message):
+    with pytest.raises(RuntimeError, match="omitted integer total_items"):
         list(
             api.iter_serving_layer_pages(
                 MagicMock(),
@@ -216,6 +196,251 @@ def test_iter_serving_layer_pages_rejects_incomplete_responses(
                 result_name="alerts",
             ),
         )
+
+
+def test_iter_serving_layer_pages_continues_after_short_midstream_page(
+    mocker,
+) -> None:
+    # Arrange: Orca can return a short page before the true end of results.
+    query_call = mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}, {"id": "2"}], "total_items": 4},
+            {"data": [{"id": "3"}]},
+            {"data": [{"id": "4"}]},
+            {"data": []},
+        ],
+    )
+
+    # Act
+    pages = list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["Alert"]}},
+            page_size=2,
+            result_name="alerts",
+        ),
+    )
+
+    # Assert
+    assert pages == [
+        [{"id": "1"}, {"id": "2"}],
+        [{"id": "3"}],
+        [{"id": "4"}],
+    ]
+    assert query_call.call_count == 4
+    assert query_call.call_args_list[2].args[2]["start_at_index"] == 3
+
+
+def test_iter_serving_layer_pages_tolerates_drifting_count(mocker) -> None:
+    # Arrange
+    query_call = mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}, {"id": "2"}], "total_items": 1},
+            {"data": [{"id": "3"}], "total_items": 3},
+            {"data": []},
+        ],
+    )
+
+    # Act
+    pages = list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["Alert"]}},
+            page_size=2,
+            result_name="alerts",
+        ),
+    )
+
+    # Assert
+    assert pages == [[{"id": "1"}, {"id": "2"}], [{"id": "3"}]]
+    assert query_call.call_count == 3
+
+
+def test_iter_serving_layer_pages_rejects_empty_first_page_with_count(
+    mocker,
+) -> None:
+    # Arrange: the count and the first page come from the same response.
+    mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        return_value={"data": [], "total_items": 10},
+    )
+
+    # Act and assert
+    with pytest.raises(RuntimeError, match="reported 10 rows but returned an empty"):
+        list(
+            api.iter_serving_layer_pages(
+                MagicMock(),
+                "https://api.orcasecurity.example",
+                {"query": {"models": ["Alert"]}},
+                page_size=1,
+                result_name="alerts",
+            ),
+        )
+
+
+def _fetch_single_page(
+    mocker,
+    fetched: int,
+) -> tuple[list[dict[str, str]], api.PaginationProgress]:
+    mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": str(i)} for i in range(fetched)], "total_items": 100},
+            {"data": []},
+        ],
+    )
+    progress = api.PaginationProgress()
+    pages = api.iter_serving_layer_pages(
+        MagicMock(),
+        "https://api.orcasecurity.example",
+        {"query": {"models": ["VulnerabilityV2"]}},
+        page_size=100,
+        result_name="vulnerabilities",
+        progress=progress,
+    )
+    return [row for page in pages for row in page], progress
+
+
+def test_iter_serving_layer_pages_accepts_one_percent_shortfall(mocker) -> None:
+    # Act
+    rows, progress = _fetch_single_page(mocker, 99)
+
+    # Assert
+    assert len(rows) == 99
+    assert progress.complete is True
+
+
+def test_iter_serving_layer_pages_yields_short_fetch_but_marks_it_incomplete(
+    mocker,
+    caplog,
+) -> None:
+    # A result set that changes during a long scan can end a few percent short
+    # of its initial count. The rows are still worth loading, but a few percent
+    # of a multi-million-row org is too many to let cleanup delete.
+
+    # Act
+    rows, progress = _fetch_single_page(mocker, 98)
+
+    # Assert
+    assert len(rows) == 98
+    assert progress == api.PaginationProgress(
+        fetched_rows=98,
+        total_items=100,
+        finished=True,
+    )
+    assert progress.complete is False
+    assert "ended after 98 of 100 reported rows" in caplog.text
+    assert "skipping vulnerabilities cleanup" in caplog.text
+
+
+def test_iter_serving_layer_pages_is_incomplete_after_midstream_failure(
+    mocker,
+) -> None:
+    # Arrange
+    mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}], "total_items": 1},
+            RuntimeError("synthetic mid-stream failure"),
+        ],
+    )
+    progress = api.PaginationProgress()
+
+    # Act and assert
+    with pytest.raises(RuntimeError, match="synthetic mid-stream failure"):
+        list(
+            api.iter_serving_layer_pages(
+                MagicMock(),
+                "https://api.orcasecurity.example",
+                {"query": {"models": ["Alert"]}},
+                page_size=1,
+                result_name="alerts",
+                progress=progress,
+            ),
+        )
+    assert progress.fetched_rows == 1
+    assert progress.complete is False
+
+
+def test_iter_serving_layer_pages_rejects_repeated_page(mocker) -> None:
+    # Arrange
+    mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}], "total_items": 2},
+            {"data": [{"id": "1"}]},
+        ],
+    )
+
+    # Act and assert
+    with pytest.raises(RuntimeError, match="repeated a page"):
+        list(
+            api.iter_serving_layer_pages(
+                MagicMock(),
+                "https://api.orcasecurity.example",
+                {"query": {"models": ["Alert"]}},
+                page_size=1,
+                result_name="alerts",
+            ),
+        )
+
+
+def test_iter_serving_layer_pages_accepts_rows_beyond_advisory_count(mocker) -> None:
+    # Arrange
+    query_call = mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}], "total_items": 0},
+            {"data": []},
+        ],
+    )
+
+    # Act
+    pages = list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["Alert"]}},
+            page_size=1,
+            result_name="alerts",
+        ),
+    )
+
+    # Assert
+    assert pages == [[{"id": "1"}]]
+    assert query_call.call_count == 2
+
+
+def test_iter_serving_layer_pages_allows_empty_probe_after_undercount(mocker) -> None:
+    # Arrange
+    query_call = mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}], "total_items": 1},
+            {"data": [{"id": "2"}]},
+            {"data": []},
+        ],
+    )
+
+    # Act
+    pages = list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["Alert"]}},
+            page_size=1,
+            result_name="alerts",
+            max_pages=2,
+        ),
+    )
+
+    # Assert
+    assert pages == [[{"id": "1"}], [{"id": "2"}]]
+    assert query_call.call_count == 3
 
 
 def test_iter_serving_layer_pages_rejects_excessive_page_count(mocker) -> None:

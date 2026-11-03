@@ -22,6 +22,7 @@ def _ensure_local_neo4j_has_test_catalogs(neo4j_session):
         neo4j_session,
         cartography.intel.databricks.catalogs.transform(DATABRICKS_CATALOGS),
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -48,6 +49,7 @@ def test_load_databricks_catalogs(mock_get, neo4j_session):
         neo4j_session,
         api_session,
         DATABRICKS_WORKSPACE_ID,
+        DATABRICKS_METASTORE_ID,
         common_job_parameters,
     )
 
@@ -65,13 +67,13 @@ def test_load_databricks_catalogs(mock_get, neo4j_session):
         neo4j_session,
         "DatabricksCatalog",
         "id",
-        "DatabricksWorkspace",
+        "DatabricksMetastore",
         "id",
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        (_catalog_id("workspace"), DATABRICKS_WORKSPACE_ID),
-        (_catalog_id("prod"), DATABRICKS_WORKSPACE_ID),
+        (_catalog_id("workspace"), DATABRICKS_METASTORE_ID),
+        (_catalog_id("prod"), DATABRICKS_METASTORE_ID),
     }
 
     # Metastore -> Catalog CONTAINS

@@ -76,23 +76,25 @@ class DatabricksRegisteredModelNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksRegisteredModelToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksRegisteredModelToMetastoreResourceRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksRegisteredModel)
-class DatabricksRegisteredModelToWorkspaceRel(CartographyRelSchema):
-    """A Databricks registered model is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksRegisteredModel)
+class DatabricksRegisteredModelToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks registered model is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksRegisteredModelToWorkspaceRelProperties = (
-        DatabricksRegisteredModelToWorkspaceRelProperties()
+    properties: DatabricksRegisteredModelToMetastoreResourceRelProperties = (
+        DatabricksRegisteredModelToMetastoreResourceRelProperties()
     )
 
 
@@ -127,8 +129,8 @@ class DatabricksRegisteredModelSchema(CartographyNodeSchema):
     )
     # Registered models are grantable UC securables.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_SECURABLE])
-    sub_resource_relationship: DatabricksRegisteredModelToWorkspaceRel = (
-        DatabricksRegisteredModelToWorkspaceRel()
+    sub_resource_relationship: DatabricksRegisteredModelToMetastoreResourceRel = (
+        DatabricksRegisteredModelToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksRegisteredModelToSchemaRel()],
@@ -186,23 +188,23 @@ class DatabricksModelVersionNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksModelVersionToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksModelVersionToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksModelVersion)
-class DatabricksModelVersionToWorkspaceRel(CartographyRelSchema):
-    """A Databricks model version is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksModelVersion)
+class DatabricksModelVersionToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks model version is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksModelVersionToWorkspaceRelProperties = (
-        DatabricksModelVersionToWorkspaceRelProperties()
+    properties: DatabricksModelVersionToMetastoreResourceRelProperties = (
+        DatabricksModelVersionToMetastoreResourceRelProperties()
     )
 
 
@@ -235,8 +237,8 @@ class DatabricksModelVersionSchema(CartographyNodeSchema):
     properties: DatabricksModelVersionNodeProperties = (
         DatabricksModelVersionNodeProperties()
     )
-    sub_resource_relationship: DatabricksModelVersionToWorkspaceRel = (
-        DatabricksModelVersionToWorkspaceRel()
+    sub_resource_relationship: DatabricksModelVersionToMetastoreResourceRel = (
+        DatabricksModelVersionToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksModelVersionToModelRel()],

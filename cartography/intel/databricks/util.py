@@ -1,5 +1,6 @@
 import logging
 import time
+from collections.abc import Mapping
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -11,6 +12,10 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 logger = logging.getLogger(__name__)
+
+# The application id of the AzureDatabricks first-party app, the resource Entra
+# issues Azure Databricks tokens for. The same in every Azure tenant.
+_AZURE_DATABRICKS_RESOURCE_ID = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 
 
 def epoch_ms_to_datetime(value: Any) -> datetime | None:
@@ -33,7 +38,7 @@ def iso_to_datetime(value: Any) -> datetime | None:
 
 
 def get_run_as_principal_index(
-    neo4j_session: neo4j.Session, workspace_id: str
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> dict[str, tuple[str, bool]]:
     """Map a run-as principal name to ``(scoped node id, is_service_principal)``.
 
@@ -44,9 +49,13 @@ def get_run_as_principal_index(
     edge to the wrong principal node. Mirrors ``grants.get_principals`` but
     keeps the user/service-principal distinction the RUN_AS edge needs.
     """
+    # Cleanup runs only after every load, so stale nodes from earlier runs are
+    # still present here; filtering on the update tag keeps them from being read
+    # (a re-created principal shares its name with the stale node).
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(p)
-    WHERE p:DatabricksUser OR p:DatabricksServicePrincipal
+    WHERE (p:DatabricksUser OR p:DatabricksServicePrincipal)
+      AND p.lastupdated = $update_tag
     RETURN p.id AS id,
            p:DatabricksServicePrincipal AS is_sp,
            CASE
@@ -54,7 +63,7 @@ def get_run_as_principal_index(
                ELSE p.user_name
            END AS name
     """
-    result = neo4j_session.run(query, workspace_id=workspace_id)
+    result = neo4j_session.run(query, workspace_id=workspace_id, update_tag=update_tag)
     index: dict[str, tuple[str, bool]] = {}
     for record in result:
         if record["name"] and record["id"]:
@@ -120,6 +129,7 @@ class _BaseDatabricksClient:
       - Personal Access Token (PAT): pass ``token`` (workspace API only).
       - OAuth M2M (service principal client credentials): pass ``client_id`` and
         ``client_secret``.
+    DatabricksEntraWorkspaceClient adds Microsoft Entra ID service principals.
     """
 
     def __init__(
@@ -158,12 +168,7 @@ class _BaseDatabricksClient:
         if self._access_token_expiry and self._access_token_expiry >= time.time():
             return
         self._session.headers.pop("Authorization", None)
-        response = self._session.post(
-            self._token_url(),
-            data={"grant_type": "client_credentials", "scope": "all-apis"},
-            auth=(self._client_id, self._client_secret),  # type: ignore[arg-type]
-            timeout=_TIMEOUT,
-        )
+        response = self._request_access_token()
         response.raise_for_status()
         data = response.json()
         self._session.headers["Authorization"] = f"Bearer {data['access_token']}"
@@ -173,8 +178,22 @@ class _BaseDatabricksClient:
             data.get("expires_in", 0),
         )
 
+    def _request_access_token(self) -> requests.Response:
+        return self._session.post(
+            self._token_url(),
+            data={"grant_type": "client_credentials", "scope": "all-apis"},
+            auth=(self._client_id, self._client_secret),  # type: ignore[arg-type]
+            timeout=_TIMEOUT,
+        )
+
     def get(self, uri: str, params: dict | None = None) -> Any:
         """Single GET that returns the parsed JSON body."""
+        return self.get_with_headers(uri, params)[0]
+
+    def get_with_headers(
+        self, uri: str, params: dict | None = None
+    ) -> tuple[Any, Mapping[str, str]]:
+        """Single GET that returns the parsed JSON body and the response headers."""
         self.authenticate()
         response = self._session.get(
             f"{self.host}{uri}",
@@ -182,7 +201,7 @@ class _BaseDatabricksClient:
             timeout=_TIMEOUT,
         )
         response.raise_for_status()
-        return response.json()
+        return response.json(), response.headers
 
     def scim_list(self, uri: str) -> list[dict[str, Any]]:
         """Paginate a SCIM listing endpoint and return all resources."""
@@ -236,6 +255,35 @@ class DatabricksWorkspaceClient(_BaseDatabricksClient):
 
     def _token_url(self) -> str:
         return f"{self.host}/oidc/v1/token"
+
+
+class DatabricksEntraWorkspaceClient(DatabricksWorkspaceClient):
+    """A workspace client authenticated as a Microsoft Entra ID service principal.
+
+    Azure workspaces accept Entra tokens issued for the Azure Databricks
+    resource, so the client credentials go to Entra rather than the workspace.
+    """
+
+    def __init__(
+        self, host: str, tenant_id: str, client_id: str, client_secret: str
+    ) -> None:
+        super().__init__(host, client_id=client_id, client_secret=client_secret)
+        self._tenant_id = tenant_id
+
+    def _token_url(self) -> str:
+        return f"https://login.microsoftonline.com/{self._tenant_id}/oauth2/v2.0/token"
+
+    def _request_access_token(self) -> requests.Response:
+        return self._session.post(
+            self._token_url(),
+            data={
+                "grant_type": "client_credentials",
+                "client_id": self._client_id,
+                "client_secret": self._client_secret,
+                "scope": f"{_AZURE_DATABRICKS_RESOURCE_ID}/.default",
+            },
+            timeout=_TIMEOUT,
+        )
 
 
 class DatabricksAccountClient(_BaseDatabricksClient):

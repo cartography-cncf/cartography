@@ -5,6 +5,7 @@ Integration test for the Azure workload-identity ontology edges
 
 from typing import Any
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -53,6 +54,11 @@ async def _async_gen(items: list[Any]) -> AsyncGenerator[Any, None]:
         yield item
 
 
+@patch.object(
+    cartography.intel.microsoft.entra.service_principals,
+    "get_risky_service_principals",
+    new=AsyncMock(return_value={}),
+)
 @patch.object(
     cartography.intel.microsoft.entra.service_principals,
     "get_entra_service_principals",

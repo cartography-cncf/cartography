@@ -92,9 +92,10 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         except IntuneReportExportError as e:
             # Detected apps come from Microsoft Graph's async report export,
             # which intermittently strands the export job server-side even after
-            # resubmission. It is optional enrichment, so a failed export must
-            # not fail the whole Microsoft sync; the next run recovers. Errors
-            # from later report-processing phases are not caught here.
+            # resubmission, and can exceed the download size cap. It is optional
+            # enrichment, so a failed export must not fail the whole Microsoft
+            # sync. Errors from later report-processing phases are not caught
+            # here.
             logger.warning(
                 "Skipping Intune detected app sync: report export did not "
                 "complete: %s",

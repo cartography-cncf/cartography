@@ -117,7 +117,7 @@ def transform_gcp_backend_services(response: Resource, project_id: str) -> list[
         region = bs.get("region")
         backend_service["region"] = region.split("/")[-1] if region else None
 
-        # Extract instance group partial URIs from backends[].group for HAS_BACKEND rel
+        # backends[].group is an instance group or a network endpoint group URL.
         backend_groups = bs.get("backends", [])
         backend_service["backend_group_partial_uris"] = [
             parse_compute_full_uri_to_partial_uri(group_url)

@@ -1,6 +1,9 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+from botocore.exceptions import ClientError
+
 import cartography.intel.aws.sns
 from cartography.intel.aws.sns import sync
 from tests.data.aws.sns import GET_TOPIC_ATTRIBUTES
@@ -92,4 +95,54 @@ def test_sync_sns(
             "arn:aws:sns:us-east-1:123456789012:test-topic",
             "arn:aws:sns:us-east-1:123456789012:test-topic:1111aaaa-2222-bbbb-3333-cccc4444dddd",
         ),
+    }
+
+
+@pytest.mark.parametrize(
+    "first_error_code, expected_display_name",
+    [
+        pytest.param("Throttling", "Test Topic", id="throttled-call-is-retried"),
+        pytest.param(
+            "ThrottlingException",
+            "Test Topic",
+            id="sns-throttling-exception-is-retried",
+        ),
+        pytest.param("NotFound", "", id="deleted-topic-loads-without-attributes"),
+    ],
+)
+@patch.object(
+    cartography.intel.aws.sns, "get_sns_topics", return_value=LIST_TOPICS["Topics"]
+)
+@patch.object(
+    cartography.intel.aws.sns, "get_subscriptions", return_value=LIST_SUBSCRIPTIONS
+)
+def test_sync_sns_retries_only_throttled_topic_attribute_calls(
+    mock_list_subscriptions,
+    mock_get_topics,
+    neo4j_session,
+    first_error_code,
+    expected_display_name,
+):
+    """
+    Test that a throttled GetTopicAttributes call is retried, while a topic deleted
+    mid-sync is still loaded without its attributes.
+    """
+    boto3_session = MagicMock()
+    boto3_session.client.return_value.get_topic_attributes.side_effect = [
+        ClientError({"Error": {"Code": first_error_code}}, "GetTopicAttributes"),
+        GET_TOPIC_ATTRIBUTES,
+    ]
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_nodes(neo4j_session, "AWSSNSTopic", ["arn", "displayname"]) == {
+        ("arn:aws:sns:us-east-1:123456789012:test-topic", expected_display_name),
     }

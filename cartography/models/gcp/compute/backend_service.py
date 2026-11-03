@@ -101,6 +101,26 @@ class GCPBackendServiceToInstanceGroupRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPBackendServiceToNetworkEndpointGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPBackendServiceToNetworkEndpointGroupRel(CartographyRelSchema):
+    target_node_label: str = "GCPNetworkEndpointGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("backend_group_partial_uris", one_to_many=True),
+        },
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: GCPBackendServiceToNetworkEndpointGroupRelProperties = (
+        GCPBackendServiceToNetworkEndpointGroupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudArmorPolicyToBackendServiceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -132,6 +152,7 @@ class GCPBackendServiceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPBackendServiceToInstanceGroupRel(),
+            GCPBackendServiceToNetworkEndpointGroupRel(),
             GCPCloudArmorPolicyToBackendServiceRel(),
         ],
     )

@@ -9,6 +9,16 @@ import re
 
 from packageurl import PackageURL
 
+# Alpine's secdb suffixes _N onto a CVE id when one CVE needed several patches
+# (CVE-2026-1965_1, CVE-2026-1965_2), and Trivy passes that through as the
+# VulnerabilityID. NVD rejects the suffixed form.
+_CVE_ID_RE = re.compile(r"(CVE-\d{4}-\d{4,})(?:_\d+)?")
+
+
+def canonical_cve_id(vulnerability_id: str) -> str | None:
+    match = _CVE_ID_RE.fullmatch(vulnerability_id)
+    return match.group(1) if match else None
+
 
 def normalize_package_name(name: str, pkg_type: str) -> str:
     """

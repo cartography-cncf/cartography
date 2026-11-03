@@ -124,6 +124,27 @@ class KubernetesUserToAWSRootPrincipalRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesUserToGCPPrincipalRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPPrincipal)-[:MAPS_TO]->(:KubernetesUser)
+class KubernetesUserToGCPPrincipalRel(CartographyRelSchema):
+    """Links a Google principal to the Kubernetes RBAC user with the same email. GKE authenticates Google identities as RBAC users named by their email."""
+
+    target_node_label: str = "GCPPrincipal"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("name")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesUserToGCPPrincipalRelProperties = (
+        KubernetesUserToGCPPrincipalRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesUserSchema(CartographyNodeSchema):
     "A user identity referenced by Kubernetes RBAC."
 
@@ -137,5 +158,6 @@ class KubernetesUserSchema(CartographyNodeSchema):
             KubernetesUserToAWSRoleRel(),
             KubernetesUserToAWSUserRel(),
             KubernetesUserToAWSRootPrincipalRel(),
+            KubernetesUserToGCPPrincipalRel(),
         ]
     )

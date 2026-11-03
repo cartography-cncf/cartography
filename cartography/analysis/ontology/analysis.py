@@ -1,6 +1,9 @@
+from typing import NamedTuple
+
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
+from cartography.graph.analysis import CypherValue
 from cartography.graph.analysis import IncrementalMatch
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import SetProperty
@@ -99,6 +102,15 @@ DEVICE_OWNS_LINKING = AnalysisJob(
             incremental_on=("d", IncrementalMatch("obs", relationship=True)),
         ),
         AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:OWNS]->(:OktaDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
             match="MATCH (j)<-[obs:OBSERVED_AS]-(d:Device) WHERE (j:JamfComputer OR j:JamfMobileDevice) AND j.email IS NOT NULL AND trim(j.email) <> '' WITH d, toLower(trim(j.email)) AS jamf_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = jamf_email",
             effects=(
                 AddRelationship(
@@ -159,25 +171,6 @@ DEVICE_AFFECTS_S1_FINDING = AnalysisJob(
         ),
     ),
 )
-DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
-    name="Ontology - CrowdstrikeFinding AFFECTS Device linking",
-    short_name="ontology_devices_crowdstrike_finding_affects",
-    statements=(
-        AnalysisStatement(
-            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:CrowdstrikeHost)-[:HAS_VULNERABILITY]->(:CrowdstrikeSpotlightVulnerability)-[:HAS_CVE]->(f:CrowdstrikeFinding)",
-            effects=(
-                AddRelationship(
-                    "f",
-                    "AFFECTS",
-                    "d",
-                    source_label="CrowdstrikeFinding",
-                    target_label="Device",
-                ),
-            ),
-            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
-        ),
-    ),
-)
 DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
     name="Ontology - HuntressIncidentReport AFFECTS Device linking",
     short_name="ontology_devices_huntress_incident_report_affects",
@@ -200,17 +193,36 @@ DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
 DEVICE_LINKING_JOBS = (
     DEVICE_OWNS_LINKING,
     DEVICE_AFFECTS_S1_FINDING,
-    DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
     DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT,
 )
+# An ingress host rule names the hostname, but DNS resolves that name to the load
+# balancer the controller provisions, never to the Ingress object. A shared name says
+# nothing about which load balancer serves the traffic: the record can alias a separate
+# load balancer bound through a TargetGroupBinding. Only host records match: an NS
+# record with the same name delegates a zone and says nothing about the host.
+_INGRESS_HOST_RECORD_TYPES = "['A', 'AAAA', 'CNAME', 'ALIAS']"
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
     short_name="ontology_dnsrecords_kubernetes_ingress",
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL WITH dns MATCH (ing:KubernetesIngress) WHERE dns._ont_name IN ing.host_names",
+            # DEPRECATED: the host_names fallback covers ingresses loaded before
+            # host_names_normalized existed, until their next Kubernetes sync. Will be
+            # removed in v1.0.0.
+            match=f"MATCH (ing:KubernetesIngress) UNWIND coalesce(ing.host_names_normalized, [host IN ing.host_names | toLower(rtrim(trim(host), '.'))]) AS hostname MATCH (dns:DNSRecord {{_ont_name: hostname}}) WHERE dns._ont_type IS NULL OR toUpper(dns._ont_type) IN {_INGRESS_HOST_RECORD_TYPES}",
             effects=(
+                AddRelationship(
+                    "ing",
+                    "MATCHES_HOSTNAME",
+                    "dns",
+                    source_label="KubernetesIngress",
+                    target_label="DNSRecord",
+                    rel_alias="m",
+                ),
+                # DEPRECATED: hostname correlation, not DNS resolution; replaced by
+                # (:KubernetesIngress)-[:MATCHES_HOSTNAME]->(:DNSRecord). Will be
+                # removed in v1.0.0.
                 AddRelationship(
                     "dns",
                     "DNS_POINTS_TO",
@@ -222,12 +234,31 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
         ),
     ),
 )
+DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
+    name="Ontology - DNSRecord to RailwayCustomDomain linking",
+    short_name="ontology_dnsrecords_railway_custom_domain",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            match="MATCH (domain:RailwayCustomDomain) WHERE domain.verified = true AND domain.domain_normalized IS NOT NULL WITH domain MATCH (dns:DNSRecord {_ont_name: domain.domain_normalized}) WHERE dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']",
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "domain",
+                    source_label="DNSRecord",
+                    target_label="RailwayCustomDomain",
+                ),
+            ),
+        ),
+    ),
+)
 BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
     name="Ontology - BbotDNSName to provider DNSRecord linking",
     short_name="ontology_bbot_dns_matches_provider",
     statements=(
         AnalysisStatement(
-            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND toLower(rtrim(bbot._ont_name, '.')) = toLower(rtrim(provider._ont_name, '.'))",
+            match="MATCH (bbot:BbotDNSName) WHERE bbot._ont_name IS NOT NULL WITH bbot MATCH (provider:DNSRecord {_ont_name: bbot._ont_name}) WHERE NOT provider:BbotDNSName",
             effects=(
                 AddRelationship(
                     "bbot",
@@ -240,77 +271,143 @@ BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
         ),
     ),
 )
+
+
+class DNSRecordTarget(NamedTuple):
+    label: str
+    # Hostname properties on the target. Legacy targets store raw provider values, so
+    # their match normalizes both sides at query time and cannot use an index.
+    # Normalized targets store canonical hostnames at ingestion and match by equality
+    # against the indexed DNSRecord._ont_target_hostname.
+    properties: tuple[str, ...]
+    match_filter: str = "AND NOT dns:GCPRecordSet"
+    cleanup_where: str = ""
+    normalized: bool = False
+    # Normalized list-valued hostname properties, such as Netlify domain aliases.
+    list_properties: tuple[str, ...] = ()
+
+
+_ROUTE53_EXCLUDED_FILTER = "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet"
+_ROUTE53_CLEANUP_WHERE = "NOT source:AWSDNSRecord"
+
 DNS_RECORD_TARGETS = (
-    (
+    DNSRecordTarget(
         "AWSLoadBalancerV2",
-        "dnsname",
-        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
-        "NOT source:AWSDNSRecord",
+        ("dnsname",),
+        _ROUTE53_EXCLUDED_FILTER,
+        _ROUTE53_CLEANUP_WHERE,
     ),
-    (
+    DNSRecordTarget(
         "AWSLoadBalancer",
-        "dnsname",
-        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
-        "NOT source:AWSDNSRecord",
+        ("dnsname",),
+        _ROUTE53_EXCLUDED_FILTER,
+        _ROUTE53_CLEANUP_WHERE,
     ),
-    ("AWSCloudFrontDistribution", "domain_name", "AND NOT dns:GCPRecordSet", ""),
-    (
+    DNSRecordTarget("AWSCloudFrontDistribution", ("domain_name",)),
+    DNSRecordTarget(
         "AWSEC2Instance",
-        "publicdnsname",
-        "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
-        "NOT source:AWSDNSRecord",
+        ("publicdnsname",),
+        _ROUTE53_EXCLUDED_FILTER,
+        _ROUTE53_CLEANUP_WHERE,
     ),
-    ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
+    DNSRecordTarget("GCPInstance", ("hostname",)),
+    DNSRecordTarget("AzureAppService", ("default_host_name",)),
+    DNSRecordTarget("AzureFunctionApp", ("default_host_name",)),
+    DNSRecordTarget("RailwayServiceDomain", ("domain_normalized",), normalized=True),
+    DNSRecordTarget(
+        "ModalSandboxTunnel",
+        ("host_normalized", "unencrypted_host_normalized"),
+        normalized=True,
+    ),
+    DNSRecordTarget("ModalFunction", ("web_hostname",), normalized=True),
+    DNSRecordTarget("GCPCloudRunService", ("uri_hostname",), normalized=True),
+    DNSRecordTarget(
+        "NetlifySite",
+        ("default_domain_normalized", "custom_domain_normalized"),
+        normalized=True,
+        list_properties=("domain_aliases_normalized",),
+    ),
+    DNSRecordTarget(
+        "ScalewayServerlessContainer",
+        ("domain_name_normalized",),
+        normalized=True,
+    ),
+    DNSRecordTarget(
+        "ScalewayServerlessFunction",
+        ("domain_name_normalized",),
+        normalized=True,
+    ),
 )
+
+
+def _dns_record_target_matches(target: DNSRecordTarget) -> tuple[str, ...]:
+    label = target.label
+    if not target.normalized:
+        return tuple(
+            match
+            for prop in target.properties
+            for match in (
+                f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {target.match_filter} WITH dns MATCH (target:{label}) WHERE toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(target.{prop}, '.'))",
+                f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{label}) WHERE toLower(rtrim(val, '.')) = toLower(rtrim(target.{prop}, '.'))",
+            )
+        )
+
+    gcp_hostnames = "MATCH (dns:GCPRecordSet) WHERE dns._ont_target_hostnames IS NOT NULL UNWIND dns._ont_target_hostnames AS hostname WITH dns, hostname"
+    scalar_matches = tuple(
+        match
+        for prop in target.properties
+        for match in (
+            f"MATCH (target:{label}) WHERE target.{prop} IS NOT NULL WITH target MATCH (dns:DNSRecord {{_ont_target_hostname: target.{prop}}}) WHERE true {target.match_filter}",
+            f"{gcp_hostnames} MATCH (target:{label}) WHERE hostname = target.{prop}",
+        )
+    )
+    # GCPRecordSet hostnames are list-valued and a list property cannot be indexed, so
+    # the GCP side of a list match scans the target label.
+    list_matches = tuple(
+        match
+        for prop in target.list_properties
+        for match in (
+            f"MATCH (target:{label}) WHERE target.{prop} IS NOT NULL UNWIND target.{prop} AS hostname WITH target, hostname MATCH (dns:DNSRecord {{_ont_target_hostname: hostname}}) WHERE true {target.match_filter}",
+            f"{gcp_hostnames} MATCH (target:{label}) WHERE hostname IN target.{prop}",
+        )
+    )
+    return scalar_matches + list_matches
+
+
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
+    DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN,
     BBOT_DNS_MATCHES_PROVIDER,
 ) + tuple(
-    (
-        AnalysisJob(
-            name=f"Ontology - DNSRecord to {target_label} linking",
-            short_name=f"ontology_dnsrecords_{target_label.lower()}",
-            cleanup_iterationsize=1000,
-            statements=(
-                AnalysisStatement(
-                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(toString(dns._ont_value)) = toLower(target.{target_property})",
-                    effects=(
-                        AddRelationship(
-                            "dns",
-                            "DNS_POINTS_TO",
-                            "target",
-                            source_label="DNSRecord",
-                            target_label=target_label,
-                            cleanup_where=cleanup_where,
-                        ),
+    AnalysisJob(
+        name=f"Ontology - DNSRecord to {target.label} linking",
+        short_name=f"ontology_dnsrecords_{target.label.lower()}",
+        cleanup_iterationsize=1000,
+        statements=tuple(
+            AnalysisStatement(
+                match=match,
+                effects=(
+                    AddRelationship(
+                        "dns",
+                        "DNS_POINTS_TO",
+                        "target",
+                        # Every statement declares the same effect, cleanup_where
+                        # included, so their cleanups dedupe into a single guarded
+                        # delete. GCPRecordSet carries the DNSRecord label and is never
+                        # an AWSDNSRecord, so that one delete also covers the GCP edges;
+                        # declaring GCPRecordSet as the source would only add a redundant
+                        # cleanup, and omitting cleanup_where would add an unguarded one
+                        # that deletes the provider-owned edges the guard protects.
+                        source_label="DNSRecord",
+                        target_label=target.label,
+                        cleanup_where=target.cleanup_where,
                     ),
                 ),
-                AnalysisStatement(
-                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(val) = toLower(target.{target_property})",
-                    effects=(
-                        AddRelationship(
-                            "dns",
-                            "DNS_POINTS_TO",
-                            "target",
-                            # Declared identically to the statement above, cleanup_where
-                            # included, so the two cleanup effects dedupe into a single
-                            # guarded delete. GCPRecordSet carries the DNSRecord label and is
-                            # never an AWSDNSRecord, so that one delete already covers these
-                            # edges; declaring GCPRecordSet here would only add a redundant
-                            # cleanup, and omitting cleanup_where would add an unguarded one
-                            # that deletes the provider-owned edges the guard protects.
-                            source_label="DNSRecord",
-                            target_label=target_label,
-                            cleanup_where=cleanup_where,
-                        ),
-                    ),
-                ),
-            ),
-        )
-        for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
+            )
+            for match in _dns_record_target_matches(target)
+        ),
     )
+    for target in DNS_RECORD_TARGETS
 )
 BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
     name="Ontology - BbotIPAddress to PublicIP linking",
@@ -328,6 +425,33 @@ BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
                 ),
             ),
         ),
+    ),
+)
+# Address records resolve to IPs rather than hostnames, so DNS_RECORD_TARGETS cannot
+# reach them. Route53 joins a multi-value record into one comma-separated value;
+# GCPRecordSet keeps the list in `data`.
+_ADDRESS_RECORD_TYPES = "['A', 'AAAA']"
+DNS_RECORD_TO_PUBLIC_IP = AnalysisJob(
+    name="Ontology - DNSRecord to PublicIP linking",
+    short_name="ontology_dnsrecords_publicip",
+    cleanup_iterationsize=1000,
+    statements=tuple(
+        AnalysisStatement(
+            match=match,
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "public_ip",
+                    source_label="DNSRecord",
+                    target_label="PublicIP",
+                ),
+            ),
+        )
+        for match in (
+            f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL AND toUpper(dns._ont_type) IN {_ADDRESS_RECORD_TYPES} AND NOT dns:GCPRecordSet UNWIND split(toString(dns._ont_value), ',') AS value WITH dns, toLower(trim(value)) AS ip WHERE ip <> '' MATCH (public_ip:PublicIP {{id: ip}})",
+            f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL AND toUpper(dns._ont_type) IN {_ADDRESS_RECORD_TYPES} UNWIND dns.data AS value WITH dns, toLower(trim(value)) AS ip MATCH (public_ip:PublicIP {{id: ip}})",
+        )
     ),
 )
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
@@ -794,5 +918,111 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
                 ),
             ),
         ),
+    ),
+)
+
+
+# Image PACKAGED_FROM repository via CodeBuild fills gaps only: an image already tied to a
+# repository by provenance (including CodeBuild variables passed as image labels),
+# Dockerfile analysis or another matcher keeps that edge. A tag can point at a manifest
+# list, which is labeled ImageManifestList rather than Image, so its platform images
+# inherit the list's match through CONTAINS_IMAGE.
+_CODEBUILD_GAPS_ONLY = (
+    "NONE(other IN [(img)-[o:PACKAGED_FROM]->() | o] "
+    "WHERE NOT coalesce(other.match_method, '') STARTS WITH 'codebuild_')"
+)
+CODEBUILD_PROJECT_NAME_CONFIDENCE = 0.4
+
+
+def _codebuild_packaged_from(
+    target_label: str, properties: dict[str, CypherValue]
+) -> AddRelationship:
+    return AddRelationship(
+        "img",
+        "PACKAGED_FROM",
+        "repo",
+        source_label="Image",
+        target_label=target_label,
+        properties=properties,
+        cleanup_where="r.match_method STARTS WITH 'codebuild_'",
+    )
+
+
+def _codebuild_build_statement(
+    provider: str,
+    target_label: str,
+    target_key: str,
+) -> AnalysisStatement:
+    # All CodeBuild PACKAGED_BY edges of one image (one per account that holds the digest)
+    # must agree on the repository before the provider is chosen.
+    return AnalysisStatement(
+        comment=f"Derive Image PACKAGED_FROM {target_label} from the CodeBuild build that pushed it.",
+        match=(
+            "MATCH (img:Image)<-[:CONTAINS_IMAGE*0..1]-()"
+            "-[pb:PACKAGED_BY]->(:AWSCodeBuildProject) "
+            f"WHERE pb.source_uri IS NOT NULL AND {_CODEBUILD_GAPS_ONLY} "
+            "WITH img, collect(pb) AS pbs "
+            "WHERE all(p IN pbs WHERE p.source_uri = pbs[0].source_uri) "
+            "WITH img, pbs[0] AS pb "
+            f"WHERE pb.source_provider = '{provider}' "
+            f"MATCH (repo:{target_label} {{{target_key}: pb.source_uri}})"
+        ),
+        effects=(
+            _codebuild_packaged_from(
+                target_label,
+                {
+                    "match_method": Var("pb.match_method"),
+                    "confidence": Var("pb.confidence"),
+                    "source_revision": Var("pb.source_revision"),
+                },
+            ),
+        ),
+    )
+
+
+def _codebuild_project_name_statement(
+    provider: str,
+    target_label: str,
+    target_key: str,
+) -> AnalysisStatement:
+    # Needs no build history: the convention that a project pushes to the ECR
+    # repository of the same name, in the same account and region, names the source.
+    return AnalysisStatement(
+        comment=f"Derive Image PACKAGED_FROM {target_label} from the same-named CodeBuild project.",
+        match=(
+            "MATCH (account:AWSAccount)-[:RESOURCE]->(ecr_repo:AWSECRRepository)"
+            "-[:REPO_IMAGE]->(:AWSECRRepositoryImage)-[:IMAGE]->(tagged) "
+            "MATCH (account)-[:RESOURCE]->(project:AWSCodeBuildProject {name: ecr_repo.name}) "
+            "WHERE project.region = ecr_repo.region AND project.source_repo_url IS NOT NULL "
+            "MATCH (img:Image)<-[:CONTAINS_IMAGE*0..1]-(tagged) "
+            "WHERE NOT exists((img)<-[:CONTAINS_IMAGE*0..1]-()-[:PACKAGED_BY]->(:AWSCodeBuildProject)) "
+            f"AND {_CODEBUILD_GAPS_ONLY} "
+            "WITH img, collect(DISTINCT [project.source_repo_url, project.source_provider]) AS sources "
+            "WHERE size(sources) = 1 "
+            "WITH img, sources[0][0] AS source_uri, sources[0][1] AS source_provider "
+            f"WHERE source_provider = '{provider}' "
+            f"MATCH (repo:{target_label} {{{target_key}: source_uri}})"
+        ),
+        effects=(
+            _codebuild_packaged_from(
+                target_label,
+                {
+                    "match_method": "codebuild_project_name",
+                    "confidence": CODEBUILD_PROJECT_NAME_CONFIDENCE,
+                    "source_revision": None,
+                },
+            ),
+        ),
+    )
+
+
+CODEBUILD_IMAGE_PACKAGED_FROM = AnalysisJob(
+    name="Image PACKAGED_FROM repository via AWS CodeBuild",
+    short_name="codebuild_image_packaged_from",
+    statements=(
+        _codebuild_build_statement("github", "GitHubRepository", "id"),
+        _codebuild_build_statement("gitlab", "GitLabProject", "web_url"),
+        _codebuild_project_name_statement("github", "GitHubRepository", "id"),
+        _codebuild_project_name_statement("gitlab", "GitLabProject", "web_url"),
     ),
 )

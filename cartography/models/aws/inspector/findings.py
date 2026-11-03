@@ -69,6 +69,10 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="CVSS base score assigned to the vulnerability.",
     )
+    cvssvector: PropertyRef = PropertyRef(
+        "cvssvector",
+        description="CVSS vector string for Inspector's adjusted (reachability/exploitability-adjusted) score.",
+    )
     protocol: PropertyRef = PropertyRef(
         "protocol",
         description="Network protocol associated with the exposed port range.",
@@ -103,6 +107,14 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     relatedvulnerabilities: PropertyRef = PropertyRef(
         "relatedvulnerabilities",
         description="Identifiers of vulnerabilities related to this finding.",
+    )
+    vendorcvssvectors: PropertyRef = PropertyRef(
+        "vendorcvssvectors",
+        description="CVSS scoring vectors reported by the vendor/NVD sources for the vulnerability.",
+    )
+    vendorcvssscores: PropertyRef = PropertyRef(
+        "vendorcvssscores",
+        description="CVSS base scores reported by the vendor/NVD sources for the vulnerability.",
     )
     source: PropertyRef = PropertyRef(
         "source", description="Advisory source that reported the vulnerability."

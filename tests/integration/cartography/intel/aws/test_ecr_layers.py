@@ -731,6 +731,11 @@ def test_sync_built_from_relationship(
 # retry backoff before the sync swallows the error.
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_security_and_analysis_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
     return_value={},
 )
@@ -748,6 +753,7 @@ def test_sync_circleci_label_provenance_links_github_repository(
     mock_get_repo_collaborators,
     mock_get_dep_manifests,
     mock_get_privileged_details,
+    mock_get_security_and_analysis,
     mock_get_ecr_repo_images,
     mock_get_ecr_repos,
     neo4j_session,
@@ -1346,19 +1352,6 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     mock_client = MagicMock()
 
-    # Mock list_images paginator
-    mock_list_paginator = MagicMock()
-    mock_list_paginator.paginate.return_value = [
-        {
-            "imageIds": [
-                {
-                    "imageDigest": test_data.MANIFEST_LIST_DIGEST,
-                    "imageTag": "v1.0",
-                }
-            ]
-        }
-    ]
-
     # Mock describe_images paginator
     mock_describe_paginator = MagicMock()
     mock_describe_paginator.paginate.return_value = [
@@ -1367,9 +1360,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Configure get_paginator
     def get_paginator(name):
-        if name == "list_images":
-            return mock_list_paginator
-        elif name == "describe_images":
+        if name == "describe_images":
             return mock_describe_paginator
         raise ValueError(f"Unexpected paginator: {name}")
 

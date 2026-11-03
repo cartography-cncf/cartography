@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import cartography.intel.github.users
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.github.users import GITHUB_ENTERPRISE_OWNER_DATA
@@ -11,15 +9,23 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
-TEST_GITHUB_URL = GITHUB_ORG_DATA["url"]
-TEST_GITHUB_ORG = GITHUB_ORG_DATA["login"]
-FAKE_API_KEY = "asdf"
+
+
+def _seed_organization(neo4j_session):
+    """The GitHubOrganization node is written by the organization settings sync."""
+    neo4j_session.run(
+        "MERGE (org:GitHubOrganization {id: $url}) "
+        "SET org.username = coalesce(org.username, $login)",
+        url=GITHUB_ORG_DATA["url"],
+        login=GITHUB_ORG_DATA["login"],
+    )
 
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
     """
     Not needed for this test file, but used to set up users for other tests that need them
     """
+    _seed_organization(neo4j_session)
     processed_affiliated_user_data, _ = cartography.intel.github.users.transform_users(
         GITHUB_USER_DATA[0],
         GITHUB_ENTERPRISE_OWNER_DATA[0],
@@ -34,27 +40,17 @@ def _ensure_local_neo4j_has_test_data(neo4j_session):
     )
 
 
-@patch.object(
-    cartography.intel.github.users,
-    "get_users",
-    return_value=GITHUB_USER_DATA,
-)
-@patch.object(
-    cartography.intel.github.users,
-    "get_enterprise_owners",
-    return_value=GITHUB_ENTERPRISE_OWNER_DATA,
-)
-def test_sync(mock_owners, mock_users, neo4j_session):
+def test_sync(neo4j_session):
     # Arrange
-    # No need to 'arrange' data here.  The patched functions return all the data needed.
+    _seed_organization(neo4j_session)
 
     # Act
     cartography.intel.github.users.sync(
         neo4j_session,
         TEST_JOB_PARAMS,
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
+        GITHUB_USER_DATA[0],
+        GITHUB_ENTERPRISE_OWNER_DATA[0],
+        GITHUB_ORG_DATA,
     )
 
     # Assert - Verify GitHubUser nodes exist
@@ -141,25 +137,18 @@ def test_sync(mock_owners, mock_users, neo4j_session):
     assert actual_emails == expected_emails
 
 
-@patch.object(
-    cartography.intel.github.users,
-    "get_users",
-    side_effect=[GITHUB_USER_DATA, GITHUB_USER_DATA_AT_TIMESTAMP_2],
-)
-@patch.object(
-    cartography.intel.github.users,
-    "get_enterprise_owners",
-    return_value=GITHUB_ENTERPRISE_OWNER_DATA,
-)
-def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
+def test_sync_with_cleanups(neo4j_session):
+    # Arrange
+    _seed_organization(neo4j_session)
+
     # Act
     # Sync once
     cartography.intel.github.users.sync(
         neo4j_session,
         {"UPDATE_TAG": 100},
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
+        GITHUB_USER_DATA[0],
+        GITHUB_ENTERPRISE_OWNER_DATA[0],
+        GITHUB_ORG_DATA,
     )
     # Assert that the only admin is marge
     assert check_rels(
@@ -177,9 +166,9 @@ def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
     cartography.intel.github.users.sync(
         neo4j_session,
         {"UPDATE_TAG": 200},
-        FAKE_API_KEY,
-        TEST_GITHUB_URL,
-        TEST_GITHUB_ORG,
+        GITHUB_USER_DATA_AT_TIMESTAMP_2[0],
+        GITHUB_ENTERPRISE_OWNER_DATA[0],
+        GITHUB_ORG_DATA,
     )
     cartography.intel.github.users.cleanup(neo4j_session, {"UPDATE_TAG": 200})
 

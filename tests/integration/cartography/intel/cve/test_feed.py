@@ -1,3 +1,5 @@
+import copy
+
 from cartography.intel.cve import feed
 from tests.data.cve.feed import GET_CVE_API_DATA
 from tests.integration.util import check_nodes
@@ -94,7 +96,8 @@ def test_sync(neo4j_session):
     )
     expected_feed_cve_rels = {(feed.CVE_FEED_ID, cve_id[0]) for cve_id in expected_cves}
     # Act
-    cves = GET_CVE_API_DATA
+    # transform_cves() rewrites its input in place, so give it a private copy.
+    cves = copy.deepcopy(GET_CVE_API_DATA)
     feed_metadata = feed.transform_cve_feed(cves)
     feed.load_cve_feed(neo4j_session, [feed_metadata], TEST_UPDATE_TAG)
     published_cves = feed.transform_cves(cves)

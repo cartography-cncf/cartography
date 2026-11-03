@@ -16,11 +16,13 @@ from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Case
 from cartography.graph.analysis import IncrementalMatch
+from cartography.graph.analysis import Param
 from cartography.graph.analysis import PropertyEffect
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import RelationshipEffect
 from cartography.graph.analysis import RelationshipPropertyEffect
 from cartography.graph.analysis import ScopeById
+from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import SetProperty
 from cartography.graph.analysis import SetRelationshipProperty
 from cartography.graph.analysis import SetRelationshipPropertyIfMissing
@@ -225,10 +227,36 @@ def test_statement_compiles_add_relationship_effect():
     )
 
 
-def test_statement_compiles_incremental_node_and_relationship_matches():
+@pytest.mark.parametrize(
+    ("match", "gated_match"),
+    [
+        (
+            "MATCH (:Agent)<-[obs:OBSERVED_AS]-(d:Device)",
+            "MATCH (:Agent)<-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]-"
+            "(d:Device {lastupdated: $UPDATE_TAG})",
+        ),
+        (
+            "MATCH (:Agent)<-[obs:OBSERVED_AS{source:'edr'}]-(d:Device {kind:'laptop'})",
+            "MATCH (:Agent)<-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG, source:'edr'}]-"
+            "(d:Device {lastupdated: $UPDATE_TAG, kind:'laptop'})",
+        ),
+        (
+            "MATCH (a:Agent) WHERE EXISTS { MATCH (a)<-[obs:OBSERVED_AS]-(d:Device) } "
+            "MATCH (a)<-[obs:OBSERVED_AS]-(d:Device)",
+            "MATCH (a:Agent) WHERE EXISTS { MATCH (a)<-[obs:OBSERVED_AS]-(d:Device) } "
+            "MATCH (a)<-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]-"
+            "(d:Device {lastupdated: $UPDATE_TAG})",
+        ),
+    ],
+    ids=["bare", "existing_properties", "after_subquery"],
+)
+def test_statement_gates_incremental_variables_in_their_match_pattern(
+    match,
+    gated_match,
+):
     # Arrange
     statement = AnalysisStatement(
-        match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)",
+        match=match,
         effects=(SetProperty("d", "linked", True, label="Device"),),
         incremental_on=("d", IncrementalMatch("obs", relationship=True)),
     )
@@ -237,11 +265,37 @@ def test_statement_compiles_incremental_node_and_relationship_matches():
     query = compile_query(statement)
 
     # Assert
-    assert query.startswith(
-        "MATCH (d:Device {lastupdated: $UPDATE_TAG})\n"
-        "MATCH ()-[obs:OBSERVED_AS {lastupdated: $UPDATE_TAG}]->()\n"
-        "MATCH (d:Device)-[obs:OBSERVED_AS]->(:Agent)"
+    assert query.splitlines()[0] == gated_match
+
+
+@pytest.mark.parametrize(
+    "match",
+    [
+        "MATCH (d:Device) WITH d, d.agent AS agent",
+        "MATCH (d:Device) WITH d, d.agent AS agent WHERE (agent) IS NOT NULL",
+        "MATCH (d:Device) OPTIONAL MATCH (d)-[:OBSERVED_AS]->(agent:Agent)",
+        "MATCH (d:Device) WHERE EXISTS { MATCH (d)-[:OBSERVED_AS]->(agent:Agent) }",
+        "MATCH (d:Device) // }\nOPTIONAL MATCH (d)-[:OBSERVED_AS]->(agent:Agent)",
+    ],
+    ids=[
+        "projection",
+        "parenthesized_expression",
+        "optional_match",
+        "subquery",
+        "optional_match_after_comment",
+    ],
+)
+def test_statement_rejects_incremental_variable_outside_a_required_pattern(match):
+    # Arrange
+    statement = AnalysisStatement(
+        match=match,
+        effects=(SetProperty("d", "linked", True, label="Device"),),
+        incremental_on=IncrementalMatch("agent"),
     )
+
+    # Act and assert
+    with pytest.raises(ValueError, match="'agent'"):
+        compile_query(statement)
 
 
 def test_matching_fingerprint_uses_update_tag_firstseen():
@@ -480,6 +534,41 @@ def test_property_job_prepends_cleanup_statement():
         "-[:RESOURCE]->(s)\n"
         "MATCH (g:GitHubRepository"
     )
+
+
+@pytest.mark.parametrize(
+    "properties",
+    [
+        {"private": True},
+        {"private": True, "checked_at": 123},
+        {"private": True, "checked_at": Param("OTHER_TAG")},
+    ],
+    ids=["missing", "literal", "other_parameter"],
+)
+def test_set_properties_cleanup_stamp_must_hold_the_update_tag(properties):
+    # Act and assert
+    with pytest.raises(ValueError, match="cleanup_stamp"):
+        SetProperties("n", properties, label="Node", cleanup_stamp="checked_at")
+
+
+@pytest.mark.parametrize(
+    "cleanup,error",
+    [
+        # Cleanup after the statements would clear what they just wrote.
+        ({"cleanup_before_statements": False}, "requires a cleanup_stamp"),
+        (
+            {"cleanup_before_statements": False, "cleanup_stamp": "checked_at"},
+            "one of its properties",
+        ),
+        # A stamp only tells a trailing cleanup which values are current.
+        ({"cleanup_stamp": "flag"}, "after the statements"),
+    ],
+    ids=["after_without_stamp", "stamp_not_a_property", "stamp_before"],
+)
+def test_property_effect_rejects_inconsistent_cleanup_stamp(cleanup, error):
+    # Act and assert
+    with pytest.raises(ValueError, match=error):
+        PropertyEffect("Node", ("flag",), **cleanup)
 
 
 def test_property_effect_requires_properties():

@@ -345,3 +345,41 @@ GET_ZONES_MIXED_CASE_ALIAS_RESPONSE = [
         ],
     ),
 ]
+
+# Route53 returns `*` and other special characters in record names as `\ddd` octal escapes.
+GET_ZONES_WILDCARD_RESPONSE = [
+    (
+        {
+            "CallerReference": "1d7c3a5e-0c2b-4a8e-9f61-0a1b2c3d4e5f",
+            "Config": {
+                "PrivateZone": False,
+            },
+            "Id": "/hostedzone/WILDCARD_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 3,
+        },
+        [
+            {
+                "Name": "\\052.example.com.",
+                "Type": "CNAME",
+                "TTL": 300,
+                "ResourceRecords": [{"Value": "ingress.example.net"}],
+            },
+            {
+                "Name": "\\052.apps.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "Z35SXDOTRQ7X7K",
+                    "DNSName": "\\052.endpoint.example.net.",
+                    "EvaluateTargetHealth": False,
+                },
+                "Type": "A",
+            },
+            {
+                "Name": "\\052.static.example.com.",
+                "Type": "A",
+                "TTL": 300,
+                "ResourceRecords": [{"Value": "192.0.2.20"}],
+            },
+        ],
+    ),
+]
