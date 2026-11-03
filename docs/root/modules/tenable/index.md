@@ -9,6 +9,24 @@ The `TenableTenant` node uses the shared `Tenant` ontology label. Tenable asset 
 use the shared `Tag` label and the `TAGGED` relationship. The deprecated `HAS_TAG`
 compatibility edge is still written in parallel and will be removed in v1.0.0.
 
+## Cloud compute
+
+When an asset is a cloud VM, its cloud details node links to the instance node that the
+AWS, Azure or GCP module wrote. The cloud modules must have synced first, which the
+default module order does.
+
+| Tenable node | Instance node | Matched on |
+| --- | --- | --- |
+| `TenableAssetAWS` | `AWSEC2Instance` | EC2 instance ID |
+| `TenableAssetAzure` | `AzureVirtualMachine` | Azure resource ID, ignoring case |
+| `TenableAssetGCP` | `GCPInstance` | numeric instance ID and project ID |
+
+To find the EC2 instances affected by a finding:
+
+    MATCH (f:TenableFinding)-[:AFFECTS]->(:TenableAsset)-[:HAS_AWS_INFO]->(:TenableAssetAWS)
+          -[:IS_INSTANCE]->(i:AWSEC2Instance)
+    RETURN f.id, i.id
+
 ## CVEs
 
 Each CVE named by a plugin becomes a `TenableCve` node carrying the `CVE` ontology

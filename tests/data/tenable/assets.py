@@ -10,7 +10,11 @@ TAG_ID_1 = "cccccccc-cccc-cccc-cccc-cccccccccccc"
 
 AWS_EC2_INSTANCE_ID_1 = "i-1234567890abcdef0"
 AZURE_VM_ID_2 = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+AZURE_VM_RESOURCE_ID_2 = "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Compute/virtualMachines/test-vm"
 GCP_INSTANCE_ID = "1234567890123456789"
+GCP_INSTANCE_PARTIAL_URI = (
+    "projects/example-project/zones/us-central1-a/instances/example-instance"
+)
 
 ASSETS_DATA = [
     {
@@ -111,7 +115,7 @@ ASSETS_DATA = [
         "cloud": {
             "azure": {
                 "vm_id": AZURE_VM_ID_2,
-                "resource_id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Compute/virtualMachines/test-vm",
+                "resource_id": AZURE_VM_RESOURCE_ID_2,
             }
         },
         "network": {
