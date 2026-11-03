@@ -14,6 +14,9 @@ import backoff
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -392,10 +395,11 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
     return {"Roles": roles}
 
 
-# Submitting a batch takes about 100ms per principal, so its first job is polled
-# some ten seconds after it started: longer than a report job usually runs. The
-# batch also caps how many report jobs are pending at once.
-_SERVICE_LAST_ACCESSED_BATCH_SIZE = 100
+# Caps how many report jobs are pending at once. IAM throttles report generation
+# when an account submits many jobs back to back, and at 100 that throttle often
+# outlasted the retry budget. Twenty jobs submitted together still finish within
+# a few seconds, so reports keep building concurrently.
+_SERVICE_LAST_ACCESSED_BATCH_SIZE = 20
 
 _IAM_THROTTLING_ERROR_CODES = {
     "Throttling",
@@ -2438,6 +2442,7 @@ def sync_service_last_accessed_details(
     MATCH (account:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(principal)
     WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSGroup
     RETURN principal.arn as arn
+    ORDER BY arn
     """
 
     results = neo4j_session.run(principals_query, AWS_ACCOUNT_ID=current_aws_account_id)
@@ -2450,11 +2455,28 @@ def sync_service_last_accessed_details(
     principal_data: List[Dict] = []
     for i in range(0, len(principal_arns), _SERVICE_LAST_ACCESSED_BATCH_SIZE):
         batch = principal_arns[i : i + _SERVICE_LAST_ACCESSED_BATCH_SIZE]
-        principal_data.extend(
-            transform_service_last_accessed_details(
-                get_service_last_accessed_details(boto3_session, batch)
+        # IAM runs first in an account's sync, so raising here would also skip
+        # every other resource in the account for want of this enrichment.
+        try:
+            service_details = get_service_last_accessed_details(boto3_session, batch)
+        except (
+            ClientError,
+            ConnectTimeoutError,
+            EndpointConnectionError,
+            ReadTimeoutError,
+        ) as e:
+            if isinstance(e, ClientError) and not _is_iam_throttling_error(e):
+                raise
+            logger.warning(
+                "Stopping service last accessed sync for account '%s' after %d of %d "
+                "principals; IAM stayed unavailable: %s",
+                current_aws_account_id,
+                i,
+                len(principal_arns),
+                e,
             )
-        )
+            break
+        principal_data.extend(transform_service_last_accessed_details(service_details))
 
     load_service_last_accessed_details(
         neo4j_session,

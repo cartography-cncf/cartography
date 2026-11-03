@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import boto3
 import pytest
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
 
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
@@ -154,6 +155,11 @@ INVALID_CREDENTIALS = ClientError(
     {"Error": {"Code": "InvalidClientTokenId", "Message": "invalid token"}},
     "GenerateServiceLastAccessedDetails",
 )
+GENERATE_THROTTLED = ClientError(
+    {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
+    "GenerateServiceLastAccessedDetails",
+)
+IAM_UNREACHABLE = ConnectTimeoutError(endpoint_url="https://iam.amazonaws.com/")
 
 EC2_ACCESS = (
     "Amazon EC2",
@@ -161,6 +167,13 @@ EC2_ACCESS = (
     "2019-01-02 00:00:01",
     "role/example-role-0",
     "us-west-2",
+)
+PREVIOUS_ACCESS = (
+    "Amazon S3",
+    "s3",
+    "2018-06-01 00:00:00",
+    "role/example-role-0",
+    "us-east-1",
 )
 NO_ACCESS = (None, None, None, None, None)
 
@@ -219,6 +232,32 @@ def _create_principals(neo4j_session, arns):
         "MERGE (a)-[:RESOURCE]->(u)",
         arns=arns,
         account_id=SERVICE_ACCESS_ACCOUNT_ID,
+    )
+
+
+def _set_previous_access_synced_this_run(neo4j_session, arns):
+    """
+    Gives each principal the access an earlier sync recorded, stamped with this
+    run's update tag as the user, group and role syncs stamp it before this step.
+    """
+    name, namespace, authenticated, entity, region = PREVIOUS_ACCESS
+    neo4j_session.run(
+        "UNWIND $arns AS arn "
+        "MATCH (:AWSAccount{id: $account_id})-[r:RESOURCE]->(p:AWSPrincipal{arn: arn}) "
+        "SET r.lastupdated = $update_tag, p.lastupdated = $update_tag, "
+        "p.last_accessed_service_name = $name, "
+        "p.last_accessed_service_namespace = $namespace, "
+        "p.last_authenticated = $authenticated, "
+        "p.last_authenticated_entity = $entity, "
+        "p.last_authenticated_region = $region",
+        arns=arns,
+        account_id=SERVICE_ACCESS_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+        name=name,
+        namespace=namespace,
+        authenticated=authenticated,
+        entity=entity,
+        region=region,
     )
 
 
@@ -304,6 +343,44 @@ def test_sync_service_last_accessed_details_fails_on_invalid_credentials(
 
     with pytest.raises(ClientError):
         _sync_service_last_accessed_details(neo4j_session, iam_client)
+
+
+@pytest.mark.parametrize(
+    "user_b_polls, generate_errors_by_arn",
+    [
+        pytest.param([], {USER_B_ARN: GENERATE_THROTTLED}, id="generation-throttled"),
+        pytest.param([THROTTLED_POLL], {}, id="report-read-throttled"),
+        pytest.param([], {USER_B_ARN: IAM_UNREACHABLE}, id="iam-unreachable"),
+    ],
+)
+@mock.patch.object(
+    cartography.intel.aws.iam,
+    "_call_iam_with_throttle_retry",
+    cartography.intel.aws.iam._call_iam_with_throttle_retry.__wrapped__,
+)
+@mock.patch.object(cartography.intel.aws.iam, "_SERVICE_LAST_ACCESSED_BATCH_SIZE", 1)
+def test_sync_service_last_accessed_details_stops_when_iam_stays_unavailable(
+    neo4j_session, user_b_polls, generate_errors_by_arn
+):
+    principals = [USER_A_ARN, USER_B_ARN, USER_C_ARN]
+    _create_principals(neo4j_session, principals)
+    _set_previous_access_synced_this_run(neo4j_session, principals)
+    iam_client = FakeIAMClient(
+        {
+            USER_A_ARN: [COMPLETED_JOB],
+            USER_B_ARN: user_b_polls,
+            USER_C_ARN: [COMPLETED_JOB],
+        },
+        generate_errors_by_arn,
+    )
+
+    _sync_service_last_accessed_details(neo4j_session, iam_client)
+
+    assert _last_accessed_services(neo4j_session) == {
+        USER_A_ARN: EC2_ACCESS,
+        USER_B_ARN: PREVIOUS_ACCESS,
+        USER_C_ARN: PREVIOUS_ACCESS,
+    }
 
 
 @mock.patch("time.sleep")
