@@ -528,6 +528,9 @@ def test_resync_keeps_agents_on_a_deployment_that_stopped_serving(neo4j_session)
     # they just cannot be listed until it serves again.
     assert TRIAGE_AGENT in _ids(neo4j_session, "LangSmithAgent")
     assert TRIAGE_CREDENTIAL_ID in _ids(neo4j_session, "LangSmithAgentCredential")
+    assert (TRIAGE_DEPLOYMENT_ID, TRIAGE_AGENT) in check_rels(
+        neo4j_session, "LangSmithDeployment", "id", "LangSmithAgent", "id", "RUNS"
+    )
 
 
 def test_resync_keeps_credential_providers_when_providers_cannot_be_read(
