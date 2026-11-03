@@ -7,12 +7,14 @@ from typing import Set
 from typing import Tuple
 
 import aioboto3
+import backoff
 import botocore
 import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.helpers import backoff_handler
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
@@ -20,6 +22,7 @@ from cartography.models.aws.inspector.findings import InspectorFindingToPackageM
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
 from cartography.util import is_aws_region_skippable_client_error
+from cartography.util import is_throttling_exception
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -115,18 +118,38 @@ async def _get_inspector_findings_shard(
         f"arn:{client.meta.partition}:inspector2:{client.meta.region_name}:"
         f"{account_id}:finding/{shard}"
     )
-    paginator = client.get_paginator("list_findings")
-    async for page in paginator.paginate(
-        filterCriteria={
+    params: Dict[str, Any] = {
+        "filterCriteria": {
             "awsAccountId": [{"comparison": "EQUALS", "value": account_id}],
             # There may be millions of CLOSED findings that never go away, so only
             # fetch those in ACTIVE or SUPPRESSED statuses.
             "findingStatus": [{"comparison": "NOT_EQUALS", "value": "CLOSED"}],
             "findingArn": [{"comparison": "PREFIX", "value": finding_arn_prefix}],
         },
-    ):
+    }
+    while True:
+        page = await _list_findings_page(client, params)
         await pages.put(page["findings"])
+        next_token = page.get("nextToken")
+        if not next_token:
+            break
+        params["nextToken"] = next_token
     await pages.put(None)
+
+
+# A large account pages through its findings for hours with every shard in flight,
+# so one throttle can outlast the client's own retries before the last page.
+# Retrying the page resumes the shard from that page. Failing instead discards the
+# account's sync and skips the cleanup of findings that have since closed.
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    botocore.exceptions.ClientError,
+    max_time=600,
+    giveup=lambda e: not is_throttling_exception(e),
+    on_backoff=backoff_handler,
+)
+async def _list_findings_page(client: Any, params: Dict[str, Any]) -> Dict[str, Any]:
+    return await client.list_findings(**params)
 
 
 def transform_inspector_findings(
