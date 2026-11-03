@@ -165,8 +165,9 @@ lesser harm.
 
 A 404 is different: LangSmith answers it for features an organization does not have,
 such as SCIM tokens, access policies or hybrid data planes, and for an agent that agent
-auth has never seen. Every listing treats a 404 as a complete, empty answer, so cleanup
-proceeds.
+auth has never seen. Every optional listing treats a 404 as a complete, empty answer, so
+cleanup proceeds. A 404 on a workspace-scoped route for a workspace that was just listed
+means the workspace itself is gone, so its resources are cleaned up too.
 
 The organization info, workspace list and organization member list are required. If one
 of those cannot be read, the sync for that organization fails rather than producing a

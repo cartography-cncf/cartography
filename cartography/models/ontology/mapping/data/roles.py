@@ -460,8 +460,13 @@ langsmith_mapping = OntologyMapping(
                     special_handling="mapping",
                     extra={"map": {"builtin": "builtin", "custom": "custom"}},
                 ),
-                # scope: LangSmith roles are organization- or workspace-scoped, and
-                # workspace has no canonical scope value.
+                # Workspace-scoped roles have no canonical scope value and stay unmapped.
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="access_scope",
+                    special_handling="mapping",
+                    extra={"map": {"organization": "org"}},
+                ),
             ],
         ),
     ],
