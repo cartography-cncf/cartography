@@ -4,9 +4,11 @@ from tests.data.tenable.assets import ASSET_ID_2
 from tests.data.tenable.assets import ASSETS_DATA
 from tests.data.tenable.assets import AWS_EC2_INSTANCE_ID_1
 from tests.data.tenable.assets import AZURE_VM_ID_2
+from tests.data.tenable.assets import AZURE_VM_RESOURCE_ID_2
 from tests.data.tenable.assets import GCP_ASSET_DATA
 from tests.data.tenable.assets import GCP_ASSET_ID
 from tests.data.tenable.assets import GCP_INSTANCE_ID
+from tests.data.tenable.assets import GCP_INSTANCE_PARTIAL_URI
 from tests.data.tenable.assets import NETWORK_ID
 from tests.data.tenable.assets import TAG_ID_1
 from tests.data.tenable.assets import TENABLE_TENANT_ID
@@ -182,8 +184,12 @@ def test_sync_networks(neo4j_session, mocker):
 
 
 def test_sync_aws_cloud(neo4j_session, mocker):
-    """Test that TenableAssetAWS nodes are created and linked to assets."""
+    """Test that TenableAssetAWS nodes are linked to assets and EC2 instances."""
     # Arrange
+    neo4j_session.run(
+        "MERGE (:AWSEC2Instance {id: $id})",
+        id=AWS_EC2_INSTANCE_ID_1,
+    )
     mocker.patch(
         "cartography.intel.tenable.assets.get",
         return_value=ASSETS_DATA,
@@ -224,11 +230,25 @@ def test_sync_aws_cloud(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert actual_rels == {(ASSET_ID_1, AWS_EC2_INSTANCE_ID_1)}
+    assert check_rels(
+        neo4j_session,
+        "TenableAssetAWS",
+        "id",
+        "AWSEC2Instance",
+        "id",
+        "IS_INSTANCE",
+        rel_direction_right=True,
+    ) == {(AWS_EC2_INSTANCE_ID_1, AWS_EC2_INSTANCE_ID_1)}
 
 
 def test_sync_azure_cloud(neo4j_session, mocker):
-    """Test that TenableAssetAzure nodes are created and linked to assets."""
+    """Test that TenableAssetAzure nodes are linked to assets and Azure VMs."""
     # Arrange
+    # Azure resource IDs are case-insensitive; the VM's casing differs from Tenable's.
+    neo4j_session.run(
+        "MERGE (:AzureVirtualMachine {id: $id})",
+        id=AZURE_VM_RESOURCE_ID_2.upper(),
+    )
     mocker.patch(
         "cartography.intel.tenable.assets.get",
         return_value=ASSETS_DATA,
@@ -253,12 +273,7 @@ def test_sync_azure_cloud(neo4j_session, mocker):
     actual_azure = check_nodes(
         neo4j_session, "TenableAssetAzure", ["id", "resource_id"]
     )
-    assert actual_azure == {
-        (
-            AZURE_VM_ID_2,
-            "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Compute/virtualMachines/test-vm",
-        )
-    }
+    assert actual_azure == {(AZURE_VM_ID_2, AZURE_VM_RESOURCE_ID_2)}
 
     actual_rels = check_rels(
         neo4j_session,
@@ -270,11 +285,36 @@ def test_sync_azure_cloud(neo4j_session, mocker):
         rel_direction_right=True,
     )
     assert actual_rels == {(ASSET_ID_2, AZURE_VM_ID_2)}
+    assert check_rels(
+        neo4j_session,
+        "TenableAssetAzure",
+        "id",
+        "AzureVirtualMachine",
+        "id",
+        "IS_INSTANCE",
+        rel_direction_right=True,
+    ) == {(AZURE_VM_ID_2, AZURE_VM_RESOURCE_ID_2.upper())}
 
 
 def test_sync_gcp_cloud(neo4j_session, mocker):
-    """Test that TenableAssetGCP nodes are created and linked to assets and tenants."""
+    """Test that TenableAssetGCP nodes are linked to assets, tenants and GCP instances."""
     # Arrange
+    # The decoy shares the numeric instance ID but lives in another project.
+    neo4j_session.run(
+        """
+        UNWIND $instances AS i
+        MERGE (n:GCPInstance {id: i.id})
+        SET n.instance_id = $instance_id, n.project_id = i.project_id
+        """,
+        instances=[
+            {"id": GCP_INSTANCE_PARTIAL_URI, "project_id": "example-project"},
+            {
+                "id": "projects/other-project/zones/us-central1-a/instances/decoy",
+                "project_id": "other-project",
+            },
+        ],
+        instance_id=GCP_INSTANCE_ID,
+    )
     mocker.patch(
         "cartography.intel.tenable.assets.get",
         return_value=[GCP_ASSET_DATA],
@@ -320,6 +360,15 @@ def test_sync_gcp_cloud(neo4j_session, mocker):
         "RESOURCE",
         rel_direction_right=True,
     ) == {(TENABLE_TENANT_ID, GCP_INSTANCE_ID)}
+    assert check_rels(
+        neo4j_session,
+        "TenableAssetGCP",
+        "id",
+        "GCPInstance",
+        "id",
+        "IS_INSTANCE",
+        rel_direction_right=True,
+    ) == {(GCP_INSTANCE_ID, GCP_INSTANCE_PARTIAL_URI)}
 
 
 def test_sync_sources(neo4j_session, mocker):

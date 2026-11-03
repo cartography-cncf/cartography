@@ -35,6 +35,11 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
         "selfLink",
         description="The full resource URI representing this instance. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}`.",
     )
+    instance_id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="The numeric instance ID assigned by Compute Engine.",
+    )
     instancename: PropertyRef = PropertyRef(
         "name",
         extra_index=True,
