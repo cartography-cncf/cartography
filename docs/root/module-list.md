@@ -49,6 +49,7 @@ modules/orca/index
 modules/opsgenie/index
 modules/pagerduty/index
 modules/railway/index
+modules/render/index
 modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index
