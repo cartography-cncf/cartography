@@ -7,6 +7,7 @@ import cartography.intel.scaleway.baremetal.apple_silicon
 import cartography.intel.scaleway.baremetal.dedibox
 import cartography.intel.scaleway.baremetal.elastic_metal
 import cartography.intel.scaleway.baremetal.flexible_ips
+import cartography.intel.scaleway.cockpit.cockpit
 import cartography.intel.scaleway.container_registry.namespaces
 import cartography.intel.scaleway.container_registry.supply_chain
 import cartography.intel.scaleway.databases.datawarehouse
@@ -324,6 +325,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Secret Manager
     cartography.intel.scaleway.secrets.secrets.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # Cockpit (observability: plan, data sources, API tokens).
+    cartography.intel.scaleway.cockpit.cockpit.sync(
         neo4j_session,
         client,
         common_job_parameters,
