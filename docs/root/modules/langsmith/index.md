@@ -28,8 +28,9 @@ The module exists to answer two questions the LangSmith UI cannot:
 LangSmith nests **organization → workspace → resources**. A workspace is called a
 *tenant* in the API and in the `X-Tenant-Id` header.
 
-Every node in this module hangs off `LangSmithOrganization` through a `RESOURCE`
-relationship, so cleanup is scoped per organization. One sync run covers every
+Every organization-scoped node in this module hangs off `LangSmithOrganization` through
+a `RESOURCE` relationship, so cleanup is scoped per organization. `LangSmithUser` is the
+exception, described below. One sync run covers every
 organization the configured token can see, or a single organization if
 `--langsmith-org-id` is supplied.
 
@@ -109,8 +110,9 @@ deployment's own data plane. Two things keep the cost bounded:
 * **The probes run concurrently**, since each targets an independent host. A
   scaled-to-zero deployment waking slowly no longer holds up the rest.
 
-Any failure — timeout, or a credential the deployment rejects — degrades to an empty
-assistant list rather than breaking the sync.
+A failure (a timeout, or a credential the deployment rejects) marks discovery
+incomplete without breaking the sync. Assistants already retrieved are kept, and agent
+cleanup is skipped rather than reading the result as an empty inventory.
 
 Because an assistant id is derived from its graph, one agent is commonly served by
 several deployments, so `RUNS` is a one-to-many edge. For the same reason agent nodes are
@@ -163,7 +165,12 @@ lesser harm.
 
 A 404 is different: LangSmith answers it for features an organization does not have,
 such as SCIM tokens, access policies or hybrid data planes, and for an agent that agent
-auth has never seen. That is a complete, empty answer, so cleanup proceeds.
+auth has never seen. Every listing treats a 404 as a complete, empty answer, so cleanup
+proceeds.
+
+The organization info, workspace list and organization member list are required. If one
+of those cannot be read, the sync for that organization fails rather than producing a
+graph with no anchor.
 
 `LangSmithOrganization` nodes are never cleaned up. A run restricted with
 `--langsmith-org-id` sees only one organization, so absence from a run is not evidence

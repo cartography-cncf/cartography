@@ -78,10 +78,12 @@ def test_sync_loads_the_organization_its_workspaces_and_roles(neo4j_session):
         (LANGSMITH_ORG_ID, "Production"),
         (LANGSMITH_ORG_ID, "Development"),
     }
-    assert check_nodes(neo4j_session, "LangSmithRole", ["id", "name", "is_custom"]) == {
-        (ORG_ADMIN_ROLE_ID, "Organization Admin", False),
-        (WORKSPACE_VIEWER_ROLE_ID, "Viewer", False),
-        (CUSTOM_ROLE_ID, "Deployment Auditor", True),
+    assert check_nodes(
+        neo4j_session, "LangSmithRole", ["id", "name", "is_custom", "role_type"]
+    ) == {
+        (ORG_ADMIN_ROLE_ID, "Organization Admin", False, "builtin"),
+        (WORKSPACE_VIEWER_ROLE_ID, "Viewer", False, "builtin"),
+        (CUSTOM_ROLE_ID, "Deployment Auditor", True, "custom"),
     }
     assert check_rels(
         neo4j_session, "LangSmithRole", "id", "LangSmithPermission", "name", "GRANTS"
@@ -347,6 +349,14 @@ def test_sync_loads_workspace_resources(neo4j_session):
         (WORKSPACE_PROD_ID, "SLACK_BOT_TOKEN"),
         (WORKSPACE_DEV_ID, "OPENAI_API_KEY"),
     }
+    assert check_rels(
+        neo4j_session,
+        "LangSmithWorkspace",
+        "id",
+        "LangSmithResourceTag",
+        "value",
+        "CONTAINS",
+    ) == {(WORKSPACE_PROD_ID, "prod")}
     assert check_nodes(neo4j_session, "LangSmithResourceTag", ["key", "value"]) == {
         ("environment", "prod"),
     }
@@ -358,6 +368,14 @@ def test_sync_loads_workspace_resources(neo4j_session):
         "id",
         "CONTAINS",
     ) == {(WORKSPACE_PROD_ID, "langsmith-mcp-client")}
+    assert check_rels(
+        neo4j_session,
+        "LangSmithWorkspace",
+        "id",
+        "LangSmithMcpServer",
+        "name",
+        "CONTAINS",
+    ) == {(WORKSPACE_PROD_ID, "Internal Docs")}
     assert check_nodes(neo4j_session, "LangSmithMcpServer", ["name", "vendor"]) == {
         ("Internal Docs", "arcade"),
     }
@@ -426,15 +444,23 @@ STALE_CASES = [
 
 
 @pytest.mark.parametrize("route, deleted_payload, label, node_id", STALE_CASES)
+@pytest.mark.parametrize(
+    "answered_with",
+    # An empty listing, or a 404 for a feature the organization no longer has.
+    ["empty", "404"],
+)
 def test_resync_removes_what_was_deleted_upstream(
-    neo4j_session, route, deleted_payload, label, node_id
+    neo4j_session, route, deleted_payload, label, node_id, answered_with
 ):
     # Arrange
     _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
     assert node_id in _ids(neo4j_session, label)
-    deleted = FakeLangSmithClient(
-        routes={**SIMPSON_CORP_ROUTES, route: deleted_payload}
-    )
+    if answered_with == "empty":
+        deleted = FakeLangSmithClient(
+            routes={**SIMPSON_CORP_ROUTES, route: deleted_payload}
+        )
+    else:
+        deleted = FakeLangSmithClient(failures={route: 404})
 
     # Act
     _sync(neo4j_session, deleted, NEXT_UPDATE_TAG)
@@ -444,18 +470,19 @@ def test_resync_removes_what_was_deleted_upstream(
 
 
 @pytest.mark.parametrize("route, deleted_payload, label, node_id", STALE_CASES)
-def test_resync_preserves_what_the_credential_could_not_read(
-    neo4j_session, route, deleted_payload, label, node_id
+@pytest.mark.parametrize("status", [401, 403, None], ids=["401", "403", "timeout"])
+def test_resync_preserves_what_could_not_be_read(
+    neo4j_session, route, deleted_payload, label, node_id, status
 ):
     # Arrange
     _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
-    forbidden = FakeLangSmithClient(forbidden=frozenset({route}))
+    unreadable = FakeLangSmithClient(failures={route: status})
 
     # Act
-    _sync(neo4j_session, forbidden, NEXT_UPDATE_TAG)
+    _sync(neo4j_session, unreadable, NEXT_UPDATE_TAG)
 
     # Assert
-    # A 403 means the data may still exist, so it must not be read as a deletion.
+    # The data may still exist, so a failed read must not be treated as a deletion.
     assert node_id in _ids(neo4j_session, label)
 
 

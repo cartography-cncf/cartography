@@ -8,25 +8,24 @@ belonging to a user with organization-level read access.
 - A LangSmith organization. RBAC custom roles and attribute-based access policies are
   Enterprise features; if your plan does not include them, those parts of the graph
   are simply empty.
-- The account creating the token must be able to read organization settings. In
-  practice this means **Organization Admin**.
+- The account creating the token needs the permissions listed below. **Organization
+  Admin** holds all of them and is the role the module has been validated with; a
+  custom role granting the same read permissions also works.
 
 ## Authentication
 
 ### Personal access token
 
-Create one in the LangSmith UI under **Settings → Personal access tokens**, or with
-`POST /api/v1/api-key`. Store it in an environment variable:
+Create one in the LangSmith UI under **Settings → Personal access tokens**. Store it in
+an environment variable:
 
 ```bash
 export LANGSMITH_PAT="lsv2_pt_..."
 ```
 
 ```{note}
-A workspace service key (`lsv2_sk_…`) is **not** sufficient. Organization-scoped
-routes and the organization-wide token inventory are unreachable with one, and
-`/api/v1/orgs` and `/api/v1/orgs/permissions` accept only a bearer token, which
-service keys cannot provide.
+A workspace service key (`lsv2_sk_…`) is **not** sufficient. Organization-scoped routes
+and the organization-wide token inventory are unreachable with one.
 ```
 
 If your organization sets a maximum personal access token lifetime, the token will
@@ -49,7 +48,9 @@ expire and the sync will start failing with `401`. Rotate it on that cadence.
 
 Permissions are evaluated per workspace. A token that holds `workspaces:read` in
 only some workspaces produces a graph covering only those workspaces; each skipped
-workspace logs a warning rather than failing the sync.
+workspace logs a warning rather than failing the sync. Nodes the token could previously
+read but now cannot are kept rather than deleted, so a narrowed token leaves stale data
+in place until access is restored.
 
 ## Configure Cartography
 
@@ -98,7 +99,8 @@ A `405 Method Not Allowed` from the agent-auth endpoints means
 
 | Symptom | Cause |
 | --- | --- |
-| `403 Forbidden` on workspace routes | The token lacks a role in that workspace. The sync logs a warning and continues. |
+| `403 Forbidden` on workspace routes | The token lacks a role in that workspace. The sync logs a warning, continues, and skips cleanup for the affected node types. |
+| Timeouts logged for some routes | LangSmith was slow or unreachable. The sync logs a warning, keeps existing nodes for those routes, and retries on the next run. |
 | No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. |
 | No other members' `LangSmithApiKey` nodes with `key_type = pat` | The token lacks `organization:pats:read`. |
 | `401 Unauthorized` on every route | The token expired, or the owning identity was deactivated — LangSmith rejects tokens belonging to a disabled identity. |

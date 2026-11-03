@@ -15,7 +15,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.langsmith.mcpserver import LangSmithMcpServerSchema
 from cartography.models.langsmith.oauthclient import LangSmithOAuthClientSchema
@@ -101,11 +101,11 @@ def get_secrets(
             ),
             True,
         )
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning(
             "Skipping LangSmith secrets for workspace %s: %s", workspace_id, err
         )
-        return [], False
+        return [], err.not_found
 
 
 def transform_secrets(
@@ -132,11 +132,11 @@ def get_tags(
             org_id=org_id,
             tenant_id=workspace_id,
         )
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning(
             "Skipping LangSmith resource tags for workspace %s: %s", workspace_id, err
         )
-        return [], False
+        return [], err.not_found
 
     tags = []
     complete = True
@@ -147,11 +147,11 @@ def get_tags(
                 org_id=org_id,
                 tenant_id=workspace_id,
             )
-        except LangSmithPermissionError as err:
+        except LangSmithFetchError as err:
             logger.warning(
                 "Skipping LangSmith tag values for tag key %s: %s", tag_key["id"], err
             )
-            complete = False
+            complete = complete and err.not_found
             continue
         for tag_value in tag_values:
             tags.append(
@@ -177,11 +177,11 @@ def get_oauth_clients(
             org_id=org_id,
             tenant_id=workspace_id,
         )
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning(
             "Skipping LangSmith OAuth clients for workspace %s: %s", workspace_id, err
         )
-        return [], False
+        return [], err.not_found
     clients = payload.get("clients") or []
     for oauth_client in clients:
         oauth_client["workspace_id"] = workspace_id
@@ -202,11 +202,11 @@ def get_mcp_servers(
         vendor_payload = client.get(
             "/api/v1/platform/mcp-vendors", org_id=org_id, tenant_id=workspace_id
         )
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning(
             "Skipping LangSmith MCP vendors for workspace %s: %s", workspace_id, err
         )
-        return [], False
+        return [], err.not_found
 
     servers: list[dict[str, Any]] = []
     complete = True
@@ -221,7 +221,7 @@ def get_mcp_servers(
                 org_id=org_id,
                 tenant_id=workspace_id,
             )
-        except LangSmithPermissionError as err:
+        except LangSmithFetchError as err:
             logger.warning(
                 "Skipping LangSmith MCP gateways for vendor %s in workspace %s: %s",
                 vendor_slug,

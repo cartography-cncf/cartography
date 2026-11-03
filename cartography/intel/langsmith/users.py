@@ -9,7 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import build_user_lookup
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.langsmith.orgmembership import LangSmithOrgMembershipSchema
 from cartography.models.langsmith.user import LangSmithUserSchema
 from cartography.models.langsmith.user import LangSmithUserToWorkspaceRel
@@ -43,14 +43,16 @@ def sync(
     for workspace_id in workspace_ids:
         try:
             workspace_members = get_workspace_members(client, org_id, workspace_id)
-        except LangSmithPermissionError as err:
+        except LangSmithFetchError as err:
             # A credential commonly holds workspaces:read in only some workspaces.
             logger.warning(
                 "Skipping LangSmith workspace members for workspace %s: %s",
                 workspace_id,
                 err,
             )
-            workspace_memberships_complete = False
+            workspace_memberships_complete = (
+                workspace_memberships_complete and err.not_found
+            )
             continue
         memberships.extend(transform_memberships(workspace_id, workspace_members))
 
@@ -133,8 +135,7 @@ def transform_users(
             ls_user_id = member.get("ls_user_id")
             if not ls_user_id:
                 logger.debug(
-                    "Skipping pending LangSmith invite for %s: no ls_user_id until accepted.",
-                    member.get("email"),
+                    "Skipping a pending LangSmith invite: no ls_user_id until accepted."
                 )
                 continue
             providers, provisioning, usernames = _login_methods(member)
@@ -213,9 +214,8 @@ def transform_memberships(
             ls_user_id = member.get("ls_user_id")
             if not ls_user_id:
                 logger.debug(
-                    "Skipping LangSmith workspace membership for %s in workspace %s: "
+                    "Skipping a LangSmith workspace membership in workspace %s: "
                     "no ls_user_id until the invite is accepted.",
-                    member.get("email"),
                     workspace_id,
                 )
                 continue

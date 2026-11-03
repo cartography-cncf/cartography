@@ -4,8 +4,9 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
+from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.langsmith.permission import LangSmithPermissionSchema
 from cartography.models.langsmith.role import LangSmithRoleSchema
 from cartography.util import timeit
@@ -20,7 +21,7 @@ def sync(
     org_id: str,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    raw_roles = get_roles(client, org_id)
+    raw_roles, complete = get_roles(client, org_id)
     roles = transform_roles(raw_roles, org_id)
     permissions = transform_permissions(raw_roles, org_id)
     load_roles(
@@ -30,7 +31,13 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    # Permissions are derived from the roles, so both depend on the same listing.
+    cleanup_if_complete(
+        neo4j_session, LangSmithRoleSchema(), complete, common_job_parameters
+    )
+    cleanup_if_complete(
+        neo4j_session, LangSmithPermissionSchema(), complete, common_job_parameters
+    )
 
 
 def _permission_id(org_id: str, permission: str) -> str:
@@ -59,7 +66,6 @@ def transform_permissions(
         {
             "id": _permission_id(org_id, name),
             "name": name,
-            "description": None,
             "access_scope": scope,
         }
         for name, scope in sorted(scopes.items())
@@ -67,8 +73,20 @@ def transform_permissions(
 
 
 @timeit
-def get_roles(client: LangSmithClient, org_id: str) -> list[dict[str, Any]]:
-    return client.get("/api/v1/orgs/current/roles", org_id=org_id)
+def get_roles(
+    client: LangSmithClient, org_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """
+    Fetch the role catalog, tolerating a credential that cannot read it.
+
+    Without roles, memberships, keys and policies still load; only their role edges are
+    missing.
+    """
+    try:
+        return client.get("/api/v1/orgs/current/roles", org_id=org_id), True
+    except LangSmithFetchError as err:
+        logger.warning("Skipping LangSmith roles: %s", err)
+        return [], err.not_found
 
 
 def transform_roles(roles: list[dict[str, Any]], org_id: str) -> list[dict[str, Any]]:
@@ -89,6 +107,9 @@ def transform_roles(roles: list[dict[str, Any]], org_id: str) -> list[dict[str, 
                 "description": role.get("description"),
                 "access_scope": role.get("access_scope"),
                 "is_custom": role.get("organization_id") is not None,
+                "role_type": (
+                    "custom" if role.get("organization_id") is not None else "builtin"
+                ),
                 "is_restricted": role.get("is_restricted"),
                 "permission_ids": [
                     _permission_id(org_id, permission)
@@ -121,16 +142,4 @@ def load_roles(
         roles,
         lastupdated=update_tag,
         ORG_ID=org_id,
-    )
-
-
-@timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    GraphJob.from_node_schema(LangSmithRoleSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(LangSmithPermissionSchema(), common_job_parameters).run(
-        neo4j_session
     )

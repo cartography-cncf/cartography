@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.workspace_resources import get_mcp_servers
 
 
@@ -28,9 +28,9 @@ def _client(gateway_side_effect):
         # Registered but not OAuth-connected: it has no gateways, which is a full answer.
         (_http_error(400), True),
         # The vendor route is not served: also nothing to list.
-        (LangSmithPermissionError("/mcp-servers", 404), True),
+        (LangSmithFetchError("/mcp-servers", 404, "HTTP 404"), True),
         # Hidden from this credential: gateways may exist, so cleanup must be skipped.
-        (LangSmithPermissionError("/mcp-servers", 403), False),
+        (LangSmithFetchError("/mcp-servers", 403, "HTTP 403"), False),
     ],
 )
 def test_get_mcp_servers_skips_a_failing_vendor(first_vendor_error, expected_complete):

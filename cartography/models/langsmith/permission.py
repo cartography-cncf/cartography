@@ -25,10 +25,6 @@ class LangSmithPermissionNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Permission string, for example organization:manage or deployments:read.",
     )
-    description: PropertyRef = PropertyRef(
-        "description",
-        description="Human-readable description of what the permission allows.",
-    )
     access_scope: PropertyRef = PropertyRef(
         "access_scope",
         description="Whether the permission applies at organization or workspace scope.",

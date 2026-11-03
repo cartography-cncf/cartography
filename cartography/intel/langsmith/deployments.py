@@ -7,7 +7,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.deployment import LangSmithDeploymentSchema
 from cartography.util import timeit
@@ -42,14 +42,14 @@ def sync(
     for workspace in workspaces:
         try:
             raw.extend(get(client, org_id, workspace["id"]))
-        except LangSmithPermissionError as err:
+        except LangSmithFetchError as err:
             # deployments:read is commonly absent in some workspaces.
             logger.warning(
                 "Skipping LangSmith deployments for workspace %s: %s",
                 workspace["id"],
                 err,
             )
-            deployments_complete = False
+            deployments_complete = deployments_complete and err.not_found
             continue
 
     deployments = transform_deployments(raw)

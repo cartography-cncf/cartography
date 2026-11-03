@@ -6,7 +6,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.langsmith.accesspolicy import LangSmithAccessPolicySchema
 from cartography.models.langsmith.dataplane import LangSmithDataPlaneSchema
 from cartography.models.langsmith.ssoprovider import LangSmithSSOProviderSchema
@@ -63,7 +63,7 @@ def _get_optional(client: LangSmithClient, org_id: str, path: str) -> tuple[Any,
     """
     try:
         return client.get(path, org_id=org_id), True
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning("Skipping LangSmith %s: %s", path, err)
         return None, err.not_found
 

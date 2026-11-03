@@ -18,7 +18,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import resolve_ls_user_id
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.agentcredential import LangSmithAgentCredentialSchema
@@ -112,14 +112,14 @@ def get_providers(
                 rows = client.get(
                     path, org_id=org_id, tenant_id=workspace["id"], host=True
                 )
-            except LangSmithPermissionError as err:
+            except LangSmithFetchError as err:
                 logger.warning(
                     "Skipping LangSmith %s for workspace %s: %s",
                     path,
                     workspace["id"],
                     err,
                 )
-                complete = False
+                complete = complete and err.not_found
                 continue
             for row in rows:
                 providers[row["id"]] = transform_provider(row, is_platform=is_platform)
@@ -162,7 +162,7 @@ def get_connections(
                     tenant_id=workspace_id,
                     host=True,
                 )
-            except LangSmithPermissionError as err:
+            except LangSmithFetchError as err:
                 # 404 means agent auth has never seen this agent: it holds no
                 # connections. Anything else hides connections that may exist.
                 if not err.not_found:

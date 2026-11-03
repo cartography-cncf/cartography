@@ -45,6 +45,10 @@ class LangSmithRoleNodeProperties(CartographyNodeProperties):
             "Derived from the presence of an owning organization_id."
         ),
     )
+    role_type: PropertyRef = PropertyRef(
+        "role_type",
+        description="builtin for a LangSmith system role, custom for an organization-defined one.",
+    )
     is_restricted: PropertyRef = PropertyRef(
         "is_restricted",
         description="True if the organization has applied a restriction to this role.",

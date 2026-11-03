@@ -1,7 +1,7 @@
 import copy
 from typing import Any
 
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from tests.data.langsmith import agent_auth
 from tests.data.langsmith import apikeys
 from tests.data.langsmith import deployments
@@ -99,28 +99,29 @@ class FakeLangSmithClient:
     """
     Stands in for LangSmithClient at the HTTP boundary.
 
-    Unknown routes answer 404, as the real API does. Routes in ``forbidden`` answer 403,
-    which is how LangSmith reports a credential that lacks a permission in a workspace.
-    Deployments in ``cold_deployment_urls`` fail their assistant search, the way a
-    scaled-to-zero deployment times out.
+    Unknown routes answer 404, as the real API does. Routes in ``failures`` fail with the
+    given status, or with a timeout when the status is None, the way the real client
+    reports them. Deployments in ``cold_deployment_urls`` fail their assistant search,
+    the way a scaled-to-zero deployment times out.
     """
 
     def __init__(
         self,
         routes: dict[Route, Any] | None = None,
-        forbidden: frozenset[Route] = frozenset(),
+        failures: dict[Route, int | None] | None = None,
         cold_deployment_urls: frozenset[str] = frozenset(),
     ) -> None:
         self.routes = SIMPSON_CORP_ROUTES if routes is None else routes
-        self.forbidden = forbidden
+        self.failures = failures or {}
         self.cold_deployment_urls = cold_deployment_urls
 
     def get(self, path: str, *, tenant_id: str | None = None, **_: Any) -> Any:
         route = (path, tenant_id)
-        if route in self.forbidden:
-            raise LangSmithPermissionError(path, 403)
+        if route in self.failures:
+            status = self.failures[route]
+            raise LangSmithFetchError(path, status, f"HTTP {status or 'timeout'}")
         if route not in self.routes:
-            raise LangSmithPermissionError(path, 404)
+            raise LangSmithFetchError(path, 404, "HTTP 404")
         # Callers annotate the rows they receive, so hand out copies.
         return copy.deepcopy(self.routes[route])
 

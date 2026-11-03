@@ -454,6 +454,14 @@ langsmith_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="role_type",
+                    special_handling="mapping",
+                    extra={"map": {"builtin": "builtin", "custom": "custom"}},
+                ),
+                # scope: LangSmith roles are organization- or workspace-scoped, and
+                # workspace has no canonical scope value.
             ],
         ),
     ],

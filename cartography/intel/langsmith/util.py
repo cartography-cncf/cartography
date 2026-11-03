@@ -19,11 +19,11 @@ _TIMEOUT = (60, 60)
 # LangSmith's member endpoints cap `limit` at 500. Deployments cap it at 100.
 _MEMBER_PAGE_SIZE = 500
 _DEPLOYMENT_PAGE_SIZE = 100
-_CURSOR_PAGE_SIZE = 100
 # Assistant searches run concurrently across deployments, so one scaled-to-zero
 # deployment waking slowly no longer holds up the rest. That makes a tighter read
 # timeout safe, and it bounds the worst case for a workspace full of idle deployments.
 _ASSISTANT_TIMEOUT = (5, 15)
+_RETRY_STATUSES = [429, 500, 502, 503, 504]
 
 
 def _build_session() -> requests.Session:
@@ -32,7 +32,7 @@ def _build_session() -> requests.Session:
     retry_policy = Retry(
         total=5,
         backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
+        status_forcelist=_RETRY_STATUSES,
         allowed_methods=["GET"],
         # LangSmith signals throttling with Retry-After and emits no X-RateLimit headers.
         respect_retry_after_header=True,
@@ -42,21 +42,39 @@ def _build_session() -> requests.Session:
     return session
 
 
-class LangSmithPermissionError(Exception):
-    """Raised when the configured credential cannot read a LangSmith resource."""
+def _build_assistant_session() -> requests.Session:
+    """
+    Build a session for the read-only assistant search, which is expressed as a POST.
 
-    def __init__(self, path: str, status_code: int) -> None:
-        super().__init__(
-            f"GET {path} returned {status_code}: "
-            "the configured LangSmith credential cannot read this resource."
-        )
+    Throttling and transient 5xx responses are retried, but read timeouts are not: a
+    scaled-to-zero deployment that times out once will time out again, and retrying it
+    would multiply the worst case the tight timeout exists to bound.
+    """
+    session = requests.Session()
+    retry_policy = Retry(
+        total=3,
+        read=0,
+        backoff_factor=1,
+        status_forcelist=_RETRY_STATUSES,
+        allowed_methods=["POST"],
+        respect_retry_after_header=True,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    return session
+
+
+class LangSmithFetchError(Exception):
+    """Raised when a LangSmith listing could not be read in full."""
+
+    def __init__(self, path: str, status_code: int | None, reason: str) -> None:
+        super().__init__(f"GET {path} failed: {reason}")
         self.status_code = status_code
 
     @property
     def not_found(self) -> bool:
         # A 404 means the route or resource does not exist for this organization, which
-        # is a complete (empty) answer. A 401/403 means data may exist that we could not
-        # see, so callers must not treat it as an empty inventory.
+        # is a complete (empty) answer. A 401/403 or a transport failure means data may
+        # exist that we could not see, so callers must not treat it as an empty inventory.
         return self.status_code == 404
 
 
@@ -91,49 +109,17 @@ class LangSmithClient:
         """
         session = getattr(self._thread_local, "session", None)
         if session is None:
-            session = _build_session()
+            session = _build_assistant_session()
             self._thread_local.session = session
         return session
 
-    def _headers(
-        self,
-        org_id: str | None,
-        tenant_id: str | None,
-        bearer: bool,
-    ) -> dict[str, str]:
-        # Two tenantless routes (/api/v1/orgs and /api/v1/orgs/permissions) only accept a
-        # bearer token; everything else takes the same PAT as an API key.
-        if bearer:
-            headers = {"Authorization": f"Bearer {self._pat}"}
-        else:
-            headers = {"X-Api-Key": self._pat}
+    def _headers(self, org_id: str | None, tenant_id: str | None) -> dict[str, str]:
+        headers = {"X-Api-Key": self._pat}
         if org_id:
             headers["X-Organization-Id"] = org_id
         if tenant_id:
             headers["X-Tenant-Id"] = tenant_id
         return headers
-
-    def _request(
-        self,
-        path: str,
-        *,
-        params: dict[str, Any] | None = None,
-        org_id: str | None = None,
-        tenant_id: str | None = None,
-        bearer: bool = False,
-        host: bool = False,
-    ) -> Any:
-        base = self.host_api_url if host else self.api_url
-        response = self._session.get(
-            f"{base}{path}",
-            params=params,
-            headers=self._headers(org_id, tenant_id, bearer),
-            timeout=_TIMEOUT,
-        )
-        if response.status_code in (401, 403, 404):
-            raise LangSmithPermissionError(path, response.status_code)
-        response.raise_for_status()
-        return response.json()
 
     def get(
         self,
@@ -142,18 +128,28 @@ class LangSmithClient:
         params: dict[str, Any] | None = None,
         org_id: str | None = None,
         tenant_id: str | None = None,
-        bearer: bool = False,
         host: bool = False,
     ) -> Any:
         """Fetch a single, unpaginated LangSmith response and return it as-is."""
-        return self._request(
-            path,
-            params=params,
-            org_id=org_id,
-            tenant_id=tenant_id,
-            bearer=bearer,
-            host=host,
-        )
+        base = self.host_api_url if host else self.api_url
+        try:
+            response = self._session.get(
+                f"{base}{path}",
+                params=params,
+                headers=self._headers(org_id, tenant_id),
+                timeout=_TIMEOUT,
+            )
+        except requests.RequestException as err:
+            # Timeouts, connection failures and exhausted 429/5xx retries. Reported like
+            # a denied listing so the caller preserves existing nodes instead of failing
+            # the whole sync or deleting them.
+            raise LangSmithFetchError(path, None, type(err).__name__) from err
+        if response.status_code in (401, 403, 404):
+            raise LangSmithFetchError(
+                path, response.status_code, f"HTTP {response.status_code}"
+            )
+        response.raise_for_status()
+        return response.json()
 
     def get_paginated(
         self,
@@ -176,7 +172,7 @@ class LangSmithClient:
         while True:
             page_params = dict(params or {})
             page_params.update({"limit": page_size, "offset": offset})
-            page = self._request(
+            page = self.get(
                 path,
                 params=page_params,
                 org_id=org_id,
@@ -207,53 +203,20 @@ class LangSmithClient:
         while True:
             page_params = dict(params or {})
             page_params.update({"limit": page_size, "offset": offset})
-            payload = self._request(
+            payload = self.get(
                 path,
                 params=page_params,
                 org_id=org_id,
                 tenant_id=tenant_id,
                 host=host,
             )
-            page = payload.get(key) or []
+            # Indexed rather than defaulted: a response missing its rows must fail loudly,
+            # not read as an empty inventory that cleanup would then act on.
+            page = payload[key]
             results.extend(page)
             if len(page) < page_size:
                 return results
             offset += len(page)
-
-    def get_paginated_cursor(
-        self,
-        path: str,
-        *,
-        params: dict[str, Any] | None = None,
-        org_id: str | None = None,
-        tenant_id: str | None = None,
-        page_size: int = _CURSOR_PAGE_SIZE,
-    ) -> list[dict[str, Any]]:
-        """
-        Page through a cursor-paginated endpoint returning ``{"items": [...],
-        "next_cursor": ...}``. This is the newer house convention used by the Go
-        agent-auth routes.
-        """
-        results: list[dict[str, Any]] = []
-        cursor: str | None = None
-        while True:
-            page_params = dict(params or {})
-            page_params["page_size"] = page_size
-            if cursor:
-                page_params["after_id"] = cursor
-            payload = self._request(
-                path,
-                params=page_params,
-                org_id=org_id,
-                tenant_id=tenant_id,
-            )
-            # Some of these routes return a bare array rather than an envelope.
-            if isinstance(payload, list):
-                return results + payload
-            results.extend(payload.get("items") or [])
-            cursor = payload.get("next_cursor")
-            if not cursor:
-                return results
 
     def search_assistants(
         self,

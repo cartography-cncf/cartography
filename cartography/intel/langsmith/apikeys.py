@@ -7,7 +7,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
-from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import resolve_ls_user_id
 from cartography.models.langsmith.apikey import LangSmithApiKeySchema
 from cartography.models.langsmith.serviceaccount import LangSmithServiceAccountSchema
@@ -77,7 +77,7 @@ def _fetch_optional(
     path = _ORG_KEY_SOURCES[key_type]
     try:
         rows = client.get(path, org_id=org_id)
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning("Skipping LangSmith %s inventory: %s", key_type, err)
         # A 404 means the feature is off for this organization (for example SCIM), so
         # there is nothing to list; only a hidden listing is incomplete.
@@ -92,11 +92,11 @@ def _fetch_workspace_keys(
 ) -> tuple[list[dict[str, Any]], bool]:
     try:
         rows = client.get("/api/v1/api-key", org_id=org_id, tenant_id=workspace_id)
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning(
             "Skipping LangSmith API keys for workspace %s: %s", workspace_id, err
         )
-        return [], False
+        return [], err.not_found
     for row in rows:
         row["key_type"] = "workspace_key"
         row["workspace_id"] = workspace_id
@@ -109,9 +109,9 @@ def get_service_accounts(
 ) -> tuple[list[dict[str, Any]], bool]:
     try:
         return client.get("/api/v1/service-accounts", org_id=org_id), True
-    except LangSmithPermissionError as err:
+    except LangSmithFetchError as err:
         logger.warning("Skipping LangSmith service accounts: %s", err)
-        return [], False
+        return [], err.not_found
 
 
 def transform_keys(
