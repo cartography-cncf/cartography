@@ -198,7 +198,57 @@ def test_build_ontology_field_statement_equal_boolean_with_values():
     result = _build_ontology_field_statement_equal_boolean(mapping_field, property_ref)
 
     # Assert
-    expected = "i._ont_is_admin = (item.role IN ['admin', 'superuser', 'root'])"
+    expected = 'i._ont_is_admin = (item.role IN ["admin", "superuser", "root"])'
+    assert result == expected
+
+
+def test_build_ontology_field_statement_equal_boolean_escapes_string_values():
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="is_admin",
+        node_field="role",
+        special_handling="equal_boolean",
+        extra={
+            "values": [
+                "owner's",
+                'say "yes"',
+                "C:\\roles",
+                "line\nbreak",
+                "control\x01",
+                'x" OR true //',
+            ]
+        },
+    )
+
+    # Act
+    result = _build_ontology_field_statement_equal_boolean(
+        mapping_field, PropertyRef("role")
+    )
+
+    # Assert
+    expected = (
+        r"""i._ont_is_admin = (item.role IN ["owner's", "say \"yes\"", """
+        r""""C:\\roles", "line\nbreak", "control\u0001", "x\" OR true //"])"""
+    )
+    assert result == expected
+
+
+def test_build_ontology_field_statement_equal_boolean_preserves_value_types():
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="is_enabled",
+        node_field="enabled",
+        special_handling="equal_boolean",
+        extra={"values": [True, 1, 2.5, None]},
+    )
+
+    # Act
+    result = _build_ontology_field_statement_equal_boolean(
+        mapping_field, PropertyRef("enabled")
+    )
+
+    # Assert
+    expected = "i._ont_is_enabled = (item.enabled IN [true, 1, 2.5, null])"
     assert result == expected
 
 

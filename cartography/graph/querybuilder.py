@@ -1,3 +1,4 @@
+import json
 import logging
 from dataclasses import asdict
 from string import Template
@@ -78,10 +79,11 @@ def _build_ontology_field_statement_equal_boolean(
             mapping_field.ontology_field,
         )
         return None
+    cypher_values = json.dumps(extra_field_values)
     return equal_boolean_template.substitute(
         node_property=f"_ont_{mapping_field.ontology_field}",
         property_ref=property_ref,
-        property_values=extra_field_values,
+        property_values=cypher_values,
     )
 
 
