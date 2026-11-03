@@ -416,6 +416,14 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type langsmith_pat: str
+    :param langsmith_pat: LangSmith personal access token (lsv2_pt_...). Optional.
+    :type langsmith_api_url: str
+    :param langsmith_api_url: LangSmith control plane base URL. Optional.
+    :type langsmith_host_api_url: str
+    :param langsmith_host_api_url: LangGraph Platform (api-host) base URL. Optional.
+    :type langsmith_org_id: str
+    :param langsmith_org_id: Restrict the LangSmith sync to a single organization UUID. Optional.
     :type databricks_workspace_url: str
     :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
     :type databricks_token: str
@@ -872,6 +880,10 @@ class Config:
         databricks_azure_client_id: str | None = None,
         databricks_azure_client_secret: str | None = None,
         semgrep_skip_dependency_cleanup: bool = False,
+        langsmith_pat: str | None = None,
+        langsmith_api_url: str | None = None,
+        langsmith_host_api_url: str | None = None,
+        langsmith_org_id: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1069,6 +1081,10 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.langsmith_pat = langsmith_pat
+        self.langsmith_api_url = langsmith_api_url
+        self.langsmith_host_api_url = langsmith_host_api_url
+        self.langsmith_org_id = langsmith_org_id
         self.databricks_workspace_url = databricks_workspace_url
         self.databricks_token = databricks_token
         self.databricks_client_id = databricks_client_id
