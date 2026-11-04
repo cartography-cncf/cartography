@@ -340,6 +340,13 @@ def cleanup(
     batch_size: int = BATCH_SIZE,
 ) -> None:
     logger.info("Running AWS Inspector cleanup")
+    # Stale findings go first: deleting them also deletes their HAS rels, which
+    # leaves the matchlink cleanup only the rels of findings that are still current.
+    GraphJob.from_node_schema(
+        AWSInspectorFindingSchema(), common_job_parameters, iterationsize=batch_size
+    ).run(
+        neo4j_session,
+    )
     GraphJob.from_matchlink(
         InspectorFindingToPackageMatchLink(),
         "AWSAccount",
@@ -351,11 +358,6 @@ def cleanup(
     )
     GraphJob.from_node_schema(
         AWSInspectorPackageSchema(), common_job_parameters, iterationsize=batch_size
-    ).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(
-        AWSInspectorFindingSchema(), common_job_parameters, iterationsize=batch_size
     ).run(
         neo4j_session,
     )

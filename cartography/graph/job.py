@@ -449,8 +449,8 @@ class GraphJob:
         statement = GraphStatement(
             cleanup_link_query,
             parameters=parameters,
-            iterative=True,
             iterationsize=iterationsize,
+            batched_transactions=True,
             parent_job_name=rel_schema.rel_label,
         )
 
