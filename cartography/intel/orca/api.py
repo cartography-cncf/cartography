@@ -151,10 +151,14 @@ def serving_layer_query(
     )
 
 
-def _require_total_items(value: Any, error_message: str) -> int:
+def _require_total_items(value: Any, result_name: str, error_message: str) -> int:
     # bool subclasses int, but is not a valid API item count.
     if isinstance(value, bool) or not isinstance(value, int):
         raise RuntimeError(error_message)
+    if value < 0:
+        raise RuntimeError(
+            f"Orca {result_name} response returned negative total_items",
+        )
     return value
 
 
@@ -169,15 +173,11 @@ def _count_rows(
         api_endpoint,
         {**query, "limit": 1, "start_at_index": 0, "get_results_and_count": True},
     )
-    total_items = _require_total_items(
+    return _require_total_items(
         response.get("total_items"),
+        result_name,
         f"Orca {result_name} count response omitted integer total_items",
     )
-    if total_items < 0:
-        raise RuntimeError(
-            f"Orca {result_name} response returned negative total_items",
-        )
-    return total_items
 
 
 @dataclass
@@ -244,12 +244,9 @@ def iter_serving_layer_pages(
         if total_items is None:
             total_items = _require_total_items(
                 response_total,
+                result_name,
                 f"Orca {result_name} response omitted integer total_items",
             )
-            if total_items < 0:
-                raise RuntimeError(
-                    f"Orca {result_name} response returned negative total_items",
-                )
             required_pages = (total_items + page_size - 1) // page_size
             if required_pages > max_pages:
                 raise RuntimeError(
@@ -265,14 +262,11 @@ def iter_serving_layer_pages(
                 )
             progress.total_items = total_items
         elif response_total is not None:
-            response_total = _require_total_items(
+            _require_total_items(
                 response_total,
+                result_name,
                 f"Orca {result_name} returned a malformed total_items",
             )
-            if response_total < 0:
-                raise RuntimeError(
-                    f"Orca {result_name} response returned negative total_items",
-                )
 
         if len(rows) > page_size:
             raise RuntimeError(
@@ -286,11 +280,10 @@ def iter_serving_layer_pages(
             progress.finished = True
             if start_index == total_items:
                 return
-            if not progress.complete:
-                # The first page's count is hours old by now. On a large org it
-                # drifts by more than the threshold over a fetch that long, so
-                # compare against a fresh count: a truncated fetch falls short
-                # of both.
+            if start_index < total_items:
+                # The first page's count is hours old by now and drifts both
+                # ways on a large org, so judge a short fetch against a fresh
+                # count. A truncated fetch falls short of that one too.
                 progress.total_items = _count_rows(
                     session,
                     api_endpoint,

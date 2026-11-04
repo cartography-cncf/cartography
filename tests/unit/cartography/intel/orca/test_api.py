@@ -325,29 +325,36 @@ def test_iter_serving_layer_pages_accepts_fetch_within_one_percent_of_count(
     assert progress.complete is True
 
 
+@pytest.mark.parametrize(
+    ("fetched", "final_total"),
+    [(98, 100), (99, 101)],
+    ids=["short-of-both-counts", "short-of-fresh-count-only"],
+)  # type: ignore[misc]
 def test_iter_serving_layer_pages_yields_short_fetch_but_marks_it_incomplete(
     mocker,
     caplog,
+    fetched: int,
+    final_total: int,
 ) -> None:
-    # A fetch that also ends short of a fresh count was truncated. The rows are
+    # A fetch that ends short of a fresh count was truncated. The rows are
     # still worth loading, but a few percent of a multi-million-row org is too
     # many to let cleanup delete.
 
     # Act
-    rows, progress, query_call = _fetch_single_page(mocker, 98, final_total=100)
+    rows, progress, query_call = _fetch_single_page(mocker, fetched, final_total)
 
     # Assert
-    assert len(rows) == 98
+    assert len(rows) == fetched
     assert progress == api.PaginationProgress(
-        fetched_rows=98,
-        total_items=100,
+        fetched_rows=fetched,
+        total_items=final_total,
         finished=True,
     )
     assert progress.complete is False
     recount_payload = query_call.call_args_list[-1].args[2]
     assert recount_payload["start_at_index"] == 0
     assert recount_payload["get_results_and_count"] is True
-    assert "ended after 98 of 100 reported rows" in caplog.text
+    assert f"ended after {fetched} of {final_total} reported rows" in caplog.text
     assert "skipping vulnerabilities cleanup" in caplog.text
 
 
