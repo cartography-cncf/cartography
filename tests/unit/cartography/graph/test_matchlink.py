@@ -386,8 +386,10 @@ def test_build_cleanup_query_for_matchlink():
         WHERE r.lastupdated <> $UPDATE_TAG
             AND r._sub_resource_label = $_sub_resource_label
             AND r._sub_resource_id = $_sub_resource_id
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
     """
 
     # Assert: compare query outputs while ignoring leading whitespace.

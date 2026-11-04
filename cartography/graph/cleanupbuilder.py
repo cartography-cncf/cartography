@@ -662,8 +662,7 @@ def build_cleanup_query_for_matchlink(rel_schema: CartographyRelSchema) -> str:
         WHERE r.lastupdated <> $UPDATE_TAG
             AND r._sub_resource_label = $sub_resource_label
             AND r._sub_resource_id = $sub_resource_id
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        $delete_clause
         """
     )
 
@@ -686,4 +685,5 @@ def build_cleanup_query_for_matchlink(rel_schema: CartographyRelSchema) -> str:
         rel_direction_end=rel_direction_end,
         sub_resource_label=rel_props_as_dict["_sub_resource_label"],
         sub_resource_id=rel_props_as_dict["_sub_resource_id"],
+        delete_clause=_delete_in_batches("r", "DELETE r"),
     )
