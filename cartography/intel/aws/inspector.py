@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from concurrent.futures import Future
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
 from typing import List
@@ -137,6 +139,16 @@ async def _get_inspector_findings_shard(
     await pages.put(None)
 
 
+def _is_retryable_findings_error(error: botocore.exceptions.ClientError) -> bool:
+    if is_throttling_exception(error):
+        return True
+    # A request that waited too long to be sent; a retry signs it again.
+    details = error.response.get("Error", {})
+    return details.get("Code") == "InvalidSignatureException" and (
+        "Signature expired" in details.get("Message", "")
+    )
+
+
 # A large account pages through its findings for hours with every shard in flight,
 # so one throttle can outlast the client's own retries before the last page.
 # Retrying the page resumes the shard from that page. Failing instead discards the
@@ -145,7 +157,7 @@ async def _get_inspector_findings_shard(
     backoff.expo,
     botocore.exceptions.ClientError,
     max_time=600,
-    giveup=lambda e: not is_throttling_exception(e),
+    giveup=lambda e: not _is_retryable_findings_error(e),
     on_backoff=backoff_handler,
 )
 async def _list_findings_page(client: Any, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -411,49 +423,59 @@ async def _load_inspector_findings(
     pages: asyncio.Queue[List[Dict[str, Any]] | None] = asyncio.Queue(
         maxsize=MAX_BUFFERED_PAGES,
     )
+    last_load: Future[None] | None = None
+    # Loads run in a worker thread so a slow write does not stall the shards: a
+    # request botocore has signed waits for the event loop to send it, and AWS
+    # rejects a signature older than five minutes. Leaving the executor waits for a
+    # load still running when a shard fails, so the next account's load never
+    # shares the Neo4j session with it.
     try:
-        async with asyncio.TaskGroup() as shards:
-            for shard in FINDING_ID_SHARDS:
-                shards.create_task(
-                    _get_inspector_findings_shard(client, account_id, shard, pages),
-                )
+        with ThreadPoolExecutor(max_workers=1) as loader:
+            async with asyncio.TaskGroup() as shards:
+                for shard in FINDING_ID_SHARDS:
+                    shards.create_task(
+                        _get_inspector_findings_shard(client, account_id, shard, pages),
+                    )
 
-            # Loads run here, on the event loop, rather than in a worker thread: the
-            # Neo4j session is not safe to use from more than one thread, and the
-            # shards keep their requests in flight while a load runs.
-            findings: List[Dict[str, Any]] = []
-            unfinished_shards = len(FINDING_ID_SHARDS)
-            while unfinished_shards:
-                page = await pages.get()
-                if page is None:
-                    unfinished_shards -= 1
-                    continue
-                findings.extend(page)
-                while len(findings) >= batch_size:
-                    _load_inspector_findings_batch(
+                async def load(batch: List[Dict[str, Any]]) -> None:
+                    nonlocal last_load
+                    last_load = loader.submit(
+                        _load_inspector_findings_batch,
                         neo4j_session,
-                        findings[:batch_size],
+                        batch,
                         region,
                         account_id,
                         update_tag,
                         current_aws_account_id,
                     )
-                    del findings[:batch_size]
-            if findings:
-                _load_inspector_findings_batch(
-                    neo4j_session,
-                    findings,
-                    region,
-                    account_id,
-                    update_tag,
-                    current_aws_account_id,
-                )
+                    await asyncio.wrap_future(last_load)
+
+                findings: List[Dict[str, Any]] = []
+                unfinished_shards = len(FINDING_ID_SHARDS)
+                while unfinished_shards:
+                    page = await pages.get()
+                    if page is None:
+                        unfinished_shards -= 1
+                        continue
+                    findings.extend(page)
+                    while len(findings) >= batch_size:
+                        await load(findings[:batch_size])
+                        del findings[:batch_size]
+                if findings:
+                    await load(findings)
     except ExceptionGroup as errors:
         # Raising one failure keeps the error types callers handle. Requests from
         # every shard are in flight at once, so more than one can fail before the
         # task group cancels the rest; raise the most severe so a skippable error
         # never hides one that must stop cleanup or the sync.
-        raise max(errors.exceptions, key=_shard_failure_severity)
+        failures: List[BaseException] = list(errors.exceptions)
+        # A shard failure cancels the wait for a load but not the load, so a write
+        # that failed meanwhile is missing from the group.
+        if last_load is not None and not last_load.cancelled():
+            load_error = last_load.exception()
+            if load_error is not None:
+                failures.append(load_error)
+        raise max(failures, key=_shard_failure_severity)
 
 
 def _is_skippable_findings_error(error: BaseException) -> bool:

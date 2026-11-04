@@ -1,10 +1,13 @@
 import asyncio
 import operator
+import threading
+import time
 from types import SimpleNamespace
 
 import botocore.exceptions
 import pytest
 
+from cartography.intel.aws import inspector
 from cartography.intel.aws.inspector import sync
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
@@ -30,6 +33,16 @@ THROTTLED = botocore.exceptions.ClientError(
     error_response={"Error": {"Code": "ThrottlingException", "Message": ""}},
     operation_name="ListFindings",
 )
+SIGNATURE_EXPIRED = botocore.exceptions.ClientError(
+    error_response={
+        "Error": {
+            "Code": "InvalidSignatureException",
+            "Message": "Signature expired: 20260101T000000Z is now earlier than "
+            "20260101T000500Z (20260101T001000Z - 5 min.)",
+        },
+    },
+    operation_name="ListFindings",
+)
 
 _COMPARISONS = {
     "EQUALS": operator.eq,
@@ -47,9 +60,9 @@ class FakeInspector2Client:
     """
     An in-memory inspector2 regional endpoint. ListFindings applies the filter
     criteria it receives, returns one finding per page and records the ARN of each
-    finding it serves. Either operation can be made to fail, ListFindings can fail
-    differently per finding ID prefix, and it can throttle the first request for
-    each page.
+    finding it serves, signalling once it has served every finding. Either
+    operation can be made to fail, ListFindings can fail differently per finding
+    ID prefix, and it can fail the first request for each page with a given error.
     """
 
     def __init__(
@@ -59,7 +72,7 @@ class FakeInspector2Client:
         list_findings_error=None,
         list_findings_errors_by_prefix=None,
         list_members_error=None,
-        throttle_each_page_once=False,
+        fail_each_page_once=None,
     ):
         self.meta = SimpleNamespace(partition="aws", region_name=TEST_REGION)
         self._findings = findings
@@ -67,9 +80,10 @@ class FakeInspector2Client:
         self._list_findings_error = list_findings_error
         self._list_findings_errors_by_prefix = list_findings_errors_by_prefix or {}
         self._list_members_error = list_members_error
-        self._throttle_each_page_once = throttle_each_page_once
-        self._throttled_pages = set()
+        self._fail_each_page_once = fail_each_page_once
+        self._failed_pages = set()
         self.served_finding_arns = []
+        self.all_findings_served = threading.Event()
 
     async def __aenter__(self):
         return self
@@ -100,9 +114,9 @@ class FakeInspector2Client:
         if finding_id_prefix in self._list_findings_errors_by_prefix:
             raise self._list_findings_errors_by_prefix[finding_id_prefix]
         page_key = (finding_id_prefix, nextToken)
-        if self._throttle_each_page_once and page_key not in self._throttled_pages:
-            self._throttled_pages.add(page_key)
-            raise THROTTLED
+        if self._fail_each_page_once and page_key not in self._failed_pages:
+            self._failed_pages.add(page_key)
+            raise self._fail_each_page_once
         matching = [
             finding
             for finding in self._findings
@@ -115,6 +129,8 @@ class FakeInspector2Client:
         index = int(nextToken)
         page = {"findings": matching[index : index + 1]}
         self.served_finding_arns.extend(f["findingArn"] for f in page["findings"])
+        if len(self.served_finding_arns) == len(self._findings):
+            self.all_findings_served.set()
         if index + 1 < len(matching):
             page["nextToken"] = str(index + 1)
         return page
@@ -415,9 +431,10 @@ def test_sync_inspector_loads_findings_from_every_finding_id_prefix(neo4j_sessio
     assert sorted(inspector2.served_finding_arns) == sorted(finding_arns)
 
 
-def test_sync_inspector_resumes_throttled_pages(neo4j_session):
+@pytest.mark.parametrize("page_error", [THROTTLED, SIGNATURE_EXPIRED])
+def test_sync_inspector_resumes_failed_pages(neo4j_session, page_error):
     # Arrange: three findings share a finding ID prefix, so their shard spans
-    # three pages, and the endpoint throttles the first request for every page. A
+    # three pages, and the endpoint fails the first request for every page. A
     # finding from a previous run is still in the graph.
     finding_arns = [
         "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000001",
@@ -425,7 +442,7 @@ def test_sync_inspector_resumes_throttled_pages(neo4j_session):
         "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000003",
     ]
     findings = [{**LIST_FINDINGS_NETWORK[0], "findingArn": arn} for arn in finding_arns]
-    inspector2 = FakeInspector2Client(findings=findings, throttle_each_page_once=True)
+    inspector2 = FakeInspector2Client(findings=findings, fail_each_page_once=page_error)
     aioboto3_session = FakeAioboto3Session(inspector2)
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _add_stale_finding(neo4j_session, "arn:aws:stale")
@@ -440,10 +457,57 @@ def test_sync_inspector_resumes_throttled_pages(neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
     )
 
-    # Assert: each retry resumed from the throttled page, so every finding was
+    # Assert: each retry resumed from the failed page, so every finding was
     # fetched exactly once, and the sync completed, so cleanup removed the finding
     # the previous run left behind.
     assert inspector2.served_finding_arns == finding_arns
+    assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
+        (finding_arns[0],),
+        (finding_arns[1],),
+        (finding_arns[2],),
+    }
+
+
+def test_sync_inspector_fetches_pages_while_a_batch_loads(neo4j_session, monkeypatch):
+    # Arrange: one shard spans three pages and findings load one per batch. The
+    # first load holds the Neo4j write until the endpoint has served every page,
+    # giving up after five seconds.
+    finding_arns = [
+        "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000001",
+        "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000002",
+        "arn:aws:inspector2:us-west-2:123456789011:finding/a0000000000000000000000000000003",
+    ]
+    findings = [{**LIST_FINDINGS_NETWORK[0], "findingArn": arn} for arn in finding_arns]
+    inspector2 = FakeInspector2Client(findings=findings)
+    served_during_first_load = []
+    load_findings = inspector.load_inspector_findings
+
+    def slow_first_load(*args, **kwargs):
+        if not served_during_first_load:
+            inspector2.all_findings_served.wait(timeout=5)
+            served_during_first_load.extend(inspector2.served_finding_arns)
+        load_findings(*args, **kwargs)
+
+    monkeypatch.setattr(inspector, "load_inspector_findings", slow_first_load)
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
+    sync(
+        neo4j_session,
+        FakeAioboto3Session(inspector2),
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACC_ID_1,
+            "experimental_aws_inspector_batch": 1,
+        },
+    )
+
+    # Assert: the shard fetched its remaining pages while the first batch was still
+    # loading, and every finding was loaded.
+    assert served_during_first_load == finding_arns
     assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
         (finding_arns[0],),
         (finding_arns[1],),
@@ -611,4 +675,56 @@ def test_sync_inspector_raises_when_one_shard_fails_unexpectedly(neo4j_session):
             TEST_ACC_ID_1,
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+        )
+
+
+def test_sync_inspector_raises_a_load_that_fails_while_a_shard_is_rejected(
+    neo4j_session, monkeypatch
+):
+    # Arrange: one shard serves a finding whose load fails. Another shard is
+    # rejected as "not enabled" while that load is still running.
+    finding_arn = (
+        "arn:aws:inspector2:us-west-2:123456789011:finding/"
+        "a0000000000000000000000000000001"
+    )
+    inspector2 = FakeInspector2Client(
+        findings=[{**LIST_FINDINGS_NETWORK[0], "findingArn": finding_arn}],
+    )
+    load_started = threading.Event()
+    shard_rejected = threading.Event()
+
+    def load_that_fails(*args, **kwargs):
+        load_started.set()
+        shard_rejected.wait(timeout=5)
+        # Lets the task group cancel the wait for this load before it fails.
+        time.sleep(0.2)
+        raise RuntimeError("Neo4j write failed")
+
+    monkeypatch.setattr(inspector, "load_inspector_findings", load_that_fails)
+    list_findings = inspector2.list_findings
+
+    async def reject_shard_b_during_load(filterCriteria, nextToken="0"):
+        if filterCriteria["findingArn"][0]["value"][-1] == "b":
+            while not load_started.is_set():
+                await asyncio.sleep(0.01)
+            shard_rejected.set()
+            raise INSPECTOR_NOT_ENABLED
+        return await list_findings(filterCriteria, nextToken)
+
+    inspector2.list_findings = reject_shard_b_during_load
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act and assert: the failed write stops the sync, so cleanup does not run.
+    with pytest.raises(RuntimeError, match="Neo4j write failed"):
+        sync(
+            neo4j_session,
+            FakeAioboto3Session(inspector2),
+            [TEST_REGION],
+            TEST_ACC_ID_1,
+            TEST_UPDATE_TAG,
+            {
+                "UPDATE_TAG": TEST_UPDATE_TAG,
+                "AWS_ID": TEST_ACC_ID_1,
+                "experimental_aws_inspector_batch": 1,
+            },
         )
