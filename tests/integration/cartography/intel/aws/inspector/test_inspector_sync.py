@@ -1,6 +1,7 @@
 import asyncio
 import operator
 import threading
+import time
 from types import SimpleNamespace
 
 import botocore.exceptions
@@ -674,4 +675,56 @@ def test_sync_inspector_raises_when_one_shard_fails_unexpectedly(neo4j_session):
             TEST_ACC_ID_1,
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+        )
+
+
+def test_sync_inspector_raises_a_load_that_fails_while_a_shard_is_rejected(
+    neo4j_session, monkeypatch
+):
+    # Arrange: one shard serves a finding whose load fails. Another shard is
+    # rejected as "not enabled" while that load is still running.
+    finding_arn = (
+        "arn:aws:inspector2:us-west-2:123456789011:finding/"
+        "a0000000000000000000000000000001"
+    )
+    inspector2 = FakeInspector2Client(
+        findings=[{**LIST_FINDINGS_NETWORK[0], "findingArn": finding_arn}],
+    )
+    load_started = threading.Event()
+    shard_rejected = threading.Event()
+
+    def load_that_fails(*args, **kwargs):
+        load_started.set()
+        shard_rejected.wait(timeout=5)
+        # Lets the task group cancel the wait for this load before it fails.
+        time.sleep(0.2)
+        raise RuntimeError("Neo4j write failed")
+
+    monkeypatch.setattr(inspector, "load_inspector_findings", load_that_fails)
+    list_findings = inspector2.list_findings
+
+    async def reject_shard_b_during_load(filterCriteria, nextToken="0"):
+        if filterCriteria["findingArn"][0]["value"][-1] == "b":
+            while not load_started.is_set():
+                await asyncio.sleep(0.01)
+            shard_rejected.set()
+            raise INSPECTOR_NOT_ENABLED
+        return await list_findings(filterCriteria, nextToken)
+
+    inspector2.list_findings = reject_shard_b_during_load
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act and assert: the failed write stops the sync, so cleanup does not run.
+    with pytest.raises(RuntimeError, match="Neo4j write failed"):
+        sync(
+            neo4j_session,
+            FakeAioboto3Session(inspector2),
+            [TEST_REGION],
+            TEST_ACC_ID_1,
+            TEST_UPDATE_TAG,
+            {
+                "UPDATE_TAG": TEST_UPDATE_TAG,
+                "AWS_ID": TEST_ACC_ID_1,
+                "experimental_aws_inspector_batch": 1,
+            },
         )

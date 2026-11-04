@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
@@ -422,7 +423,7 @@ async def _load_inspector_findings(
     pages: asyncio.Queue[List[Dict[str, Any]] | None] = asyncio.Queue(
         maxsize=MAX_BUFFERED_PAGES,
     )
-    loop = asyncio.get_running_loop()
+    last_load: Future[None] | None = None
     # Loads run in a worker thread so a slow write does not stall the shards: a
     # request botocore has signed waits for the event loop to send it, and AWS
     # rejects a signature older than five minutes. Leaving the executor waits for a
@@ -436,9 +437,9 @@ async def _load_inspector_findings(
                         _get_inspector_findings_shard(client, account_id, shard, pages),
                     )
 
-                def load(batch: List[Dict[str, Any]]) -> asyncio.Future[None]:
-                    return loop.run_in_executor(
-                        loader,
+                async def load(batch: List[Dict[str, Any]]) -> None:
+                    nonlocal last_load
+                    last_load = loader.submit(
                         _load_inspector_findings_batch,
                         neo4j_session,
                         batch,
@@ -447,6 +448,7 @@ async def _load_inspector_findings(
                         update_tag,
                         current_aws_account_id,
                     )
+                    await asyncio.wrap_future(last_load)
 
                 findings: List[Dict[str, Any]] = []
                 unfinished_shards = len(FINDING_ID_SHARDS)
@@ -466,7 +468,14 @@ async def _load_inspector_findings(
         # every shard are in flight at once, so more than one can fail before the
         # task group cancels the rest; raise the most severe so a skippable error
         # never hides one that must stop cleanup or the sync.
-        raise max(errors.exceptions, key=_shard_failure_severity)
+        failures: List[BaseException] = list(errors.exceptions)
+        # A shard failure cancels the wait for a load but not the load, so a write
+        # that failed meanwhile is missing from the group.
+        if last_load is not None and not last_load.cancelled():
+            load_error = last_load.exception()
+            if load_error is not None:
+                failures.append(load_error)
+        raise max(failures, key=_shard_failure_severity)
 
 
 def _is_skippable_findings_error(error: BaseException) -> bool:
