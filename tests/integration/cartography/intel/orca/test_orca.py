@@ -874,7 +874,10 @@ def test_short_but_ended_fetch_loads_rows_and_skips_cleanup(
     }
     # The complete alerts feed is still cleaned up.
     assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
-    assert "ended after 1 of 10 reported rows" in caplog.text
+    assert (
+        "ended after 1 rows; total_items was 10 at the start and 10 at the end"
+        in caplog.text
+    )
     metadata = neo4j_session.run(
         """
         MATCH (n:ModuleSyncMetadata {id: $id})

@@ -18,11 +18,16 @@ REQUEST_TIMEOUT = (CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS)
 SERVING_LAYER_PATH = "/api/serving-layer/query"
 ORGANIZATION_PATH = "/api/user/action"
 MAX_PAGES = 10_000
-# Skip cleanup when pagination ends below this share of the advisory count.
-# A few percent short on a multi-million-row org is enough for cleanup to delete
-# tens of thousands of live findings. The short fetch is still loaded: loads only
-# upsert, so keeping the fetched rows is safe even when cleanup is not.
+# Cleanup deletes every stored finding a run did not fetch, so it runs only when
+# a fetch kept this share of a count taken when pagination ended. Falling
+# further short means Orca stopped serving rows early.
 _MIN_COMPLETION_RATIO = 0.99
+# A fetch must also keep this share of the first page's count. Each row removed
+# behind the offset cursor shifts one live row past it unread, so a result set
+# that shrinks further during a multi-hour fetch would let cleanup delete tens of
+# thousands of live findings. A short fetch is still loaded: loads only upsert,
+# so keeping the fetched rows is safe even when cleanup is not.
+_MIN_RETAINED_RATIO = 0.95
 _PROGRESS_PAGE_INTERVAL = 10
 _RETRY_STATUS_CODES = (408, 429, 502, 503, 504)
 
@@ -184,6 +189,7 @@ def _count_rows(
 class PaginationProgress:
     fetched_rows: int = 0
     total_items: int | None = None
+    initial_total_items: int | None = None
     finished: bool = False
 
     @property
@@ -192,7 +198,9 @@ class PaginationProgress:
         return (
             self.finished
             and self.total_items is not None
+            and self.initial_total_items is not None
             and self.fetched_rows >= self.total_items * _MIN_COMPLETION_RATIO
+            and self.fetched_rows >= self.initial_total_items * _MIN_RETAINED_RATIO
         )
 
 
@@ -260,7 +268,7 @@ def iter_serving_layer_pages(
                     f"Orca {result_name} reported {total_items} rows but "
                     "returned an empty first page",
                 )
-            progress.total_items = total_items
+            progress.total_items = progress.initial_total_items = total_items
         elif response_total is not None:
             _require_total_items(
                 response_total,
@@ -277,9 +285,6 @@ def iter_serving_layer_pages(
             # Empty page is the only reliable end-of-results signal. Orca can
             # return short pages mid-stream; treating those as terminal caused
             # truncated fetches to run cleanup and delete live findings.
-            progress.finished = True
-            if start_index == total_items:
-                return
             if start_index < total_items:
                 # The first page's count is hours old by now and drifts both
                 # ways on a large org, so judge a short fetch against a fresh
@@ -296,6 +301,11 @@ def iter_serving_layer_pages(
                     total_items,
                     progress.total_items,
                 )
+            # Set only once the recount succeeds, so a failed recount cannot
+            # leave the fetch looking complete.
+            progress.finished = True
+            if start_index == total_items:
+                return
             if progress.complete:
                 logger.warning(
                     "Orca %s pagination ended after %d rows; initial "
@@ -306,13 +316,13 @@ def iter_serving_layer_pages(
                 )
             else:
                 logger.warning(
-                    "Orca %s pagination ended after %d of %d reported rows, "
-                    "below the %d%% completion threshold. Keeping the fetched "
+                    "Orca %s pagination ended after %d rows; total_items was "
+                    "%d at the start and %d at the end. Keeping the fetched "
                     "rows and skipping %s cleanup for this run.",
                     result_name,
                     start_index,
+                    total_items,
                     progress.total_items,
-                    round(_MIN_COMPLETION_RATIO * 100),
                     result_name,
                 )
             return
