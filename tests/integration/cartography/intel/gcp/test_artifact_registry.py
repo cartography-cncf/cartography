@@ -1808,6 +1808,13 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
         SET contains.lastupdated = $old_tag,
             contains._sub_resource_label = 'GCPProject',
             contains._sub_resource_id = $project_id
+        WITH child
+        // A layer still used by a live image must not keep orphans alive.
+        MERGE (layer:GCPArtifactRegistryImageLayer {id: 'sha256:orphan-shared-layer'})
+        SET layer.diff_id = 'sha256:orphan-shared-layer'
+        MERGE (child)-[:HAS_LAYER]->(layer)
+        MERGE (child)-[:HEAD]->(layer)
+        MERGE (child)-[:TAIL]->(layer)
         """,
         project_id=project_id,
         old_tag=TEST_UPDATE_TAG,
@@ -1839,6 +1846,15 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
             """,
         ).single()["count"]
         == 0
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (layer:GCPArtifactRegistryImageLayer {id: 'sha256:orphan-shared-layer'})
+            RETURN count(layer) AS count
+            """,
+        ).single()["count"]
+        == 1
     )
 
 
