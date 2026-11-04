@@ -19,8 +19,7 @@ SERVING_LAYER_PATH = "/api/serving-layer/query"
 ORGANIZATION_PATH = "/api/user/action"
 MAX_PAGES = 10_000
 # Skip cleanup when pagination ends below this share of the advisory count.
-# Complete fetches on large orgs drift well under 0.1% from total_items, while a
-# few percent short on a multi-million-row org is enough for cleanup to delete
+# A few percent short on a multi-million-row org is enough for cleanup to delete
 # tens of thousands of live findings. The short fetch is still loaded: loads only
 # upsert, so keeping the fetched rows is safe even when cleanup is not.
 _MIN_COMPLETION_RATIO = 0.99
@@ -159,6 +158,28 @@ def _require_total_items(value: Any, error_message: str) -> int:
     return value
 
 
+def _count_rows(
+    session: requests.Session,
+    api_endpoint: str,
+    query: dict[str, Any],
+    result_name: str,
+) -> int:
+    response = serving_layer_query(
+        session,
+        api_endpoint,
+        {**query, "limit": 1, "start_at_index": 0, "get_results_and_count": True},
+    )
+    total_items = _require_total_items(
+        response.get("total_items"),
+        f"Orca {result_name} count response omitted integer total_items",
+    )
+    if total_items < 0:
+        raise RuntimeError(
+            f"Orca {result_name} response returned negative total_items",
+        )
+    return total_items
+
+
 @dataclass
 class PaginationProgress:
     fetched_rows: int = 0
@@ -265,6 +286,23 @@ def iter_serving_layer_pages(
             progress.finished = True
             if start_index == total_items:
                 return
+            if not progress.complete:
+                # The first page's count is hours old by now. On a large org it
+                # drifts by more than the threshold over a fetch that long, so
+                # compare against a fresh count: a truncated fetch falls short
+                # of both.
+                progress.total_items = _count_rows(
+                    session,
+                    api_endpoint,
+                    query,
+                    result_name,
+                )
+                logger.info(
+                    "Orca %s total_items moved from %d to %d during pagination.",
+                    result_name,
+                    total_items,
+                    progress.total_items,
+                )
             if progress.complete:
                 logger.warning(
                     "Orca %s pagination ended after %d rows; initial "
@@ -280,7 +318,7 @@ def iter_serving_layer_pages(
                     "rows and skipping %s cleanup for this run.",
                     result_name,
                     start_index,
-                    total_items,
+                    progress.total_items,
                     round(_MIN_COMPLETION_RATIO * 100),
                     result_name,
                 )

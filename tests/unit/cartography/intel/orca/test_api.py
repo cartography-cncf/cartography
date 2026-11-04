@@ -285,12 +285,14 @@ def test_iter_serving_layer_pages_rejects_empty_first_page_with_count(
 def _fetch_single_page(
     mocker,
     fetched: int,
-) -> tuple[list[dict[str, str]], api.PaginationProgress]:
-    mocker.patch(
+    final_total: int,
+) -> tuple[list[dict[str, str]], api.PaginationProgress, MagicMock]:
+    query_call = mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         side_effect=[
             {"data": [{"id": str(i)} for i in range(fetched)], "total_items": 100},
             {"data": []},
+            {"data": [{"id": "0"}], "total_items": final_total},
         ],
     )
     progress = api.PaginationProgress()
@@ -302,15 +304,24 @@ def _fetch_single_page(
         result_name="vulnerabilities",
         progress=progress,
     )
-    return [row for page in pages for row in page], progress
+    return [row for page in pages for row in page], progress, query_call
 
 
-def test_iter_serving_layer_pages_accepts_one_percent_shortfall(mocker) -> None:
+@pytest.mark.parametrize(
+    ("fetched", "final_total"),
+    [(99, 100), (98, 98)],
+    ids=["within-initial-count", "count-shrank-during-fetch"],
+)  # type: ignore[misc]
+def test_iter_serving_layer_pages_accepts_fetch_within_one_percent_of_count(
+    mocker,
+    fetched: int,
+    final_total: int,
+) -> None:
     # Act
-    rows, progress = _fetch_single_page(mocker, 99)
+    rows, progress, _ = _fetch_single_page(mocker, fetched, final_total)
 
     # Assert
-    assert len(rows) == 99
+    assert len(rows) == fetched
     assert progress.complete is True
 
 
@@ -318,12 +329,12 @@ def test_iter_serving_layer_pages_yields_short_fetch_but_marks_it_incomplete(
     mocker,
     caplog,
 ) -> None:
-    # A result set that changes during a long scan can end a few percent short
-    # of its initial count. The rows are still worth loading, but a few percent
-    # of a multi-million-row org is too many to let cleanup delete.
+    # A fetch that also ends short of a fresh count was truncated. The rows are
+    # still worth loading, but a few percent of a multi-million-row org is too
+    # many to let cleanup delete.
 
     # Act
-    rows, progress = _fetch_single_page(mocker, 98)
+    rows, progress, query_call = _fetch_single_page(mocker, 98, final_total=100)
 
     # Assert
     assert len(rows) == 98
@@ -333,6 +344,9 @@ def test_iter_serving_layer_pages_yields_short_fetch_but_marks_it_incomplete(
         finished=True,
     )
     assert progress.complete is False
+    recount_payload = query_call.call_args_list[-1].args[2]
+    assert recount_payload["start_at_index"] == 0
+    assert recount_payload["get_results_and_count"] is True
     assert "ended after 98 of 100 reported rows" in caplog.text
     assert "skipping vulnerabilities cleanup" in caplog.text
 
