@@ -2433,10 +2433,11 @@ def _role_unused_since_last_report(
     last_authenticated: str | None,
 ) -> bool:
     """
-    RoleLastUsed and a role's most recent service access record the same request,
-    so a role not used since the access already stored would get the same report.
-    Comparing against the stored access rather than the previous run means a report
-    that lagged behind RoleLastUsed is generated again next run.
+    A role's report only changes after the role is used again, so a role with no
+    RoleLastUsed (unused within IAM's tracking period) or none newer than its stored
+    access would get the same report. Comparing against the stored access rather
+    than the previous run means a report that lagged behind RoleLastUsed is
+    generated again next run.
     """
     if role_last_used is None or arn not in role_last_used:
         return False
@@ -2460,8 +2461,8 @@ def sync_service_last_accessed_details(
     """
     Sync service last accessed details for all principals in the account.
 
-    With `role_last_used` (role ARN to RoleLastUsed.LastUsedDate), roles that were
-    never used or not used since their stored access are skipped: IAM throttles
+    With `role_last_used` (role ARN to RoleLastUsed.LastUsedDate), roles with no
+    recorded use or none since their stored access are skipped: IAM throttles
     report generation, and their report would not change.
     """
     logger.info(
