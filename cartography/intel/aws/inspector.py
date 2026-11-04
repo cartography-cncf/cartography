@@ -1,5 +1,7 @@
 import asyncio
+import functools
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
 from typing import List
@@ -137,6 +139,17 @@ async def _get_inspector_findings_shard(
     await pages.put(None)
 
 
+def _is_retryable_findings_error(error: Exception) -> bool:
+    if is_throttling_exception(error):
+        return True
+    # A request that waited too long to be sent; a retry signs it again.
+    return (
+        isinstance(error, botocore.exceptions.ClientError)
+        and error.response.get("Error", {}).get("Code") == "InvalidSignatureException"
+        and "Signature expired" in error.response.get("Error", {}).get("Message", "")
+    )
+
+
 # A large account pages through its findings for hours with every shard in flight,
 # so one throttle can outlast the client's own retries before the last page.
 # Retrying the page resumes the shard from that page. Failing instead discards the
@@ -145,7 +158,7 @@ async def _get_inspector_findings_shard(
     backoff.expo,
     botocore.exceptions.ClientError,
     max_time=600,
-    giveup=lambda e: not is_throttling_exception(e),
+    giveup=lambda e: not _is_retryable_findings_error(e),
     on_backoff=backoff_handler,
 )
 async def _list_findings_page(client: Any, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -411,43 +424,42 @@ async def _load_inspector_findings(
     pages: asyncio.Queue[List[Dict[str, Any]] | None] = asyncio.Queue(
         maxsize=MAX_BUFFERED_PAGES,
     )
+    loop = asyncio.get_running_loop()
+    # Loads run in one worker thread, one at a time, so the Neo4j session still has
+    # a single user. Running them on the event loop stalls every shard: a request
+    # botocore has signed waits for the loop to send it, and a slow write can hold
+    # it past the five minutes AWS accepts a signature for.
     try:
-        async with asyncio.TaskGroup() as shards:
-            for shard in FINDING_ID_SHARDS:
-                shards.create_task(
-                    _get_inspector_findings_shard(client, account_id, shard, pages),
-                )
-
-            # Loads run here, on the event loop, rather than in a worker thread: the
-            # Neo4j session is not safe to use from more than one thread, and the
-            # shards keep their requests in flight while a load runs.
-            findings: List[Dict[str, Any]] = []
-            unfinished_shards = len(FINDING_ID_SHARDS)
-            while unfinished_shards:
-                page = await pages.get()
-                if page is None:
-                    unfinished_shards -= 1
-                    continue
-                findings.extend(page)
-                while len(findings) >= batch_size:
-                    _load_inspector_findings_batch(
-                        neo4j_session,
-                        findings[:batch_size],
-                        region,
-                        account_id,
-                        update_tag,
-                        current_aws_account_id,
+        with ThreadPoolExecutor(max_workers=1) as loader:
+            async with asyncio.TaskGroup() as shards:
+                for shard in FINDING_ID_SHARDS:
+                    shards.create_task(
+                        _get_inspector_findings_shard(client, account_id, shard, pages),
                     )
-                    del findings[:batch_size]
-            if findings:
-                _load_inspector_findings_batch(
+
+                load_batch = functools.partial(
+                    _load_inspector_findings_batch,
                     neo4j_session,
-                    findings,
-                    region,
-                    account_id,
-                    update_tag,
-                    current_aws_account_id,
+                    region=region,
+                    account_id=account_id,
+                    update_tag=update_tag,
+                    current_aws_account_id=current_aws_account_id,
                 )
+                findings: List[Dict[str, Any]] = []
+                unfinished_shards = len(FINDING_ID_SHARDS)
+                while unfinished_shards:
+                    page = await pages.get()
+                    if page is None:
+                        unfinished_shards -= 1
+                        continue
+                    findings.extend(page)
+                    while len(findings) >= batch_size:
+                        await loop.run_in_executor(
+                            loader, load_batch, findings[:batch_size]
+                        )
+                        del findings[:batch_size]
+                if findings:
+                    await loop.run_in_executor(loader, load_batch, findings)
     except ExceptionGroup as errors:
         # Raising one failure keeps the error types callers handle. Requests from
         # every shard are in flight at once, so more than one can fail before the
