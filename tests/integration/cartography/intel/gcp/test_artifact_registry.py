@@ -20,6 +20,7 @@ from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
+from cartography.intel.gcp.artifact_registry.supply_chain import cleanup_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import (
     load_image_layer_relationships,
 )
@@ -40,9 +41,6 @@ from cartography.models.gcp.artifact_registry.image import (
 )
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageSchema,
-)
-from cartography.models.gcp.artifact_registry.image_layer import (
-    GCPArtifactRegistryImageLayerSchema,
 )
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
@@ -835,6 +833,20 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         "diff_id": f"sha256:{project_id}-stale",
         "history": "RUN stale",
     }
+    # Still used by another project's images, which this run does not sync.
+    other_project_id = "test-gar-supply-chain-other-project"
+    _clear_gar_project(neo4j_session, other_project_id)
+    _create_gar_project_and_repositories(neo4j_session, other_project_id, [])
+    shared_stale_layer = {
+        "diff_id": "sha256:shared-with-other-project",
+        "history": "RUN shared",
+    }
+    load_image_layers(
+        neo4j_session,
+        [shared_stale_layer],
+        other_project_id,
+        TEST_UPDATE_TAG,
+    )
 
     # Act
     merged_provenance_updates = load_image_provenance(
@@ -845,7 +857,7 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     )
     load_image_layers(
         neo4j_session,
-        layer_dicts + [stale_layer],
+        layer_dicts + [stale_layer, shared_stale_layer],
         project_id,
         TEST_UPDATE_TAG,
     )
@@ -1052,25 +1064,48 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     }
 
     # Act
-    GraphJob.from_node_schema(
-        GCPArtifactRegistryImageLayerSchema(),
-        {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
-        iterationsize=1,
-    ).run(neo4j_session)
+    # A link written before layers were loaded through MatchLinks has no
+    # _sub_resource properties; it must not keep its layer alive.
+    legacy_layer_id = f"sha256:{project_id}-legacy"
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject {id: $project_id})
+        CREATE (project)-[:RESOURCE {lastupdated: $old_tag}]->(
+            :GCPArtifactRegistryImageLayer {id: $layer_id, lastupdated: $old_tag}
+        )
+        """,
+        project_id=project_id,
+        layer_id=legacy_layer_id,
+        old_tag=TEST_UPDATE_TAG,
+    )
+
+    cleanup_image_layers(
+        neo4j_session,
+        project_id,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
 
     # Assert
     assert (
         neo4j_session.run(
             """
-            MATCH (:GCPProject {id: $project_id})
-            -[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: $stale_layer_id})
-            RETURN count(*) AS count
+            MATCH (layer:GCPArtifactRegistryImageLayer)
+            WHERE layer.id IN $removed_layer_ids
+            RETURN count(layer) AS count
             """,
-            project_id=project_id,
-            stale_layer_id=stale_layer["diff_id"],
+            removed_layer_ids=[stale_layer["diff_id"], legacy_layer_id],
         ).single()["count"]
         == 0
     )
+    shared_layer_projects = neo4j_session.run(
+        """
+        MATCH (project:GCPProject)
+        -[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: $layer_id})
+        RETURN collect(project.id) AS project_ids
+        """,
+        layer_id=shared_stale_layer["diff_id"],
+    ).single()["project_ids"]
+    assert shared_layer_projects == [other_project_id]
     assert (
         neo4j_session.run(
             """
