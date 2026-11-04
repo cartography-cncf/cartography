@@ -104,6 +104,10 @@ docstrings and `PropertyRef.description`, which Sphinx uses to generate
 
 A cartography intel module consists of one `sync` function. `sync` should call `get`, then `load`, and finally `cleanup`.
 
+Before adding concurrent or incremental ingestion, read
+[Parallelism and incremental sync](parallelism). Keep graph writes and cleanup
+outside provider fetch workers.
+
 ### Get
 
 The `get` function [returns data as a list of dicts](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L98)
