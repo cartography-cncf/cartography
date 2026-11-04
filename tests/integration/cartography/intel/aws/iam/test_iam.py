@@ -223,7 +223,7 @@ class JobsRunWhileSubmittingIAMClient(FakeIAMClient):
         return super().get_service_last_accessed_details(JobId, MaxItems, Marker)
 
 
-def _create_principals(neo4j_session, arns):
+def _create_principals(neo4j_session, arns, label="AWSUser"):
     neo4j_session.run(
         "MERGE (a:AWSAccount{id: $account_id}) "
         "WITH a "
@@ -234,7 +234,7 @@ def _create_principals(neo4j_session, arns):
     neo4j_session.run(
         "UNWIND $arns AS arn "
         "MATCH (a:AWSAccount{id: $account_id}) "
-        "MERGE (u:AWSUser:AWSPrincipal{id: arn}) "
+        f"MERGE (u:{label}:AWSPrincipal{{id: arn}}) "
         "SET u.arn = arn "
         "MERGE (a)-[:RESOURCE]->(u)",
         arns=arns,
@@ -426,7 +426,7 @@ def test_sync_service_last_accessed_details_stops_when_iam_stays_unavailable(
 def test_sync_service_last_accessed_details_skips_roles_unused_since_stored_access(
     neo4j_session, stored_access, role_last_used, expected_access
 ):
-    _create_principals(neo4j_session, [ROLE_ARN])
+    _create_principals(neo4j_session, [ROLE_ARN], label="AWSRole")
     _set_access_synced_this_run(neo4j_session, [ROLE_ARN], stored_access)
     iam_client = FakeIAMClient({ROLE_ARN: [COMPLETED_JOB]})
 
