@@ -123,9 +123,10 @@ def test_get_instance_patches_skips_instances_without_a_patch_state() -> None:
     patches_paginator.paginate.side_effect = lambda InstanceId: [
         {"Patches": [{"Title": f"patch-for-{InstanceId}"}]},
     ]
+    patch_states_paginator = _patch_states_paginator({"i-07", "i-55"})
     boto3_session = MagicMock()
     boto3_session.client.return_value.get_paginator.side_effect = {
-        "describe_instance_patch_states": _patch_states_paginator({"i-07", "i-55"}),
+        "describe_instance_patch_states": patch_states_paginator,
         "describe_instance_patches": patches_paginator,
     }.get
 
@@ -133,6 +134,7 @@ def test_get_instance_patches_skips_instances_without_a_patch_state() -> None:
     patches = get_instance_patches(boto3_session, "us-east-1", instance_ids)
 
     # Assert
+    assert patch_states_paginator.paginate.call_count == 2
     assert [
         c.kwargs["InstanceId"] for c in patches_paginator.paginate.call_args_list
     ] == ["i-07", "i-55"]
