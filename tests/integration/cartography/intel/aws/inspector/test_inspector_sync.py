@@ -59,9 +59,9 @@ class FakeInspector2Client:
     """
     An in-memory inspector2 regional endpoint. ListFindings applies the filter
     criteria it receives, returns one finding per page and records the ARN of each
-    finding it serves. Either operation can be made to fail, ListFindings can fail
-    differently per finding ID prefix, and it can fail the first request for each
-    page with a given error.
+    finding it serves, signalling once it has served every finding. Either
+    operation can be made to fail, ListFindings can fail differently per finding
+    ID prefix, and it can fail the first request for each page with a given error.
     """
 
     def __init__(
@@ -82,6 +82,7 @@ class FakeInspector2Client:
         self._fail_each_page_once = fail_each_page_once
         self._failed_pages = set()
         self.served_finding_arns = []
+        self.all_findings_served = threading.Event()
 
     async def __aenter__(self):
         return self
@@ -127,6 +128,8 @@ class FakeInspector2Client:
         index = int(nextToken)
         page = {"findings": matching[index : index + 1]}
         self.served_finding_arns.extend(f["findingArn"] for f in page["findings"])
+        if len(self.served_finding_arns) == len(self._findings):
+            self.all_findings_served.set()
         if index + 1 < len(matching):
             page["nextToken"] = str(index + 1)
         return page
@@ -475,26 +478,16 @@ def test_sync_inspector_fetches_pages_while_a_batch_loads(neo4j_session, monkeyp
     ]
     findings = [{**LIST_FINDINGS_NETWORK[0], "findingArn": arn} for arn in finding_arns]
     inspector2 = FakeInspector2Client(findings=findings)
-    all_pages_served = threading.Event()
     served_during_first_load = []
     load_findings = inspector.load_inspector_findings
 
     def slow_first_load(*args, **kwargs):
         if not served_during_first_load:
-            all_pages_served.wait(timeout=5)
+            inspector2.all_findings_served.wait(timeout=5)
             served_during_first_load.extend(inspector2.served_finding_arns)
         load_findings(*args, **kwargs)
 
     monkeypatch.setattr(inspector, "load_inspector_findings", slow_first_load)
-    list_findings = inspector2.list_findings
-
-    async def list_findings_and_signal(**kwargs):
-        page = await list_findings(**kwargs)
-        if len(inspector2.served_finding_arns) == len(finding_arns):
-            all_pages_served.set()
-        return page
-
-    inspector2.list_findings = list_findings_and_signal
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
     # Act

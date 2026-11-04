@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -139,14 +138,13 @@ async def _get_inspector_findings_shard(
     await pages.put(None)
 
 
-def _is_retryable_findings_error(error: Exception) -> bool:
+def _is_retryable_findings_error(error: botocore.exceptions.ClientError) -> bool:
     if is_throttling_exception(error):
         return True
     # A request that waited too long to be sent; a retry signs it again.
-    return (
-        isinstance(error, botocore.exceptions.ClientError)
-        and error.response.get("Error", {}).get("Code") == "InvalidSignatureException"
-        and "Signature expired" in error.response.get("Error", {}).get("Message", "")
+    details = error.response.get("Error", {})
+    return details.get("Code") == "InvalidSignatureException" and (
+        "Signature expired" in details.get("Message", "")
     )
 
 
@@ -425,10 +423,11 @@ async def _load_inspector_findings(
         maxsize=MAX_BUFFERED_PAGES,
     )
     loop = asyncio.get_running_loop()
-    # Loads run in one worker thread, one at a time, so the Neo4j session still has
-    # a single user. Running them on the event loop stalls every shard: a request
-    # botocore has signed waits for the loop to send it, and a slow write can hold
-    # it past the five minutes AWS accepts a signature for.
+    # Loads run in a worker thread so a slow write does not stall the shards: a
+    # request botocore has signed waits for the event loop to send it, and AWS
+    # rejects a signature older than five minutes. Leaving the executor waits for a
+    # load still running when a shard fails, so the next account's load never
+    # shares the Neo4j session with it.
     try:
         with ThreadPoolExecutor(max_workers=1) as loader:
             async with asyncio.TaskGroup() as shards:
@@ -437,14 +436,18 @@ async def _load_inspector_findings(
                         _get_inspector_findings_shard(client, account_id, shard, pages),
                     )
 
-                load_batch = functools.partial(
-                    _load_inspector_findings_batch,
-                    neo4j_session,
-                    region=region,
-                    account_id=account_id,
-                    update_tag=update_tag,
-                    current_aws_account_id=current_aws_account_id,
-                )
+                def load(batch: List[Dict[str, Any]]) -> asyncio.Future[None]:
+                    return loop.run_in_executor(
+                        loader,
+                        _load_inspector_findings_batch,
+                        neo4j_session,
+                        batch,
+                        region,
+                        account_id,
+                        update_tag,
+                        current_aws_account_id,
+                    )
+
                 findings: List[Dict[str, Any]] = []
                 unfinished_shards = len(FINDING_ID_SHARDS)
                 while unfinished_shards:
@@ -454,12 +457,10 @@ async def _load_inspector_findings(
                         continue
                     findings.extend(page)
                     while len(findings) >= batch_size:
-                        await loop.run_in_executor(
-                            loader, load_batch, findings[:batch_size]
-                        )
+                        await load(findings[:batch_size])
                         del findings[:batch_size]
                 if findings:
-                    await loop.run_in_executor(loader, load_batch, findings)
+                    await load(findings)
     except ExceptionGroup as errors:
         # Raising one failure keeps the error types callers handle. Requests from
         # every shard are in flight at once, so more than one can fail before the
