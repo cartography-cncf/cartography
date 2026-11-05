@@ -95,6 +95,9 @@ dependencies = [
     "duo-client>=5.5.0",
     "cloudflare>=4.1.0",
     "scaleway>=2.12.0",
+    # Only the common package: every Tencent Cloud API 3.0 product is reached through its
+    # CommonClient, so no per-product SDK packages are needed.
+    "tencentcloud-sdk-python-common>=3.1.0",
     "google-cloud-resource-manager>=1.14.2",
     "google-cloud-asset>=1.0.0",
     "google-cloud-artifact-registry>=1.21.0",

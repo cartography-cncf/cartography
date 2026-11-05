@@ -159,6 +159,23 @@ digitalocean_mapping = OntologyMapping(
     ],
 )
 
+# Tencent Cloud
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudSecurityGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # direction: Not applicable. Security groups hold both ingress and
+                # egress rules; direction lives on TencentCloudSecurityGroupRule.
+            ],
+        ),
+    ],
+)
+
 FIREWALLS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -167,4 +184,5 @@ FIREWALLS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cloudflare": cloudflare_mapping,
     "snowflake": snowflake_mapping,
     "digitalocean": digitalocean_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

@@ -86,6 +86,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Syft](../modules/syft/schema.md)
 - [Tailscale](../modules/tailscale/schema.md)
 - [Tenable](../modules/tenable/schema.md)
+- [Tencent Cloud](../modules/tencentcloud/schema.md)
 - [Trivy](../modules/trivy/schema.md)
 - [Ubuntu](../modules/ubuntu/schema.md)
 - [Vercel](../modules/vercel/schema.md)

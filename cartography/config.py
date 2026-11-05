@@ -497,6 +497,13 @@ class Config:
     :param scaleway_secret_key: Scaleway secret key. Optional.
     :type scaleway_org: str
     :param scaleway_org: Scaleway organization id. Optional.
+    :type tencentcloud_secret_id: str
+    :param tencentcloud_secret_id: Tencent Cloud API SecretId. Optional.
+    :type tencentcloud_secret_key: str
+    :param tencentcloud_secret_key: Tencent Cloud API SecretKey. Optional.
+    :type tencentcloud_regions: list[str]
+    :param tencentcloud_regions: Tencent Cloud regions to sync. Optional; defaults to every
+        region available to the account.
     :type sentinelone_api_url: string
     :param sentinelone_api_url: SentinelOne API URL. Optional.
     :type sentinelone_api_token: string
@@ -884,6 +891,9 @@ class Config:
         langsmith_api_url: str | None = None,
         langsmith_host_api_url: str | None = None,
         langsmith_org_id: str | None = None,
+        tencentcloud_secret_id: str | None = None,
+        tencentcloud_secret_key: str | None = None,
+        tencentcloud_regions: list[str] | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1133,6 +1143,9 @@ class Config:
         self.scaleway_access_key = scaleway_access_key
         self.scaleway_secret_key = scaleway_secret_key
         self.scaleway_org = scaleway_org
+        self.tencentcloud_secret_id = tencentcloud_secret_id
+        self.tencentcloud_secret_key = tencentcloud_secret_key
+        self.tencentcloud_regions = tencentcloud_regions
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids

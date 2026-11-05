@@ -862,6 +862,27 @@ langsmith_mapping = OntologyMapping(
     ],
 )
 
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudCAMUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="name"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="nick_name"),
+                # firstname / lastname: Not available
+                # active: Not available - `console_login` only gates console sign-in; a
+                # sub-user without it can still call APIs with its access keys.
+                # has_mfa: Not available
+                # lastactivity: Not available
+            ],
+        ),
+    ],
+)
+
 
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
@@ -1019,4 +1040,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "langsmith": langsmith_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

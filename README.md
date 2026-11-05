@@ -133,6 +133,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Spacelift](https://docs.cartography.dev/modules/spacelift/index.html) - Accounts, Spaces,Users, Stacks, WorkerPools, Workers, Runs, GitCommits
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework
 - [Tailscale](https://docs.cartography.dev/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations, DevicePostures, DevicePostureConditions, device posture compliance relationships
+- [Tencent Cloud](https://docs.cartography.dev/modules/tencentcloud/index.html) - CAM users, groups, roles, policies, API keys; CVM instances; VPCs, subnets, security groups; CBS disks; CLB load balancers; COS buckets
 - [Trivy Scanner](https://docs.cartography.dev/modules/trivy/index.html) - AWS ECR Images
 - [Zoom](https://docs.cartography.dev/modules/zoom/index.html) - Accounts, users, plan types, groups, roles, security settings, Marketplace apps, meetings, recordings, and client versions
 

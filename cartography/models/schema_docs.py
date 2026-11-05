@@ -898,6 +898,7 @@ def _module_title(module: str) -> str:
         "oci": "OCI",
         "sentinelone": "SentinelOne",
         "socketdev": "Socket.dev",
+        "tencentcloud": "Tencent Cloud",
     }
     return title_overrides.get(module, module.replace("_", " ").title())
 
