@@ -411,4 +411,25 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "langsmith": langsmith_mapping,
+    "tencentcloud": OntologyMapping(
+        module_name="tencentcloud",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="TencentCloudCAMAccessKey",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="id", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="created_at", node_field="create_time"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="last_used_at", node_field="last_used_date"
+                    ),
+                    # updated_at / expires_at: CAM API keys do not expire and
+                    # report no update time.
+                ],
+            ),
+        ],
+    ),
 }

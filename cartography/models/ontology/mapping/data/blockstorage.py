@@ -166,9 +166,49 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+# Tencent Cloud CBS DiskState
+_TENCENTCLOUD_CBS_DISK_STATE = {
+    "UNATTACHED": "available",
+    "ATTACHING": "in_use",
+    "ATTACHED": "in_use",
+    "DETACHING": "in_use",
+    # TORECYCLE: the disk sits in the recycle bin awaiting destruction.
+    "TORECYCLE": "deleting",
+    # EXPANDING (resize), ROLLBACKING (snapshot rollback) and DUMPING (disk copy) apply
+    # to attached and unattached disks alike, so they do not say whether the disk is in
+    # use. The `attached` flag on the node does.
+    "EXPANDING": "unknown",
+    "ROLLBACKING": "unknown",
+    "DUMPING": "unknown",
+}
+
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudCBSDisk",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="size_gb", node_field="disk_size"),
+                OntologyFieldMapping(ontology_field="encrypted", node_field="encrypt"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="disk_state",
+                    special_handling="mapping",
+                    extra={"map": _TENCENTCLOUD_CBS_DISK_STATE},
+                ),
+            ],
+        ),
+    ],
+)
+
 BLOCK_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "railway": railway_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

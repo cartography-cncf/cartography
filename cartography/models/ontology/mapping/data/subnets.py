@@ -98,9 +98,31 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudSubnet",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="cidr_block", node_field="cidr_block"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="availability_zone", node_field="zone"
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+            ],
+        ),
+    ],
+)
+
 SUBNETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

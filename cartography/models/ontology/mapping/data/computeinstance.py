@@ -341,6 +341,62 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+# Tencent Cloud CVM InstanceState
+_TENCENTCLOUD_CVM_STATE = {
+    "PENDING": "pending",
+    "LAUNCH_FAILED": "error",
+    "RUNNING": "running",
+    "STOPPED": "stopped",
+    "STARTING": "starting",
+    "STOPPING": "stopping",
+    "REBOOTING": "starting",
+    # SHUTDOWN is "stopped, pending termination": the instance is powered off in the
+    # recycle bin but still exists and can be restored until it is destroyed.
+    "SHUTDOWN": "stopped",
+    # Same treatment as AWS `shutting-down` and GCP `DEPROVISIONING`.
+    "TERMINATING": "stopping",
+    # Rescue mode boots the instance into a rescue system; it is powered on throughout.
+    "ENTER_RESCUE_MODE": "starting",
+    "RESCUE_MODE": "running",
+    "EXIT_RESCUE_MODE": "starting",
+    # Live migration moves a running instance to another host without stopping it.
+    "ENTER_SERVICE_LIVE_MIGRATE": "running",
+    "SERVICE_LIVE_MIGRATE": "running",
+    "EXIT_SERVICE_LIVE_MIGRATE": "running",
+}
+
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudCVMInstance",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="public_ip_address", node_field="public_ip_address"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="private_ip_address",
+                    node_field="private_ip_address",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _TENCENTCLOUD_CVM_STATE},
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="instance_type"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_time"
+                ),
+            ],
+        ),
+    ],
+)
+
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
@@ -348,4 +404,5 @@ COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "netlify": netlify_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

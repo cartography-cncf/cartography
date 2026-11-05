@@ -80,9 +80,28 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudVPC",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Primary IPv4 CIDR only; secondary blocks stay on
+                # TencentCloudVPC.assistant_cidr_blocks.
+                OntologyFieldMapping(ontology_field="cidr", node_field="cidr_block"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+            ],
+        ),
+    ],
+)
+
 VPCS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

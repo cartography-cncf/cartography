@@ -88,6 +88,7 @@ PANEL_ZIZMOR = "Zizmor Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
+PANEL_TENCENTCLOUD = "Tencent Cloud Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_WIZ = "Wiz Options"
@@ -164,6 +165,7 @@ MODULE_PANELS = {
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
+    "tencentcloud": PANEL_TENCENTCLOUD,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
@@ -2536,6 +2538,40 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Tencent Cloud Options
+            # =================================================================
+            tencentcloud_secret_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--tencentcloud-secret-id",
+                    help="Tencent Cloud API SecretId used to authenticate.",
+                    rich_help_panel=PANEL_TENCENTCLOUD,
+                    hidden=PANEL_TENCENTCLOUD not in visible_panels,
+                ),
+            ] = None,
+            tencentcloud_secret_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--tencentcloud-secret-key-env-var",
+                    help="Environment variable name containing the Tencent Cloud API SecretKey.",
+                    rich_help_panel=PANEL_TENCENTCLOUD,
+                    hidden=PANEL_TENCENTCLOUD not in visible_panels,
+                ),
+            ] = None,
+            tencentcloud_regions: Annotated[
+                str | None,
+                typer.Option(
+                    "--tencentcloud-regions",
+                    help=(
+                        "Comma-separated list of Tencent Cloud regions to sync (e.g. "
+                        "'ap-guangzhou,ap-singapore'). Defaults to every region available "
+                        "to the account."
+                    ),
+                    rich_help_panel=PANEL_TENCENTCLOUD,
+                    hidden=PANEL_TENCENTCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # SentinelOne Options
             # =================================================================
             sentinelone_account_ids: Annotated[
@@ -3943,6 +3979,24 @@ class CLI:
                 )
                 scaleway_secret_key = os.environ.get(scaleway_secret_key_env_var)
 
+            # Read Tencent Cloud SecretKey and parse regions
+            tencentcloud_secret_key = None
+            if tencentcloud_secret_key_env_var:
+                logger.debug(
+                    "Reading Tencent Cloud SecretKey from environment variable %s",
+                    tencentcloud_secret_key_env_var,
+                )
+                tencentcloud_secret_key = os.environ.get(
+                    tencentcloud_secret_key_env_var
+                )
+            tencentcloud_regions_list = None
+            if tencentcloud_regions:
+                tencentcloud_regions_list = [
+                    region.strip()
+                    for region in tencentcloud_regions.split(",")
+                    if region.strip()
+                ]
+
             # Parse SentinelOne account IDs
             sentinelone_account_ids_list = None
             if sentinelone_account_ids:
@@ -4341,6 +4395,9 @@ class CLI:
                 scaleway_access_key=scaleway_access_key,
                 scaleway_secret_key=scaleway_secret_key,
                 scaleway_org=scaleway_org,
+                tencentcloud_secret_id=tencentcloud_secret_id,
+                tencentcloud_secret_key=tencentcloud_secret_key,
+                tencentcloud_regions=tencentcloud_regions_list,
                 sentinelone_api_url=sentinelone_api_url,
                 sentinelone_api_token=sentinelone_api_token,
                 sentinelone_account_ids=sentinelone_account_ids_list,
