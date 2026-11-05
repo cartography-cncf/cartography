@@ -50,6 +50,7 @@ from cartography.models.gcp.artifact_registry.image_layer import (
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryProjectToImageLayerRel,
 )
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -1471,6 +1472,27 @@ def load_image_layer_relationships(
     )
 
 
+def cleanup_image_layers(
+    neo4j_session: neo4j.Session,
+    project_id: str,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """Remove this project's stale layer links, then layers no project uses.
+
+    Layer nodes are keyed by digest and shared by every project whose images
+    contain them, so a project-scoped node cleanup would delete a layer that a
+    project not synced in this run still links to. Only the project's own
+    RESOURCE links are scoped; a layer node goes once no project links to it.
+    """
+    cleanup_params = common_job_parameters.copy()
+    cleanup_params["PROJECT_ID"] = project_id
+    run_scoped_analysis_job(
+        "gcp_artifact_registry_orphan_image_layer_cleanup.json",
+        neo4j_session,
+        cleanup_params,
+    )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -1600,21 +1622,7 @@ def sync(
             "; ".join(skip_reasons),
         )
     else:
-        cleanup_params = common_job_parameters.copy()
-        cleanup_params["PROJECT_ID"] = project_id
-        GraphJob.from_node_schema(
-            GCPArtifactRegistryImageLayerSchema(),
-            cleanup_params,
-        ).run(neo4j_session)
-        # The split write path attaches these relationships with MatchLinks, so
-        # clean them explicitly after node cleanup has used project RESOURCE
-        # edges to scope stale layer-node deletion.
-        GraphJob.from_matchlink(
-            GCPArtifactRegistryProjectToImageLayerRel(),
-            "GCPProject",
-            project_id,
-            update_tag,
-        ).run(neo4j_session)
+        cleanup_image_layers(neo4j_session, project_id, common_job_parameters)
         GraphJob.from_matchlink(
             GCPArtifactRegistryImageBuiltFromMatchLink(),
             "GCPProject",

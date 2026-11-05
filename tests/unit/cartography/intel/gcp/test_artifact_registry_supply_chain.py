@@ -540,6 +540,11 @@ def patched_sync(monkeypatch):
     )
     monkeypatch.setattr(
         supply_chain,
+        "run_scoped_analysis_job",
+        MagicMock(side_effect=lambda name, session, params: cleanup_runs.append(name)),
+    )
+    monkeypatch.setattr(
+        supply_chain,
         "load_image_provenance",
         MagicMock(side_effect=lambda _session, updates, _project, _tag: updates),
     )
@@ -818,7 +823,8 @@ def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
         cleanup_safe=True,
     )
 
-    assert len(cleanup_runs) == 3
+    assert "gcp_artifact_registry_orphan_image_layer_cleanup.json" in cleanup_runs
+    assert len(cleanup_runs) == 2
 
 
 def test_sync_skips_cleanup_when_fetch_failures(patched_sync):
