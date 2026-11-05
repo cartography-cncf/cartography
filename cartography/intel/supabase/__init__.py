@@ -101,6 +101,16 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
         for project in projects:
             common_job_parameters["PROJECT_REF"] = project["ref"]
+            # Skipping the child syncs also skips their cleanups, so the nodes a
+            # project had while it ran stay in place until it runs again.
+            if not cartography.intel.supabase.projects.is_running(project):
+                logger.info(
+                    "Supabase project %s is %s - skipping its project-scoped "
+                    "resources and keeping the existing nodes.",
+                    project["ref"],
+                    project["status"],
+                )
+                continue
             cartography.intel.supabase.projects.sync_database(
                 neo4j_session,
                 api_session,
