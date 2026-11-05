@@ -9,6 +9,7 @@ can be wrongly deleted, so they are covered here.
 
 from unittest.mock import patch
 
+import pytest
 import requests
 
 import cartography.intel.supabase
@@ -22,6 +23,13 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 987650000
 TEST_ORG_SLUG = "simpson-corp"
 TEST_BASE_URL = "https://api.fake-supabase.com"
+
+
+# The session is module-scoped, so without this a test would see the graph the
+# previous one left behind.
+@pytest.fixture(autouse=True)
+def _empty_graph(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 def _config(update_tag, organizations=None):
@@ -256,6 +264,14 @@ def test_orchestration_stopped_project_does_not_block_later_projects(neo4j_sessi
 
     # Assert: the running projects lost their removed keys; the paused one kept all of
     # its keys, still attached to it.
+    assert check_nodes(neo4j_session, "SupabaseApiKey", ["id"]) == {
+        ("nuclearplantdbaaaaaa/key-publishable-1",),
+        ("sharedprojectdddddddd/key-publishable-1",),
+        ("kwikemartdbbbbbbbbbb/key-publishable-1",),
+        ("kwikemartdbbbbbbbbbb/key-secret-1",),
+        ("kwikemartdbbbbbbbbbb/legacy",),
+        ("kwikemartdbbbbbbbbbb/service_role",),
+    }
     assert check_rels(
         neo4j_session,
         "SupabaseProject",
