@@ -354,6 +354,49 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonApiKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="last_used_at", node_field="last_used_at"
+                ),
+                # expires_at: Neon API keys do not expire.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="NeonCredential",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    special_handling="coalesce",
+                    extra={"fields": ["token_id_short"]},
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="last_used_at", node_field="last_used_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="expires_at", node_field="expires_at"
+                ),
+            ],
+        ),
+    ],
+)
+
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "zendesk": zendesk_mapping,
     "anthropic": anthropic_mapping,
@@ -366,6 +409,7 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "railway": railway_mapping,
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "modal": modal_mapping,
     "okta": OntologyMapping(
         module_name="okta",
