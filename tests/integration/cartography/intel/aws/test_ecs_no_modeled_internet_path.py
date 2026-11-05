@@ -825,19 +825,11 @@ def test_runtime_marked_exposed_is_declined(neo4j_session_empty):
     # does not model.
     session = neo4j_session_empty
     _sync(session, 1, (PRIVATE,))
-    ecs.load_ecs_containers(
-        session,
-        [
-            {
-                "containerArn": PRIVATE.container,
-                "taskArn": PRIVATE.task,
-                "name": "app",
-                "exposed_internet": True,
-            }
-        ],
-        REGION,
-        ACCOUNT,
-        1,
+    # Set the way an exposure analysis job would: load() leaves exposed_internet
+    # alone because analysis jobs own it.
+    session.run(
+        "MATCH (c:AWSECSContainer {id: $container}) SET c.exposed_internet = true",
+        container=PRIVATE.container,
     )
 
     # Act: run the job alone, so the existing ECS exposure rule does not clear the
