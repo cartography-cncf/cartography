@@ -8,6 +8,13 @@ AI_MODEL = ExtraNodeLabel(
 )
 
 
+API_GATEWAY = ExtraNodeLabel(
+    label="APIGateway",
+    description="A cross-provider APIGateway resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
 API_KEY = ExtraNodeLabel(
     label="APIKey",
     description="A cross-provider APIKey resource in Cartography's ontology.",
