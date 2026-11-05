@@ -43,13 +43,13 @@ members who hold it in each workspace.
 ```cypher
 MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(m:LangSmithWorkspaceMembership)
       -[:HAS_ROLE]->(r:LangSmithRole)-[:GRANTS]->(:LangSmithPermission {name: 'deployments:read'})
-MATCH (m)-[:IN_WORKSPACE]->(w:LangSmithWorkspace)
+MATCH (w:LangSmithWorkspace)-[:RESOURCE]->(m)
 RETURN w.name, r.name, collect(u.email)
 ```
 
 ## Find deployments that can be shared outside the organization
 
 ```cypher
-MATCH (w:LangSmithWorkspace)-[:CONTAINS]->(d:LangSmithDeployment {shareable: true})
+MATCH (w:LangSmithWorkspace)-[:RESOURCE]->(d:LangSmithDeployment {shareable: true})
 RETURN w.name, d.name, d.url
 ```

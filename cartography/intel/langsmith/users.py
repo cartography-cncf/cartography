@@ -7,9 +7,10 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import build_user_lookup
-from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_workspaces
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import load_by_workspace
 from cartography.intel.langsmith.util import org_scoped_id
 from cartography.models.langsmith.orgmembership import LangSmithOrgMembershipSchema
 from cartography.models.langsmith.user import LangSmithUserSchema
@@ -39,7 +40,7 @@ def sync(
     users, org_memberships = transform_users(org_id, active, pending)
     workspace_links = transform_workspace_links(active)
 
-    workspace_memberships_complete = True
+    readable_workspace_ids: set[str] = set()
     memberships: list[dict[str, Any]] = []
     for workspace_id in workspace_ids:
         try:
@@ -51,10 +52,10 @@ def sync(
                 workspace_id,
                 err,
             )
-            workspace_memberships_complete = (
-                workspace_memberships_complete and err.not_found
-            )
+            if err.not_found:
+                readable_workspace_ids.add(workspace_id)
             continue
+        readable_workspace_ids.add(workspace_id)
         memberships.extend(
             transform_memberships(org_id, workspace_id, workspace_members)
         )
@@ -68,7 +69,7 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters, workspace_memberships_complete)
+    cleanup(neo4j_session, common_job_parameters, readable_workspace_ids)
     return build_user_lookup(users, org_memberships)
 
 
@@ -266,12 +267,12 @@ def load_users(
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
-    load(
+    load_by_workspace(
         neo4j_session,
         LangSmithWorkspaceMembershipSchema(),
         memberships,
-        lastupdated=update_tag,
-        ORG_ID=org_id,
+        org_id,
+        update_tag,
     )
     load_matchlinks(
         neo4j_session,
@@ -287,14 +288,14 @@ def load_users(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    workspace_memberships_complete: bool,
+    readable_workspace_ids: set[str],
 ) -> None:
     # LangSmithUser itself is never cleaned up: it has no sub-resource because a user can
     # span organizations. Its relationships are pruned through the schemas below.
-    cleanup_if_complete(
+    cleanup_workspaces(
         neo4j_session,
         LangSmithWorkspaceMembershipSchema(),
-        workspace_memberships_complete,
+        readable_workspace_ids,
         common_job_parameters,
     )
     GraphJob.from_node_schema(

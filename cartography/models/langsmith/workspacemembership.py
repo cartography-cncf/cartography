@@ -50,23 +50,23 @@ class LangSmithWorkspaceMembershipNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithWorkspaceMembershipToOrganizationRelProperties(CartographyRelProperties):
+class LangSmithWorkspaceMembershipToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithWorkspaceMembership)
-class LangSmithWorkspaceMembershipToOrganizationRel(CartographyRelSchema):
-    """Links an organization to a workspace membership within it."""
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithWorkspaceMembership)
+class LangSmithWorkspaceMembershipToWorkspaceRel(CartographyRelSchema):
+    """Links a workspace membership to the workspace it belongs to."""
 
-    target_node_label: str = "LangSmithOrganization"
+    target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LangSmithWorkspaceMembershipToOrganizationRelProperties = (
-        LangSmithWorkspaceMembershipToOrganizationRelProperties()
+    properties: LangSmithWorkspaceMembershipToWorkspaceRelProperties = (
+        LangSmithWorkspaceMembershipToWorkspaceRelProperties()
     )
 
 
@@ -88,27 +88,6 @@ class LangSmithWorkspaceMembershipToUserRel(CartographyRelSchema):
     rel_label: str = "HAS_MEMBERSHIP"
     properties: LangSmithWorkspaceMembershipToUserRelProperties = (
         LangSmithWorkspaceMembershipToUserRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class LangSmithWorkspaceMembershipToWorkspaceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithWorkspaceMembership)-[:IN_WORKSPACE]->(:LangSmithWorkspace)
-class LangSmithWorkspaceMembershipToWorkspaceRel(CartographyRelSchema):
-    """Links a membership to the workspace it grants access to."""
-
-    target_node_label: str = "LangSmithWorkspace"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "IN_WORKSPACE"
-    properties: LangSmithWorkspaceMembershipToWorkspaceRelProperties = (
-        LangSmithWorkspaceMembershipToWorkspaceRelProperties()
     )
 
 
@@ -147,13 +126,12 @@ class LangSmithWorkspaceMembershipSchema(CartographyNodeSchema):
     properties: LangSmithWorkspaceMembershipNodeProperties = (
         LangSmithWorkspaceMembershipNodeProperties()
     )
-    sub_resource_relationship: LangSmithWorkspaceMembershipToOrganizationRel = (
-        LangSmithWorkspaceMembershipToOrganizationRel()
+    sub_resource_relationship: LangSmithWorkspaceMembershipToWorkspaceRel = (
+        LangSmithWorkspaceMembershipToWorkspaceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             LangSmithWorkspaceMembershipToUserRel(),
-            LangSmithWorkspaceMembershipToWorkspaceRel(),
             LangSmithWorkspaceMembershipToRoleRel(),
         ],
     )

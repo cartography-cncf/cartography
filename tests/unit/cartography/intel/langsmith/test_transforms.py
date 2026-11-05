@@ -350,6 +350,7 @@ class TestDeploymentSecrets:
             {
                 "id": f"{ORG}|asst-1",
                 "agent_id": "asst-1",
+                "workspace_id": "w1",
                 "name": "Bot",
                 "environments": ["production"],
                 "deployment_ids": ["d1"],
@@ -362,6 +363,7 @@ class TestDeploymentSecrets:
         registry = [
             {
                 "id": "agent-1",
+                "workspace_id": "w1",
                 "environments": [
                     {"environment": "PRODUCTION", "tracer_session_id": "project-1"},
                     {"environment": "STAGING", "tracer_session_id": "project-unseen"},
@@ -388,7 +390,7 @@ class TestAgentIdentityIsNamespacedByOrg:
 
     def test_same_agent_id_in_two_orgs_stays_two_agents(self):
         # Arrange
-        registry = [{"id": "agent-shared", "name": "Shared"}]
+        registry = [{"id": "agent-shared", "workspace_id": "w1", "name": "Shared"}]
 
         # Act
         a = deployments.transform_agents([], registry, ORG, {})
@@ -403,7 +405,17 @@ class TestAgentIdentityIsNamespacedByOrg:
     def test_credential_agent_id_is_namespaced_to_match(self):
         # Act
         creds = agent_auth.transform_credentials(
-            [{"id": "c1", "agent_id": "agent-shared", "provider_id": "p"}], {}, {}, ORG
+            [
+                {
+                    "id": "c1",
+                    "agent_id": "agent-shared",
+                    "provider_id": "p",
+                    "workspace_id": "w1",
+                }
+            ],
+            {},
+            {},
+            ORG,
         )
 
         # Assert
@@ -419,16 +431,16 @@ class TestConnectionLookups:
     def test_agent_auth_is_not_asked_about_ids_it_cannot_resolve(self):
         """Agent auth answers 500 for registry slugs, which retries would multiply."""
         # Arrange
-        agents = [{"agent_id": "support-bot", "deployment_ids": ["d1"]}]
+        agents = [{"agent_id": "support-bot", "workspace_id": "w1"}]
 
         # Act
-        connections, complete = agent_auth.get_connections(
-            self._NoCallsClient(), ORG, agents, {"d1": "w1"}
+        connections, readable = agent_auth.get_connections(
+            self._NoCallsClient(), ORG, agents, ["w1"]
         )
 
         # Assert
         assert connections == []
-        assert complete is True
+        assert readable == {"w1"}
 
 
 class TestCredentialProviderResolution:
@@ -441,7 +453,14 @@ class TestCredentialProviderResolution:
     def test_slug_resolves_to_this_orgs_provider_uuid(self):
         # Act
         creds = agent_auth.transform_credentials(
-            [{"id": "c1", "agent_id": "a", "provider_id": "github-prod"}],
+            [
+                {
+                    "id": "c1",
+                    "agent_id": "a",
+                    "provider_id": "github-prod",
+                    "workspace_id": "w1",
+                }
+            ],
             {},
             {"github-prod": "uuid-for-org-1"},
             ORG,
@@ -453,7 +472,14 @@ class TestCredentialProviderResolution:
     def test_unknown_slug_leaves_the_edge_unmatched_rather_than_guessing(self):
         # Act
         creds = agent_auth.transform_credentials(
-            [{"id": "c1", "agent_id": "a", "provider_id": "not-in-this-org"}],
+            [
+                {
+                    "id": "c1",
+                    "agent_id": "a",
+                    "provider_id": "not-in-this-org",
+                    "workspace_id": "w1",
+                }
+            ],
             {},
             {"github-prod": "uuid-for-org-1"},
             ORG,
@@ -473,6 +499,7 @@ class TestAgentCredentials:
             {
                 "id": "conn-1",
                 "agent_id": "asst-1",
+                "workspace_id": "w1",
                 "provider_id": "github-prod",
                 "oauth_token_id": "tok-1",
                 "scopes": ["repo"],
@@ -496,6 +523,7 @@ class TestAgentCredentials:
             {
                 "id": "conn-1",
                 "agent_id": "asst-1",
+                "workspace_id": "w1",
                 "provider_id": "github-prod",
                 "access_token": "SENTINEL-MUST-NOT-BE-INGESTED",
                 "refresh_token": "SENTINEL-MUST-NOT-BE-INGESTED",

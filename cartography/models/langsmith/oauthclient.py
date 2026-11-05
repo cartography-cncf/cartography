@@ -8,7 +8,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import THIRD_PARTY_APP
 
@@ -59,42 +58,21 @@ class LangSmithOAuthClientNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithOAuthClientToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithOAuthClient)
-class LangSmithOAuthClientToOrganizationRel(CartographyRelSchema):
-    """Links an organization to an OAuth client registered against it."""
-
-    target_node_label: str = "LangSmithOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: LangSmithOAuthClientToOrganizationRelProperties = (
-        LangSmithOAuthClientToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithOAuthClientToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithWorkspace)-[:CONTAINS]->(:LangSmithOAuthClient)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithOAuthClient)
 class LangSmithOAuthClientToWorkspaceRel(CartographyRelSchema):
-    """Links an OAuth client to the workspace it was registered in."""
+    """Links an OAuth client to the workspace it belongs to."""
 
     target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: LangSmithOAuthClientToWorkspaceRelProperties = (
         LangSmithOAuthClientToWorkspaceRelProperties()
     )
@@ -115,11 +93,6 @@ class LangSmithOAuthClientSchema(CartographyNodeSchema):
     properties: LangSmithOAuthClientNodeProperties = (
         LangSmithOAuthClientNodeProperties()
     )
-    sub_resource_relationship: LangSmithOAuthClientToOrganizationRel = (
-        LangSmithOAuthClientToOrganizationRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            LangSmithOAuthClientToWorkspaceRel(),
-        ],
+    sub_resource_relationship: LangSmithOAuthClientToWorkspaceRel = (
+        LangSmithOAuthClientToWorkspaceRel()
     )

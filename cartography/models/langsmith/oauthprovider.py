@@ -72,23 +72,23 @@ class LangSmithOAuthProviderNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithOAuthProviderToOrganizationRelProperties(CartographyRelProperties):
+class LangSmithOAuthProviderToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithOAuthProvider)
-class LangSmithOAuthProviderToOrganizationRel(CartographyRelSchema):
-    """Links an organization to an OAuth provider configured within it."""
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithOAuthProvider)
+class LangSmithOAuthProviderToWorkspaceRel(CartographyRelSchema):
+    """Links an agent-auth OAuth provider to the workspace it belongs to."""
 
-    target_node_label: str = "LangSmithOrganization"
+    target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LangSmithOAuthProviderToOrganizationRelProperties = (
-        LangSmithOAuthProviderToOrganizationRelProperties()
+    properties: LangSmithOAuthProviderToWorkspaceRelProperties = (
+        LangSmithOAuthProviderToWorkspaceRelProperties()
     )
 
 
@@ -106,6 +106,6 @@ class LangSmithOAuthProviderSchema(CartographyNodeSchema):
     properties: LangSmithOAuthProviderNodeProperties = (
         LangSmithOAuthProviderNodeProperties()
     )
-    sub_resource_relationship: LangSmithOAuthProviderToOrganizationRel = (
-        LangSmithOAuthProviderToOrganizationRel()
+    sub_resource_relationship: LangSmithOAuthProviderToWorkspaceRel = (
+        LangSmithOAuthProviderToWorkspaceRel()
     )

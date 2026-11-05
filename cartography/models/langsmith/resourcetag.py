@@ -8,7 +8,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import TAG
 
@@ -28,42 +27,21 @@ class LangSmithResourceTagNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithResourceTagToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithResourceTag)
-class LangSmithResourceTagToOrganizationRel(CartographyRelSchema):
-    """Links an organization to a resource tag defined within it."""
-
-    target_node_label: str = "LangSmithOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: LangSmithResourceTagToOrganizationRelProperties = (
-        LangSmithResourceTagToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithResourceTagToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithWorkspace)-[:CONTAINS]->(:LangSmithResourceTag)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithResourceTag)
 class LangSmithResourceTagToWorkspaceRel(CartographyRelSchema):
-    """Links a resource tag to the workspace it is defined in."""
+    """Links a resource tag to the workspace it belongs to."""
 
     target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: LangSmithResourceTagToWorkspaceRelProperties = (
         LangSmithResourceTagToWorkspaceRelProperties()
     )
@@ -87,11 +65,6 @@ class LangSmithResourceTagSchema(CartographyNodeSchema):
     properties: LangSmithResourceTagNodeProperties = (
         LangSmithResourceTagNodeProperties()
     )
-    sub_resource_relationship: LangSmithResourceTagToOrganizationRel = (
-        LangSmithResourceTagToOrganizationRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            LangSmithResourceTagToWorkspaceRel(),
-        ],
+    sub_resource_relationship: LangSmithResourceTagToWorkspaceRel = (
+        LangSmithResourceTagToWorkspaceRel()
     )

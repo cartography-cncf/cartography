@@ -154,8 +154,8 @@ class LangSmithApiKeyToWorkspaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithApiKeySchema(CartographyNodeSchema):
     """
-    A LangSmith credential: a personal access token, an organization service key, a
-    workspace API key, or a SCIM token. Cartography stores only the non-secret short prefix.
+    An organization credential: a personal access token, a service key, or a SCIM token.
+    Cartography stores only the non-secret short prefix.
     """
 
     label: str = "LangSmithApiKey"
@@ -171,5 +171,50 @@ class LangSmithApiKeySchema(CartographyNodeSchema):
             LangSmithApiKeyToUserRel(),
             LangSmithApiKeyToRoleRel(),
             LangSmithApiKeyToWorkspaceRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class LangSmithWorkspaceApiKeyToWorkspaceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithApiKey)
+class LangSmithWorkspaceApiKeyToWorkspaceRel(CartographyRelSchema):
+    """A workspace API key belongs to the workspace that lists it."""
+
+    target_node_label: str = "LangSmithWorkspace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: LangSmithWorkspaceApiKeyToWorkspaceRelProperties = (
+        LangSmithWorkspaceApiKeyToWorkspaceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class LangSmithWorkspaceApiKeySchema(CartographyNodeSchema):
+    """
+    An API key listed by a workspace.
+
+    It shares the LangSmithApiKey label with organization credentials but belongs to its
+    workspace, so a workspace the token can't read keeps its keys without holding back
+    cleanup in the workspaces it can.
+    """
+
+    label: str = "LangSmithApiKey"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
+    properties: LangSmithApiKeyNodeProperties = LangSmithApiKeyNodeProperties()
+    sub_resource_relationship: LangSmithWorkspaceApiKeyToWorkspaceRel = (
+        LangSmithWorkspaceApiKeyToWorkspaceRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            LangSmithApiKeyToUserRel(),
+            LangSmithApiKeyToRoleRel(),
         ],
     )

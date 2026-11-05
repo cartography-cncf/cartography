@@ -49,7 +49,9 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a
-warning for each workspace that it skips.
+warning for each workspace that it skips. Workspace resources belong to their workspace in
+the graph, so a workspace that the token can't read keeps its nodes while every other
+workspace is still cleaned up.
 
 Cartography keeps nodes that the token could read before but can't read now. If you
 narrow the token's access, stale data stays in the graph until you restore access.
@@ -101,7 +103,7 @@ to `--langsmith-host-api-url`.
 
 | Symptom | Cause |
 | --- | --- |
-| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types. |
+| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup in that workspace only. |
 | Timeouts logged for some routes | LangSmith was slow or unreachable. Cartography logs a warning, keeps the existing nodes for those routes, and retries on the next run. |
 | No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. Agent auth looks connections up by assistant ID, so Cartography queries only agents whose ID is a UUID: registry agents with a user-chosen ID can't be looked up. |
 | No `LangSmithApiKey` nodes with `key_type = pat` for other members | The token lacks `organization:pats:read`. |
