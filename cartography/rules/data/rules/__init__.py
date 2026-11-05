@@ -295,6 +295,34 @@ from cartography.rules.data.rules.kubernetes_storage_security import (
 from cartography.rules.data.rules.kubernetes_storage_security import (
     kubernetes_internet_exposed_containers_with_writable_persistent_storage,
 )
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_api_key_never_expires,
+)
+from cartography.rules.data.rules.langsmith_security import langsmith_api_key_unused
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_bulk_export_static_credentials,
+)
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_deployment_static_cloud_credentials,
+)
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_disabled_member_credentials,
+)
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_key_lifetime_uncapped,
+)
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_oauth_client_insecure_redirect,
+)
+from cartography.rules.data.rules.langsmith_security import langsmith_public_share
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_shareable_deployment,
+)
+from cartography.rules.data.rules.langsmith_security import (
+    langsmith_sso_default_role_can_deploy,
+)
+from cartography.rules.data.rules.langsmith_security import langsmith_sso_not_enforced
+from cartography.rules.data.rules.langsmith_security import langsmith_webhook_plaintext
 from cartography.rules.data.rules.malicious_npm_dependencies_shai_hulud import (
     malicious_npm_dependencies_shai_hulud,
 )
@@ -406,6 +434,18 @@ RULES = {
     databricks_pat_never_expires.id: databricks_pat_never_expires,
     databricks_ip_access_list_allows_all.id: databricks_ip_access_list_allows_all,
     databricks_public_delta_sharing_recipient.id: databricks_public_delta_sharing_recipient,
+    langsmith_api_key_never_expires.id: langsmith_api_key_never_expires,
+    langsmith_bulk_export_static_credentials.id: langsmith_bulk_export_static_credentials,
+    langsmith_api_key_unused.id: langsmith_api_key_unused,
+    langsmith_key_lifetime_uncapped.id: langsmith_key_lifetime_uncapped,
+    langsmith_sso_not_enforced.id: langsmith_sso_not_enforced,
+    langsmith_sso_default_role_can_deploy.id: langsmith_sso_default_role_can_deploy,
+    langsmith_public_share.id: langsmith_public_share,
+    langsmith_shareable_deployment.id: langsmith_shareable_deployment,
+    langsmith_deployment_static_cloud_credentials.id: langsmith_deployment_static_cloud_credentials,
+    langsmith_webhook_plaintext.id: langsmith_webhook_plaintext,
+    langsmith_oauth_client_insecure_redirect.id: langsmith_oauth_client_insecure_redirect,
+    langsmith_disabled_member_credentials.id: langsmith_disabled_member_credentials,
     # CIS AWS IAM Rules (Section 2)
     aws_root_user_access_keys.id: aws_root_user_access_keys,
     aws_root_user_mfa_disabled.id: aws_root_user_mfa_disabled,

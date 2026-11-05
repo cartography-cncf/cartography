@@ -129,6 +129,30 @@ When the organization disables public sharing, LangSmith serves none of its shar
 public repos, so Cartography doesn't list them and removes any `LangSmithPublicShare`
 nodes.
 
+## Security rules
+
+Run the LangSmith rules against the ingested graph with `cartography-rules run`. See
+[Running Rules](../../usage/rules.md) for connection options. All of them are
+experimental.
+
+| Rule | Flags |
+| --- | --- |
+| `langsmith_api_key_never_expires` | Unrevoked keys with no expiry. |
+| `langsmith_api_key_unused` | Live keys and SCIM tokens unused for 90 days, or never used 30 days after creation. |
+| `langsmith_key_lifetime_uncapped` | Organizations with no maximum lifetime for personal access tokens, service keys, or API keys. Plans without the setting also report no cap. |
+| `langsmith_sso_not_enforced` | Organizations with SAML SSO configured that still accept other logins. |
+| `langsmith_sso_default_role_can_deploy` | Just-in-time provisioning whose default role can deploy code, manage members, keys, or secrets, or send data out. |
+| `langsmith_public_share` | Runs, datasets, threads, and repos readable without an account, in organizations that allow public sharing. |
+| `langsmith_shareable_deployment` | Deployments any LangSmith user can run in Studio. |
+| `langsmith_deployment_static_cloud_credentials` | Deployments whose environment holds long-lived cloud credentials, judged by secret name. |
+| `langsmith_webhook_plaintext` | Enabled webhooks that deliver over `http`. |
+| `langsmith_oauth_client_insecure_redirect` | OAuth clients that accept an `http` redirect URI: any for a confidential client, or a non-loopback one for a public client. |
+| `langsmith_bulk_export_static_credentials` | Bulk export destinations that authenticate with a stored access key instead of an IAM role. |
+| `langsmith_disabled_member_credentials` | Agent OAuth tokens and tracing keys that keep working after their member is deactivated. |
+
+A rule that evaluated no assets had nothing to test, which doesn't mean the organization
+is secure. For example, the agent-credential check needs `deployments:read`.
+
 ## References
 
 - [LangSmith API reference](https://docs.langchain.com/langsmith/smith-api-ref)
