@@ -12,7 +12,7 @@ class TailscaleTailnetNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "org",
         set_in_kwargs=True,
-        description="ID of the Tailnet (name of the organization).",
+        description="The tailnet identifier passed to --tailscale-org: the Tailnet ID, or a legacy ID for tailnets created before Oct 2025.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     devices_approval_on: PropertyRef = PropertyRef(

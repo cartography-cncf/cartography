@@ -348,7 +348,7 @@ class Config:
     :type tailscale_token: str
     :param tailscale_token: Tailscale API token. Optional.
     :type tailscale_org: str
-    :param tailscale_org: Tailscale organization name. Optional.
+    :param tailscale_org: Tailnet ID, or the legacy ID of a tailnet created before Oct 2025. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
     :type tailscale_oauth_client_id: str
