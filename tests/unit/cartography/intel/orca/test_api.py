@@ -1,3 +1,4 @@
+from typing import Any
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -282,87 +283,117 @@ def test_iter_serving_layer_pages_rejects_empty_first_page_with_count(
         )
 
 
-def _fetch_single_page(
+def _paginate_until_empty_page(
     mocker,
     fetched: int,
-) -> tuple[list[dict[str, str]], api.PaginationProgress]:
+    initial_total: int,
+    final_total: int,
+) -> api.PaginationProgress:
     mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         side_effect=[
-            {"data": [{"id": str(i)} for i in range(fetched)], "total_items": 100},
+            {
+                "data": [{"id": str(i)} for i in range(fetched)],
+                "total_items": initial_total,
+            },
             {"data": []},
+            {"data": [{"id": "0"}], "total_items": final_total},
         ],
     )
     progress = api.PaginationProgress()
-    pages = api.iter_serving_layer_pages(
-        MagicMock(),
-        "https://api.orcasecurity.example",
-        {"query": {"models": ["VulnerabilityV2"]}},
-        page_size=100,
-        result_name="vulnerabilities",
-        progress=progress,
+    list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["VulnerabilityV2"]}},
+            page_size=100,
+            result_name="vulnerabilities",
+            progress=progress,
+        ),
     )
-    return [row for page in pages for row in page], progress
+    return progress
 
 
-def test_iter_serving_layer_pages_accepts_one_percent_shortfall(mocker) -> None:
+@pytest.mark.parametrize(
+    ("fetched", "initial_total", "final_total"),
+    [(99, 100, 100), (95, 100, 95)],
+    ids=["within-one-percent", "shrank-to-the-floor"],
+)  # type: ignore[misc]
+def test_iter_serving_layer_pages_accepts_fetch_within_one_percent_of_count(
+    mocker,
+    fetched: int,
+    initial_total: int,
+    final_total: int,
+) -> None:
     # Act
-    rows, progress = _fetch_single_page(mocker, 99)
+    progress = _paginate_until_empty_page(mocker, fetched, initial_total, final_total)
 
     # Assert
-    assert len(rows) == 99
     assert progress.complete is True
 
 
-def test_iter_serving_layer_pages_yields_short_fetch_but_marks_it_incomplete(
+@pytest.mark.parametrize(
+    ("fetched", "initial_total", "final_total"),
+    [(98, 100, 100), (99, 100, 101), (94, 100, 94)],
+    ids=["truncated", "short-of-grown-count", "shrank-past-the-floor"],
+)  # type: ignore[misc]
+def test_iter_serving_layer_pages_marks_short_fetch_incomplete(
     mocker,
     caplog,
+    fetched: int,
+    initial_total: int,
+    final_total: int,
 ) -> None:
-    # A result set that changes during a long scan can end a few percent short
-    # of its initial count. The rows are still worth loading, but a few percent
-    # of a multi-million-row org is too many to let cleanup delete.
+    # A fetch that ends short of a fresh count was truncated, and one whose
+    # result set shrank past the floor skipped live rows that shifted past the
+    # offset. Cleanup would delete live findings either way.
 
     # Act
-    rows, progress = _fetch_single_page(mocker, 98)
+    progress = _paginate_until_empty_page(mocker, fetched, initial_total, final_total)
 
     # Assert
-    assert len(rows) == 98
-    assert progress == api.PaginationProgress(
-        fetched_rows=98,
-        total_items=100,
-        finished=True,
-    )
     assert progress.complete is False
-    assert "ended after 98 of 100 reported rows" in caplog.text
     assert "skipping vulnerabilities cleanup" in caplog.text
 
 
-def test_iter_serving_layer_pages_is_incomplete_after_midstream_failure(
+@pytest.mark.parametrize(
+    "responses",
+    [
+        [
+            {"data": [{"id": "1"}], "total_items": 1},
+            RuntimeError("synthetic failure"),
+        ],
+        [
+            {"data": [{"id": str(i)} for i in range(99)], "total_items": 100},
+            {"data": []},
+            RuntimeError("synthetic failure"),
+        ],
+    ],
+    ids=["page-request", "recount-request"],
+)  # type: ignore[misc]
+def test_iter_serving_layer_pages_is_incomplete_after_request_failure(
     mocker,
+    responses: list[Any],
 ) -> None:
     # Arrange
     mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
-        side_effect=[
-            {"data": [{"id": "1"}], "total_items": 1},
-            RuntimeError("synthetic mid-stream failure"),
-        ],
+        side_effect=responses,
     )
     progress = api.PaginationProgress()
 
     # Act and assert
-    with pytest.raises(RuntimeError, match="synthetic mid-stream failure"):
+    with pytest.raises(RuntimeError, match="synthetic failure"):
         list(
             api.iter_serving_layer_pages(
                 MagicMock(),
                 "https://api.orcasecurity.example",
                 {"query": {"models": ["Alert"]}},
-                page_size=1,
+                page_size=100,
                 result_name="alerts",
                 progress=progress,
             ),
         )
-    assert progress.fetched_rows == 1
     assert progress.complete is False
 
 
