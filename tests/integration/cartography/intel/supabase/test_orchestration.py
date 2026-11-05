@@ -38,7 +38,8 @@ def _config(update_tag, organizations=None):
         neo4j_uri="bolt://localhost:7687",
         update_tag=update_tag,
         supabase_access_token="fake-token",
-        supabase_base_url=TEST_BASE_URL,
+        # Configured with a trailing slash, which must not reach the endpoints.
+        supabase_base_url=f"{TEST_BASE_URL}/",
         supabase_organizations=organizations,
     )
 
@@ -50,6 +51,7 @@ def _project_scoped(result, unreachable_refs):
     """
 
     def get(api_session, base_url, project_ref):
+        assert base_url == TEST_BASE_URL
         if project_ref in unreachable_refs:
             raise requests.exceptions.RetryError("too many 500 error responses")
         return result
