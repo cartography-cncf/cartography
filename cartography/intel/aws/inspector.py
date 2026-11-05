@@ -2,6 +2,8 @@ import asyncio
 import logging
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 from typing import Dict
 from typing import List
@@ -17,8 +19,21 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
+from cartography.intel.aws.inspector_finding_sets import InstanceFindingSets
+from cartography.intel.aws.inspector_finding_sets import is_ec2_package_finding
+from cartography.intel.aws.inspector_finding_sets import transform_finding_content
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.models.aws.inspector.finding_sets import (
+    AWSInspectorFindingContentSchema,
+)
+from cartography.models.aws.inspector.finding_sets import AWSInspectorFindingSetSchema
+from cartography.models.aws.inspector.finding_sets import (
+    AWSInspectorInstanceFindingsSchema,
+)
+from cartography.models.aws.inspector.finding_sets import (
+    InspectorFindingContentToPackageMatchLink,
+)
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.findings import InspectorFindingToPackageMatchLink
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
@@ -167,6 +182,17 @@ async def _list_findings_page(client: Any, params: Dict[str, Any]) -> Dict[str, 
     return await client.list_findings(**params)
 
 
+@dataclass
+class _SyncState:
+    """Data that spans the batches, member accounts, and regions of one sync."""
+
+    # A vulnerability's findings arrive across many batches, regions, and member
+    # accounts, and each load overwrites its reference URLs. Carrying the URLs seen
+    # earlier in the sync makes the last write hold all of them.
+    reference_urls: Dict[str, Set[str]] = field(default_factory=dict)
+    finding_sets: InstanceFindingSets = field(default_factory=InstanceFindingSets)
+
+
 def transform_inspector_findings(
     results: List[Dict[str, Any]],
 ) -> Tuple[
@@ -257,6 +283,52 @@ def transform_inspector_findings(
         packages_list,
         finding_to_package_map,
         list(vulnerabilities.values()),
+    )
+
+
+def transform_ec2_package_findings(
+    results: List[Dict[str, Any]],
+) -> Tuple[
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Tuple[Dict[str, Any], str]],
+]:
+    """Transform package vulnerability findings on EC2 instances into shared contents.
+
+    Returns the contents, packages, content-to-package links, and vulnerabilities, plus
+    each finding paired with its content ID for grouping into finding sets.
+    """
+    contents: Dict[str, Dict[str, Any]] = {}
+    packages_set: Set[frozenset] = set()
+    content_to_package_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    vulnerabilities: Dict[str, Dict[str, Any]] = {}
+    finding_contents: List[Tuple[Dict[str, Any], str]] = []
+    for f in results:
+        details = f["packageVulnerabilityDetails"]
+        packages = transform_inspector_packages(details)
+        content = transform_finding_content(f, list(packages.keys()))
+        contents[content["id"]] = content
+        _add_vulnerability(vulnerabilities, f, details)
+        for package_id, package in packages.items():
+            content_to_package_map[(content["id"], package_id)] = {
+                "contentid": content["id"],
+                "packageid": package_id,
+                "remediation": package.get("remediation"),
+                "fixedInVersion": package.get("fixedInVersion"),
+                "filePath": package.get("filePath"),
+                "sourceLayerHash": package.get("sourceLayerHash"),
+                "sourceLambdaLayerArn": package.get("sourceLambdaLayerArn"),
+            }
+            packages_set.add(frozenset(package.items()))
+        finding_contents.append((f, content["id"]))
+    return (
+        list(contents.values()),
+        [dict(p) for p in packages_set],
+        list(content_to_package_map.values()),
+        list(vulnerabilities.values()),
+        finding_contents,
     )
 
 
@@ -356,6 +428,73 @@ def load_inspector_vulnerabilities(
 
 
 @timeit
+def load_inspector_finding_contents(
+    neo4j_session: neo4j.Session,
+    contents: List[Dict[str, Any]],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSInspectorFindingContentSchema(),
+        contents,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def load_inspector_finding_content_to_package_match_links(
+    neo4j_session: neo4j.Session,
+    content_to_package_map: List[Dict[str, Any]],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load_matchlinks(
+        neo4j_session,
+        InspectorFindingContentToPackageMatchLink(),
+        content_to_package_map,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
+    )
+
+
+@timeit
+def load_inspector_finding_sets(
+    neo4j_session: neo4j.Session,
+    finding_sets: List[Dict[str, Any]],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSInspectorFindingSetSchema(),
+        finding_sets,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def load_inspector_instance_findings(
+    neo4j_session: neo4j.Session,
+    instance_findings: List[Dict[str, Any]],
+    region: str,
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSInspectorInstanceFindingsSchema(),
+        instance_findings,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
 def load_inspector_packages(
     neo4j_session: neo4j.Session,
     packages: List[Dict[str, Any]],
@@ -411,6 +550,27 @@ def cleanup(
     ).run(
         neo4j_session,
     )
+    # An instance that Inspector stopped reporting takes only its own node with it; its
+    # set and contents go once no instance reports them.
+    for schema in (
+        AWSInspectorInstanceFindingsSchema(),
+        AWSInspectorFindingSetSchema(),
+        AWSInspectorFindingContentSchema(),
+    ):
+        GraphJob.from_node_schema(
+            schema, common_job_parameters, iterationsize=batch_size
+        ).run(
+            neo4j_session,
+        )
+    GraphJob.from_matchlink(
+        InspectorFindingContentToPackageMatchLink(),
+        "AWSAccount",
+        common_job_parameters["ACCOUNT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+        iterationsize=batch_size,
+    ).run(
+        neo4j_session,
+    )
     GraphJob.from_node_schema(
         AWSInspectorPackageSchema(), common_job_parameters, iterationsize=batch_size
     ).run(
@@ -432,22 +592,46 @@ def _load_inspector_findings_batch(
     account_id: str,
     update_tag: int,
     current_aws_account_id: str,
-    reference_urls: Dict[str, Set[str]],
+    state: _SyncState,
 ) -> None:
+    ec2_package_findings = [f for f in findings if is_ec2_package_finding(f)]
+    other_findings = [f for f in findings if not is_ec2_package_finding(f)]
     finding_data, package_data, finding_to_package_map, vulnerability_data = (
-        transform_inspector_findings(findings)
+        transform_inspector_findings(other_findings)
     )
-    # A vulnerability's findings arrive across many batches, regions, and member
-    # accounts, and each load overwrites its reference URLs. Carrying the URLs seen
-    # earlier in the sync makes the last write hold all of them.
-    for vulnerability in vulnerability_data:
-        seen = reference_urls.setdefault(vulnerability["id"], set())
+    (
+        content_data,
+        content_package_data,
+        content_to_package_map,
+        content_vulnerability_data,
+        finding_contents,
+    ) = transform_ec2_package_findings(ec2_package_findings)
+
+    vulnerabilities: Dict[str, Dict[str, Any]] = {}
+    for vulnerability in vulnerability_data + content_vulnerability_data:
+        seen = state.reference_urls.setdefault(vulnerability["id"], set())
         seen.update(vulnerability["referenceurls"])
-        vulnerability["referenceurls"] = sorted(seen)
-    # Findings link to their vulnerability on load, so it must exist first.
+        vulnerabilities[vulnerability["id"]] = {
+            **vulnerability,
+            "referenceurls": sorted(seen),
+        }
+    packages = {p["id"]: p for p in package_data + content_package_data}
+    new_contents = [
+        c for c in content_data if c["id"] not in state.finding_sets.loaded_content_ids
+    ]
+    new_content_ids = {c["id"] for c in new_contents}
+
+    # Findings and contents link to their vulnerability and packages on load, so those
+    # must exist first.
     load_inspector_vulnerabilities(
         neo4j_session,
-        vulnerability_data,
+        list(vulnerabilities.values()),
+        update_tag,
+        current_aws_account_id,
+    )
+    load_inspector_packages(
+        neo4j_session,
+        list(packages.values()),
         update_tag,
         current_aws_account_id,
     )
@@ -456,12 +640,6 @@ def _load_inspector_findings_batch(
         neo4j_session,
         finding_data,
         region,
-        update_tag,
-        current_aws_account_id,
-    )
-    load_inspector_packages(
-        neo4j_session,
-        package_data,
         update_tag,
         current_aws_account_id,
     )
@@ -474,6 +652,52 @@ def _load_inspector_findings_batch(
         update_tag,
         current_aws_account_id,
     )
+    logger.info(
+        f"Loading {len(new_contents)} new finding contents for "
+        f"{len(ec2_package_findings)} EC2 package findings from account {account_id}"
+    )
+    load_inspector_finding_contents(
+        neo4j_session,
+        new_contents,
+        update_tag,
+        current_aws_account_id,
+    )
+    load_inspector_finding_content_to_package_match_links(
+        neo4j_session,
+        [m for m in content_to_package_map if m["contentid"] in new_content_ids],
+        update_tag,
+        current_aws_account_id,
+    )
+    state.finding_sets.loaded_content_ids.update(new_content_ids)
+    for finding, content_id in finding_contents:
+        state.finding_sets.add(finding, content_id)
+
+
+def _load_inspector_finding_sets(
+    neo4j_session: neo4j.Session,
+    region: str,
+    update_tag: int,
+    current_aws_account_id: str,
+    state: _SyncState,
+) -> None:
+    finding_sets, instance_findings = state.finding_sets.build()
+    logger.info(
+        f"Loading {len(finding_sets)} finding sets for {len(instance_findings)} "
+        f"EC2 instances in region {region}"
+    )
+    load_inspector_finding_sets(
+        neo4j_session,
+        finding_sets,
+        update_tag,
+        current_aws_account_id,
+    )
+    load_inspector_instance_findings(
+        neo4j_session,
+        instance_findings,
+        region,
+        update_tag,
+        current_aws_account_id,
+    )
 
 
 async def _load_inspector_findings(
@@ -483,7 +707,7 @@ async def _load_inspector_findings(
     update_tag: int,
     current_aws_account_id: str,
     batch_size: int,
-    reference_urls: Dict[str, Set[str]],
+    state: _SyncState,
 ) -> None:
     region = client.meta.region_name
     pages: asyncio.Queue[List[Dict[str, Any]] | None] = asyncio.Queue(
@@ -513,7 +737,7 @@ async def _load_inspector_findings(
                         account_id,
                         update_tag,
                         current_aws_account_id,
-                        reference_urls,
+                        state,
                     )
                     await asyncio.wrap_future(last_load)
 
@@ -567,7 +791,7 @@ async def _sync_findings_for_account(
     account_id: str,
     update_tag: int,
     current_aws_account_id: str,
-    reference_urls: Dict[str, Set[str]],
+    state: _SyncState,
     batch_size: int = BATCH_SIZE,
 ) -> bool:
     """
@@ -592,7 +816,7 @@ async def _sync_findings_for_account(
             update_tag,
             current_aws_account_id,
             batch_size,
-            reference_urls,
+            state,
         )
     except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS:
         logger.warning(
@@ -628,7 +852,7 @@ async def _sync_findings(
     Returns whether every regional endpoint was reached, which makes cleanup safe.
     """
     cleanup_safe = True
-    reference_urls: Dict[str, Set[str]] = {}
+    state = _SyncState()
     for region in regions:
         logger.info(
             f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
@@ -663,11 +887,20 @@ async def _sync_findings(
                     account_id,
                     update_tag,
                     current_aws_account_id,
-                    reference_urls,
+                    state,
                     batch_size,
                 )
                 if not synced:
                     cleanup_safe = False
+            # An instance's finding set is known only once all of the region's findings
+            # have loaded.
+            _load_inspector_finding_sets(
+                neo4j_session,
+                region,
+                update_tag,
+                current_aws_account_id,
+                state,
+            )
     return cleanup_safe
 
 
