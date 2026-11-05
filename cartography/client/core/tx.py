@@ -181,6 +181,14 @@ def _buffer_error_backoff_handler(details: Dict) -> None:
         backoff_handler(details)
 
 
+def _expo_wait() -> Iterator[float]:
+    wait = backoff.expo()
+    # backoff's wait generators yield once before their first delay, to absorb the
+    # send(None) its decorators prime them with. Advance past it ourselves.
+    next(wait)
+    return wait
+
+
 def _run_with_retry(operation: Callable[[], T], target: str) -> T:
     """
     Execute the supplied callable with retry logic for transient network errors,
@@ -189,9 +197,9 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
     network_attempts = 0
     entity_attempts = 0
     buffer_attempts = 0
-    network_wait = backoff.expo()
-    entity_wait = backoff.expo()
-    buffer_wait = backoff.expo()
+    network_wait = _expo_wait()
+    entity_wait = _expo_wait()
+    buffer_wait = _expo_wait()
 
     while True:
         try:
@@ -218,12 +226,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             network_attempts += 1
             wait = next(network_wait)
-            if wait is None:
-                logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={network_attempts}, exc={exc}"
-                )
-                wait = 1.0  # Fallback to 1 second wait
             backoff_handler(
                 {
                     "exception": exc,
@@ -241,12 +243,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             entity_attempts += 1
             wait = next(entity_wait)
-            if wait is None:
-                logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={entity_attempts}, exc={exc}"
-                )
-                wait = 1.0  # Fallback to 1 second wait
             _entity_not_found_backoff_handler(
                 {
                     "exception": exc,
@@ -264,12 +260,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             buffer_attempts += 1
             wait = next(buffer_wait)
-            if wait is None:
-                logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={buffer_attempts}, exc={exc}"
-                )
-                wait = 1.0  # Fallback to 1 second wait
             _buffer_error_backoff_handler(
                 {
                     "exception": exc,
