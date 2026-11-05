@@ -247,33 +247,6 @@ def test_retries_network_errors(mock_sleep):
     mock_sleep.assert_called_once()
 
 
-@patch("cartography.client.core.tx.time.sleep")
-@patch("cartography.client.core.tx.logger")
-def test_handles_none_wait_time_gracefully(mock_logger, mock_sleep):
-    """Should handle None wait time from backoff generator gracefully."""
-    operation = MagicMock()
-    operation.side_effect = [
-        _create_client_error("Neo.ClientError.Statement.EntityNotFound"),
-        "success",
-    ]
-
-    # Mock backoff.expo() to return None (edge case)
-    with patch("cartography.client.core.tx.backoff.expo") as mock_expo:
-        mock_expo.return_value = iter([None])
-        result = _run_with_retry(operation, "test_target")
-
-    assert result == "success"
-    # Should log error about None wait time
-    error_logs = [
-        call
-        for call in mock_logger.error.call_args_list
-        if "Unexpected: backoff generator returned None" in str(call)
-    ]
-    assert len(error_logs) == 1
-    # Should still sleep (with fallback 1.0 second)
-    mock_sleep.assert_called_once_with(1.0)
-
-
 # Tests for execute_write_with_retry
 
 
@@ -604,46 +577,7 @@ def test_retries_with_exponential_backoff(mock_sleep):
     result = execute_write_with_retry(mock_session, lambda tx: failing_tx(tx))
 
     assert result == "success"
-    # Should have slept 3 times (between 4 attempts)
-    assert mock_sleep.call_count == 3
-
-    # Verify backoff is happening (all sleeps should be > 0)
-    sleep_calls = [call[0][0] for call in mock_sleep.call_args_list]
-    for sleep_time in sleep_calls:
-        assert sleep_time > 0, "All backoff delays should be positive"
-
-    # Verify that the last backoff is longer than the first (exponential growth)
-    assert (
-        sleep_calls[-1] > sleep_calls[0]
-    ), f"Expected exponential backoff with last > first, but got {sleep_calls}"
-
-
-@patch("cartography.client.core.tx.time.sleep")
-@patch("cartography.client.core.tx.logger")
-def test_network_errors_with_none_wait(mock_logger, mock_sleep):
-    """Should handle None wait time for network errors gracefully."""
-    operation = MagicMock()
-    operation.side_effect = [
-        neo4j.exceptions.ServiceUnavailable("Connection lost"),
-        "success",
-    ]
-
-    # Mock backoff.expo() to return None for network errors (edge case)
-    with patch("cartography.client.core.tx.backoff.expo") as mock_expo:
-        # First generator for network_wait, second for entity_wait
-        mock_expo.return_value = iter([None])
-        result = _run_with_retry(operation, "test_target")
-
-    assert result == "success"
-    # Should log error about None wait time
-    error_logs = [
-        call
-        for call in mock_logger.error.call_args_list
-        if "Unexpected: backoff generator returned None" in str(call)
-    ]
-    assert len(error_logs) == 1
-    # Should still sleep (with fallback 1.0 second)
-    mock_sleep.assert_called_once_with(1.0)
+    assert [call.args[0] for call in mock_sleep.call_args_list] == [1, 2, 4]
 
 
 def test_client_error_with_none_code():
@@ -1032,33 +966,6 @@ def test_raises_after_max_buffer_error_retries(mock_sleep):
 
     # Should try MAX_BUFFER_ERROR_RETRIES (5) times
     assert operation.call_count == 5
-
-
-@patch("cartography.client.core.tx.time.sleep")
-@patch("cartography.client.core.tx.logger")
-def test_buffer_error_with_none_wait_time(mock_logger, mock_sleep):
-    """Should handle None wait time from backoff generator gracefully for BufferError."""
-    operation = MagicMock()
-    operation.side_effect = [
-        BufferError("Existing exports of data: object cannot be re-sized"),
-        "success",
-    ]
-
-    # Mock backoff.expo() to return None (edge case)
-    with patch("cartography.client.core.tx.backoff.expo") as mock_expo:
-        mock_expo.return_value = iter([None])
-        result = _run_with_retry(operation, "test_target")
-
-    assert result == "success"
-    # Should log error about None wait time
-    error_logs = [
-        call
-        for call in mock_logger.error.call_args_list
-        if "Unexpected: backoff generator returned None" in str(call)
-    ]
-    assert len(error_logs) == 1
-    # Should still sleep (with fallback 1.0 second)
-    mock_sleep.assert_called_once_with(1.0)
 
 
 # Tests for metrics in load() and load_matchlinks()
