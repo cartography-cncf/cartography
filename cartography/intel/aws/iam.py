@@ -4,6 +4,7 @@ import json
 import logging
 import time
 from collections import namedtuple
+from datetime import datetime
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -418,6 +419,7 @@ AccountAuthorizationDetails = namedtuple(
         "group_memberships",
         "role_inline_policies",
         "role_managed_policies",
+        "role_last_used",
     ],
 )
 
@@ -543,6 +545,9 @@ def get_account_authorization_details(
         },
         role_managed_policies={
             r["Arn"]: managed(r.get("AttachedManagedPolicies", [])) for r in roles
+        },
+        role_last_used={
+            r["Arn"]: r.get("RoleLastUsed", {}).get("LastUsedDate") for r in roles
         },
     )
 
@@ -2422,6 +2427,28 @@ def load_service_last_accessed_details(
     )
 
 
+def _role_unused_since_last_report(
+    role_last_used: Dict[str, datetime | None] | None,
+    arn: str,
+    last_authenticated: str | None,
+) -> bool:
+    """
+    A role's report only changes after the role is used again, so a role with no
+    RoleLastUsed (unused within IAM's tracking period) or none newer than its stored
+    access would get the same report. Comparing against the stored access rather
+    than the previous run means a report that lagged behind RoleLastUsed is
+    generated again next run.
+    """
+    if role_last_used is None or arn not in role_last_used:
+        return False
+    last_used = role_last_used[arn]
+    if last_used is None:
+        return True
+    if not last_authenticated:
+        return False
+    return last_used <= datetime.fromisoformat(last_authenticated)
+
+
 @timeit
 def sync_service_last_accessed_details(
     neo4j_session: neo4j.Session,
@@ -2429,9 +2456,14 @@ def sync_service_last_accessed_details(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
+    role_last_used: Dict[str, datetime | None] | None = None,
 ) -> None:
     """
     Sync service last accessed details for all principals in the account.
+
+    With `role_last_used` (role ARN to RoleLastUsed.LastUsedDate), roles with no
+    recorded use or none since their stored access are skipped: IAM throttles
+    report generation, and their report would not change.
     """
     logger.info(
         "Syncing service last accessed details for account '%s'.",
@@ -2441,15 +2473,25 @@ def sync_service_last_accessed_details(
     principals_query = """
     MATCH (account:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(principal)
     WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSGroup
-    RETURN principal.arn as arn
+    RETURN principal.arn AS arn, principal.last_authenticated AS last_authenticated
     ORDER BY arn
     """
 
     results = neo4j_session.run(principals_query, AWS_ACCOUNT_ID=current_aws_account_id)
-    principal_arns = [record["arn"] for record in results]
+    records = list(results)
+    principal_arns = [
+        record["arn"]
+        for record in records
+        if not _role_unused_since_last_report(
+            role_last_used, record["arn"], record["last_authenticated"]
+        )
+    ]
 
     logger.info(
-        f"Found {len(principal_arns)} principals to process for service last accessed details"
+        "Generating service last accessed reports for %d of %d principals; "
+        "the rest are roles not used since their stored access.",
+        len(principal_arns),
+        len(records),
     )
 
     principal_data: List[Dict] = []
@@ -2550,6 +2592,9 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+        role_last_used=(
+            authorization_details.role_last_used if authorization_details else None
+        ),
     )
     sync_assumerole_relationships(
         neo4j_session,

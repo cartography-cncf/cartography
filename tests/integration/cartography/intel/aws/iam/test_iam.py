@@ -1,5 +1,7 @@
 import copy
 import itertools
+from datetime import datetime
+from datetime import timezone
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -171,11 +173,16 @@ EC2_ACCESS = (
 PREVIOUS_ACCESS = (
     "Amazon S3",
     "s3",
-    "2018-06-01 00:00:00",
+    "2018-06-01 00:00:00+00:00",
     "role/example-role-0",
     "us-east-1",
 )
 NO_ACCESS = (None, None, None, None, None)
+
+ROLE_ARN = "arn:aws:iam::000000000001:role/example-role"
+BEFORE_PREVIOUS_ACCESS = datetime(2018, 5, 1, tzinfo=timezone.utc)
+AT_PREVIOUS_ACCESS = datetime(2018, 6, 1, tzinfo=timezone.utc)
+AFTER_PREVIOUS_ACCESS = datetime(2019, 1, 2, tzinfo=timezone.utc)
 
 
 class FakeIAMClient:
@@ -216,7 +223,7 @@ class JobsRunWhileSubmittingIAMClient(FakeIAMClient):
         return super().get_service_last_accessed_details(JobId, MaxItems, Marker)
 
 
-def _create_principals(neo4j_session, arns):
+def _create_principals(neo4j_session, arns, label="AWSUser"):
     neo4j_session.run(
         "MERGE (a:AWSAccount{id: $account_id}) "
         "WITH a "
@@ -227,7 +234,7 @@ def _create_principals(neo4j_session, arns):
     neo4j_session.run(
         "UNWIND $arns AS arn "
         "MATCH (a:AWSAccount{id: $account_id}) "
-        "MERGE (u:AWSUser:AWSPrincipal{id: arn}) "
+        f"MERGE (u:{label}:AWSPrincipal{{id: arn}}) "
         "SET u.arn = arn "
         "MERGE (a)-[:RESOURCE]->(u)",
         arns=arns,
@@ -235,12 +242,12 @@ def _create_principals(neo4j_session, arns):
     )
 
 
-def _set_previous_access_synced_this_run(neo4j_session, arns):
+def _set_access_synced_this_run(neo4j_session, arns, access):
     """
     Gives each principal the access an earlier sync recorded, stamped with this
     run's update tag as the user, group and role syncs stamp it before this step.
     """
-    name, namespace, authenticated, entity, region = PREVIOUS_ACCESS
+    name, namespace, authenticated, entity, region = access
     neo4j_session.run(
         "UNWIND $arns AS arn "
         "MATCH (:AWSAccount{id: $account_id})-[r:RESOURCE]->(p:AWSPrincipal{arn: arn}) "
@@ -261,13 +268,14 @@ def _set_previous_access_synced_this_run(neo4j_session, arns):
     )
 
 
-def _sync_service_last_accessed_details(neo4j_session, iam_client):
+def _sync_service_last_accessed_details(neo4j_session, iam_client, role_last_used=None):
     cartography.intel.aws.iam.sync_service_last_accessed_details(
         neo4j_session,
         MagicMock(**{"client.return_value": iam_client}),
         SERVICE_ACCESS_ACCOUNT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": SERVICE_ACCESS_ACCOUNT_ID},
+        role_last_used,
     )
 
 
@@ -364,7 +372,7 @@ def test_sync_service_last_accessed_details_stops_when_iam_stays_unavailable(
 ):
     principals = [USER_A_ARN, USER_B_ARN, USER_C_ARN]
     _create_principals(neo4j_session, principals)
-    _set_previous_access_synced_this_run(neo4j_session, principals)
+    _set_access_synced_this_run(neo4j_session, principals, PREVIOUS_ACCESS)
     iam_client = FakeIAMClient(
         {
             USER_A_ARN: [COMPLETED_JOB],
@@ -381,6 +389,50 @@ def test_sync_service_last_accessed_details_stops_when_iam_stays_unavailable(
         USER_B_ARN: PREVIOUS_ACCESS,
         USER_C_ARN: PREVIOUS_ACCESS,
     }
+
+
+@pytest.mark.parametrize(
+    "stored_access, role_last_used, expected_access",
+    [
+        pytest.param(NO_ACCESS, {ROLE_ARN: None}, NO_ACCESS, id="never-used"),
+        pytest.param(
+            PREVIOUS_ACCESS,
+            {ROLE_ARN: BEFORE_PREVIOUS_ACCESS},
+            PREVIOUS_ACCESS,
+            id="unused-since-stored-access",
+        ),
+        pytest.param(
+            PREVIOUS_ACCESS,
+            {ROLE_ARN: AT_PREVIOUS_ACCESS},
+            PREVIOUS_ACCESS,
+            id="last-use-is-stored-access",
+        ),
+        pytest.param(
+            PREVIOUS_ACCESS,
+            {ROLE_ARN: AFTER_PREVIOUS_ACCESS},
+            EC2_ACCESS,
+            id="used-since-stored-access",
+        ),
+        pytest.param(
+            NO_ACCESS,
+            {ROLE_ARN: AFTER_PREVIOUS_ACCESS},
+            EC2_ACCESS,
+            id="used-with-nothing-stored",
+        ),
+        pytest.param(PREVIOUS_ACCESS, {}, EC2_ACCESS, id="not-a-known-role"),
+        pytest.param(PREVIOUS_ACCESS, None, EC2_ACCESS, id="no-role-last-used"),
+    ],
+)
+def test_sync_service_last_accessed_details_skips_roles_unused_since_stored_access(
+    neo4j_session, stored_access, role_last_used, expected_access
+):
+    _create_principals(neo4j_session, [ROLE_ARN], label="AWSRole")
+    _set_access_synced_this_run(neo4j_session, [ROLE_ARN], stored_access)
+    iam_client = FakeIAMClient({ROLE_ARN: [COMPLETED_JOB]})
+
+    _sync_service_last_accessed_details(neo4j_session, iam_client, role_last_used)
+
+    assert _last_accessed_services(neo4j_session) == {ROLE_ARN: expected_access}
 
 
 @mock.patch("time.sleep")
