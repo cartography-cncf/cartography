@@ -14,6 +14,7 @@ from cartography.intel.langsmith import organizations
 from cartography.intel.langsmith import roles
 from cartography.intel.langsmith import users
 from cartography.intel.langsmith.util import build_user_lookup
+from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import resolve_ls_user_id
 
 ORG = "org-1"
@@ -455,13 +456,84 @@ class TestConnectionLookups:
         agents = [{"agent_id": "support-bot", "workspace_id": "w1"}]
 
         # Act
-        connections, complete = agent_auth.get_connections(
-            self._NoCallsClient(), ORG, agents
+        connections, readable = agent_auth.get_connections(
+            self._NoCallsClient(), ORG, agents, ["w1"]
         )
 
         # Assert
         assert connections == []
-        assert complete is True
+        assert readable == {"w1"}
+
+
+class TestProviderListing:
+    """
+    Providers belong to the organization, and platform providers to LangSmith itself, but
+    both routes need deployments:read in the workspace the request names.
+    """
+
+    class _Client:
+        def __init__(self, answers):
+            self.answers = answers
+            self.calls = []
+
+        def get(self, path, *, tenant_id, **_):
+            self.calls.append((path, tenant_id))
+            answer = self.answers.get(tenant_id, 403)
+            if isinstance(answer, int):
+                raise LangSmithFetchError(path, answer, f"HTTP {answer}")
+            return answer
+
+    @pytest.mark.parametrize(
+        "answers, expected_calls, expected_complete",
+        [
+            (
+                {"w1": 403, "w2": [{"id": "p1", "provider_id": "github"}]},
+                [
+                    ("/v2/auth/providers", "w1"),
+                    ("/v2/auth/providers", "w2"),
+                    ("/v2/auth/platform-providers", "w1"),
+                    ("/v2/auth/platform-providers", "w2"),
+                ],
+                True,
+            ),
+            (
+                {"w1": [{"id": "p1", "provider_id": "github"}]},
+                [
+                    ("/v2/auth/providers", "w1"),
+                    ("/v2/auth/platform-providers", "w1"),
+                ],
+                True,
+            ),
+            (
+                {},
+                [
+                    ("/v2/auth/providers", "w1"),
+                    ("/v2/auth/providers", "w2"),
+                    ("/v2/auth/platform-providers", "w1"),
+                    ("/v2/auth/platform-providers", "w2"),
+                ],
+                False,
+            ),
+        ],
+        ids=[
+            "first workspace denied",
+            "first workspace answers",
+            "every workspace denied",
+        ],
+    )
+    def test_providers_are_read_through_the_first_workspace_that_allows_it(
+        self, answers, expected_calls, expected_complete
+    ):
+        # Arrange
+        client = self._Client(answers)
+
+        # Act
+        providers, complete = agent_auth.get_providers(client, ORG, ["w1", "w2"])
+
+        # Assert
+        assert client.calls == expected_calls
+        assert complete is expected_complete
+        assert {p["id"] for p in providers} == ({"p1"} if expected_complete else set())
 
 
 class TestCredentialProviderResolution:
