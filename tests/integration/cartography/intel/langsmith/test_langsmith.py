@@ -240,18 +240,22 @@ def test_sync_links_deployments_to_the_agents_they_run(neo4j_session):
 
     # Assert
     # The support deployment names its agent in an agent block; the triage deployment
-    # has agent: null, the common case, so its agent is found only by listing assistants.
-    assert check_nodes(
-        neo4j_session, "LangSmithAgent", ["id", "graph_id", "environment"]
-    ) == {
-        (SUPPORT_AGENT, "support_graph", "production"),
-        (TRIAGE_AGENT, "triage_graph", None),
+    # has agent: null, the common case, so only the registry's runtime binding links them.
+    assert check_nodes(neo4j_session, "LangSmithAgent", ["id", "source_type"]) == {
+        (SUPPORT_AGENT, "LSD"),
+        (TRIAGE_AGENT, "LSD"),
     }
     assert check_rels(
         neo4j_session, "LangSmithDeployment", "id", "LangSmithAgent", "id", "RUNS"
     ) == {
         (SUPPORT_DEPLOYMENT_ID, SUPPORT_AGENT),
         (TRIAGE_DEPLOYMENT_ID, TRIAGE_AGENT),
+    }
+    assert check_rels(
+        neo4j_session, "LangSmithAgent", "id", "LangSmithUser", "id", "OWNED_BY"
+    ) == {
+        (SUPPORT_AGENT, MARGE_LS_USER_ID),
+        (TRIAGE_AGENT, BART_LS_USER_ID),
     }
     assert check_rels(
         neo4j_session,
@@ -431,6 +435,13 @@ STALE_CASES = [
         id="deployment",
     ),
     pytest.param(
+        ("/api/v1/agents", WORKSPACE_DEV_ID),
+        [],
+        "LangSmithAgent",
+        TRIAGE_AGENT,
+        id="agent",
+    ),
+    pytest.param(
         (f"/v2/auth/agents/{TRIAGE_AGENT_ID}/connections", WORKSPACE_DEV_ID),
         {"data": []},
         "LangSmithAgentCredential",
@@ -488,49 +499,6 @@ def test_resync_preserves_what_could_not_be_read(
     # Assert
     # The data may still exist, so a failed read must not be treated as a deletion.
     assert node_id in _ids(neo4j_session, label)
-
-
-def test_resync_keeps_agents_on_a_deployment_that_did_not_answer(neo4j_session):
-    # Arrange
-    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
-    cold = FakeLangSmithClient(
-        cold_deployment_urls=frozenset({"https://triage-bot.us.langgraph.app"})
-    )
-
-    # Act
-    _sync(neo4j_session, cold, NEXT_UPDATE_TAG)
-
-    # Assert
-    # A scaled-to-zero deployment timing out is not evidence its agent was deleted.
-    assert TRIAGE_AGENT in _ids(neo4j_session, "LangSmithAgent")
-    assert TRIAGE_CREDENTIAL_ID in _ids(neo4j_session, "LangSmithAgentCredential")
-    assert (TRIAGE_DEPLOYMENT_ID, TRIAGE_AGENT) in check_rels(
-        neo4j_session, "LangSmithDeployment", "id", "LangSmithAgent", "id", "RUNS"
-    )
-
-
-def test_resync_keeps_agents_on_a_deployment_that_stopped_serving(neo4j_session):
-    # Arrange
-    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
-    triage = {
-        **SIMPSON_CORP_ROUTES[("/v2/deployments", WORKSPACE_DEV_ID)][0],
-        "status": "UNUSED",
-    }
-    stopped = FakeLangSmithClient(
-        routes={**SIMPSON_CORP_ROUTES, ("/v2/deployments", WORKSPACE_DEV_ID): [triage]}
-    )
-
-    # Act
-    _sync(neo4j_session, stopped, NEXT_UPDATE_TAG)
-
-    # Assert
-    # The deployment still exists, so its agent and that agent's live credentials do too;
-    # they just cannot be listed until it serves again.
-    assert TRIAGE_AGENT in _ids(neo4j_session, "LangSmithAgent")
-    assert TRIAGE_CREDENTIAL_ID in _ids(neo4j_session, "LangSmithAgentCredential")
-    assert (TRIAGE_DEPLOYMENT_ID, TRIAGE_AGENT) in check_rels(
-        neo4j_session, "LangSmithDeployment", "id", "LangSmithAgent", "id", "RUNS"
-    )
 
 
 def test_resync_keeps_credential_providers_when_providers_cannot_be_read(

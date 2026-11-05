@@ -1,5 +1,4 @@
 import logging
-import threading
 from typing import Any
 
 import neo4j
@@ -16,13 +15,11 @@ logger = logging.getLogger(__name__)
 # https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
-# LangSmith's member endpoints cap `limit` at 500. Deployments cap it at 100.
+# LangSmith's member endpoints cap `limit` at 500. Deployments cap it at 100, and so do
+# the cursor-paginated registries.
 _MEMBER_PAGE_SIZE = 500
 _DEPLOYMENT_PAGE_SIZE = 100
-# Assistant searches run concurrently across deployments, so one scaled-to-zero
-# deployment waking slowly no longer holds up the rest. That makes a tighter read
-# timeout safe, and it bounds the worst case for a workspace full of idle deployments.
-_ASSISTANT_TIMEOUT = (5, 15)
+_CURSOR_PAGE_SIZE = 100
 _RETRY_STATUSES = [429, 500, 502, 503, 504]
 
 
@@ -39,27 +36,6 @@ def _build_session() -> requests.Session:
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     session.mount("http://", HTTPAdapter(max_retries=retry_policy))
-    return session
-
-
-def _build_assistant_session() -> requests.Session:
-    """
-    Build a session for the read-only assistant search, which is expressed as a POST.
-
-    Throttling and transient 5xx responses are retried, but read timeouts are not: a
-    scaled-to-zero deployment that times out once will time out again, and retrying it
-    would multiply the worst case the tight timeout exists to bound.
-    """
-    session = requests.Session()
-    retry_policy = Retry(
-        total=3,
-        read=0,
-        backoff_factor=1,
-        status_forcelist=_RETRY_STATUSES,
-        allowed_methods=["POST"],
-        respect_retry_after_header=True,
-    )
-    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
 
 
@@ -97,21 +73,6 @@ class LangSmithClient:
         self.api_url = api_url.rstrip("/")
         self.host_api_url = host_api_url.rstrip("/")
         self._session = _build_session()
-        self._thread_local = threading.local()
-
-    @property
-    def _worker_session(self) -> requests.Session:
-        """
-        A session private to the calling thread.
-
-        requests.Session is not guaranteed thread-safe, and assistant searches run on a
-        thread pool, so each worker gets its own rather than sharing the client's.
-        """
-        session = getattr(self._thread_local, "session", None)
-        if session is None:
-            session = _build_assistant_session()
-            self._thread_local.session = session
-        return session
 
     def _headers(self, org_id: str | None, tenant_id: str | None) -> dict[str, str]:
         headers = {"X-Api-Key": self._pat}
@@ -218,78 +179,32 @@ class LangSmithClient:
                 return results
             offset += len(page)
 
-    def search_assistants(
+    def get_cursor_paginated(
         self,
-        deployment_url: str,
-        tenant_id: str,
-        page_size: int = 100,
-    ) -> tuple[list[dict[str, Any]], bool]:
+        path: str,
+        *,
+        key: str,
+        org_id: str | None = None,
+        tenant_id: str | None = None,
+        page_size: int = _CURSOR_PAGE_SIZE,
+    ) -> list[dict[str, Any]]:
         """
-        List the assistants (agents) served by one deployment.
-
-        LangSmith agent ids are assistant ids, and they live on each deployment's own data
-        plane rather than in the control plane. This is the only way to enumerate them, and
-        it is what makes the agent-to-user OAuth graph reachable.
-
-        Expressed as a POST because /assistants/search is a search; it reads and never
-        mutates. The deployment API key check is tenant-scoped, so X-Tenant-Id is required:
-        without it the data plane answers 403 "API key tenant mismatch".
-
-        Returns the assistants and whether the listing completed. A failure must not be
-        reported as an empty inventory, because callers use that inventory to decide what
-        to delete.
-
-        Redirects are refused. The deployment host comes from API data rather than from
-        operator configuration, and requests only strips the Authorization header when a
-        redirect changes host — a custom header like X-Api-Key would be forwarded intact,
-        handing an organization-admin token to whatever the redirect names.
+        Page through an endpoint that takes page_size/cursor and wraps its rows in an
+        envelope with a ``next_cursor``, for example the agent registry's
+        ``{"items": [...], "next_cursor": "..."}``.
         """
-        if not deployment_url.lower().startswith("https://"):
-            logger.warning(
-                "Refusing to send credentials to non-HTTPS deployment URL for tenant %s",
-                tenant_id,
-            )
-            return [], False
-
-        assistants: list[dict[str, Any]] = []
-        offset = 0
-        url = deployment_url.rstrip("/") + "/assistants/search"
-        headers = {"X-Api-Key": self._pat, "X-Tenant-Id": tenant_id}
+        results: list[dict[str, Any]] = []
+        cursor: str | None = None
         while True:
-            try:
-                response = self._worker_session.post(
-                    url,
-                    json={"limit": page_size, "offset": offset},
-                    headers=headers,
-                    timeout=_ASSISTANT_TIMEOUT,
-                    allow_redirects=False,
-                )
-            except requests.RequestException as err:
-                logger.warning("Assistant search failed for a deployment: %s", err)
-                return assistants, False
-            if response.is_redirect or response.is_permanent_redirect:
-                logger.warning(
-                    "Refusing to follow a redirect from a deployment's assistant search "
-                    "(status %s): following it would forward the API key to another host.",
-                    response.status_code,
-                )
-                return assistants, False
-            if response.status_code != 200:
-                logger.warning(
-                    "Assistant search returned %s for a deployment",
-                    response.status_code,
-                )
-                return assistants, False
-            page = response.json()
-            if not isinstance(page, list):
-                logger.warning(
-                    "Assistant search returned an unexpected shape for a deployment"
-                )
-                return assistants, False
-            assistants.extend(page)
-            if len(page) < page_size:
-                return assistants, True
-            offset += len(page)
+            params: dict[str, Any] = {"page_size": page_size}
+            if cursor:
+                params["cursor"] = cursor
+            payload = self.get(path, params=params, org_id=org_id, tenant_id=tenant_id)
+            # Indexed rather than defaulted, for the same reason as the offset envelope.
+            results.extend(payload[key])
+            cursor = payload.get("next_cursor")
+            if not cursor:
+                return results
 
 
 def org_scoped_id(org_id: str, raw_id: str | None) -> str | None:

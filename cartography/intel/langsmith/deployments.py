@@ -1,5 +1,4 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import neo4j
@@ -8,18 +7,12 @@ from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import resolve_ls_user_id
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.deployment import LangSmithDeploymentSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-# Only a READY deployment is actually serving; the other states are provisioning,
-# unused, or being torn down, so probing them costs a timeout and returns nothing.
-# Note DEPLOYED is a *revision* status, not a deployment status.
-_SERVING_STATUS = "READY"
-# Assistant searches hit each deployment's own data plane, so they parallelise well.
-_MAX_ASSISTANT_WORKERS = 10
 
 
 @timeit
@@ -28,14 +21,20 @@ def sync(
     client: LangSmithClient,
     org_id: str,
     workspaces: list[dict[str, Any]],
+    user_lookup: dict[str, str],
     common_job_parameters: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], dict[str, str], bool]:
     """
-    Load deployments and any agents they serve.
+    Load deployments and the agents in the control plane's agent registry.
 
     Returns the agent inventory, a deployment id -> workspace id mapping, and whether the
     agent inventory is complete. Agents are cleaned up by the agent_auth sync, which also
     loads them, so it must not clean up on an incomplete inventory.
+
+    Agents come from the control plane only. A deployment's own data plane can also list
+    its assistants, but this module never calls it: the deployment runs code its authors
+    control, including custom auth and middleware that see every request header, so any
+    request there would hand them the organization token.
     """
     raw: list[dict[str, Any]] = []
     deployments_complete = True
@@ -53,9 +52,8 @@ def sync(
             continue
 
     deployments = transform_deployments(raw)
-    agents = transform_agents(deployments, org_id)
-    assistants, assistants_complete = get_assistants(client, deployments, org_id)
-    agents = merge_assistants(agents, assistants)
+    registry_agents, registry_complete = get_agents(client, org_id, workspaces)
+    agents = transform_agents(deployments, registry_agents, org_id, user_lookup)
     load_deployments(
         neo4j_session, agents, deployments, org_id, common_job_parameters["UPDATE_TAG"]
     )
@@ -69,125 +67,7 @@ def sync(
     workspace_by_deployment = {
         deployment["id"]: deployment["tenant_id"] for deployment in deployments
     }
-    return (
-        agents,
-        workspace_by_deployment,
-        deployments_complete and assistants_complete,
-    )
-
-
-@timeit
-def get_assistants(
-    client: LangSmithClient, deployments: list[dict[str, Any]], org_id: str
-) -> tuple[list[dict[str, Any]], bool]:
-    """
-    Enumerate the assistants served by each deployment.
-
-    A LangSmith agent id is an assistant id, and assistants are only listable on each
-    deployment's own data plane, one request per deployment. Deployments without a serving
-    URL, or not in a serving state, are skipped: they cannot answer, and a scaled-to-zero
-    or half-provisioned deployment costs a full timeout to discover that.
-
-    The remaining requests run concurrently, because they target independent hosts.
-    """
-    candidates = [
-        deployment
-        for deployment in deployments
-        if deployment.get("url") and deployment.get("status") == _SERVING_STATUS
-    ]
-    # A deployment that is not serving still exists and may still hold agents with live
-    # credentials. Its agents cannot be listed, so the inventory is incomplete and agent
-    # cleanup must wait until it serves again or is deleted.
-    skipped = len(deployments) - len(candidates)
-    if skipped:
-        logger.info(
-            "Skipping assistant search for %d deployment(s) that are not %s or have no "
-            "URL; agent cleanup will be skipped this run.",
-            skipped,
-            _SERVING_STATUS,
-        )
-    if not candidates:
-        return [], not skipped
-
-    worker_count = min(_MAX_ASSISTANT_WORKERS, len(candidates))
-    logger.info(
-        "Searching assistants across %d LangSmith deployment(s) with %d workers",
-        len(candidates),
-        worker_count,
-    )
-    with ThreadPoolExecutor(max_workers=worker_count) as executor:
-        results = list(
-            executor.map(
-                lambda deployment: _assistants_for(client, deployment, org_id),
-                candidates,
-            )
-        )
-    complete = not skipped and all(ok for _, ok in results)
-    if not complete:
-        logger.warning(
-            "Assistant discovery was incomplete for at least one deployment; agent "
-            "cleanup will be skipped so existing agents are not deleted.",
-        )
-    return [assistant for batch, _ in results for assistant in batch], complete
-
-
-def _assistants_for(
-    client: LangSmithClient, deployment: dict[str, Any], org_id: str
-) -> tuple[list[dict[str, Any]], bool]:
-    """Shape one deployment's assistants, and report whether the listing completed."""
-    assistants, complete = client.search_assistants(
-        deployment["url"], deployment["tenant_id"]
-    )
-    return [
-        {
-            "id": f"{org_id}|{assistant['assistant_id']}",
-            "assistant_id": assistant["assistant_id"],
-            "name": assistant.get("name"),
-            "graph_id": assistant.get("graph_id"),
-            "description": assistant.get("description"),
-            "version": assistant.get("version"),
-            "environment": None,
-            "deployment_ids": [deployment["id"]],
-            "created_at": assistant.get("created_at"),
-            "updated_at": assistant.get("updated_at"),
-        }
-        for assistant in assistants
-    ], complete
-
-
-def merge_assistants(
-    agents: list[dict[str, Any]], assistants: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """
-    Combine agents named by a deployment's agent block with those found through assistant search.
-
-    LangGraph derives an assistant id from its graph, so two deployments running the same
-    graph expose the same assistant id. Serving deployments therefore accumulate into a
-    list rather than overwriting one another.
-    """
-    merged: dict[str, dict[str, Any]] = {}
-    for agent in agents:
-        record = dict(agent)
-        record.setdefault("deployment_ids", [])
-        merged[record["id"]] = record
-    for assistant in assistants:
-        existing = merged.get(assistant["id"])
-        if existing is None:
-            merged[assistant["id"]] = dict(assistant)
-            continue
-        deployment_ids = existing.get("deployment_ids") or []
-        for deployment_id in assistant.get("deployment_ids") or []:
-            if deployment_id not in deployment_ids:
-                deployment_ids.append(deployment_id)
-        existing.update(
-            {
-                k: v
-                for k, v in assistant.items()
-                if v is not None and k != "deployment_ids"
-            }
-        )
-        existing["deployment_ids"] = deployment_ids
-    return list(merged.values())
+    return agents, workspace_by_deployment, deployments_complete and registry_complete
 
 
 @timeit
@@ -201,6 +81,38 @@ def get(
         tenant_id=workspace_id,
         host=True,
     )
+
+
+@timeit
+def get_agents(
+    client: LangSmithClient, org_id: str, workspaces: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], bool]:
+    """
+    Read the agent registry in every workspace, and report whether every read completed.
+
+    The same agent can be visible from more than one workspace, so it is kept once.
+    """
+    agents: dict[str, dict[str, Any]] = {}
+    complete = True
+    for workspace in workspaces:
+        try:
+            rows = client.get_cursor_paginated(
+                "/api/v1/agents",
+                key="items",
+                org_id=org_id,
+                tenant_id=workspace["id"],
+            )
+        except LangSmithFetchError as err:
+            logger.warning(
+                "Skipping LangSmith agents for workspace %s: %s",
+                workspace["id"],
+                err,
+            )
+            complete = complete and err.not_found
+            continue
+        for row in rows:
+            agents.setdefault(row["id"], row)
+    return list(agents.values()), complete
 
 
 def transform_deployments(deployments: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -249,16 +161,56 @@ def transform_deployments(deployments: list[dict[str, Any]]) -> list[dict[str, A
 
 
 def transform_agents(
-    deployments: list[dict[str, Any]], org_id: str
+    deployments: list[dict[str, Any]],
+    registry_agents: list[dict[str, Any]],
+    org_id: str,
+    user_lookup: dict[str, str],
 ) -> list[dict[str, Any]]:
     """
-    Derive the agent inventory from the deployments that serve them.
+    Merge the agent registry with the agents that deployments name.
 
-    Only deployments created with an explicit agent/environment binding carry an agent
-    block; for most deployments it is null, and their agents are found by listing the
-    deployment's assistants instead.
+    The registry carries each agent's owner and environments. An environment traces into a
+    tracing project, and so does the deployment serving it, so a shared project links the
+    two without reading every agent's runtime bindings, which costs one request per agent.
+    A deployment also names its agent in an agent block when it was created with an
+    explicit agent/environment binding.
     """
+    deployments_by_project: dict[str, list[str]] = {}
+    for deployment in deployments:
+        if deployment.get("tracer_session_id"):
+            deployments_by_project.setdefault(
+                deployment["tracer_session_id"], []
+            ).append(deployment["id"])
     agents: dict[str, dict[str, Any]] = {}
+    for agent in registry_agents:
+        environments = agent.get("environments") or []
+        agents[agent["id"]] = {
+            "id": f"{org_id}|{agent['id']}",
+            "agent_id": agent["id"],
+            "name": agent.get("name"),
+            "agent_type": agent.get("agent_type"),
+            "source_type": agent.get("source_type"),
+            "environments": sorted(
+                {
+                    environment["environment"].lower()
+                    for environment in environments
+                    if environment.get("environment")
+                }
+            ),
+            "owner_ls_user_id": resolve_ls_user_id(
+                agent.get("owner_id") or agent.get("owner"), user_lookup
+            ),
+            "created_at": agent.get("created_at"),
+            "deployment_ids": sorted(
+                {
+                    deployment_id
+                    for environment in environments
+                    for deployment_id in deployments_by_project.get(
+                        environment.get("tracer_session_id") or "", []
+                    )
+                }
+            ),
+        }
     for deployment in deployments:
         agent_id = deployment.get("agent_id")
         if not agent_id:
@@ -267,13 +219,17 @@ def transform_agents(
             agent_id,
             {
                 "id": f"{org_id}|{agent_id}",
-                "assistant_id": agent_id,
+                "agent_id": agent_id,
                 "name": deployment.get("display_name") or deployment.get("name"),
-                "environment": deployment.get("agent_environment"),
+                "environments": [],
                 "deployment_ids": [],
             },
         )
-        record["deployment_ids"].append(deployment["id"])
+        if deployment["id"] not in record["deployment_ids"]:
+            record["deployment_ids"].append(deployment["id"])
+        environment = (deployment.get("agent_environment") or "").lower()
+        if environment and environment not in record["environments"]:
+            record["environments"] = sorted([*record["environments"], environment])
     return list(agents.values())
 
 

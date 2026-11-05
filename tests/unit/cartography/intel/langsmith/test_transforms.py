@@ -6,9 +6,6 @@ Each test names the assumption or defect it guards against, so a future refactor
 quietly reintroduce it. These run without Neo4j.
 """
 
-import threading
-import time
-
 from cartography.intel.langsmith import agent_auth
 from cartography.intel.langsmith import deployments
 from cartography.intel.langsmith import organizations
@@ -325,7 +322,7 @@ class TestDeploymentSecrets:
 
         # Act
         out = deployments.transform_deployments(raw)
-        agents = deployments.transform_agents(out, ORG)
+        agents = deployments.transform_agents(out, [], ORG, {})
 
         # Assert
         assert out[0]["agent_id"] is None
@@ -345,58 +342,93 @@ class TestDeploymentSecrets:
 
         # Act
         agents = deployments.transform_agents(
-            deployments.transform_deployments(raw), ORG
+            deployments.transform_deployments(raw), [], ORG, {}
         )
 
         # Assert
         assert agents == [
             {
                 "id": f"{ORG}|asst-1",
-                "assistant_id": "asst-1",
+                "agent_id": "asst-1",
                 "name": "Bot",
-                "environment": "production",
+                "environments": ["production"],
                 "deployment_ids": ["d1"],
             }
         ]
 
+    def test_environment_links_the_deployment_tracing_into_its_project(self):
+        """The registry listing has no runtime bindings, but it has tracing projects."""
+        # Arrange
+        registry = [
+            {
+                "id": "agent-1",
+                "environments": [
+                    {"environment": "PRODUCTION", "tracer_session_id": "project-1"},
+                    {"environment": "STAGING", "tracer_session_id": "project-unseen"},
+                ],
+            }
+        ]
+        seen = [
+            {"id": "d1", "tenant_id": "w1", "tracer_session_id": "project-1"},
+            {"id": "d2", "tenant_id": "w1", "tracer_session_id": "project-2"},
+        ]
+
+        # Act
+        agents = deployments.transform_agents(seen, registry, ORG, {})
+
+        # Assert
+        assert agents[0]["deployment_ids"] == ["d1"]
+
 
 class TestAgentIdentityIsNamespacedByOrg:
     """
-    LangSmith derives an assistant id from its graph, so two organizations running the
-    same graph produce the same assistant id. Un-namespaced, their agents, deployments and
-    credential paths would merge.
+    Agent IDs are chosen by users, so two organizations can pick the same one.
+    Un-namespaced, their agents, deployments and credential paths would merge.
     """
 
-    def _client(self):
-        class _C:
-            def search_assistants(self, url, tenant_id, page_size=100):
-                return [{"assistant_id": "asst-shared", "name": "Shared"}], True
-
-        return _C()
-
-    def test_same_assistant_in_two_orgs_stays_two_agents(self):
+    def test_same_agent_id_in_two_orgs_stays_two_agents(self):
         # Arrange
-        deps = [{"id": "d1", "tenant_id": "w1", "url": "https://d", "status": "READY"}]
+        registry = [{"id": "agent-shared", "name": "Shared"}]
 
         # Act
-        a, _ = deployments.get_assistants(self._client(), deps, ORG)
-        b, _ = deployments.get_assistants(self._client(), deps, OTHER_ORG)
+        a = deployments.transform_agents([], registry, ORG, {})
+        b = deployments.transform_agents([], registry, OTHER_ORG, {})
 
         # Assert
-        assert a[0]["id"] != b[0]["id"]
-        assert a[0]["id"] == f"{ORG}|asst-shared"
+        assert a[0]["id"] == f"{ORG}|agent-shared"
+        assert b[0]["id"] == f"{OTHER_ORG}|agent-shared"
         # The raw id is kept, because the agent-auth API is keyed by it.
-        assert a[0]["assistant_id"] == b[0]["assistant_id"] == "asst-shared"
+        assert a[0]["agent_id"] == b[0]["agent_id"] == "agent-shared"
 
     def test_credential_agent_id_is_namespaced_to_match(self):
         # Act
         creds = agent_auth.transform_credentials(
-            [{"id": "c1", "agent_id": "asst-shared", "provider_id": "p"}], {}, {}, ORG
+            [{"id": "c1", "agent_id": "agent-shared", "provider_id": "p"}], {}, {}, ORG
         )
 
         # Assert
-        assert creds[0]["agent_id"] == f"{ORG}|asst-shared"
-        assert creds[0]["assistant_id"] == "asst-shared"
+        assert creds[0]["agent_id"] == f"{ORG}|agent-shared"
+        assert creds[0]["raw_agent_id"] == "agent-shared"
+
+
+class TestConnectionLookups:
+    class _NoCallsClient:
+        def get(self, path, **_):
+            raise AssertionError(f"unexpected request to {path}")
+
+    def test_agent_auth_is_not_asked_about_ids_it_cannot_resolve(self):
+        """Agent auth answers 500 for registry slugs, which retries would multiply."""
+        # Arrange
+        agents = [{"agent_id": "support-bot", "deployment_ids": ["d1"]}]
+
+        # Act
+        connections, complete = agent_auth.get_connections(
+            self._NoCallsClient(), ORG, agents, {"d1": "w1"}
+        )
+
+        # Assert
+        assert connections == []
+        assert complete is True
 
 
 class TestCredentialProviderResolution:
@@ -503,399 +535,3 @@ class TestProviderTransform:
         # Assert
         assert "shhh" not in str(out)
         assert "client_secret" not in out
-
-
-class TestAssistantDiscovery:
-    class _FakeClient:
-        def __init__(self, by_url):
-            self.by_url = by_url
-            self._lock = threading.Lock()
-            self.calls = []
-
-        def search_assistants(self, deployment_url, tenant_id, page_size=100):
-            with self._lock:
-                self.calls.append((deployment_url, tenant_id))
-            return self.by_url.get(deployment_url, []), True
-
-    def test_assistants_become_agents(self):
-        # Arrange
-        client = self._FakeClient(
-            {
-                "https://d1.langgraph.app": [
-                    {
-                        "assistant_id": "asst-1",
-                        "name": "Support",
-                        "graph_id": "support_graph",
-                        "description": None,
-                        "version": 3,
-                        "created_at": "2026-02-01T00:00:00Z",
-                        "updated_at": "2026-03-01T00:00:00Z",
-                    }
-                ]
-            }
-        )
-        deps = [
-            {
-                "id": "d1",
-                "tenant_id": "w1",
-                "url": "https://d1.langgraph.app",
-                "status": "READY",
-            },
-            {"id": "d2", "tenant_id": "w1", "url": None, "status": "READY"},
-        ]
-
-        # Act
-        out, complete = deployments.get_assistants(client, deps, ORG)
-
-        # Assert
-        # d2 has no URL, so its agents cannot be listed this run.
-        assert complete is False
-        assert [a["id"] for a in out] == [f"{ORG}|asst-1"]
-        assert out[0]["graph_id"] == "support_graph"
-        assert out[0]["deployment_ids"] == ["d1"]
-        assert client.calls == [("https://d1.langgraph.app", "w1")]
-
-    def test_merge_prefers_assistant_detail_over_agent_block(self):
-        # Arrange
-        from_block = [
-            {"id": f"{ORG}|asst-1", "name": None, "environment": "production"}
-        ]
-        from_assistants = [
-            {
-                "id": f"{ORG}|asst-1",
-                "name": "Support",
-                "graph_id": "g",
-                "environment": None,
-                "deployment_ids": ["d1"],
-            }
-        ]
-
-        # Act
-        merged = deployments.merge_assistants(from_block, from_assistants)
-
-        # Assert
-        assert len(merged) == 1
-        agent = merged[0]
-        assert agent["name"] == "Support"
-        assert agent["graph_id"] == "g"
-        assert agent["deployment_ids"] == ["d1"]
-        assert agent["environment"] == "production"
-
-    def test_same_assistant_accumulates_serving_deployments(self):
-        # Arrange
-        assistants = [
-            {"id": "a1", "name": "Support", "deployment_ids": ["d1"]},
-            {"id": "a1", "name": "Support", "deployment_ids": ["d2"]},
-            {"id": "a2", "name": "Triage", "deployment_ids": ["d2"]},
-        ]
-
-        # Act
-        merged = {a["id"]: a for a in deployments.merge_assistants([], assistants)}
-
-        # Assert
-        assert merged["a1"]["deployment_ids"] == ["d1", "d2"]
-        assert merged["a2"]["deployment_ids"] == ["d2"]
-
-
-class TestIncompleteDiscoveryIsNotAnEmptyInventory:
-    """
-    A failed listing must never look like "these no longer exist": cleanup deletes on
-    exactly that signal, which would erase agents and their credentials.
-    """
-
-    class _FailingClient:
-        def search_assistants(self, url, tenant_id, page_size=100):
-            return [], False
-
-    class _PartialClient:
-        def search_assistants(self, url, tenant_id, page_size=100):
-            if url.endswith("bad"):
-                return [], False
-            return [{"assistant_id": "asst-ok"}], True
-
-    def test_total_failure_reports_incomplete(self):
-        # Arrange
-        deps = [{"id": "d", "tenant_id": "w", "url": "https://d", "status": "READY"}]
-
-        # Act
-        out, complete = deployments.get_assistants(self._FailingClient(), deps, ORG)
-
-        # Assert
-        assert out == []
-        assert complete is False
-
-    def test_one_failure_among_many_still_reports_incomplete(self):
-        # Arrange
-        deps = [
-            {"id": "a", "tenant_id": "w", "url": "https://ok", "status": "READY"},
-            {"id": "b", "tenant_id": "w", "url": "https://bad", "status": "READY"},
-        ]
-
-        # Act
-        out, complete = deployments.get_assistants(self._PartialClient(), deps, ORG)
-
-        # Assert
-        assert len(out) == 1
-        assert complete is False
-
-    def test_no_deployments_is_a_complete_empty_inventory(self):
-        # Act
-        out, complete = deployments.get_assistants(self._FailingClient(), [], ORG)
-
-        # Assert
-        assert out == []
-        assert complete is True
-
-    def test_a_deployment_without_a_url_leaves_the_inventory_incomplete(self):
-        """It still exists, so its agents may too; they just cannot be listed."""
-        # Arrange
-        deps = [{"id": "d", "tenant_id": "w", "url": None, "status": "READY"}]
-
-        # Act
-        out, complete = deployments.get_assistants(self._FailingClient(), deps, ORG)
-
-        # Assert
-        assert out == []
-        assert complete is False
-
-
-class TestAssistantSearchIsScopedAndConcurrent:
-    class _RecordingClient:
-        def __init__(self):
-            self._lock = threading.Lock()
-            self.asked = []
-            self.max_concurrent = 0
-            self._active = 0
-
-        def search_assistants(self, deployment_url, tenant_id, page_size=100):
-            with self._lock:
-                self.asked.append(deployment_url)
-                self._active += 1
-                self.max_concurrent = max(self.max_concurrent, self._active)
-            time.sleep(0.02)
-            with self._lock:
-                self._active -= 1
-            return [{"assistant_id": f"asst-{deployment_url[-1]}"}], True
-
-    def test_only_ready_deployments_with_a_url_are_probed(self):
-        # Arrange
-        client = self._RecordingClient()
-        deps = [
-            {"id": "a", "tenant_id": "w", "url": "https://a", "status": "READY"},
-            {
-                "id": "b",
-                "tenant_id": "w",
-                "url": "https://b",
-                "status": "AWAITING_DATABASE",
-            },
-            {
-                "id": "c",
-                "tenant_id": "w",
-                "url": "https://c",
-                "status": "AWAITING_DELETE",
-            },
-            {"id": "d", "tenant_id": "w", "url": "https://d", "status": "UNUSED"},
-            {"id": "e", "tenant_id": "w", "url": "https://e", "status": "UNKNOWN"},
-            {"id": "f", "tenant_id": "w", "url": None, "status": "READY"},
-        ]
-
-        # Act
-        out, complete = deployments.get_assistants(client, deps, ORG)
-
-        # Assert
-        assert client.asked == ["https://a"]
-        assert [a["assistant_id"] for a in out] == ["asst-a"]
-        assert complete is False
-
-    def test_nothing_serving_means_no_requests(self):
-        # Arrange
-        client = self._RecordingClient()
-        deps = [{"id": "a", "tenant_id": "w", "url": "https://a", "status": "UNUSED"}]
-
-        # Act
-        result = deployments.get_assistants(client, deps, ORG)
-
-        # Assert
-        assert result == ([], False)
-        assert client.asked == []
-
-    def test_searches_run_concurrently(self):
-        """
-        Proven with a barrier rather than timing: if the searches ran serially, the first
-        worker would wait for peers that never arrive and the barrier would break.
-        """
-        # Arrange
-        count = 6
-        barrier = threading.Barrier(count, timeout=10)
-
-        class _BarrierClient:
-            def search_assistants(self, deployment_url, tenant_id, page_size=100):
-                barrier.wait()
-                return [{"assistant_id": f"asst-{deployment_url[-1]}"}], True
-
-        deps = [
-            {"id": str(i), "tenant_id": "w", "url": f"https://{i}", "status": "READY"}
-            for i in range(count)
-        ]
-
-        # Act
-        out, complete = deployments.get_assistants(_BarrierClient(), deps, ORG)
-
-        # Assert
-        assert len(out) == count
-        assert complete is True
-
-    def test_worker_count_never_exceeds_the_cap(self):
-        # Arrange
-        client = self._RecordingClient()
-        total = deployments._MAX_ASSISTANT_WORKERS + 15
-        deps = [
-            {"id": str(i), "tenant_id": "w", "url": f"https://{i}", "status": "READY"}
-            for i in range(total)
-        ]
-
-        # Act
-        out, _ = deployments.get_assistants(client, deps, ORG)
-
-        # Assert
-        assert len(out) == total
-        assert len(client.asked) == total
-        assert client.max_concurrent <= deployments._MAX_ASSISTANT_WORKERS
-
-
-class TestNonServingDeploymentsAreStillInventoried:
-    def test_a_deployment_awaiting_delete_is_transformed_but_not_probed(self):
-        # Arrange
-        raw = [
-            {
-                "id": "d1",
-                "tenant_id": "w1",
-                "name": "dying-bot",
-                "status": "AWAITING_DELETE",
-                "url": "https://d1.langgraph.app",
-            }
-        ]
-
-        class _Boom:
-            def search_assistants(self, *a, **k):
-                raise AssertionError("must not probe a non-serving deployment")
-
-        # Act
-        transformed = deployments.transform_deployments(raw)
-
-        # Assert
-        assert [d["id"] for d in transformed] == ["d1"]
-        assert transformed[0]["status"] == "AWAITING_DELETE"
-
-        # Act and assert
-        assert deployments.get_assistants(_Boom(), transformed, ORG) == ([], False)
-
-
-class TestCredentialsAreNotLeakedToRedirectTargets:
-    """
-    Deployment hosts come from API data, not operator config, and requests strips only the
-    Authorization header when a redirect changes host. A custom X-Api-Key would be
-    forwarded intact, handing an organization-admin token to whatever the redirect names.
-    """
-
-    def _client(self):
-        from cartography.intel.langsmith.util import LangSmithClient
-
-        return LangSmithClient(
-            "lsv2_pt_fake", "https://api.example", "https://host.example"
-        )
-
-    def test_redirects_are_not_followed(self):
-        # Arrange
-        client = self._client()
-        posted = {}
-
-        class _Resp:
-            status_code = 307
-            is_redirect = True
-            is_permanent_redirect = False
-
-        class _Session:
-            def post(self, url, **kwargs):
-                posted.update(kwargs)
-                return _Resp()
-
-        client._thread_local.session = _Session()
-
-        # Act
-        assistants, complete = client.search_assistants("https://dep.example", "w1")
-
-        # Assert
-        assert posted["allow_redirects"] is False
-        assert (assistants, complete) == ([], False)
-
-    def test_a_redirect_is_reported_as_incomplete_not_empty(self):
-        """Returning ([], True) here would let cleanup delete the agents behind it."""
-        # Arrange
-        client = self._client()
-
-        class _Resp:
-            status_code = 302
-            is_redirect = True
-            is_permanent_redirect = False
-
-        class _Session:
-            def post(self, *a, **k):
-                return _Resp()
-
-        client._thread_local.session = _Session()
-
-        # Act and assert
-        assert client.search_assistants("https://dep.example", "w1") == ([], False)
-
-    def test_plaintext_deployment_urls_never_receive_the_token(self):
-        # Arrange
-        client = self._client()
-
-        class _Session:
-            def post(self, *a, **k):
-                raise AssertionError("must not send credentials over plaintext HTTP")
-
-        client._thread_local.session = _Session()
-
-        # Act and assert
-        assert client.search_assistants("http://dep.example", "w1") == ([], False)
-
-    def test_non_200_is_incomplete(self):
-        # Arrange
-        client = self._client()
-
-        class _Resp:
-            status_code = 500
-            is_redirect = False
-            is_permanent_redirect = False
-
-        class _Session:
-            def post(self, *a, **k):
-                return _Resp()
-
-        client._thread_local.session = _Session()
-
-        # Act and assert
-        assert client.search_assistants("https://dep.example", "w1") == ([], False)
-
-    def test_unexpected_shape_is_incomplete(self):
-        # Arrange
-        client = self._client()
-
-        class _Resp:
-            status_code = 200
-            is_redirect = False
-            is_permanent_redirect = False
-
-            def json(self):
-                return {"detail": "not a list"}
-
-        class _Session:
-            def post(self, *a, **k):
-                return _Resp()
-
-        client._thread_local.session = _Session()
-
-        # Act and assert
-        assert client.search_assistants("https://dep.example", "w1") == ([], False)

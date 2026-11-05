@@ -60,6 +60,7 @@ SIMPSON_CORP_ROUTES: dict[Route, Any] = {
     ): workspace_resources.LANGSMITH_ACCESS_POLICIES,
     ("/orgs/current/data-planes", None): workspace_resources.LANGSMITH_DATA_PLANES,
     **_per_workspace("/v2/deployments", deployments.LANGSMITH_DEPLOYMENTS),
+    **_per_workspace("/api/v1/agents", deployments.LANGSMITH_AGENT_LISTINGS),
     **_same_in_every_workspace(
         "/v2/auth/providers", agent_auth.LANGSMITH_OAUTH_PROVIDERS
     ),
@@ -101,19 +102,16 @@ class FakeLangSmithClient:
 
     Unknown routes answer 404, as the real API does. Routes in ``failures`` fail with the
     given status, or with a timeout when the status is None, the way the real client
-    reports them. Deployments in ``cold_deployment_urls`` fail their assistant search,
-    the way a scaled-to-zero deployment times out.
+    reports them.
     """
 
     def __init__(
         self,
         routes: dict[Route, Any] | None = None,
         failures: dict[Route, int | None] | None = None,
-        cold_deployment_urls: frozenset[str] = frozenset(),
     ) -> None:
         self.routes = SIMPSON_CORP_ROUTES if routes is None else routes
         self.failures = failures or {}
-        self.cold_deployment_urls = cold_deployment_urls
 
     def get(self, path: str, *, tenant_id: str | None = None, **_: Any) -> Any:
         route = (path, tenant_id)
@@ -127,13 +125,4 @@ class FakeLangSmithClient:
 
     get_paginated = get
     get_paginated_envelope = get
-
-    def search_assistants(
-        self, deployment_url: str, tenant_id: str
-    ) -> tuple[list[dict[str, Any]], bool]:
-        if deployment_url in self.cold_deployment_urls:
-            return [], False
-        return (
-            copy.deepcopy(deployments.LANGSMITH_ASSISTANTS.get(deployment_url, [])),
-            True,
-        )
+    get_cursor_paginated = get
