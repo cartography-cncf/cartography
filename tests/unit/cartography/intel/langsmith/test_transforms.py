@@ -6,7 +6,10 @@ Each test names the assumption or defect it guards against, so a future refactor
 quietly reintroduce it. These run without Neo4j.
 """
 
+import pytest
+
 from cartography.intel.langsmith import agent_auth
+from cartography.intel.langsmith import apikeys
 from cartography.intel.langsmith import deployments
 from cartography.intel.langsmith import organizations
 from cartography.intel.langsmith import roles
@@ -421,6 +424,25 @@ class TestAgentIdentityIsNamespacedByOrg:
         # Assert
         assert creds[0]["agent_id"] == f"{ORG}|agent-shared"
         assert creds[0]["raw_agent_id"] == "agent-shared"
+
+
+@pytest.mark.parametrize(
+    "short_key, listed_as, expected",
+    [
+        # The organization's service-key listing also returns workspace-scoped keys.
+        ("lsv2_sk_ab12", "workspace_key", "service_key"),
+        ("lsv2_pt_ab12", "pat", "pat"),
+        ("lsv2_tr_ab12", "workspace_key", "tracing_key"),
+        ("ls__ab12", "workspace_key", "legacy_key"),
+        ("unrecognized", "workspace_key", "workspace_key"),
+    ],
+)
+def test_key_type_comes_from_the_prefix_not_the_listing(short_key, listed_as, expected):
+    # Act
+    out = apikeys.key_type({"short_key": short_key, "key_type": listed_as})
+
+    # Assert
+    assert out == expected
 
 
 class TestConnectionLookups:

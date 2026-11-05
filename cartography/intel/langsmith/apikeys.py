@@ -170,14 +170,16 @@ def transform_keys(
                 # SCIM tokens report their prefix as short_token rather than short_key.
                 "short_key": key.get("short_key") or key.get("short_token"),
                 "description": key.get("description"),
-                "key_type": key["key_type"],
+                "key_type": key_type(key),
                 "access_scope": key.get("access_scope"),
                 "read_only": key.get("read_only"),
                 "created_at": key.get("created_at"),
                 "last_used_at": key.get("last_used_at"),
                 "expires_at": key.get("expires_at"),
                 "revoked_at": key.get("revoked_at"),
+                "is_tracing_key": key.get("is_tracing_key"),
                 "workspace_names": key.get("workspace_names") or [],
+                "scoped_workspace_ids": key.get("workspace_ids") or [],
                 "default_workspace_name": key.get("default_workspace_name"),
                 "owner_ls_user_id": owner_ls_user_id,
                 "workspace_id": workspace_id,
@@ -185,6 +187,27 @@ def transform_keys(
             }
         )
     return transformed
+
+
+# The prefix names the credential type. Listings overlap: the organization's service-key
+# listing also returns workspace-scoped service keys, so the listing a key came from says
+# less about it than its prefix does.
+_KEY_TYPE_BY_PREFIX = (
+    ("lsv2_pt_", "pat"),
+    ("lsv2_sk_", "service_key"),
+    ("lsv2_tr_", "tracing_key"),
+    ("lsv2_sc_", "scim_token"),
+    # Keys from before lsv2. LangSmith stopped accepting them in October 2024.
+    ("ls__", "legacy_key"),
+)
+
+
+def key_type(key: dict[str, Any]) -> str:
+    prefix = key.get("short_key") or key.get("short_token") or ""
+    for known_prefix, known_type in _KEY_TYPE_BY_PREFIX:
+        if prefix.startswith(known_prefix):
+            return known_type
+    return key["key_type"]
 
 
 @timeit

@@ -208,11 +208,42 @@ def test_sync_attributes_every_credential_to_its_owner(neo4j_session):
     ) == {("ci-deployer", WORKSPACE_PROD_ID)}
 
 
+def test_sync_shows_which_workspaces_a_key_reaches(neo4j_session):
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "LangSmithApiKey",
+        "short_key",
+        "LangSmithWorkspace",
+        "id",
+        "SCOPED_TO",
+    ) == {("lsv2_sk_abcd", WORKSPACE_PROD_ID)}
+    assert check_nodes(
+        neo4j_session, "LangSmithApiKey", ["short_key", "is_tracing_key"]
+    ) == {
+        ("lsv2_sk_abcd", None),
+        ("lsv2_pt_wxyz", None),
+        ("lsv2_sc_1234", None),
+        ("lsv2_ws_prod", True),
+    }
+
+
 def test_sync_links_sso_and_access_policies_to_roles(neo4j_session):
     # Act
     _sync(neo4j_session, FakeLangSmithClient())
 
     # Assert
+    assert check_nodes(
+        neo4j_session, "LangSmithAccessPolicy", ["effect", "condition_summary"]
+    ) == {
+        (
+            "allow",
+            "projects:read on project where resource_tag_key environment equals prod",
+        )
+    }
     assert check_rels(
         neo4j_session,
         "LangSmithSSOProvider",

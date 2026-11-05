@@ -142,21 +142,22 @@ def transform_providers(
 
 def _summarize_conditions(condition_groups: list[dict[str, Any]] | None) -> str | None:
     """
-    Render a policy's nested attribute condition groups as one readable line.
+    Render a policy's condition groups as one readable line.
 
-    The raw structure is arbitrarily nested JSON, which Neo4j cannot store as a property, so
-    it is flattened into a summary rather than dropped entirely.
+    The raw structure is nested JSON, which Neo4j cannot store as a property, so it is
+    flattened into a summary rather than dropped. Each group grants or denies one
+    permission on one resource type when all of its conditions hold.
     """
-    if not condition_groups:
-        return None
-    parts: list[str] = []
-    for group in condition_groups:
-        for condition in group.get("conditions") or []:
-            attribute = condition.get("attribute") or condition.get("key")
-            operator = condition.get("operator") or "="
-            value = condition.get("value") or condition.get("values")
-            parts.append(f"{attribute} {operator} {value}")
-    return " AND ".join(parts) if parts else None
+    groups: list[str] = []
+    for group in condition_groups or []:
+        conditions = " AND ".join(
+            f"{condition.get('attribute_name')} {condition.get('attribute_key')} "
+            f"{condition.get('operator')} {condition.get('attribute_value')}"
+            for condition in group.get("conditions") or []
+        )
+        scope = f"{group.get('permission')} on {group.get('resource_type')}"
+        groups.append(f"{scope} where {conditions}" if conditions else scope)
+    return " OR ".join(groups) or None
 
 
 def transform_policies(
@@ -172,6 +173,20 @@ def transform_policies(
                 "effect": policy.get("effect"),
                 "condition_summary": _summarize_conditions(
                     policy.get("condition_groups")
+                ),
+                "permissions": sorted(
+                    {
+                        group["permission"]
+                        for group in policy.get("condition_groups") or []
+                        if group.get("permission")
+                    }
+                ),
+                "resource_types": sorted(
+                    {
+                        group["resource_type"]
+                        for group in policy.get("condition_groups") or []
+                        if group.get("resource_type")
+                    }
                 ),
                 "role_ids": [
                     org_scoped_id(org_id, role_id)
