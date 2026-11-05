@@ -165,6 +165,63 @@ def test_sync_computers(mock_get, mock_groups_get, neo4j_session):
         (7002, 101),
     }
 
+    assert check_nodes(
+        neo4j_session,
+        "JamfApplication",
+        ["id", "bundle_id", "name", "version", "mac_app_store"],
+    ) == {
+        (
+            f"{TEST_JAMF_URI}#com.google.Chrome@131.0.6778.86",
+            "com.google.Chrome",
+            "Google Chrome.app",
+            "131.0.6778.86",
+            False,
+        ),
+        (
+            f"{TEST_JAMF_URI}#com.tinyspeck.slackmacgap@4.41.105",
+            "com.tinyspeck.slackmacgap",
+            "Slack.app",
+            "4.41.105",
+            True,
+        ),
+        (
+            f"{TEST_JAMF_URI}#Internal Tool.app@2.0",
+            None,
+            "Internal Tool.app",
+            "2.0",
+            False,
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "JamfComputer",
+        "id",
+        "JamfApplication",
+        "id",
+        "HAS_APP",
+        rel_direction_right=True,
+    ) == {
+        (7001, f"{TEST_JAMF_URI}#com.google.Chrome@131.0.6778.86"),
+        (7001, f"{TEST_JAMF_URI}#com.tinyspeck.slackmacgap@4.41.105"),
+        (7002, f"{TEST_JAMF_URI}#com.google.Chrome@131.0.6778.86"),
+        (7002, f"{TEST_JAMF_URI}#Internal Tool.app@2.0"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "JamfTenant",
+        "id",
+        "JamfApplication",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_JAMF_URI, f"{TEST_JAMF_URI}#com.google.Chrome@131.0.6778.86"),
+        (TEST_JAMF_URI, f"{TEST_JAMF_URI}#com.tinyspeck.slackmacgap@4.41.105"),
+        (TEST_JAMF_URI, f"{TEST_JAMF_URI}#Internal Tool.app@2.0"),
+    }
+
 
 @patch.object(
     cartography.intel.jamf.groups,
@@ -255,3 +312,30 @@ def test_sync_mobile_devices(mock_get, mock_groups_get, neo4j_session):
     ) == {
         (9001, 201),
     }
+
+
+@patch.object(cartography.intel.jamf.computers, "get", return_value=None)
+def test_sync_computers_keeps_nodes_when_inventory_unavailable(mock_get, neo4j_session):
+    # An unavailable endpoint must not clean up nodes from an earlier sync.
+    neo4j_session.run(
+        """
+        MERGE (t:JamfTenant {id: $tenant})
+        MERGE (c:JamfComputer {id: 9001})
+        MERGE (a:JamfApplication {id: 'kept-app'})
+        MERGE (t)-[:RESOURCE]->(c)
+        MERGE (t)-[:RESOURCE]->(a)
+        SET c.lastupdated = 1, a.lastupdated = 1
+        """,
+        tenant=TEST_JAMF_URI,
+    )
+
+    sync_computers(
+        neo4j_session,
+        MagicMock(),
+        TEST_JAMF_URI,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "TENANT_ID": TEST_JAMF_URI},
+    )
+
+    assert (9001,) in check_nodes(neo4j_session, "JamfComputer", ["id"])
+    assert ("kept-app",) in check_nodes(neo4j_session, "JamfApplication", ["id"])

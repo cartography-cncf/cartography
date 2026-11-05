@@ -40,6 +40,28 @@ COMPUTERS_RESPONSE = {
                 "realname": "Homer Simpson",
                 "email": "h.simpson@springfield.example",
             },
+            "applications": [
+                {
+                    "name": "Google Chrome.app",
+                    "path": "/Applications/Google Chrome.app",
+                    "version": "131.0.6778.86",
+                    "macAppStore": False,
+                    "sizeMegabytes": 1210,
+                    "bundleId": "com.google.Chrome",
+                    "updateAvailable": False,
+                    "externalVersionId": "0",
+                },
+                {
+                    "name": "Slack.app",
+                    "path": "/Applications/Slack.app",
+                    "version": "4.41.105",
+                    "macAppStore": True,
+                    "sizeMegabytes": 512,
+                    "bundleId": "com.tinyspeck.slackmacgap",
+                    "updateAvailable": False,
+                    "externalVersionId": "870913520",
+                },
+            ],
             "groupMemberships": [
                 {
                     "groupId": 101,
@@ -95,6 +117,28 @@ COMPUTERS_RESPONSE = {
                 "realname": "Lisa Simpson",
                 "email": "l.simpson@springfield.example",
             },
+            "applications": [
+                {
+                    "name": "Google Chrome.app",
+                    "path": "/Applications/Google Chrome.app",
+                    "version": "131.0.6778.86",
+                    "macAppStore": False,
+                    "sizeMegabytes": 1210,
+                    "bundleId": "com.google.Chrome",
+                    "updateAvailable": False,
+                    "externalVersionId": "0",
+                },
+                {
+                    "name": "Internal Tool.app",
+                    "path": "/Users/example.user/Applications/Internal Tool.app",
+                    "version": "2.0",
+                    "macAppStore": False,
+                    "sizeMegabytes": 12,
+                    "bundleId": None,
+                    "updateAvailable": False,
+                    "externalVersionId": None,
+                },
+            ],
             "groupMemberships": [
                 {
                     "groupId": 101,
