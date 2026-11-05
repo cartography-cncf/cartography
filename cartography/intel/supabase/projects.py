@@ -39,8 +39,8 @@ DATABASE_POSTURE_FIELDS: dict[str, tuple[str, ...]] = {
         "network_restrictions_status",
         "db_allowed_cidrs",
         "db_allowed_cidrs_v6",
-        # Derived from the same read, so it has to be restored with it: the empty-config
-        # fallback would otherwise compute "unrestricted" and overwrite a stored verdict.
+        # Derived from the same read, so it has to be restored with it: an unreadable
+        # read leaves it unknown, which would otherwise overwrite a stored verdict.
         "exposed_internet",
         "exposed_internet_type",
     ),
@@ -490,7 +490,13 @@ def transform_database(
         "network_restrictions_status": network_restrictions.get("status"),
         "db_allowed_cidrs": restrictions_config.get("dbAllowedCidrs"),
         "db_allowed_cidrs_v6": restrictions_config.get("dbAllowedCidrsV6"),
-        **_database_exposure(restrictions_config),
+        # An empty allowlist means "unrestricted" only when the API returned it. An
+        # unreadable or skipped read is unknown exposure, not exposure.
+        **(
+            _database_exposure(restrictions_config)
+            if posture.get("network_restrictions") is not None
+            else {"exposed_internet": None, "exposed_internet_type": None}
+        ),
         "pitr_enabled": backups.get("pitr_enabled"),
         "walg_enabled": backups.get("walg_enabled"),
         "latest_backup_at": iso_to_datetime(latest_backup_at),
