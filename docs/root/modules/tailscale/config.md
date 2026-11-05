@@ -35,9 +35,15 @@ for the canonical scope list.
 
 ## Configure Cartography
 
-Pass `--tailscale-org <tailnet-name>` for either authentication method. Find
-the tailnet name under [Settings >
+Pass `--tailscale-org <tailnet-id>` for either authentication method. Copy the
+**Tailnet ID**, such as `T1234CNTRL`, from [Settings >
 General](https://login.tailscale.com/admin/settings/general).
+
+Tailnets created before October 2025 also have a **Legacy ID**, such as
+`example.com`, and the Tailscale API still accepts it. If you already sync
+with the legacy ID, you can keep it. Cartography uses this value as the
+`TailscaleTailnet` node ID, so switching to the Tailnet ID creates a new
+tailnet node.
 
 For OAuth, pass the environment variable names with
 `--tailscale-oauth-client-id-env-var` and
@@ -56,7 +62,7 @@ cartography \
   --selected-modules tailscale \
   --tailscale-oauth-client-id-env-var TS_OAUTH_CLIENT_ID \
   --tailscale-oauth-client-secret-env-var TS_OAUTH_CLIENT_SECRET \
-  --tailscale-org example.com
+  --tailscale-org T1234CNTRL
 ```
 
 With an API access token:
@@ -67,7 +73,7 @@ export TAILSCALE_TOKEN="<token>"
 cartography \
   --selected-modules tailscale \
   --tailscale-token-env-var TAILSCALE_TOKEN \
-  --tailscale-org example.com
+  --tailscale-org T1234CNTRL
 ```
 
 ## Advanced Configuration

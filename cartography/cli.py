@@ -1859,7 +1859,10 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--tailscale-org",
-                    help="Tailscale organization name to sync.",
+                    help=(
+                        "Tailnet ID to sync, such as T1234CNTRL. Tailnets created "
+                        "before Oct 2025 also accept their legacy ID, such as example.com."
+                    ),
                     rich_help_panel=PANEL_TAILSCALE,
                     hidden=PANEL_TAILSCALE not in visible_panels,
                 ),
