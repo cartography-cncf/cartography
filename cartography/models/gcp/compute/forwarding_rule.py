@@ -22,11 +22,13 @@ class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
     partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when the load balancing scheme is external. `False` otherwise.",
     )  # Populated by the GCP_COMPUTE_FORWARDING_RULE_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How it is exposed. Always `direct`.",
     )  # Populated by the GCP_COMPUTE_FORWARDING_RULE_EXPOSURE analysis job.

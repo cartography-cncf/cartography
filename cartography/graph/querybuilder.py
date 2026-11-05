@@ -509,8 +509,9 @@ def _build_node_properties_statement(
 
     Note:
         The 'id' field is intentionally excluded from the SET clause as it's already
-        handled by the MERGE clause in the query pattern. The variable 'i' refers
-        to the Neo4j node being processed.
+        handled by the MERGE clause in the query pattern. Properties declared with
+        ``set_by_analysis=True`` are excluded too, so ingestion leaves them untouched.
+        The variable 'i' refers to the Neo4j node being processed.
     """
     ingest_fields_template = Template("i.$node_property = $property_ref")
 
@@ -521,8 +522,10 @@ def _build_node_properties_statement(
                 property_ref=property_ref,
             )
             for node_property, property_ref in node_property_map.items()
-            if node_property
-            != "id"  # The `MERGE` clause will have already set `id`; let's not set it again.
+            # The `MERGE` clause will have already set `id`; let's not set it again.
+            if node_property != "id"
+            # Analysis jobs own these values; writing them here would reset them to null.
+            and not property_ref.set_by_analysis
         ],
     )
 

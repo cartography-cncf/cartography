@@ -39,6 +39,7 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     )  # Populated from sync input and read by the AWS_EKS_ASSET_EXPOSURE analysis job.
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="Set to True if the EKS Cluster public API server endpoint is enabled",
     )  # Populated by the AWS_EKS_ASSET_EXPOSURE analysis job.

@@ -149,6 +149,7 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="Set to `True` if `private_nodes` is disabled or `control_plane_public_access` is true. Authorized networks and IAM are not considered.",
     )  # Populated by the GCP_GKE_ASSET_EXPOSURE analysis job.

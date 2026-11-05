@@ -13,6 +13,7 @@ from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
 from cartography.analysis.gcp.analysis import GCP_BUCKET_PUBLIC_PROJECTION
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_CLOUDRUN_EXPOSURE
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_INSTANCE_VPC_ANALYSIS
 from cartography.analysis.gcp.analysis import GCP_GKE_ASSET_EXPOSURE
@@ -790,9 +791,15 @@ def _sync_project_resources(
         # `gcp_compute_exposure` computes node properties (exposed_internet flags).
         # `gcp_lb_exposure` materializes EXPOSE edges for traversal/explanations.
         # We keep them split because they serve different outputs and cleanup scopes.
-        if requested_syncs is None or "compute" in requested_syncs:
-            for job in GCP_COMPUTE_EXPOSURE_JOBS:
+        for job in GCP_COMPUTE_EXPOSURE_JOBS:
+            # Cloud Run exposure reads only Cloud Run service data, so it follows the
+            # cloud_run sync; gating it on compute would leave its flags stale.
+            required_sync = (
+                "cloud_run" if job is GCP_COMPUTE_CLOUDRUN_EXPOSURE else "compute"
+            )
+            if requested_syncs is None or required_sync in requested_syncs:
                 run_typed_analysis_job(job, neo4j_session, common_job_parameters)
+        if requested_syncs is None or "compute" in requested_syncs:
             run_typed_analysis_job(
                 GCP_LB_EXPOSURE,
                 neo4j_session,

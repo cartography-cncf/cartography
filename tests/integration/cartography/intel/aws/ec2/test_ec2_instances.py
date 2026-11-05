@@ -2,9 +2,15 @@ from copy import deepcopy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.aws.ec2.instances
+import cartography.intel.aws.ec2.security_groups
 import cartography.intel.aws.iam
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_INSTANCE
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
+from cartography.intel.aws.ec2.security_groups import sync_ec2_security_groupinfo
+from cartography.util import run_typed_analysis_job
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -520,3 +526,116 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         (TEST_ACCOUNT_ID, "aws:ec2:i-04:rootfs"),
         (other_account_id, "aws:ec2:i-other:rootfs"),
     }
+
+
+def _reservations_without_public_ip(instance_id):
+    reservations = deepcopy(DESCRIBE_INSTANCES["Reservations"])
+    for reservation in reservations:
+        for instance in reservation["Instances"]:
+            if instance["InstanceId"] == instance_id:
+                del instance["PublicIpAddress"]
+    return reservations
+
+
+def _sync_instances_and_security_groups(neo4j_session, update_tag):
+    common_job_parameters = {"UPDATE_TAG": update_tag, "AWS_ID": TEST_ACCOUNT_ID}
+    sync_ec2_security_groupinfo(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        update_tag,
+        common_job_parameters,
+    )
+    sync_ec2_instances(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        update_tag,
+        common_job_parameters,
+    )
+    return common_job_parameters
+
+
+def _instance_exposure(neo4j_session):
+    result = neo4j_session.run(
+        """
+        MATCH (i:AWSEC2Instance)
+        RETURN i.id AS id, i.exposed_internet AS exposed, i.exposed_internet_type AS types
+        """,
+    )
+    return {record["id"]: (record["exposed"], record["types"]) for record in result}
+
+
+ONLY_I01_EXPOSED = {
+    "i-01": (True, ["direct"]),
+    "i-02": (None, None),
+    "i-03": (None, None),
+    "i-04": (None, None),
+}
+NONE_EXPOSED = {instance_id: (None, None) for instance_id in ONLY_I01_EXPOSED}
+
+
+@pytest.mark.parametrize(
+    "resync_reservations, expected_after_analysis",
+    [
+        pytest.param(
+            DESCRIBE_INSTANCES["Reservations"],
+            ONLY_I01_EXPOSED,
+            id="reload_keeps_flag",
+        ),
+        pytest.param(
+            _reservations_without_public_ip("i-01"),
+            NONE_EXPOSED,
+            id="unexposed_instance_loses_flag_on_next_analysis",
+        ),
+    ],
+)
+def test_ec2_instance_exposure_survives_reload_until_next_analysis(
+    neo4j_session,
+    mocker,
+    resync_reservations,
+    expected_after_analysis,
+):
+    # Arrange: i-01 has a public IP and is in sg-GROUP-ID, which allows 0.0.0.0/0 inbound.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mocker.patch.object(
+        cartography.intel.aws.ec2.security_groups,
+        "get_ec2_security_group_data",
+        return_value=[
+            {
+                "GroupId": "sg-GROUP-ID",
+                "IpPermissions": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": 22,
+                        "ToPort": 22,
+                        "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
+                    },
+                ],
+            },
+        ],
+    )
+    get_instances = mocker.patch.object(
+        cartography.intel.aws.ec2.instances,
+        "get_ec2_instances",
+        return_value=DESCRIBE_INSTANCES["Reservations"],
+    )
+    first_cycle = _sync_instances_and_security_groups(neo4j_session, TEST_UPDATE_TAG)
+    run_typed_analysis_job(AWS_EC2_ASSET_EXPOSURE_INSTANCE, neo4j_session, first_cycle)
+    assert _instance_exposure(neo4j_session) == ONLY_I01_EXPOSED
+
+    # Act: the next sync cycle reloads the instances before analysis runs again.
+    get_instances.return_value = resync_reservations
+    next_cycle = _sync_instances_and_security_groups(neo4j_session, TEST_UPDATE_TAG + 1)
+
+    # Assert: the load leaves the analysis-owned flags alone.
+    assert _instance_exposure(neo4j_session) == ONLY_I01_EXPOSED
+
+    # Act: analysis runs at the end of the sync cycle.
+    run_typed_analysis_job(AWS_EC2_ASSET_EXPOSURE_INSTANCE, neo4j_session, next_cycle)
+
+    # Assert: analysis keeps current exposure and clears exposure that no longer holds.
+    assert _instance_exposure(neo4j_session) == expected_after_analysis
