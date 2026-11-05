@@ -118,6 +118,9 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # analysis output.
     RelConstraint(src="LoadBalancer", dst="ComputePod", label="EXPOSE"),
     RelConstraint(src="LoadBalancer", dst="Container", label="EXPOSE"),
+    # A network access control, such as a WAF web ACL or Cloud Armor policy,
+    # protects the load balancer it is attached to.
+    RelConstraint(src="NetworkAccessControl", dst="LoadBalancer", label="PROTECTS"),
     # NOTE: no constraint for the entrypoint types that are not load balancers
     # (RailwayServiceDomain, RailwayCustomDomain, RailwayTCPProxy,
     # ModalSandboxTunnel). They carry no ontology label, so a constraint on them

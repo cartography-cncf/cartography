@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import botocore.exceptions
@@ -9,29 +7,34 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.cloudfront import CLOUDFRONT_PARTITIONS
+from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.wafv2 import AWSWebACLSchema
+from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
+from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+stat_handler = get_stats_client(__name__)
 
 # CLOUDFRONT-scoped web ACLs are global and can only be listed via us-east-1.
 CLOUDFRONT_SCOPE_REGION = "us-east-1"
 
 
-def _list_web_acls(client: Any, scope: str) -> List[Dict[str, Any]]:
+def _list_web_acls(client: Any, scope: str) -> list[dict[str, Any]]:
     """
     List WAFv2 web ACLs for the given scope.
 
     WAFv2 does not provide a paginator for list_web_acls, so we paginate
     manually with NextMarker.
     """
-    web_acls: List[Dict[str, Any]] = []
+    web_acls: list[dict[str, Any]] = []
     next_marker = None
     while True:
-        params: Dict[str, Any] = {"Scope": scope}
+        params: dict[str, Any] = {"Scope": scope}
         if next_marker:
             params["NextMarker"] = next_marker
         page = client.list_web_acls(**params)
@@ -46,7 +49,7 @@ def _list_web_acls(client: Any, scope: str) -> List[Dict[str, Any]]:
     return web_acls
 
 
-def _get_alb_arns_for_web_acl(client: Any, web_acl_arn: str) -> List[str]:
+def _get_alb_arns_for_web_acl(client: Any, web_acl_arn: str) -> list[str]:
     try:
         response = client.list_resources_for_web_acl(
             WebACLArn=web_acl_arn,
@@ -70,7 +73,7 @@ def get_web_acls(
     boto3_session: boto3.session.Session,
     region: str,
     scope: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get WAFv2 web ACLs for the given scope, including the ARNs of the
     application load balancers each REGIONAL web ACL protects.
@@ -95,10 +98,10 @@ def get_web_acls(
 
 
 def transform_web_acls(
-    web_acls: List[Dict[str, Any]],
+    web_acls: list[dict[str, Any]],
     scope: str,
-) -> List[Dict[str, Any]]:
-    transformed: List[Dict[str, Any]] = []
+) -> list[dict[str, Any]]:
+    transformed: list[dict[str, Any]] = []
     for web_acl in web_acls:
         transformed.append(
             {
@@ -116,7 +119,7 @@ def transform_web_acls(
 @timeit
 def load_web_acls(
     neo4j_session: neo4j.Session,
-    web_acl_data: List[Dict[str, Any]],
+    web_acl_data: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -139,7 +142,7 @@ def load_web_acls(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     logger.debug("Running WAFv2 cleanup job.")
     cleanup_job = GraphJob.from_node_schema(
@@ -177,10 +180,10 @@ def _sync_scope(
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         _sync_scope(
@@ -192,13 +195,34 @@ def sync(
             update_tag,
         )
 
-    _sync_scope(
-        neo4j_session,
-        boto3_session,
-        CLOUDFRONT_SCOPE_REGION,
-        "CLOUDFRONT",
-        current_aws_account_id,
-        update_tag,
-    )
+    # CLOUDFRONT-scoped web ACLs only exist where CloudFront does. Skip them in
+    # partitions without CloudFront, for example AWS GovCloud (US), instead of
+    # calling the commercial endpoint with the wrong credentials.
+    partition = get_account_partition(regions, boto3_session.region_name)
+    if partition in CLOUDFRONT_PARTITIONS:
+        _sync_scope(
+            neo4j_session,
+            boto3_session,
+            CLOUDFRONT_SCOPE_REGION,
+            "CLOUDFRONT",
+            current_aws_account_id,
+            update_tag,
+        )
+    else:
+        logger.info(
+            "Skipping CLOUDFRONT-scoped WAFv2 web ACLs for account %s: "
+            "CloudFront is not available in partition %s.",
+            current_aws_account_id,
+            partition,
+        )
 
     cleanup(neo4j_session, common_job_parameters)
+
+    merge_module_sync_metadata(
+        neo4j_session,
+        group_type="AWSAccount",
+        group_id=current_aws_account_id,
+        synced_type="AWSWebACL",
+        update_tag=update_tag,
+        stat_handler=stat_handler,
+    )

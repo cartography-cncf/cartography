@@ -3,12 +3,14 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import NETWORK_ACCESS_CONTROL
 
 
 @dataclass(frozen=True)
@@ -19,9 +21,9 @@ class AWSWebACLNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="The Amazon Resource Name (ARN) of the web ACL",
     )
-    web_acl_id: PropertyRef = PropertyRef(
+    acl_id: PropertyRef = PropertyRef(
         "Id",
-        description="The unique identifier WAF assigned to the web ACL. Required alongside the name and scope when calling the WAFv2 API",
+        description="The unique identifier WAF assigned to the web ACL. Required alongside the name and scope when calling the WAFv2 API. This is not the ARN that AWSCloudFrontDistribution.web_acl_id holds; match distributions on arn instead",
     )
     name: PropertyRef = PropertyRef(
         "Name", description="The customer-supplied name of the web ACL"
@@ -137,6 +139,9 @@ class AWSWebACLSchema(CartographyNodeSchema):
     """Representation of an AWS WAFv2 [web ACL](https://docs.aws.amazon.com/waf/latest/APIReference/API_WebACL.html)"""
 
     label: str = "AWSWebACL"
+    # NetworkAccessControl: ontology label for cross-provider network access
+    # controls, alongside GCP Cloud Armor policies and Azure firewalls.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_ACCESS_CONTROL])
     properties: AWSWebACLNodeProperties = AWSWebACLNodeProperties()
     sub_resource_relationship: AWSWebACLToAWSAccountRel = AWSWebACLToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
