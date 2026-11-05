@@ -41,9 +41,25 @@ General](https://login.tailscale.com/admin/settings/general).
 
 Tailnets created before October 2025 also have a **Legacy ID**, such as
 `example.com`, and the Tailscale API still accepts it. If you already sync
-with the legacy ID, you can keep it. Cartography uses this value as the
-`TailscaleTailnet` node ID, so switching to the Tailnet ID creates a new
-tailnet node.
+with the legacy ID, keep it.
+
+````{warning}
+Cartography uses this value as the `TailscaleTailnet` node ID, and Tailscale
+gives no way to tell that two IDs name the same tailnet. Switching an existing
+sync from the legacy ID to the Tailnet ID creates a second tailnet node. The old
+node stays in the graph, still linked to its devices, users, and other nodes,
+and nodes that exist only under it are never cleaned up.
+
+After the first sync with the new ID, delete the old tailnet and the nodes that
+only it owns:
+
+```cypher
+MATCH (old:TailscaleTailnet {id: "example.com"})
+OPTIONAL MATCH (old)-[:RESOURCE]->(n)
+WHERE NOT (n)<-[:RESOURCE]-(:TailscaleTailnet {id: "T1234CNTRL"})
+DETACH DELETE n, old
+```
+````
 
 For OAuth, pass the environment variable names with
 `--tailscale-oauth-client-id-env-var` and
