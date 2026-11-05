@@ -22,6 +22,9 @@ from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.findings import InspectorFindingToPackageMatchLink
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
+from cartography.models.aws.inspector.vulnerabilities import (
+    AWSInspectorVulnerabilitySchema,
+)
 from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
 from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import is_throttling_exception
@@ -166,10 +169,16 @@ async def _list_findings_page(client: Any, params: Dict[str, Any]) -> Dict[str, 
 
 def transform_inspector_findings(
     results: List[Dict[str, Any]],
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, str]]]:
+) -> Tuple[
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, str]],
+    List[Dict[str, Any]],
+]:
     findings_list: List[Dict] = []
     packages_set: Set[frozenset] = set()
     finding_to_package_map: List[Dict[str, str]] = []
+    vulnerabilities: Dict[str, Dict[str, Any]] = {}
 
     for f in results:
         finding: Dict = {}
@@ -181,7 +190,6 @@ def transform_inspector_findings(
         finding["firstobservedat"] = f["firstObservedAt"]
         finding["updatedat"] = f["updatedAt"]
         finding["awsaccount"] = f["awsAccountId"]
-        finding["description"] = f["description"]
         finding["type"] = f["type"]
         finding["status"] = f["status"]
         finding["fixavailable"] = f.get("fixAvailable")
@@ -212,40 +220,18 @@ def transform_inspector_findings(
                 "end"
             ]
             finding["portrange"] = _port_range_string(f["networkReachabilityDetails"])
-        if f.get("packageVulnerabilityDetails"):
-            finding["vulnerabilityid"] = f["packageVulnerabilityDetails"][
-                "vulnerabilityId"
-            ]
+        details = f.get("packageVulnerabilityDetails")
+        if details:
+            vulnerability_id = details["vulnerabilityId"]
+            finding["vulnerabilityid"] = vulnerability_id
             # Package-vulnerability findings are CVE-backed; expose the id under a
             # normalized cve_id so it feeds the :CVE ontology label's _ont_cve_id.
             # Network/code findings never enter this block, so their cve_id stays null.
-            finding["cve_id"] = f["packageVulnerabilityDetails"]["vulnerabilityId"]
-            finding["referenceurls"] = f["packageVulnerabilityDetails"].get(
-                "referenceUrls",
-            )
-            finding["relatedvulnerabilities"] = f["packageVulnerabilityDetails"].get(
-                "relatedVulnerabilities",
-            )
-            # packageVulnerabilityDetails.cvss is a list of per-source (vendor/NVD)
-            # CVSS entries.
-            finding["vendorcvssvectors"] = []
-            finding["vendorcvssscores"] = []
-            for cvss in f["packageVulnerabilityDetails"].get("cvss", []):
-                finding["vendorcvssvectors"].append(cvss["scoringVector"])
-                finding["vendorcvssscores"].append(cvss["baseScore"])
-            finding["source"] = f["packageVulnerabilityDetails"].get("source")
-            finding["sourceurl"] = f["packageVulnerabilityDetails"].get("sourceUrl")
-            finding["vendorcreatedat"] = f["packageVulnerabilityDetails"].get(
-                "vendorCreatedAt",
-            )
-            finding["vendorseverity"] = f["packageVulnerabilityDetails"].get(
-                "vendorSeverity",
-            )
-            finding["vendorupdatedat"] = f["packageVulnerabilityDetails"].get(
-                "vendorUpdatedAt",
-            )
+            finding["cve_id"] = vulnerability_id
+            finding["vendorseverity"] = details.get("vendorSeverity")
+            _add_vulnerability(vulnerabilities, f, details)
 
-            packages = transform_inspector_packages(f["packageVulnerabilityDetails"])
+            packages = transform_inspector_packages(details)
             finding["vulnerablepackageids"] = list(packages.keys())
             for package_id, package in packages.items():
                 finding_to_package_map.append(
@@ -260,9 +246,50 @@ def transform_inspector_findings(
                     }
                 )
                 packages_set.add(frozenset(package.items()))
+        else:
+            # Only package vulnerability findings share a description across
+            # resources; a network or code finding describes its own resource.
+            finding["description"] = f["description"]
         findings_list.append(finding)
     packages_list = [dict(p) for p in packages_set]
-    return findings_list, packages_list, finding_to_package_map
+    return (
+        findings_list,
+        packages_list,
+        finding_to_package_map,
+        list(vulnerabilities.values()),
+    )
+
+
+def _add_vulnerability(
+    vulnerabilities: Dict[str, Dict[str, Any]],
+    finding: Dict[str, Any],
+    details: Dict[str, Any],
+) -> None:
+    vulnerability_id = details["vulnerabilityId"]
+    vulnerability = vulnerabilities.get(vulnerability_id)
+    if vulnerability is None:
+        vulnerabilities[vulnerability_id] = {
+            "id": vulnerability_id,
+            "vulnerabilityid": vulnerability_id,
+            "cve_id": vulnerability_id,
+            "description": finding["description"],
+            "referenceurls": sorted(set(details.get("referenceUrls") or [])),
+            "relatedvulnerabilities": details.get("relatedVulnerabilities"),
+            # packageVulnerabilityDetails.cvss is a list of per-source (vendor/NVD)
+            # CVSS entries.
+            "vendorcvssvectors": [c["scoringVector"] for c in details.get("cvss", [])],
+            "vendorcvssscores": [c["baseScore"] for c in details.get("cvss", [])],
+            "source": details.get("source"),
+            "sourceurl": details.get("sourceUrl"),
+            "vendorcreatedat": details.get("vendorCreatedAt"),
+            "vendorupdatedat": details.get("vendorUpdatedAt"),
+        }
+        return
+    # Each finding lists the advisories of its own distribution, so the
+    # vulnerability gets every reference URL that any of its findings report.
+    vulnerability["referenceurls"] = sorted(
+        set(vulnerability["referenceurls"]) | set(details.get("referenceUrls") or []),
+    )
 
 
 def transform_inspector_packages(
@@ -307,6 +334,22 @@ def load_inspector_findings(
         AWSInspectorFindingSchema(),
         findings,
         Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def load_inspector_vulnerabilities(
+    neo4j_session: neo4j.Session,
+    vulnerabilities: List[Dict[str, Any]],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSInspectorVulnerabilitySchema(),
+        vulnerabilities,
         AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
@@ -373,6 +416,13 @@ def cleanup(
     ).run(
         neo4j_session,
     )
+    GraphJob.from_node_schema(
+        AWSInspectorVulnerabilitySchema(),
+        common_job_parameters,
+        iterationsize=batch_size,
+    ).run(
+        neo4j_session,
+    )
 
 
 def _load_inspector_findings_batch(
@@ -382,9 +432,24 @@ def _load_inspector_findings_batch(
     account_id: str,
     update_tag: int,
     current_aws_account_id: str,
+    reference_urls: Dict[str, Set[str]],
 ) -> None:
-    finding_data, package_data, finding_to_package_map = transform_inspector_findings(
-        findings
+    finding_data, package_data, finding_to_package_map, vulnerability_data = (
+        transform_inspector_findings(findings)
+    )
+    # A vulnerability's findings arrive across many batches, regions, and member
+    # accounts, and each load overwrites its reference URLs. Carrying the URLs seen
+    # earlier in the sync makes the last write hold all of them.
+    for vulnerability in vulnerability_data:
+        seen = reference_urls.setdefault(vulnerability["id"], set())
+        seen.update(vulnerability["referenceurls"])
+        vulnerability["referenceurls"] = sorted(seen)
+    # Findings link to their vulnerability on load, so it must exist first.
+    load_inspector_vulnerabilities(
+        neo4j_session,
+        vulnerability_data,
+        update_tag,
+        current_aws_account_id,
     )
     logger.info(f"Loading {len(finding_data)} findings from account {account_id}")
     load_inspector_findings(
@@ -418,6 +483,7 @@ async def _load_inspector_findings(
     update_tag: int,
     current_aws_account_id: str,
     batch_size: int,
+    reference_urls: Dict[str, Set[str]],
 ) -> None:
     region = client.meta.region_name
     pages: asyncio.Queue[List[Dict[str, Any]] | None] = asyncio.Queue(
@@ -447,6 +513,7 @@ async def _load_inspector_findings(
                         account_id,
                         update_tag,
                         current_aws_account_id,
+                        reference_urls,
                     )
                     await asyncio.wrap_future(last_load)
 
@@ -500,6 +567,7 @@ async def _sync_findings_for_account(
     account_id: str,
     update_tag: int,
     current_aws_account_id: str,
+    reference_urls: Dict[str, Set[str]],
     batch_size: int = BATCH_SIZE,
 ) -> bool:
     """
@@ -524,6 +592,7 @@ async def _sync_findings_for_account(
             update_tag,
             current_aws_account_id,
             batch_size,
+            reference_urls,
         )
     except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS:
         logger.warning(
@@ -559,6 +628,7 @@ async def _sync_findings(
     Returns whether every regional endpoint was reached, which makes cleanup safe.
     """
     cleanup_safe = True
+    reference_urls: Dict[str, Set[str]] = {}
     for region in regions:
         logger.info(
             f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
@@ -593,6 +663,7 @@ async def _sync_findings(
                     account_id,
                     update_tag,
                     current_aws_account_id,
+                    reference_urls,
                     batch_size,
                 )
                 if not synced:
