@@ -1,0 +1,2825 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Langsmith Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="LangSmith Queries" href="queries.html" /><link rel="prev" title="LangSmith Configuration" href="config.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/langsmith/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=4f8dd3c3" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/langsmith/schema.html"/>
+  <meta property="og:title" content="Langsmith Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../module-list.html">Intel Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/analysis.html">AWS Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/queries.html">CVE Metadata Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../huntress/index.html">Huntress</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/config.html">Huntress Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/schema.html">Huntress Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jira/index.html">Jira</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jira/config.html">Jira Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jira/schema.html">Jira Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jira/queries.html">Jira Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">LangSmith</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">LangSmith Configuration</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Langsmith Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="queries.html">LangSmith Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/config.html">Microsoft configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../notion/index.html">Notion</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../notion/config.html">Notion Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../notion/schema.html">Notion Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../orca/index.html">Orca Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../orca/config.html">Orca Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../orca/schema.html">Orca Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../opsgenie/index.html">Opsgenie</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../opsgenie/config.html">Opsgenie Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../opsgenie/schema.html">Opsgenie Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snowflake/index.html">Snowflake</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/config.html">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/queries.html">Trivy Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zendesk/index.html">Zendesk</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zendesk/config.html">Zendesk Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zendesk/schema.html">Zendesk Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zoom/index.html">Zoom</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zoom/config.html">Zoom Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zoom/schema.html">Zoom Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/index.html">Developer docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/index.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#langsmithaccesspolicy">LangSmithAccessPolicy</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithagent">LangSmithAgent</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithagentcredential">LangSmithAgentCredential</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithapikey">LangSmithApiKey</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithdataplane">LangSmithDataPlane</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithdeployment">LangSmithDeployment</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithmcpserver">LangSmithMcpServer</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithoauthclient">LangSmithOAuthClient</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithoauthprovider">LangSmithOAuthProvider</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithorganization">LangSmithOrganization</a><ul>
+<li><a class="reference internal" href="#id17">Properties</a></li>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithorgmembership">LangSmithOrgMembership</a><ul>
+<li><a class="reference internal" href="#id19">Properties</a></li>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithpermission">LangSmithPermission</a><ul>
+<li><a class="reference internal" href="#id21">Properties</a></li>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithresourcetag">LangSmithResourceTag</a><ul>
+<li><a class="reference internal" href="#id23">Properties</a></li>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithrole">LangSmithRole</a><ul>
+<li><a class="reference internal" href="#id25">Properties</a></li>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithsecret">LangSmithSecret</a><ul>
+<li><a class="reference internal" href="#id27">Properties</a></li>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithserviceaccount">LangSmithServiceAccount</a><ul>
+<li><a class="reference internal" href="#id29">Properties</a></li>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithssoprovider">LangSmithSSOProvider</a><ul>
+<li><a class="reference internal" href="#id31">Properties</a></li>
+<li><a class="reference internal" href="#id32">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithuser">LangSmithUser</a><ul>
+<li><a class="reference internal" href="#id33">Properties</a></li>
+<li><a class="reference internal" href="#id34">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithworkspace">LangSmithWorkspace</a><ul>
+<li><a class="reference internal" href="#id35">Properties</a></li>
+<li><a class="reference internal" href="#id36">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#langsmithworkspacemembership">LangSmithWorkspaceMembership</a><ul>
+<li><a class="reference internal" href="#id37">Properties</a></li>
+<li><a class="reference internal" href="#id38">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../module-list.html"><span itemprop="name">Intel Modules</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">LangSmith</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="3" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Langsmith Schema</strong>
+        <meta itemprop="position" content="4" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/langsmith/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/langsmith/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/langsmith/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/langsmith/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/langsmith/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="langsmith-schema">
+<h1>Langsmith Schema<a class="headerlink" href="#langsmith-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    LangSmithAccessPolicy -- ATTACHED_TO --&gt; LangSmithRole
+    LangSmithAgent -- HAS_CREDENTIAL --&gt; LangSmithAgentCredential
+    LangSmithAgentCredential -- FOR_PROVIDER --&gt; LangSmithOAuthProvider
+    LangSmithAgentCredential -- ON_BEHALF_OF --&gt; LangSmithUser
+    LangSmithApiKey -- ASSUMES --&gt; LangSmithRole
+    LangSmithApiKey -- OWNED_BY --&gt; LangSmithUser
+    LangSmithDeployment -- RUNS --&gt; LangSmithAgent
+    LangSmithOrgMembership -- HAS_ROLE --&gt; LangSmithRole
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithAccessPolicy
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithAgent
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithAgentCredential
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithApiKey
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithDataPlane
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithDeployment
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithMcpServer
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithOAuthClient
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithOAuthProvider
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithOrgMembership
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithPermission
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithResourceTag
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithRole
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithSSOProvider
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithSecret
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithServiceAccount
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithWorkspace
+    LangSmithOrganization -- RESOURCE --&gt; LangSmithWorkspaceMembership
+    LangSmithRole -- GRANTS --&gt; LangSmithPermission
+    LangSmithSSOProvider -- DEFAULT_ROLE --&gt; LangSmithRole
+    LangSmithSSOProvider -- PROVISIONS_INTO --&gt; LangSmithWorkspace
+    LangSmithServiceAccount -- DEFAULT_WORKSPACE --&gt; LangSmithWorkspace
+    LangSmithUser -- HAS_MEMBERSHIP --&gt; LangSmithOrgMembership
+    LangSmithUser -- HAS_MEMBERSHIP --&gt; LangSmithWorkspaceMembership
+    LangSmithUser -- MEMBER_OF --&gt; LangSmithWorkspace
+    LangSmithWorkspace -- CONTAINS --&gt; LangSmithApiKey
+    LangSmithWorkspace -- CONTAINS --&gt; LangSmithDeployment
+    LangSmithWorkspace -- CONTAINS --&gt; LangSmithMcpServer
+    LangSmithWorkspace -- CONTAINS --&gt; LangSmithOAuthClient
+    LangSmithWorkspace -- CONTAINS --&gt; LangSmithResourceTag
+    LangSmithWorkspace -- CONTAINS --&gt; LangSmithSecret
+    LangSmithWorkspaceMembership -- HAS_ROLE --&gt; LangSmithRole
+    LangSmithWorkspaceMembership -- IN_WORKSPACE --&gt; LangSmithWorkspace
+    </pre><section id="langsmithaccesspolicy">
+<h2>LangSmithAccessPolicy<a class="headerlink" href="#langsmithaccesspolicy" title="Link to this heading">#</a></h2>
+<p>An attribute-based access control policy. Policies attach to roles and restrict which
+tagged resources the role’s permissions apply to.</p>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Access policy UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>condition_summary</p></td>
+<td><p></p></td>
+<td><p>Flattened, human-readable rendering of the policy’s attribute-based condition groups, for example ‘project.tag in [prod]’.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the policy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>effect</p></td>
+<td><p></p></td>
+<td><p>Whether the policy allows or denies the matched resources.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Access policy name.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAccessPolicy)-[:ATTACHED_TO]-&gt;(:LangSmithRole)</span></code>: An access policy narrows the resources a role applies to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithAccessPolicy)</span></code>: Links an organization to one of its access policies.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithagent">
+<h2>LangSmithAgent<a class="headerlink" href="#langsmithagent" title="Link to this heading">#</a></h2>
+<p>An agent (assistant) that can hold OAuth credentials.</p>
+<p>Cartography discovers agents by listing each deployment’s assistants on its own data
+plane, because a LangGraph Platform agent id is an assistant id and the control plane
+doesn’t expose it. Deployments that declare an agent block, and credential records that name an
+agent, top up the inventory.</p>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthetic identifier of the form &lt;organization_id&gt;|&lt;assistant_id&gt;. LangSmith derives an assistant id from its graph, so two organizations running the same graph can produce the same assistant id; namespacing keeps their agents, deployments and credential paths from merging.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>assistant_id</p></td>
+<td><p>Yes</p></td>
+<td><p>The raw LangSmith assistant ID, as used by the agent-auth API.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the assistant was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the agent.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment</p></td>
+<td><p></p></td>
+<td><p>Environment the agent is deployed to, for example production.</p></td>
+</tr>
+<tr class="row-odd"><td><p>graph_id</p></td>
+<td><p></p></td>
+<td><p>Identifier of the LangGraph graph this agent runs.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Agent name, taken from the deployment that serves it when one exists.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the assistant was last updated.</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p></p></td>
+<td><p>Assistant version number.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAgent)-[:HAS_CREDENTIAL]-&gt;(:LangSmithAgentCredential)</span></code>: The agent that can use this credential.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithAgent)</span></code>: Links an organization to an agent running within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithDeployment)-[:RUNS]-&gt;(:LangSmithAgent)</span></code>: Links an agent to the deployment serving it.</p></li>
+</ul>
+<p>Set when Cartography discovers the agent by listing the deployment’s assistants, which
+is the usual case. LangSmith fills a deployment’s own agent block only for deployments
+created with an explicit agent binding.</p>
+<p>One-to-many: LangGraph derives an assistant id from its graph, so the same agent can be
+served by several deployments.</p>
+</section>
+</section>
+<section id="langsmithagentcredential">
+<h2>LangSmithAgentCredential<a class="headerlink" href="#langsmithagentcredential" title="Link to this heading">#</a></h2>
+<p>A third-party OAuth token a LangSmith agent holds on a human’s behalf, letting the
+agent call that provider’s API as them.</p>
+<p>Cartography ingests only metadata. oauth_token_id is an opaque reference, and
+Cartography never requests or receives an access token, refresh token, or client secret.</p>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Agent connection UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the connection was authorized.</p></td>
+</tr>
+<tr class="row-even"><td><p>expires_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the stored token expires, or null if it does not expire.</p></td>
+</tr>
+<tr class="row-odd"><td><p>oauth_token_id</p></td>
+<td><p></p></td>
+<td><p>Identifier of the stored token record. This is an opaque reference only; no access or refresh token material is ingested.</p></td>
+</tr>
+<tr class="row-even"><td><p>provider_account_label</p></td>
+<td><p></p></td>
+<td><p>Label identifying which upstream account the token belongs to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>scopes</p></td>
+<td><p></p></td>
+<td><p>OAuth scopes the stored token was granted.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAgentCredential)-[:FOR_PROVIDER]-&gt;(:LangSmithOAuthProvider)</span></code>: The third-party provider this credential authenticates against.</p></li>
+</ul>
+<p>Matched on the provider’s UUID, resolved during transform, rather than on its
+provider_id slug. The slug is operator-chosen, so two organizations can both define
+one called github-prod, and relationship matching carries no implicit organization
+constraint.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAgent)-[:HAS_CREDENTIAL]-&gt;(:LangSmithAgentCredential)</span></code>: The agent that can use this credential.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAgentCredential)-[:ON_BEHALF_OF]-&gt;(:LangSmithUser)</span></code>: The human whose third-party account the agent can act as. This is the edge that answers
+which agents hold which user’s OAuth tokens.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithAgentCredential)</span></code>: Links an organization to an agent credential held within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithapikey">
+<h2>LangSmithApiKey<a class="headerlink" href="#langsmithapikey" title="Link to this heading">#</a></h2>
+<p>A LangSmith credential: a personal access token, an organization service key, a
+workspace API key, or a SCIM token. Cartography stores only the non-secret short prefix.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-apikey"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">APIKey</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>API key UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>access_scope</p></td>
+<td><p></p></td>
+<td><p>Whether the key is scoped to an organization or a workspace.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the key was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>default_workspace_name</p></td>
+<td><p></p></td>
+<td><p>Name of the workspace this key targets when no workspace header is sent.</p></td>
+</tr>
+<tr class="row-even"><td><p>expires_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the key expires, or null if the key never expires.</p></td>
+</tr>
+<tr class="row-odd"><td><p>key_type</p></td>
+<td><p>Yes</p></td>
+<td><p>One of pat (personal access token, lsv2_pt), service_key (organization service key, lsv2_sk), workspace_key (workspace API key, lsv2_sk) or scim_token (lsv2_sc).</p></td>
+</tr>
+<tr class="row-even"><td><p>last_used_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the key was last used to authenticate.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>User-supplied description of the key.</p></td>
+</tr>
+<tr class="row-even"><td><p>read_only</p></td>
+<td><p></p></td>
+<td><p>Deprecated LangSmith flag retained on the API response.</p></td>
+</tr>
+<tr class="row-odd"><td><p>revoked_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the key was revoked, or null if the key is still live.</p></td>
+</tr>
+<tr class="row-even"><td><p>short_key</p></td>
+<td><p></p></td>
+<td><p>Truncated, non-secret prefix of the key, used to identify it in the UI. The full key value is never ingested.</p></td>
+</tr>
+<tr class="row-odd"><td><p>workspace_names</p></td>
+<td><p></p></td>
+<td><p>Names of the workspaces this key can reach.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_expires_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">expires_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_last_used_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">last_used_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithApiKey)-[:ASSUMES]-&gt;(:LangSmithRole)</span></code>: An API key acts with the permissions of the roles it is bound to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithApiKey)</span></code>: A workspace-scoped API key belongs to a workspace.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithApiKey)-[:OWNED_BY]-&gt;(:LangSmithUser)</span></code>: An API key is owned by the user account that created it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:OWNS]-&gt;(:LangSmithApiKey)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">OWNS</span> <span class="pre">APIKey</span> <span class="pre">linking</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithApiKey)</span></code>: Links an organization to an API key issued within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithdataplane">
+<h2>LangSmithDataPlane<a class="headerlink" href="#langsmithdataplane" title="Link to this heading">#</a></h2>
+<p>A self-hosted or bring-your-own-cloud data plane serving LangSmith workspaces.</p>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Data plane UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the data plane was registered.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Data plane name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Data plane status.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p></p></td>
+<td><p>URL of the data plane.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithDataPlane)</span></code>: Links an organization to a data plane registered to it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithdeployment">
+<h2>LangSmithDeployment<a class="headerlink" href="#langsmithdeployment" title="Link to this heading">#</a></h2>
+<p>A LangGraph Platform deployment serving an agent.</p>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Deployment UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the deployment was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>display_name</p></td>
+<td><p></p></td>
+<td><p>Human-readable deployment name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>image_version</p></td>
+<td><p></p></td>
+<td><p>Image version currently deployed.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_managed_deep_agent</p></td>
+<td><p></p></td>
+<td><p>True if this is a Managed Deep Agent deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_preview</p></td>
+<td><p></p></td>
+<td><p>True if this is a preview-build deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Deployment name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>route_through_gateway</p></td>
+<td><p></p></td>
+<td><p>True if OpenAI and Anthropic model calls are routed through the LangSmith LLM gateway.</p></td>
+</tr>
+<tr class="row-even"><td><p>secret_names</p></td>
+<td><p></p></td>
+<td><p>Names of the environment secrets configured on the deployment. Secret values are discarded during transform and are never written to the graph.</p></td>
+</tr>
+<tr class="row-odd"><td><p>secret_reference_names</p></td>
+<td><p></p></td>
+<td><p>Names of the Kubernetes Secret references configured on the deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p>shareable</p></td>
+<td><p></p></td>
+<td><p>True if the deployment can be shared with LangSmith users outside the organization.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source</p></td>
+<td><p></p></td>
+<td><p>Where the deployment image comes from, for example github or external_docker.</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Deployment status.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tracer_session_id</p></td>
+<td><p></p></td>
+<td><p>UUID of the LangSmith tracing project the deployment writes runs to.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the deployment was last updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>url</p></td>
+<td><p></p></td>
+<td><p>Serving URL of the deployment, once provisioned.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithDeployment)</span></code>: Links a deployment to the workspace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithDeployment)</span></code>: Links an organization to a deployment running within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithDeployment)-[:RUNS]-&gt;(:LangSmithAgent)</span></code>: Links an agent to the deployment serving it.</p></li>
+</ul>
+<p>Set when Cartography discovers the agent by listing the deployment’s assistants, which
+is the usual case. LangSmith fills a deployment’s own agent block only for deployments
+created with an explicit agent binding.</p>
+<p>One-to-many: LangGraph derives an assistant id from its graph, so the same agent can be
+served by several deployments.</p>
+</section>
+</section>
+<section id="langsmithmcpserver">
+<h2>LangSmithMcpServer<a class="headerlink" href="#langsmithmcpserver" title="Link to this heading">#</a></h2>
+<p>An MCP server a LangSmith workspace exposes to its agents.</p>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>MCP server or gateway UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>auth_type</p></td>
+<td><p></p></td>
+<td><p>How callers authenticate to this MCP server, for example oauth or none.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the MCP server was registered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the MCP server.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>MCP server name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>slug</p></td>
+<td><p></p></td>
+<td><p>MCP server slug.</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>MCP server status.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tool_names</p></td>
+<td><p></p></td>
+<td><p>Names of the tools this MCP server exposes, where the API reports them.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the MCP server was last updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>url</p></td>
+<td><p></p></td>
+<td><p>URL the MCP server is served from.</p></td>
+</tr>
+<tr class="row-even"><td><p>vendor</p></td>
+<td><p></p></td>
+<td><p>MCP vendor fronting this server, when it is a vendor-managed gateway.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithMcpServer)</span></code>: Links an MCP server to the workspace that exposes it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithMcpServer)</span></code>: Links an organization to an MCP server registered within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithoauthclient">
+<h2>LangSmithOAuthClient<a class="headerlink" href="#langsmithoauthclient" title="Link to this heading">#</a></h2>
+<p>A third-party application registered to call the LangSmith API through OAuth. This is
+LangSmith acting as the authorization server, the reverse direction from
+LangSmithOAuthProvider.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-thirdpartyapp"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ThirdPartyApp</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>OAuth client ID issued by LangSmith.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>allowed_scopes</p></td>
+<td><p></p></td>
+<td><p>LangSmith scopes this client is permitted to request.</p></td>
+</tr>
+<tr class="row-even"><td><p>client_type</p></td>
+<td><p></p></td>
+<td><p>Client type, for example public or confidential.</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_uri</p></td>
+<td><p></p></td>
+<td><p>Home page URI of the client application.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the client was registered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>disabled</p></td>
+<td><p></p></td>
+<td><p>True if the client has been disabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>grant_types</p></td>
+<td><p></p></td>
+<td><p>OAuth grant types this client may use.</p></td>
+</tr>
+<tr class="row-odd"><td><p>logo_uri</p></td>
+<td><p></p></td>
+<td><p>Logo URI of the client application.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Display name of the OAuth client.</p></td>
+</tr>
+<tr class="row-odd"><td><p>policy_uri</p></td>
+<td><p></p></td>
+<td><p>Privacy policy URI of the client application.</p></td>
+</tr>
+<tr class="row-even"><td><p>redirect_uris</p></td>
+<td><p></p></td>
+<td><p>Redirect URIs registered for this client.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tos_uri</p></td>
+<td><p></p></td>
+<td><p>Terms of service URI of the client application.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the client was last updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_client_id</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:AUTHORIZED]-&gt;(:LangSmithOAuthClient)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">AUTHORIZED</span> <span class="pre">ThirdPartyApp</span> <span class="pre">linking</span></code>.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>scopes</p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">AUTHORIZED</span> <span class="pre">ThirdPartyApp</span> <span class="pre">linking</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithOAuthClient)</span></code>: Links an OAuth client to the workspace it was registered in.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithOAuthClient)</span></code>: Links an organization to an OAuth client registered against it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithoauthprovider">
+<h2>LangSmithOAuthProvider<a class="headerlink" href="#langsmithoauthprovider" title="Link to this heading">#</a></h2>
+<p>A third-party OAuth provider that LangSmith agents can obtain tokens from on a user’s
+behalf, such as GitHub, Google or an MCP server.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-thirdpartyapp"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ThirdPartyApp</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>OAuth provider record UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>allowed_redirect_uris</p></td>
+<td><p></p></td>
+<td><p>Redirect URIs accepted when completing the OAuth flow.</p></td>
+</tr>
+<tr class="row-even"><td><p>auth_url</p></td>
+<td><p></p></td>
+<td><p>Upstream authorization endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_id</p></td>
+<td><p></p></td>
+<td><p>OAuth client ID registered with the upstream provider. The client secret is never returned by the API and is not ingested.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the provider was registered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_dynamic_client</p></td>
+<td><p></p></td>
+<td><p>True if the OAuth client was registered dynamically rather than configured.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_platform_provider</p></td>
+<td><p></p></td>
+<td><p>True if this is a LangChain-managed provider rather than one the organization configured.</p></td>
+</tr>
+<tr class="row-odd"><td><p>mcp_server_url</p></td>
+<td><p></p></td>
+<td><p>URL of the MCP server this provider fronts, when the provider is MCP-backed.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Display name of the OAuth provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p>provider_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Operator-chosen provider slug, for example github-prod.</p></td>
+</tr>
+<tr class="row-even"><td><p>provider_type</p></td>
+<td><p></p></td>
+<td><p>Provider category, for example oauth2 or mcp.</p></td>
+</tr>
+<tr class="row-odd"><td><p>token_endpoint_auth_method</p></td>
+<td><p></p></td>
+<td><p>How LangSmith authenticates to the token endpoint.</p></td>
+</tr>
+<tr class="row-even"><td><p>token_url</p></td>
+<td><p></p></td>
+<td><p>Upstream token endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the provider was last updated.</p></td>
+</tr>
+<tr class="row-even"><td><p>uses_pkce</p></td>
+<td><p></p></td>
+<td><p>True if the provider uses PKCE.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_client_id</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">client_id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:AUTHORIZED]-&gt;(:LangSmithOAuthProvider)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">AUTHORIZED</span> <span class="pre">ThirdPartyApp</span> <span class="pre">linking</span></code>.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>scopes</p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">AUTHORIZED</span> <span class="pre">ThirdPartyApp</span> <span class="pre">linking</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAgentCredential)-[:FOR_PROVIDER]-&gt;(:LangSmithOAuthProvider)</span></code>: The third-party provider this credential authenticates against.</p></li>
+</ul>
+<p>Matched on the provider’s UUID, resolved during transform, rather than on its
+provider_id slug. The slug is operator-chosen, so two organizations can both define
+one called github-prod, and relationship matching carries no implicit organization
+constraint.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithOAuthProvider)</span></code>: Links an organization to an OAuth provider configured within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithorganization">
+<h2>LangSmithOrganization<a class="headerlink" href="#langsmithorganization" title="Link to this heading">#</a></h2>
+<p>A LangSmith organization: the top-level tenant that owns workspaces, users and roles.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id17">
+<h3>Properties<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>LangSmith organization UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>disabled</p></td>
+<td><p></p></td>
+<td><p>True if the organization is disabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>invites_enabled</p></td>
+<td><p></p></td>
+<td><p>True if members may be invited to the organization.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ip_allowlist_enabled</p></td>
+<td><p></p></td>
+<td><p>True if an IP allowlist is enforced for this organization.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_personal</p></td>
+<td><p></p></td>
+<td><p>True if this is a personal organization rather than a shared one.</p></td>
+</tr>
+<tr class="row-odd"><td><p>jit_provisioning_enabled</p></td>
+<td><p></p></td>
+<td><p>True if SSO just-in-time user provisioning is enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>max_api_key_expiry_days</p></td>
+<td><p></p></td>
+<td><p>Maximum lifetime in days allowed for an API key, or null for unlimited.</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_pat_expiry_days</p></td>
+<td><p></p></td>
+<td><p>Maximum lifetime in days allowed for a personal access token, or null for unlimited.</p></td>
+</tr>
+<tr class="row-even"><td><p>max_service_key_expiry_days</p></td>
+<td><p></p></td>
+<td><p>Maximum lifetime in days allowed for a service key, or null for unlimited.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Organization display name.</p></td>
+</tr>
+<tr class="row-even"><td><p>pat_creation_disabled</p></td>
+<td><p></p></td>
+<td><p>True if members are blocked from creating personal access tokens.</p></td>
+</tr>
+<tr class="row-odd"><td><p>public_sharing_disabled</p></td>
+<td><p></p></td>
+<td><p>True if publicly sharing runs, prompts and datasets is blocked.</p></td>
+</tr>
+<tr class="row-even"><td><p>security_contact</p></td>
+<td><p></p></td>
+<td><p>Email address listed as the organization’s security contact.</p></td>
+</tr>
+<tr class="row-odd"><td><p>sso_login_slug</p></td>
+<td><p></p></td>
+<td><p>Vanity slug used for the SSO login URL.</p></td>
+</tr>
+<tr class="row-even"><td><p>sso_only</p></td>
+<td><p></p></td>
+<td><p>True if members may only authenticate through SSO.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tier</p></td>
+<td><p></p></td>
+<td><p>Payment plan tier the organization is on.</p></td>
+</tr>
+<tr class="row-even"><td><p>workspace_admin_can_invite_to_org</p></td>
+<td><p></p></td>
+<td><p>True if workspace admins may invite users to the whole organization.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithAccessPolicy)</span></code>: Links an organization to one of its access policies.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithAgent)</span></code>: Links an organization to an agent running within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithAgentCredential)</span></code>: Links an organization to an agent credential held within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithApiKey)</span></code>: Links an organization to an API key issued within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithDataPlane)</span></code>: Links an organization to a data plane registered to it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithDeployment)</span></code>: Links an organization to a deployment running within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithMcpServer)</span></code>: Links an organization to an MCP server registered within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithOAuthClient)</span></code>: Links an organization to an OAuth client registered against it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithOAuthProvider)</span></code>: Links an organization to an OAuth provider configured within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithOrgMembership)</span></code>: Links an organization to one of its memberships.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithPermission)</span></code>: Links an organization to a permission available within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithResourceTag)</span></code>: Links an organization to a resource tag defined within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithRole)</span></code>: Links an organization to a role available within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithSSOProvider)</span></code>: Links an organization to its configured SSO provider.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithSecret)</span></code>: Links an organization to a workspace secret held within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithServiceAccount)</span></code>: Links an organization to one of its service accounts.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithWorkspace)</span></code>: Links an organization to a workspace it owns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithWorkspaceMembership)</span></code>: Links an organization to a workspace membership within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithorgmembership">
+<h2>LangSmithOrgMembership<a class="headerlink" href="#langsmithorgmembership" title="Link to this heading">#</a></h2>
+<p>A user’s membership in a single organization, together with the role they hold there.</p>
+<p>Modeled as a node so that organization-specific state stays organization-specific: a
+user can belong to several organizations, and each has its own view of whether that
+identity is disabled, what role it holds and how it was provisioned.</p>
+<section id="id19">
+<h3>Properties<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthetic identifier of the form &lt;organization_id&gt;|&lt;ls_user_id&gt;.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the user joined the organization.</p></td>
+</tr>
+<tr class="row-even"><td><p>email</p></td>
+<td><p></p></td>
+<td><p>Email address of the member, denormalized for convenience.</p></td>
+</tr>
+<tr class="row-odd"><td><p>identity_id</p></td>
+<td><p></p></td>
+<td><p>UUID of the organization-scoped identity row backing this membership. This is a membership identifier, not a user identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_disabled</p></td>
+<td><p></p></td>
+<td><p>True if this organization identity is deactivated. Deactivated identities cannot authenticate, and their personal access tokens are rejected. This is per-organization state, which is why it is not on the user node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_pending</p></td>
+<td><p></p></td>
+<td><p>True if this is an outstanding invitation rather than an accepted membership.</p></td>
+</tr>
+<tr class="row-even"><td><p>login_methods</p></td>
+<td><p></p></td>
+<td><p>Auth providers linked to this identity, for example email, oidc or saml.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ls_user_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Stable LangSmith user ID of the member.</p></td>
+</tr>
+<tr class="row-even"><td><p>provisioning_methods</p></td>
+<td><p></p></td>
+<td><p>How the identity’s login methods were provisioned, for example scim or saml:jit.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role_name</p></td>
+<td><p></p></td>
+<td><p>Display name of the organization role held.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithUser)-[:HAS_MEMBERSHIP]-&gt;(:LangSmithOrgMembership)</span></code>: Links a user to their membership of one organization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrgMembership)-[:HAS_ROLE]-&gt;(:LangSmithRole)</span></code>: Links a membership to the organization role it confers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithOrgMembership)</span></code>: Links an organization to one of its memberships.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithpermission">
+<h2>LangSmithPermission<a class="headerlink" href="#langsmithpermission" title="Link to this heading">#</a></h2>
+<p>A single LangSmith permission string that roles may grant.</p>
+<section id="id21">
+<h3>Properties<a class="headerlink" href="#id21" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthetic identifier of the form &lt;organization_id&gt;|<permission string>. Permission strings repeat across organizations, and each organization’s cleanup must only ever touch its own nodes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>access_scope</p></td>
+<td><p></p></td>
+<td><p>Whether the permission applies at organization or workspace scope.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Permission string, for example organization:manage or deployments:read.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithRole)-[:GRANTS]-&gt;(:LangSmithPermission)</span></code>: A role grants a permission.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithPermission)</span></code>: Links an organization to a permission available within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithresourcetag">
+<h2>LangSmithResourceTag<a class="headerlink" href="#langsmithresourcetag" title="Link to this heading">#</a></h2>
+<p>A workspace resource tag. Tags are the attributes that attribute-based access policies
+match on.</p>
+<p>Cartography doesn’t ingest the tagging edges that attach these tags to individual
+projects, datasets, and prompts, because those resource types are outside this module’s
+scope.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tag"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tag</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id23">
+<h3>Properties<a class="headerlink" href="#id23" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Tag value UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>key</p></td>
+<td><p>Yes</p></td>
+<td><p>Tag key name.</p></td>
+</tr>
+<tr class="row-even"><td><p>key_id</p></td>
+<td><p></p></td>
+<td><p>UUID of the tag key this value belongs to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>value</p></td>
+<td><p></p></td>
+<td><p>Tag value.</p></td>
+</tr>
+<tr class="row-even"><td><p>workspace_id</p></td>
+<td><p></p></td>
+<td><p>UUID of the workspace the tag is defined in.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithResourceTag)</span></code>: Links a resource tag to the workspace it is defined in.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithResourceTag)</span></code>: Links an organization to a resource tag defined within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithrole">
+<h2>LangSmithRole<a class="headerlink" href="#langsmithrole" title="Link to this heading">#</a></h2>
+<p>A LangSmith RBAC role, either a built-in system role or an organization’s custom role.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-permissionrole"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PermissionRole</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id25">
+<h3>Properties<a class="headerlink" href="#id25" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthetic identifier of the form &lt;organization_id&gt;|<role UUID>. Built-in roles keep the same UUID in every organization.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>access_scope</p></td>
+<td><p></p></td>
+<td><p>Whether the role applies at organization or workspace scope.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the role.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_custom</p></td>
+<td><p></p></td>
+<td><p>True if this is a user-defined role rather than a LangSmith built-in. Derived from the presence of an owning organization_id.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_restricted</p></td>
+<td><p></p></td>
+<td><p>True if the organization has applied a restriction to this role.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Role display name. Prefer this over system_name: every custom role is stored with the system name CUSTOM, so only the display name distinguishes them.</p></td>
+</tr>
+<tr class="row-even"><td><p>role_id</p></td>
+<td><p>Yes</p></td>
+<td><p>LangSmith role UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role_type</p></td>
+<td><p></p></td>
+<td><p>builtin for a LangSmith system role, custom for an organization-defined one.</p></td>
+</tr>
+<tr class="row-even"><td><p>system_name</p></td>
+<td><p></p></td>
+<td><p>Internal role name, for example ORGANIZATION_ADMIN or WORKSPACE_VIEWER. Always CUSTOM for user-defined roles.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_scope</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">access_scope</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">role_type</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithApiKey)-[:ASSUMES]-&gt;(:LangSmithRole)</span></code>: An API key acts with the permissions of the roles it is bound to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAccessPolicy)-[:ATTACHED_TO]-&gt;(:LangSmithRole)</span></code>: An access policy narrows the resources a role applies to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithSSOProvider)-[:DEFAULT_ROLE]-&gt;(:LangSmithRole)</span></code>: The workspace role granted to users provisioned through this provider.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithRole)-[:GRANTS]-&gt;(:LangSmithPermission)</span></code>: A role grants a permission.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrgMembership)-[:HAS_ROLE]-&gt;(:LangSmithRole)</span></code>: Links a membership to the organization role it confers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspaceMembership)-[:HAS_ROLE]-&gt;(:LangSmithRole)</span></code>: Links a membership to the role it confers in that workspace.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithRole)</span></code>: Links an organization to a role available within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithsecret">
+<h2>LangSmithSecret<a class="headerlink" href="#langsmithsecret" title="Link to this heading">#</a></h2>
+<p>A workspace secret. Cartography ingests only the key name and never calls LangSmith’s
+encrypted-secrets endpoint.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-secret"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Secret</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id27">
+<h3>Properties<a class="headerlink" href="#id27" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthetic identifier of the form &lt;workspace_id&gt;|<key>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Secret key name. The secret value is never ingested.</p></td>
+</tr>
+<tr class="row-even"><td><p>workspace_id</p></td>
+<td><p></p></td>
+<td><p>UUID of the workspace holding the secret.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithSecret)</span></code>: Links a secret to the workspace that holds it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithSecret)</span></code>: Links an organization to a workspace secret held within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithserviceaccount">
+<h2>LangSmithServiceAccount<a class="headerlink" href="#langsmithserviceaccount" title="Link to this heading">#</a></h2>
+<p>A LangSmith service account: a non-human principal that can hold service keys.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-serviceaccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ServiceAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id29">
+<h3>Properties<a class="headerlink" href="#id29" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Service account UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the service account was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Service account name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the service account was last updated.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithServiceAccount)-[:DEFAULT_WORKSPACE]-&gt;(:LangSmithWorkspace)</span></code>: Links a service account to the workspace it defaults to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithServiceAccount)</span></code>: Links an organization to one of its service accounts.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithssoprovider">
+<h2>LangSmithSSOProvider<a class="headerlink" href="#langsmithssoprovider" title="Link to this heading">#</a></h2>
+<p>An SSO identity provider configured for a LangSmith organization.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-identityprovider"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">IdentityProvider</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id31">
+<h3>Properties<a class="headerlink" href="#id31" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>SSO settings UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>attribute_mapping_load_error</p></td>
+<td><p></p></td>
+<td><p>Error reported while loading the provider’s attribute mapping, if any.</p></td>
+</tr>
+<tr class="row-even"><td><p>has_metadata_xml</p></td>
+<td><p></p></td>
+<td><p>True if SSO metadata was supplied inline as XML rather than by URL. The XML itself is not ingested.</p></td>
+</tr>
+<tr class="row-odd"><td><p>metadata_url</p></td>
+<td><p></p></td>
+<td><p>URL of the provider’s SAML or OIDC metadata document.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier of the upstream SSO provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p>sso_groups_claim_field</p></td>
+<td><p></p></td>
+<td><p>Name of the assertion claim carrying the user’s groups.</p></td>
+</tr>
+<tr class="row-even"><td><p>sso_groups_enabled</p></td>
+<td><p></p></td>
+<td><p>True if group claims from the provider are consumed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>sso_groups_required</p></td>
+<td><p></p></td>
+<td><p>True if a user must carry a matching group claim in order to log in.</p></td>
+</tr>
+<tr class="row-even"><td><p>sso_groups_role_sync_enabled</p></td>
+<td><p></p></td>
+<td><p>True if workspace roles are synchronized from provider group claims.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id32">
+<h3>Relationships<a class="headerlink" href="#id32" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithSSOProvider)-[:DEFAULT_ROLE]-&gt;(:LangSmithRole)</span></code>: The workspace role granted to users provisioned through this provider.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithSSOProvider)-[:PROVISIONS_INTO]-&gt;(:LangSmithWorkspace)</span></code>: A workspace that just-in-time provisioned users are placed into by default.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithSSOProvider)</span></code>: Links an organization to its configured SSO provider.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithuser">
+<h2>LangSmithUser<a class="headerlink" href="#langsmithuser" title="Link to this heading">#</a></h2>
+<p>A LangSmith user account, keyed on the stable ls_user_id.</p>
+<p>A user can belong to several organizations, so this node deliberately carries only
+identity that is true of the person everywhere. Everything organization-specific, such as
+whether the identity is disabled, which organization role it holds, and how it was
+provisioned, lives on LangSmithOrgMembership, because storing it here would mean one
+organization’s sync overwriting another’s view of the same human.</p>
+<p>For the same reason the node has no sub-resource relationship: it is not owned by any
+single organization, and cleanup never deletes it, so one organization’s sync cannot
+destroy an identity another organization still references. Its relationships are all
+owned by organization-scoped schemas (memberships, keys, credentials) or by the
+organization-scoped MEMBER_OF matchlink, and cleanup prunes them with their owner.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id33">
+<h3>Properties<a class="headerlink" href="#id33" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Stable LangSmith user ID. Used instead of the user_id field, which mirrors the first linked auth provider subject and is not stable across login methods.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>avatar_url</p></td>
+<td><p></p></td>
+<td><p>URL of the user’s avatar image.</p></td>
+</tr>
+<tr class="row-even"><td><p>display_name</p></td>
+<td><p></p></td>
+<td><p>User display name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>Yes</p></td>
+<td><p>User email address.</p></td>
+</tr>
+<tr class="row-even"><td><p>ls_user_id</p></td>
+<td><p></p></td>
+<td><p>Stable LangSmith user ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>User full name.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_email</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">email</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_fullname</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id34">
+<h3>Relationships<a class="headerlink" href="#id34" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:LangSmithUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithUser)-[:HAS_MEMBERSHIP]-&gt;(:LangSmithOrgMembership)</span></code>: Links a user to their membership of one organization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithUser)-[:HAS_MEMBERSHIP]-&gt;(:LangSmithWorkspaceMembership)</span></code>: Links a user to one of their workspace memberships.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithUser)-[:MEMBER_OF]-&gt;(:LangSmithWorkspace)</span></code>: A user is a member of a workspace. The role held there is on the membership node.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithAgentCredential)-[:ON_BEHALF_OF]-&gt;(:LangSmithUser)</span></code>: The human whose third-party account the agent can act as. This is the edge that answers
+which agents hold which user’s OAuth tokens.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithApiKey)-[:OWNED_BY]-&gt;(:LangSmithUser)</span></code>: An API key is owned by the user account that created it.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithworkspace">
+<h2>LangSmithWorkspace<a class="headerlink" href="#langsmithworkspace" title="Link to this heading">#</a></h2>
+<p>A LangSmith workspace, called a tenant in the API, scoping projects, datasets and deployments.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id35">
+<h3>Properties<a class="headerlink" href="#id35" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Workspace (tenant) UUID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the workspace was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>data_plane_url</p></td>
+<td><p></p></td>
+<td><p>URL of the data plane serving this workspace, for self-hosted and BYOC deployments.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_deleted</p></td>
+<td><p></p></td>
+<td><p>True if the workspace has been deleted.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_personal</p></td>
+<td><p></p></td>
+<td><p>True if this is a user’s personal workspace rather than a shared one.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Workspace display name.</p></td>
+</tr>
+<tr class="row-even"><td><p>tenant_handle</p></td>
+<td><p></p></td>
+<td><p>URL handle for the workspace.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id36">
+<h3>Relationships<a class="headerlink" href="#id36" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithApiKey)</span></code>: A workspace-scoped API key belongs to a workspace.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithDeployment)</span></code>: Links a deployment to the workspace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithMcpServer)</span></code>: Links an MCP server to the workspace that exposes it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithOAuthClient)</span></code>: Links an OAuth client to the workspace it was registered in.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithResourceTag)</span></code>: Links a resource tag to the workspace it is defined in.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspace)-[:CONTAINS]-&gt;(:LangSmithSecret)</span></code>: Links a secret to the workspace that holds it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithServiceAccount)-[:DEFAULT_WORKSPACE]-&gt;(:LangSmithWorkspace)</span></code>: Links a service account to the workspace it defaults to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspaceMembership)-[:IN_WORKSPACE]-&gt;(:LangSmithWorkspace)</span></code>: Links a membership to the workspace it grants access to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithUser)-[:MEMBER_OF]-&gt;(:LangSmithWorkspace)</span></code>: A user is a member of a workspace. The role held there is on the membership node.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithSSOProvider)-[:PROVISIONS_INTO]-&gt;(:LangSmithWorkspace)</span></code>: A workspace that just-in-time provisioned users are placed into by default.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithWorkspace)</span></code>: Links an organization to a workspace it owns.</p></li>
+</ul>
+</section>
+</section>
+<section id="langsmithworkspacemembership">
+<h2>LangSmithWorkspaceMembership<a class="headerlink" href="#langsmithworkspacemembership" title="Link to this heading">#</a></h2>
+<p>A user’s membership in a single workspace, together with the role they hold there.</p>
+<p>This is modeled as a node rather than a relationship because role assignment is a
+(user, workspace, role) triple and LangSmith supports organization-defined custom roles,
+so the role cannot be encoded in a fixed set of relationship labels.</p>
+<section id="id37">
+<h3>Properties<a class="headerlink" href="#id37" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthetic identifier of the form &lt;ls_user_id&gt;|&lt;workspace_id&gt;.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the membership was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>email</p></td>
+<td><p></p></td>
+<td><p>Email address of the member, denormalized for convenience.</p></td>
+</tr>
+<tr class="row-odd"><td><p>identity_id</p></td>
+<td><p></p></td>
+<td><p>UUID of the workspace-scoped identity row backing this membership.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_disabled</p></td>
+<td><p></p></td>
+<td><p>True if the member’s identity is deactivated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_pending</p></td>
+<td><p></p></td>
+<td><p>True if this is an outstanding workspace invitation rather than an accepted membership.</p></td>
+</tr>
+<tr class="row-even"><td><p>ls_user_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Stable LangSmith user ID of the member.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role_name</p></td>
+<td><p></p></td>
+<td><p>Display name of the role held in this workspace.</p></td>
+</tr>
+<tr class="row-even"><td><p>workspace_id</p></td>
+<td><p>Yes</p></td>
+<td><p>UUID of the workspace.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id38">
+<h3>Relationships<a class="headerlink" href="#id38" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithUser)-[:HAS_MEMBERSHIP]-&gt;(:LangSmithWorkspaceMembership)</span></code>: Links a user to one of their workspace memberships.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspaceMembership)-[:HAS_ROLE]-&gt;(:LangSmithRole)</span></code>: Links a membership to the role it confers in that workspace.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithWorkspaceMembership)-[:IN_WORKSPACE]-&gt;(:LangSmithWorkspace)</span></code>: Links a membership to the workspace it grants access to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:LangSmithOrganization)-[:RESOURCE]-&gt;(:LangSmithWorkspaceMembership)</span></code>: Links an organization to a workspace membership within it.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">LangSmith Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="queries.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">LangSmith Queries</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+      <script src="../../_static/expand-intel-modules.js?v=8f45ed9c"></script></body>
+</html>
