@@ -53,3 +53,11 @@ updates:
     commit-message:
       # Prefix all commit messages with "chore: "
       prefix: "chore: "
+    ignore:
+      # Moving the base image to a new Python minor is a deliberate change, not a
+      # weekly bump. Without this, Dependabot proposes only the newest minor, and
+      # the pinned 3.13 base stops receiving patch and digest updates.
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
