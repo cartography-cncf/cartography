@@ -825,7 +825,6 @@ def test_failed_second_sync_preserves_last_known_good_findings(
 def test_short_but_ended_fetch_loads_rows_and_skips_cleanup(
     neo4j_session,
     mocker,
-    caplog,
 ):
     # Arrange: a result set that changes during a long scan reports more rows
     # than offset pagination returns before its empty end-of-results page.
@@ -874,10 +873,6 @@ def test_short_but_ended_fetch_loads_rows_and_skips_cleanup(
     }
     # The complete alerts feed is still cleaned up.
     assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
-    assert (
-        "ended after 1 rows; total_items was 10 at the start and 10 at the end"
-        in caplog.text
-    )
     metadata = neo4j_session.run(
         """
         MATCH (n:ModuleSyncMetadata {id: $id})

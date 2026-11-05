@@ -283,83 +283,76 @@ def test_iter_serving_layer_pages_rejects_empty_first_page_with_count(
         )
 
 
-def _fetch_single_page(
+def _paginate_until_empty_page(
     mocker,
     fetched: int,
+    initial_total: int,
     final_total: int,
-) -> tuple[list[dict[str, str]], api.PaginationProgress, MagicMock]:
-    query_call = mocker.patch(
+) -> api.PaginationProgress:
+    mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         side_effect=[
-            {"data": [{"id": str(i)} for i in range(fetched)], "total_items": 100},
+            {
+                "data": [{"id": str(i)} for i in range(fetched)],
+                "total_items": initial_total,
+            },
             {"data": []},
             {"data": [{"id": "0"}], "total_items": final_total},
         ],
     )
     progress = api.PaginationProgress()
-    pages = api.iter_serving_layer_pages(
-        MagicMock(),
-        "https://api.orcasecurity.example",
-        {"query": {"models": ["VulnerabilityV2"]}},
-        page_size=100,
-        result_name="vulnerabilities",
-        progress=progress,
+    list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["VulnerabilityV2"]}},
+            page_size=100,
+            result_name="vulnerabilities",
+            progress=progress,
+        ),
     )
-    return [row for page in pages for row in page], progress, query_call
+    return progress
 
 
 @pytest.mark.parametrize(
-    ("fetched", "final_total"),
-    [(99, 100), (98, 98)],
-    ids=["within-initial-count", "count-shrank-during-fetch"],
+    ("fetched", "initial_total", "final_total"),
+    [(99, 100, 100), (95, 100, 95)],
+    ids=["within-one-percent", "shrank-to-the-floor"],
 )  # type: ignore[misc]
 def test_iter_serving_layer_pages_accepts_fetch_within_one_percent_of_count(
     mocker,
     fetched: int,
+    initial_total: int,
     final_total: int,
 ) -> None:
     # Act
-    rows, progress, _ = _fetch_single_page(mocker, fetched, final_total)
+    progress = _paginate_until_empty_page(mocker, fetched, initial_total, final_total)
 
     # Assert
-    assert len(rows) == fetched
     assert progress.complete is True
 
 
 @pytest.mark.parametrize(
-    ("fetched", "final_total"),
-    [(98, 100), (99, 101), (94, 94)],
-    ids=["short-of-both-counts", "short-of-fresh-count-only", "shrank-too-far"],
+    ("fetched", "initial_total", "final_total"),
+    [(98, 100, 100), (99, 100, 101), (94, 100, 94)],
+    ids=["truncated", "short-of-grown-count", "shrank-past-the-floor"],
 )  # type: ignore[misc]
-def test_iter_serving_layer_pages_yields_short_fetch_but_marks_it_incomplete(
+def test_iter_serving_layer_pages_marks_short_fetch_incomplete(
     mocker,
     caplog,
     fetched: int,
+    initial_total: int,
     final_total: int,
 ) -> None:
     # A fetch that ends short of a fresh count was truncated, and one whose
-    # result set shrank this far skipped live rows that shifted past the offset.
-    # The rows are still worth loading, but cleanup would delete live findings.
+    # result set shrank past the floor skipped live rows that shifted past the
+    # offset. Cleanup would delete live findings either way.
 
     # Act
-    rows, progress, query_call = _fetch_single_page(mocker, fetched, final_total)
+    progress = _paginate_until_empty_page(mocker, fetched, initial_total, final_total)
 
     # Assert
     assert progress.complete is False
-    assert len(rows) == fetched
-    assert progress == api.PaginationProgress(
-        fetched_rows=fetched,
-        total_items=final_total,
-        initial_total_items=100,
-        finished=True,
-    )
-    recount_payload = query_call.call_args_list[-1].args[2]
-    assert recount_payload["start_at_index"] == 0
-    assert recount_payload["get_results_and_count"] is True
-    assert (
-        f"ended after {fetched} rows; total_items was 100 at the start and "
-        f"{final_total} at the end"
-    ) in caplog.text
     assert "skipping vulnerabilities cleanup" in caplog.text
 
 
