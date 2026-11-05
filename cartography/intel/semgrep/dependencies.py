@@ -14,6 +14,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
+from cartography.models.semgrep.dependencies import SemgrepMavenLibrarySchema
 from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -29,6 +30,7 @@ _MAX_RETRIES = 3
 # https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion
 ECOSYSTEM_TO_SCHEMA: Dict = {
     "gomod": SemgrepGoLibrarySchema,
+    "maven": SemgrepMavenLibrarySchema,
     "npm": SemgrepNpmLibrarySchema,
 }
 
@@ -36,6 +38,7 @@ ECOSYSTEM_TO_SCHEMA: Dict = {
 # with the same package discovered by Trivy/Syft (Package ontology dedup key).
 ECOSYSTEM_TO_PACKAGE_TYPE: Dict = {
     "gomod": "golang",
+    "maven": "maven",
     "npm": "npm",
 }
 
@@ -51,7 +54,7 @@ def parse_and_validate_semgrep_ecosystems(ecosystems: str) -> List[str]:
             valid_ecosystems: str = ",".join(ECOSYSTEM_TO_SCHEMA.keys())
             raise ValueError(
                 f'Error parsing `semgrep-dependency-ecosystems`. You specified "{ecosystems}". '
-                f'Please check that your input is formatted as comma-separated values, e.g. "gomod,npm". '
+                f'Please check that your input is formatted as comma-separated values, e.g. "gomod,maven,npm". '
                 f"Full list of supported ecosystems: {valid_ecosystems}.",
             )
     return validated_ecosystems
@@ -67,7 +70,7 @@ def get_dependencies(
     Gets all dependencies for the given ecosystem within the given Semgrep deployment ID.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
     param: deployment_id: The Semgrep deployment ID to use for retrieving dependencies.
-    param: ecosystem: The ecosystem to import dependencies from, e.g. "gomod" or "npm".
+    param: ecosystem: The ecosystem to import dependencies from, e.g. "gomod", "maven", or "npm".
     """
     all_deps = []
     deps_url = f"https://semgrep.dev/api/v1/deployments/{deployment_id}/dependencies"
@@ -280,6 +283,7 @@ def sync_dependencies(
     ``skip_cleanup`` leaves cleanup to ``cleanup_dependencies``, for orchestrators
     that sync several deployments into one graph under the same update tag.
     """
+
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
     if not deployment_id:
         logger.warning(
