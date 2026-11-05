@@ -1,6 +1,5 @@
 import json
 import logging
-from datetime import datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -11,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
+from cartography.intel.github.util import parse_github_timestamp
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.personal_access_tokens import (
     GitHubPersonalAccessTokenSchema,
@@ -18,16 +18,6 @@ from cartography.models.github.personal_access_tokens import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def _to_datetime(value: Any) -> datetime | None:
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        logger.debug("Could not parse GitHub timestamp %r as ISO 8601.", value)
-        return None
 
 
 def _owner_user_url(
@@ -178,11 +168,11 @@ def _transform_fine_grained_token(
             json.dumps(permissions, sort_keys=True) if permissions is not None else None
         ),
         "scopes": None,
-        "access_granted_at": _to_datetime(raw_token.get("access_granted_at")),
+        "access_granted_at": parse_github_timestamp(raw_token.get("access_granted_at")),
         "credential_authorized_at": None,
         "credential_accessed_at": None,
-        "expires_at": _to_datetime(raw_token.get("token_expires_at")),
-        "last_used_at": _to_datetime(raw_token.get("token_last_used_at")),
+        "expires_at": parse_github_timestamp(raw_token.get("token_expires_at")),
+        "last_used_at": parse_github_timestamp(raw_token.get("token_last_used_at")),
         "repository_urls": repository_urls,
     }
 
@@ -214,13 +204,13 @@ def _transform_saml_credential_authorization(
         "permissions": None,
         "scopes": raw_credential.get("scopes") or [],
         "access_granted_at": None,
-        "credential_authorized_at": _to_datetime(
+        "credential_authorized_at": parse_github_timestamp(
             raw_credential.get("credential_authorized_at")
         ),
-        "credential_accessed_at": _to_datetime(
+        "credential_accessed_at": parse_github_timestamp(
             raw_credential.get("credential_accessed_at")
         ),
-        "expires_at": _to_datetime(
+        "expires_at": parse_github_timestamp(
             raw_credential.get("authorized_credential_expires_at")
         ),
         "last_used_at": None,

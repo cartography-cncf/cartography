@@ -81,23 +81,23 @@ class DatabricksCatalogNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksCatalogToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksCatalogToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksCatalog)
-class DatabricksCatalogToWorkspaceRel(CartographyRelSchema):
-    """A Databricks catalog is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksCatalog)
+class DatabricksCatalogToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks catalog is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksCatalogToWorkspaceRelProperties = (
-        DatabricksCatalogToWorkspaceRelProperties()
+    properties: DatabricksCatalogToMetastoreResourceRelProperties = (
+        DatabricksCatalogToMetastoreResourceRelProperties()
     )
 
 
@@ -134,8 +134,8 @@ class DatabricksCatalogSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [DATABRICKS_SECURABLE, DATABASE]
     )
-    sub_resource_relationship: DatabricksCatalogToWorkspaceRel = (
-        DatabricksCatalogToWorkspaceRel()
+    sub_resource_relationship: DatabricksCatalogToMetastoreResourceRel = (
+        DatabricksCatalogToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksCatalogToMetastoreRel()],

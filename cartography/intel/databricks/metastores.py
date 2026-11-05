@@ -3,9 +3,11 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
+from cartography.models.databricks.metastore import DatabricksMetastoreAssignmentRel
 from cartography.models.databricks.metastore import DatabricksMetastoreSchema
 from cartography.util import timeit
 
@@ -23,8 +25,6 @@ def sync(
     locations, ...) can attach to it, or None when no metastore is assigned.
     """
     metastore = get(api_session)
-    # Load empty + cleanup when the workspace has no metastore so a workspace
-    # that lost its assignment does not leave a stale metastore node behind.
     transformed = transform(metastore) if metastore is not None else []
     load_metastores(
         neo4j_session,
@@ -80,19 +80,26 @@ def load_metastores(
     workspace_id: str,
     update_tag: int,
 ) -> None:
-    load(
-        neo4j_session,
-        DatabricksMetastoreSchema(),
-        data,
-        lastupdated=update_tag,
-        WORKSPACE_ID=workspace_id,
-    )
+    load(neo4j_session, DatabricksMetastoreSchema(), data, lastupdated=update_tag)
+    if data:
+        load_matchlinks(
+            neo4j_session,
+            DatabricksMetastoreAssignmentRel(),
+            data,
+            lastupdated=update_tag,
+            WORKSPACE_ID=workspace_id,
+            _sub_resource_label="DatabricksWorkspace",
+            _sub_resource_id=workspace_id,
+        )
 
 
 @timeit
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+def cleanup_assignment(
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> None:
-    GraphJob.from_node_schema(DatabricksMetastoreSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_matchlink(
+        DatabricksMetastoreAssignmentRel(),
+        "DatabricksWorkspace",
+        workspace_id,
+        update_tag,
+    ).run(neo4j_session)

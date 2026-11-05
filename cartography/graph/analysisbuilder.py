@@ -49,12 +49,11 @@ def compile_query(
         _cleanup_effect(effect)
     prefixes: list[str] = []
     if scope:
-        prefixes.append(_declared_scope_match(scope, scope_index))
-    prefixes.extend(_incremental_matches(statement))
+        prefixes.append(_declared_scope_match(scope, scope_index, statement.match))
     return "\n".join(
         (
             *prefixes,
-            statement.match.strip(),
+            _gate_incremental_targets(statement.match, statement).strip(),
             *(_compile_effect(e) for e in statement.effects),
         )
     )
@@ -173,6 +172,7 @@ def _validate_identifier(value: str, description: str) -> str:
 def _declared_scope_match(
     scope: ScopeById,
     scope_index: int,
+    match: str,
 ) -> str:
     if scope.scope_on is None:
         raise ValueError("ScopeById requires scope_on for analysis queries.")
@@ -186,6 +186,10 @@ def _declared_scope_match(
     id_param = _validate_identifier(scope.id_param, "scope ID parameter")
     rel_label = _validate_identifier(scope.rel_label, "scope relationship label")
     _validate_identifier(alias, "scope variable")
+    if _node_label_for_alias(match, alias) == scope_label:
+        # The scope node is not a RESOURCE of itself, so a statement that writes a
+        # marker on it, such as a per-account check, anchors it by ID.
+        return f"MATCH ({alias}:{scope_label} {{{id_property}: ${id_param}}})"
     return (
         f"MATCH (scope:{scope_label} "
         f"{{{id_property}: ${id_param}}})-[:{rel_label}]->({alias})"
@@ -209,35 +213,73 @@ def _incremental_targets(
     )
 
 
-def _incremental_matches(statement: AnalysisStatement) -> tuple[str, ...]:
-    if statement.match is None:
-        return ()
-    matches: list[str] = []
+_FRESHNESS_GATE = "lastupdated: $UPDATE_TAG"
+_PATTERN_LABELS = r"(?:\s*:\s*[A-Za-z_][A-Za-z0-9_]*)*"
+_STRING_OR_COMMENT = re.compile(
+    r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"|//[^\n]*|/\*.*?\*/",
+    re.DOTALL,
+)
+_CLAUSE_KEYWORD = re.compile(
+    r"(?<![A-Za-z0-9_.:$`])"
+    r"(OPTIONAL\s+MATCH|MATCH|WHERE|WITH|RETURN|UNWIND|CALL|ORDER\s+BY|SKIP|LIMIT|UNION)"
+    r"(?![A-Za-z0-9_])",
+    re.IGNORECASE,
+)
+
+
+def _gate_incremental_targets(match: str, statement: AnalysisStatement) -> str:
+    # The gate rides on the variable's own pattern element. Standalone prefix
+    # MATCH clauses share no pattern with each other, so Neo4j plans them as a
+    # cartesian product that grows with the square of the node count.
     for target in _incremental_targets(statement):
         variable = _validate_identifier(target.variable, "incremental variable")
-        if target.relationship:
-            rel_type = _relationship_type_for_alias(statement.match, variable)
-            rel_label = f":{rel_type}" if rel_type else ""
-            matches.append(
-                f"MATCH ()-[{variable}{rel_label} " "{lastupdated: $UPDATE_TAG}]->()"
+        opener, closer = ("[", "]") if target.relationship else ("(", ")")
+        element = re.compile(
+            rf"(?<![A-Za-z0-9_]){re.escape(opener)}\s*{variable}\b{_PATTERN_LABELS}"
+            rf"(?=\s*[{{{re.escape(closer)}])"
+        )
+        found = _find_in_required_match_patterns(match, element)
+        if found is None:
+            kind = "relationship" if target.relationship else "node"
+            raise ValueError(
+                f"incremental_on variable {variable!r} must appear as a {kind} "
+                "pattern element of a top-level, non-optional MATCH in match."
             )
+        head = match[: found.end()]
+        tail = match[found.end() :].lstrip()
+        if tail.startswith("{"):
+            properties = tail[1:]
+            separator = "" if properties.lstrip().startswith("}") else ", "
+            match = f"{head} {{{_FRESHNESS_GATE}{separator}{properties}"
         else:
-            label = _node_label_for_alias(statement.match, variable)
-            node_label = f":{label}" if label else ""
-            matches.append(
-                f"MATCH ({variable}{node_label} " "{lastupdated: $UPDATE_TAG})"
-            )
-    return tuple(matches)
+            match = f"{head} {{{_FRESHNESS_GATE}}}{tail}"
+    return match
+
+
+def _find_in_required_match_patterns(
+    match: str,
+    element: re.Pattern[str],
+) -> re.Match[str] | None:
+    # In an expression, an OPTIONAL MATCH or a subquery, the gate would change
+    # what the statement matches instead of narrowing it to fresh rows.
+    masked = _STRING_OR_COMMENT.sub(lambda token: "_" * len(token.group()), match)
+    clauses = [
+        clause
+        for clause in _CLAUSE_KEYWORD.finditer(masked)
+        if masked.count("{", 0, clause.start()) == masked.count("}", 0, clause.start())
+    ]
+    for clause, following in zip(clauses, [*clauses[1:], None]):
+        if clause.group(1).upper() != "MATCH":
+            continue
+        end = following.start() if following else len(masked)
+        found = element.search(masked, clause.end(), end)
+        if found:
+            return found
+    return None
 
 
 def _node_label_for_alias(match: str, alias: str) -> str | None:
     pattern = re.compile(rf"\(\s*{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)")
-    found = pattern.search(match)
-    return found.group(1) if found else None
-
-
-def _relationship_type_for_alias(match: str, alias: str) -> str | None:
-    pattern = re.compile(rf"\[\s*{re.escape(alias)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)")
     found = pattern.search(match)
     return found.group(1) if found else None
 
@@ -358,7 +400,12 @@ def _(effect: SetProperty) -> PropertyEffect:
 
 @_property_effect.register
 def _(effect: SetProperties) -> PropertyEffect:
-    return PropertyEffect(_require_label(effect.label), tuple(effect.properties))
+    return PropertyEffect(
+        _require_label(effect.label),
+        tuple(effect.properties),
+        cleanup_before_statements=effect.cleanup_stamp is None,
+        cleanup_stamp=effect.cleanup_stamp,
+    )
 
 
 @_property_effect.register
@@ -462,10 +509,16 @@ def _(effect: RelationshipEffect, scope: ScopeById | None) -> str:
 def _(effect: PropertyEffect, scope: ScopeById | None) -> str:
     node = f"(node:{effect.node_label})"
     match = f"MATCH {node}"
-    if scope:
+    if scope and effect.node_label == scope.label:
+        # A property on the scope node itself, such as a per-account marker.
+        match = f"MATCH {_scope_match(scope, 'node')}"
+    elif scope:
         match = f"MATCH {_scope_match(scope, 'scope')}-[:{scope.rel_label}]->{node}"
     props = ", ".join(f"node.{prop}" for prop in effect.properties)
     filters = " OR ".join(f"node.{prop} IS NOT NULL" for prop in effect.properties)
+    if effect.cleanup_stamp:
+        stamp = f"node.{effect.cleanup_stamp}"
+        filters = f"({filters}) AND ({stamp} IS NULL OR {stamp} <> $UPDATE_TAG)"
     return f"{match}\nWHERE {filters}\nWITH node LIMIT $LIMIT_SIZE\nREMOVE {props}"
 
 

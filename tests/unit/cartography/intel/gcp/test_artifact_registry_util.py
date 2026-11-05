@@ -6,6 +6,7 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import PermissionDenied
 from google.api_core.exceptions import ServiceUnavailable
 
+from cartography.intel.gcp.artifact_registry.util import ARTIFACT_REGISTRY_LIST_TIMEOUT
 from cartography.intel.gcp.artifact_registry.util import (
     fetch_artifact_registry_resources,
 )
@@ -17,21 +18,26 @@ from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
 
 
 def test_get_artifact_registry_locations_success():
-    client = SimpleNamespace(
-        list_locations=lambda request: SimpleNamespace(
+    timeouts: list[float | None] = []
+
+    def _list_locations(request, timeout=None):
+        timeouts.append(timeout)
+        return SimpleNamespace(
             locations=[
                 SimpleNamespace(location_id="us-central1"),
                 SimpleNamespace(location_id="europe-west1"),
             ]
         )
-    )
+
+    client = SimpleNamespace(list_locations=_list_locations)
 
     locations = get_artifact_registry_locations(client, "test-project")
     assert locations == ["us-central1", "europe-west1"]
+    assert timeouts == [ARTIFACT_REGISTRY_LIST_TIMEOUT]
 
 
 def test_get_artifact_registry_locations_forbidden_returns_none(caplog):
-    def _raise_permission_denied(request):
+    def _raise_permission_denied(request, **kwargs):
         raise PermissionDenied("permission denied")
 
     client = SimpleNamespace(list_locations=_raise_permission_denied)
@@ -46,7 +52,7 @@ def test_get_artifact_registry_locations_forbidden_returns_none(caplog):
 def test_get_artifact_registry_locations_retries_transient_gapic_error(_):
     calls = 0
 
-    def _list_locations(request):
+    def _list_locations(request, **kwargs):
         nonlocal calls
         calls += 1
         if calls == 1:
@@ -62,7 +68,7 @@ def test_get_artifact_registry_locations_retries_transient_gapic_error(_):
 def test_list_artifact_registry_resources_does_not_retry_non_retryable_gapic_error():
     calls = 0
 
-    def _fetcher():
+    def _fetcher(**kwargs):
         nonlocal calls
         calls += 1
         raise PermissionDenied("permission denied")
@@ -77,7 +83,7 @@ def test_list_artifact_registry_resources_does_not_retry_non_retryable_gapic_err
 def test_list_artifact_registry_resources_raises_after_exhausting_retries(_):
     calls = 0
 
-    def _fetcher():
+    def _fetcher(**kwargs):
         nonlocal calls
         calls += 1
         raise ServiceUnavailable("transient backend error")
@@ -89,7 +95,7 @@ def test_list_artifact_registry_resources_raises_after_exhausting_retries(_):
 
 
 def test_get_artifact_registry_locations_unknown_error_raises(caplog):
-    def _raise_api_error(request):
+    def _raise_api_error(request, **kwargs):
         raise GoogleAPICallError("backend error")
 
     client = SimpleNamespace(list_locations=_raise_api_error)

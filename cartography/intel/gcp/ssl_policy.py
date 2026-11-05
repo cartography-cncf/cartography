@@ -11,12 +11,14 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import aggregated_page_incomplete
 from cartography.intel.gcp.util import aggregated_response_cleanup_safe
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import GCP_EXPECTED_SKIP_CATEGORIES
 from cartography.intel.gcp.util import merge_aggregated_scope_items
 from cartography.intel.gcp.util import summarize_gcp_http_error
+from cartography.intel.gcp.util import with_return_partial_success
 from cartography.models.gcp.compute.ssl_policy import GCPSslPolicySchema
 from cartography.util import timeit
 
@@ -35,10 +37,10 @@ def get_gcp_ssl_policies(
     :return: Aggregated response object containing SSL policies, or None if access is denied
     """
     items: dict[str, dict] = {}
+    incomplete = False
     response_id = f"projects/{project_id}/aggregated/sslPolicies"
-    req = compute.sslPolicies().aggregatedList(
-        project=project_id,
-        returnPartialSuccess=True,
+    req = with_return_partial_success(
+        compute.sslPolicies().aggregatedList(project=project_id),
     )
     while req is not None:
         try:
@@ -53,12 +55,13 @@ def get_gcp_ssl_policies(
                 return None
             raise
         merge_aggregated_scope_items(items, res, "sslPolicies")
+        incomplete = incomplete or aggregated_page_incomplete(res)
         response_id = res.get("id", response_id)
         req = compute.sslPolicies().aggregatedList_next(
             previous_request=req,
             previous_response=res,
         )
-    return {"id": response_id, "items": items}
+    return {"id": response_id, "items": items, "incomplete": incomplete}
 
 
 def _transform_gcp_ssl_policy(

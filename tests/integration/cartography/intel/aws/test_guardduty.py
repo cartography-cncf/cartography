@@ -10,6 +10,7 @@ from cartography.rules.data.rules.guardduty_active_threat import (
 from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS
 from tests.data.aws.guardduty import GET_AWS_API_CALL_FINDINGS_NO_REMOTE_ACCOUNT_NODE
 from tests.data.aws.guardduty import GET_DETECTOR_DETAILS
+from tests.data.aws.guardduty import GET_ECS_RUNTIME_FINDINGS
 from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import GET_SAMPLE_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
@@ -20,6 +21,7 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "123456789012"
 REMOTE_ACCOUNT_ID = "210987654321"
 UNMATCHED_REMOTE_ACCOUNT_ID = "998877665544"
+ADMIN_ACCOUNT_ID = "111122223333"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
@@ -270,6 +272,22 @@ def test_sync_guardduty_findings(
         (TEST_ACCOUNT_ID, "a7e4567890123def4567890123def45670"),
         (TEST_ACCOUNT_ID, "b8f5678901234abcdef5678901234abcdef"),
         # Note: MEDIUM severity finding excluded
+    }
+
+    # Assert - Check that findings are connected to the account they are in
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSGuardDutyFinding",
+        "id",
+        "MEMBER",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "74b1234567890abcdef1234567890abcdef"),
+        (TEST_ACCOUNT_ID, "96d3456789012cdef3456789012cdef01"),
+        (TEST_ACCOUNT_ID, "a7e4567890123def4567890123def45670"),
+        (TEST_ACCOUNT_ID, "b8f5678901234abcdef5678901234abcdef"),
     }
 
     # Assert - Check that HIGH severity findings have the Risk label
@@ -670,3 +688,132 @@ def test_sync_guardduty_aws_api_call_remote_account_without_matching_node(
     )
 
     mock_get_findings.assert_called()
+
+
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detectors",
+    return_value=LIST_DETECTORS["DetectorIds"],
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detector_details",
+    return_value=GET_DETECTOR_DETAILS,
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_findings",
+    return_value=GET_ECS_RUNTIME_FINDINGS["Findings"],
+)
+def test_sync_guardduty_ecs_runtime_finding(
+    mock_get_findings,
+    mock_get_detector_details,
+    mock_get_detectors,
+    neo4j_session,
+):
+    boto3_session = MagicMock()
+    update_tag = 987654326
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, update_tag)
+    cluster_arn = "arn:aws:ecs:us-east-1:123456789012:cluster/test-ecs-cluster"
+    neo4j_session.run(
+        """
+        MERGE (cluster:AWSECSCluster {id: $cluster_arn})
+        SET cluster.lastupdated = $update_tag
+        """,
+        cluster_arn=cluster_arn,
+        update_tag=update_tag,
+    )
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        update_tag,
+        {"UPDATE_TAG": update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AWSGuardDutyFinding",
+        "id",
+        "AWSECSCluster",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("e1c5678901234abcdef5678901234abcd", cluster_arn)}
+
+
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detectors",
+    return_value=LIST_DETECTORS["DetectorIds"],
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detector_details",
+    return_value=GET_DETECTOR_DETAILS,
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_findings",
+    side_effect=mock_get_findings_with_severity_filter,
+)
+def test_rule_reports_delegated_admin_findings_once(
+    mock_get_findings,
+    mock_get_detector_details,
+    mock_get_detectors,
+    neo4j_session,
+):
+    """
+    A delegated administrator lists its members' findings, so syncing both accounts
+    attaches each member finding to both by RESOURCE. MEMBER points only at the
+    account the finding is in, and the rule reports each finding once, attributed
+    to that account rather than the one that listed it.
+    """
+    neo4j_session.run("MATCH (f:AWSGuardDutyFinding) DETACH DELETE f")
+    boto3_session = MagicMock()
+    update_tag = 987654325
+    for account_id in (TEST_ACCOUNT_ID, ADMIN_ACCOUNT_ID):
+        create_test_account(neo4j_session, account_id, update_tag)
+        sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            account_id,
+            update_tag,
+            {"UPDATE_TAG": update_tag, "AWS_ID": account_id},
+        )
+
+    parents = neo4j_session.run(
+        """
+        MATCH (a:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
+        RETURN f.id AS id, collect(a.id) AS accounts
+        """
+    ).data()
+    assert parents
+    assert all(
+        sorted(row["accounts"]) == sorted([TEST_ACCOUNT_ID, ADMIN_ACCOUNT_ID])
+        for row in parents
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSGuardDutyFinding",
+        "id",
+        "MEMBER",
+        rel_direction_right=True,
+    ) == {(TEST_ACCOUNT_ID, row["id"]) for row in parents}
+
+    rows = neo4j_session.run(aws_guardduty_active_threat.cypher_query).data()
+    finding_ids = [row["finding_id"] for row in rows]
+    assert finding_ids
+    assert len(finding_ids) == len(set(finding_ids))
+    assert {row["account_id"] for row in rows} == {TEST_ACCOUNT_ID}
+
+    count = neo4j_session.run(aws_guardduty_active_threat.cypher_count_query).single()[
+        "count"
+    ]
+    assert count == len(parents)

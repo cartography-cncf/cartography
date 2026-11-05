@@ -188,6 +188,7 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port.",
     )  # Populated by AWS_EC2_ASSET_EXPOSURE_JOBS.
@@ -314,25 +315,6 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("TargetId")},
-    )
-    source_node_label: str = "AWSLoadBalancerV2"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("LoadBalancerId")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "EXPOSE"
-    properties: LoadBalancerV2ToTargetRelProperties = (
-        LoadBalancerV2ToTargetRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
-    """Indicates that the load balancer exposes a private IP address as a traffic target."""
-
-    target_node_label: str = "AWSEC2PrivateIp"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"private_ip_address": PropertyRef("TargetId")},
     )
     source_node_label: str = "AWSLoadBalancerV2"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(

@@ -10,14 +10,28 @@ from cartography.rules.spec.model import Rule
 # `ThreatPurpose:ResourceTypeAffected/ThreatFamilyName.DetectionMechanism!Artifact`.
 # The ThreatPurpose prefixes below describe categories where the finding is
 # action-indicative: GuardDuty is reporting evidence of active compromise or
-# attacker activity (rather than reconnaissance or policy drift).
+# attacker activity (rather than reconnaissance or policy drift). Runtime
+# Monitoring and Extended Threat Detection report on-host and multi-stage attacker
+# behavior (reverse shells, container escapes, credential theft, attack
+# sequences) under the AttackSequence, CredentialAccess, DefenseEvasion,
+# Execution, Persistence and PrivilegeEscalation purposes.
 _ACTIVE_THREAT_PREFIXES = (
+    "AttackSequence:",
     "Backdoor:",
+    "CredentialAccess:",
     "CryptoCurrency:",
+    "DefenseEvasion:",
+    "Execution:",
     "Exfiltration:",
     "Impact:",
+    "Persistence:",
+    "PrivilegeEscalation:",
     "Trojan:",
     "UnauthorizedAccess:",
+)
+
+_ACTIVE_THREAT_CATEGORIES = ", ".join(
+    prefix.rstrip(":") for prefix in _ACTIVE_THREAT_PREFIXES
 )
 
 _ACTIVE_THREAT_WHERE = " OR ".join(
@@ -30,16 +44,21 @@ aws_guardduty_active_threat = Fact(
     description=(
         "Finds high-severity, unarchived GuardDuty findings whose type "
         "ThreatPurpose belongs to an action-indicative category "
-        "(Backdoor, CryptoCurrency, Exfiltration, Impact, Trojan, "
-        "UnauthorizedAccess). These represent evidence of an active "
+        f"({_ACTIVE_THREAT_CATEGORIES}). These represent evidence of an active "
         "compromise or attacker activity rather than reconnaissance."
     ),
+    # A GuardDuty delegated administrator lists its member accounts' findings, so a
+    # finding synced from both accounts hangs off each of them by RESOURCE. Walking
+    # that edge would return the finding once per syncing account, attributed to
+    # whichever account listed it. `f.accountid` is the account the finding is in.
     cypher_query=f"""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
+    MATCH (f:AWSGuardDutyFinding)
     WHERE f.severity >= 7
       AND coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
+    OPTIONAL MATCH (a:AWSAccount {{id: f.accountid}})
+    WITH f, head(collect(a.name)) AS account_name
     RETURN
         f.id AS finding_id,
         f.arn AS finding_arn,
@@ -49,16 +68,17 @@ aws_guardduty_active_threat = Fact(
         f.region AS region,
         f.resource_type AS resource_type,
         f.resource_id AS resource_id,
-        a.id AS account_id,
-        a.name AS account_name
+        f.accountid AS account_id,
+        account_name
     ORDER BY f.severity DESC, f.eventlastseen DESC
     """,
     cypher_visual_query=f"""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
+    MATCH (f:AWSGuardDutyFinding)
     WHERE f.severity >= 7
       AND coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
+    OPTIONAL MATCH (a:AWSAccount)-[:MEMBER]->(f)
     RETURN *
     """,
     # Denominator: all live AWSGuardDutyFinding nodes (unarchived, non-sample). The
@@ -66,7 +86,7 @@ aws_guardduty_active_threat = Fact(
     # evaluated population, not the failing subset. Sample findings are excluded
     # here too so they never count toward the pass rate.
     cypher_count_query="""
-    MATCH (:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
+    MATCH (f:AWSGuardDutyFinding)
     WHERE coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
     RETURN COUNT(f) AS count
@@ -100,9 +120,9 @@ guardduty_active_threat = Rule(
     name="GuardDuty Active Threat",
     description=(
         "Surfaces high-severity GuardDuty findings that indicate an active "
-        "compromise (Backdoor, CryptoCurrency, Exfiltration, Impact, Trojan, "
-        "UnauthorizedAccess). These findings are strong signals of attacker "
-        "activity in the environment and should be triaged immediately."
+        f"compromise ({_ACTIVE_THREAT_CATEGORIES}). These findings are strong "
+        "signals of attacker activity in the environment and should be triaged "
+        "immediately."
     ),
     output_model=GuardDutyActiveThreat,
     tags=(
@@ -113,7 +133,7 @@ guardduty_active_threat = Rule(
         "stride:elevation_of_privilege",
     ),
     facts=(aws_guardduty_active_threat,),
-    version="0.1.1",
+    version="0.2.1",
     frameworks=(
         iso27001_annex_a("8.16"),
         soc2_tsc("CC7.2"),

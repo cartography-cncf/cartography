@@ -196,6 +196,7 @@ def test_transform_kubernetes_cluster_merges_tls_diagnostics(monkeypatch):
         name="context-1",
         config_file="/tmp/kubeconfig",
         external_id="arn:aws:eks:us-east-1:123456789012:cluster/context-1",
+        gke_cluster=None,
     )
     namespace = SimpleNamespace(
         metadata=SimpleNamespace(

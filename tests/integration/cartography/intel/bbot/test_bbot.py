@@ -335,10 +335,12 @@ def test_bbot_dns_and_ip_correlate_and_public_ip_lifecycle(
     _sync(neo4j_session, make_events(1), 101)
     neo4j_session.run(
         """
-        CREATE (:AWSDNSRecord:DNSRecord {
-            id: 'provider-dns-record',
-            _ont_name: 'APP.EXAMPLE.TEST.'
-        })
+            CREATE (:AWSDNSRecord:DNSRecord {
+                id: 'provider-dns-record',
+                // Provider ingestion stores canonical ontology hostnames while retaining
+                // the original provider value on the raw `name` property.
+                _ont_name: 'app.example.test'
+            })
         """,
     )
 

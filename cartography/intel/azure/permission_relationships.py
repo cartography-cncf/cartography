@@ -15,14 +15,23 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def resolve_azure_scope(scope: str) -> str:
+MANAGEMENT_GROUP_SCOPE_PREFIX = "/providers/microsoft.management/managementgroups/"
+
+
+def resolve_azure_scope(scope: str, subscription_id: str | None = None) -> str:
     """
     Resolve Azure scope to follow the standard hierarchy pattern:
     /subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{providerName}/{resourceType}/{resourceSubType1}/{resourceSubType2}/{resourceName}/
 
+    A management group scope covers every subscription under the group. Listing a
+    subscription's role assignments only returns management group assignments
+    inherited by that subscription, so such a scope matches everything in it.
     If providers is given in scope, return as is. Meaning its already resource level.
     If not, add /* to the end to match any resource under that scope.
     """
+    if subscription_id and scope.lower().startswith(MANAGEMENT_GROUP_SCOPE_PREFIX):
+        return f"/subscriptions/{subscription_id}/*"
+
     if "/providers/" in scope:
         return scope
 
@@ -112,6 +121,7 @@ def evaluate_role_assignment_for_permissions(
     assignment_data: dict[str, Any],
     permissions: list[str],
     resource_id: str,
+    data_permissions: list[str] | None = None,
 ) -> bool:
     permissions_dict = assignment_data["permissions"]
     scope = assignment_data["scope"]
@@ -131,6 +141,14 @@ def evaluate_role_assignment_for_permissions(
             if evaluate_dataaction_for_permission(permissions_dict, permission):
                 return True
 
+    # Azure never lets a role's actions grant a data action, so data-plane
+    # permissions are only matched against dataActions. Otherwise a wildcard
+    # like Reader's "*/read" would match ".../blobs/read".
+    for permission in data_permissions or []:
+        if not evaluate_notdataaction_for_permission(permissions_dict, permission):
+            if evaluate_dataaction_for_permission(permissions_dict, permission):
+                return True
+
     return False
 
 
@@ -138,13 +156,16 @@ def principal_allowed_on_resource(
     role_assignments: dict[str, Any],
     resource_id: str,
     permissions: list[str],
+    data_permissions: list[str] | None = None,
 ) -> bool:
     if not isinstance(permissions, list):
         raise ValueError("permissions is not a list")
+    if data_permissions is not None and not isinstance(data_permissions, list):
+        raise ValueError("data_permissions is not a list")
     # This will be divided into two sections to furhter incorporate the deny assignments logic, so that the functions building on top really shouldnt change
     for _, assignment_data in role_assignments.items():
         if evaluate_role_assignment_for_permissions(
-            assignment_data, permissions, resource_id
+            assignment_data, permissions, resource_id, data_permissions
         ):
             return True
 
@@ -155,12 +176,13 @@ def calculate_permission_relationships(
     principals: dict[str, Any],
     resource_ids: list[str],
     permissions: list[str],
+    data_permissions: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     allowed_mappings: list[dict[str, Any]] = []
     for resource_id in resource_ids:
         for principal_id, role_assignments in principals.items():
             if principal_allowed_on_resource(
-                role_assignments, resource_id, permissions
+                role_assignments, resource_id, permissions, data_permissions
             ):
                 # Get the principal type from the first role assignment
                 principal_type = next(iter(role_assignments.values()))["principal_type"]
@@ -208,7 +230,9 @@ def get_principals_for_subscription(
 
         # Compile permissions from nodes
         compiled_permissions = compile_permissions_from_nodes(permissions_nodes)
-        compiled_scope = compile_azure_regex(resolve_azure_scope(assignment_scope))
+        compiled_scope = compile_azure_regex(
+            resolve_azure_scope(assignment_scope, subscription_id)
+        )
 
         principals[principal_id][assignment_id] = {
             "permissions": compiled_permissions,
@@ -288,11 +312,17 @@ def parse_permission_relationships_file(file_path: str) -> list[dict[str, Any]]:
 
 
 def is_valid_azure_rpr(rpr: dict[str, Any]) -> bool:
-    required_fields = ["permissions", "relationship_name", "target_label"]
+    required_fields = ["relationship_name", "target_label"]
     for field in required_fields:
         if field not in rpr:
             return False
-    return True
+    permissions = rpr.get("permissions", [])
+    data_permissions = rpr.get("data_permissions", [])
+    if not isinstance(permissions, list) or not isinstance(data_permissions, list):
+        return False
+    if not all(isinstance(p, str) for p in permissions + data_permissions):
+        return False
+    return bool(permissions or data_permissions)
 
 
 def transform_mappings(principal_mappings: list[dict]) -> dict[str, list[dict]]:
@@ -432,7 +462,8 @@ def sync(
 
         target_label = rpr["target_label"]
         relationship_name = rpr["relationship_name"]
-        permissions = rpr["permissions"]
+        permissions = rpr.get("permissions", [])
+        data_permissions = rpr.get("data_permissions", [])
 
         resource_ids = get_resource_ids(neo4j_session, subscription_id, target_label)
 
@@ -440,7 +471,7 @@ def sync(
             f"Evaluating relationship '{relationship_name}' for resource type '{target_label}'"
         )
         matches = calculate_permission_relationships(
-            principals, resource_ids, permissions
+            principals, resource_ids, permissions, data_permissions
         )
 
         matches_by_type = transform_mappings(matches)

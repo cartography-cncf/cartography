@@ -52,11 +52,13 @@ class AzureGroupContainerNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when the container group has a public IP address, or an IP with no subnet attachment. `False` otherwise.",
     )  # Populated by the AZURE_COMPUTE_ASSET_EXPOSURE_CONTAINER analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How it is exposed. Always `direct`.",
     )  # Populated by the AZURE_COMPUTE_ASSET_EXPOSURE_CONTAINER analysis job.

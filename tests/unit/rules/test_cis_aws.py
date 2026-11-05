@@ -44,6 +44,9 @@ from cartography.rules.data.rules.cis_aws_networking import (
     aws_ipv6_remote_administration_ports_open_to_internet,
 )
 from cartography.rules.data.rules.cis_aws_storage import aws_rds_encryption_at_rest
+from cartography.rules.data.rules.cis_aws_storage import (
+    aws_rds_instances_publicly_accessible,
+)
 from cartography.rules.data.rules.cis_aws_storage import aws_s3_block_public_access
 from cartography.rules.data.rules.cis_aws_storage import aws_s3_bucket_mfa_delete
 from cartography.rules.spec.model import Maturity
@@ -61,6 +64,7 @@ ALL_CIS_AWS_RULES = [
     aws_s3_bucket_mfa_delete,
     aws_s3_block_public_access,
     aws_rds_encryption_at_rest,
+    aws_rds_instances_publicly_accessible,
     aws_cloudtrail_multi_region,
     aws_cloudtrail_log_file_validation,
     aws_cloudtrail_s3_bucket_access_logging,
@@ -197,6 +201,7 @@ class TestCisAwsRuleIds:
         "aws_s3_bucket_mfa_delete": "3.1.2",
         "aws_s3_block_public_access": "3.1.4",
         "aws_rds_encryption_at_rest": "3.2.1",
+        "aws_rds_instances_publicly_accessible": "3.2.3",
         "aws_cloudtrail_multi_region": "4.1",
         "aws_cloudtrail_log_file_validation": "4.2",
         "aws_cloudtrail_s3_bucket_access_logging": "4.4",
@@ -239,6 +244,7 @@ class TestIso27001AwsMappings:
         "aws_s3_bucket_mfa_delete": {"8.10"},
         "aws_s3_block_public_access": {"8.3"},
         "aws_rds_encryption_at_rest": {"8.24"},
+        "aws_rds_instances_publicly_accessible": {"8.20"},
         "aws_cloudtrail_multi_region": {"8.15", "8.16"},
         "aws_cloudtrail_log_file_validation": {"8.15"},
         "aws_cloudtrail_s3_bucket_access_logging": {"8.15"},

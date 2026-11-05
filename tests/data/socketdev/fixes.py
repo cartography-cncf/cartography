@@ -14,6 +14,12 @@ FIXES_RESPONSE = {
                             "manifestFiles": ["package.json"],
                             "updateType": "patch",
                         },
+                        {
+                            "purl": "pkg:npm/%40example/package@1.2.3",
+                            "fixedVersion": "1.2.4",
+                            "manifestFiles": ["package.json"],
+                            "updateType": "patch",
+                        },
                     ],
                 },
             },

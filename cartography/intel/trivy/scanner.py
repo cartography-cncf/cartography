@@ -13,6 +13,7 @@ from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import read_text_report
 from cartography.intel.common.object_store import ReportRef
 from cartography.intel.common.object_store import S3BucketReader
+from cartography.intel.trivy.util import canonical_cve_id
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
@@ -22,6 +23,23 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+
+_SEVERITY_RANK = {"UNKNOWN": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+# Among a finding's packages, prefer one with no fix available (affected,
+# will_not_fix, fix_deferred, ...: every status missing from this map) over one
+# with a fix available (fixed: the installed version is still vulnerable), and
+# either over not_affected.
+_STATUS_PREFERENCE = {"not_affected": 0, "fixed": 1}
+_NO_FIX_PREFERENCE = 2
+# Trivy names the results of these types after their ecosystem, such as "Python",
+# instead of a file. It merges the packages it finds in site-packages, node_modules,
+# gemspecs, and JARs into one result and records each package's own file on the
+# package, but not for every package: pip's vendored packages have none. The report has
+# no field that marks these results, so this mirrors the keys of PkgTargets in Trivy's
+# pkg/scan/langpkg/scan.go.
+_LABELED_TARGET_TYPES = frozenset(
+    {"conda-pkg", "gemspec", "jar", "kubernetes", "node-pkg", "python-pkg"},
+)
 
 
 def _validate_packages(package_list: list[dict]) -> list[dict]:
@@ -45,6 +63,73 @@ def _validate_packages(package_list: list[dict]) -> list[dict]:
     return validated_packages
 
 
+def _result_file(scan_class: dict) -> str | None:
+    # An OS package result's Target names the artifact and its distribution.
+    if (
+        scan_class.get("Class") != "lang-pkgs"
+        or scan_class.get("Type") in _LABELED_TARGET_TYPES
+    ):
+        return None
+    return scan_class.get("Target") or None
+
+
+def _package_locations(results: list[dict]) -> dict[str, list[str]]:
+    """
+    Map each package ID to the files in the scanned artifact that contain it.
+
+    One report can list the same package in several results, for example the Go
+    standard library compiled into several binaries, so the files of every result
+    are merged before they are written to the package's DEPLOYED relationship.
+    """
+    locations: dict[str, set[str]] = {}
+    for scan_class in results:
+        result_file = _result_file(scan_class)
+        found = [
+            (vuln.get("InstalledVersion"), vuln.get("PkgName"), vuln.get("PkgPath"))
+            for vuln in scan_class.get("Vulnerabilities") or []
+        ] + [
+            (pkg.get("Version"), pkg.get("Name"), pkg.get("FilePath"))
+            for pkg in scan_class.get("Packages") or []
+        ]
+        for version, name, path in found:
+            if path := path or result_file:
+                locations.setdefault(f"{version}|{name}", set()).add(path)
+    return {package_id: sorted(files) for package_id, files in locations.items()}
+
+
+def _target_rating_key(row: dict[str, Any]) -> tuple[int, bool, int, bool]:
+    source = row.get("SeveritySource")
+    return (
+        _SEVERITY_RANK.get((row.get("Severity") or "").upper(), 0),
+        # Trivy names the distribution or ecosystem database when it has one and
+        # falls back to nvd (or names nothing) otherwise; the named rating is the
+        # one that applies to the package as built.
+        bool(source) and source != "nvd",
+        _STATUS_PREFERENCE.get(row.get("Status") or "", _NO_FIX_PREFERENCE),
+        row.get("Class") == "os-pkgs",
+    )
+
+
+def _set_target_ratings(findings_list: list[dict[str, Any]]) -> None:
+    """
+    A report is one scan target, and the AFFECTS edge to that target is merged
+    once per package row, so every row of a finding must carry the same rating or
+    the edge would keep whichever package happened to come last.
+    """
+    rows_by_finding: dict[str, list[dict[str, Any]]] = {}
+    for row in findings_list:
+        rows_by_finding.setdefault(row["id"], []).append(row)
+
+    for rows in rows_by_finding.values():
+        # max() keeps the first maximal row, so a full tie goes to report order.
+        rating = max(rows, key=_target_rating_key)
+        for row in rows:
+            row["TargetSeverity"] = rating["Severity"]
+            row["TargetSeveritySource"] = rating["SeveritySource"]
+            row["TargetStatus"] = rating["Status"]
+            row["TargetDataSourceID"] = rating["DataSourceID"]
+
+
 def transform_scan_results(
     results: list[dict],
     image_digest: str | None,
@@ -57,6 +142,7 @@ def transform_scan_results(
     findings_list = []
     packages_list = []
     fixes_list = []
+    package_locations = _package_locations(results)
 
     for scan_class in results:
         # Sometimes a scan class will have no vulns and Trivy will leave the key undefined instead of showing [].
@@ -87,7 +173,7 @@ def transform_scan_results(
                     dict.fromkeys([vuln_id, *(result.get("VendorIDs") or [])]),
                 )
                 cve_id = next(
-                    (vid for vid in vulnerability_ids if vid.startswith("CVE-")),
+                    (cid for cid in map(canonical_cve_id, vulnerability_ids) if cid),
                     None,
                 )
                 ghsa_id = next(
@@ -177,6 +263,7 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
+                        "Locations": package_locations.get(package_id),
                         "FindingId": finding["id"],  # For AFFECTS relationship
                         # Additional fields
                         "PURL": purl,
@@ -195,6 +282,8 @@ def transform_scan_results(
                             "FindingId": finding["id"],
                         }
                     )
+
+    _set_target_ratings(findings_list)
 
     # Validate packages before returning
     packages_list = _validate_packages(packages_list)
@@ -224,6 +313,7 @@ def transform_all_packages(
         List of package dicts ready for load_scan_packages()
     """
     packages_list: list[dict] = []
+    package_locations = _package_locations(results)
     for scan_class in results:
         if "Packages" not in scan_class or not scan_class["Packages"]:
             continue
@@ -262,6 +352,7 @@ def transform_all_packages(
                     "Type": pkg_type,
                     "ImageDigest": image_digest,
                     "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
+                    "Locations": package_locations.get(package_id),
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),
@@ -352,12 +443,12 @@ def sync_single_filesystem_snapshot(
     source: str,
     update_tag: int,
 ) -> None:
-    """Sync one Trivy filesystem or repository report to matching snapshots."""
+    """Sync one Trivy filesystem, repository, or VM report to matching snapshots."""
     try:
         artifact_type = trivy_data.get("ArtifactType")
-        if artifact_type not in {"filesystem", "repository"}:
+        if artifact_type not in {"filesystem", "repository", "vm"}:
             raise ValueError(
-                f"Expected a filesystem or repository Trivy report for {source}",
+                f"Expected a filesystem, repository, or VM Trivy report for {source}",
             )
         if not filesystem_snapshot_ids:
             raise ValueError(f"No filesystem snapshot targets for {source}")
@@ -492,26 +583,30 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
 def cleanup_filesystem_snapshot_relationships(
     neo4j_session: Session,
     update_tag: int,
+    snapshot_ids: list[str] | None = None,
 ) -> None:
-    """Remove stale filesystem edges without touching image-scoped scan data."""
+    """Remove stale filesystem edges, optionally limited to the given snapshots."""
     run_write_query(
         neo4j_session,
         """
         CALL {
-          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:FilesystemSnapshot)
-          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(snapshot:FilesystemSnapshot)
+          WHERE (r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG)
+            AND ($snapshot_ids IS NULL OR snapshot.id IN $snapshot_ids)
           DELETE r
           RETURN count(*) AS removed_findings
         }
         CALL {
-          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:FilesystemSnapshot)
-          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(snapshot:FilesystemSnapshot)
+          WHERE (r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG)
+            AND ($snapshot_ids IS NULL OR snapshot.id IN $snapshot_ids)
           DELETE r
           RETURN count(*) AS removed_packages
         }
         RETURN removed_findings, removed_packages
         """,
         UPDATE_TAG=update_tag,
+        snapshot_ids=snapshot_ids,
     )
 
 

@@ -307,3 +307,54 @@ def test_an_existing_user_invited_to_a_team_stays_a_user(
     ).single()
     assert membership["pending"] is True
     assert membership["invite_id"] == "invite-abc"
+
+
+def test_a_mongo_wrapped_id_is_stored_as_a_scalar(neo4j_session: neo4j.Session) -> None:
+    """
+    Netlify's API is Mongo-backed and reports some membership ids as MongoDB extended JSON
+    (`{"$oid": "..."}`) rather than as the bare string, seen on `invite_id` for an outstanding
+    invitation. Neo4j only stores primitives, so a map fails the whole write batch and takes the
+    rest of the team's members down with it.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_netlify_account(neo4j_session)
+    members = [
+        {
+            "id": {"$oid": "6a99a33f1815565afdc2d4be"},
+            "user_id": None,
+            "email": "invited@example.com",
+            "pending": True,
+            "role": "Collaborator",
+            "invite_id": {"$oid": "6a99a33f1815565afdc2d4bf"},
+        },
+        tests.data.netlify.users.NETLIFY_MEMBERS[0],
+    ]
+
+    # Act
+    with patch.object(
+        cartography.intel.netlify.users,
+        "get_netlify_users",
+        return_value=members,
+    ):
+        cartography.intel.netlify.users.sync_netlify_users(
+            neo4j_session,
+            MagicMock(spec=requests.Session),
+            TEST_BASE_URL,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT_SLUG,
+            TEST_UPDATE_TAG,
+            common_job_parameters(),
+        )
+
+    # Assert: the wrapped ids landed as strings, and the unwrapped member in the same batch
+    # was loaded rather than lost to a failed write.
+    invitation = neo4j_session.run(
+        """
+        MATCH (:NetlifyInvite)-[r:INVITED_TO]->(:NetlifyAccount)
+        RETURN r.membership_id AS membership_id, r.invite_id AS invite_id
+        """,
+    ).single()
+    assert invitation["membership_id"] == "6a99a33f1815565afdc2d4be"
+    assert invitation["invite_id"] == "6a99a33f1815565afdc2d4bf"
+    assert check_nodes(neo4j_session, "NetlifyUser", ["id"]) == {(TEST_USER_ID,)}

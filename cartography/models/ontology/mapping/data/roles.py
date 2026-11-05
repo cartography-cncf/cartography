@@ -422,7 +422,59 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+zoom_mapping = OntologyMapping(
+    module_name="zoom",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZoomRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # The common Roles API describes account roles. Privilege-level
+                # group restrictions remain on ZoomRolePrivilege.
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "account"},
+                ),
+                # _ont_type: The API does not reliably distinguish builtin/custom roles.
+            ],
+        ),
+    ],
+)
+
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="role_type",
+                    special_handling="mapping",
+                    extra={"map": {"builtin": "builtin", "custom": "custom"}},
+                ),
+                # Workspace-scoped roles have no canonical scope value and stay unmapped.
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="access_scope",
+                    special_handling="mapping",
+                    extra={"map": {"organization": "org"}},
+                ),
+            ],
+        ),
+    ],
+)
+
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zoom": zoom_mapping,
     "aws": aws_mapping,
     "huntress": huntress_mapping,
     "azure": azure_mapping,
@@ -486,4 +538,5 @@ ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "langsmith": langsmith_mapping,
 }

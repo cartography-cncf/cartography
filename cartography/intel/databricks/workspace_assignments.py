@@ -34,31 +34,32 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksAccountClient,
     account_id: str,
-    workspace_node_ids: dict[str, str],
+    workspace_ids: list[str],
     common_job_parameters: dict[str, Any],
-) -> None:
-    assignments, complete = get(api_session, workspace_node_ids)
+) -> bool:
+    """Load ASSIGNED_TO edges and report whether every workspace was read.
+
+    Returns False when a workspace's assignments were skipped (403/404): its
+    edges were not refreshed, so the caller must skip the whole-account
+    MatchLink cleanup rather than delete still-valid edges.
+    """
+    assignments, complete = get(api_session, workspace_ids)
     transformed = transform(assignments, account_id)
     load_assignments(
         neo4j_session, transformed, account_id, common_job_parameters["UPDATE_TAG"]
     )
-    # Only clean up when every workspace's assignments were read this run. A
-    # 403/404 on one workspace means its assignments were not refreshed, so a
-    # whole-account MatchLink cleanup would delete still-valid ASSIGNED_TO edges
-    # for it; skip cleanup and let a fully successful run reconcile stale edges.
-    if complete:
-        cleanup(neo4j_session, account_id, common_job_parameters["UPDATE_TAG"])
-    else:
+    if not complete:
         logger.warning(
             "Databricks workspace assignments were partially read for account "
-            "%s; skipping ASSIGNED_TO cleanup to avoid deleting valid edges.",
+            "%s; ASSIGNED_TO cleanup will be skipped to avoid deleting valid edges.",
             account_id,
         )
+    return complete
 
 
 @timeit
 def get(
-    api_session: DatabricksAccountClient, workspace_node_ids: dict[str, str]
+    api_session: DatabricksAccountClient, workspace_ids: list[str]
 ) -> tuple[list[dict[str, Any]], bool]:
     """Fetch permission assignments for each account workspace.
 
@@ -71,8 +72,10 @@ def get(
     """
     assignments: list[dict[str, Any]] = []
     complete = True
-    for numeric_id, workspace_node_id in workspace_node_ids.items():
-        uri = api_session.account_uri(f"/workspaces/{numeric_id}/permissionassignments")
+    for workspace_id in workspace_ids:
+        uri = api_session.account_uri(
+            f"/workspaces/{workspace_id}/permissionassignments"
+        )
         try:
             data = api_session.get(uri)
         except requests.HTTPError as e:
@@ -82,7 +85,7 @@ def get(
             skip_or_raise_http(e, 403, 404)
             complete = False
             logger.warning(
-                "Skipping permission assignments for workspace %s: %s", numeric_id, e
+                "Skipping permission assignments for workspace %s: %s", workspace_id, e
             )
             continue
         for entry in data.get("permission_assignments", []) or []:
@@ -94,7 +97,7 @@ def get(
             assignments.append(
                 {
                     "principal_id": principal_id,
-                    "workspace_node_id": workspace_node_id,
+                    "workspace_node_id": workspace_id,
                     "permissions": permissions,
                 }
             )

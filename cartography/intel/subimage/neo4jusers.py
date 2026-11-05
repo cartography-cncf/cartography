@@ -33,8 +33,8 @@ def get(api_session: requests.Session, base_url: str) -> dict[str, Any]:
 
 
 def transform(raw_data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Convert {"usernames": ["a", "b"]} to [{"username": "a"}, {"username": "b"}]."""
-    return [{"username": username} for username in raw_data["usernames"]]
+    """Convert GET /api/api-keys/neo4j items into SubImageNeo4jUser load dicts."""
+    return [{"username": item["username"]} for item in raw_data["items"]]
 
 
 @timeit

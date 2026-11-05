@@ -19,9 +19,10 @@ def test_saml_with_default_regex():
     default_regex = r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"
     result = transform_okta_group_to_aws_role(group_id, group_name, default_regex)
 
-    assert result
-    assert result["groupid"] == group_id
-    assert result["role"] == "arn:aws:iam::828416469395:role/Tier1_Support"
+    assert result == GroupRole(
+        okta_group_id=group_id,
+        aws_role_arn="arn:aws:iam::828416469395:role/Tier1_Support",
+    )
 
 
 def test_saml_with_custom_regex():
@@ -31,9 +32,33 @@ def test_saml_with_custom_regex():
 
     result = transform_okta_group_to_aws_role(group_id, group_name, custom_regex)
 
-    assert result
-    assert result["groupid"] == group_id
-    assert result["role"] == "arn:aws:iam::123456789123:role/developer"
+    assert result == GroupRole(
+        okta_group_id=group_id,
+        aws_role_arn="arn:aws:iam::123456789123:role/developer",
+    )
+
+
+@mock.patch.object(cartography.intel.okta.awssaml, "load_matchlinks")
+def test_load_okta_group_to_aws_roles_deduplicates_mappings(
+    mock_load_matchlinks: MagicMock,
+) -> None:
+    mapping = GroupRole(
+        okta_group_id="groupid",
+        aws_role_arn="arn:aws:iam::123456789123:role/developer",
+    )
+
+    cartography.intel.okta.awssaml._load_okta_group_to_aws_roles(
+        mock.MagicMock(),
+        [mapping, mapping],
+        123456789,
+        "okta-org-id",
+    )
+
+    assert mock_load_matchlinks.call_count == 2
+    assert all(
+        call.args[2] == [mapping._asdict()]
+        for call in mock_load_matchlinks.call_args_list
+    )
 
 
 def test_parse_okta_group_name() -> None:

@@ -5,10 +5,10 @@ import pytest
 from kubernetes.client.exceptions import ApiException
 
 import cartography.intel.kubernetes.gateway_api
-from cartography.intel.kubernetes.gateway_api import _list_cluster_custom_objects
 from cartography.intel.kubernetes.gateway_api import sync_gateway_api
 from cartography.intel.kubernetes.gateway_api import transform_gateways
 from cartography.intel.kubernetes.gateway_api import transform_http_routes
+from cartography.intel.kubernetes.util import list_cluster_custom_objects
 from tests.data.kubernetes.gateway_api import KUBERNETES_HTTP_ROUTES_RAW
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 
@@ -18,7 +18,7 @@ def test_list_cluster_custom_objects_returns_empty_on_missing_crd():
     client.name = "test-cluster"
     client.custom.list_cluster_custom_object.side_effect = ApiException(status=404)
 
-    resources = _list_cluster_custom_objects(
+    resources = list_cluster_custom_objects(
         client,
         group="gateway.networking.k8s.io",
         version="v1",
@@ -35,7 +35,7 @@ def test_list_cluster_custom_objects_raises_on_non_404_errors(status):
     client.custom.list_cluster_custom_object.side_effect = ApiException(status=status)
 
     with pytest.raises(ApiException):
-        _list_cluster_custom_objects(
+        list_cluster_custom_objects(
             client,
             group="gateway.networking.k8s.io",
             version="v1",

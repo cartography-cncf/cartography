@@ -1,3 +1,40 @@
+# The API only returns allowedOktaApps on IFRAME_EMBED scopes, and both the
+# scope list and the scope type are optional in the SDK model.
+TRUSTED_ORIGIN_WITH_SPARSE_SCOPES = """
+{
+    "id": "tos1sparsescope0g5",
+    "name": "Sparse Trusted Origin",
+    "origin": "https://sparse.example.com",
+    "scopes": [
+        {
+            "type": "IFRAME_EMBED",
+            "allowedOktaApps": ["OKTA_ENDUSER"]
+        },
+        {
+            "allowedOktaApps": ["OKTA_ENDUSER"]
+        }
+    ],
+    "status": "ACTIVE",
+    "created": "2018-01-13T01:22:10.000Z",
+    "createdBy": "00ut5t92p6IEOi4bu0ge3",
+    "lastUpdated": "2018-01-13T01:22:10.000Z",
+    "lastUpdatedBy": "00ut5t92p6IEOi4bu0g3"
+}
+"""
+
+TRUSTED_ORIGIN_WITHOUT_SCOPES = """
+{
+    "id": "tos1noscopes0000g6",
+    "name": "Trusted Origin Without Scopes",
+    "origin": "https://noscopes.example.com",
+    "status": "ACTIVE",
+    "created": "2018-01-13T01:22:10.000Z",
+    "createdBy": "00ut5t92p6IEOi4bu0ge3",
+    "lastUpdated": "2018-01-13T01:22:10.000Z",
+    "lastUpdatedBy": "00ut5t92p6IEOi4bu0g3"
+}
+"""
+
 LIST_TRUSTED_ORIGIN_RESPONSE = """
 [
     {

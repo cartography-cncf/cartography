@@ -869,3 +869,36 @@ def test_sync_project_resources_attempts_policy_bindings_without_target_project_
     mock_policy_bindings_sync.assert_called_once()
     mock_permission_relationships_sync.assert_not_called()
     assert result.policy_bindings_cleanup_safe is False
+
+
+def test_legacy_gke_member_keeps_binding():
+    # Arrange
+    member = "serviceAccount:example-project.svc.id.goog[namespace/service-account]"
+    data = _policy_results_with_members([member])
+
+    # Act
+    bindings = policy_bindings.transform_bindings(data)
+
+    # Assert
+    assert len(bindings) == 1
+    assert bindings[0]["raw_members"] == [member]
+    assert bindings[0]["members"] == []
+    assert bindings[0]["wif_pools"] == []
+
+
+def test_direct_gke_wif_member_keeps_binding_and_records_pool():
+    # Arrange
+    pool = "projects/111122223333/locations/global/workloadIdentityPools/example-project.svc.id.goog"
+    member = (
+        f"principal://iam.googleapis.com/{pool}/subject/ns/namespace/sa/service-account"
+    )
+    data = _policy_results_with_members([member])
+
+    # Act
+    bindings = policy_bindings.transform_bindings(data)
+
+    # Assert
+    assert len(bindings) == 1
+    assert bindings[0]["raw_members"] == [member]
+    assert bindings[0]["members"] == []
+    assert bindings[0]["wif_pools"] == [pool]

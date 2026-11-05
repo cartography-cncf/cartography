@@ -169,6 +169,37 @@ def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
     }
 
 
+def test_extract_ci_label_provenance_reads_codebuild_variables():
+    config_json = {
+        "config": {
+            "Labels": {
+                "CODEBUILD_SOURCE_REPO_URL": "https://github.com/ExampleOrg/service.git",
+                "CODEBUILD_RESOLVED_SOURCE_VERSION": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+    }
+
+
+def test_extract_ci_label_provenance_prefers_circleci_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "CODEBUILD_SOURCE_REPO_URL": "https://github.com/ExampleOrg/other.git",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+    }
+
+
 def test_extract_circleci_label_provenance_ignores_empty_or_missing_labels():
     config_json = {
         "config": {
@@ -1175,3 +1206,165 @@ def test_transform_ecr_image_layers_with_partial_history():
 def testextract_workflow_path_from_ref(workflow_ref, expected_path):
     """Test extracting workflow path from GitHub workflow ref."""
     assert extract_workflow_path_from_ref(workflow_ref) == expected_path
+
+
+def _credential_error(error_code: str) -> ClientError:
+    return ClientError(
+        {"Error": {"Code": error_code, "Message": "Synthetic credential error"}},
+        "GetDownloadUrlForLayer",
+    )
+
+
+def _stub_sync_dependencies(mocker, sessions_seen: list) -> None:
+    """
+    Neutralize everything sync() touches around the credential-retry loop so the tests
+    only exercise that loop.
+    """
+    mocker.patch.object(
+        ecr_layers,
+        "get_complete_layer_digests",
+        return_value=set(),
+    )
+    mocker.patch.object(
+        ecr_layers,
+        "partition_layer_fetches",
+        side_effect=lambda images, complete, digest_key: (images, []),
+    )
+    mocker.patch.object(ecr_layers, "refresh_layer_closures")
+    mocker.patch.object(
+        ecr_layers,
+        "transform_ecr_image_layers",
+        return_value=([], []),
+    )
+    mocker.patch.object(ecr_layers, "load_ecr_image_layers")
+    mocker.patch.object(ecr_layers, "load_ecr_image_layer_memberships")
+    mocker.patch.object(ecr_layers, "cleanup")
+
+    class _FakeClientContext:
+        def __init__(self, session):
+            sessions_seen.append(session)
+
+        async def __aenter__(self):
+            return AsyncMock()
+
+        async def __aexit__(self, *_args):
+            return False
+
+    mocker.patch.object(
+        ecr_layers,
+        "create_aioboto3_client",
+        side_effect=lambda session, _service, **_kwargs: _FakeClientContext(session),
+    )
+
+
+def _neo4j_session_with_one_image() -> MagicMock:
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.return_value = [
+        {
+            "digest": "sha256:aaa",
+            "uri": "1234.dkr.ecr.us-east-1.amazonaws.com/repo@sha256:aaa",
+            "repo_uri": "1234.dkr.ecr.us-east-1.amazonaws.com/repo",
+            "type": "image",
+        }
+    ]
+    return neo4j_session
+
+
+def _run_sync(neo4j_session, session_factory=None, initial_session="session-0"):
+    ecr_layers.sync(
+        neo4j_session,
+        initial_session,
+        ["us-east-1"],
+        "1234",
+        123456789,
+        {"UPDATE_TAG": 123456789, "AWS_ID": "1234"},
+        aioboto3_session_factory=session_factory,
+    )
+
+
+@pytest.mark.parametrize(
+    "error_code",
+    [
+        "ExpiredToken",
+        "ExpiredTokenException",
+        "InvalidClientTokenId",
+        "RequestExpired",
+    ],
+)
+def test_sync_retries_with_fresh_session_on_credential_error(mocker, error_code):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=[
+            _credential_error(error_code),
+            ({}, {}, {}, {}, True),
+        ],
+    )
+    factory = MagicMock(return_value="session-refreshed")
+
+    _run_sync(_neo4j_session_with_one_image(), session_factory=factory)
+
+    assert fetch_mock.call_count == 2
+    factory.assert_called_once_with()
+    assert sessions_seen == ["session-0", "session-refreshed"]
+    # The region completed, so cleanup is allowed to delete stale layers.
+    assert ecr_layers.cleanup.call_args.kwargs["fetch_complete"] is True
+
+
+def test_sync_raises_when_credential_retry_budget_is_exhausted(mocker):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=[
+            _credential_error("ExpiredTokenException"),
+            _credential_error("ExpiredTokenException"),
+        ],
+    )
+    factory = MagicMock(return_value="session-refreshed")
+
+    with pytest.raises(ClientError) as excinfo:
+        _run_sync(_neo4j_session_with_one_image(), session_factory=factory)
+
+    assert excinfo.value.response["Error"]["Code"] == "ExpiredTokenException"
+    assert fetch_mock.call_count == 2
+    factory.assert_called_once_with()
+    ecr_layers.cleanup.assert_not_called()
+
+
+def test_sync_raises_credential_error_when_no_session_factory(mocker):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=_credential_error("ExpiredTokenException"),
+    )
+
+    with pytest.raises(ClientError) as excinfo:
+        _run_sync(_neo4j_session_with_one_image(), session_factory=None)
+
+    assert excinfo.value.response["Error"]["Code"] == "ExpiredTokenException"
+    assert fetch_mock.call_count == 1
+    ecr_layers.cleanup.assert_not_called()
+
+
+def test_sync_does_not_retry_non_credential_client_error(mocker):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=_credential_error("AccessDeniedException"),
+    )
+    factory = MagicMock(return_value="session-refreshed")
+
+    with pytest.raises(ClientError) as excinfo:
+        _run_sync(_neo4j_session_with_one_image(), session_factory=factory)
+
+    assert excinfo.value.response["Error"]["Code"] == "AccessDeniedException"
+    assert fetch_mock.call_count == 1
+    factory.assert_not_called()

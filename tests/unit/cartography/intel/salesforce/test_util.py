@@ -4,8 +4,11 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+import requests
 
 from cartography.intel.salesforce.util import get_salesforce_client
+from cartography.intel.salesforce.util import get_salesforce_error_codes
+from cartography.intel.salesforce.util import get_salesforce_error_messages
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
 
@@ -97,3 +100,52 @@ def test_query_all_fails_fast_on_truncated_response():
 
     with pytest.raises(ValueError):
         client.query_all("SELECT Id FROM User")
+
+
+def test_query_all_includes_salesforce_error_details():
+    # Arrange
+    session = MagicMock()
+    response = MagicMock(status_code=400, text="")
+    response.json.return_value = [
+        {
+            "message": "sObject type 'ConnectedApplication' is not supported.",
+            "errorCode": "INVALID_TYPE",
+        },
+    ]
+    response.raise_for_status.side_effect = requests.HTTPError(response=response)
+    session.get.return_value = response
+    client = SalesforceClient(session, "https://example.my.salesforce.com")
+
+    # Act and assert
+    with pytest.raises(requests.HTTPError, match="INVALID_TYPE") as exc_info:
+        client.query_all("SELECT Id FROM ConnectedApplication")
+    assert get_salesforce_error_codes(exc_info.value) == {"INVALID_TYPE"}
+    assert get_salesforce_error_messages(exc_info.value) == (
+        "sObject type 'ConnectedApplication' is not supported.",
+    )
+
+
+def test_query_all_preserves_nonstandard_error_details():
+    # Arrange
+    session = MagicMock()
+    response = MagicMock(
+        status_code=503,
+        text='{"error":"server_error","error_description":"unavailable"}',
+    )
+    response.json.return_value = {
+        "error": "server_error",
+        "error_description": "unavailable",
+    }
+    response.raise_for_status.side_effect = requests.HTTPError(
+        "503 Server Error for url: https://example.my.salesforce.com/query",
+        response=response,
+    )
+    session.get.return_value = response
+    client = SalesforceClient(session, "https://example.my.salesforce.com")
+
+    # Act and assert
+    with pytest.raises(requests.HTTPError, match="server_error") as exc_info:
+        client.query_all("SELECT Id FROM User")
+    assert "https://example.my.salesforce.com/query" in str(exc_info.value)
+    assert not get_salesforce_error_codes(exc_info.value)
+    assert not get_salesforce_error_messages(exc_info.value)

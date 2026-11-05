@@ -1,9 +1,14 @@
 from datetime import datetime
 from datetime import timezone
+from unittest.mock import MagicMock
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.circleci.supply_chain import _run_older_than
 from cartography.intel.circleci.supply_chain import build_revision_targets
 from cartography.intel.circleci.supply_chain import CIRCLECI_TAG_REVISION_CONFIDENCE
+from cartography.intel.circleci.supply_chain import (
+    get_unmatched_circleci_candidate_images,
+)
 from cartography.intel.circleci.supply_chain import images_with_feed_evidence
 from cartography.intel.circleci.supply_chain import match_tag_revisions
 
@@ -128,6 +133,26 @@ def test_run_older_than():
     # No/blank/unparseable timestamp is treated as within the window.
     assert _run_older_than({}, cutoff) is False
     assert _run_older_than({"created_at": "not-a-date"}, cutoff) is False
+
+
+def test_get_unmatched_candidate_images_limits_before_tag_expansion():
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.return_value = []
+
+    get_unmatched_circleci_candidate_images(
+        neo4j_session,
+        org_id="org-1",
+        update_tag=1,
+        limit=10,
+    )
+
+    tx_func, query = neo4j_session.execute_read.call_args.args[:2]
+    assert tx_func is read_list_of_dicts_tx
+    assert (
+        query.index("ORDER BY img.digest")
+        < query.index("LIMIT 10")
+        < query.index("WITH img, collect")
+    )
 
 
 def test_images_with_feed_evidence_includes_ambiguous():

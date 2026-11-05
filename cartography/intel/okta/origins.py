@@ -70,17 +70,19 @@ def _transform_okta_origins(
         origin_props["origin"] = okta_origin.origin
         # Scopes have a specific type
         # currently supported are CORS, Redirect, and IFrame
-        for scope in okta_origin.scopes:
-            apps = []
-            for app in scope.allowed_okta_apps:
-                apps.append(app.value)
-            if scope.type.value == "CORS":
+        # The SDK declares scopes, their type and their allowed apps as optional,
+        # and the API only returns allowedOktaApps on IFRAME_EMBED scopes, so
+        # every level must be guarded to avoid aborting the whole sync.
+        for scope in okta_origin.scopes or []:
+            apps = [app.value for app in scope.allowed_okta_apps or []]
+            scope_type = scope.type.value if scope.type else None
+            if scope_type == "CORS":
                 origin_props["cors_allowed_okta_apps"] = apps
                 origin_props["cors_allowed"] = True
-            elif scope.type.value == "REDIRECT":
+            elif scope_type == "REDIRECT":
                 origin_props["redirect_allowed_okta_apps"] = apps
                 origin_props["redirect_allowed"] = True
-            elif scope.type.value == "IFRAME_EMBED":
+            elif scope_type == "IFRAME_EMBED":
                 origin_props["iframe_allowed_okta_apps"] = apps
                 origin_props["iframe_allowed"] = True
         origin_props["status"] = okta_origin.status

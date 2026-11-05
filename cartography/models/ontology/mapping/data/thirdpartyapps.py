@@ -165,6 +165,27 @@ slack_mapping = OntologyMapping(
     ],
 )
 
+notion_mapping = OntologyMapping(
+    module_name="notion",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NotionBot",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 jumpcloud_mapping = OntologyMapping(
     module_name="jumpcloud",
     nodes=[
@@ -194,7 +215,7 @@ salesforce_mapping = OntologyMapping(
                 # use the ConnectedApplication record id as the client identifier.
                 OntologyFieldMapping(
                     ontology_field="client_id",
-                    node_field="id",
+                    node_field="salesforce_id",
                 ),
                 OntologyFieldMapping(
                     ontology_field="name",
@@ -243,13 +264,90 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+zoom_mapping = OntologyMapping(
+    module_name="zoom",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZoomApp",
+            fields=[
+                # Marketplace app_id is a stable surrogate, not an OAuth client ID.
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="app_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # enabled/native_app/protocol: Publication status and app type do
+                # not establish these properties for all Marketplace app types.
+            ],
+        ),
+    ],
+)
+
+github_mapping = OntologyMapping(
+    module_name="github",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GitHubAppInstallation",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="client_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="app_slug", required=True
+                ),
+                OntologyFieldMapping(ontology_field="enabled", node_field="enabled"),
+                # native_app/protocol: GitHub Apps are server-side integrations and
+                # the installation does not report an OAuth protocol.
+            ],
+        ),
+    ],
+)
+
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithOAuthClient",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id", node_field="id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="LangSmithOAuthProvider",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id", node_field="client_id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "github": github_mapping,
+    "zoom": zoom_mapping,
     "googleworkspace": googleworkspace_mapping,
     "salesforce": salesforce_mapping,
     "keycloak": keycloak_mapping,
     "microsoft": entra_mapping,
     "okta": okta_mapping,
     "slack": slack_mapping,
+    "notion": notion_mapping,
     "jumpcloud": jumpcloud_mapping,
     "netlify": netlify_mapping,
+    "langsmith": langsmith_mapping,
 }

@@ -173,6 +173,24 @@ OntologyFieldMapping(
 # endpoint = public_endpoint if set, otherwise private_endpoint
 ```
 
+#### `normalize_hostname`
+Lowercases a hostname, trims surrounding whitespace, and removes the trailing root dot, so
+DNS names from different providers can be matched with an indexed equality lookup. An empty
+result becomes `NULL`. The raw value remains available on the source node's own property.
+Set `extra["record_types"]` to normalize only records of those types, for example when the
+same field holds hostnames for `CNAME` records but IP addresses or text for other types:
+```python
+OntologyFieldMapping(
+    ontology_field="target_hostname",
+    node_field="value",
+    special_handling="normalize_hostname",
+    extra={"record_types": ["CNAME", "ALIAS"]},
+)
+# type="CNAME", value="Target.Example.COM." becomes target_hostname="target.example.com"
+# type="TXT" leaves target_hostname NULL
+```
+The record type is read from the `type` node field, or from `extra["record_type_field"]`.
+
 ### Node Eligibility
 
 The `eligible_for_source` parameter in `OntologyNodeMapping` controls whether a node mapping can create new ontology nodes (default: `True`).
@@ -231,6 +249,24 @@ A constraint validates the name and direction of an existing relationship. It
 does not create that relationship. The generated schema catalog distinguishes
 these validation constraints from the schemas and analysis jobs that materialize
 relationships.
+
+### DNS relationships
+
+`(:DNSRecord)-[:DNS_POINTS_TO]->(target)` means the record resolves to the target:
+an alias or CNAME target such as a load balancer, CDN distribution, or hosted
+service, an address record's IP, or a delegated name server.
+
+Objects that only declare a hostname, such as a Kubernetes Ingress host rule, are
+correlated with `(:KubernetesIngress)-[:MATCHES_HOSTNAME]->(:DNSRecord)` instead.
+Only host records match (`A`, `AAAA`, `CNAME`, `ALIAS`, or records without a type);
+an `NS` record with the same name delegates a zone and is not linked.
+A shared hostname does not mean the record resolves to that object or to its load
+balancer: the record can alias a different load balancer, for example one bound to
+Services through a TargetGroupBinding. Follow `DNS_POINTS_TO` for the runtime path.
+
+The legacy `(:DNSRecord)-[:DNS_POINTS_TO]->(:KubernetesIngress)` edge is still
+written alongside `MATCHES_HOSTNAME` for existing queries. It is deprecated and will
+be removed in v1.0.0.
 
 ```{toctree}
 config

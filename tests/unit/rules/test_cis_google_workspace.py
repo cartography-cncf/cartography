@@ -26,9 +26,13 @@ def test_rules_registered_and_metadata():
         googleworkspace_users_without_enforced_2sv,
         googleworkspace_admins_without_enforced_2sv,
     ]
+    expected_versions = {
+        "googleworkspace_admins_without_enforced_2sv": "1.0.1",
+        "googleworkspace_super_admin_accounts_used_for_daily_admin": "1.0.1",
+    }
 
     for rule in rules:
-        assert rule.version == "1.0.0"
+        assert rule.version == expected_versions.get(rule.id, "1.0.0")
         assert rule.modules == {Module.GOOGLEWORKSPACE}
         # Check that the rule has CIS framework reference
         assert rule.has_framework("cis", "googleworkspace", "1.3")
@@ -100,6 +104,19 @@ def test_admin_2sv_rule_includes_delegated_admins():
     assert "u.is_delegated_admin" in fact.cypher_query
     assert "u.is_delegated_admin" in fact.cypher_visual_query
     assert "u.is_delegated_admin" in fact.cypher_count_query
+
+
+def test_delegated_admin_rules_exclude_inactive_accounts():
+    active_filter = "coalesce(u._ont_active, true) = true"
+
+    for rule in (
+        googleworkspace_admins_without_enforced_2sv,
+        googleworkspace_super_admin_accounts_used_for_daily_admin,
+    ):
+        fact = rule.facts[0]
+        assert active_filter in fact.cypher_query
+        assert active_filter in fact.cypher_visual_query
+        assert active_filter in fact.cypher_count_query
 
 
 def test_super_admin_rules_use_is_admin_as_super_admin_signal():

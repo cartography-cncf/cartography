@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
 VULNERABILITY_MODEL = "VulnerabilityV2"
+# Each deleted finding removes ~23 index entries plus its RESOURCE and ENRICHES
+# edges. At the 10,000-node default, cleanup transactions commit long enough to
+# delay other sessions waiting on causal bookmarks.
+CLEANUP_ITERATION_SIZE = 2000
 
 
 def build_query() -> dict[str, Any]:
@@ -41,9 +45,20 @@ def build_query() -> dict[str, Any]:
                         "type": "object",
                         "operator": "has",
                     },
+                    # VulnerabilityV2 also includes non-CVE advisories.
+                    {
+                        "key": "CveId",
+                        "type": "str",
+                        "operator": "containing",
+                        "values": ["CVE-"],
+                    },
                 ],
             },
         },
+        # Offset pagination drifts without an order. VulnerabilityV2 has no
+        # CreatedAt and no sortable unique id; FirstSeen is immutable, so new
+        # findings append instead of shifting earlier pages.
+        "order_by[]": ["FirstSeen", "CveId"],
         "additional_models[]": ["InstalledPackage", "Inventory"],
         "flat_json": True,
         "full_graph_fetch": {"enabled": True},
@@ -62,6 +77,13 @@ def _optional_bool(value: Any) -> bool | None:
     raise ValueError("Unexpected Orca boolean value")
 
 
+def _patch_available(value: Any) -> bool | None:
+    # Orca includes extended-maintenance patches in its "Patch Available" filter.
+    if str(value).strip().lower() == "extended":
+        return True
+    return _optional_bool(value)
+
+
 def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
     value = row.get("InstalledPackage")
     if value is None:
@@ -76,7 +98,7 @@ def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _package_properties(package: dict[str, Any]) -> dict[str, str | None]:
-    return {
+    properties = {
         field: optional_nonempty_string(
             package.get(orca_field),
             f"Orca vulnerability.InstalledPackage.{orca_field}",
@@ -88,9 +110,13 @@ def _package_properties(package: dict[str, Any]) -> dict[str, str | None]:
             ("package_version", "Version"),
             ("purl", "PURL"),
             ("cpe", "CPE"),
-            ("source_package", "SourcePackage"),
         )
     }
+    properties["source_package"] = optional_string(
+        package.get("SourcePackage"),
+        "Orca vulnerability.InstalledPackage.SourcePackage",
+    )
+    return properties
 
 
 def _package_key(package: dict[str, str | None]) -> tuple[str, ...]:
@@ -127,6 +153,7 @@ def transform(
 ) -> list[dict[str, Any]]:
     transformed: dict[str, dict[str, Any]] = {}
     duplicate_count = 0
+    non_cve_ids: list[Any] = []
     for vulnerability in raw_vulnerabilities:
         inventory = require_object(
             vulnerability.get("Inventory"),
@@ -151,7 +178,8 @@ def transform(
 
         cve_ids = canonical_cve_ids(vulnerability.get("CveId"))
         if not cve_ids:
-            raise ValueError("Orca vulnerability row omitted a canonical CveId")
+            non_cve_ids.append(vulnerability.get("CveId"))
+            continue
         source_link = optional_nonempty_string(
             vulnerability.get("SourceLink"),
             "Orca vulnerability.SourceLink",
@@ -189,7 +217,7 @@ def transform(
             ),
             "has_exploit": _optional_bool(vulnerability.get("HasExploit")),
             "cisa_kev": _optional_bool(vulnerability.get("CisaKev")),
-            "patch_available": _optional_bool(
+            "patch_available": _patch_available(
                 vulnerability.get("PatchAvailable"),
             ),
             "trending": _optional_bool(vulnerability.get("Trending")),
@@ -224,6 +252,12 @@ def transform(
                     duplicate_count += 1
                     continue
                 transformed[finding_id] = finding
+    if non_cve_ids:
+        logger.warning(
+            "Skipped %d Orca vulnerability rows without a canonical CVE id: %s",
+            len(non_cve_ids),
+            non_cve_ids[:5],
+        )
     if duplicate_count:
         logger.warning(
             "Skipped %d duplicate Orca vulnerability findings within a page.",
@@ -254,15 +288,21 @@ def sync(
     api_endpoint: str,
     organization_id: str,
     update_tag: int,
-) -> None:
+) -> bool:
+    """Load Orca vulnerabilities and return whether the fetch is safe to clean up."""
     seen_ids: set[str] = set()
+    row_count = 0
+    cross_page_duplicates = 0
+    progress = api.PaginationProgress()
     for page in api.iter_serving_layer_pages(
         session,
         api_endpoint,
         build_query(),
         page_size=PAGE_SIZE,
         result_name="vulnerabilities",
+        progress=progress,
     ):
+        row_count += len(page)
         vulnerabilities = transform(page, organization_id)
         new_vulnerabilities = [
             vulnerability
@@ -270,6 +310,7 @@ def sync(
             if vulnerability["id"] not in seen_ids
         ]
         duplicate_count = len(vulnerabilities) - len(new_vulnerabilities)
+        cross_page_duplicates += duplicate_count
         if duplicate_count:
             logger.warning(
                 "Skipped %d duplicate Orca vulnerability findings across pages.",
@@ -283,6 +324,16 @@ def sync(
                 organization_id,
                 update_tag,
             )
+    # Findings repeated across pages have several causes. One is offset
+    # pagination drift, which can also skip rows that cleanup then deletes.
+    logger.info(
+        "Loaded %d Orca vulnerability findings from %d rows; skipped %d "
+        "findings repeated across pages.",
+        len(seen_ids),
+        row_count,
+        cross_page_duplicates,
+    )
+    return progress.complete
 
 
 def cleanup(
@@ -292,4 +343,5 @@ def cleanup(
     GraphJob.from_node_schema(
         OrcaVulnerabilityFindingSchema(),
         common_job_parameters,
+        iterationsize=CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)

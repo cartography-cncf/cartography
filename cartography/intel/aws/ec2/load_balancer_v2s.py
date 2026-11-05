@@ -11,10 +11,12 @@ from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 
+from cartography.analysis.aws.analysis import AWS_LB_IP_TARGET_EXPOSURE
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.loadbalancerv2 import ELBV2ListenerSchema
@@ -25,12 +27,10 @@ from cartography.models.aws.ec2.loadbalancerv2 import (
     LoadBalancerV2ToEC2InstanceMatchLink,
 )
 from cartography.models.aws.ec2.loadbalancerv2 import (
-    LoadBalancerV2ToEC2PrivateIpMatchLink,
-)
-from cartography.models.aws.ec2.loadbalancerv2 import (
     LoadBalancerV2ToLoadBalancerV2MatchLink,
 )
 from cartography.util import aws_handle_regions
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -269,6 +269,7 @@ def _transform_load_balancer_v2_data(
                         "LoadBalancerId": dns_name,
                         "TargetId": target_id,
                         "TargetType": target_type,
+                        "VpcId": target_group.get("VpcId"),
                         "TargetGroupArn": tg_arn,
                         "Port": target_group.get("Port"),
                         "Protocol": target_group.get("Protocol"),
@@ -323,8 +324,7 @@ def load_load_balancer_v2s(
         )
 
     # Load non-IP target relationships (instance, lambda, alb)
-    # IP targets are deferred to sync_load_balancer_v2_expose so that AWSEC2PrivateIp nodes
-    # created by ec2:network_interface exist first.
+    # IP targets are resolved after network-interface and ECS ingestion.
     if target_data:
         _load_load_balancer_v2_non_ip_targets(
             neo4j_session,
@@ -382,17 +382,21 @@ def _load_load_balancer_v2_ip_targets(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    """Load EXPOSE relationships to IP target types (AWSEC2PrivateIp) using MatchLinks."""
+    """Resolve IP targets with typed analysis, deferring cleanup until inventory completes."""
     ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
-
-    if ip_targets:
-        load_matchlinks(
+    for targets in batch(ip_targets):
+        targets_by_lb: dict[str, list[dict]] = {}
+        for target in targets:
+            targets_by_lb.setdefault(target["LoadBalancerId"], []).append(target)
+        run_typed_analysis_job(
+            AWS_LB_IP_TARGET_EXPOSURE,
             neo4j_session,
-            LoadBalancerV2ToEC2PrivateIpMatchLink(),
-            ip_targets,
-            lastupdated=update_tag,
-            _sub_resource_label="AWSAccount",
-            _sub_resource_id=current_aws_account_id,
+            {
+                "IP_TARGETS_BY_LB": targets_by_lb,
+                "AWS_ID": current_aws_account_id,
+                "UPDATE_TAG": update_tag,
+                "CLEANUP_SAFE": False,
+            },
         )
 
 
@@ -461,6 +465,7 @@ def load_load_balancer_v2_target_groups(
                     "LoadBalancerId": load_balancer_id,
                     "TargetId": target_id,
                     "TargetType": target_type,
+                    "VpcId": target_group.get("VpcId"),
                     "TargetGroupArn": target_group.get("TargetGroupArn"),
                     "Port": target_group.get("Port"),
                     "Protocol": target_group.get("Protocol"),
@@ -525,13 +530,12 @@ def cleanup_load_balancer_v2_expose(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    """Cleanup stale IP target MatchLinks (AWSEC2PrivateIp EXPOSE relationships)."""
-    GraphJob.from_matchlink(
-        LoadBalancerV2ToEC2PrivateIpMatchLink(),
-        "AWSAccount",
-        common_job_parameters["AWS_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
+    """Remove stale IP-target edges only after a complete account inventory."""
+    run_typed_analysis_job(
+        AWS_LB_IP_TARGET_EXPOSURE,
+        neo4j_session,
+        {**common_job_parameters, "IP_TARGETS_BY_LB": {}, "CLEANUP_SAFE": True},
+    )
 
 
 @timeit
@@ -545,7 +549,7 @@ def sync_load_balancer_v2s(
 ) -> None:
     """Phase 1: Sync LBv2 nodes, listeners, and non-IP MatchLinks (instance, lambda, alb).
 
-    IP target MatchLinks are deferred to sync_load_balancer_v2_expose (Phase 2)
+    IP target resolution is deferred to sync_load_balancer_v2_expose (Phase 2)
     so that AWSEC2PrivateIp nodes created by ec2:network_interface exist first.
     """
     _migrate_legacy_loadbalancerv2_labels(
@@ -607,9 +611,9 @@ def sync_load_balancer_v2_expose(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
-    """Phase 2: Sync IP target MatchLinks (LBv2 -> AWSEC2PrivateIp EXPOSE relationships).
+    """Phase 2: Resolve IP targets and derive LBv2 -> AWSEC2PrivateIp EXPOSE edges.
 
-    Runs after ec2:network_interface so that AWSEC2PrivateIp nodes exist.
+    Runs after ec2:network_interface and ECS so target identity evidence exists.
     Re-fetches LBv2 data from AWS API to get target information.
     """
     cleanup_safe = True

@@ -127,6 +127,10 @@ class SocketDevAlertNodeProperties(CartographyNodeProperties):
         "artifact_type",
         description="Affected package ecosystem.",
     )
+    artifact_namespace: PropertyRef = PropertyRef(
+        "artifact_namespace",
+        description="Affected package namespace or scope from the Socket.dev artifact.namespace field.",
+    )
 
 
 @dataclass(frozen=True)

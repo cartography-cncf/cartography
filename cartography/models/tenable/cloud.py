@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 # ---------------------------------------------------------------------------
@@ -64,12 +65,36 @@ class TenableAssetAWSToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenableAssetAWSToInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenableAssetAWS)-[:IS_INSTANCE]->(:AWSEC2Instance)
+@dataclass(frozen=True)
+class TenableAssetAWSToInstanceRel(CartographyRelSchema):
+    """Links Tenable's AWS details to the EC2 instance they describe."""
+
+    target_node_label: str = "AWSEC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: TenableAssetAWSToInstanceRelProperties = (
+        TenableAssetAWSToInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TenableAssetAWSSchema(CartographyNodeSchema):
     """AWS cloud details associated with a Tenable asset."""
 
     label: str = "TenableAssetAWS"
     properties: TenableAssetAWSNodeProperties = TenableAssetAWSNodeProperties()
     sub_resource_relationship: TenableAssetAWSToTenantRel = TenableAssetAWSToTenantRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [TenableAssetAWSToInstanceRel()]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +135,28 @@ class TenableAssetAzureToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenableAssetAzureToInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenableAssetAzure)-[:IS_INSTANCE]->(:AzureVirtualMachine)
+# Azure resource IDs are case-insensitive and casing varies between APIs.
+@dataclass(frozen=True)
+class TenableAssetAzureToInstanceRel(CartographyRelSchema):
+    """Links Tenable's Azure details to the virtual machine they describe."""
+
+    target_node_label: str = "AzureVirtualMachine"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id", ignore_case=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: TenableAssetAzureToInstanceRelProperties = (
+        TenableAssetAzureToInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TenableAssetAzureSchema(CartographyNodeSchema):
     """Azure cloud details associated with a Tenable asset."""
 
@@ -117,6 +164,9 @@ class TenableAssetAzureSchema(CartographyNodeSchema):
     properties: TenableAssetAzureNodeProperties = TenableAssetAzureNodeProperties()
     sub_resource_relationship: TenableAssetAzureToTenantRel = (
         TenableAssetAzureToTenantRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [TenableAssetAzureToInstanceRel()]
     )
 
 
@@ -155,9 +205,36 @@ class TenableAssetGCPToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenableAssetGCPToInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenableAssetGCP)-[:IS_INSTANCE]->(:GCPInstance)
+@dataclass(frozen=True)
+class TenableAssetGCPToInstanceRel(CartographyRelSchema):
+    """Links Tenable's GCP details to the Compute Engine instance they describe."""
+
+    target_node_label: str = "GCPInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "instance_id": PropertyRef("id"),
+            "project_id": PropertyRef("project_id"),
+        },
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: TenableAssetGCPToInstanceRelProperties = (
+        TenableAssetGCPToInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TenableAssetGCPSchema(CartographyNodeSchema):
     """GCP cloud details associated with a Tenable asset."""
 
     label: str = "TenableAssetGCP"
     properties: TenableAssetGCPNodeProperties = TenableAssetGCPNodeProperties()
     sub_resource_relationship: TenableAssetGCPToTenantRel = TenableAssetGCPToTenantRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [TenableAssetGCPToInstanceRel()]
+    )

@@ -117,6 +117,19 @@ def test_load_network_interfaces(mock_get_network_interfaces, neo4j_session):
         ("eni-04b4289e1be7634e4", "2020-10-09 06:46:17+00:00"),
     }
 
+    ipv6_addresses = {
+        record["id"]: record["ipv6_addresses"]
+        for record in neo4j_session.run(
+            "MATCH (n:AWSNetworkInterface) "
+            "RETURN n.id AS id, n.ipv6_addresses AS ipv6_addresses"
+        )
+    }
+    assert ipv6_addresses == {
+        "eni-0e106a07c15ff7d14": None,
+        "eni-0d9877f559c240362": None,
+        "eni-04b4289e1be7634e4": ["2001:db8::5"],
+    }
+
     # Assert AWSNetworkInterface device_index property is set correctly
     # DeviceIndex 0 indicates the primary network interface
     assert check_nodes(

@@ -1,0 +1,18 @@
+{
+  "name": "AWS Elasticsearch domain endpoint DNS record cleanup",
+  "__comment__": "Endpoint A records resolved by the Elasticsearch sync share the AWSDNSRecord label with Route53 records but have no RESOURCE edge from the account, so they are reached through their domain. Route53 records always have that edge, which keeps them out of these statements.",
+  "statements": [
+    {
+      "__comment__": "Delete stale endpoint records, including those of domains that no longer exist. Run before the domain cleanup so the stale domains can still be traversed.",
+      "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSESDomain)<-[:DNS_POINTS_TO]-(n:AWSDNSRecord) WHERE n.lastupdated <> $UPDATE_TAG AND NOT (n)<-[:RESOURCE]-(:AWSAccount) WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "__comment__": "Delete edges to IP addresses that an endpoint no longer resolves to.",
+      "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSESDomain)<-[:DNS_POINTS_TO]-(n:AWSDNSRecord)-[r:DNS_POINTS_TO]->(:Ip) WHERE r.lastupdated <> $UPDATE_TAG AND NOT (n)<-[:RESOURCE]-(:AWSAccount) WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 100
+    }
+  ]
+}

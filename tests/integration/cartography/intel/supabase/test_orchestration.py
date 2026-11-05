@@ -7,17 +7,30 @@ cleanup sits relative to the per-project loop. Both of those are where a project
 can be wrongly deleted, so they are covered here.
 """
 
+from contextlib import ExitStack
 from unittest.mock import patch
 
+import pytest
+import requests
+
 import cartography.intel.supabase
+import tests.data.supabase.apikeys
 import tests.data.supabase.organizations
 import tests.data.supabase.projects
 from cartography.config import Config
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 987650000
 TEST_ORG_SLUG = "simpson-corp"
 TEST_BASE_URL = "https://api.fake-supabase.com"
+
+
+# The session is module-scoped, so without this a test would see the graph the
+# previous one left behind.
+@pytest.fixture(autouse=True)
+def _empty_graph(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 def _config(update_tag, organizations=None):
@@ -25,12 +38,60 @@ def _config(update_tag, organizations=None):
         neo4j_uri="bolt://localhost:7687",
         update_tag=update_tag,
         supabase_access_token="fake-token",
-        supabase_base_url=TEST_BASE_URL,
+        # Configured with a trailing slash, which must not reach the endpoints.
+        supabase_base_url=f"{TEST_BASE_URL}/",
         supabase_organizations=organizations,
     )
 
 
-def _run(neo4j_session, update_tag, org_projects, orgs=None, organizations=None):
+def _project_scoped(result, unreachable_refs):
+    """
+    Stub a project-scoped getter. The refs in ``unreachable_refs`` behave like a
+    stopped project in production: HTTP 500 until the retries give up.
+    """
+
+    def get(api_session, base_url, project_ref):
+        assert base_url == TEST_BASE_URL
+        if project_ref in unreachable_refs:
+            raise requests.exceptions.RetryError("too many 500 error responses")
+        return result
+
+    return get
+
+
+def _project_scoped_endpoints(api_keys):
+    """
+    Every project-scoped getter, with what it returns for a running project. Only the
+    API keys return data, which keeps these tests about the fan-out rather than about
+    child ingestion.
+    """
+    return [
+        (cartography.intel.supabase.projects, "get_settings", {}),
+        (cartography.intel.supabase.projects, "get_database_posture", {}),
+        (cartography.intel.supabase.apikeys, "get", api_keys),
+        (cartography.intel.supabase.apikeys, "get_signing_keys", None),
+        (cartography.intel.supabase.functions, "get", None),
+        (cartography.intel.supabase.functions, "get_secrets", None),
+        (cartography.intel.supabase.storage, "get", None),
+        (cartography.intel.supabase.auth, "get", None),
+        (cartography.intel.supabase.auth, "get_sso_providers", None),
+        (cartography.intel.supabase.auth, "get_third_party_auth", None),
+        (cartography.intel.supabase.network, "get", None),
+        (cartography.intel.supabase.network, "get_custom_hostname", None),
+        (cartography.intel.supabase.branches, "get", None),
+        (cartography.intel.supabase.advisors, "get", None),
+    ]
+
+
+def _run(
+    neo4j_session,
+    update_tag,
+    org_projects,
+    orgs=None,
+    organizations=None,
+    api_keys=None,
+    unreachable_refs=frozenset(),
+):
     """Run the entry point with every outbound call stubbed at its module boundary."""
     orgs = (
         orgs
@@ -60,41 +121,16 @@ def _run(neo4j_session, update_tag, org_projects, orgs=None, organizations=None)
             "get_org_projects",
             return_value=org_projects,
         ),
-        patch.object(
-            cartography.intel.supabase.projects,
-            "get_settings",
-            return_value={},
-        ),
-        patch.object(
-            cartography.intel.supabase.projects,
-            "get_database_posture",
-            return_value={},
-        ),
-        # Every project-scoped child endpoint is unavailable, which keeps this test
-        # about the fan-out rather than about child ingestion.
-        patch.object(cartography.intel.supabase.apikeys, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.apikeys, "get_signing_keys", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.functions, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.functions, "get_secrets", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.storage, "get", return_value=None),
-        patch.object(cartography.intel.supabase.auth, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.auth, "get_sso_providers", return_value=None
-        ),
-        patch.object(
-            cartography.intel.supabase.auth, "get_third_party_auth", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.network, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.network, "get_custom_hostname", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.branches, "get", return_value=None),
-        patch.object(cartography.intel.supabase.advisors, "get", return_value=None),
+        ExitStack() as stack,
     ):
+        for module, name, result in _project_scoped_endpoints(api_keys):
+            stack.enter_context(
+                patch.object(
+                    module,
+                    name,
+                    side_effect=_project_scoped(result, unreachable_refs),
+                ),
+            )
         cartography.intel.supabase.start_supabase_ingestion(
             neo4j_session,
             _config(update_tag, organizations),
@@ -124,10 +160,10 @@ def test_orchestration_keeps_projects_created_by_other_members(neo4j_session):
     }
 
     # The shared project has no database object to enrich from, so no database node is
-    # invented for it, while the enriched one does get its database.
+    # invented for it, while the enriched, running one does get its database. The
+    # paused kwik-e-mart project is not read at all.
     assert check_nodes(neo4j_session, "SupabaseDatabase", ["id"]) == {
         ("nuclearplantdbaaaaaa/postgres",),
-        ("kwikemartdbbbbbbbbbb/postgres",),
     }
 
 
@@ -198,3 +234,58 @@ def test_orchestration_organization_disappearing_between_syncs(neo4j_session):
         "this expectation must be updated deliberately"
     )
     assert record["lastupdated"] == TEST_UPDATE_TAG
+
+
+def test_orchestration_stopped_project_does_not_block_later_projects(neo4j_session):
+    """
+    A paused project has no running instance, so its project-scoped endpoints answer
+    HTTP 500 until the retries give up. Reading them aborted the whole sync and left
+    every project listed after the paused one unsynced. The projects around it must
+    still sync, including their cleanup, while the paused project keeps the children
+    it had when it last ran.
+    """
+    # Arrange: a first sync while the kwik-e-mart project is still running.
+    org_projects = tests.data.supabase.projects.SUPABASE_ORG_PROJECTS["projects"]
+    api_keys = tests.data.supabase.apikeys.SUPABASE_API_KEYS
+    _run(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        [{**p, "status": "ACTIVE_HEALTHY"} for p in org_projects],
+        api_keys=api_keys,
+    )
+
+    # Act: kwik-e-mart is now paused and its endpoints fail, while every running
+    # project is down to a single API key.
+    _run(
+        neo4j_session,
+        TEST_UPDATE_TAG + 3,
+        org_projects,
+        api_keys=api_keys[:1],
+        unreachable_refs={"kwikemartdbbbbbbbbbb"},
+    )
+
+    # Assert: the running projects lost their removed keys; the paused one kept all of
+    # its keys, still attached to it.
+    assert check_nodes(neo4j_session, "SupabaseApiKey", ["id"]) == {
+        ("nuclearplantdbaaaaaa/key-publishable-1",),
+        ("sharedprojectdddddddd/key-publishable-1",),
+        ("kwikemartdbbbbbbbbbb/key-publishable-1",),
+        ("kwikemartdbbbbbbbbbb/key-secret-1",),
+        ("kwikemartdbbbbbbbbbb/legacy",),
+        ("kwikemartdbbbbbbbbbb/service_role",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SupabaseProject",
+        "id",
+        "SupabaseApiKey",
+        "id",
+        "RESOURCE",
+    ) == {
+        ("nuclearplantdbaaaaaa", "nuclearplantdbaaaaaa/key-publishable-1"),
+        ("sharedprojectdddddddd", "sharedprojectdddddddd/key-publishable-1"),
+        ("kwikemartdbbbbbbbbbb", "kwikemartdbbbbbbbbbb/key-publishable-1"),
+        ("kwikemartdbbbbbbbbbb", "kwikemartdbbbbbbbbbb/key-secret-1"),
+        ("kwikemartdbbbbbbbbbb", "kwikemartdbbbbbbbbbb/legacy"),
+        ("kwikemartdbbbbbbbbbb", "kwikemartdbbbbbbbbbb/service_role"),
+    }

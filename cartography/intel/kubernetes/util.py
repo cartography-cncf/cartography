@@ -1,10 +1,14 @@
+import ipaddress
 import json
 import logging
+import re
+from collections.abc import Callable
+from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
 from typing import Any
-from typing import Callable
 
 from dateutil.parser import isoparse
 from kubernetes import config
@@ -19,6 +23,9 @@ from kubernetes.client import StorageV1Api
 from kubernetes.client import VersionApi
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config.kube_config import KubeConfigMerger
+
+from cartography.intel.gcp.gke_utils import GKEClusterRef
+from cartography.intel.gcp.gke_utils import parse_cluster_ref
 
 logger = logging.getLogger(__name__)
 
@@ -184,18 +191,85 @@ class K8sClient:
         name: str,
         config_file: str,
         external_id: str | None = None,
+        api_client: ApiClient | None = None,
+        gke_cluster: dict[str, Any] | None = None,
+        tls_diagnostics: dict[str, Any] | None = None,
     ) -> None:
         self.name = name
         self.config_file = config_file
         self.external_id = external_id
-        self.core = K8CoreApiClient(self.name, self.config_file)
-        self.networking = K8NetworkingApiClient(self.name, self.config_file)
-        self.version = K8VersionApiClient(self.name, self.config_file)
-        self.rbac = K8RbacApiClient(self.name, self.config_file)
-        self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
-        self.apps = K8AppsApiClient(self.name, self.config_file)
-        self.batch = K8BatchApiClient(self.name, self.config_file)
-        self.storage = K8StorageApiClient(self.name, self.config_file)
+        # GKE API `Cluster` resource, set only when GKE metadata was fetched for this cluster.
+        self.gke_cluster = gke_cluster
+        # Pre-computed TLS posture for clients built without a kubeconfig.
+        self.tls_diagnostics = tls_diagnostics
+        self.core = K8CoreApiClient(self.name, self.config_file, api_client)
+        self.networking = K8NetworkingApiClient(self.name, self.config_file, api_client)
+        self.version = K8VersionApiClient(self.name, self.config_file, api_client)
+        self.rbac = K8RbacApiClient(self.name, self.config_file, api_client)
+        self.custom = K8CustomObjectsApiClient(self.name, self.config_file, api_client)
+        self.apps = K8AppsApiClient(self.name, self.config_file, api_client)
+        self.batch = K8BatchApiClient(self.name, self.config_file, api_client)
+        self.storage = K8StorageApiClient(self.name, self.config_file, api_client)
+
+
+def get_gke_cluster_ref(client: K8sClient) -> GKEClusterRef | None:
+    """Return the GKE cluster reference for a client with GKE metadata, otherwise None."""
+    if not client.gke_cluster:
+        return None
+    return parse_cluster_ref(client.gke_cluster["resource_name"])
+
+
+@dataclass(frozen=True)
+class GKENetworkScope:
+    """Where a GKE cluster's load balancers live: its project and VPC network path."""
+
+    project_id: str
+    network: str | None
+
+
+def get_gke_network_scope(client: K8sClient) -> GKENetworkScope | None:
+    """Return the project and `projects/.../global/networks/...` path of a GKE cluster."""
+    ref = get_gke_cluster_ref(client)
+    if ref is None or not client.gke_cluster:
+        return None
+    network = (client.gke_cluster.get("networkConfig") or {}).get("network")
+    if not network and client.gke_cluster.get("network"):
+        network = (
+            f"projects/{ref.project}/global/networks/{client.gke_cluster['network']}"
+        )
+    if network:
+        network = re.sub(r"^https://[a-z.]+googleapis\.com/compute/v1/", "", network)
+    return GKENetworkScope(ref.project, network)
+
+
+def gcp_forwarding_rule_match_keys(
+    ips: list[str], scope: GKENetworkScope | None
+) -> dict[str, Any]:
+    """
+    Split load balancer addresses for matching GCP forwarding rules. Non-global
+    addresses can repeat across VPCs, so they also match on network; global ones are
+    unique and match on project alone.
+    """
+    public: list[str] = []
+    private: list[str] = []
+    if scope is not None:
+        for ip in ips:
+            try:
+                is_global = ipaddress.ip_address(ip).is_global
+            except ValueError:
+                logger.warning(
+                    "Ignoring invalid load balancer address %r when matching GCP "
+                    "forwarding rules.",
+                    ip,
+                )
+                continue
+            (public if is_global else private).append(ip)
+    return {
+        "gcp_project_id": scope.project_id if scope else None,
+        "gcp_network": scope.network if scope else None,
+        "gcp_public_lb_ips": public,
+        "gcp_private_lb_ips": private,
+    }
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
@@ -353,11 +427,41 @@ def k8s_paginate(
     :return: A list of all resources returned by the list function
     """
     all_resources = []
+    for page in k8s_paginate_pages(
+        list_func,
+        raise_on_forbidden=raise_on_forbidden,
+        raise_on_error=raise_on_error,
+        **kwargs,
+    ):
+        all_resources.extend(page)
+
+    logger.debug(
+        "Completed pagination for %s: retrieved %s resources",
+        list_func.__name__,
+        len(all_resources),
+    )
+    return all_resources
+
+
+def k8s_paginate_pages(
+    list_func: Callable,
+    raise_on_forbidden: bool = False,
+    raise_on_error: bool = False,
+    **kwargs: Any,
+) -> Iterator[list[Any]]:
+    """
+    Lazily yield each page of a paginated Kubernetes list call.
+
+    Same semantics as ``k8s_paginate``, but lets the caller transform and drop each page
+    before the next one is fetched. Use this for high-cardinality resources (e.g. pods):
+    the deserialized client models are an order of magnitude larger than the transformed
+    dicts, so holding every page at once can exhaust memory on large clusters.
+    """
     continue_token = None
     limit = kwargs.pop("limit", 100)
     function_name = list_func.__name__
 
-    logger.debug(f"Starting pagination for {function_name} with limit {limit}.")
+    logger.debug("Starting pagination for %s with limit %s.", function_name, limit)
 
     while True:
         try:
@@ -365,31 +469,6 @@ def k8s_paginate(
                 response = list_func(limit=limit, _continue=continue_token, **kwargs)
             else:
                 response = list_func(limit=limit, **kwargs)
-
-            # Check if items exists on the response
-            if not hasattr(response, "items"):
-                logger.warning(
-                    f"Response from {function_name} does not contain 'items' attribute."
-                )
-                break
-
-            items_count = len(response.items)
-            all_resources.extend(response.items)
-
-            logger.debug(f"Retrieved {items_count} {function_name} resources")
-
-            # Check if metadata exists on the response
-            if not hasattr(response, "metadata"):
-                logger.warning(
-                    f"Response from {function_name} does not contain 'metadata' attribute."
-                )
-                break
-
-            continue_token = response.metadata._continue
-            if not continue_token:
-                logger.debug(f"No more {function_name} resources to retrieve.")
-                break
-
         except ApiException as e:
             is_forbidden = e.status in (401, 403)
             # 401/403 re-raise quietly so the caller can log a permission-specific
@@ -398,13 +477,85 @@ def k8s_paginate(
             if is_forbidden and (raise_on_forbidden or raise_on_error):
                 raise
             logger.error(
-                f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
+                "Kubernetes API error retrieving %s resources. %s: %s - %s",
+                function_name,
+                e,
+                e.status,
+                e.reason,
             )
             if raise_on_error:
                 raise
+            return
+
+        # Check if items exists on the response
+        if not hasattr(response, "items"):
+            logger.warning(
+                "Response from %s does not contain 'items' attribute.", function_name
+            )
+            return
+
+        logger.debug("Retrieved %s %s resources", len(response.items), function_name)
+        yield response.items
+
+        # Check if metadata exists on the response
+        if not hasattr(response, "metadata"):
+            logger.warning(
+                "Response from %s does not contain 'metadata' attribute.", function_name
+            )
+            return
+
+        continue_token = response.metadata._continue
+        if not continue_token:
+            logger.debug("No more %s resources to retrieve.", function_name)
+            return
+
+
+def list_cluster_custom_objects(
+    client: K8sClient,
+    group: str,
+    version: str,
+    plural: str,
+) -> list[dict[str, Any]]:
+    resource_name = f"{group}/{version}/{plural}"
+    all_resources: list[dict[str, Any]] = []
+    continue_token: str | None = None
+
+    while True:
+        kwargs: dict[str, Any] = {}
+        if continue_token:
+            kwargs["_continue"] = continue_token
+
+        try:
+            response = client.custom.list_cluster_custom_object(
+                group=group,
+                version=version,
+                plural=plural,
+                limit=100,
+                **kwargs,
+            )
+        except ApiException as err:
+            if err.status == 404:
+                logger.info(
+                    "Skipping %s for cluster %s because the CRD is not installed.",
+                    resource_name,
+                    client.name,
+                )
+                return []
+
+            logger.warning(
+                "Failed to fetch %s resources for cluster %s: %s",
+                resource_name,
+                client.name,
+                err,
+            )
+            raise
+
+        items = response["items"]
+        all_resources.extend(items)
+
+        continue_token = response.get("metadata", {}).get("continue")
+        if not continue_token:
             break
 
-    logger.debug(
-        f"Completed pagination for {function_name}: retrieved {len(all_resources)} resources"
-    )
+    logger.debug("Fetched %d %s resources", len(all_resources), resource_name)
     return all_resources

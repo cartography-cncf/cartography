@@ -108,17 +108,11 @@ reviews:
         Integration tests via sync:
         Integration tests should call the complete sync() or sync_*() function, not individual load() functions.
 
-        Exhaustive documentation:
-        All nodes, properties, and relationships must be documented in docs/root/modules/*/schema.md.
-
-        Document ontology mappings:
-        Nodes with ExtraNodeLabels containing an exported ExtraNodeLabel constant whose kind is LabelKind.ONTOLOGY must be documented in schema.md with a note: > **Ontology Mapping**: ...
+        Schema docs are generated:
+        Module schema pages (docs/root/modules/*/schema.md, including the ontology page) are generated from the data model at build time. The only committed pages are intentional: _cartography-metadata (hand-written) and the entra redirect stub; do not flag them. Never ask for a new hand-written or committed schema.md, never flag a missing one, and do not comment on its headings, table format, or ontology mapping notes. Documentation lives in the model itself: for new or changed node and relationship schemas, flag a missing class docstring, and flag a displayed PropertyRef without description= (lastupdated is exempt). Do not flag untouched legacy models.
 
         Extra node label API:
         ExtraNodeLabel is a single immutable value type. Labels must be exported uppercase constants, not one subclass per label, and descriptions are metadata rather than class docstrings. Conditional labels must use CONSTANT.when(field="value"). ECR type matches are case-sensitive and use the exact production values image, attestation, and manifest_list.
-
-        Schema documentation format:
-        In docs/root/modules/*/schema.md files: use ### (h3) for node names and #### (h4) for the "Relationships" subsection. Indexed fields (primary key id and fields with extra_index=True) must be bold in the table (e.g., |**id**| The unique identifier|). Each node must document all its fields with a description.
 pr_descriptions:
   generate: false
   cubic_review_link: false

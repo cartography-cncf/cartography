@@ -287,6 +287,55 @@ def test_sync_cloudfront_multi_origin(mock_get_distributions, neo4j_session):
     }
 
 
+@patch.object(cartography.intel.aws.cloudfront, "get_cloudfront_distributions")
+def test_sync_cloudfront_skips_govcloud(mock_get_distributions, neo4j_session):
+    """
+    CloudFront has no endpoint in AWS GovCloud (US), so a GovCloud account skips the
+    module. The skip happens before cleanup, so it leaves existing data in place.
+    """
+    # Arrange
+    _cleanup_cloudfront(neo4j_session)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mock_get_distributions.return_value = test_data.CLOUDFRONT_DISTRIBUTIONS
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    seeded = check_nodes(
+        neo4j_session, "AWSCloudFrontDistribution", ["distribution_id", "lastupdated"]
+    )
+    new_update_tag = TEST_UPDATE_TAG + 1
+    # A GovCloud sync that still fetched would load this distribution again with the new
+    # update tag, which the assertion below would see.
+    mock_get_distributions.return_value = test_data.CLOUDFRONT_DISTRIBUTIONS
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-gov-west-1", "us-gov-east-1"],
+        TEST_ACCOUNT_ID,
+        new_update_tag,
+        {"UPDATE_TAG": new_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert seeded
+    assert (
+        check_nodes(
+            neo4j_session,
+            "AWSCloudFrontDistribution",
+            ["distribution_id", "lastupdated"],
+        )
+        == seeded
+    )
+
+
 @patch.object(
     cartography.intel.aws.cloudfront,
     "get_cloudfront_distributions",

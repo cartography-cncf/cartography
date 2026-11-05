@@ -109,3 +109,62 @@ TEST_ACCOUNTS_FOR_PARENT = {
         TEST_ORGANIZATION_ACCOUNTS[3],
     ],
 }
+
+TEST_SERVICE_CONTROL_POLICIES = [
+    {
+        "Id": "p-FullAWSAccess",
+        "Arn": "arn:aws:organizations::aws:policy/service_control_policy/p-FullAWSAccess",
+        "Name": "FullAWSAccess",
+        "Description": "Allows access to every operation",
+        "Type": "SERVICE_CONTROL_POLICY",
+        "AwsManaged": True,
+        "Content": '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}',
+        "Targets": [
+            {
+                "TargetId": "r-exam",
+                "Arn": "arn:aws:organizations::111111111111:root/o-exampleorgid/r-exam",
+                "Name": "Root",
+                "Type": "ROOT",
+            },
+            {
+                "TargetId": "ou-exam-a1b2c3d4",
+                "Arn": "arn:aws:organizations::111111111111:ou/o-exampleorgid/ou-exam-a1b2c3d4",
+                "Name": "Security",
+                "Type": "ORGANIZATIONAL_UNIT",
+            },
+            {
+                "TargetId": "111111111111",
+                "Arn": "arn:aws:organizations::111111111111:account/o-exampleorgid/111111111111",
+                "Name": "management-account",
+                "Type": "ACCOUNT",
+            },
+        ],
+    },
+    {
+        "Id": "p-examregion",
+        "Arn": "arn:aws:organizations::111111111111:policy/o-exampleorgid/service_control_policy/p-examregion",
+        "Name": "DenyUnapprovedRegions",
+        "Description": "Deny requests outside approved regions",
+        "Type": "SERVICE_CONTROL_POLICY",
+        "AwsManaged": False,
+        "Content": (
+            '{"Version":"2012-10-17","Statement":[{"Sid":"DenyOutsideApprovedRegions",'
+            '"Effect":"Deny","NotAction":["iam:*","organizations:*","sts:*"],"Resource":"*",'
+            '"Condition":{"StringNotEquals":{"aws:RequestedRegion":["us-east-1","us-west-2"]}}}]}'
+        ),
+        "Targets": [
+            {
+                "TargetId": "ou-exam-a1b2c3d4",
+                "Arn": "arn:aws:organizations::111111111111:ou/o-exampleorgid/ou-exam-a1b2c3d4",
+                "Name": "Security",
+                "Type": "ORGANIZATIONAL_UNIT",
+            },
+            {
+                "TargetId": "444444444444",
+                "Arn": "arn:aws:organizations::111111111111:account/o-exampleorgid/444444444444",
+                "Name": "logging-account",
+                "Type": "ACCOUNT",
+            },
+        ],
+    },
+]

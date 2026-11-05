@@ -89,7 +89,7 @@ def _make_response(status_code, *, json_body=None, text_body=""):
 
 def _patch_lint_then_raw(monkeypatch, lint_response, raw_yaml):
     """
-    Patch `requests.request` (the actual HTTP boundary used by
+    Patch the shared requests.Session (the actual HTTP boundary used by
     `make_request_with_retry`) to dispatch on URL: ``/ci/lint`` returns the
     given lint response, the raw-file endpoint returns the raw YAML.
     """
@@ -101,7 +101,7 @@ def _patch_lint_then_raw(monkeypatch, lint_response, raw_yaml):
             return _make_response(200, text_body=raw_yaml)
         return _make_response(404)
 
-    monkeypatch.setattr("cartography.intel.gitlab.util.requests.request", fake_request)
+    monkeypatch.setattr("cartography.intel.gitlab.util._session.request", fake_request)
     monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
 
 
@@ -237,10 +237,10 @@ def test_sync_ci_config_skips_project_when_no_yaml(neo4j_session, monkeypatch):
     """A project with no readable CI config is skipped without error."""
     _reset_db_and_create_project(neo4j_session)
     # Both /ci/lint and the raw repository file return 404 — the project
-    # legitimately has no .gitlab-ci.yml. Mock at the HTTP boundary
-    # (`requests.request`) rather than at the internal helper.
+    # legitimately has no .gitlab-ci.yml. Mock at the HTTP boundary (the
+    # shared requests.Session) rather than at the internal helper.
     monkeypatch.setattr(
-        "cartography.intel.gitlab.util.requests.request",
+        "cartography.intel.gitlab.util._session.request",
         lambda method, url, **_: _make_response(404),
     )
     monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
@@ -265,7 +265,7 @@ def test_sync_ci_config_skips_cleanup_when_lint_and_raw_both_denied(
     """A 403 on both endpoints flags the project as denied (skip cleanup)."""
     _reset_db_and_create_project(neo4j_session)
     monkeypatch.setattr(
-        "cartography.intel.gitlab.util.requests.request",
+        "cartography.intel.gitlab.util._session.request",
         lambda method, url, **_: _make_response(403),
     )
     monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)

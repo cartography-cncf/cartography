@@ -3,14 +3,12 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CVE
 
 
 @dataclass(frozen=True)
@@ -65,18 +63,19 @@ class TenableFindingNodeProperties(CartographyNodeProperties):
     service: PropertyRef = PropertyRef(
         "service", description="Network service associated with the finding."
     )
+    # DEPRECATED: cve_id and has_cve fed the CVE ontology label findings used to carry.
+    # Kept for existing queries; will be removed in v1.0.0.
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
-        description="First CVE ID associated with the finding.",
-    )
-    cve_list: PropertyRef = PropertyRef(
-        "cve_list",
-        extra_index=True,
-        description="CVE IDs associated with the finding.",
+        description=(
+            "Deprecated. First CVE ID named by the finding's plugin. Every CVE is "
+            "reachable over `DETECTED_BY` and then `HAS_CVE`."
+        ),
     )
     has_cve: PropertyRef = PropertyRef(
-        "has_cve", description='Whether the finding has a CVE ID, as "true" or "false".'
+        "has_cve",
+        description='Deprecated. Whether the plugin names a CVE, as "true" or "false".',
     )
 
 
@@ -167,7 +166,6 @@ class TenableFindingSchema(CartographyNodeSchema):
     """A vulnerability finding detected by Tenable on an asset."""
 
     label: str = "TenableFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE.when(has_cve="true")])
     properties: TenableFindingNodeProperties = TenableFindingNodeProperties()
     sub_resource_relationship: TenableFindingToTenantRel = TenableFindingToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(

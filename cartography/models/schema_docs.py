@@ -814,7 +814,22 @@ def _relationship_permissions(relationship: Relationship) -> str | None:
             for permission in definition.permissions
         }
     )
-    return ", ".join(f"`{permission}`" for permission in permissions) or None
+    data_permissions = sorted(
+        {
+            permission
+            for definition in relationship.permission_relationships
+            for permission in definition.data_permissions
+        }
+    )
+    parts = []
+    if permissions:
+        parts.append(", ".join(f"`{permission}`" for permission in permissions))
+    if data_permissions:
+        parts.append(
+            "data plane only: "
+            + ", ".join(f"`{permission}`" for permission in data_permissions)
+        )
+    return "; ".join(parts) or None
 
 
 def _relationship_target_preconditions(relationship: Relationship) -> str | None:

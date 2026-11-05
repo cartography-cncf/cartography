@@ -46,10 +46,12 @@ def test_load_scaleway_projects(mock_get, neo4j_session):
         (
             "0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
             "default",
+            "active",
         )
     }
     assert (
-        check_nodes(neo4j_session, "ScalewayProject", ["id", "name"]) == expected_nodes
+        check_nodes(neo4j_session, "ScalewayProject", ["id", "name", "status"])
+        == expected_nodes
     )
 
     # Assert Oganization exists

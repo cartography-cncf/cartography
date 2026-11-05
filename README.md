@@ -103,18 +103,19 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Crowdstrike Falcon](https://docs.cartography.dev/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
 - [DigitalOcean](https://docs.cartography.dev/modules/digitalocean/index.html)
 - [Duo](https://docs.cartography.dev/modules/duo/index.html) - Users, Groups, Endpoints
-- [GitHub](https://docs.cartography.dev/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies
+- [GitHub](https://docs.cartography.dev/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies, organization and repository security settings, verified domains, installed GitHub Apps, webhooks
 - [Google Cloud Platform](https://docs.cartography.dev/modules/gcp/index.html) - Artifact Registry, Bigtable, Cloud Functions, Cloud Resource Manager, Cloud Run, Cloud SQL, Compute including SSL policies and target proxies, DNS, IAM, KMS, Secret Manager, Storage, Google Kubernetes Engine, Vertex AI
 - [Google Workspace](https://docs.cartography.dev/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
 - [Huntress](https://docs.cartography.dev/modules/huntress/index.html) - accounts, organizations, agents, incident reports, console users and roles
+- [Jira Cloud](https://docs.cartography.dev/modules/jira/index.html) - users, groups, project roles, permission grants, and API-reported admin groups
 - [Jumpcloud](https://docs.cartography.dev/modules/jumpcloud/index.html)
 - [Kandji](https://docs.cartography.dev/modules/kandji/index.html) - Devices
 - [Keycloak](https://docs.cartography.dev/modules/keycloak/index.html) - Realms, Users, Groups, Roles, Scopes, Clients, IdentityProviders, Authentication Flows, Authentication Executions, Organizations, Organization Domains
 - [Kubernetes](https://docs.cartography.dev/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container, ServiceAccount, Role, RoleBinding, ClusterRole, ClusterRoleBinding, OIDCProvider
 - [Lastpass](https://docs.cartography.dev/modules/lastpass/index.html) - users
 - [Microsoft Azure](https://docs.cartography.dev/modules/azure/index.html) - App Service, Container Instance, CosmosDB, Data Factory, Event Grid, Firewall, Firewall Policy, Functions, Key Vault, Azure Kubernetes Service (AKS), Load Balancer, Logic Apps, Management Groups, Resource Group, SQL, Storage, Virtual Machine, Virtual Networks
-- [Microsoft Entra ID](https://docs.cartography.dev/modules/entra/index.html) -  Users, Groups, Applications, OUs, App Roles, federation to AWS Identity Center, Intune Managed Devices, Intune Detected Apps, Intune Compliance Policies
-- [CVE Metadata](https://docs.cartography.dev/modules/cve_metadata/index.html) - CVE enrichment with CVSS, EPSS scores, and CISA KEV data from NVD and FIRST.org
+- [Microsoft](https://docs.cartography.dev/modules/microsoft/index.html) - Entra ID users, groups, applications and roles; Intune devices and policies; Office 365 licenses; Defender for Endpoint machines and unresolved alerts
+- [CVE Metadata](https://docs.cartography.dev/modules/cve_metadata/index.html) - CVE enrichment with CVSS scores from NVD, EPSS scores from FIRST.org, known exploited vulnerabilities from the CISA KEV catalog, and SSVC decisions from CISA Vulnrichment
 - [NIST CVE](https://docs.cartography.dev/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database (deprecated - use CVE Metadata instead)
 - [Netlify](https://docs.cartography.dev/modules/netlify/index.html) - Accounts, Users, Invites, Sites, Deploys, Functions, Dev Servers, Agent Runners, Database Branches, Database Snapshots, Environment Variables, Build Hooks, Notification Hooks, Deploy Keys, Snippets, Service Instances, DNS Zones, DNS Records, Certificates, Forms
 - [Okta](https://docs.cartography.dev/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs, federation to AWS roles, federation to AWS Identity Center
@@ -133,6 +134,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework
 - [Tailscale](https://docs.cartography.dev/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations, DevicePostures, DevicePostureConditions, device posture compliance relationships
 - [Trivy Scanner](https://docs.cartography.dev/modules/trivy/index.html) - AWS ECR Images
+- [Zoom](https://docs.cartography.dev/modules/zoom/index.html) - Accounts, users, plan types, groups, roles, security settings, Marketplace apps, meetings, recordings, and client versions
 
 </details>
 
@@ -165,6 +167,7 @@ not need an issue assignment or maintainer permission before starting work.
 1. [Corelight](https://www.corelight.com/)
 1. [SubImage](https://subimage.io)
 1. [Superhuman](https://superhuman.com/)
+1. [Hadrian](https://www.hadrian.co/)
 1. {Your company here} :-)
 
 If your organization uses Cartography, please file a PR and update this list. Say hi on Slack too!

@@ -1,0 +1,18 @@
+{
+  "name": "GCP Artifact Registry image layer cleanup",
+  "__comment__": "GAR image layers are keyed by digest and shared across projects. Remove the syncing project's stale links to layers, then delete only layers that no project links to any more, so a layer stays while any project still uses it, even one not synced in this run.",
+  "statements": [
+    {
+      "__comment__": "Delete this project's stale RESOURCE links to layers. Matched by project endpoint rather than MatchLink properties, so links written before layers were loaded through MatchLinks are removed too.",
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[r:RESOURCE]->(:GCPArtifactRegistryImageLayer) WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Delete stale layers that no project links to any more. Keep layers written in the current sync.",
+      "query": "MATCH (layer:GCPArtifactRegistryImageLayer) WHERE NOT exists((:GCPProject)-[:RESOURCE]->(layer)) AND (layer.lastupdated IS NULL OR layer.lastupdated <> $UPDATE_TAG) WITH layer LIMIT $LIMIT_SIZE DETACH DELETE layer RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

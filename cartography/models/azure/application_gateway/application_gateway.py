@@ -56,6 +56,12 @@ class AzureApplicationGatewayProperties(CartographyNodeProperties):
     subnet_id: PropertyRef = PropertyRef(
         "subnet_id", description="Azure resource ID of the gateway subnet."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        set_by_analysis=True,
+        extra_index=True,
+        description="`True` when a frontend IP configuration is associated with a public IP address. `False` otherwise.",
+    )  # Populated by the AZURE_COMPUTE_ASSET_EXPOSURE_LB analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

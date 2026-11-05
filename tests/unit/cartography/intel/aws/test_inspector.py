@@ -13,8 +13,8 @@ def test_transform_inspector_findings_network():
     )
     assert findings == [
         {
-            "id": "arn:aws:test123",
-            "arn": "arn:aws:test123",
+            "id": "arn:aws:inspector2:us-west-2:123456789011:finding/0123456789abcdef0123456789abc123",
+            "arn": "arn:aws:inspector2:us-west-2:123456789011:finding/0123456789abcdef0123456789abc123",
             "instanceid": "i-instanceid",
             "severity": "INFORMATIONAL",
             "name": "string",
@@ -23,6 +23,7 @@ def test_transform_inspector_findings_network():
             "awsaccount": "123456789011",
             "description": "string",
             "cvssscore": 123.0,
+            "cvssvector": "string",
             "protocol": "TCP",
             "portrange": "123-124",
             "portrangeend": 124,
@@ -43,8 +44,8 @@ def test_transform_inspector_findings_package():
     )
     assert findings == [
         {
-            "id": "arn:aws:test456",
-            "arn": "arn:aws:test456",
+            "id": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
+            "arn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
             "vulnerabilityid": "CVE-2017-9059",
             "instanceid": "i-88503981029833100",
             "severity": "MEDIUM",
@@ -58,11 +59,18 @@ def test_transform_inspector_findings_package():
             "callback shutdown when unmounting an NFSv4 filesystem, aka "
             'a "module reference and kernel daemon" leak.',
             "cvssscore": 5.5,
+            "cvssvector": "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
             "type": "PACKAGE_VULNERABILITY",
             "vulnerabilityid": "CVE-2017-9059",
             "cve_id": "CVE-2017-9059",
             "referenceurls": [],
             "relatedvulnerabilities": [],
+            "vendorcvssvectors": [
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+                "AV:L/AC:L/Au:N/C:N/I:N/A:C",
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            ],
+            "vendorcvssscores": [5.5, 4.9, 5.5],
             "source": "REDHAT_CVE",
             "vendorcreatedat": datetime(2017, 4, 25, 17, 0),
             "vendorupdatedat": None,
@@ -79,8 +87,8 @@ def test_transform_inspector_findings_package():
             "epss_score_inspector": 0.42,
         },
         {
-            "id": "arn:aws:test789",
-            "arn": "arn:aws:test789",
+            "id": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
+            "arn": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
             "vulnerabilityid": "CVE-2023-1234",
             "instanceid": "i-88503981029833101",
             "severity": "HIGH",
@@ -92,10 +100,13 @@ def test_transform_inspector_findings_package():
             "to execute arbitrary code or cause a denial of service via crafted "
             "SSL/TLS handshake messages.",
             "cvssscore": 7.5,
+            "cvssvector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
             "type": "PACKAGE_VULNERABILITY",
             "cve_id": "CVE-2023-1234",
             "referenceurls": ["https://nvd.nist.gov/vuln/detail/CVE-2023-1234"],
             "relatedvulnerabilities": [],
+            "vendorcvssvectors": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
+            "vendorcvssscores": [7.5],
             "source": "NVD",
             "vendorcreatedat": datetime(2023, 1, 15, 10, 0),
             "vendorupdatedat": None,
@@ -153,7 +164,7 @@ def test_transform_inspector_findings_package():
     expected_finding_to_package_map = [
         {
             "filePath": None,
-            "findingarn": "arn:aws:test456",
+            "findingarn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
             "packageid": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
@@ -162,7 +173,7 @@ def test_transform_inspector_findings_package():
         },
         {
             "filePath": None,
-            "findingarn": "arn:aws:test456",
+            "findingarn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
             "packageid": "kernel|0:4.9.17-6.29.amzn1.X86_64",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
@@ -171,7 +182,7 @@ def test_transform_inspector_findings_package():
         },
         {
             "filePath": None,
-            "findingarn": "arn:aws:test789",
+            "findingarn": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
             "packageid": "openssl|0:1.0.2k-1.amzn2.X86_64",
             "remediation": None,
             "fixedInVersion": None,

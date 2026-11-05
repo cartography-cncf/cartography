@@ -1,0 +1,11 @@
+{
+  "name": "AWS tag orphan cleanup",
+  "__comment__": "AWSTag nodes are keyed by Key:Value and shared across accounts, so they have no sub resource to scope a node cleanup to. This job runs once after every account has loaded and linked its tags, so a tag that no relationship uses is an orphan even if this sync wrote it. Tags stamped by a newer sync running against the same graph are left for that sync to link.",
+  "statements": [
+    {
+      "query": "MATCH (n:AWSTag) WHERE NOT (n)--() AND n.lastupdated <= $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

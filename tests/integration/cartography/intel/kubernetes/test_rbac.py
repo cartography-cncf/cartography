@@ -187,7 +187,7 @@ def test_sync_rbac_end_to_end(
         "id",
         "GCPServiceAccount",
         "email",
-        "WORKLOAD_IDENTITY_BINDING",
+        "ANNOTATED_SERVICE_ACCOUNT",
         rel_direction_right=True,
     ) == {
         (

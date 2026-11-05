@@ -53,6 +53,13 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class TrivyPackageToImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    locations: PropertyRef = PropertyRef(
+        "Locations",
+        description=(
+            "Files in the scan target that contain the package, such as a lockfile, "
+            "a package manifest, or a Go binary. Not set for operating system packages."
+        ),
+    )
 
 
 @dataclass(frozen=True)

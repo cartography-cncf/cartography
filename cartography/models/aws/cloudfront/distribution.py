@@ -122,6 +122,11 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
         description="List of country codes for geo restrictions",
     )
 
+    vpc_origin_ids: PropertyRef = PropertyRef(
+        "vpc_origin_ids",
+        description="IDs of the VPC origins the distribution forwards to. A VPC origin lets CloudFront reach an internal load balancer or a private EC2 instance, so a target behind one can be internet-facing without a public address. Unset when the distribution has none.",
+    )
+
     # WAF integration
     web_acl_id: PropertyRef = PropertyRef(
         "WebACLId",

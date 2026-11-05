@@ -28,7 +28,9 @@ def test_sync_salesforce_user_roles(mock_get, neo4j_session):
     )
 
     # Assert nodes
-    assert check_nodes(neo4j_session, "SalesforceUserRole", ["id", "name"]) == {
+    assert check_nodes(
+        neo4j_session, "SalesforceUserRole", ["salesforce_id", "name"]
+    ) == {
         ("00E000000000001AAA", "CEO"),
         ("00E000000000002AAA", "VP Sales"),
     }
@@ -37,9 +39,9 @@ def test_sync_salesforce_user_roles(mock_get, neo4j_session):
     assert check_rels(
         neo4j_session,
         "SalesforceUserRole",
-        "id",
+        "salesforce_id",
         "SalesforceUserRole",
-        "id",
+        "salesforce_id",
         "MEMBER_OF",
         rel_direction_right=True,
     ) == {

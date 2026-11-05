@@ -21,6 +21,13 @@
 
 ### OAuth
 
+Authorize the OAuth flow as a Google Workspace administrator that can read
+customer details, users, and user OAuth token metadata. A super administrator
+is the simplest choice for validating the setup. A personal Google account or
+a Workspace account without those privileges can complete OAuth consent but
+will receive `403 Not Authorized to access this resource/api` from the Admin
+Directory API.
+
 Use the following helper to complete the OAuth flow and obtain a refresh token:
 
 ```python
@@ -108,7 +115,18 @@ Configure domain-wide delegation or OAuth consent with these scopes:
 - `https://www.googleapis.com/auth/admin.directory.user.security`
 - `https://www.googleapis.com/auth/cloud-identity.groups.readonly`
 
+Cartography uses `admin.directory.user.security` to sync the third-party OAuth
+apps that users have authorized. Google offers no read-only scope for this data.
+The scope also allows an administrator to revoke tokens and sign users out, but
+Cartography only lists token metadata.
+
 ## Optional Permissions
+
+With OAuth authentication, `admin.directory.user.security` is optional. Leave
+it out of the `scopes` field described in
+[Advanced Configuration](#advanced-configuration), and Cartography skips OAuth
+app sync. Delegated and default authentication always request this scope, so
+domain-wide delegation must authorize it.
 
 Add `https://www.googleapis.com/auth/cloud-identity.devices.readonly` to enable
 device sync. If Cloud Identity Premium is unavailable, omit this scope and

@@ -7,6 +7,7 @@ from google.api_core.exceptions import NotFound
 from cartography.intel.gcp.artifact_registry.artifact import get_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import get_go_modules
 from cartography.intel.gcp.artifact_registry.artifact import get_yum_artifacts
+from cartography.intel.gcp.artifact_registry.util import ARTIFACT_REGISTRY_LIST_TIMEOUT
 
 
 def _make_os_package_client(package_name: str, version_name: str) -> MagicMock:
@@ -64,9 +65,11 @@ def test_get_apt_artifacts_uses_packages_and_versions():
     ]
     client.list_packages.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo",
+        timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
     client.list_versions.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo/packages/curl",
+        timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
 
 
@@ -87,9 +90,11 @@ def test_get_yum_artifacts_uses_packages_and_versions():
     ]
     client.list_packages.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo",
+        timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
     client.list_versions.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo/packages/bash",
+        timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
 
 
@@ -110,9 +115,11 @@ def test_get_go_modules_uses_packages_and_versions():
     ]
     client.list_packages.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo",
+        timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
     client.list_versions.assert_called_once_with(
         parent="projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo",
+        timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
 
 

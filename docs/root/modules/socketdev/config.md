@@ -8,10 +8,15 @@ Tokens](https://docs.socket.dev/docs/api-keys) for details.
 
 ## Required Permissions
 
-Cartography requires a Socket.dev API token with read access to the resources
-being ingested. Grant all read scopes, including the list and read scopes for
-repositories, alerts, and dependencies. Cartography does not require create,
-edit, or delete scopes.
+Cartography requires a Socket.dev API token with these org scopes:
+
+- `repo:list`
+- `alerts:list`
+- `fixes:list`
+
+Organization discovery and dependency search require authentication but no
+additional token scopes. Cartography does not require create, edit, or delete
+scopes.
 
 ## Configure Cartography
 

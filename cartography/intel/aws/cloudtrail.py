@@ -11,6 +11,7 @@ from botocore.exceptions import ConnectionClosedError
 from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
+from botocore.exceptions import SSLError
 from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load
@@ -70,6 +71,7 @@ def get_cloudtrail_trails(
         EndpointConnectionError,
         ReadTimeoutError,
         ResponseParserError,
+        SSLError,
     ) as error:
         raise CloudTrailTransientRegionFailure(
             "Encountered a transient regional CloudTrail endpoint failure while calling DescribeTrails"
@@ -115,6 +117,7 @@ def get_cloudtrail_trails(
             EndpointConnectionError,
             ReadTimeoutError,
             ResponseParserError,
+            SSLError,
         ) as error:
             raise CloudTrailTransientRegionFailure(
                 f"Encountered a transient regional CloudTrail endpoint failure while calling GetEventSelectors on trail {trail['TrailARN']}"

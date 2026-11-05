@@ -121,6 +121,11 @@ def test_microsoft_tenant_relationships_target_azure_tenant():
     )
 
 
+# `Ip` is a provider-neutral label for an address that a DNS name resolves to, shared with the
+# nodes other modules label `Ip`.
+AWS_UNPREFIXED_NODE_LABELS: Set[str] = {"Ip"}
+
+
 def test_aws_primary_node_labels_use_provider_prefix():
     errors: List[str] = []
     for module_name, element in load_models(cartography.models):
@@ -128,7 +133,10 @@ def test_aws_primary_node_labels_use_provider_prefix():
             continue
         if not is_node_schema(element):
             continue
-        if element.label.startswith("AWS"):
+        if (
+            element.label.startswith("AWS")
+            or element.label in AWS_UNPREFIXED_NODE_LABELS
+        ):
             continue
         errors.append(
             f"{element.__name__} uses unprefixed AWS label {element.label!r}.",
@@ -362,6 +370,8 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Public/global registry data.
     "DockerScoutPublicImage",
     "DockerScoutPublicImageTag",
+    # An IP address that a DNS name resolves to can be resolved from many accounts.
+    "Ip",
     # GCP Artifact Registry images are a shared canonical container-image node
     # whose tenancy is set dynamically through a MatchLink
     # (`_sub_resource_label`/`_sub_resource_id` kwargs) rather than a fixed
@@ -376,6 +386,13 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # global `name|requirements` id and is referenced by repos across orgs, so
     # it uses unscoped cleanup like PythonLibrary.
     "GitHubDependency",
+    # A LangSmith user keeps the same `ls_user_id` across every organization they belong
+    # to, and each organization has its own view of whether that identity is disabled and
+    # what role it holds. Anchoring the identity to one organization would both let that
+    # organization overwrite another's state and let its cleanup DETACH DELETE someone who
+    # merely left it, so the per-organization facts live on LangSmithOrgMembership instead
+    # (same reasoning as GitHubUser, ModalUser and RailwayUser).
+    "LangSmithUser",
     # A Modal user keeps the same `us-...` id in every workspace they belong to. Anchoring the
     # identity to one workspace would let that workspace's cleanup DETACH DELETE someone who
     # merely left it, destroying the other workspaces' memberships, so the workspace link is a
@@ -398,6 +415,10 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # person still in another team, so the team links are MatchLinks (same reasoning as
     # RailwayUser and GitHubUser).
     "NetlifyUser",
+    # An Airbyte user can belong to several organizations. Anchoring the identity to
+    # one organization would let that organization's cleanup delete a user, and
+    # edges, that another organization still references (same reasoning as NetlifyUser).
+    "AirbyteUser",
     # A Railway user can belong to several workspaces, and project members need not be
     # members of the workspace at all. Anchoring the identity to one workspace would let
     # that workspace's cleanup DETACH DELETE a user still referenced by another, so the
@@ -413,8 +434,10 @@ ADDITIONAL_TOP_LEVEL_TENANT_LABELS: Set[str] = {
     "AWSOrganization",
     # DatabricksWorkspace remains the root tenant for workspace resources, while
     # DatabricksAccount is a separate top-level tenant for the account hierarchy
-    # (and is absent on the workspace-only path).
+    # (and is absent on the workspace-only path). DatabricksMetastore is the root
+    # of the Unity Catalog hierarchy, which several workspaces can share.
     "DatabricksAccount",
+    "DatabricksMetastore",
     # SnowflakeAccount remains the root tenant for every Snowflake resource, while
     # SnowflakeOrganization is a separate top-level tenant for the organization
     # hierarchy (and is absent unless the collector holds ORGADMIN).

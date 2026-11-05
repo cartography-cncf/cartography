@@ -149,13 +149,14 @@ def test_sync_okta_applications(
     common_job_parameters = _create_common_job_parameters()
 
     # Act - Call the main sync function
-    cartography.intel.okta.applications.sync_okta_applications(
+    app_ids = cartography.intel.okta.applications.sync_okta_applications(
         okta_client,
         neo4j_session,
         common_job_parameters,
     )
 
     # Assert - Verify applications were created with correct properties
+    assert app_ids == {"app-001", "app-002"}
     expected_apps = {
         ("app-001", "salesforce", "Salesforce"),
         ("app-002", "github", "GitHub"),

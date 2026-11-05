@@ -4,7 +4,9 @@ import requests
 
 from cartography.intel.gitlab import util
 from cartography.intel.gitlab.util import fetch_registry_manifest
+from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_registry_token
+from cartography.intel.gitlab.util import get_single
 
 
 def _make_response(status_code: int, json_data=None, headers=None):
@@ -36,7 +38,7 @@ def test_get_registry_token_retries_transient_server_error(monkeypatch):
         return next(responses)
 
     util._registry_token_cache.clear()
-    monkeypatch.setattr("cartography.intel.gitlab.util.requests.request", _request)
+    monkeypatch.setattr("cartography.intel.gitlab.util._session.request", _request)
     monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
 
     token = get_registry_token(
@@ -65,7 +67,7 @@ def test_fetch_registry_manifest_retries_connection_error(monkeypatch):
         "cartography.intel.gitlab.util.get_registry_token",
         lambda *args, **kwargs: "jwt-token",
     )
-    monkeypatch.setattr("cartography.intel.gitlab.util.requests.request", _request)
+    monkeypatch.setattr("cartography.intel.gitlab.util._session.request", _request)
     monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
 
     response = fetch_registry_manifest(
@@ -98,7 +100,7 @@ def test_fetch_registry_manifest_refreshes_token_after_401(monkeypatch):
         _get_registry_token,
     )
     monkeypatch.setattr(
-        "cartography.intel.gitlab.util.requests.request",
+        "cartography.intel.gitlab.util._session.request",
         lambda *args, **kwargs: next(responses),
     )
 
@@ -112,6 +114,53 @@ def test_fetch_registry_manifest_refreshes_token_after_401(monkeypatch):
 
     assert response.status_code == 200
     assert token_calls == [False, True]
+
+
+def test_get_single_and_get_paginated_reuse_shared_session(monkeypatch):
+    # Arrange: get_single and get_paginated are independent call paths (as are
+    # runners.sync_gitlab_runners and supply_chain.get_dockerfiles_for_projects,
+    # which route through get_paginated too). None of them should construct a
+    # new requests.Session - they should all reuse the shared module-level
+    # _session so the underlying connection pool is actually shared.
+    #
+    # Track requests.Session.__init__ calls rather than asserting on `self`
+    # identity from a patched request() - a prior test in this file patches
+    # the *instance* attribute _session.request, and pytest's monkeypatch
+    # restores that on teardown by re-setting it as a permanent instance
+    # attribute (since it resolved via class inheritance), which would
+    # silently shadow any later class-level patch of Session.request and
+    # make an identity-based assertion unable to observe the real call.
+    # Asserting no new Session gets constructed is what actually falls out
+    # of a regression (a future change constructing a fresh Session per call).
+    session_init_calls = []
+    original_init = requests.Session.__init__
+
+    def _tracking_init(self, *args, **kwargs):
+        session_init_calls.append(self)
+        return original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(requests.Session, "__init__", _tracking_init)
+
+    call_count = 0
+    single_response = _make_response(200, {"id": 1})
+    paginated_response = _make_response(200, [{"id": 1}], headers={})
+
+    def _request(method, url, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if url.endswith("/single"):
+            return single_response
+        return paginated_response
+
+    monkeypatch.setattr(util._session, "request", _request)
+
+    # Act
+    get_single("https://gitlab.example.com", "tok", "/single")
+    get_paginated("https://gitlab.example.com", "tok", "/list")
+
+    # Assert
+    assert call_count == 2
+    assert session_init_calls == []
 
 
 def test_fetch_registry_manifest_forwards_head_method(monkeypatch):
@@ -135,7 +184,7 @@ def test_fetch_registry_manifest_forwards_head_method(monkeypatch):
         return next(responses)
 
     monkeypatch.setattr(
-        "cartography.intel.gitlab.util.requests.request",
+        "cartography.intel.gitlab.util._session.request",
         _request,
     )
 

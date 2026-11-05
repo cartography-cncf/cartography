@@ -32,10 +32,10 @@ def get_feature_groups_for_location(
     """
     parent = f"projects/{project_id}/locations/{location}"
     return list_vertex_ai_resources_for_location(
-        fetcher=lambda: build_vertex_ai_feature_registry_client(
+        fetcher=lambda **kwargs: build_vertex_ai_feature_registry_client(
             location,
             credentials=credentials,
-        ).list_feature_groups(parent=parent),
+        ).list_feature_groups(parent=parent, **kwargs),
         resource_type="feature groups",
         location=location,
         project_id=project_id,

@@ -20,6 +20,10 @@ from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
+from cartography.intel.gcp.artifact_registry.supply_chain import cleanup_image_layers
+from cartography.intel.gcp.artifact_registry.supply_chain import (
+    load_image_layer_relationships,
+)
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
 from cartography.intel.gcp.artifact_registry.util import (
@@ -37,9 +41,6 @@ from cartography.models.gcp.artifact_registry.image import (
 )
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageSchema,
-)
-from cartography.models.gcp.artifact_registry.image_layer import (
-    GCPArtifactRegistryImageLayerSchema,
 )
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
@@ -288,6 +289,21 @@ def test_sync_artifact_registry(
         (TEST_DOCKER_IMAGE_DIGEST,),
         (TEST_PLATFORM_IMAGE_AMD64_ID,),
         (TEST_PLATFORM_IMAGE_ARM64_ID,),
+    }
+    platform_rows = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {id: $parent})-[:CONTAINS_IMAGE]->(child)
+        RETURN child.id AS id, child.architecture AS architecture,
+               child._ont_architecture AS ont_architecture, child.variant AS variant
+        """,
+        parent=TEST_DOCKER_IMAGE_DIGEST,
+    ).data()
+    assert {
+        (row["id"], row["architecture"], row["ont_architecture"], row["variant"])
+        for row in platform_rows
+    } == {
+        (TEST_PLATFORM_IMAGE_AMD64_ID, "amd64", "amd64", None),
+        (TEST_PLATFORM_IMAGE_ARM64_ID, "arm64", "arm64", "v8"),
     }
 
     # Assert: Check Helm chart nodes
@@ -764,6 +780,7 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
 def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleaned_up(
     neo4j_session,
 ):
+    # Arrange
     project_id = "test-gar-supply-chain-project"
     repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
     _clear_gar_project(neo4j_session, project_id)
@@ -816,8 +833,23 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         "diff_id": f"sha256:{project_id}-stale",
         "history": "RUN stale",
     }
+    # Still used by another project's images, which this run does not sync.
+    other_project_id = "test-gar-supply-chain-other-project"
+    _clear_gar_project(neo4j_session, other_project_id)
+    _create_gar_project_and_repositories(neo4j_session, other_project_id, [])
+    shared_stale_layer = {
+        "diff_id": "sha256:shared-with-other-project",
+        "history": "RUN shared",
+    }
+    load_image_layers(
+        neo4j_session,
+        [shared_stale_layer],
+        other_project_id,
+        TEST_UPDATE_TAG,
+    )
 
-    load_image_provenance(
+    # Act
+    merged_provenance_updates = load_image_provenance(
         neo4j_session,
         provenance_updates,
         project_id,
@@ -825,11 +857,17 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     )
     load_image_layers(
         neo4j_session,
-        layer_dicts + [stale_layer],
+        layer_dicts + [stale_layer, shared_stale_layer],
         project_id,
         TEST_UPDATE_TAG,
     )
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
+        TEST_UPDATE_TAG,
+    )
 
+    # Assert
     first_image_id = docker_images[0]["digest"]
     image_result = neo4j_session.run(
         """
@@ -902,11 +940,72 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert layer_result["rel_sub_resource_label"] == "GCPProject"
     assert layer_result["rel_sub_resource_id"] == project_id
 
+    expected_memberships = {
+        (update["digest"], diff_id)
+        for update in provenance_updates
+        for diff_id in update["layer_diff_ids"]
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPArtifactRegistryImage",
+            "digest",
+            "GCPArtifactRegistryImageLayer",
+            "diff_id",
+            "HAS_LAYER",
+        )
+        >= expected_memberships
+    )
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "digest",
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "HEAD",
+    ) >= {
+        (update["digest"], update["layer_diff_ids"][0]) for update in provenance_updates
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "digest",
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "TAIL",
+    ) >= {
+        (update["digest"], update["layer_diff_ids"][-1])
+        for update in provenance_updates
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "NEXT",
+    ) >= {
+        (update["layer_diff_ids"][0], update["layer_diff_ids"][1])
+        for update in provenance_updates
+    }
+
+    relationship_state = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {digest: $digest})
+        -[relationship:HAS_LAYER]->(:GCPArtifactRegistryImageLayer)
+        RETURN relationship.firstseen AS firstseen,
+               relationship.lastupdated AS lastupdated
+        """,
+        digest=first_image_id,
+    ).data()
+    assert {row["lastupdated"] for row in relationship_state} == {TEST_UPDATE_TAG}
+
     image_firstseen = image_result["firstseen"]
     layer_node_firstseen = layer_result["node_firstseen"]
     layer_rel_firstseen = layer_result["rel_firstseen"]
 
-    load_image_provenance(
+    # Act
+    merged_provenance_updates = load_image_provenance(
         neo4j_session,
         provenance_updates,
         project_id,
@@ -918,7 +1017,13 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         project_id,
         TEST_UPDATE_TAG + 1,
     )
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
+        TEST_UPDATE_TAG + 1,
+    )
 
+    # Assert
     rerun_result = neo4j_session.run(
         """
         MATCH (:GCPProject {id: $project_id})
@@ -942,25 +1047,65 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert rerun_result["layer_lastupdated"] == TEST_UPDATE_TAG + 1
     assert rerun_result["rel_firstseen"] == layer_rel_firstseen
     assert rerun_result["rel_lastupdated"] == TEST_UPDATE_TAG + 1
+    rerun_relationship_state = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {digest: $digest})
+        -[relationship:HAS_LAYER]->(:GCPArtifactRegistryImageLayer)
+        RETURN relationship.firstseen AS firstseen,
+               relationship.lastupdated AS lastupdated
+        """,
+        digest=first_image_id,
+    ).data()
+    assert {row["firstseen"] for row in rerun_relationship_state} == {
+        row["firstseen"] for row in relationship_state
+    }
+    assert {row["lastupdated"] for row in rerun_relationship_state} == {
+        TEST_UPDATE_TAG + 1,
+    }
 
-    GraphJob.from_node_schema(
-        GCPArtifactRegistryImageLayerSchema(),
-        {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
-        iterationsize=1,
-    ).run(neo4j_session)
+    # Act
+    # A link written before layers were loaded through MatchLinks has no
+    # _sub_resource properties; it must not keep its layer alive.
+    legacy_layer_id = f"sha256:{project_id}-legacy"
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject {id: $project_id})
+        CREATE (project)-[:RESOURCE {lastupdated: $old_tag}]->(
+            :GCPArtifactRegistryImageLayer {id: $layer_id, lastupdated: $old_tag}
+        )
+        """,
+        project_id=project_id,
+        layer_id=legacy_layer_id,
+        old_tag=TEST_UPDATE_TAG,
+    )
 
+    cleanup_image_layers(
+        neo4j_session,
+        project_id,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
+
+    # Assert
     assert (
         neo4j_session.run(
             """
-            MATCH (:GCPProject {id: $project_id})
-            -[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: $stale_layer_id})
-            RETURN count(*) AS count
+            MATCH (layer:GCPArtifactRegistryImageLayer)
+            WHERE layer.id IN $removed_layer_ids
+            RETURN count(layer) AS count
             """,
-            project_id=project_id,
-            stale_layer_id=stale_layer["diff_id"],
+            removed_layer_ids=[stale_layer["diff_id"], legacy_layer_id],
         ).single()["count"]
         == 0
     )
+    shared_layer_projects = neo4j_session.run(
+        """
+        MATCH (project:GCPProject)
+        -[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: $layer_id})
+        RETURN collect(project.id) AS project_ids
+        """,
+        layer_id=shared_stale_layer["diff_id"],
+    ).single()["project_ids"]
+    assert shared_layer_projects == [other_project_id]
     assert (
         neo4j_session.run(
             """
@@ -1066,6 +1211,89 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["ont_os"] == "linux"
     assert result["ont_variant"] == "v9"
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
+def test_load_image_provenance_slsa_replaces_label_source(neo4j_session):
+    project_id = "test-gar-provenance-slsa-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+
+    docker_image = _make_docker_image(repo_id, 9002)
+    load_docker_images(neo4j_session, [docker_image], project_id, TEST_UPDATE_TAG)
+
+    base_update = {
+        "digest": docker_image["digest"],
+        "type": "image",
+        "media_type": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+        "architecture": "amd64",
+        "os": "linux",
+        "os_version": None,
+        "os_features": None,
+        "variant": None,
+        "parent_image_uri": None,
+        "parent_image_digest": None,
+        "layer_diff_ids": ["sha256:layer-1"],
+    }
+    # A first sync only saw OCI labels inherited from the base image.
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                **base_update,
+                "source_uri": "https://github.com/example-base/base-images",
+                "source_revision": "revision-base",
+                "source_file": None,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                **base_update,
+                "source_uri": "https://github.com/example-org/widgets",
+                "source_revision": "revision-app",
+                "source_file": "services/api/Dockerfile",
+                "provenance_from_slsa": True,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
+    # A later label-only pass must not revert the SLSA values.
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                **base_update,
+                "source_uri": "https://github.com/example-base/base-images",
+                "source_revision": "revision-base",
+                "source_file": None,
+            },
+        ],
+        project_id,
+        TEST_UPDATE_TAG + 2,
+    )
+
+    result = neo4j_session.run(
+        """
+        MATCH (image:GCPArtifactRegistryImage {id: $image_id})
+        RETURN
+            image.source_uri AS source_uri,
+            image.source_revision AS source_revision,
+            image.source_file AS source_file,
+            image.provenance_from_slsa AS provenance_from_slsa
+        """,
+        image_id=docker_image["digest"],
+    ).single()
+
+    assert result["source_uri"] == "https://github.com/example-org/widgets"
+    assert result["source_revision"] == "revision-app"
+    assert result["source_file"] == "services/api/Dockerfile"
+    assert result["provenance_from_slsa"] is None
 
 
 def test_load_image_provenance_creates_parent_image_lineage(neo4j_session):
@@ -1615,6 +1843,13 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
         SET contains.lastupdated = $old_tag,
             contains._sub_resource_label = 'GCPProject',
             contains._sub_resource_id = $project_id
+        WITH child
+        // A layer still used by a live image must not keep orphans alive.
+        MERGE (layer:GCPArtifactRegistryImageLayer {id: 'sha256:orphan-shared-layer'})
+        SET layer.diff_id = 'sha256:orphan-shared-layer'
+        MERGE (child)-[:HAS_LAYER]->(layer)
+        MERGE (child)-[:HEAD]->(layer)
+        MERGE (child)-[:TAIL]->(layer)
         """,
         project_id=project_id,
         old_tag=TEST_UPDATE_TAG,
@@ -1646,6 +1881,15 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
             """,
         ).single()["count"]
         == 0
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (layer:GCPArtifactRegistryImageLayer {id: 'sha256:orphan-shared-layer'})
+            RETURN count(layer) AS count
+            """,
+        ).single()["count"]
+        == 1
     )
 
 

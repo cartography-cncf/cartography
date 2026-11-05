@@ -91,20 +91,55 @@ def _extract_image_digests(data: dict[str, Any]) -> list[str]:
     return digests
 
 
+def _unique_extend(dest: list[str], values: list[str]) -> None:
+    seen = set(dest)
+    for value in values:
+        if value not in seen:
+            dest.append(value)
+            seen.add(value)
+
+
+def _artifact_found_by(artifact: dict[str, Any]) -> list[str]:
+    found_by = artifact.get("foundBy")
+    if isinstance(found_by, str) and found_by:
+        return [found_by]
+    return []
+
+
+def _artifact_location_paths(artifact: dict[str, Any]) -> list[str]:
+    locations = artifact.get("locations")
+    if not isinstance(locations, list):
+        return []
+
+    paths: list[str] = []
+    seen: set[str] = set()
+    for location in locations:
+        if not isinstance(location, dict):
+            continue
+        path = location.get("path")
+        if isinstance(path, str) and path and path not in seen:
+            paths.append(path)
+            seen.add(path)
+    return paths
+
+
 def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Transform Syft artifacts into SyftPackage node data with dependency_ids.
 
-    Each artifact becomes a SyftPackage node. The dependency_ids field lists
-    the normalized_ids of packages this artifact depends on, derived from
-    artifactRelationships.
+    Artifacts that share a normalized_id in one Syft document are merged into a
+    single package row. Scan-local cataloger names and location paths are stored
+    as lists for the DEPLOYED relationship to Image.
+
+    The dependency_ids field lists the normalized_ids of packages this artifact
+    depends on, derived from artifactRelationships.
 
     Args:
         data: Validated Syft JSON data
 
     Returns:
         List of dicts with keys: id, name, version, type, purl, normalized_id,
-        language, found_by, dependency_ids
+        language, found_by, locations, dependency_ids, ImageDigestCandidates
     """
     artifacts = _build_artifact_lookup(data)
     relationships = data.get("artifactRelationships", [])
@@ -143,7 +178,7 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
             "SyftPackage DEPLOYED relationships to Image nodes will be skipped.",
         )
 
-    packages: list[dict[str, Any]] = []
+    packages_by_id: dict[str, dict[str, Any]] = {}
     for artifact_id, artifact in artifacts.items():
         name = artifact.get("name")
         version = artifact.get("version")
@@ -157,8 +192,16 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
             version=version,
             pkg_type=artifact.get("type"),
         )
-        packages.append(
-            {
+        if not normalized_id:
+            continue
+
+        found_by = _artifact_found_by(artifact)
+        locations = _artifact_location_paths(artifact)
+        dependency_ids = dep_map.get(artifact_id, [])
+
+        existing = packages_by_id.get(normalized_id)
+        if existing is None:
+            packages_by_id[normalized_id] = {
                 "id": normalized_id,
                 "name": name,
                 "version": version,
@@ -166,10 +209,15 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
                 "purl": artifact.get("purl"),
                 "normalized_id": normalized_id,
                 "language": artifact.get("language"),
-                "found_by": artifact.get("foundBy"),
-                "dependency_ids": dep_map.get(artifact_id, []),
+                "found_by": list(found_by),
+                "locations": list(locations),
+                "dependency_ids": list(dependency_ids),
                 "ImageDigestCandidates": image_digests,
             }
-        )
+            continue
 
-    return packages
+        _unique_extend(existing["found_by"], found_by)
+        _unique_extend(existing["locations"], locations)
+        _unique_extend(existing["dependency_ids"], dependency_ids)
+
+    return list(packages_by_id.values())

@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
@@ -17,6 +18,16 @@ REQUEST_TIMEOUT = (CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS)
 SERVING_LAYER_PATH = "/api/serving-layer/query"
 ORGANIZATION_PATH = "/api/user/action"
 MAX_PAGES = 10_000
+# Cleanup deletes every stored finding a run did not fetch, so it runs only when
+# a fetch kept this share of a count taken when pagination ended. Falling
+# further short means Orca stopped serving rows early.
+_MIN_COMPLETION_RATIO = 0.99
+# A fetch must also keep this share of the first page's count. Each row removed
+# behind the offset cursor shifts one live row past it unread, so a result set
+# that shrinks further during a multi-hour fetch would let cleanup delete tens of
+# thousands of live findings. A short fetch is still loaded: loads only upsert,
+# so keeping the fetched rows is safe even when cleanup is not.
+_MIN_RETAINED_RATIO = 0.95
 _PROGRESS_PAGE_INTERVAL = 10
 _RETRY_STATUS_CODES = (408, 429, 502, 503, 504)
 
@@ -145,11 +156,52 @@ def serving_layer_query(
     )
 
 
-def _require_total_items(value: Any, error_message: str) -> int:
+def _require_total_items(value: Any, result_name: str, error_message: str) -> int:
     # bool subclasses int, but is not a valid API item count.
     if isinstance(value, bool) or not isinstance(value, int):
         raise RuntimeError(error_message)
+    if value < 0:
+        raise RuntimeError(
+            f"Orca {result_name} response returned negative total_items",
+        )
     return value
+
+
+def _count_rows(
+    session: requests.Session,
+    api_endpoint: str,
+    query: dict[str, Any],
+    result_name: str,
+) -> int:
+    response = serving_layer_query(
+        session,
+        api_endpoint,
+        {**query, "limit": 1, "start_at_index": 0, "get_results_and_count": True},
+    )
+    return _require_total_items(
+        response.get("total_items"),
+        result_name,
+        f"Orca {result_name} count response omitted integer total_items",
+    )
+
+
+@dataclass
+class PaginationProgress:
+    fetched_rows: int = 0
+    total_items: int | None = None
+    initial_total_items: int | None = None
+    finished: bool = False
+
+    @property
+    def complete(self) -> bool:
+        """True when pagination ended with enough rows to safely run cleanup."""
+        return (
+            self.finished
+            and self.total_items is not None
+            and self.initial_total_items is not None
+            and self.fetched_rows >= self.total_items * _MIN_COMPLETION_RATIO
+            and self.fetched_rows >= self.initial_total_items * _MIN_RETAINED_RATIO
+        )
 
 
 def iter_serving_layer_pages(
@@ -160,8 +212,13 @@ def iter_serving_layer_pages(
     page_size: int,
     result_name: str,
     max_pages: int = MAX_PAGES,
+    progress: PaginationProgress | None = None,
 ) -> Iterator[list[dict[str, Any]]]:
-    """Yield complete Orca result pages while enforcing pagination invariants."""
+    """Yield Orca result pages while enforcing pagination safety bounds.
+
+    Pass ``progress`` to learn, once iteration ends, whether the fetch is
+    complete enough for the caller to run stale-node cleanup.
+    """
     if page_size < 1:
         raise ValueError("Orca page size must be greater than zero")
     if max_pages < 1:
@@ -171,13 +228,10 @@ def iter_serving_layer_pages(
     total_items: int | None = None
     page_count = 0
     page_signatures: set[str] = set()
+    if progress is None:
+        progress = PaginationProgress()
 
     while True:
-        if page_count >= max_pages:
-            raise RuntimeError(
-                f"Orca {result_name} pagination exceeded {max_pages} pages",
-            )
-
         payload = {
             **query,
             "limit": page_size,
@@ -198,27 +252,29 @@ def iter_serving_layer_pages(
         if total_items is None:
             total_items = _require_total_items(
                 response_total,
+                result_name,
                 f"Orca {result_name} response omitted integer total_items",
             )
-            if total_items < 0:
-                raise RuntimeError(
-                    f"Orca {result_name} response returned negative total_items",
-                )
             required_pages = (total_items + page_size - 1) // page_size
             if required_pages > max_pages:
                 raise RuntimeError(
                     f"Orca {result_name} requires {required_pages} pages, "
                     f"exceeding the {max_pages}-page safety limit",
                 )
+            if total_items > 0 and not rows:
+                # The count and the first page come from the same response, so
+                # this is not drift: the API contradicted itself.
+                raise RuntimeError(
+                    f"Orca {result_name} reported {total_items} rows but "
+                    "returned an empty first page",
+                )
+            progress.total_items = progress.initial_total_items = total_items
         elif response_total is not None:
-            response_total = _require_total_items(
+            _require_total_items(
                 response_total,
+                result_name,
                 f"Orca {result_name} returned a malformed total_items",
             )
-            if response_total != total_items:
-                raise RuntimeError(
-                    f"Orca {result_name} total_items changed during pagination",
-                )
 
         if len(rows) > page_size:
             raise RuntimeError(
@@ -226,12 +282,55 @@ def iter_serving_layer_pages(
             )
 
         if not rows:
-            if start_index != total_items:
-                raise RuntimeError(
-                    f"Orca {result_name} pagination stopped at {start_index} "
-                    f"of {total_items} rows",
+            # Empty page is the only reliable end-of-results signal. Orca can
+            # return short pages mid-stream; treating those as terminal caused
+            # truncated fetches to run cleanup and delete live findings.
+            if start_index < total_items:
+                # The first page's count is hours old by now and drifts both
+                # ways on a large org, so judge a short fetch against a fresh
+                # count. A truncated fetch falls short of that one too.
+                progress.total_items = _count_rows(
+                    session,
+                    api_endpoint,
+                    query,
+                    result_name,
+                )
+                logger.info(
+                    "Orca %s total_items moved from %d to %d during pagination.",
+                    result_name,
+                    total_items,
+                    progress.total_items,
+                )
+            # Set only once the recount succeeds, so a failed recount cannot
+            # leave the fetch looking complete.
+            progress.finished = True
+            if start_index == total_items:
+                return
+            if progress.complete:
+                logger.warning(
+                    "Orca %s pagination ended after %d rows; initial "
+                    "total_items was %d.",
+                    result_name,
+                    start_index,
+                    total_items,
+                )
+            else:
+                logger.warning(
+                    "Orca %s pagination ended after %d rows; total_items was "
+                    "%d at the start and %d at the end. Keeping the fetched "
+                    "rows and skipping %s cleanup for this run.",
+                    result_name,
+                    start_index,
+                    total_items,
+                    progress.total_items,
+                    result_name,
                 )
             return
+
+        if page_count >= max_pages:
+            raise RuntimeError(
+                f"Orca {result_name} pagination exceeded {max_pages} pages",
+            )
 
         page_signature = hashlib.sha256(
             json.dumps(rows, sort_keys=True, separators=(",", ":")).encode(),
@@ -240,15 +339,10 @@ def iter_serving_layer_pages(
             raise RuntimeError(f"Orca {result_name} pagination repeated a page")
         page_signatures.add(page_signature)
 
-        next_index = start_index + len(rows)
-        if next_index > total_items:
-            raise RuntimeError(
-                f"Orca {result_name} returned more rows than total_items",
-            )
-
         page_count += 1
         yield rows
-        start_index = next_index
+        start_index += len(rows)
+        progress.fetched_rows = start_index
 
         if page_count % _PROGRESS_PAGE_INTERVAL == 0:
             logger.debug(
@@ -258,5 +352,3 @@ def iter_serving_layer_pages(
                 result_name,
                 page_count,
             )
-        if start_index == total_items:
-            return

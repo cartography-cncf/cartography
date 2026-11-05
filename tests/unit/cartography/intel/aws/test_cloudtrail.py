@@ -5,6 +5,7 @@ import pytest
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectionClosedError
 from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import SSLError
 
 from cartography.intel.aws.cloudtrail import CloudTrailTransientRegionFailure
 from cartography.intel.aws.cloudtrail import get_cloudtrail_trails
@@ -104,6 +105,24 @@ def test_get_cloudtrail_trails_raises_transient_region_failure_on_transport_time
         endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
     )
 
+    with pytest.raises(CloudTrailTransientRegionFailure):
+        get_cloudtrail_trails(
+            boto3_session,
+            "us-east-1",
+            "123456789012",
+        )
+
+
+def test_get_cloudtrail_trails_raises_transient_region_failure_on_ssl_error():
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.describe_trails.side_effect = SSLError(
+        endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
+        error="certificate verify failed: certificate has expired",
+    )
+
+    # Must surface as a transient failure so sync() skips cleanup instead of
+    # aws_handle_regions turning it into an empty result.
     with pytest.raises(CloudTrailTransientRegionFailure):
         get_cloudtrail_trails(
             boto3_session,

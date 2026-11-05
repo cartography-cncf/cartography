@@ -3,6 +3,7 @@ import re
 from typing import List
 
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
+from cartography.intel.aws.util.arns import get_partition
 
 logger = logging.getLogger(__name__)
 AWS_ACCOUNT_ID_REGEX = re.compile(r"^\d{12}$")
@@ -46,6 +47,14 @@ def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
     if not validated_regions:
         raise ValueError(
             f'`aws-regions` was set but no regions were specified. You provided this string: "{aws_regions}"',
+        )
+    # Cartography builds ARNs with the partition of the regions it syncs, and one set of
+    # credentials works in one partition only, so the regions must share a partition.
+    partitions = {get_partition(region) for region in validated_regions}
+    if len(partitions) > 1:
+        raise ValueError(
+            f'`aws-regions` must all be in one AWS partition, but "{aws_regions}" spans '
+            f"{sorted(partitions)}. Run a separate sync for each partition.",
         )
     return validated_regions
 

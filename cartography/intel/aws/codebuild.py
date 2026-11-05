@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws import codebuild_supply_chain
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.aws.util.service_regions import (
@@ -64,6 +65,7 @@ def transform_codebuild_projects(
             f"{var.get('name')}={var.get('value') if var.get('type') == 'PLAINTEXT' else '<REDACTED>'}"
             for var in env_vars
         ]
+        source = codebuild_supply_chain.linkable_source(project.get("source", {}))
         transformed_project = {
             "arn": project["arn"],
             "name": project.get("name"),
@@ -71,6 +73,8 @@ def transform_codebuild_projects(
             "environmentVariables": env_var_strings,
             "sourceType": project.get("source", {}).get("type"),
             "sourceLocation": project.get("source", {}).get("location"),
+            "sourceProvider": source[0] if source else None,
+            "sourceRepoUrl": source[1] if source else None,
         }
         transformed_codebuild_projects.append(transformed_project)
 
@@ -131,12 +135,14 @@ def sync(
             region,
         )
 
+    project_names_by_region: Dict[str, set[str]] = {}
     for region in codebuild_regions:
         logger.info(
             f"Syncing CodeBuild for region '{region}' in account '{current_aws_account_id}'.",
         )
 
         projects = get_all_codebuild_projects(boto3_session, region)
+        project_names_by_region[region] = {project["name"] for project in projects}
         transformed_projects = transform_codebuild_projects(projects, region)
 
         load_codebuild_projects(
@@ -148,3 +154,11 @@ def sync(
         )
 
     cleanup(neo4j_session, common_job_parameters)
+
+    codebuild_supply_chain.sync(
+        neo4j_session,
+        boto3_session,
+        project_names_by_region,
+        current_aws_account_id,
+        update_tag,
+    )
