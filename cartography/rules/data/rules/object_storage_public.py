@@ -310,7 +310,7 @@ object_storage_public = Rule(
         "attack_surface",
         "stride:information_disclosure",
     ),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("8.3"),
         soc2_tsc("CC6.1"),

@@ -38,7 +38,7 @@ def get(
         if cursor:
             params["cursor"] = cursor
         page = get_json(api_session, f"{base_url}/projects", params=params)
-        batch = page.get("projects") or []
+        batch = page["projects"]
         projects.extend(batch)
         if page.get("unavailable_project_ids"):
             logger.warning(
@@ -49,7 +49,7 @@ def get(
             )
             complete = False
         next_cursor = (page.get("pagination") or {}).get("cursor")
-        if len(batch) < _PROJECTS_PAGE_SIZE or not next_cursor or next_cursor == cursor:
+        if not batch or not next_cursor or next_cursor == cursor:
             return projects, complete
         cursor = next_cursor
 

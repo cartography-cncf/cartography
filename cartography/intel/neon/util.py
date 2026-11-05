@@ -111,7 +111,7 @@ def get_paginated(
                 # complete.
                 raise RuntimeError(f"Neon listing {url} failed mid-pagination")
             return None
-        batch = page.get(items_key) or []
+        batch = page[items_key]
         items.extend(batch)
         next_cursor = (page.get("pagination") or {}).get("next")
         if not batch or not next_cursor or next_cursor == cursor:

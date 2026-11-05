@@ -47,8 +47,13 @@ def sync(
         if branch_buckets is None:
             buckets_complete = False
         elif branch_buckets:
-            storage = get_storage(api_session, base_url, project_id, branch_id) or {}
-            buckets.extend(transform_buckets(branch_buckets, branch_id, storage))
+            storage = get_storage(api_session, base_url, project_id, branch_id)
+            if storage is None:
+                # Without the branch's storage settings the bucket records would
+                # carry no endpoint, so leave the existing ones as they are.
+                buckets_complete = False
+            else:
+                buckets.extend(transform_buckets(branch_buckets, branch_id, storage))
 
         branch_credentials = get_credentials(
             api_session,
@@ -108,7 +113,7 @@ def get_buckets(
     )
     if response is None:
         return None
-    return response.get("buckets") or []
+    return response["buckets"]
 
 
 @timeit
@@ -139,7 +144,7 @@ def get_credentials(
     )
     if response is None:
         return None
-    return response.get("credentials") or []
+    return response["credentials"]
 
 
 def transform_buckets(

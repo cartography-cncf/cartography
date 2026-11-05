@@ -2,7 +2,7 @@
 
 The Neon module inventories [Neon](https://neon.com) serverless Postgres and Neon Object Storage through the [Neon API](https://api-docs.neon.tech/reference/getting-started-with-neon-api).
 
-Tenancy has two levels. `NeonOrganization` is the root, `NeonProject` belongs to an organization, and every other resource belongs to a project. Both carry the `Tenant` ontology label.
+Tenancy has two levels. `NeonOrganization` is the root. Projects, organization members and API keys belong to an organization, and every other resource belongs to a project. `NeonOrganization` and `NeonProject` carry the `Tenant` ontology label.
 
 | Area | Nodes | Ontology label |
 | --- | --- | --- |

@@ -59,6 +59,13 @@ def _members(params: dict) -> dict:
     return api.MEMBERS_PAGE_1
 
 
+def _projects(params: dict) -> dict:
+    # The listing always returns a cursor, and the page after the last one is empty.
+    if params.get("cursor"):
+        return {"projects": [], "pagination": {"cursor": params["cursor"]}}
+    return api.PROJECTS
+
+
 def _routes(**overrides: Any) -> dict[str, Any]:
     org = api.ORG_ID
     plant = f"/projects/{api.PLANT_PROJECT_ID}"
@@ -68,7 +75,7 @@ def _routes(**overrides: Any) -> dict[str, Any]:
         f"/organizations/{org}": api.ORGANIZATION,
         f"/organizations/{org}/members": _members,
         f"/organizations/{org}/api_keys": api.API_KEYS,
-        "/projects": api.PROJECTS,
+        "/projects": _projects,
         f"{plant}/branches": api.PLANT_BRANCHES,
         f"{plant}/endpoints": api.PLANT_ENDPOINTS,
         f"{grid}/branches": api.GRID_BRANCHES,
@@ -341,6 +348,7 @@ def test_neon_unreadable_listings_keep_existing_nodes(neo4j_session):
     _run(neo4j_session, TEST_UPDATE_TAG, _routes())
 
     preview = f"/projects/{api.PLANT_PROJECT_ID}/branches/{api.PLANT_PREVIEW}"
+    hotfix = f"/projects/{api.PLANT_PROJECT_ID}/branches/{api.PLANT_HOTFIX}"
     _run(
         neo4j_session,
         TEST_UPDATE_TAG + 1,
@@ -348,6 +356,9 @@ def test_neon_unreadable_listings_keep_existing_nodes(neo4j_session):
             **{
                 f"{preview}/buckets": 403,
                 f"{preview}/credentials": 403,
+                f"{preview}/roles": 403,
+                f"{preview}/databases": 403,
+                f"{hotfix}/storage": 403,
                 f"/organizations/{api.ORG_ID}/members": 403,
                 f"/organizations/{api.ORG_ID}/api_keys": 403,
             },
@@ -358,7 +369,17 @@ def test_neon_unreadable_listings_keep_existing_nodes(neo4j_session):
     buckets = check_nodes(neo4j_session, "NeonStorageBucket", ["id", "lastupdated"])
     assert (f"{api.PLANT_PREVIEW}/press-kit", TEST_UPDATE_TAG) in buckets
     assert (f"{api.PLANT_MAIN}/press-kit", TEST_UPDATE_TAG + 1) in buckets
+    # Hotfix's buckets were listed, but without its storage settings they are
+    # left as they were.
+    assert (f"{api.PLANT_HOTFIX}/press-kit", TEST_UPDATE_TAG) in buckets
     assert len(buckets) == 6
+    # Preview's roles and databases were unreadable, so they are kept too.
+    roles = check_nodes(neo4j_session, "NeonRole", ["id", "lastupdated"])
+    assert (f"{api.PLANT_PREVIEW}/neondb_owner", TEST_UPDATE_TAG) in roles
+    assert len(roles) == 4
+    databases = check_nodes(neo4j_session, "NeonDatabase", ["id", "lastupdated"])
+    assert (f"{api.PLANT_PREVIEW}/neondb", TEST_UPDATE_TAG) in databases
+    assert len(databases) == 4
     # The preview-issued credential is only listed on preview and its child, and
     # the hotfix listing still returned it, so it was refreshed.
     assert len(check_nodes(neo4j_session, "NeonCredential", ["id"])) == 2

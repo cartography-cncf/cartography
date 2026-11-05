@@ -26,6 +26,7 @@ An organization API key belongs to one organization, not to a user. Pass that or
 | --- | --- |
 | Organization members | `NeonOrganizationMember` nodes and the `OWNED_BY` edge from API keys |
 | Organization API keys | `NeonApiKey` nodes |
+| Branch roles and databases | `NeonRole` and `NeonDatabase` nodes |
 | Object storage buckets (Beta) | `NeonStorageBucket` nodes |
 | Branch credentials (Beta) | `NeonCredential` nodes |
 

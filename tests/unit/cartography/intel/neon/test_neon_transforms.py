@@ -166,9 +166,35 @@ def test_get_projects_reports_incomplete_listing():
                     "pagination": {"cursor": "p1"},
                 },
             ),
+            _Response(200, {"projects": [], "pagination": {"cursor": "p1"}}),
         ],
     )
     projects, complete = get_projects(session, "https://x", "org-1")
     assert [p["id"] for p in projects] == ["p1"]
     assert complete is False
     assert session.params[0]["org_id"] == "org-1"
+
+
+def test_get_projects_follows_cursor_past_short_pages():
+    session = _Session(
+        [
+            _Response(
+                200, {"projects": [{"id": "p1"}], "pagination": {"cursor": "p1"}}
+            ),
+            _Response(
+                200, {"projects": [{"id": "p2"}], "pagination": {"cursor": "p2"}}
+            ),
+            _Response(200, {"projects": [], "pagination": {"cursor": "p2"}}),
+        ],
+    )
+    projects, complete = get_projects(session, "https://x", "org-1")
+    assert [p["id"] for p in projects] == ["p1", "p2"]
+    assert complete is True
+    assert [p.get("cursor") for p in session.params] == [None, "p1", "p2"]
+
+
+def test_get_paginated_page_without_items_key_raises():
+    # A 200 without the list must not pass for an empty inventory.
+    session = _Session([_Response(200, {"pagination": {}})])
+    with pytest.raises(KeyError):
+        get_paginated(session, "https://x/members", "members", 500)

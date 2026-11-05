@@ -8,6 +8,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.neon.util import get_json
 from cartography.intel.neon.util import iso_to_datetime
+from cartography.intel.neon.util import TOLERATED_STATUSES
+from cartography.intel.neon.util import warn_unavailable
 from cartography.models.neon.database import NeonDatabaseSchema
 from cartography.models.neon.role import NeonRoleSchema
 from cartography.util import timeit
@@ -41,17 +43,30 @@ def sync(
 
     roles: list[dict[str, Any]] = []
     databases: list[dict[str, Any]] = []
+    roles_complete = True
+    databases_complete = True
     for branch in branches:
-        roles.extend(
-            transform_roles(get_roles(api_session, base_url, project_id, branch["id"]))
+        branch_roles = get_roles(api_session, base_url, project_id, branch["id"])
+        if branch_roles is None:
+            roles_complete = False
+        else:
+            roles.extend(transform_roles(branch_roles))
+        branch_databases = get_databases(
+            api_session,
+            base_url,
+            project_id,
+            branch["id"],
         )
-        databases.extend(
-            transform_databases(
-                get_databases(api_session, base_url, project_id, branch["id"]),
-                project,
-                host_by_branch.get(branch["id"]),
-            ),
-        )
+        if branch_databases is None:
+            databases_complete = False
+        else:
+            databases.extend(
+                transform_databases(
+                    branch_databases,
+                    project,
+                    host_by_branch.get(branch["id"]),
+                ),
+            )
 
     load(
         neo4j_session,
@@ -67,12 +82,18 @@ def sync(
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
-    GraphJob.from_node_schema(NeonDatabaseSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(NeonRoleSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    if databases_complete:
+        GraphJob.from_node_schema(NeonDatabaseSchema(), common_job_parameters).run(
+            neo4j_session,
+        )
+    else:
+        warn_unavailable("databases", project_id)
+    if roles_complete:
+        GraphJob.from_node_schema(NeonRoleSchema(), common_job_parameters).run(
+            neo4j_session,
+        )
+    else:
+        warn_unavailable("roles", project_id)
 
 
 @timeit
@@ -81,11 +102,15 @@ def get_roles(
     base_url: str,
     project_id: str,
     branch_id: str,
-) -> list[dict[str, Any]]:
-    return get_json(
+) -> list[dict[str, Any]] | None:
+    response = get_json(
         api_session,
         f"{base_url}/projects/{project_id}/branches/{branch_id}/roles",
-    )["roles"]
+        tolerate=TOLERATED_STATUSES,
+    )
+    if response is None:
+        return None
+    return response["roles"]
 
 
 @timeit
@@ -94,11 +119,15 @@ def get_databases(
     base_url: str,
     project_id: str,
     branch_id: str,
-) -> list[dict[str, Any]]:
-    return get_json(
+) -> list[dict[str, Any]] | None:
+    response = get_json(
         api_session,
         f"{base_url}/projects/{project_id}/branches/{branch_id}/databases",
-    )["databases"]
+        tolerate=TOLERATED_STATUSES,
+    )
+    if response is None:
+        return None
+    return response["databases"]
 
 
 def transform_roles(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
