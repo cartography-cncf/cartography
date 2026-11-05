@@ -36,7 +36,7 @@ Create a permission set for the integration user with:
 
 - **API Enabled**.
 - **View Setup and Configuration**, to read `Profile`, `PermissionSet`, `PermissionSetAssignment`, and `ConnectedApplication`.
-- **Manage Users**, to read `User.LastPasswordChangeDate` and so `OAuthToken` returns all users' tokens. Without it, Salesforce rejects the `User` query and the organization fails to sync.
+- **Manage Users**, to read `User.LastPasswordChangeDate` and every user's `OAuthToken` records. Without it, Salesforce rejects the `User` query and the organization fails to sync.
 - Read access to `Organization`, `User`, `UserRole`, `Group`, and `GroupMember`.
 
 Do not grant create, edit, delete, or **Modify All Data** permissions. Assign the permission set to the integration user and use that user as the app's **Run As** user or `--salesforce-username`.
