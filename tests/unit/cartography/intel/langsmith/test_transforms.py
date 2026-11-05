@@ -9,13 +9,16 @@ quietly reintroduce it. These run without Neo4j.
 import pytest
 
 from cartography.intel.langsmith import agent_auth
+from cartography.intel.langsmith import apikeys
 from cartography.intel.langsmith import deployments
 from cartography.intel.langsmith import organizations
 from cartography.intel.langsmith import roles
+from cartography.intel.langsmith import sso
 from cartography.intel.langsmith import users
 from cartography.intel.langsmith.util import build_user_lookup
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import resolve_ls_user_id
+from tests.data.langsmith.fake_client import FakeLangSmithClient
 
 ORG = "org-1"
 OTHER_ORG = "org-2"
@@ -445,6 +448,25 @@ class TestAgentIdentityIsNamespaced:
         assert creds[0]["raw_agent_id"] == "agent-shared"
 
 
+@pytest.mark.parametrize(
+    "short_key, listed_as, expected",
+    [
+        # The organization's service-key listing also returns workspace-scoped keys.
+        ("lsv2_sk_ab12", "workspace_key", "service_key"),
+        ("lsv2_pt_ab12", "pat", "pat"),
+        ("lsv2_tr_ab12", "workspace_key", "tracing_key"),
+        ("ls__ab12", "workspace_key", "legacy_key"),
+        ("unrecognized", "workspace_key", "workspace_key"),
+    ],
+)
+def test_key_type_comes_from_the_prefix_not_the_listing(short_key, listed_as, expected):
+    # Act
+    out = apikeys.key_type({"short_key": short_key, "key_type": listed_as})
+
+    # Assert
+    assert out == expected
+
+
 class TestConnectionLookups:
     class _NoCallsClient:
         def get(self, path, **_):
@@ -534,6 +556,32 @@ class TestProviderListing:
         assert client.calls == expected_calls
         assert complete is expected_complete
         assert {p["id"] for p in providers} == ({"p1"} if expected_complete else set())
+
+
+class TestDataPlaneListing:
+    PATH = "/orgs/current/data-planes"
+
+    @pytest.mark.parametrize(
+        "failures, expected",
+        [
+            # Not served: the organization has no data planes, a complete answer.
+            ({(PATH, None): 404}, ([], True, False)),
+            # A timeout is not a permission problem, so there is no summary to try.
+            ({(PATH, None): None}, ([], False, False)),
+            # The summary is denied too: data planes may exist.
+            (
+                {(PATH, None): 403, (f"{PATH}?view=SUMMARY", None): 403},
+                ([], False, True),
+            ),
+        ],
+        ids=["not served", "timeout", "summary denied"],
+    )
+    def test_listing_outcome(self, failures, expected):
+        # Act
+        outcome = sso.get_data_planes(FakeLangSmithClient({}, failures), ORG)
+
+        # Assert
+        assert outcome == expected
 
 
 class TestCredentialProviderResolution:

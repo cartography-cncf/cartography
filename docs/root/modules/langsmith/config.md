@@ -46,6 +46,7 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 | --- | --- | --- |
 | `organization:pats:read` | The organization-wide personal access token inventory | Cartography logs a warning and skips other members' tokens. It still cleans up service keys and SCIM tokens. |
 | `deployments:read` | Deployments, agents, OAuth providers, and agent credentials | Cartography logs a warning and skips the agent-to-user OAuth graph for that workspace. OAuth providers belong to the organization, so Cartography reads them through any one workspace that grants it. |
+| `organization:infrastructure:read` | The full data plane listing, including `created_at` | Cartography reads the summary listing, which needs only `organization:read`. A data plane it first sees there has no `created_at`; one it saw before keeps it. |
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a

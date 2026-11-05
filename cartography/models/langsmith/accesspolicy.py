@@ -27,9 +27,18 @@ class LangSmithAccessPolicyNodeProperties(CartographyNodeProperties):
     condition_summary: PropertyRef = PropertyRef(
         "condition_summary",
         description=(
-            "Flattened, human-readable rendering of the policy's attribute-based condition "
-            "groups, for example 'project.tag in [prod]'."
+            "Flattened, human-readable rendering of the policy's condition groups, for "
+            "example 'projects:read on project where resource_tag_key environment equals "
+            "prod'."
         ),
+    )
+    permissions: PropertyRef = PropertyRef(
+        "permissions",
+        description="Permissions the policy allows or denies, for example runs:read.",
+    )
+    resource_types: PropertyRef = PropertyRef(
+        "resource_types",
+        description="Resource types the policy applies to, for example project.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

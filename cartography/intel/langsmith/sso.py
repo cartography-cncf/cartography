@@ -8,8 +8,10 @@ from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import org_scoped_id
+from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.langsmith.accesspolicy import LangSmithAccessPolicySchema
 from cartography.models.langsmith.dataplane import LangSmithDataPlaneSchema
+from cartography.models.langsmith.dataplane import LangSmithDataPlaneSummarySchema
 from cartography.models.langsmith.ssoprovider import LangSmithSSOProviderSchema
 from cartography.util import timeit
 
@@ -25,12 +27,13 @@ def sync(
 ) -> None:
     raw_providers, providers_complete = get_sso_settings(client, org_id)
     raw_policies, policies_complete = get_access_policies(client, org_id)
-    data_planes, data_planes_complete = get_data_planes(client, org_id)
+    data_planes, data_planes_complete, summary = get_data_planes(client, org_id)
     load_sso(
         neo4j_session,
         transform_providers(raw_providers, org_id),
         transform_policies(raw_policies, org_id),
         data_planes,
+        LangSmithDataPlaneSummarySchema() if summary else LangSmithDataPlaneSchema(),
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -92,17 +95,44 @@ def get_access_policies(
 @timeit
 def get_data_planes(
     client: LangSmithClient, org_id: str
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], bool, bool]:
     """
     Fetch the organization's registered data planes.
 
     Data planes only exist for hybrid and self-hosted deployments, and the route is not
-    served for organizations without one.
+    served for organizations without one. The full listing needs
+    organization:infrastructure:read, which only the Organization Admin and Operator
+    roles hold. When it is denied, the summary listing needs only organization:read and
+    still names every data plane, but omits created_at.
+
+    Returns the data planes, whether the listing completed, and whether it is the
+    summary listing.
     """
-    payload, complete = _get_optional(client, org_id, "/orgs/current/data-planes")
+    path = "/orgs/current/data-planes"
+    try:
+        return _data_planes(client.get(path, org_id=org_id)), True, False
+    except LangSmithFetchError as err:
+        if err.status_code not in (401, 403):
+            logger.warning("Skipping LangSmith %s: %s", path, err)
+            return [], err.not_found, False
+        logger.info(
+            "LangSmith %s full listing was denied (%s); using the summary listing, "
+            "which omits created_at.",
+            path,
+            err,
+        )
+    try:
+        summary = client.get(path, params={"view": "SUMMARY"}, org_id=org_id)
+    except LangSmithFetchError as err:
+        logger.warning("Skipping LangSmith %s summary listing: %s", path, err)
+        return [], err.not_found, True
+    return _data_planes(summary), True, True
+
+
+def _data_planes(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, dict):
-        return payload.get("data_planes") or [], complete
-    return payload or [], complete
+        return payload.get("data_planes") or []
+    return payload or []
 
 
 def transform_providers(
@@ -142,21 +172,22 @@ def transform_providers(
 
 def _summarize_conditions(condition_groups: list[dict[str, Any]] | None) -> str | None:
     """
-    Render a policy's nested attribute condition groups as one readable line.
+    Render a policy's condition groups as one readable line.
 
-    The raw structure is arbitrarily nested JSON, which Neo4j cannot store as a property, so
-    it is flattened into a summary rather than dropped entirely.
+    The raw structure is nested JSON, which Neo4j cannot store as a property, so it is
+    flattened into a summary rather than dropped. Each group grants or denies one
+    permission on one resource type when all of its conditions hold.
     """
-    if not condition_groups:
-        return None
-    parts: list[str] = []
-    for group in condition_groups:
-        for condition in group.get("conditions") or []:
-            attribute = condition.get("attribute") or condition.get("key")
-            operator = condition.get("operator") or "="
-            value = condition.get("value") or condition.get("values")
-            parts.append(f"{attribute} {operator} {value}")
-    return " AND ".join(parts) if parts else None
+    groups: list[str] = []
+    for group in condition_groups or []:
+        conditions = " AND ".join(
+            f"{condition.get('attribute_name')} {condition.get('attribute_key')} "
+            f"{condition.get('operator')} {condition.get('attribute_value')}"
+            for condition in group.get("conditions") or []
+        )
+        scope = f"{group.get('permission')} on {group.get('resource_type')}"
+        groups.append(f"{scope} where {conditions}" if conditions else scope)
+    return " OR ".join(groups) or None
 
 
 def transform_policies(
@@ -173,6 +204,20 @@ def transform_policies(
                 "condition_summary": _summarize_conditions(
                     policy.get("condition_groups")
                 ),
+                "permissions": sorted(
+                    {
+                        group["permission"]
+                        for group in policy.get("condition_groups") or []
+                        if group.get("permission")
+                    }
+                ),
+                "resource_types": sorted(
+                    {
+                        group["resource_type"]
+                        for group in policy.get("condition_groups") or []
+                        if group.get("resource_type")
+                    }
+                ),
                 "role_ids": [
                     org_scoped_id(org_id, role_id)
                     for role_id in policy.get("role_ids") or []
@@ -188,6 +233,7 @@ def load_sso(
     providers: list[dict[str, Any]],
     policies: list[dict[str, Any]],
     data_planes: list[dict[str, Any]],
+    data_plane_schema: CartographyNodeSchema,
     org_id: str,
     update_tag: int,
 ) -> None:
@@ -207,7 +253,7 @@ def load_sso(
     )
     load(
         neo4j_session,
-        LangSmithDataPlaneSchema(),
+        data_plane_schema,
         data_planes,
         lastupdated=update_tag,
         ORG_ID=org_id,
