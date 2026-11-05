@@ -56,7 +56,10 @@ only it owns:
 ```cypher
 MATCH (old:TailscaleTailnet {id: "example.com"})
 OPTIONAL MATCH (old)-[:RESOURCE]->(n)
-WHERE NOT (n)<-[:RESOURCE]-(:TailscaleTailnet {id: "T1234CNTRL"})
+WHERE NOT EXISTS {
+    MATCH (n)<-[:RESOURCE]-(owner:TailscaleTailnet)
+    WHERE owner <> old
+}
 DETACH DELETE n, old
 ```
 ````
