@@ -94,6 +94,56 @@ def test_get_public_ssm_parameters_by_path_handles_pagination() -> None:
     ]
 
 
+def _patch_states_paginator(patched_instance_ids: set[str]) -> MagicMock:
+    def paginate(InstanceIds: list[str]) -> list[dict[str, Any]]:
+        if len(InstanceIds) > 50:
+            raise ClientError(
+                {"Error": {"Code": "ValidationException", "Message": "Too many IDs"}},
+                "DescribeInstancePatchStates",
+            )
+        return [
+            {
+                "InstancePatchStates": [
+                    {"InstanceId": instance_id}
+                    for instance_id in InstanceIds
+                    if instance_id in patched_instance_ids
+                ],
+            },
+        ]
+
+    paginator = MagicMock()
+    paginator.paginate.side_effect = paginate
+    return paginator
+
+
+def test_get_instance_patches_skips_instances_without_a_patch_state() -> None:
+    # Arrange
+    instance_ids = [f"i-{n:02d}" for n in range(60)]
+    patches_paginator = MagicMock()
+    patches_paginator.paginate.side_effect = lambda InstanceId: [
+        {"Patches": [{"Title": f"patch-for-{InstanceId}"}]},
+    ]
+    patch_states_paginator = _patch_states_paginator({"i-07", "i-55"})
+    boto3_session = MagicMock()
+    boto3_session.client.return_value.get_paginator.side_effect = {
+        "describe_instance_patch_states": patch_states_paginator,
+        "describe_instance_patches": patches_paginator,
+    }.get
+
+    # Act
+    patches = get_instance_patches(boto3_session, "us-east-1", instance_ids)
+
+    # Assert
+    assert patch_states_paginator.paginate.call_count == 2
+    assert [
+        c.kwargs["InstanceId"] for c in patches_paginator.paginate.call_args_list
+    ] == ["i-07", "i-55"]
+    assert patches == [
+        {"Title": "patch-for-i-07", "_instance_id": "i-07"},
+        {"Title": "patch-for-i-55", "_instance_id": "i-55"},
+    ]
+
+
 @pytest.mark.parametrize(  # type: ignore[misc]
     ("error_code", "expected_calls", "expected_patches"),
     [
@@ -134,7 +184,12 @@ def test_get_instance_patches_handles_error_on_second_instance(
         [{"Patches": [{"Title": "patch-3"}]}],
     ]
     boto3_session = MagicMock()
-    boto3_session.client.return_value.get_paginator.return_value = paginator
+    boto3_session.client.return_value.get_paginator.side_effect = {
+        "describe_instance_patch_states": _patch_states_paginator(
+            {"i-01", "i-02", "i-03"},
+        ),
+        "describe_instance_patches": paginator,
+    }.get
 
     # Act
     patches = get_instance_patches(

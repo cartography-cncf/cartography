@@ -131,17 +131,32 @@ def _is_ssm_throttling_error(error: ClientError) -> bool:
     return error.response.get("Error", {}).get("Code") in _SSM_THROTTLING_ERROR_CODES
 
 
-@backoff.on_exception(  # type: ignore[misc]
+# Retrying each call resumes from the throttled one instead of letting
+# aws_handle_regions restart the region from the first.
+_retry_on_ssm_throttling = backoff.on_exception(
     backoff.expo,
     ClientError,
     max_time=600,
     giveup=lambda e: not _is_ssm_throttling_error(e),
     on_backoff=backoff_handler,
 )
+
+
+@_retry_on_ssm_throttling  # type: ignore[misc]
+def _get_instance_ids_with_patch_state(
+    client: Any,
+    instance_ids: List[str],
+) -> List[str]:
+    paginator = client.get_paginator("describe_instance_patch_states")
+    return [
+        state["InstanceId"]
+        for page in paginator.paginate(InstanceIds=instance_ids)
+        for state in page["InstancePatchStates"]
+    ]
+
+
+@_retry_on_ssm_throttling  # type: ignore[misc]
 def _get_patches_for_instance(client: Any, instance_id: str) -> List[Dict[str, Any]]:
-    # DescribeInstancePatches takes one instance per call, so a large region makes
-    # thousands of calls. Retrying per instance resumes from the throttled one
-    # instead of letting aws_handle_regions restart the region from the first.
     patches: List[Dict[str, Any]] = []
     paginator = client.get_paginator("describe_instance_patches")
     for page in paginator.paginate(InstanceId=instance_id):
@@ -157,8 +172,21 @@ def get_instance_patches(
     instance_ids: List[str],
 ) -> List[Dict[str, Any]]:
     client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    # DescribeInstancePatches takes one instance per call and sustains about three
+    # calls per second per region, so a region with thousands of instances spends most
+    # of the SSM sync on it. It returns nothing for an instance that Patch Manager
+    # has never scanned, and such an instance has no patch state, so looking up patch
+    # states 50 instances at a time first skips those calls.
+    patched_instance_ids = [
+        instance_id
+        for i in range(0, len(instance_ids), 50)
+        for instance_id in _get_instance_ids_with_patch_state(
+            client,
+            instance_ids[i : i + 50],
+        )
+    ]
     instance_patches: List[Dict[str, Any]] = []
-    for instance_id in instance_ids:
+    for instance_id in patched_instance_ids:
         patches = _get_patches_for_instance(client, instance_id)
         # to avoid complicating the load function, inject the instance ID into the patch
         for patch in patches:
