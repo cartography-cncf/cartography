@@ -1,36 +1,49 @@
 # LangSmith Configuration
 
-Cartography needs one LangSmith credential: a personal access token (`lsv2_pt_…`) that
-belongs to a user with organization-level read access.
+Cartography needs one LangSmith credential with organization-level read access: a
+service key (`lsv2_sk_…`) or a personal access token (`lsv2_pt_…`).
 
 ## Prerequisites
 
 - A LangSmith organization. Custom roles and attribute-based access policies are
   Enterprise features. If your plan doesn't include them, those parts of the graph are
   empty.
-- A user who holds the permissions listed in [Required Permissions](#required-permissions).
-  The Organization Admin role holds all of them, and it's the role that the module was
-  validated with. A custom role that grants the same read permissions also works.
+- A role that holds the permissions listed in [Required Permissions](#required-permissions).
+  The Organization Admin role holds all of them. A custom role that grants the same read
+  permissions also works.
 
 ## Authentication
 
+### Service key
+
+A service key belongs to the organization rather than to a person, so it keeps working
+when people leave.
+
+1. In LangSmith, go to **Settings > API Keys** and create a service key.
+1. Give it an organization role that holds the [required permissions](#required-permissions),
+   and an expiry.
+1. Store the key in an environment variable:
+
+   ```bash
+   export LANGSMITH_PAT="lsv2_sk_..."
+   ```
+
+A service key can't list tracing keys: LangSmith requires a user identity for that listing.
+Cartography logs a warning and skips them.
+
 ### Personal access token
 
-1. In LangSmith, go to **Settings > Personal access tokens**.
-1. Create a token.
+1. In LangSmith, go to **Settings > Personal access tokens** and create a token.
 1. Store the token in an environment variable:
 
    ```bash
    export LANGSMITH_PAT="lsv2_pt_..."
    ```
 
-```{note}
-A workspace service key (`lsv2_sk_…`) doesn't work. It can't reach the
-organization-scoped routes or the organization-wide token inventory.
-```
+A personal access token stops working when its owner is deactivated.
 
-If your organization sets a maximum lifetime for personal access tokens, the token
-expires and the sync fails with `401`. Rotate the token before it expires.
+Either credential expires if your organization sets a maximum lifetime for it, and the sync
+then fails with `401`. Rotate it before it expires.
 
 ## Required Permissions
 
@@ -46,6 +59,8 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 | --- | --- | --- |
 | `organization:pats:read` | The organization-wide personal access token inventory | Cartography logs a warning and skips other members' tokens. |
 | `deployments:read` | Deployments, agents, OAuth providers, and agent credentials | Cartography logs a warning and skips the agent-to-user OAuth graph for that workspace. |
+| `rules:read` | Webhooks that automation rules send runs to | Cartography logs a warning and skips that workspace's webhooks. |
+| `bulk-exports:read` | Bulk export destinations | Cartography logs a warning and skips that workspace's export destinations. |
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a
@@ -109,6 +124,10 @@ to `--langsmith-host-api-url`.
 | No `LangSmithApiKey` nodes with `key_type = pat` for other members | The token lacks `organization:pats:read`. |
 | `401 Unauthorized` on every route | The token expired, or LangSmith deactivated the identity that owns it. LangSmith rejects tokens that belong to a deactivated identity. |
 | No custom `LangSmithRole` nodes | Your plan doesn't include custom roles. |
+
+When the organization disables public sharing, LangSmith serves none of its share links or
+public repos, so Cartography doesn't list them and removes any `LangSmithPublicShare`
+nodes.
 
 ## References
 

@@ -112,7 +112,12 @@ def start_langsmith_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         )
 
         cartography.intel.langsmith.workspace_resources.sync(
-            neo4j_session, client, org_id, workspaces, org_common_job_parameters
+            neo4j_session,
+            client,
+            org_id,
+            workspaces,
+            bool(organization.get("public_sharing_disabled")),
+            org_common_job_parameters,
         )
 
     logger.info("Completed LangSmith sync")

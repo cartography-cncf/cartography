@@ -53,3 +53,21 @@ RETURN w.name, r.name, collect(u.email)
 MATCH (w:LangSmithWorkspace)-[:RESOURCE]->(d:LangSmithDeployment {shareable: true})
 RETURN w.name, d.name, d.url
 ```
+
+## Find data anyone can read without an account
+
+```cypher
+MATCH (w:LangSmithWorkspace)-[:RESOURCE]->(s:LangSmithPublicShare)
+RETURN w.name, s.share_type, s.entity_name, s.project_name, s.created_at
+ORDER BY s.created_at DESC
+```
+
+## Find where traces leave LangSmith
+
+```cypher
+MATCH (w:LangSmithWorkspace)-[:RESOURCE]->(h:LangSmithWebhook)
+RETURN w.name AS workspace, h.source AS kind, h.host AS target, h.rule_name AS name
+UNION
+MATCH (w:LangSmithWorkspace)-[:RESOURCE]->(d:LangSmithBulkExportDestination)
+RETURN w.name AS workspace, 'bulk_export' AS kind, d.bucket_name AS target, d.name AS name
+```

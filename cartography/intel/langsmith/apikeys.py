@@ -33,7 +33,7 @@ def sync(
 
     org_keys: list[dict[str, Any]] = []
     org_keys_complete = True
-    for key_type in ("service_key", "pat", "scim_token"):
+    for key_type in ("service_key", "pat", "scim_token", "tracing_key"):
         rows, ok = _fetch_optional(client, org_id, key_type)
         org_keys.extend(rows)
         org_keys_complete = org_keys_complete and ok
@@ -77,6 +77,7 @@ _ORG_KEY_SOURCES = {
     "service_key": "/api/v1/orgs/current/service-keys",
     "pat": "/api/v1/orgs/current/members/personal-access-tokens",
     "scim_token": "/api/v1/platform/orgs/current/scim/tokens",
+    "tracing_key": "/api/v1/orgs/current/tracing-keys",
 }
 
 
@@ -92,7 +93,10 @@ def _fetch_optional(
     """
     path = _ORG_KEY_SOURCES[key_type]
     try:
-        rows = client.get(path, org_id=org_id)
+        if key_type == "tracing_key":
+            rows = client.get_cursor_paginated(path, key="items", org_id=org_id)
+        else:
+            rows = client.get(path, org_id=org_id)
     except LangSmithFetchError as err:
         logger.warning("Skipping LangSmith %s inventory: %s", key_type, err)
         # A 404 means the feature is off for this organization (for example SCIM), so

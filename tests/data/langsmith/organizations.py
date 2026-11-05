@@ -15,7 +15,7 @@ LANGSMITH_ORG_INFO = {
     "invites_enabled": True,
     "workspace_admin_can_invite_to_org": False,
     "pat_creation_disabled": False,
-    "public_sharing_disabled": True,
+    "public_sharing_disabled": False,
     "max_api_key_expiry_days": 90,
     "max_pat_expiry_days": 30,
     "max_service_key_expiry_days": 365,
