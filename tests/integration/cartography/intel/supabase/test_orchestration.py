@@ -7,6 +7,7 @@ cleanup sits relative to the per-project loop. Both of those are where a project
 can be wrongly deleted, so they are covered here.
 """
 
+from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
@@ -56,6 +57,30 @@ def _project_scoped(result, unreachable_refs):
     return get
 
 
+def _project_scoped_endpoints(api_keys):
+    """
+    Every project-scoped getter, with what it returns for a running project. Only the
+    API keys return data, which keeps these tests about the fan-out rather than about
+    child ingestion.
+    """
+    return [
+        (cartography.intel.supabase.projects, "get_settings", {}),
+        (cartography.intel.supabase.projects, "get_database_posture", {}),
+        (cartography.intel.supabase.apikeys, "get", api_keys),
+        (cartography.intel.supabase.apikeys, "get_signing_keys", None),
+        (cartography.intel.supabase.functions, "get", None),
+        (cartography.intel.supabase.functions, "get_secrets", None),
+        (cartography.intel.supabase.storage, "get", None),
+        (cartography.intel.supabase.auth, "get", None),
+        (cartography.intel.supabase.auth, "get_sso_providers", None),
+        (cartography.intel.supabase.auth, "get_third_party_auth", None),
+        (cartography.intel.supabase.network, "get", None),
+        (cartography.intel.supabase.network, "get_custom_hostname", None),
+        (cartography.intel.supabase.branches, "get", None),
+        (cartography.intel.supabase.advisors, "get", None),
+    ]
+
+
 def _run(
     neo4j_session,
     update_tag,
@@ -94,41 +119,16 @@ def _run(
             "get_org_projects",
             return_value=org_projects,
         ),
-        patch.object(
-            cartography.intel.supabase.projects,
-            "get_settings",
-            side_effect=_project_scoped({}, unreachable_refs),
-        ),
-        patch.object(
-            cartography.intel.supabase.projects,
-            "get_database_posture",
-            side_effect=_project_scoped({}, unreachable_refs),
-        ),
-        # Every project-scoped child endpoint but the API keys is unavailable, which
-        # keeps this test about the fan-out rather than about child ingestion.
-        patch.object(cartography.intel.supabase.apikeys, "get", return_value=api_keys),
-        patch.object(
-            cartography.intel.supabase.apikeys, "get_signing_keys", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.functions, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.functions, "get_secrets", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.storage, "get", return_value=None),
-        patch.object(cartography.intel.supabase.auth, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.auth, "get_sso_providers", return_value=None
-        ),
-        patch.object(
-            cartography.intel.supabase.auth, "get_third_party_auth", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.network, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.network, "get_custom_hostname", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.branches, "get", return_value=None),
-        patch.object(cartography.intel.supabase.advisors, "get", return_value=None),
+        ExitStack() as stack,
     ):
+        for module, name, result in _project_scoped_endpoints(api_keys):
+            stack.enter_context(
+                patch.object(
+                    module,
+                    name,
+                    side_effect=_project_scoped(result, unreachable_refs),
+                ),
+            )
         cartography.intel.supabase.start_supabase_ingestion(
             neo4j_session,
             _config(update_tag, organizations),
