@@ -254,6 +254,17 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
         MERGE (:AWSEC2Instance{id: 'i-88503981029833101', instanceid: 'i-88503981029833101'})
         """,
     )
+    # A finding synced before advisory data moved to AWSInspectorVulnerability.
+    neo4j_session.run(
+        """
+        MERGE (f:AWSInspectorFinding {id: $arn})
+        SET f.description = 'old description', f.source = 'NVD',
+            f.referenceurls = ['https://example.com/advisory'],
+            f._ont_description = 'old description',
+            f._ont_references = ['https://example.com/advisory']
+        """,
+        arn=KERNEL_FINDING_ARN,
+    )
 
     # Act
     sync(
@@ -366,35 +377,131 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
         (OPENSSL_FINDING_ARN, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"),
     }
 
-    # packageVulnerabilityDetails.cvss[].scoringVector (vendor/NVD entries) are
-    # stored as a list property.
-    vendorcvssvectors_by_id = {
-        row["id"]: row["vendorcvssvectors"]
+    # Each finding links to the vulnerability it reports, which holds the advisory
+    # data once, including the vendor/NVD CVSS entries from
+    # packageVulnerabilityDetails.cvss[].
+    assert check_rels(
+        neo4j_session,
+        "AWSInspectorFinding",
+        "id",
+        "AWSInspectorVulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == {
+        (KERNEL_FINDING_ARN, "CVE-2017-9059"),
+        (OPENSSL_FINDING_ARN, "CVE-2023-1234"),
+    }
+    vulnerabilities = {
+        row["id"]: (row["source"], row["vendorcvssvectors"], row["vendorcvssscores"])
         for row in neo4j_session.run(
-            "MATCH (f:AWSInspectorFinding) RETURN f.id AS id, f.vendorcvssvectors AS vendorcvssvectors",
+            """
+            MATCH (:AWSAccount {id: $acc})-[:RESOURCE]->(v:AWSInspectorVulnerability)
+            RETURN v.id AS id, v.source AS source,
+                   v.vendorcvssvectors AS vendorcvssvectors,
+                   v.vendorcvssscores AS vendorcvssscores
+            """,
+            acc=TEST_ACC_ID_2,
         )
     }
-    assert vendorcvssvectors_by_id == {
-        KERNEL_FINDING_ARN: [
-            "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-            "AV:L/AC:L/Au:N/C:N/I:N/A:C",
-            "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-        ],
-        OPENSSL_FINDING_ARN: ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
+    assert vulnerabilities == {
+        "CVE-2017-9059": (
+            "REDHAT_CVE",
+            [
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+                "AV:L/AC:L/Au:N/C:N/I:N/A:C",
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            ],
+            [5.5, 4.9, 5.5],
+        ),
+        "CVE-2023-1234": (
+            "NVD",
+            ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
+            [7.5],
+        ),
     }
+    # Advisory data lives on the vulnerability, not on each of its findings, and
+    # the sync clears it from findings stored before it moved.
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (f:AWSInspectorFinding)
+        RETURN f.id AS id, f.description AS description, f.source AS source,
+               f.referenceurls AS referenceurls,
+               f._ont_description AS ont_description,
+               f._ont_references AS ont_references
+        ORDER BY id
+        """,
+        ).data()
+        == [
+            {
+                "id": OPENSSL_FINDING_ARN,
+                "description": None,
+                "source": None,
+                "referenceurls": None,
+                "ont_description": None,
+                "ont_references": None,
+            },
+            {
+                "id": KERNEL_FINDING_ARN,
+                "description": None,
+                "source": None,
+                "referenceurls": None,
+                "ont_description": None,
+                "ont_references": None,
+            },
+        ]
+    )
 
-    # packageVulnerabilityDetails.cvss[].baseScore (vendor/NVD entries) are
-    # stored as a parallel list property.
-    vendorcvssscores_by_id = {
-        row["id"]: row["vendorcvssscores"]
-        for row in neo4j_session.run(
-            "MATCH (f:AWSInspectorFinding) RETURN f.id AS id, f.vendorcvssscores AS vendorcvssscores",
-        )
-    }
-    assert vendorcvssscores_by_id == {
-        KERNEL_FINDING_ARN: [5.5, 4.9, 5.5],
-        OPENSSL_FINDING_ARN: [7.5],
-    }
+
+def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(
+    neo4j_session,
+):
+    # Arrange: two findings of one vulnerability, each listing a different
+    # distribution's advisory, loaded in separate batches.
+    details = LIST_FINDINGS_EC2_PACKAGE[1]["packageVulnerabilityDetails"]
+    findings = [
+        {
+            **LIST_FINDINGS_EC2_PACKAGE[1],
+            "findingArn": f"arn:aws:inspector2:us-west-2:123456789011:finding/{digit}{'0' * 31}",
+            "packageVulnerabilityDetails": {**details, "referenceUrls": [url]},
+        }
+        for digit, url in [
+            ("1", "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html"),
+            ("2", "https://ubuntu.com/security/CVE-2023-1234"),
+        ]
+    ]
+    aioboto3_session = FakeAioboto3Session(FakeInspector2Client(findings=findings))
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run("MERGE (:AWSAccount{id: $acc})", acc=TEST_ACC_ID_1)
+
+    # Act
+    sync(
+        neo4j_session,
+        aioboto3_session,
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACC_ID_1,
+            "experimental_aws_inspector_batch": 1,
+        },
+    )
+
+    # Assert
+    vulnerabilities = neo4j_session.run(
+        "MATCH (v:AWSInspectorVulnerability) RETURN v.id AS id, v.referenceurls AS urls",
+    ).data()
+    assert vulnerabilities == [
+        {
+            "id": "CVE-2023-1234",
+            "urls": [
+                "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html",
+                "https://ubuntu.com/security/CVE-2023-1234",
+            ],
+        },
+    ]
 
 
 def test_sync_inspector_loads_findings_from_every_finding_id_prefix(neo4j_session):
