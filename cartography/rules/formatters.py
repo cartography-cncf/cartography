@@ -6,9 +6,11 @@ import json
 import re
 from dataclasses import asdict
 from dataclasses import is_dataclass
+from datetime import datetime
 from enum import Enum
 from urllib.parse import quote
 
+from neo4j.time import DateTime
 from pydantic import BaseModel
 
 from cartography.rules.data.rules import RULES
@@ -82,7 +84,8 @@ def to_serializable(obj):
 
     Args:
         obj: Any Python object to convert. Supports Pydantic BaseModel, Enum,
-            dataclass, dict, list, tuple, set, and primitive types.
+            dataclass, dict, list, tuple, set, Python datetime, Neo4j DateTime,
+            and primitive types.
 
     Returns:
         A JSON-serializable representation of the input object.
@@ -114,6 +117,14 @@ def to_serializable(obj):
     # List / Tuple / Set
     if isinstance(obj, (list, tuple, set)):
         return [to_serializable(v) for v in obj]
+
+    # Neo4j datetime
+    if isinstance(obj, DateTime):
+        return obj.iso_format()
+
+    # Datetime
+    if isinstance(obj, datetime):
+        return obj.isoformat()
 
     # Primitive
     return obj
