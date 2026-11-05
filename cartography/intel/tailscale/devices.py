@@ -75,12 +75,20 @@ def sync(
         common_job_parameters["BASE_URL"],
         org,
     )
-    tags = transform(devices)
     device_posture_attributes = get_device_posture_attributes(
         api_session,
         common_job_parameters["BASE_URL"],
         devices,
     )
+    # Ephemeral devices, such as CI runners, can leave the tailnet between the
+    # device list call and their attributes call. Drop them so this run only
+    # loads devices that still exist.
+    devices = [
+        device
+        for device in devices
+        if device.get("nodeId") in device_posture_attributes
+    ]
+    tags = transform(devices)
     project_device_posture_attributes(
         devices,
         device_posture_attributes,
@@ -152,6 +160,9 @@ def get_device_posture_attributes(
 
     The endpoint is N+1 by design, so we keep the result in-memory for the
     posture resolution stage instead of persisting each attribute as its own node.
+
+    A 404 means the device left the tailnet after the device list call, so the
+    result omits that device instead of failing the sync.
     """
     results: dict[str, dict[str, Any]] = {}
 
@@ -168,6 +179,12 @@ def get_device_posture_attributes(
                 f"{base_url}/device/{device_id}/attributes",
                 timeout=_TIMEOUT,
             )
+            if req.status_code == 404:
+                logger.info(
+                    "Tailscale device %s left the tailnet during sync; skipping it",
+                    device_id,
+                )
+                continue
             req.raise_for_status()
             payload = req.json()
             for attribute_name, attribute_data in payload.get("attributes", {}).items():
