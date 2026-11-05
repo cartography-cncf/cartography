@@ -8,8 +8,8 @@ TEST_UPDATE_TAG = 123456789
 
 
 def test_transform_inspector_findings_network():
-    findings, _packages, _finding_to_package_map = transform_inspector_findings(
-        LIST_FINDINGS_NETWORK
+    findings, _packages, _finding_to_package_map, vulnerabilities = (
+        transform_inspector_findings(LIST_FINDINGS_NETWORK)
     )
     assert findings == [
         {
@@ -36,11 +36,12 @@ def test_transform_inspector_findings_network():
             "epss_score_inspector": 123.0,
         },
     ]
+    assert vulnerabilities == []
 
 
 def test_transform_inspector_findings_package():
-    findings, packages, finding_to_package_map = transform_inspector_findings(
-        LIST_FINDINGS_EC2_PACKAGE
+    findings, packages, finding_to_package_map, vulnerabilities = (
+        transform_inspector_findings(LIST_FINDINGS_EC2_PACKAGE)
     )
     assert findings == [
         {
@@ -53,29 +54,12 @@ def test_transform_inspector_findings_package():
             "firstobservedat": datetime(2022, 5, 4, 16, 23, 3, 692000),
             "updatedat": datetime(2022, 5, 4, 16, 23, 3, 692000),
             "awsaccount": "123456789012",
-            "description": "The NFSv4 implementation in the Linux kernel through "
-            "4.11.1 allows local users to cause a denial of service "
-            "(resource consumption) by leveraging improper channel "
-            "callback shutdown when unmounting an NFSv4 filesystem, aka "
-            'a "module reference and kernel daemon" leak.',
             "cvssscore": 5.5,
             "cvssvector": "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
             "type": "PACKAGE_VULNERABILITY",
             "vulnerabilityid": "CVE-2017-9059",
             "cve_id": "CVE-2017-9059",
-            "referenceurls": [],
-            "relatedvulnerabilities": [],
-            "vendorcvssvectors": [
-                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-                "AV:L/AC:L/Au:N/C:N/I:N/A:C",
-                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-            ],
-            "vendorcvssscores": [5.5, 4.9, 5.5],
-            "source": "REDHAT_CVE",
-            "vendorcreatedat": datetime(2017, 4, 25, 17, 0),
-            "vendorupdatedat": None,
             "vendorseverity": "Moderate",
-            "sourceurl": "https://access.redhat.com/security/cve/CVE-2017-9059",
             "status": "ACTIVE",
             "vulnerablepackageids": [
                 "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
@@ -96,28 +80,57 @@ def test_transform_inspector_findings_package():
             "firstobservedat": datetime(2022, 5, 4, 16, 23, 3, 692000),
             "updatedat": datetime(2022, 5, 4, 16, 23, 3, 692000),
             "awsaccount": "123456789011",
-            "description": "A buffer overflow vulnerability in OpenSSL allows remote attackers "
-            "to execute arbitrary code or cause a denial of service via crafted "
-            "SSL/TLS handshake messages.",
             "cvssscore": 7.5,
             "cvssvector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
             "type": "PACKAGE_VULNERABILITY",
             "cve_id": "CVE-2023-1234",
-            "referenceurls": ["https://nvd.nist.gov/vuln/detail/CVE-2023-1234"],
-            "relatedvulnerabilities": [],
-            "vendorcvssvectors": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
-            "vendorcvssscores": [7.5],
-            "source": "NVD",
-            "vendorcreatedat": datetime(2023, 1, 15, 10, 0),
-            "vendorupdatedat": None,
             "vendorseverity": "High",
-            "sourceurl": "https://nvd.nist.gov/vuln/detail/CVE-2023-1234",
             "status": "ACTIVE",
             "vulnerablepackageids": [
                 "openssl|0:1.0.2k-1.amzn2.X86_64",
             ],
             "fixavailable": None,
             "exploitavailable": None,
+        },
+    ]
+    assert vulnerabilities == [
+        {
+            "id": "CVE-2017-9059",
+            "vulnerabilityid": "CVE-2017-9059",
+            "cve_id": "CVE-2017-9059",
+            "description": "The NFSv4 implementation in the Linux kernel through "
+            "4.11.1 allows local users to cause a denial of service "
+            "(resource consumption) by leveraging improper channel "
+            "callback shutdown when unmounting an NFSv4 filesystem, aka "
+            'a "module reference and kernel daemon" leak.',
+            "referenceurls": [],
+            "relatedvulnerabilities": [],
+            "vendorcvssvectors": [
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+                "AV:L/AC:L/Au:N/C:N/I:N/A:C",
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            ],
+            "vendorcvssscores": [5.5, 4.9, 5.5],
+            "source": "REDHAT_CVE",
+            "sourceurl": "https://access.redhat.com/security/cve/CVE-2017-9059",
+            "vendorcreatedat": datetime(2017, 4, 25, 17, 0),
+            "vendorupdatedat": None,
+        },
+        {
+            "id": "CVE-2023-1234",
+            "vulnerabilityid": "CVE-2023-1234",
+            "cve_id": "CVE-2023-1234",
+            "description": "A buffer overflow vulnerability in OpenSSL allows remote attackers "
+            "to execute arbitrary code or cause a denial of service via crafted "
+            "SSL/TLS handshake messages.",
+            "referenceurls": ["https://nvd.nist.gov/vuln/detail/CVE-2023-1234"],
+            "relatedvulnerabilities": [],
+            "vendorcvssvectors": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
+            "vendorcvssscores": [7.5],
+            "source": "NVD",
+            "sourceurl": "https://nvd.nist.gov/vuln/detail/CVE-2023-1234",
+            "vendorcreatedat": datetime(2023, 1, 15, 10, 0),
+            "vendorupdatedat": None,
         },
     ]
     # The order of packages is not guaranteed because it comes from a set.
@@ -194,3 +207,48 @@ def test_transform_inspector_findings_package():
         expected_finding_to_package_map,
         key=lambda i: (i["findingarn"], i["packageid"]),
     )
+
+
+def test_transform_inspector_findings_merges_reference_urls_per_vulnerability():
+    # Arrange: two findings of one vulnerability on hosts running different
+    # distributions, each listing its own distribution's advisory.
+    amazon_linux_finding = {
+        **LIST_FINDINGS_EC2_PACKAGE[1],
+        "findingArn": "arn:aws:inspector2:us-west-2:123456789011:finding/a1",
+        "packageVulnerabilityDetails": {
+            **LIST_FINDINGS_EC2_PACKAGE[1]["packageVulnerabilityDetails"],
+            "referenceUrls": [
+                "https://nvd.nist.gov/vuln/detail/CVE-2023-1234",
+                "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html",
+            ],
+        },
+    }
+    ubuntu_finding = {
+        **LIST_FINDINGS_EC2_PACKAGE[1],
+        "findingArn": "arn:aws:inspector2:us-west-2:123456789011:finding/a2",
+        "packageVulnerabilityDetails": {
+            **LIST_FINDINGS_EC2_PACKAGE[1]["packageVulnerabilityDetails"],
+            "referenceUrls": [
+                "https://ubuntu.com/security/CVE-2023-1234",
+                "https://nvd.nist.gov/vuln/detail/CVE-2023-1234",
+            ],
+        },
+    }
+
+    # Act
+    findings, _packages, _finding_to_package_map, vulnerabilities = (
+        transform_inspector_findings([amazon_linux_finding, ubuntu_finding])
+    )
+
+    # Assert
+    assert [f["vulnerabilityid"] for f in findings] == ["CVE-2023-1234"] * 2
+    assert [(v["id"], v["referenceurls"]) for v in vulnerabilities] == [
+        (
+            "CVE-2023-1234",
+            [
+                "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html",
+                "https://nvd.nist.gov/vuln/detail/CVE-2023-1234",
+                "https://ubuntu.com/security/CVE-2023-1234",
+            ],
+        ),
+    ]
