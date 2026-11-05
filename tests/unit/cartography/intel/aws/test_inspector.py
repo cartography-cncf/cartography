@@ -1,5 +1,8 @@
 from datetime import datetime
 
+import pytest
+
+from cartography.intel.aws.inspector import transform_ec2_package_findings
 from cartography.intel.aws.inspector import transform_inspector_findings
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
@@ -252,3 +255,45 @@ def test_transform_inspector_findings_merges_reference_urls_per_vulnerability():
             ],
         ),
     ]
+
+
+@pytest.mark.parametrize(
+    "other_instance_changes, shares_content",
+    [
+        ({}, True),
+        ({"firstObservedAt": datetime(2023, 1, 1)}, True),
+        (
+            {
+                "inspectorScoreDetails": {
+                    "adjustedCvss": {
+                        "score": 9.8,
+                        "scoringVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                    },
+                },
+            },
+            False,
+        ),
+        ({"fixAvailable": "YES"}, False),
+    ],
+)
+def test_transform_ec2_package_findings_shares_content_across_instances(
+    other_instance_changes,
+    shares_content,
+):
+    # Arrange: the same kernel finding on two instances.
+    kernel = LIST_FINDINGS_EC2_PACKAGE[0]
+    other_instance = {
+        **kernel,
+        "findingArn": "arn:aws:inspector2:us-west-2:123456789012:finding/" + "b" * 32,
+        "resources": [{**kernel["resources"][0], "id": "i-other"}],
+        **other_instance_changes,
+    }
+
+    # Act
+    contents, _packages, _links, _vulnerabilities, finding_contents = (
+        transform_ec2_package_findings([kernel, other_instance])
+    )
+
+    # Assert
+    assert (finding_contents[0][1] == finding_contents[1][1]) is shares_content
+    assert len(contents) == (1 if shares_content else 2)
