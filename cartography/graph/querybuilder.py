@@ -21,6 +21,24 @@ from cartography.version import get_cartography_version
 logger = logging.getLogger(__name__)
 
 
+def _item_property(
+    node_property_map: dict[str, PropertyRef],
+    field: str,
+    mapping_field: OntologyFieldMapping,
+) -> PropertyRef | None:
+    """Resolve an item property that an ontology field's SET expression reads."""
+    property_ref = node_property_map.get(field)
+    if property_ref is not None and property_ref.set_by_analysis:
+        # TODO: support ontology fields derived from analysis-owned properties.
+        # The transform never supplies them, so computing _ont_* here would reset
+        # the ontology value on every load; the analysis job would have to set it.
+        raise ValueError(
+            f"Ontology field '_ont_{mapping_field.ontology_field}' reads "
+            f"'{field}', which is set_by_analysis; load() cannot compute it."
+        )
+    return property_ref
+
+
 def _build_ontology_field_statement_invert_boolean(
     mapping_field: OntologyFieldMapping,
     property_ref: PropertyRef,
@@ -159,11 +177,15 @@ def _build_ontology_field_statement_or_boolean(
 
     property_conditions = [
         or_clause.substitute(
-            property_ref=node_property_map.get(mapping_field.node_field),
+            property_ref=_item_property(
+                node_property_map, mapping_field.node_field, mapping_field
+            ),
         )
     ]
     for extra_field in mapping_field.extra.get("fields", []):
-        extra_property_ref = node_property_map.get(extra_field)
+        extra_property_ref = _item_property(
+            node_property_map, extra_field, mapping_field
+        )
         if not extra_property_ref:
             # Expected for Composite Node Pattern schemas (see comment in
             # _build_ontology_node_properties_statement).
@@ -209,11 +231,15 @@ def _build_ontology_field_statement_nor_boolean(
 
     property_conditions = [
         nor_clause.substitute(
-            property_ref=node_property_map.get(mapping_field.node_field),
+            property_ref=_item_property(
+                node_property_map, mapping_field.node_field, mapping_field
+            ),
         )
     ]
     for extra_field in mapping_field.extra.get("fields", []):
-        extra_property_ref = node_property_map.get(extra_field)
+        extra_property_ref = _item_property(
+            node_property_map, extra_field, mapping_field
+        )
         if not extra_property_ref:
             # Expected for Composite Node Pattern schemas (see comment in
             # _build_ontology_node_properties_statement).
@@ -287,7 +313,9 @@ def _build_ontology_field_statement_coalesce(
         )
         return None
 
-    primary_property_ref = node_property_map.get(mapping_field.node_field)
+    primary_property_ref = _item_property(
+        node_property_map, mapping_field.node_field, mapping_field
+    )
     if not primary_property_ref:
         logger.debug(
             "Field '%s' not found in node properties for coalesce special handling of field %s",
@@ -298,7 +326,9 @@ def _build_ontology_field_statement_coalesce(
 
     property_refs = [primary_property_ref]
     for extra_field in extra_fields:
-        extra_property_ref = node_property_map.get(extra_field)
+        extra_property_ref = _item_property(
+            node_property_map, extra_field, mapping_field
+        )
         if not extra_property_ref:
             # Expected for Composite Node Pattern schemas (see comment in
             # _build_ontology_node_properties_statement).
@@ -339,7 +369,9 @@ def _build_ontology_field_statement_normalize_hostname(
             )
             return None
         record_type_field = mapping_field.extra.get("record_type_field", "type")
-        record_type_propertyref = node_property_map.get(record_type_field)
+        record_type_propertyref = _item_property(
+            node_property_map, record_type_field, mapping_field
+        )
         if not record_type_propertyref:
             logger.warning(
                 "Record type field '%s' not found for hostname normalization of field %s",
@@ -378,7 +410,6 @@ def _build_ontology_node_properties_statement(
     set_clauses = [f"i._ont_source = '{source}'"]
     for mapping_field in ontology_mapping.fields:
         ontology_field_name = f"_ont_{mapping_field.ontology_field}"
-        node_propertyref = node_property_map.get(mapping_field.node_field)
 
         # Handle static_value special handling first - it doesn't require a node_field
         if mapping_field.special_handling == "static_value":
@@ -388,6 +419,10 @@ def _build_ontology_node_properties_statement(
             if static_value_statement:
                 set_clauses.append(static_value_statement)
             continue
+
+        node_propertyref = _item_property(
+            node_property_map, mapping_field.node_field, mapping_field
+        )
 
         # Skip validation for special_handling that don't require node_field
         if not node_propertyref:
