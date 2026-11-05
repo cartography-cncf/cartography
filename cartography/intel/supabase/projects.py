@@ -39,25 +39,23 @@ DATABASE_POSTURE_FIELDS: dict[str, tuple[str, ...]] = {
         "network_restrictions_status",
         "db_allowed_cidrs",
         "db_allowed_cidrs_v6",
-        # Derived from the same read, so it has to be restored with it: an unreadable
-        # read leaves it unknown, which would otherwise overwrite a stored verdict.
+        # Derived from the same read, so it is restored with it, or left unknown, rather
+        # than computed from an unread allowlist, which would mean "unrestricted".
         "exposed_internet",
         "exposed_internet_type",
     ),
     "backups": ("pitr_enabled", "walg_enabled", "latest_backup_at"),
 }
 
-# A project in one of these states has no running instance behind it. Its
-# project-scoped endpoints then answer HTTP 500 rather than a tolerated status (an
-# INACTIVE, i.e. paused, project does so on /ssl-enforcement), and once the retries
-# give up the whole sync aborts, so no project listed after it is ever synced.
-_STOPPED_STATUSES = frozenset(
-    {"INACTIVE", "PAUSING", "GOING_DOWN", "REMOVED", "INIT_FAILED"},
-)
+# Only a running project can answer its project-scoped endpoints. A paused one
+# (INACTIVE) answers HTTP 500 on /ssl-enforcement, and once the retries give up the
+# whole sync aborts, so no project listed after it is ever synced. An allowlist keeps
+# a status nobody has seen yet from doing the same: skipping costs one stale project.
+_RUNNING_STATUSES = frozenset({"ACTIVE_HEALTHY", "ACTIVE_UNHEALTHY"})
 
 
-def is_stopped(project: dict[str, Any]) -> bool:
-    return project["status"] in _STOPPED_STATUSES
+def is_running(project: dict[str, Any]) -> bool:
+    return project["status"] in _RUNNING_STATUSES
 
 
 @timeit
@@ -82,11 +80,11 @@ def sync(
     base_url = common_job_parameters["BASE_URL"]
     org_slug = common_job_parameters["ORG_SLUG"]
 
-    # A stopped project gets no settings, so its posture is carried forward.
+    # A project that is not running gets no settings, so its posture is carried forward.
     settings = {
         p["ref"]: get_settings(api_session, base_url, p["ref"])
         for p in projects
-        if not is_stopped(p)
+        if is_running(p)
     }
     stored = get_stored_properties(
         neo4j_session,
@@ -156,7 +154,8 @@ def _carry_forward(
 ) -> None:
     """
     For each configuration group whose endpoint was unreadable, restore the values
-    already in the graph instead of leaving the freshly-computed ``None``.
+    already in the graph, or ``None`` when there are none, instead of keeping values
+    computed from the missing response.
 
     Overwriting real posture with null on a transient 403 or a lost entitlement
     would silently downgrade security-relevant fields (``ssl_enforced``,
@@ -171,8 +170,7 @@ def _carry_forward(
         if responses.get(group) is not None:
             continue
         for field in fields:
-            if field in stored:
-                record[field] = stored[field]
+            record[field] = stored.get(field)
 
 
 _ORG_PROJECTS_PAGE_SIZE = 100
@@ -401,16 +399,10 @@ def sync_database(
         warn_unavailable("database details", project["ref"])
         return
 
-    # The database details come from the project listing, so a stopped project still
-    # gets its node, with the posture it had when it last ran.
-    posture = (
-        {}
-        if is_stopped(project)
-        else get_database_posture(
-            api_session,
-            common_job_parameters["BASE_URL"],
-            project["ref"],
-        )
+    posture = get_database_posture(
+        api_session,
+        common_job_parameters["BASE_URL"],
+        project["ref"],
     )
     stored = get_stored_properties(
         neo4j_session,
@@ -490,13 +482,7 @@ def transform_database(
         "network_restrictions_status": network_restrictions.get("status"),
         "db_allowed_cidrs": restrictions_config.get("dbAllowedCidrs"),
         "db_allowed_cidrs_v6": restrictions_config.get("dbAllowedCidrsV6"),
-        # An empty allowlist means "unrestricted" only when the API returned it. An
-        # unreadable or skipped read is unknown exposure, not exposure.
-        **(
-            _database_exposure(restrictions_config)
-            if posture.get("network_restrictions") is not None
-            else {"exposed_internet": None, "exposed_internet_type": None}
-        ),
+        **_database_exposure(restrictions_config),
         "pitr_enabled": backups.get("pitr_enabled"),
         "walg_enabled": backups.get("walg_enabled"),
         "latest_backup_at": iso_to_datetime(latest_backup_at),
