@@ -790,6 +790,9 @@ class Module(str, Enum):
     KUBERNETES = "Kubernetes"
     """Kubernetes cluster security"""
 
+    LANGSMITH = "LangSmith"
+    """LangSmith LLM observability and agent deployment platform"""
+
     LASTPASS = "LastPass"
     """LastPass password manager"""
 
@@ -874,6 +877,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.KANDJI: "kandji",
     Module.KEYCLOAK: "keycloak",
     Module.KUBERNETES: "kubernetes",
+    Module.LANGSMITH: "langsmith",
     Module.LASTPASS: "lastpass",
     Module.OCI: "oci",
     Module.OKTA: "okta",
