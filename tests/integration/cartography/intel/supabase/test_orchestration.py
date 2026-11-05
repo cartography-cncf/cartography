@@ -9,7 +9,10 @@ can be wrongly deleted, so they are covered here.
 
 from unittest.mock import patch
 
+import requests
+
 import cartography.intel.supabase
+import tests.data.supabase.apikeys
 import tests.data.supabase.organizations
 import tests.data.supabase.projects
 from cartography.config import Config
@@ -30,7 +33,29 @@ def _config(update_tag, organizations=None):
     )
 
 
-def _run(neo4j_session, update_tag, org_projects, orgs=None, organizations=None):
+def _project_scoped(result, unreachable_refs):
+    """
+    Stub a project-scoped getter. The refs in ``unreachable_refs`` behave like a
+    stopped project in production: HTTP 500 until the retries give up.
+    """
+
+    def get(api_session, base_url, project_ref):
+        if project_ref in unreachable_refs:
+            raise requests.exceptions.RetryError("too many 500 error responses")
+        return result
+
+    return get
+
+
+def _run(
+    neo4j_session,
+    update_tag,
+    org_projects,
+    orgs=None,
+    organizations=None,
+    api_keys=None,
+    unreachable_refs=frozenset(),
+):
     """Run the entry point with every outbound call stubbed at its module boundary."""
     orgs = (
         orgs
@@ -63,37 +88,75 @@ def _run(neo4j_session, update_tag, org_projects, orgs=None, organizations=None)
         patch.object(
             cartography.intel.supabase.projects,
             "get_settings",
-            return_value={},
+            side_effect=_project_scoped({}, unreachable_refs),
         ),
         patch.object(
             cartography.intel.supabase.projects,
             "get_database_posture",
-            return_value={},
+            side_effect=_project_scoped({}, unreachable_refs),
         ),
-        # Every project-scoped child endpoint is unavailable, which keeps this test
-        # about the fan-out rather than about child ingestion.
-        patch.object(cartography.intel.supabase.apikeys, "get", return_value=None),
+        # Every project-scoped child endpoint but the API keys is unavailable, which
+        # keeps this test about the fan-out rather than about child ingestion.
         patch.object(
-            cartography.intel.supabase.apikeys, "get_signing_keys", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.functions, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.functions, "get_secrets", return_value=None
-        ),
-        patch.object(cartography.intel.supabase.storage, "get", return_value=None),
-        patch.object(cartography.intel.supabase.auth, "get", return_value=None),
-        patch.object(
-            cartography.intel.supabase.auth, "get_sso_providers", return_value=None
+            cartography.intel.supabase.apikeys,
+            "get",
+            side_effect=_project_scoped(api_keys, unreachable_refs),
         ),
         patch.object(
-            cartography.intel.supabase.auth, "get_third_party_auth", return_value=None
+            cartography.intel.supabase.apikeys,
+            "get_signing_keys",
+            side_effect=_project_scoped(None, unreachable_refs),
         ),
-        patch.object(cartography.intel.supabase.network, "get", return_value=None),
         patch.object(
-            cartography.intel.supabase.network, "get_custom_hostname", return_value=None
+            cartography.intel.supabase.functions,
+            "get",
+            side_effect=_project_scoped(None, unreachable_refs),
         ),
-        patch.object(cartography.intel.supabase.branches, "get", return_value=None),
-        patch.object(cartography.intel.supabase.advisors, "get", return_value=None),
+        patch.object(
+            cartography.intel.supabase.functions,
+            "get_secrets",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.storage,
+            "get",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.auth,
+            "get",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.auth,
+            "get_sso_providers",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.auth,
+            "get_third_party_auth",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.network,
+            "get",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.network,
+            "get_custom_hostname",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.branches,
+            "get",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
+        patch.object(
+            cartography.intel.supabase.advisors,
+            "get",
+            side_effect=_project_scoped(None, unreachable_refs),
+        ),
     ):
         cartography.intel.supabase.start_supabase_ingestion(
             neo4j_session,
@@ -198,3 +261,37 @@ def test_orchestration_organization_disappearing_between_syncs(neo4j_session):
         "this expectation must be updated deliberately"
     )
     assert record["lastupdated"] == TEST_UPDATE_TAG
+
+
+def test_orchestration_stopped_project_does_not_block_later_projects(neo4j_session):
+    """
+    A paused project has no running instance, so its project-scoped endpoints answer
+    HTTP 500 until the retries give up. Reading them aborted the whole sync and left
+    every project listed after the paused one unsynced. The paused project must keep
+    the nodes it had while it ran, and the projects after it must still sync.
+    """
+    # Arrange: a first sync while the kwik-e-mart project is still running.
+    org_projects = tests.data.supabase.projects.SUPABASE_ORG_PROJECTS["projects"]
+    api_keys = tests.data.supabase.apikeys.SUPABASE_API_KEYS
+    _run(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        [{**p, "status": "ACTIVE_HEALTHY"} for p in org_projects],
+        api_keys=api_keys,
+    )
+
+    # Act: kwik-e-mart is now paused, and its project-scoped endpoints fail.
+    _run(
+        neo4j_session,
+        TEST_UPDATE_TAG + 3,
+        org_projects,
+        api_keys=api_keys,
+        unreachable_refs={"kwikemartdbbbbbbbbbb"},
+    )
+
+    # Assert
+    key_tags = dict(
+        check_nodes(neo4j_session, "SupabaseApiKey", ["id", "lastupdated"]),
+    )
+    assert key_tags["sharedprojectdddddddd/key-publishable-1"] == TEST_UPDATE_TAG + 3
+    assert key_tags["kwikemartdbbbbbbbbbb/key-publishable-1"] == TEST_UPDATE_TAG

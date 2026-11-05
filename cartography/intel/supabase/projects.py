@@ -47,6 +47,18 @@ DATABASE_POSTURE_FIELDS: dict[str, tuple[str, ...]] = {
     "backups": ("pitr_enabled", "walg_enabled", "latest_backup_at"),
 }
 
+# A project in one of these states has no running instance behind it. Its
+# project-scoped endpoints then answer HTTP 500 rather than a tolerated status (an
+# INACTIVE, i.e. paused, project does so on /ssl-enforcement), and once the retries
+# give up the whole sync aborts, so no project listed after it is ever synced.
+_STOPPED_STATUSES = frozenset(
+    {"INACTIVE", "PAUSING", "GOING_DOWN", "REMOVED", "INIT_FAILED"},
+)
+
+
+def is_stopped(project: dict[str, Any]) -> bool:
+    return project["status"] in _STOPPED_STATUSES
+
 
 @timeit
 def sync(
@@ -70,8 +82,11 @@ def sync(
     base_url = common_job_parameters["BASE_URL"]
     org_slug = common_job_parameters["ORG_SLUG"]
 
+    # A stopped project gets no settings, so its posture is carried forward.
     settings = {
-        p["ref"]: get_settings(api_session, base_url, p["ref"]) for p in projects
+        p["ref"]: get_settings(api_session, base_url, p["ref"])
+        for p in projects
+        if not is_stopped(p)
     }
     stored = get_stored_properties(
         neo4j_session,
@@ -386,10 +401,16 @@ def sync_database(
         warn_unavailable("database details", project["ref"])
         return
 
-    posture = get_database_posture(
-        api_session,
-        common_job_parameters["BASE_URL"],
-        project["ref"],
+    # The database details come from the project listing, so a stopped project still
+    # gets its node, with the posture it had when it last ran.
+    posture = (
+        {}
+        if is_stopped(project)
+        else get_database_posture(
+            api_session,
+            common_job_parameters["BASE_URL"],
+            project["ref"],
+        )
     )
     stored = get_stored_properties(
         neo4j_session,
