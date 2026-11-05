@@ -202,14 +202,16 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
         ],
         "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:example-org/example-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:example-org/example-repo:ref:refs/heads/main"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/GitHubActionsRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/example-repo"}}}',
     },
+    # Repositories created after 2026-07-15 use GitHub's immutable OIDC subject format,
+    # which appends "@{id}" to the owner and repository names.
     {
         "EventName": "AssumeRoleWithWebIdentity",
         "EventTime": "2024-01-15T14:30:45.789000",
         "UserIdentity": {
             "type": "WebIdentityUser",
-            "principalId": "repo:myorg/demo-app:ref:refs/heads/develop",
+            "principalId": "repo:myorg@123456/demo-app@456789:ref:refs/heads/develop",
             "identityProvider": "token.actions.githubusercontent.com",
-            "userName": "repo:myorg/demo-app:ref:refs/heads/develop",
+            "userName": "repo:myorg@123456/demo-app@456789:ref:refs/heads/develop",
         },
         "Resources": [
             {
@@ -218,7 +220,7 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
                 "AccountId": "987654321098",
             }
         ],
-        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/demo-app:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:myorg/demo-app:ref:refs/heads/develop"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::987654321098:assumed-role/CrossAccountGitHubRole/demo-app"}}}',
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg@123456/demo-app@456789:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:myorg@123456/demo-app@456789:ref:refs/heads/develop"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::987654321098:assumed-role/CrossAccountGitHubRole/demo-app"}}}',
     },
 ]
 
