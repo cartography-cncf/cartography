@@ -105,6 +105,7 @@ PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
 PANEL_SUPABASE = "Supabase Options"
+PANEL_NEON = "Neon Options"
 PANEL_RAILWAY = "Railway Options"
 PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
@@ -178,6 +179,7 @@ MODULE_PANELS = {
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
     "supabase": PANEL_SUPABASE,
+    "neon": PANEL_NEON,
     "railway": PANEL_RAILWAY,
     "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
@@ -2999,6 +3001,40 @@ class CLI:
                 ),
             ] = "https://api.supabase.com",
             # =================================================================
+            # Neon Options
+            # =================================================================
+            neon_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--neon-api-key-env-var",
+                    help="Environment variable name containing a Neon API key (personal or organization).",
+                    rich_help_panel=PANEL_NEON,
+                    hidden=PANEL_NEON not in visible_panels,
+                ),
+            ] = None,
+            neon_org_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--neon-org-ids",
+                    help=(
+                        "Comma-separated list of Neon organization IDs to sync. "
+                        "Required with an organization API key. Defaults to every "
+                        "organization a personal API key's user belongs to."
+                    ),
+                    rich_help_panel=PANEL_NEON,
+                    hidden=PANEL_NEON not in visible_panels,
+                ),
+            ] = None,
+            neon_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--neon-base-url",
+                    help="Neon API base URL.",
+                    rich_help_panel=PANEL_NEON,
+                    hidden=PANEL_NEON not in visible_panels,
+                ),
+            ] = "https://console.neon.tech/api/v2",
+            # =================================================================
             # Railway Options
             # =================================================================
             railway_token_env_var: Annotated[
@@ -3693,6 +3729,15 @@ class CLI:
                     supabase_access_token_env_var,
                 )
                 supabase_access_token = os.environ.get(supabase_access_token_env_var)
+
+            # Read Neon API key
+            neon_api_key = None
+            if neon_api_key_env_var:
+                logger.debug(
+                    "Reading Neon API key from environment variable %s",
+                    neon_api_key_env_var,
+                )
+                neon_api_key = os.environ.get(neon_api_key_env_var)
             # Read Railway token
             railway_token = None
             if railway_token_env_var:
@@ -4262,6 +4307,9 @@ class CLI:
                 supabase_access_token=supabase_access_token,
                 supabase_organizations=supabase_organizations,
                 supabase_base_url=supabase_base_url,
+                neon_api_key=neon_api_key,
+                neon_org_ids=neon_org_ids,
+                neon_base_url=neon_base_url,
                 railway_token=railway_token,
                 railway_workspace_id=railway_workspace_id,
                 railway_base_url=railway_base_url,

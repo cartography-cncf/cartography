@@ -463,6 +463,35 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonDatabase",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Every Neon database is Postgres.
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "postgres"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="pg_version"),
+                OntologyFieldMapping(ontology_field="endpoint", node_field="host"),
+                OntologyFieldMapping(ontology_field="location", node_field="region_id"),
+                # port: Neon always exposes Postgres on 5432; the value is not
+                # returned by the API so it is not stored on the node.
+                # encrypted: Not available. Neon encrypts data at rest on every
+                # plan, but the API exposes no per-database flag to confirm it.
+            ],
+        ),
+    ],
+)
+
+
 DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
@@ -470,6 +499,7 @@ DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "databricks": databricks_mapping,
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "netlify": netlify_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",

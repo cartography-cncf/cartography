@@ -877,6 +877,36 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available; the organization endpoints expose a plan
+                # but no lifecycle state.
+                # domain: Not available
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="NeonProject",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available. Projects have no lifecycle state; a
+                # deleted project disappears from the listing.
+                # domain: Not available. Connection hostnames are modelled on
+                # NeonEndpoint.host.
+            ],
+        ),
+    ],
+)
+
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -963,6 +993,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "modal": modal_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",

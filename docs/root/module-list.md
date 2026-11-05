@@ -39,6 +39,7 @@ modules/lastpass/index
 modules/microsoft/index
 modules/miradore/index
 modules/modal/index
+modules/neon/index
 modules/netlify/index
 modules/notion/index
 modules/oci/index

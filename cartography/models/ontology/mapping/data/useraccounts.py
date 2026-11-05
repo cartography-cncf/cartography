@@ -863,6 +863,29 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonOrganizationMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="has_mfa", node_field="has_mfa"),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="deactivated_at",
+                    special_handling="to_boolean",
+                ),
+                # username: Not available. Neon identifies users by email.
+                # lastactivity: Not available.
+            ],
+        ),
+    ],
+)
+
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -977,6 +1000,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "modal": modal_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",
