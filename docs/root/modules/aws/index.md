@@ -16,6 +16,7 @@ permissions-mapping
 organizations
 infrastructure-investigations
 container-images
+inspector
 identity-access
 tagging-and-labels
 analysis
