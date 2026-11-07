@@ -72,7 +72,8 @@ def _mock_client_listing_every_jurisdiction(failures=None):
     """
     failures = failures or {}
 
-    def _list(account_id, per_page, jurisdiction, **kwargs):
+    def _list(account_id, per_page, cf_r2_jurisdiction, **kwargs):
+        jurisdiction = cf_r2_jurisdiction
         if jurisdiction in failures:
             raise failures[jurisdiction]
         page = MagicMock()
@@ -447,7 +448,7 @@ def test_get_lists_every_jurisdiction():
     # Assert
     assert complete is True
     assert [
-        call.kwargs["jurisdiction"]
+        call.kwargs["cf_r2_jurisdiction"]
         for call in mock_client.r2.buckets.list.call_args_list
     ] == ["default", "eu", "fedramp"]
     assert {(bucket["jurisdiction"], bucket["name"]) for bucket in buckets} == {
