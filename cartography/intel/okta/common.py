@@ -293,30 +293,33 @@ def _next_page_cursor(response: Any) -> str | None:
     return None
 
 
-# The SDK request executor only retries 429s, so a single 5xx from Okta's edge
-# would otherwise abort a sync that may be hundreds of pages in.
-_SERVER_ERROR_RETRIES = 3
-_SERVER_ERROR_BACKOFF_SECONDS = 1.0
+# The SDK request executor only retries 429s, so a single 5xx from Okta's edge,
+# or one stalled connection cut off by the request timeout, would otherwise abort
+# a sync that may be hundreds of pages in.
+_TRANSIENT_ERROR_RETRIES = 3
+_TRANSIENT_ERROR_BACKOFF_SECONDS = 1.0
 
 
-def _is_server_error(error: Any) -> bool:
+def _is_transient_error(error: Any) -> bool:
+    if isinstance(error, TimeoutError):
+        return True
     return isinstance(error, (HTTPError, OktaAPIError)) and (error.status or 0) >= 500
 
 
-async def _call_retrying_server_errors(
+async def _call_retrying_transient_errors(
     api_method: Callable[..., Awaitable[tuple[Any, Any, Any]]],
     **kwargs: Any,
 ) -> tuple[Any, Any, Any]:
-    for attempt in range(_SERVER_ERROR_RETRIES):
+    for attempt in range(_TRANSIENT_ERROR_RETRIES):
         result = await api_method(**kwargs)
         error = result[2]
-        if not _is_server_error(error):
+        if not _is_transient_error(error):
             return result
-        delay = _SERVER_ERROR_BACKOFF_SECONDS * 2**attempt
+        delay = _TRANSIENT_ERROR_BACKOFF_SECONDS * 2**attempt
         logger.warning(
-            "Okta %s returned HTTP %s, retrying in %.0fs",
+            "Okta %s failed with %r, retrying in %.0fs",
             api_method.__name__,
-            error.status,
+            error,
             delay,
         )
         await asyncio.sleep(delay)
@@ -338,7 +341,7 @@ async def collect_paginated(
     after = kwargs.pop("after", None)
     items: list[Any] = []
     while True:
-        data, response, error = await _call_retrying_server_errors(
+        data, response, error = await _call_retrying_transient_errors(
             api_method, limit=limit, after=after, **kwargs
         )
         if error:

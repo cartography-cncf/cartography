@@ -256,12 +256,18 @@ def _okta_api_error(status: int) -> OktaAPIError:
     ("errors", "expected_calls", "raises"),
     [
         ([_http_error(502), _okta_api_error(500)], 3, False),
+        ([TimeoutError()], 2, False),
         ([_http_error(502)] * 4, 4, True),
         ([_okta_api_error(404)], 1, True),
     ],
-    ids=["recovers-after-5xx", "gives-up-after-retries", "no-retry-on-4xx"],
+    ids=[
+        "recovers-after-5xx",
+        "recovers-after-timeout",
+        "gives-up-after-retries",
+        "no-retry-on-4xx",
+    ],
 )
-def test_collect_paginated_retries_server_errors(
+def test_collect_paginated_retries_transient_errors(
     monkeypatch: pytest.MonkeyPatch,
     errors: list[Any],
     expected_calls: int,
