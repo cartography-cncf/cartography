@@ -659,15 +659,19 @@ def match_images_to_dockerfiles(
             id(parsed): candidate_info
             for parsed, candidate_info in candidate_dockerfiles
         }
-        df_matches = [
-            match
-            for match in find_best_dockerfile_matches(
-                image_commands,
-                [parsed for parsed, _ in candidate_dockerfiles],
-                min_confidence,
-            )
-            if match.matched_commands >= MIN_DOCKERFILE_MATCHED_COMMANDS
-        ]
+        # Confidence is bucketed, so rank and detect ties on the raw similarity too.
+        df_matches = sorted(
+            (
+                match
+                for match in find_best_dockerfile_matches(
+                    image_commands,
+                    [parsed for parsed, _ in candidate_dockerfiles],
+                    min_confidence,
+                )
+                if match.matched_commands >= MIN_DOCKERFILE_MATCHED_COMMANDS
+            ),
+            key=lambda match: (-match.confidence, -match.command_similarity),
+        )
         if not df_matches:
             logger.debug(
                 "No match found for image %s:%s", image.display_name, image.tag
@@ -680,6 +684,7 @@ def match_images_to_dockerfiles(
             info_by_dockerfile[id(match.dockerfile)].get("source_repo_id")
             for match in df_matches
             if match.confidence == best_match.confidence
+            and match.command_similarity == best_match.command_similarity
         }
         if len(tied_repos) > 1:
             logger.debug(

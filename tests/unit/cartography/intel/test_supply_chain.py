@@ -283,6 +283,47 @@ def test_match_images_to_dockerfiles_rejects_indistinct_matches(
     assert matches == []
 
 
+def test_match_images_to_dockerfiles_breaks_confidence_ties_on_similarity():
+    image = ContainerImage(
+        digest="sha256:web",
+        uri="registry.example.com/acme/web:latest",
+        registry_id="registry.example.com/acme/web",
+        display_name="registry.example.com/acme/web",
+        tag="latest",
+        layer_diff_ids=["sha256:layer0", "sha256:layer1", "sha256:layer2"],
+        image_type="image",
+        architecture="amd64",
+        os="linux",
+        layer_history=[
+            {"created_by": created_by, "empty_layer": False}
+            for created_by in [
+                "RUN /bin/sh -c npm ci --omit=dev # buildkit",
+                "RUN /bin/sh -c npm run build # buildkit",
+                "COPY . /app # buildkit",
+            ]
+        ],
+    )
+    # Both score in the same confidence bucket; web shares more of the history.
+    dockerfiles = [
+        {
+            "path": "Dockerfile",
+            "content": "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /app\n",
+            "source_repo_id": "https://github.com/acme/web",
+        },
+        {
+            "path": "Dockerfile",
+            "content": "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /srv\n",
+            "source_repo_id": "https://github.com/acme/docs",
+        },
+    ]
+
+    matches = match_images_to_dockerfiles([image], dockerfiles, min_confidence=0.5)
+
+    assert [match.source_repo_id for match in matches] == [
+        "https://github.com/acme/web"
+    ]
+
+
 @pytest.mark.parametrize(
     ("helper", "stable_order"),
     [
