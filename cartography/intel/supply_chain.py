@@ -1014,7 +1014,7 @@ def extract_provenance_from_oci_config(
     """
     result: dict[str, str] = {}
 
-    labels = config.get("config", {}).get("Labels") or {}
+    labels = (config.get("config") or {}).get("Labels") or {}
 
     for key in _OCI_SOURCE_LABELS:
         value = labels.get(key)

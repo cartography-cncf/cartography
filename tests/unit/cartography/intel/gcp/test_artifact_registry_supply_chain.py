@@ -76,8 +76,13 @@ def test_extract_provenance_from_oci_config_reads_labels():
     assert provenance["source_revision"] == "deadbeef"
 
 
-def test_extract_provenance_from_oci_config_no_labels_returns_empty():
-    assert extract_provenance_from_oci_config({"config": {}}) == {}
+@pytest.mark.parametrize(
+    "config",
+    [{"config": {}}, {"config": None}, {"config": {"Labels": None}}],
+    ids=["no-labels", "null-config", "null-labels"],
+)
+def test_extract_provenance_from_oci_config_no_labels_returns_empty(config):
+    assert extract_provenance_from_oci_config(config) == {}
 
 
 # ---------------------------------------------------------------------------
