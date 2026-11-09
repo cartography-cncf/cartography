@@ -43,15 +43,16 @@ def get_unmatched_gitlab_container_images_with_history(
     limit: int | None = None,
 ) -> list[ContainerImage]:
     """
-    Query container images not yet matched by provenance in this sync iteration.
+    Query container images eligible for Dockerfile matching.
 
     Uses the generic ontology labels and relationship labels so the same query works
     for ECR and GitLab Container Registry.
 
     Returns one image per container repository (preferring 'latest' tag, then most recent).
     Excludes images that already have a PACKAGED_FROM relationship created in the current
-    sync iteration (i.e. by provenance matching). Images with stale PACKAGED_FROM from
-    previous iterations are included so they can be re-matched before cleanup removes them.
+    sync iteration, any provenance PACKAGED_FROM, or a source_uri naming a repository in
+    the graph. Images whose only links are stale Dockerfile matches from previous iterations
+    are included so they can be re-matched before cleanup removes them.
 
     :param neo4j_session: Neo4j session
     :param organization_id: The GitLab organization numeric ID used for scoping
