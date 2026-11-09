@@ -32,6 +32,7 @@ from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
+from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from cartography.models.aws.ecr.image import ECRImageHasLayerRelSchema
 from cartography.models.aws.ecr.image import ECRImageLayerEnrichmentSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerHeadRelSchema
@@ -129,9 +130,6 @@ CIRCLECI_LABEL_SOURCE_FILE = "DOCKERFILE"
 CODEBUILD_LABEL_SOURCE_URI = "CODEBUILD_SOURCE_REPO_URL"
 CODEBUILD_LABEL_SOURCE_REVISION = "CODEBUILD_RESOLVED_SOURCE_VERSION"
 ATTESTATION_PROVENANCE_FIELD = "_from_attestation"
-# Bump when the config-label provenance extraction learns a new source so images
-# whose layers were already ingested are fetched once more to read their labels.
-LABEL_PROVENANCE_VERSION = 1
 
 
 def _get_config_labels(config_json: dict[str, Any]) -> dict[str, Any]:

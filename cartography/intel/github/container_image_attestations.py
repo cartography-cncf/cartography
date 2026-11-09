@@ -52,10 +52,12 @@ def _digests_already_enriched(
     neo4j_session: neo4j.Session,
     org_url: str,
 ) -> set[str]:
+    # Keyed on attestations rather than the image's source_uri, which an OCI label can
+    # set first: a label must not stop the higher-priority attestation being read.
     query = """
-    MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(img:GitHubContainerImage)
-    WHERE img.source_uri IS NOT NULL
-    RETURN img.digest
+    MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(att:GitHubContainerImageAttestation)
+    WHERE att.source_uri IS NOT NULL
+    RETURN DISTINCT att.attests_digest
     """
     values = neo4j_session.execute_read(
         read_list_of_values_tx,
@@ -242,7 +244,12 @@ def transform_attestations(
             skipped_lazy,
         )
 
-    return attestation_rows, list(provenance_by_digest.values())
+    # A row without a source would null the source an image label already set.
+    return attestation_rows, [
+        provenance
+        for provenance in provenance_by_digest.values()
+        if provenance["source_uri"]
+    ]
 
 
 @timeit

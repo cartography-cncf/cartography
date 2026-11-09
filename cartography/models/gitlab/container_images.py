@@ -78,6 +78,10 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
         "source_file",
         description="Source definition file extracted from image provenance.",
     )
+    label_provenance_version: PropertyRef = PropertyRef(
+        "label_provenance_version",
+        description="Version of the image-config label provenance extraction last applied to this image. Images below the current version have their config re-read once.",
+    )
     parent_image_uri: PropertyRef = PropertyRef(
         "parent_image_uri",
         description="Parent image reference extracted from image provenance.",
@@ -329,6 +333,43 @@ class GitLabContainerImageProvenanceSchema(CartographyNodeSchema):
     label: str = "GitLabContainerImage"
     properties: GitLabContainerImageProvenanceNodeProperties = (
         GitLabContainerImageProvenanceNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitLabContainerImageToParentImageRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageParentProvenanceNodeProperties(CartographyNodeProperties):
+    """
+    Parent-image provenance for an attestation that names no source, so the image's
+    label-derived source fields are left in place.
+    """
+
+    id: PropertyRef = PropertyRef(
+        "digest",
+        description="Content-addressable container image digest.",
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri",
+        description="Parent image reference extracted from image provenance.",
+    )
+    parent_image_digest: PropertyRef = PropertyRef(
+        "parent_image_digest",
+        description="Parent image digest extracted from image provenance.",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageParentProvenanceSchema(CartographyNodeSchema):
+    """Parent-image provenance attached to an image already present in the graph."""
+
+    label: str = "GitLabContainerImage"
+    properties: GitLabContainerImageParentProvenanceNodeProperties = (
+        GitLabContainerImageParentProvenanceNodeProperties()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

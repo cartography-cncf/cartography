@@ -81,8 +81,13 @@ def get_complete_layer_digests(
     scope_values: Mapping[str, Any],
     *,
     batch_size: int = 500,
+    min_label_provenance_version: int | None = None,
 ) -> set[str]:
-    """Return digests whose layer closure is complete for the current scope."""
+    """
+    Return digests whose layer closure is complete for the current scope. With
+    min_label_provenance_version, an image whose config labels were read at an older
+    version counts as incomplete so its config is read once more.
+    """
 
     if batch_size <= 0:
         raise ValueError("batch_size must be greater than zero")
@@ -180,10 +185,18 @@ def get_complete_layer_digests(
         if unique_digests is not None
         else "true"
     )
+    label_provenance_predicate = ""
+    if min_label_provenance_version is not None:
+        label_provenance_predicate = (
+            "AND coalesce(img.label_provenance_version, 0) "
+            ">= $min_label_provenance_version"
+        )
+        parameters["min_label_provenance_version"] = min_label_provenance_version
     query = f"""
     MATCH (img:{shape.image_label})
     WHERE {digest_predicate}
       AND img.{shape.image_layer_ids_property} IS NOT NULL
+      {label_provenance_predicate}
       {image_scope_predicate}
       {layer_scope_predicate}
       {relationship_predicate}

@@ -66,6 +66,10 @@ class GitHubContainerImageNodeProperties(CartographyNodeProperties):
     source_file: PropertyRef = PropertyRef(
         "source_file", description="Source definition file extracted from provenance."
     )
+    label_provenance_version: PropertyRef = PropertyRef(
+        "label_provenance_version",
+        description="Version of the image-config label provenance extraction last applied to this image. Images below the current version have their config re-read once.",
+    )
     parent_image_uri: PropertyRef = PropertyRef(
         "parent_image_uri",
         description="Parent image URI derived from provenance or image history.",
