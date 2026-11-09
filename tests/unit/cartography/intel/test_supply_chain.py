@@ -162,6 +162,10 @@ def test_match_images_to_dockerfiles_scopes_by_scope_keys():
                 "created_by": "RUN apk add curl",
                 "empty_layer": False,
             },
+            {
+                "created_by": "COPY service /usr/local/bin/service # buildkit",
+                "empty_layer": False,
+            },
         ],
         scope_keys={"gitlab_project_id": "100"},
     )
@@ -169,13 +173,13 @@ def test_match_images_to_dockerfiles_scopes_by_scope_keys():
     dockerfiles = [
         {
             "path": "Dockerfile",
-            "content": "FROM alpine\nRUN apk add curl\n",
+            "content": "FROM alpine\nRUN apk add curl\nCOPY service /usr/local/bin/service\n",
             "scope_keys": {"gitlab_project_id": "100"},
             "source_repo_id": "https://gitlab.example.com/acme/service",
         },
         {
             "path": "Dockerfile",
-            "content": "FROM alpine\nRUN apk add curl\n",
+            "content": "FROM alpine\nRUN apk add curl\nCOPY service /usr/local/bin/service\n",
             "scope_keys": {"gitlab_project_id": "200"},
             "source_repo_id": "https://gitlab.example.com/acme/other-service",
         },
@@ -200,6 +204,10 @@ def test_match_images_to_dockerfiles_matches_copy_destination_patterns():
         os="linux",
         layer_history=[
             {
+                "created_by": "/bin/sh -c apk add --no-cache ca-certificates",
+                "empty_layer": False,
+            },
+            {
                 "created_by": "/bin/sh -c #(nop) COPY file:abcd1234 in /usr/local/bin/",
                 "empty_layer": False,
             },
@@ -209,7 +217,7 @@ def test_match_images_to_dockerfiles_matches_copy_destination_patterns():
     dockerfiles = [
         {
             "path": "Dockerfile",
-            "content": "FROM alpine\nCOPY ./bin/service /usr/local/bin/\n",
+            "content": "FROM alpine\nRUN apk add --no-cache ca-certificates\nCOPY ./bin/service /usr/local/bin/\n",
             "source_repo_id": "https://gitlab.example.com/acme/service",
         },
     ]
@@ -218,6 +226,61 @@ def test_match_images_to_dockerfiles_matches_copy_destination_patterns():
 
     assert len(matches) == 1
     assert matches[0].source_repo_id == "https://gitlab.example.com/acme/service"
+
+
+@pytest.mark.parametrize(
+    ("layer_history", "dockerfiles"),
+    [
+        (
+            ["COPY . /app # buildkit"],
+            [("FROM node:20-slim\nCOPY . /app\n", "https://github.com/acme/web")],
+        ),
+        (
+            ["RUN /bin/sh -c npm ci # buildkit", "COPY . /app # buildkit"],
+            [
+                (
+                    "FROM node:20\nRUN npm ci\nCOPY . /app\n",
+                    "https://github.com/acme/web",
+                ),
+                (
+                    "FROM node:20\nRUN npm ci\nCOPY . /app\n",
+                    "https://github.com/acme/docs",
+                ),
+            ],
+        ),
+    ],
+    ids=["single-generic-command", "tied-across-repositories"],
+)
+def test_match_images_to_dockerfiles_rejects_indistinct_matches(
+    layer_history,
+    dockerfiles,
+):
+    image = ContainerImage(
+        digest="sha256:indistinct",
+        uri="registry.example.com/acme/web:latest",
+        registry_id="registry.example.com/acme/web",
+        display_name="registry.example.com/acme/web",
+        tag="latest",
+        layer_diff_ids=[f"sha256:layer{i}" for i in range(len(layer_history))],
+        image_type="image",
+        architecture="amd64",
+        os="linux",
+        layer_history=[
+            {"created_by": created_by, "empty_layer": False}
+            for created_by in layer_history
+        ],
+    )
+
+    matches = match_images_to_dockerfiles(
+        [image],
+        [
+            {"path": "Dockerfile", "content": content, "source_repo_id": repo}
+            for content, repo in dockerfiles
+        ],
+        min_confidence=0.5,
+    )
+
+    assert matches == []
 
 
 @pytest.mark.parametrize(
