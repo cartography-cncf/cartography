@@ -308,6 +308,7 @@ def _is_transient_error(error: Any) -> bool:
 
 async def _call_retrying_transient_errors(
     api_method: Callable[..., Awaitable[tuple[Any, Any, Any]]],
+    context: str,
     **kwargs: Any,
 ) -> tuple[Any, Any, Any]:
     for attempt in range(_TRANSIENT_ERROR_RETRIES):
@@ -318,7 +319,7 @@ async def _call_retrying_transient_errors(
         delay = _TRANSIENT_ERROR_BACKOFF_SECONDS * 2**attempt
         logger.warning(
             "Okta %s failed with %r, retrying in %.0fs",
-            api_method.__name__,
+            context,
             error,
             delay,
         )
@@ -342,7 +343,7 @@ async def collect_paginated(
     items: list[Any] = []
     while True:
         data, response, error = await _call_retrying_transient_errors(
-            api_method, limit=limit, after=after, **kwargs
+            api_method, api_method.__name__, limit=limit, after=after, **kwargs
         )
         if error:
             raise OktaApiError(api_method.__name__, error)
@@ -371,7 +372,7 @@ async def _get_raw_json(okta_client: Any, url: str) -> tuple[Any, Any]:
         raise_for_okta_error(error, url)
         return await executor.execute(request)
 
-    response, body, error = await _call_retrying_transient_errors(get_raw_page)
+    response, body, error = await _call_retrying_transient_errors(get_raw_page, url)
     raise_for_okta_error(error, url)
     return response, json.loads(body) if body else None
 
