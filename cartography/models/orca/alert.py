@@ -158,7 +158,7 @@ class OrcaAlertToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OrcaAlertSchema(CartographyNodeSchema):
-    """A security issue reported and prioritized by Orca."""
+    """A security issue reported by Orca, excluding closed and dismissed alerts."""
 
     label: str = "OrcaAlert"
     properties: OrcaAlertNodeProperties = OrcaAlertNodeProperties()

@@ -32,26 +32,12 @@ def _seed_single_platform_graph(neo4j_session) -> None:
     boto3_session = MagicMock()
     mock_client = MagicMock()
 
-    mock_list_paginator = MagicMock()
-    mock_list_paginator.paginate.return_value = [
-        {
-            "imageIds": [
-                {
-                    "imageDigest": tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
-                    "imageTag": "latest",
-                }
-            ]
-        }
-    ]
-
     mock_describe_paginator = MagicMock()
     mock_describe_paginator.paginate.return_value = [
         {"imageDetails": [tests.data.aws.ecr.SINGLE_PLATFORM_IMAGE_DETAILS]}
     ]
 
     def get_paginator(name):
-        if name == "list_images":
-            return mock_list_paginator
         if name == "describe_images":
             return mock_describe_paginator
         raise ValueError(f"Unexpected paginator: {name}")

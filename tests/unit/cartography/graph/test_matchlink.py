@@ -246,7 +246,7 @@ def test_build_source_scoped_matchlink_query(_mock_get_cartography_version):
     expected = """
         MATCH (source_sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
-            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(source_sub_resource)
+            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn}) WHERE EXISTS { (from)<-[:RESOURCE]-(source_sub_resource) }
             MATCH (to:AWSS3Bucket{name: item.BucketName})
             MERGE (from)-[r:CAN_ACCESS]->(to)
             ON CREATE SET
@@ -274,7 +274,7 @@ def test_build_target_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (target_sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})
-            MATCH (to:AWSS3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
+            MATCH (to:AWSS3Bucket{name: item.BucketName}) WHERE EXISTS { (to)<-[:RESOURCE]-(target_sub_resource) }
             MERGE (from)-[r:CAN_ACCESS]->(to)
             ON CREATE SET
                 r.firstseen = timestamp(),
@@ -300,8 +300,8 @@ def test_build_scoped_matchlink_query(_mock_get_cartography_version):
     expected = """
         MATCH (sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
-            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(sub_resource)
-            MATCH (to:AWSS3Bucket{name: item.BucketName})<-[:RESOURCE]-(sub_resource)
+            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn}) WHERE EXISTS { (from)<-[:RESOURCE]-(sub_resource) }
+            MATCH (to:AWSS3Bucket{name: item.BucketName}) WHERE EXISTS { (to)<-[:RESOURCE]-(sub_resource) }
             MERGE (from)-[r:CAN_ACCESS]->(to)
             ON CREATE SET
                 r.firstseen = timestamp(),
@@ -328,8 +328,8 @@ def test_build_unequal_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (source_sub_resource:AWSAccount{id: $_sub_resource_id})
         MATCH (target_sub_resource:AWSOrganization{id: $_sub_resource_id})
         UNWIND $DictList as item
-            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(source_sub_resource)
-            MATCH (to:AWSS3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
+            MATCH (from:AWSPrincipal{principal_arn: item.principal_arn}) WHERE EXISTS { (from)<-[:RESOURCE]-(source_sub_resource) }
+            MATCH (to:AWSS3Bucket{name: item.BucketName}) WHERE EXISTS { (to)<-[:RESOURCE]-(target_sub_resource) }
             MERGE (from)-[r:CAN_ACCESS]->(to)
             ON CREATE SET
                 r.firstseen = timestamp(),
@@ -356,7 +356,7 @@ def test_build_outward_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (target_sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})
-            MATCH (to:AWSS3Bucket{name: item.BucketName})-[:RESOURCE]->(target_sub_resource)
+            MATCH (to:AWSS3Bucket{name: item.BucketName}) WHERE EXISTS { (to)-[:RESOURCE]->(target_sub_resource) }
             MERGE (from)-[r:CAN_ACCESS]->(to)
             ON CREATE SET
                 r.firstseen = timestamp(),
@@ -386,8 +386,10 @@ def test_build_cleanup_query_for_matchlink():
         WHERE r.lastupdated <> $UPDATE_TAG
             AND r._sub_resource_label = $_sub_resource_label
             AND r._sub_resource_id = $_sub_resource_id
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
     """
 
     # Assert: compare query outputs while ignoring leading whitespace.

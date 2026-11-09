@@ -22,11 +22,13 @@ class AzureVirtualMachineProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when a network interface carries a public IP, or when an exposed load balancer routes to one. `False` otherwise.",
     )  # Populated by the AZURE_COMPUTE_ASSET_EXPOSURE_VM analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How the VM is exposed: `direct` (its own public IP) and/or `lb` (behind an exposed load balancer).",
     )  # Populated by the AZURE_COMPUTE_ASSET_EXPOSURE_VM analysis job.

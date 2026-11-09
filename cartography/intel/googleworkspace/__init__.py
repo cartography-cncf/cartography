@@ -22,17 +22,28 @@ from cartography.intel.googleworkspace import tenant
 from cartography.intel.googleworkspace import users
 from cartography.util import timeit
 
+# The Directory API Tokens resource has no read-only scope. This scope also
+# allows revoking tokens and signing users out, so callers may withhold it.
+OAUTH_APPS_SCOPE = "https://www.googleapis.com/auth/admin.directory.user.security"
+DEVICES_SCOPE = "https://www.googleapis.com/auth/cloud-identity.devices.readonly"
+
 OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/admin.directory.customer.readonly",
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
-    "https://www.googleapis.com/auth/admin.directory.user.security",
-    "https://www.googleapis.com/auth/cloud-identity.devices.readonly",
+    OAUTH_APPS_SCOPE,
+    DEVICES_SCOPE,
     "https://www.googleapis.com/auth/cloud-identity.groups.readonly",
 ]
 
 logger = logging.getLogger(__name__)
 
 Resources = namedtuple("Resources", ["admin", "cloudidentity"])
+
+
+def _has_scope(
+    creds: OAuth2Credentials | ServiceAccountCredentials, scope: str
+) -> bool:
+    return hasattr(creds, "scopes") and bool(creds.scopes) and scope in creds.scopes
 
 
 def _initialize_resources(
@@ -174,14 +185,18 @@ def start_googleworkspace_ingestion(
         common_job_parameters,
     )
 
-    # Sync OAuth apps for all users
-    oauth_apps.sync_googleworkspace_oauth_apps(
-        neo4j_session,
-        resources.admin,
-        user_ids,
-        config.update_tag,
-        common_job_parameters,
-    )
+    if _has_scope(creds, OAUTH_APPS_SCOPE):
+        oauth_apps.sync_googleworkspace_oauth_apps(
+            neo4j_session,
+            resources.admin,
+            user_ids,
+            config.update_tag,
+            common_job_parameters,
+        )
+    else:
+        logger.info(
+            "Skipping OAuth app sync - admin.directory.user.security scope not authorized",
+        )
 
     groups.sync_googleworkspace_groups(
         neo4j_session,
@@ -191,8 +206,7 @@ def start_googleworkspace_ingestion(
     )
 
     # Only sync devices if the devices scope was authorized (requires Cloud Identity Premium)
-    devices_scope = "https://www.googleapis.com/auth/cloud-identity.devices.readonly"
-    if hasattr(creds, "scopes") and creds.scopes and devices_scope in creds.scopes:
+    if _has_scope(creds, DEVICES_SCOPE):
         devices.sync_googleworkspace_devices(
             neo4j_session,
             resources.cloudidentity,

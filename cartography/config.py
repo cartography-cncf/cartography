@@ -1,4 +1,8 @@
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials as GoogleCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +189,22 @@ class Config:
     :param okta_org_id: Okta organization id. Optional.
     :type okta_api_key: str
     :param okta_api_key: Okta API key. Optional.
+    :type okta_client_id: str
+    :param okta_client_id: Client ID of an Okta OAuth service app. When set with
+        ``okta_private_key``, used instead of ``okta_api_key``. Optional.
+    :type okta_private_key: str
+    :param okta_private_key: Private key of the Okta OAuth service app, as a PEM
+        string or a JWK. Optional.
+    :type okta_private_key_id: str
+    :param okta_private_key_id: Key ID (``kid``) of the service app's public key.
+        Not needed when ``okta_private_key`` is a JWK that carries its ``kid``.
+        Optional.
+    :type okta_scopes: str
+    :param okta_scopes: Comma-separated OAuth scopes to request.
+        Defaults to every read scope the Okta sync uses. Optional.
+    :type okta_dpop_enabled: bool
+    :param okta_dpop_enabled: Whether to bind OAuth access tokens with DPoP.
+        Defaults to True. Optional.
     :type okta_saml_role_regex: str
     :param okta_saml_role_regex: The regex used to map okta groups to AWS roles. Optional.
     :type github_config: str
@@ -197,6 +217,8 @@ class Config:
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
+    :type azure_requested_syncs: str
+    :param azure_requested_syncs: Comma-separated list of Azure resources to sync. Optional.
     :type azure_permission_relationships_file: str
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
     :type gcp_requested_syncs: str
@@ -242,11 +264,25 @@ class Config:
     :type: k8s_kubeconfig: str
     :param k8s_kubeconfig: Path to kubeconfig file for kubernetes cluster(s). Optional
     :type: managed_kubernetes: str
-    :param managed_kubernetes: Type of managed Kubernetes service (e.g., "eks"). Optional.
+    :param managed_kubernetes: Type of managed Kubernetes service ("eks" or "gke"). Optional.
+    :type gke_clusters: list[str]
+    :param gke_clusters: GKE cluster resource names to ingest with Google ADC instead of a kubeconfig. Optional.
+    :type gke_endpoint: str
+    :param gke_endpoint: GKE control plane endpoint for `gke_clusters`: "dns", "private", or "public". Optional.
+    :type gke_impersonate_service_account: str
+    :param gke_impersonate_service_account: Google service account to impersonate for GKE API and Kubernetes reads. Optional.
+    :type gke_credentials: google.auth.credentials.Credentials
+    :param gke_credentials: Google credentials for GKE API and Kubernetes reads, used instead of Application Default Credentials. Programmatic use only (no CLI flag); combined with `gke_impersonate_service_account` when both are set. Optional.
     :type: pagerduty_api_key: str
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
     :param pagerduty_request_timeout: Seconds to timeout for pagerduty session requests. Optional
+    :type opsgenie_api_key: str
+    :param opsgenie_api_key: API authentication key for Opsgenie. Optional.
+    :type opsgenie_api_url: str
+    :param opsgenie_api_url: Opsgenie API base URL. Optional.
+    :type opsgenie_request_timeout: int
+    :param opsgenie_request_timeout: Seconds to timeout for Opsgenie API requests. Optional.
     :type: nist_cve_url: str
     :param nist_cve_url: NIST CVE data provider base URI, e.g. https://nvd.nist.gov/feeds/json/cve/1.1. Optional.
     :type: gsuite_auth_method: str
@@ -299,6 +335,10 @@ class Config:
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
     :type semgrep_dependency_ecosystems: str
+    :param semgrep_skip_dependency_cleanup: Load Semgrep dependencies without cleaning them up. For orchestrators
+        that sync several deployments into one graph with the same update tag and then call
+        cartography.intel.semgrep.dependencies.cleanup_dependencies() once. Optional.
+    :type semgrep_skip_dependency_cleanup: bool
     :type snipeit_base_uri: string
     :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
     :type snipeit_token: string
@@ -308,7 +348,7 @@ class Config:
     :type tailscale_token: str
     :param tailscale_token: Tailscale API token. Optional.
     :type tailscale_org: str
-    :param tailscale_org: Tailscale organization name. Optional.
+    :param tailscale_org: Tailnet ID, or the legacy ID of a tailnet created before Oct 2025. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
     :type tailscale_oauth_client_id: str
@@ -376,6 +416,14 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type langsmith_pat: str
+    :param langsmith_pat: LangSmith personal access token (lsv2_pt_...). Optional.
+    :type langsmith_api_url: str
+    :param langsmith_api_url: LangSmith control plane base URL. Optional.
+    :type langsmith_host_api_url: str
+    :param langsmith_host_api_url: LangGraph Platform (api-host) base URL. Optional.
+    :type langsmith_org_id: str
+    :param langsmith_org_id: Restrict the LangSmith sync to a single organization UUID. Optional.
     :type databricks_workspace_url: str
     :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
     :type databricks_token: str
@@ -392,6 +440,17 @@ class Config:
     :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
     :type databricks_account_client_secret: str
     :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
+    :type databricks_skip_cleanup: bool
+    :param databricks_skip_cleanup: Load Databricks data without running cleanup. For orchestrators that sync several
+        workspaces into one graph with the same update tag and then call
+        cartography.intel.databricks.cleanup_databricks() once. Optional.
+    :type databricks_azure_tenant_id: str
+    :param databricks_azure_tenant_id: Microsoft Entra ID tenant ID of the service principal used for an Azure
+        Databricks workspace. Optional.
+    :type databricks_azure_client_id: str
+    :param databricks_azure_client_id: Microsoft Entra ID service principal client ID. Optional.
+    :type databricks_azure_client_secret: str
+    :param databricks_azure_client_secret: Microsoft Entra ID service principal client secret. Optional.
     :type snowflake_account: str
     :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
     :type snowflake_user: str
@@ -803,6 +862,28 @@ class Config:
         zoom_request_limit=100000,
         azure_access_token: str | None = None,
         microsoft_access_token: str | None = None,
+        azure_requested_syncs: str | None = None,
+        opsgenie_api_key=None,
+        opsgenie_api_url="https://api.opsgenie.com",
+        opsgenie_request_timeout=60,
+        okta_client_id=None,
+        okta_private_key=None,
+        okta_private_key_id=None,
+        okta_scopes=None,
+        okta_dpop_enabled=True,
+        gke_clusters: list[str] | None = None,
+        gke_endpoint: str = "dns",
+        gke_impersonate_service_account: str | None = None,
+        gke_credentials: "GoogleCredentials | None" = None,
+        databricks_skip_cleanup: bool = False,
+        databricks_azure_tenant_id: str | None = None,
+        databricks_azure_client_id: str | None = None,
+        databricks_azure_client_secret: str | None = None,
+        semgrep_skip_dependency_cleanup: bool = False,
+        langsmith_pat: str | None = None,
+        langsmith_api_url: str | None = None,
+        langsmith_host_api_url: str | None = None,
+        langsmith_org_id: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -836,6 +917,7 @@ class Config:
         self.azure_client_secret = azure_client_secret
         self.azure_subscription_id = azure_subscription_id
         self.azure_access_token = azure_access_token
+        self.azure_requested_syncs = azure_requested_syncs
         (
             self.microsoft_tenant_id,
             self.microsoft_client_id,
@@ -877,6 +959,15 @@ class Config:
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
+        if bool(okta_client_id) != bool(okta_private_key):
+            raise ValueError(
+                "Okta OAuth requires both okta_client_id and okta_private_key.",
+            )
+        self.okta_client_id = okta_client_id
+        self.okta_private_key = okta_private_key
+        self.okta_private_key_id = okta_private_key_id
+        self.okta_scopes = okta_scopes
+        self.okta_dpop_enabled = okta_dpop_enabled
         self.okta_base_domain = okta_base_domain
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
@@ -908,6 +999,10 @@ class Config:
         self.huntress_api_secret = huntress_api_secret
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
+        self.gke_clusters = gke_clusters
+        self.gke_endpoint = gke_endpoint
+        self.gke_impersonate_service_account = gke_impersonate_service_account
+        self.gke_credentials = gke_credentials
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host
@@ -948,6 +1043,7 @@ class Config:
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.semgrep_oss_source = semgrep_oss_source
+        self.semgrep_skip_dependency_cleanup = semgrep_skip_dependency_cleanup
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
@@ -985,6 +1081,10 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.langsmith_pat = langsmith_pat
+        self.langsmith_api_url = langsmith_api_url
+        self.langsmith_host_api_url = langsmith_host_api_url
+        self.langsmith_org_id = langsmith_org_id
         self.databricks_workspace_url = databricks_workspace_url
         self.databricks_token = databricks_token
         self.databricks_client_id = databricks_client_id
@@ -993,6 +1093,10 @@ class Config:
         self.databricks_account_host = databricks_account_host
         self.databricks_account_client_id = databricks_account_client_id
         self.databricks_account_client_secret = databricks_account_client_secret
+        self.databricks_skip_cleanup = databricks_skip_cleanup
+        self.databricks_azure_tenant_id = databricks_azure_tenant_id
+        self.databricks_azure_client_id = databricks_azure_client_id
+        self.databricks_azure_client_secret = databricks_azure_client_secret
         self.bbot_source = _resolve_report_source_config(
             module="bbot",
             source=bbot_source,
@@ -1115,3 +1219,6 @@ class Config:
         self.orca_api_token = orca_api_token
         self.zendesk_subdomain = zendesk_subdomain
         self.zendesk_oauth_token = zendesk_oauth_token
+        self.opsgenie_api_key = opsgenie_api_key
+        self.opsgenie_api_url = opsgenie_api_url
+        self.opsgenie_request_timeout = opsgenie_request_timeout

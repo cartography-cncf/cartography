@@ -3,9 +3,7 @@ from unittest.mock import Mock
 import cartography.intel.databricks.workspace_assignments
 from tests.data.databricks.account import account_scoped
 from tests.data.databricks.account import DATABRICKS_ACCOUNT_ID
-from tests.data.databricks.account_workspaces import (
-    DATABRICKS_ACCOUNT_WORKSPACE_NODE_IDS,
-)
+from tests.data.databricks.account_workspaces import DATABRICKS_ACCOUNT_WORKSPACE_IDS
 from tests.data.databricks.workspace_assignments import DATABRICKS_WORKSPACE_ASSIGNMENTS
 from tests.integration.cartography.intel.databricks.test_account import (
     _ensure_local_neo4j_has_test_account,
@@ -58,12 +56,12 @@ def test_load_databricks_workspace_assignments(neo4j_session):
         neo4j_session,
         api_session,
         DATABRICKS_ACCOUNT_ID,
-        DATABRICKS_ACCOUNT_WORKSPACE_NODE_IDS,
+        DATABRICKS_ACCOUNT_WORKSPACE_IDS,
         common_job_parameters,
     )
 
-    prod = "dbc-aaeaddda-e52f.cloud.databricks.com"
-    staging = "dbc-bbfbeeeb-f63a.cloud.databricks.com"
+    prod = "1234567890123456"
+    staging = "6543210987654321"
 
     # User -> Workspace ASSIGNED_TO
     assert check_rels(

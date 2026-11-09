@@ -21,11 +21,13 @@ from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
 from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
 from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_ECS_NO_MODELED_INTERNET_PATH
 from cartography.analysis.aws.analysis import AWS_EKS_ASSET_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_FOREIGN_ACCOUNTS
 from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
 from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
+from cartography.analysis.aws.analysis import AWS_UNMODELED_INTERNET_PATHS
 from cartography.config import Config
 from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
 from cartography.intel.aws.util.arns import get_account_partition
@@ -43,7 +45,9 @@ from cartography.util import timeit
 
 from . import ec2
 from . import organizations
+from . import resourcegroupstaggingapi
 from . import ssm as ssm_intel
+from .resources import AIOBOTO3_RESOURCE_FUNCTIONS
 from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
@@ -175,6 +179,9 @@ def _sync_one_account(
             "ec2:instance",
             "elastic_ip_addresses",
         ],
+        # `wafv2` creates PROTECTS edges by matching already-loaded load balancers,
+        # API Gateway stages, and CloudFront distributions.
+        "wafv2": ["ec2:load_balancer_v2", "apigateway", "cloudfront"],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:
@@ -187,18 +194,23 @@ def _sync_one_account(
                     f"Some relationships may not be created if the dependency data doesn't exist in Neo4j.",
                 )
 
+    _withdraw_unmodeled_internet_paths_check(
+        neo4j_session,
+        requested_syncs_set,
+        common_job_parameters,
+    )
+
     # Iterate over RESOURCE_FUNCTIONS to preserve defined sync order (dependencies)
     # Skip modules not in the user's requested list
     for func_name in RESOURCE_FUNCTIONS:
         if func_name not in requested_syncs_set:
             continue
+        if func_name in AIOBOTO3_RESOURCE_FUNCTIONS and aioboto3_session is None:
+            aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
+            aioboto3_session = aioboto3_session_factory()
+
         # Skip permission relationships and tags for now because they rely on data already being in the graph
         if func_name == "ecr:image_layers":
-            # has a different signature than the other functions (aioboto3_session replaces boto3_session)
-            if aioboto3_session is None:
-                aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
-                aioboto3_session = aioboto3_session_factory()
-
             RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,
                 aioboto3_session,
@@ -207,6 +219,15 @@ def _sync_one_account(
                 update_tag,
                 common_job_parameters,
                 aioboto3_session_factory=aioboto3_session_factory,
+            )
+        elif func_name == "inspector":
+            RESOURCE_FUNCTIONS[func_name](
+                neo4j_session,
+                aioboto3_session,
+                regions,
+                current_aws_account_id,
+                update_tag,
+                common_job_parameters,
             )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
@@ -243,6 +264,12 @@ def _sync_one_account(
             neo4j_session,
             common_job_parameters,
         )
+
+    _check_unmodeled_internet_paths(
+        neo4j_session,
+        requested_syncs_set,
+        common_job_parameters,
+    )
 
     merge_module_sync_metadata(
         neo4j_session,
@@ -732,6 +759,15 @@ def _sync_multiple_accounts(
             neo4j_session,
             common_job_parameters,
         )
+        # AWSTag nodes are shared across accounts, so unlinked ones can only be removed once
+        # every account has linked its tags. This is skipped when an account failed in
+        # best-effort mode (the raise above), so tags that account would have linked survive
+        # and any true orphans are removed on the next fully successful sync.
+        if "resourcegroupstaggingapi" in aws_requested_syncs:
+            resourcegroupstaggingapi.cleanup_orphan_tags(
+                neo4j_session,
+                common_job_parameters,
+            )
         return True
     return False
 
@@ -746,6 +782,21 @@ AWS_LAMBDA_ECR_DEPS = {"ecr", "lambda_function"}
 AWS_LB_NACL_DIRECT_DEPS = {
     "ec2:network_acls",
     "ec2:load_balancer_v2",
+    "ec2:subnet",
+}
+# The account's check of internet entry points that the graph cannot follow also
+# vouches for the load balancers, IP targets and interfaces that the ECS check
+# reads, so it runs only when all of these were synced. IP targets resolve through
+# the VPC of the target's subnet, which only the subnet sync records.
+# The check records when it ran, so consumers never mistake an unchecked account for
+# a clear one.
+AWS_UNMODELED_INTERNET_PATHS_DEPS = {
+    "apigateway",
+    "apigatewayv2",
+    "cloudfront",
+    "ec2:load_balancer_v2",
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
     "ec2:subnet",
 }
 
@@ -777,6 +828,37 @@ AWS_LB_CONTAINER_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
 }
 
 
+def _withdraw_unmodeled_internet_paths_check(
+    neo4j_session: neo4j.Session,
+    requested_syncs: set[str],
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    # Runs before the account's syncs, so a run that syncs only some of the inputs,
+    # or fails part-way after loading one, leaves the account unchecked: an older
+    # check never vouches for data that changed since.
+    if not AWS_UNMODELED_INTERNET_PATHS_DEPS & requested_syncs:
+        return
+    run_typed_analysis_job(
+        AWS_UNMODELED_INTERNET_PATHS,
+        neo4j_session,
+        {**common_job_parameters, "CHECK_INPUTS_SYNCED": False},
+    )
+
+
+def _check_unmodeled_internet_paths(
+    neo4j_session: neo4j.Session,
+    requested_syncs: set[str],
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    if not AWS_UNMODELED_INTERNET_PATHS_DEPS.issubset(requested_syncs):
+        return
+    run_typed_analysis_job(
+        AWS_UNMODELED_INTERNET_PATHS,
+        neo4j_session,
+        {**common_job_parameters, "CHECK_INPUTS_SYNCED": True},
+    )
+
+
 @timeit
 def _perform_aws_analysis(
     requested_syncs: List[str],
@@ -791,6 +873,16 @@ def _perform_aws_analysis(
     run_analysis_and_ensure_deps(
         "aws_ip_node_label_migration.json",
         {"ec2:security_group"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    # DEPRECATED: cleanup for pre-data-model AWS nodes with no sub-resource edge,
+    # which no module's cleanup reaches; remove in v1.0.0 with AWS_LABEL_MIGRATIONS.
+    run_analysis_and_ensure_deps(
+        "aws_legacy_node_cleanup.json",
+        set(),
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
@@ -852,6 +944,16 @@ def _perform_aws_analysis(
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
+    )
+
+    # Runs on every AWS run, after every account's own check and after
+    # AWS_ECS_ASSET_EXPOSURE. It needs no sync dependencies, because it checks a task
+    # only when its account was checked in the run that synced the task, and running
+    # it every time retires the results that a partial run has made stale.
+    run_typed_analysis_job(
+        AWS_ECS_NO_MODELED_INTERNET_PATH,
+        neo4j_session,
+        common_job_parameters,
     )
 
 

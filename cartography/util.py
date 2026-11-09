@@ -947,6 +947,28 @@ def batch(
     return helpers.batch(items, size)
 
 
+# The codes botocore's standard retry mode treats as throttling. Services differ:
+# SNS and ECR return ThrottlingException where IAM and EC2 return Throttling.
+AWS_THROTTLING_ERROR_CODES = frozenset(
+    {
+        "Throttling",
+        "ThrottlingException",
+        "ThrottledException",
+        "RequestThrottledException",
+        "TooManyRequestsException",
+        "ProvisionedThroughputExceededException",
+        "TransactionInProgressException",
+        "RequestLimitExceeded",
+        "BandwidthLimitExceeded",
+        "LimitExceededException",
+        "RequestThrottled",
+        "SlowDown",
+        "PriorRequestNotComplete",
+        "EC2ThrottledException",
+    }
+)
+
+
 def is_throttling_exception(exc: Exception) -> bool:
     """
     Determine if an exception is caused by API rate limiting or throttling.
@@ -984,9 +1006,7 @@ def is_throttling_exception(exc: Exception) -> bool:
         ...     return api_client.get_data()
 
     Note:
-        Currently supports these AWS error codes:
-        - LimitExceededException: General rate limit exceeded
-        - Throttling: Request rate too high
+        Recognizes the AWS error codes in AWS_THROTTLING_ERROR_CODES.
 
         The function can be extended to support other cloud providers like GCP
         (google.api_core.exceptions.TooManyRequests) or Azure as needed.
@@ -1000,7 +1020,7 @@ def is_throttling_exception(exc: Exception) -> bool:
     """
     # https://boto3.amazonaws.com/v1/documentation/api/1.19.9/guide/error-handling.html
     if isinstance(exc, botocore.exceptions.ClientError):
-        if exc.response["Error"]["Code"] in ["LimitExceededException", "Throttling"]:
+        if exc.response["Error"]["Code"] in AWS_THROTTLING_ERROR_CODES:
             return True
     # add other exceptions here, if needed, like:
     # https://cloud.google.com/python/docs/reference/storage/1.39.0/retry_timeout#configuring-retries

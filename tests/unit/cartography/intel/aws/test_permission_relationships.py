@@ -1,5 +1,7 @@
 import json
+from unittest.mock import MagicMock
 
+import neo4j
 import pytest
 
 from cartography.intel.aws import permission_relationships
@@ -924,3 +926,32 @@ def test_calculate_permission_relationships_flags_conditional_edge():
         "condition_keys"
     ] == ["aws:MultiFactorAuthPresent"]
     assert by_principal["arn:aws:iam::000000000000:role/Open"]["has_condition"] is False
+
+
+def test_load_principal_mappings_writes_in_batches():
+    # Arrange
+    neo4j_session = MagicMock(spec=neo4j.Session)
+    mappings = [
+        {
+            "principal_arn": f"arn:aws:iam::000000000000:role/Role{i}",
+            "resource_arn": "arn:aws:secretsmanager:us-east-1:000000000000:secret:s",
+            "has_condition": False,
+            "condition_keys": [],
+            "conditions": None,
+        }
+        for i in range(25001)
+    ]
+
+    # Act
+    permission_relationships.load_principal_mappings(
+        neo4j_session,
+        mappings,
+        "AWSSecretsManagerSecret",
+        "GET_SECRET",
+        123,
+    )
+
+    # Assert
+    calls = neo4j_session.execute_write.call_args_list
+    assert [len(call.kwargs["DictList"]) for call in calls] == [10000, 10000, 5001]
+    assert all(call.kwargs["aws_update_tag"] == 123 for call in calls)

@@ -273,3 +273,28 @@ def test_config_rejects_microsoft_access_token_with_application_credentials() ->
             microsoft_client_secret="client-secret",
             microsoft_access_token="graph-token",
         )
+
+
+def test_okta_oauth_config_is_appended_for_positional_compatibility() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    for name in (
+        "okta_client_id",
+        "okta_private_key",
+        "okta_private_key_id",
+        "okta_scopes",
+        "okta_dpop_enabled",
+    ):
+        assert parameters.index(name) > parameters.index("opsgenie_request_timeout")
+
+
+@pytest.mark.parametrize(
+    "oauth_fields",
+    [{"okta_client_id": "0oaclient"}, {"okta_private_key": "private-key"}],
+)
+def test_config_rejects_partial_okta_oauth_credentials(oauth_fields):
+    # Act and assert
+    with pytest.raises(ValueError, match="okta_client_id and okta_private_key"):
+        Config(neo4j_uri="bolt://localhost:7687", **oauth_fields)

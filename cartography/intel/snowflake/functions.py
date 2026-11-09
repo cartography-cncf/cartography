@@ -23,6 +23,7 @@ from cartography.intel.snowflake.names import secret_ids
 from cartography.intel.snowflake.names import secret_references
 from cartography.intel.snowflake.util import datatype_of
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import SCHEMA_LISTING_SKIPPABLE_STATUSES
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
 from cartography.intel.snowflake.util import sf_path_segment
@@ -53,7 +54,7 @@ def get(
                 ),
             )
         except requests.HTTPError as error:
-            skip_or_raise_http(error, 403, 404)
+            skip_or_raise_http(error, *SCHEMA_LISTING_SKIPPABLE_STATUSES)
             continue
         readable = True
     return functions if readable else None

@@ -190,10 +190,14 @@ def _check_unlimited_image_history(
     ).consume()
 
     # Act
-    with patch.object(image_graph, "run", wraps=image_graph.run) as run:
+    with patch.object(
+        image_graph,
+        "execute_read",
+        wraps=image_graph.execute_read,
+    ) as execute_read:
         images = get_images(image_graph, update_tag=1)
-    query = run.call_args.args[0]
-    parameters = run.call_args.kwargs
+    query = execute_read.call_args.args[1]
+    parameters = execute_read.call_args.kwargs
 
     # Assert
     assert {image.digest for image in images} == {
@@ -386,9 +390,14 @@ def test_image_selection_bounds_tag_fanout_and_uses_layer_index(
     image_graph.run("CALL db.awaitIndexes()").consume()
 
     # Act
-    with patch.object(image_graph, "run", wraps=image_graph.run) as run:
+    with patch.object(
+        image_graph,
+        "execute_read",
+        wraps=image_graph.execute_read,
+    ) as execute_read:
         images = get_images(image_graph, update_tag=1)
-    query, parameters = run.call_args.args[0], run.call_args.kwargs
+    query = execute_read.call_args.args[1]
+    parameters = execute_read.call_args.kwargs
     plan = image_graph.run("EXPLAIN " + query, **parameters).consume().plan
     repeated_images = get_images(image_graph, update_tag=1)
 
@@ -425,3 +434,62 @@ def test_image_selection_bounds_tag_fanout_and_uses_layer_index(
             layer_index_used = True
         pending.extend(operator.get("children", []))
     assert layer_index_used
+
+
+def test_dockerfile_matching_skips_images_with_known_provenance(
+    image_graph: neo4j.Session,
+    image_query: tuple[
+        Callable[..., list[ContainerImage]], str, str, str, str, str | int
+    ],
+) -> None:
+    # Arrange
+    get_images, registry_label, tag_label, image_label, scope, scope_id = image_query
+    candidates = [
+        {"id": "unlabeled", "source_uri": None},
+        {"id": "github-label", "source_uri": "https://github.com/example/service"},
+        {"id": "gitlab-label", "source_uri": "https://gitlab.example.com/g/service"},
+        {"id": "base-image-label", "source_uri": "https://github.com/upstream/base"},
+        {"id": "claimed-by-provenance", "source_uri": None},
+    ]
+    image_graph.run(
+        f"""
+        CREATE (:GitHubRepository {{id: 'https://github.com/example/service'}})
+        CREATE (:GitLabProject {{id: 7, web_url: 'https://gitlab.example.com/g/service'}})
+        WITH 1 AS _
+        UNWIND $candidates AS candidate
+        CREATE (repo:{registry_label} {{id: candidate.id, uri: candidate.id}})
+        CREATE (tag:{tag_label} {{
+            id: candidate.id, uri: candidate.id, image_name: 'app',
+            tag: 'latest', name: 'latest'
+        }})
+        CREATE (img:{image_label} {{
+            id: candidate.id, digest: candidate.id,
+            source_uri: candidate.source_uri, layer_diff_ids: ['layer-0']
+        }})
+        CREATE (repo)-[:REPO_IMAGE]->(tag)-[:IMAGE]->(img)
+        """,
+        candidates=candidates,
+    ).consume()
+    # A stale Dockerfile link from this scope and a provenance link from another
+    # scope written later: the image belongs to the provenance match now.
+    image_graph.run(
+        """
+        MATCH (img:Image {id: 'claimed-by-provenance'})
+        CREATE (img)-[:PACKAGED_FROM {
+            lastupdated: 0, match_method: 'dockerfile_analysis',
+            _sub_resource_label: $scope, _sub_resource_id: $scope_id
+        }]->(:SourceRepository)
+        CREATE (img)-[:PACKAGED_FROM {
+            lastupdated: 0, match_method: 'provenance',
+            _sub_resource_label: $scope, _sub_resource_id: 'other'
+        }]->(:SourceRepository)
+        """,
+        scope=scope,
+        scope_id=scope_id,
+    ).consume()
+
+    # Act
+    images = get_images(image_graph, update_tag=1)
+
+    # Assert
+    assert {image.digest for image in images} == {"unlabeled", "base-image-label"}

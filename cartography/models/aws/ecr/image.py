@@ -124,11 +124,15 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     source_uri: PropertyRef = PropertyRef(
         "source_uri",
         extra_index=True,
-        description="Source repository URI extracted from SLSA provenance attestations (e.g., a GitLab project URL or GitHub repo URL). Indexed for cross-module matching.",
+        description="Source repository URI from SLSA provenance attestations or image-config labels (CI labels, `org.opencontainers.image.source`), e.g. a GitLab project URL or GitHub repo URL. Indexed for cross-module matching.",
     )
     source_revision: PropertyRef = PropertyRef(
         "source_revision",
         description="Source commit revision from SLSA provenance attestations.",
+    )
+    label_provenance_version: PropertyRef = PropertyRef(
+        "label_provenance_version",
+        description="Version of the image-config label provenance extraction last applied to this image. Images below the current version are re-read once to backfill `source_uri` from labels.",
     )
     # SLSA Provenance: Build invocation info from CI
     invocation_uri: PropertyRef = PropertyRef(

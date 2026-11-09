@@ -44,23 +44,23 @@ class DatabricksCleanRoomNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksCleanRoomToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksCleanRoomToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksCleanRoom)
-class DatabricksCleanRoomToWorkspaceRel(CartographyRelSchema):
-    """A Databricks clean room is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksCleanRoom)
+class DatabricksCleanRoomToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks clean room is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksCleanRoomToWorkspaceRelProperties = (
-        DatabricksCleanRoomToWorkspaceRelProperties()
+    properties: DatabricksCleanRoomToMetastoreResourceRelProperties = (
+        DatabricksCleanRoomToMetastoreResourceRelProperties()
     )
 
 
@@ -91,8 +91,8 @@ class DatabricksCleanRoomSchema(CartographyNodeSchema):
 
     label: str = "DatabricksCleanRoom"
     properties: DatabricksCleanRoomNodeProperties = DatabricksCleanRoomNodeProperties()
-    sub_resource_relationship: DatabricksCleanRoomToWorkspaceRel = (
-        DatabricksCleanRoomToWorkspaceRel()
+    sub_resource_relationship: DatabricksCleanRoomToMetastoreResourceRel = (
+        DatabricksCleanRoomToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksCleanRoomToMetastoreRel()],

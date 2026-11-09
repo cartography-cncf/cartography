@@ -45,6 +45,7 @@ async def _empty_async_iterator(
 )
 def test_delegated_collection_does_not_cleanup(
     monkeypatch: pytest.MonkeyPatch,
+    graph_client_class: MagicMock,
     module,
     getter_name: str,
     cleanup_name: str,
@@ -52,7 +53,7 @@ def test_delegated_collection_does_not_cleanup(
 ) -> None:
     # Arrange
     monkeypatch.setattr(credentials, "make_credential", MagicMock())
-    monkeypatch.setattr(module, "GraphServiceClient", MagicMock())
+    monkeypatch.setattr(module, "GraphServiceClient", graph_client_class)
     monkeypatch.setattr(module, getter_name, _empty_async_iterator)
     cleanup = MagicMock()
     monkeypatch.setattr(module, cleanup_name, cleanup)
@@ -79,10 +80,12 @@ def test_delegated_collection_does_not_cleanup(
         analysis.assert_not_called()
 
 
-def test_application_collection_runs_cleanup(monkeypatch) -> None:
+def test_application_collection_runs_cleanup(
+    monkeypatch, graph_client_class: MagicMock
+) -> None:
     # Arrange
     monkeypatch.setattr(credentials, "make_credential", MagicMock())
-    monkeypatch.setattr(users, "GraphServiceClient", MagicMock())
+    monkeypatch.setattr(users, "GraphServiceClient", graph_client_class)
     monkeypatch.setattr(users, "get_users", _empty_async_iterator)
     cleanup = MagicMock()
     monkeypatch.setattr(users, "cleanup", cleanup)

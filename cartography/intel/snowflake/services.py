@@ -20,7 +20,10 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.names import external_access_integration_ids
 from cartography.intel.snowflake.names import name_list
+from cartography.intel.snowflake.util import http_error_detail
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import list_schema_objects
+from cartography.intel.snowflake.util import SCHEMA_LISTING_SKIPPABLE_STATUSES
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
 from cartography.intel.snowflake.util import sf_path_segment
@@ -43,19 +46,7 @@ def get_schema_services(
     schema_name: str,
 ) -> list[dict[str, Any]] | None:
     """Services of one schema, or None when the role cannot read that schema."""
-    try:
-        return client.list_all(
-            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}/services",
-        )
-    except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
-        logger.warning(
-            "Cannot list services of Snowflake schema %s.%s (permission denied); they "
-            "will be missing from the graph.",
-            database_name,
-            schema_name,
-        )
-        return None
+    return list_schema_objects(client, database_name, schema_name, "services")
 
 
 @timeit
@@ -77,14 +68,15 @@ def get_service_sublisting(
             f"/services/{sf_path_segment(service_name)}/{sublisting}",
         )
     except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
+        skip_or_raise_http(error, *SCHEMA_LISTING_SKIPPABLE_STATUSES)
         logger.warning(
-            "Cannot list %s of Snowflake service %s.%s.%s (permission denied); they "
-            "will be missing from the graph.",
+            "Cannot list %s of Snowflake service %s.%s.%s (%s); they will be "
+            "missing from the graph.",
             sublisting,
             database_name,
             schema_name,
             service_name,
+            http_error_detail(error),
         )
         return None
 

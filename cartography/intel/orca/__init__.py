@@ -46,14 +46,14 @@ def start_orca_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             organization,
             config.update_tag,
         )
-        cartography.intel.orca.alerts.sync(
+        alerts_complete = cartography.intel.orca.alerts.sync(
             neo4j_session,
             session,
             api_endpoint,
             organization_id,
             config.update_tag,
         )
-        cartography.intel.orca.vulnerabilities.sync(
+        vulnerabilities_complete = cartography.intel.orca.vulnerabilities.sync(
             neo4j_session,
             session,
             api_endpoint,
@@ -61,15 +61,28 @@ def start_orca_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
         )
 
-        # Cleanup is deliberately deferred until every required feed is complete.
-        cartography.intel.orca.alerts.cleanup(
-            neo4j_session,
-            common_job_parameters,
-        )
-        cartography.intel.orca.vulnerabilities.cleanup(
-            neo4j_session,
-            common_job_parameters,
-        )
+        # Cleanup is deliberately deferred until every feed has been fetched, and
+        # skipped for a feed that came back short so its missing rows survive.
+        if alerts_complete:
+            cartography.intel.orca.alerts.cleanup(
+                neo4j_session,
+                common_job_parameters,
+            )
+        if vulnerabilities_complete:
+            cartography.intel.orca.vulnerabilities.cleanup(
+                neo4j_session,
+                common_job_parameters,
+            )
+        if not (alerts_complete and vulnerabilities_complete):
+            logger.warning(
+                "Orca fetch for organization %s was incomplete; skipped stale "
+                "cleanup for alerts=%s vulnerabilities=%s and left sync "
+                "metadata unchanged.",
+                organization_id,
+                not alerts_complete,
+                not vulnerabilities_complete,
+            )
+            return
         merge_module_sync_metadata(
             neo4j_session,
             group_type="OrcaOrganization",

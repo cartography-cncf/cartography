@@ -13,9 +13,9 @@ import boto3
 import neo4j
 import yaml
 
+from cartography.client.core.tx import load_graph_data
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
-from cartography.client.core.tx import run_write_query
 from cartography.graph.statement import GraphStatement
 from cartography.util import timeit
 
@@ -535,7 +535,7 @@ def load_principal_mappings(
 ) -> None:
     map_policy_query = Template(
         """
-    UNWIND $Mapping as mapping
+    UNWIND $DictList as mapping
     MATCH (principal:AWSPrincipal{arn:mapping.principal_arn})
     MATCH (resource:$node_label{arn:mapping.resource_arn})
     MERGE (principal)-[r:$relationship_name]->(resource)
@@ -551,10 +551,13 @@ def load_principal_mappings(
         node_label=node_label,
         relationship_name=relationship_name,
     )
-    run_write_query(
+    # A wildcard grant expands to every principal x resource pair. Sent in one
+    # transaction, that can be millions of rows in a single Bolt message, which
+    # the server can drop with a connection reset.
+    load_graph_data(
         neo4j_session,
         map_policy_query_template,
-        Mapping=principal_mappings,
+        principal_mappings,
         aws_update_tag=update_tag,
     )
 

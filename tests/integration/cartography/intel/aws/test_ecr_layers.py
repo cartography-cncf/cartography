@@ -848,6 +848,102 @@ def test_sync_circleci_label_provenance_links_github_repository(
     assert packaged_from["dockerfile_path"] == "deploy/Dockerfile"
 
 
+@patch("cartography.intel.aws.ecr_image_layers.httpx.AsyncClient")
+@patch("cartography.intel.aws.ecr_image_layers.create_aioboto3_client")
+def test_sync_backfills_label_provenance_for_already_enriched_images(
+    mock_create_aioboto3_client,
+    mock_async_http_client,
+    neo4j_session,
+    mocker,
+):
+    # Arrange: an image ingested before label provenance existed has a complete
+    # layer closure but no source_uri and no label provenance version.
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    mocker.patch.object(
+        cartography.intel.aws.ecr,
+        "get_ecr_repositories",
+        return_value=test_data.DESCRIBE_REPOSITORIES["repositories"][:1],
+    )
+    mocker.patch.object(
+        cartography.intel.aws.ecr,
+        "get_ecr_repository_images",
+        return_value=test_data.LIST_REPOSITORY_IMAGES[
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+        ][:1],
+    )
+    ecr_client = MagicMock()
+    ecr_client.batch_get_image = AsyncMock(
+        return_value=test_data.BATCH_GET_IMAGE_RESPONSE,
+    )
+    ecr_client.get_download_url_for_layer = AsyncMock(
+        return_value=test_data.GET_DOWNLOAD_URL_RESPONSE,
+    )
+    mock_create_aioboto3_client.return_value = _FakeAsyncEcrClientContext(ecr_client)
+    mock_async_http_client.return_value = _FakeAsyncHttpClient(
+        test_data.SAMPLE_CONFIG_BLOB,
+    )
+    job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        job_parameters,
+    )
+    sync_ecr_layers(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        job_parameters,
+    )
+    neo4j_session.run(
+        "MATCH (img:AWSECRImage) REMOVE img.label_provenance_version"
+    ).consume()
+    mock_async_http_client.return_value = _FakeAsyncHttpClient(
+        test_data.SAMPLE_CONFIG_BLOB_WITH_OCI_LABELS,
+    )
+
+    # Act
+    sync_ecr_layers(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        job_parameters,
+    )
+    fetches_after_backfill = ecr_client.batch_get_image.await_count
+    sync_ecr_layers(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        job_parameters,
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (img:AWSECRImage {type: 'image'})
+        RETURN img.source_uri AS source_uri, img.source_revision AS source_revision
+        """
+        ).data()
+        == [
+            {
+                "source_uri": "https://github.com/exampleorg/service",
+                "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+            },
+        ]
+    )
+    assert ecr_client.batch_get_image.await_count == fetches_after_backfill
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parent_uri,parent_digest",
@@ -1352,19 +1448,6 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     mock_client = MagicMock()
 
-    # Mock list_images paginator
-    mock_list_paginator = MagicMock()
-    mock_list_paginator.paginate.return_value = [
-        {
-            "imageIds": [
-                {
-                    "imageDigest": test_data.MANIFEST_LIST_DIGEST,
-                    "imageTag": "v1.0",
-                }
-            ]
-        }
-    ]
-
     # Mock describe_images paginator
     mock_describe_paginator = MagicMock()
     mock_describe_paginator.paginate.return_value = [
@@ -1373,9 +1456,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Configure get_paginator
     def get_paginator(name):
-        if name == "list_images":
-            return mock_list_paginator
-        elif name == "describe_images":
+        if name == "describe_images":
             return mock_describe_paginator
         raise ValueError(f"Unexpected paginator: {name}")
 

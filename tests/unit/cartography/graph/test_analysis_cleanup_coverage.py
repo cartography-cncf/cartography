@@ -203,10 +203,22 @@ CLEANUP_CASES = [
         id="ontology_devices_linking",
     ),
     pytest.param(
+        RelationshipEffect("KubernetesIngress", "MATCHES_HOSTNAME", "DNSRecord"),
+        None,
+        _rel_cleanup("KubernetesIngress", "MATCHES_HOSTNAME", "DNSRecord"),
+        id="ontology_kubernetes_ingress_matches_dns_hostname",
+    ),
+    pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "KubernetesIngress"),
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "KubernetesIngress"),
         id="ontology_dnsrecords_to_kubernetes_ingress",
+    ),
+    pytest.param(
+        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "RailwayCustomDomain"),
+        None,
+        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayCustomDomain"),
+        id="ontology_dnsrecords_to_railway_custom_domain",
     ),
     pytest.param(
         RelationshipEffect(
@@ -279,6 +291,12 @@ CLEANUP_CASES = [
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AzureFunctionApp"),
         id="ontology_dnsrecords_to_azure_function",
+    ),
+    pytest.param(
+        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "RailwayServiceDomain"),
+        None,
+        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayServiceDomain"),
+        id="ontology_dnsrecords_to_railway_service_domain",
     ),
     pytest.param(
         PropertyEffect("EntraApplication", ("_ont_enabled",)),
@@ -541,6 +559,12 @@ CLEANUP_CASES = [
         SEMGREP,
         _prop_cleanup("SemgrepSASTFinding", "risk_severity", scope=SEMGREP),
         id="semgrep_sast_risk_analysis",
+    ),
+    pytest.param(
+        PropertyEffect("SemgrepAISASTFinding", ("risk_severity",)),
+        SEMGREP,
+        _prop_cleanup("SemgrepAISASTFinding", "risk_severity", scope=SEMGREP),
+        id="semgrep_ai_sast_risk_analysis",
     ),
     pytest.param(
         PropertyEffect("SemgrepSCAFinding", ("reachability_risk",)),

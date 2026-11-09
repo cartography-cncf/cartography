@@ -7,7 +7,9 @@ from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra import groups
 
 
-def _sync_groups(monkeypatch, group_list, member_pages_by_group) -> list[list[Any]]:
+def _sync_groups(
+    monkeypatch, group_list, member_pages_by_group, get_owners=None
+) -> list[list[Any]]:
     async def get_groups(client):
         for group in group_list:
             yield group
@@ -20,7 +22,9 @@ def _sync_groups(monkeypatch, group_list, member_pages_by_group) -> list[list[An
     monkeypatch.setattr(credentials, "make_credential", MagicMock())
     monkeypatch.setattr(groups, "GraphServiceClient", MagicMock())
     monkeypatch.setattr(groups, "get_entra_groups", get_groups)
-    monkeypatch.setattr(groups, "get_group_owners", AsyncMock(return_value=["owner"]))
+    monkeypatch.setattr(
+        groups, "get_group_owners", get_owners or AsyncMock(return_value=["owner"])
+    )
     monkeypatch.setattr(groups, "get_group_member_pages", get_member_pages)
     monkeypatch.setattr(
         groups,
@@ -75,7 +79,14 @@ def test_large_group_membership_is_loaded_across_bounded_flushes(monkeypatch) ->
     expected |= {("small", "admin"), ("small", "big")}
     assert loaded_members == expected
     assert {row["id"] for row in load_calls[0]} == {"big", "small"}
-    assert all(row["owner_ids"] == ["owner"] for row in load_calls[0])
+    assert all(row["owner_ids"] == [] for row in load_calls[0])
+    loaded_owners = [
+        (row["id"], owner)
+        for rows in load_calls[1:]
+        for row in rows
+        for owner in row["owner_ids"]
+    ]
+    assert sorted(loaded_owners) == [("big", "owner"), ("small", "owner")]
 
 
 def test_group_without_members_is_still_loaded(monkeypatch) -> None:
@@ -86,12 +97,11 @@ def test_group_without_members_is_still_loaded(monkeypatch) -> None:
     load_calls = _sync_groups(monkeypatch, [empty], {})
 
     # Assert
-    assert len(load_calls) == 1
-    (row,) = load_calls[0]
-    assert row["id"] == "empty"
-    assert row["member_ids"] == []
-    assert row["member_group_ids"] == []
-    assert row["owner_ids"] == ["owner"]
+    (node_row,), (owner_row,) = load_calls
+    assert node_row["id"] == owner_row["id"] == "empty"
+    assert owner_row["member_ids"] == []
+    assert owner_row["member_group_ids"] == []
+    assert owner_row["owner_ids"] == ["owner"]
 
 
 def test_every_group_node_loads_before_any_membership(monkeypatch) -> None:
@@ -118,3 +128,28 @@ def test_every_group_node_loads_before_any_membership(monkeypatch) -> None:
         for rows in membership_loads
         for row in rows
     ]
+
+
+def test_group_details_are_fetched_concurrently_up_to_the_limit(monkeypatch) -> None:
+    # Arrange
+    monkeypatch.setattr(groups, "GROUP_DETAIL_CONCURRENCY", 3)
+    group_list = [MagicMock(id=f"group-{i}", display_name=str(i)) for i in range(10)]
+    in_flight = 0
+    peak = 0
+
+    async def get_owners(client, group_id):
+        nonlocal in_flight, peak
+        in_flight += 1
+        peak = max(peak, in_flight)
+        await asyncio.sleep(0)
+        in_flight -= 1
+        return ["owner"]
+
+    # Act
+    load_calls = _sync_groups(monkeypatch, group_list, {}, get_owners=get_owners)
+
+    # Assert
+    assert peak == 3
+    assert {row["id"] for rows in load_calls[1:] for row in rows} == {
+        group.id for group in group_list
+    }

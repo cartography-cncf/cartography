@@ -903,11 +903,11 @@ class Framework:
     not the rule display name.
 
     Matching fields are case-insensitive and normalized to lowercase on creation.
-    The optional control_title preserves display casing because it is user-facing
-    copy.
+    name and the optional control_title keep their casing because they are
+    user-facing copy, not filter keys.
 
     Attributes:
-        name: Full name of the framework (e.g., "cis aws foundations benchmark").
+        name: Full name of the framework (e.g., "CIS AWS Foundations Benchmark").
         short_name: Abbreviated name for filtering (e.g., "cis").
         requirement: The specific requirement/control id (e.g., "5.1.8", "8.2", "govern 5").
         scope: Optional platform or domain the framework applies to (e.g., "aws", "gcp").
@@ -924,8 +924,8 @@ class Framework:
 
     def __post_init__(self) -> None:
         # Normalize matching fields to lowercase for case-insensitive comparison.
-        # Keep control_title casing intact because it is display copy, not a filter key.
-        object.__setattr__(self, "name", self.name.lower())
+        # name and control_title are display copy, not filter keys, so they keep
+        # their casing (acronyms like "IDaaS" cannot be recovered once lowered).
         object.__setattr__(self, "short_name", self.short_name.lower())
         object.__setattr__(self, "requirement", self.requirement.lower())
         if self.scope is not None:

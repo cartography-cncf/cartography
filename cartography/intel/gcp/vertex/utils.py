@@ -29,6 +29,11 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 DEFAULT_VERTEX_AI_LOCATION_WORKERS = 8
+# Per-request deadline (seconds) for Vertex AI GAPIC list calls. The generated
+# clients default to no deadline for these methods, so a response that never
+# arrives would block the calling thread, and the whole sync, forever. Expiry
+# raises DeadlineExceeded, a ServerError retried by the backoff below.
+VERTEX_AI_LIST_TIMEOUT = 60.0
 
 # Locations known to expose Vertex AI regional GAPIC endpoints
 # (`{location}-aiplatform.googleapis.com`). Mirrors AWS
@@ -148,13 +153,16 @@ def get_vertex_credentials(aiplatform_or_credentials: Any) -> GoogleCredentials:
     base=GCP_API_BACKOFF_BASE,
     max_value=GCP_API_BACKOFF_MAX,
 )
-def _list_vertex_ai_resources_with_retry(fetcher: Callable[[], Any]) -> list[dict]:
-    return [proto_message_to_dict(resource) for resource in fetcher()]
+def _list_vertex_ai_resources_with_retry(fetcher: Callable[..., Any]) -> list[dict]:
+    return [
+        proto_message_to_dict(resource)
+        for resource in fetcher(timeout=VERTEX_AI_LIST_TIMEOUT)
+    ]
 
 
 def list_vertex_ai_resources_for_location(
     *,
-    fetcher: Callable[[], Any],
+    fetcher: Callable[..., Any],
     resource_type: str,
     location: str,
     project_id: str,

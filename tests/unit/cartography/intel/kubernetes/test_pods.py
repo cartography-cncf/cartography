@@ -396,6 +396,22 @@ def test_transform_pods_excludes_read_only_claim_from_read_write_ids():
     assert container["persistent_volume_claim_read_write_ids"] == []
 
 
+def test_transform_pods_treats_pod_level_read_only_claim_as_read_only():
+    pod = deepcopy(RAW_GPU_PODS[0])
+    pod.spec.volumes[0].persistent_volume_claim.read_only = True
+    pod.spec.containers[0].volume_mounts = [
+        V1VolumeMount(name="shared-data", mount_path="/data", read_only=False)
+    ]
+
+    container = transform_pods([pod], "my-cluster-1")[0]["containers"][0]
+
+    assert container["persistent_volume_claim_ids"] == [
+        "my-cluster-1/my-namespace/shared-data"
+    ]
+    assert container["persistent_volume_claim_read_write_ids"] == []
+    assert json.loads(container["persistent_volume_claim_mounts"])[0]["read_only"]
+
+
 def test_get_pods_streams_one_page_at_a_time():
     calls = []
     pages = [["pod-a", "pod-b"], ["pod-c"]]

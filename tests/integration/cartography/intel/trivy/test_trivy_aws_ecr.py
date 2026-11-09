@@ -94,3 +94,22 @@ def test_sync_trivy_aws_ecr(
         assert_trivy_findings(neo4j_session)
         assert_trivy_packages(neo4j_session)
         assert_all_trivy_relationships(neo4j_session)
+        assert (
+            {
+                row["package"]: row["locations"]
+                for row in neo4j_session.run(
+                    """
+                MATCH (p:TrivyPackage)-[r:DEPLOYED]->(:Image)
+                WHERE p.id IN ['0.14.0|h11', '2.31.0|requests', '12.2.0-14|gcc-12-base']
+                RETURN p.id AS package, r.locations AS locations
+                """
+                ).data()
+            }
+            == {
+                "0.14.0|h11": [
+                    "usr/local/lib/python3.13/site-packages/h11-0.14.0.dist-info/METADATA"
+                ],
+                "2.31.0|requests": None,
+                "12.2.0-14|gcc-12-base": None,
+            }
+        )

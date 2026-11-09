@@ -14,7 +14,12 @@ from cartography.models.ontology.labels import PERMISSION_ROLE
 
 @dataclass(frozen=True)
 class SalesforceProfileNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id", description="Salesforce profile ID.")
+    id: PropertyRef = PropertyRef(
+        "id", description="Org-scoped node ID: ``{organization ID}/{profile ID}``."
+    )
+    salesforce_id: PropertyRef = PropertyRef(
+        "Id", extra_index=True, description="Salesforce profile ID."
+    )
     name: PropertyRef = PropertyRef(
         "Name", extra_index=True, description="Profile name."
     )

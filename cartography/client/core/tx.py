@@ -1,5 +1,6 @@
 import logging
 import time
+import weakref
 from functools import partial
 from itertools import chain
 from typing import Any
@@ -180,6 +181,14 @@ def _buffer_error_backoff_handler(details: Dict) -> None:
         backoff_handler(details)
 
 
+def _expo_wait() -> Iterator[float]:
+    wait = backoff.expo()
+    # backoff's wait generators yield once before their first delay, to absorb the
+    # send(None) its decorators prime them with. Advance past it ourselves.
+    next(wait)
+    return wait
+
+
 def _run_with_retry(operation: Callable[[], T], target: str) -> T:
     """
     Execute the supplied callable with retry logic for transient network errors,
@@ -188,9 +197,9 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
     network_attempts = 0
     entity_attempts = 0
     buffer_attempts = 0
-    network_wait = backoff.expo()
-    entity_wait = backoff.expo()
-    buffer_wait = backoff.expo()
+    network_wait = _expo_wait()
+    entity_wait = _expo_wait()
+    buffer_wait = _expo_wait()
 
     while True:
         try:
@@ -217,12 +226,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             network_attempts += 1
             wait = next(network_wait)
-            if wait is None:
-                logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={network_attempts}, exc={exc}"
-                )
-                wait = 1.0  # Fallback to 1 second wait
             backoff_handler(
                 {
                     "exception": exc,
@@ -240,12 +243,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             entity_attempts += 1
             wait = next(entity_wait)
-            if wait is None:
-                logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={entity_attempts}, exc={exc}"
-                )
-                wait = 1.0  # Fallback to 1 second wait
             _entity_not_found_backoff_handler(
                 {
                     "exception": exc,
@@ -263,12 +260,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             buffer_attempts += 1
             wait = next(buffer_wait)
-            if wait is None:
-                logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={buffer_attempts}, exc={exc}"
-                )
-                wait = 1.0  # Fallback to 1 second wait
             _buffer_error_backoff_handler(
                 {
                     "exception": exc,
@@ -304,7 +295,8 @@ def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> Non
     check and the actual creation.
     """
     try:
-        neo4j_session.run(query)
+        # Consume inside the retry boundary: auto-commit errors surface lazily.
+        neo4j_session.run(query).consume()
     except neo4j.exceptions.ClientError as e:
         # EquivalentSchemaRuleAlreadyExists means another parallel sync already created
         # this index, which is the desired end state. Safe to ignore.
@@ -382,6 +374,31 @@ def run_write_query(
         neo4j_session.execute_write(_run_query_tx)
 
     _run_with_retry(_operation, _run_query_tx.__qualname__)
+
+
+def run_autocommit_query_with_retry(
+    neo4j_session: neo4j.Session,
+    query: str,
+    parameters: Dict[str, Any],
+) -> neo4j.ResultSummary:
+    """
+    Execute a query in an auto-commit transaction with the same retries as run_write_query.
+
+    Neo4j only runs `CALL { ... } IN TRANSACTIONS` in an auto-commit transaction, so such
+    queries cannot go through execute_write. A retry reruns the whole query after any batches
+    it already committed, so only use this for queries that are safe to run twice.
+
+    :param neo4j_session: The Neo4j session
+    :param query: The Cypher query to execute
+    :param parameters: Parameters to pass to the query
+    :return: The summary of the attempt that succeeded; its counters leave out batches an
+        earlier, failed attempt committed
+    """
+
+    def _operation() -> neo4j.ResultSummary:
+        return neo4j_session.run(query, parameters).consume()
+
+    return _run_with_retry(_operation, "run_autocommit_query_with_retry")
 
 
 def read_list_of_values_tx(
@@ -723,6 +740,24 @@ def load_graph_data(
     return loaded
 
 
+# Index queries already run on each session. `CREATE INDEX IF NOT EXISTS` is idempotent, but
+# every call is still a schema round trip, and `load()` / `load_matchlinks()` issue them on every
+# call, so a sync that loads one schema per region or account would otherwise repeat them
+# hundreds of times. Keyed weakly by session so the cache goes away with the session.
+_indexes_ensured_by_session: "weakref.WeakKeyDictionary[neo4j.Session, set[str]]" = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _run_index_queries(neo4j_session: neo4j.Session, queries: list[str]) -> None:
+    ensured = _indexes_ensured_by_session.setdefault(neo4j_session, set())
+    for query in queries:
+        if query in ensured:
+            continue
+        _run_index_query_with_retry(neo4j_session, query)
+        ensured.add(query)
+
+
 def ensure_indexes(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
@@ -766,7 +801,7 @@ def ensure_indexes(
             raise ValueError(
                 'Query provided to `ensure_indexes()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        _run_index_query_with_retry(neo4j_session, query)
+    _run_index_queries(neo4j_session, queries)
 
 
 def ensure_indexes_for_matchlinks(
@@ -803,7 +838,7 @@ def ensure_indexes_for_matchlinks(
             raise ValueError(
                 'Query provided to `ensure_indexes_for_matchlinks()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        _run_index_query_with_retry(neo4j_session, query)
+    _run_index_queries(neo4j_session, queries)
 
 
 def load(

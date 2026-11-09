@@ -3,7 +3,7 @@
 ### How to use Permissions Mapping
 An Azure principal (EntraUser, EntraGroup, or EntraServicePrincipal) can be assigned Azure roles which contain permissions that grant access to Azure resources. Cartography can map permission relationships between Azure principals and the resources they have permission to.
 
-As mapping all permissions is infeasible both to calculate and store, Cartography will only map the relationships defined in the [permission relationship file](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml) which includes some default permission mappings including SQL Server read access.
+As mapping all permissions is infeasible both to calculate and store, Cartography will only map the relationships defined in the [permission relationship file](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml) which includes default mappings for SQL servers, storage accounts, key vaults, virtual machines, AKS clusters, container instance groups, App Service and Function apps, and Cosmos DB accounts.
 
 You can specify your own permission mapping file using the `--azure-permission-relationships-file` command line parameter
 
@@ -17,8 +17,20 @@ The [permission relationship file](https://github.com/cartography-cncf/cartograp
 ```
 Each RPR consists of
 - target_label (string) - The node Label that permissions will be built for
-- permissions (list(string)) - The list of permissions to map. If any of these permissions are present between a resource and a principal then the relationship is created.
+- permissions (list(string)) - The list of permissions to map, matched against both a role's `Actions` and its `DataActions`. If any of these permissions are present between a resource and a principal then the relationship is created. Use this for control-plane operations.
+- data_permissions (list(string)) - The list of data-plane permissions to map, matched only against a role's `DataActions`. Azure never lets an `Actions` wildcard such as Reader's `*/read` grant a data operation, so listing a data operation under `permissions` instead would map every Reader. Use this for operations like `Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read` or `Microsoft.KeyVault/vaults/secrets/getSecret/action`.
 - relationship_name (string) - The name of the relationship cartography will create
+
+An RPR needs at least one of `permissions` or `data_permissions`. A principal that matches either list gets the relationship.
+
+```yaml
+- target_label: AzureStorageAccount
+  permissions:
+  - Microsoft.Storage/storageAccounts/listKeys/action
+  data_permissions:
+  - Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read
+  relationship_name: CAN_READ
+```
 
 It can also be used to abstract many different permissions into one. This example combines all of the permissions that would allow a SQL server to be managed.
 ```yaml

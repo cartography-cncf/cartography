@@ -207,6 +207,11 @@ _azure_account_manipulation_permissions = Fact(
     cypher_query="""
     MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    // A role assignment inherited from a management group is one node shared by
+    // every subscription, and each subscription links it to its own copy of the
+    // role definition. Keep the copy this subscription owns, or every
+    // subscription pairs with every other subscription's copy.
+    MATCH (sub)-[:RESOURCE]->(rd)
     // EntraPrincipal is the umbrella label carried by EntraUser, EntraGroup and
     // EntraServicePrincipal. Matching it directly keeps the returned rows aligned
     // with the declared asset_label and lets Neo4j use the label index.
@@ -269,6 +274,7 @@ _azure_account_manipulation_permissions = Fact(
     cypher_visual_query="""
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
+    MATCH (sub)-[:RESOURCE]->(rd)
     MATCH p3=(principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     // Mirror the finding: at least one searched pattern is granted by
     // actions and is NOT shadowed by not_actions (Contributor-style
@@ -332,7 +338,7 @@ identity_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.1",
+    version="0.1.2",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),

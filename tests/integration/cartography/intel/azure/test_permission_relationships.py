@@ -55,6 +55,21 @@ async def async_return_empty_list():
 
 
 @patch.object(
+    cartography.intel.microsoft.entra.users,
+    "get_user_mfa_registrations",
+    new=AsyncMock(return_value=None),
+)
+@patch.object(
+    cartography.intel.microsoft.entra.users,
+    "get_risky_users",
+    new=AsyncMock(return_value={}),
+)
+@patch.object(
+    cartography.intel.microsoft.entra.service_principals,
+    "get_risky_service_principals",
+    new=AsyncMock(return_value={}),
+)
+@patch.object(
     cartography.intel.microsoft.entra.service_principals,
     "get_entra_service_principals",
     return_value=async_generator_from_list(ENTRA_SERVICE_PRINCIPALS),

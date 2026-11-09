@@ -1,9 +1,16 @@
+from copy import deepcopy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.aws.ec2.instances
+import cartography.intel.aws.ec2.security_groups
 import cartography.intel.aws.iam
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_INSTANCE
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
+from cartography.intel.aws.ec2.security_groups import sync_ec2_security_groupinfo
+from cartography.util import run_typed_analysis_job
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -24,6 +31,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     Ensure that instances actually get loaded and have their key fields
     """
     # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
@@ -43,6 +51,76 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         ("i-02", "i-02"),
         ("i-03", "i-03"),
         ("i-04", "i-04"),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSEC2FilesystemSnapshot",
+        [
+            "id",
+            "instance_id",
+            "volume_id",
+            "kind",
+            "region",
+            "lastupdated",
+            "_ont_kind",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            f"aws:ec2:{instance_id}:rootfs",
+            instance_id,
+            volume_id,
+            "rootfs",
+            TEST_REGION,
+            TEST_UPDATE_TAG,
+            "rootfs",
+            "aws",
+        )
+        for instance_id, volume_id in (
+            ("i-01", "vol-0df"),
+            ("i-02", "vol-03"),
+            ("i-03", "vol-09"),
+            ("i-04", "vol-04"),
+        )
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2FilesystemSnapshot",
+        "id",
+        "AWSEBSVolume",
+        "id",
+        "SNAPSHOT_OF",
+        rel_direction_right=True,
+    ) == {
+        ("aws:ec2:i-01:rootfs", "vol-0df"),
+        ("aws:ec2:i-02:rootfs", "vol-03"),
+        ("aws:ec2:i-03:rootfs", "vol-09"),
+        ("aws:ec2:i-04:rootfs", "vol-04"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2Instance",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "SCANNED_AS",
+        rel_direction_right=True,
+    ) == {
+        (instance_id, f"aws:ec2:{instance_id}:rootfs")
+        for instance_id in ("i-01", "i-02", "i-03", "i-04")
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, f"aws:ec2:{instance_id}:rootfs")
+        for instance_id in ("i-01", "i-02", "i-03", "i-04")
     }
 
     assert check_nodes(
@@ -288,3 +366,276 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         ("vol-09", "000000000000"),
         ("vol-0df", "000000000000"),
     }
+
+
+def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
+    neo4j_session, mocker
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    other_account_id = "111111111111"
+    other_region = "us-west-2"
+    for account_id in (TEST_ACCOUNT_ID, other_account_id):
+        create_test_account(neo4j_session, account_id, TEST_UPDATE_TAG)
+    other_reservations = [
+        {
+            "ReservationId": "r-other",
+            "OwnerId": other_account_id,
+            "Instances": [
+                {
+                    "InstanceId": "i-other",
+                    "State": {"Name": "running"},
+                    "Architecture": "x86_64",
+                    "RootDeviceType": "ebs",
+                    "RootDeviceName": "/dev/sda1",
+                    "BlockDeviceMappings": [
+                        {
+                            "DeviceName": "/dev/sda1",
+                            "Ebs": {
+                                "VolumeId": "vol-other",
+                                "DeleteOnTermination": True,
+                            },
+                        },
+                    ],
+                    "NetworkInterfaces": [],
+                },
+            ],
+        },
+    ]
+    get_instances = mocker.patch.object(
+        cartography.intel.aws.ec2.instances,
+        "get_ec2_instances",
+        return_value=other_reservations,
+    )
+    boto3_session = MagicMock()
+    sync_ec2_instances(
+        neo4j_session,
+        boto3_session,
+        [other_region],
+        other_account_id,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": other_account_id},
+    )
+    reservations = deepcopy(DESCRIBE_INSTANCES["Reservations"])
+    # Put a data disk first to ensure only the root device becomes the scan source.
+    reservations[2]["Instances"][0]["BlockDeviceMappings"].insert(
+        0,
+        {
+            "DeviceName": "/dev/sdf",
+            "Ebs": {"VolumeId": "vol-data", "DeleteOnTermination": False},
+        },
+    )
+    get_instances.return_value = reservations
+
+    # Act
+    sync_ec2_instances(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == {
+        (f"aws:ec2:{instance_id}:rootfs",)
+        for instance_id in ("i-01", "i-02", "i-03", "i-04", "i-other")
+    }
+    assert check_rels(
+        neo4j_session,
+        "FilesystemSnapshot",
+        "id",
+        "BlockStorage",
+        "id",
+        "SNAPSHOT_OF",
+        rel_direction_right=True,
+    ) == {
+        ("aws:ec2:i-01:rootfs", "vol-0df"),
+        ("aws:ec2:i-02:rootfs", "vol-03"),
+        ("aws:ec2:i-03:rootfs", "vol-09"),
+        ("aws:ec2:i-04:rootfs", "vol-04"),
+        ("aws:ec2:i-other:rootfs", "vol-other"),
+    }
+
+    # Arrange
+    reservations[0]["Instances"][0]["State"]["Name"] = "stopped"
+    reservations[1]["Instances"] = []
+    reservations[2]["Instances"][0]["BlockDeviceMappings"][1]["Ebs"][
+        "VolumeId"
+    ] = "vol-replaced-root"
+    next_update_tag = TEST_UPDATE_TAG + 1
+
+    # Act
+    sync_ec2_instances(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        next_update_tag,
+        {"UPDATE_TAG": next_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "FilesystemSnapshot",
+        ["id", "volume_id", "region", "lastupdated"],
+    ) == {
+        ("aws:ec2:i-03:rootfs", "vol-replaced-root", TEST_REGION, next_update_tag),
+        ("aws:ec2:i-04:rootfs", "vol-04", TEST_REGION, next_update_tag),
+        ("aws:ec2:i-other:rootfs", "vol-other", other_region, TEST_UPDATE_TAG),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FilesystemSnapshot",
+        "id",
+        "BlockStorage",
+        "id",
+        "SNAPSHOT_OF",
+        rel_direction_right=True,
+    ) == {
+        ("aws:ec2:i-03:rootfs", "vol-replaced-root"),
+        ("aws:ec2:i-04:rootfs", "vol-04"),
+        ("aws:ec2:i-other:rootfs", "vol-other"),
+    }
+    # The old volume still exists, so the stale edge was removed by target cleanup.
+    assert ("vol-09",) in check_nodes(neo4j_session, "AWSEBSVolume", ["id"])
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2Instance",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "SCANNED_AS",
+        rel_direction_right=True,
+    ) == {
+        (instance_id, f"aws:ec2:{instance_id}:rootfs")
+        for instance_id in ("i-03", "i-04", "i-other")
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "aws:ec2:i-03:rootfs"),
+        (TEST_ACCOUNT_ID, "aws:ec2:i-04:rootfs"),
+        (other_account_id, "aws:ec2:i-other:rootfs"),
+    }
+
+
+def _reservations_without_public_ip(instance_id):
+    reservations = deepcopy(DESCRIBE_INSTANCES["Reservations"])
+    for reservation in reservations:
+        for instance in reservation["Instances"]:
+            if instance["InstanceId"] == instance_id:
+                del instance["PublicIpAddress"]
+    return reservations
+
+
+def _sync_instances_and_security_groups(neo4j_session, update_tag):
+    common_job_parameters = {"UPDATE_TAG": update_tag, "AWS_ID": TEST_ACCOUNT_ID}
+    sync_ec2_security_groupinfo(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        update_tag,
+        common_job_parameters,
+    )
+    sync_ec2_instances(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        update_tag,
+        common_job_parameters,
+    )
+    return common_job_parameters
+
+
+def _instance_exposure(neo4j_session):
+    result = neo4j_session.run(
+        """
+        MATCH (i:AWSEC2Instance)
+        RETURN i.id AS id, i.exposed_internet AS exposed, i.exposed_internet_type AS types
+        """,
+    )
+    return {record["id"]: (record["exposed"], record["types"]) for record in result}
+
+
+ONLY_I01_EXPOSED = {
+    "i-01": (True, ["direct"]),
+    "i-02": (None, None),
+    "i-03": (None, None),
+    "i-04": (None, None),
+}
+NONE_EXPOSED = {instance_id: (None, None) for instance_id in ONLY_I01_EXPOSED}
+
+
+@pytest.mark.parametrize(
+    "resync_reservations, expected_after_analysis",
+    [
+        pytest.param(
+            DESCRIBE_INSTANCES["Reservations"],
+            ONLY_I01_EXPOSED,
+            id="reload_keeps_flag",
+        ),
+        pytest.param(
+            _reservations_without_public_ip("i-01"),
+            NONE_EXPOSED,
+            id="unexposed_instance_loses_flag_on_next_analysis",
+        ),
+    ],
+)
+def test_ec2_instance_exposure_survives_reload_until_next_analysis(
+    neo4j_session,
+    mocker,
+    resync_reservations,
+    expected_after_analysis,
+):
+    # Arrange: i-01 has a public IP and is in sg-GROUP-ID, which allows 0.0.0.0/0 inbound.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mocker.patch.object(
+        cartography.intel.aws.ec2.security_groups,
+        "get_ec2_security_group_data",
+        return_value=[
+            {
+                "GroupId": "sg-GROUP-ID",
+                "IpPermissions": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": 22,
+                        "ToPort": 22,
+                        "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
+                    },
+                ],
+            },
+        ],
+    )
+    get_instances = mocker.patch.object(
+        cartography.intel.aws.ec2.instances,
+        "get_ec2_instances",
+        return_value=DESCRIBE_INSTANCES["Reservations"],
+    )
+    first_cycle = _sync_instances_and_security_groups(neo4j_session, TEST_UPDATE_TAG)
+    run_typed_analysis_job(AWS_EC2_ASSET_EXPOSURE_INSTANCE, neo4j_session, first_cycle)
+    assert _instance_exposure(neo4j_session) == ONLY_I01_EXPOSED
+
+    # Act: the next sync cycle reloads the instances before analysis runs again.
+    get_instances.return_value = resync_reservations
+    next_cycle = _sync_instances_and_security_groups(neo4j_session, TEST_UPDATE_TAG + 1)
+
+    # Assert: the load leaves the analysis-owned flags alone.
+    assert _instance_exposure(neo4j_session) == ONLY_I01_EXPOSED
+
+    # Act: analysis runs at the end of the sync cycle.
+    run_typed_analysis_job(AWS_EC2_ASSET_EXPOSURE_INSTANCE, neo4j_session, next_cycle)
+
+    # Assert: analysis keeps current exposure and clears exposure that no longer holds.
+    assert _instance_exposure(neo4j_session) == expected_after_analysis

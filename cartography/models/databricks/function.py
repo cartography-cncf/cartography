@@ -87,23 +87,23 @@ class DatabricksFunctionNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksFunctionToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksFunctionToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksFunction)
-class DatabricksFunctionToWorkspaceRel(CartographyRelSchema):
-    """A Databricks function is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksFunction)
+class DatabricksFunctionToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks function is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksFunctionToWorkspaceRelProperties = (
-        DatabricksFunctionToWorkspaceRelProperties()
+    properties: DatabricksFunctionToMetastoreResourceRelProperties = (
+        DatabricksFunctionToMetastoreResourceRelProperties()
     )
 
 
@@ -136,8 +136,8 @@ class DatabricksFunctionSchema(CartographyNodeSchema):
     properties: DatabricksFunctionNodeProperties = DatabricksFunctionNodeProperties()
     # Shared label so UC grants can target any grantable securable by one label.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_SECURABLE])
-    sub_resource_relationship: DatabricksFunctionToWorkspaceRel = (
-        DatabricksFunctionToWorkspaceRel()
+    sub_resource_relationship: DatabricksFunctionToMetastoreResourceRel = (
+        DatabricksFunctionToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksFunctionToSchemaRel()],

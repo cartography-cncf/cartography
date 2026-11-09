@@ -42,23 +42,25 @@ class DatabricksArtifactAllowlistNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksArtifactAllowlistToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksArtifactAllowlistToMetastoreResourceRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksArtifactAllowlist)
-class DatabricksArtifactAllowlistToWorkspaceRel(CartographyRelSchema):
-    """A Databricks artifact allowlist is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksArtifactAllowlist)
+class DatabricksArtifactAllowlistToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks artifact allowlist is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksArtifactAllowlistToWorkspaceRelProperties = (
-        DatabricksArtifactAllowlistToWorkspaceRelProperties()
+    properties: DatabricksArtifactAllowlistToMetastoreResourceRelProperties = (
+        DatabricksArtifactAllowlistToMetastoreResourceRelProperties()
     )
 
 
@@ -91,8 +93,8 @@ class DatabricksArtifactAllowlistSchema(CartographyNodeSchema):
     properties: DatabricksArtifactAllowlistNodeProperties = (
         DatabricksArtifactAllowlistNodeProperties()
     )
-    sub_resource_relationship: DatabricksArtifactAllowlistToWorkspaceRel = (
-        DatabricksArtifactAllowlistToWorkspaceRel()
+    sub_resource_relationship: DatabricksArtifactAllowlistToMetastoreResourceRel = (
+        DatabricksArtifactAllowlistToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksArtifactAllowlistToMetastoreRel()],

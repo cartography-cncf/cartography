@@ -70,6 +70,10 @@ class EC2NetworkInterfaceNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Public IPv4 address attached to the interface",
     )
+    ipv6_addresses: PropertyRef = PropertyRef(
+        "Ipv6Addresses",
+        description="IPv6 addresses assigned to the interface, for every interface type, including ECS task interfaces. `AWSEC2Ipv6Address` nodes are loaded by the EC2 instance sync for instance interfaces only. AWS IPv6 addresses are globally routable, so an interface with one can be reachable from the internet without a public IPv4 address. Unset when the interface has none.",
+    )
     requester_id: PropertyRef = PropertyRef(
         "RequesterId",
         extra_index=True,

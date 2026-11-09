@@ -3,7 +3,7 @@
 Cartography supports ingesting Google Cloud Platform resources, including:
 
 - **Cloud Resource Manager**: Organizations, Folders, Projects
-- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, SSL Policies, Target HTTPS Proxies, Target SSL Proxies, VPC Peerings, VPN Gateways, VPN Tunnels
+- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, Network Endpoint Groups, SSL Policies, Target HTTPS Proxies, Target SSL Proxies, VPC Peerings, VPN Gateways, VPN Tunnels
 - **Storage**: Buckets
 - **DNS**: Zones, Record Sets
 - **IAM**: Service Accounts, Roles, Policy Bindings
@@ -33,6 +33,16 @@ project are represented as stub nodes linked via `CONNECTS_TO_GATEWAY`.
 Stub nodes are reference-counted by their relationships, not by a sync scope:
 once no peering or tunnel references a stub (and no synced project owns it),
 it is removed automatically on the next sync.
+
+## Network endpoint groups
+
+Network endpoint groups (`GCPNetworkEndpointGroup`) are fetched with
+`networkEndpointGroups.aggregatedList` (IAM permission
+`compute.networkEndpointGroups.list`), with partial success enabled; cleanup is skipped whenever any scope returns an error. They are
+synced before backend services, so `GCPBackendService -[:ROUTES_TO]->
+GCPNetworkEndpointGroup` resolves from `backends[].group` in the same sync cycle,
+alongside the existing `ROUTES_TO` edges to instance groups. The Kubernetes module
+links the zonal NEGs GKE creates to the Services behind them.
 
 ## Cloud Asset Inventory behavior
 

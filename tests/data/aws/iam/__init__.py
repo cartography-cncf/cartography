@@ -174,6 +174,153 @@ LIST_ROLES = {
     ],
 }
 
+GITHUB_OIDC_PROVIDER_ARN = (
+    "arn:aws:iam::000000000000:oidc-provider/token.actions.githubusercontent.com"
+)
+
+# Roles trusting the GitHub Actions OIDC provider. The first two are identical apart from
+# the sub condition that scopes them, which is the distinction the trust edge has to
+# preserve. The third trusts the same provider from two statements, one of which is
+# unconditional.
+LIST_ROLES_GITHUB_OIDC = {
+    "Roles": [
+        {
+            # Pinned to one branch of one repo.
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                        "Effect": "Allow",
+                        "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                        "Condition": {
+                            "StringEquals": {
+                                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                                "token.actions.githubusercontent.com:sub": "repo:octo-org/octo-repo:ref:refs/heads/main",
+                            },
+                        },
+                    },
+                ],
+            },
+            "MaxSessionDuration": 3600,
+            "RoleId": "AROA00000000000000010",
+            "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+            "RoleName": "gha-pinned",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/gha-pinned",
+        },
+        {
+            # Org-wide. IAM `*` is not path-aware, so it spans both `/` and `:`: every
+            # repo under octo-org, every ref, and the `pull_request` subject match.
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                        "Effect": "Allow",
+                        "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                        "Condition": {
+                            "StringLike": {
+                                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                                "token.actions.githubusercontent.com:sub": "repo:octo-org/*",
+                            },
+                        },
+                    },
+                ],
+            },
+            "MaxSessionDuration": 3600,
+            "RoleId": "AROA00000000000000011",
+            "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+            "RoleName": "gha-org-wide",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/gha-org-wide",
+        },
+        {
+            # Two statements trusting the same provider. The unconditional one wins, so
+            # the aggregated edge is not conditional.
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                        "Effect": "Allow",
+                        "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                        "Condition": {
+                            "StringEquals": {
+                                "token.actions.githubusercontent.com:sub": "repo:octo-org/octo-repo:ref:refs/heads/main",
+                            },
+                        },
+                    },
+                    {
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                        "Effect": "Allow",
+                        "Principal": {"Federated": GITHUB_OIDC_PROVIDER_ARN},
+                    },
+                ],
+            },
+            "MaxSessionDuration": 3600,
+            "RoleId": "AROA00000000000000012",
+            "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+            "RoleName": "gha-mixed",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/gha-mixed",
+        },
+    ],
+}
+
+THIRD_PARTY_ROOT_ARN = "arn:aws:iam::999999999999:root"
+
+# Two roles a third party assumes from its own account: one requires the external ID the
+# vendor was given, and one only checks it if the caller happens to pass one.
+LIST_ROLES_EXTERNAL_ID = {
+    "Roles": [
+        {
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRole",
+                        "Effect": "Allow",
+                        "Principal": {"AWS": THIRD_PARTY_ROOT_ARN},
+                        "Condition": {
+                            "StringEquals": {"sts:ExternalId": "customer-1234"},
+                        },
+                    },
+                ],
+            },
+            "MaxSessionDuration": 3600,
+            "RoleId": "AROA00000000000000013",
+            "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+            "RoleName": "vendor-external-id",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/vendor-external-id",
+        },
+        {
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRole",
+                        "Effect": "Allow",
+                        "Principal": {"AWS": THIRD_PARTY_ROOT_ARN},
+                        "Condition": {
+                            "StringEqualsIfExists": {
+                                "sts:ExternalId": "customer-1234",
+                            },
+                        },
+                    },
+                ],
+            },
+            "MaxSessionDuration": 3600,
+            "RoleId": "AROA00000000000000014",
+            "CreateDate": datetime.datetime(2026, 1, 1, 0, 0, 1),
+            "RoleName": "vendor-optional-external-id",
+            "Path": "/",
+            "Arn": "arn:aws:iam::000000000000:role/vendor-optional-external-id",
+        },
+    ],
+}
+
 LIST_SAML_PROVIDERS = {
     "SAMLProviderList": [
         {
@@ -259,4 +406,40 @@ SERVICE_LAST_ACCESSED_DETAILS = {
             "TotalAuthenticatedEntities": 2,
         },
     ],
+}
+
+# The same report split across two pages, with the most recent access on the second.
+SERVICE_LAST_ACCESSED_DETAILS_FIRST_PAGE = {
+    "JobStatus": "COMPLETED",
+    "JobCreationDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+    "JobCompletionDate": datetime.datetime(2019, 1, 1, 0, 0, 2),
+    "ServicesLastAccessed": [
+        {
+            "ServiceName": "Amazon S3",
+            "ServiceNamespace": "s3",
+            "LastAuthenticated": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "LastAuthenticatedEntity": "user/example-user-0",
+            "LastAuthenticatedRegion": "us-east-1",
+            "TotalAuthenticatedEntities": 1,
+        },
+    ],
+    "IsTruncated": True,
+    "Marker": "page-2",
+}
+
+SERVICE_LAST_ACCESSED_DETAILS_LAST_PAGE = {
+    "JobStatus": "COMPLETED",
+    "JobCreationDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+    "JobCompletionDate": datetime.datetime(2019, 1, 1, 0, 0, 2),
+    "ServicesLastAccessed": [
+        {
+            "ServiceName": "Amazon EC2",
+            "ServiceNamespace": "ec2",
+            "LastAuthenticated": datetime.datetime(2019, 1, 2, 0, 0, 1),
+            "LastAuthenticatedEntity": "role/example-role-0",
+            "LastAuthenticatedRegion": "us-west-2",
+            "TotalAuthenticatedEntities": 2,
+        },
+    ],
+    "IsTruncated": False,
 }

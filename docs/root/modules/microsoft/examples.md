@@ -27,3 +27,22 @@ WHERE app.display_name = "HR Portal"
 RETURN u.display_name, u.user_principal_name, g.display_name as group_name, ara.created_date_time
 ORDER BY u.display_name
 ```
+
+### Defender for Endpoint
+
+**Find unresolved high-severity Defender alerts with the affected machine and its enrolled user:**
+```cypher
+MATCH (a:DefenderAlert)-[:AFFECTS]->(m:DefenderMachine)
+WHERE a.severity = "high"
+OPTIONAL MATCH (m)-[:ASSOCIATED_WITH]->(:IntuneManagedDevice)<-[:ENROLLED_TO]-(u:EntraUser)
+RETURN a.title, a.created_date_time, m.computer_dns_name, u.user_principal_name
+ORDER BY a.created_date_time DESC
+```
+
+**Find Defender machines that aren't onboarded:**
+```cypher
+MATCH (m:DefenderMachine)
+WHERE m.onboarding_status <> "Onboarded"
+RETURN m.computer_dns_name, m.onboarding_status, m.last_seen
+ORDER BY m.last_seen DESC
+```

@@ -5,6 +5,8 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from okta.errors.http_error import HTTPError
+from okta.errors.okta_api_error import OktaAPIError
 from okta.models.application_json_converter import ApplicationJsonConverter
 from okta.models.authenticator_base import AuthenticatorBase
 from okta.models.user_factor import UserFactor
@@ -232,3 +234,63 @@ def test_collect_raw_paginated_raises_okta_api_error() -> None:
     with pytest.raises(OktaApiError) as exc_info:
         asyncio.run(collect_raw_paginated(okta_client, "/api/v1/zones"))
     assert exc_info.value.error_code == "E0000006"
+
+
+def _http_error(status: int) -> HTTPError:
+    return HTTPError(
+        "https://example.okta.com/api/v1/devices",
+        MagicMock(status=status, headers={}),
+        "<html>bad gateway</html>",
+    )
+
+
+def _okta_api_error(status: int) -> OktaAPIError:
+    return OktaAPIError(
+        "https://example.okta.com/api/v1/devices",
+        MagicMock(status=status, headers={}),
+        {"errorCode": "E0000007", "errorSummary": "Not found"},
+    )
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    ("errors", "expected_calls", "raises"),
+    [
+        ([_http_error(502), _okta_api_error(500)], 3, False),
+        ([_http_error(502)] * 4, 4, True),
+        ([_okta_api_error(404)], 1, True),
+    ],
+    ids=["recovers-after-5xx", "gives-up-after-retries", "no-retry-on-4xx"],
+)
+def test_collect_paginated_retries_server_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    errors: list[Any],
+    expected_calls: int,
+    raises: bool,
+) -> None:
+    # Arrange
+    async def no_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("cartography.intel.okta.common.asyncio.sleep", no_sleep)
+    pending_errors = list(errors)
+    calls = 0
+
+    async def list_devices(limit: int = 200, after: str | None = None, **kwargs: Any):
+        nonlocal calls
+        calls += 1
+        response = MagicMock()
+        response.headers = {}
+        if pending_errors:
+            return (None, response, pending_errors.pop(0))
+        return ([{"id": "device-1"}], response, None)
+
+    # Act
+    if raises:
+        with pytest.raises(OktaApiError):
+            asyncio.run(collect_paginated(list_devices))
+    else:
+        items = asyncio.run(collect_paginated(list_devices))
+        assert items == [{"id": "device-1"}]
+
+    # Assert
+    assert calls == expected_calls

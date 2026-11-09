@@ -1,8 +1,8 @@
 # Semgrep Analysis
 
-## SAST Risk Severity
+## SAST and AI SAST Risk Severity
 
-Semgrep Cloud SAST findings receive a `risk_severity` property from post-ingestion analysis. Findings in archived GitHub repositories are assigned `INFO`; otherwise, the value follows the finding severity.
+Semgrep Cloud SAST and AI SAST findings receive a `risk_severity` property from post-ingestion analysis. Findings in archived GitHub repositories are assigned `INFO`; otherwise, the value follows the finding severity.
 
 ## SCA Reachability Risk
 

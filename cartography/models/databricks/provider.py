@@ -61,23 +61,23 @@ class DatabricksProviderNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksProviderToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksProviderToMetastoreResourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksProvider)
-class DatabricksProviderToWorkspaceRel(CartographyRelSchema):
-    """A Databricks workspace contains this provider resource."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksProvider)
+class DatabricksProviderToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks metastore contains this provider resource."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksProviderToWorkspaceRelProperties = (
-        DatabricksProviderToWorkspaceRelProperties()
+    properties: DatabricksProviderToMetastoreResourceRelProperties = (
+        DatabricksProviderToMetastoreResourceRelProperties()
     )
 
 
@@ -108,8 +108,8 @@ class DatabricksProviderSchema(CartographyNodeSchema):
 
     label: str = "DatabricksProvider"
     properties: DatabricksProviderNodeProperties = DatabricksProviderNodeProperties()
-    sub_resource_relationship: DatabricksProviderToWorkspaceRel = (
-        DatabricksProviderToWorkspaceRel()
+    sub_resource_relationship: DatabricksProviderToMetastoreResourceRel = (
+        DatabricksProviderToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [DatabricksProviderToMetastoreRel()],

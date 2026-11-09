@@ -14,6 +14,7 @@ from pytest import raises
 import cartography.config
 import cartography.intel.aws
 import cartography.util
+from cartography.intel.aws.resources import AIOBOTO3_RESOURCE_FUNCTIONS
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
 from tests.integration.util import check_nodes
 
@@ -212,8 +213,8 @@ def make_aws_sync_test_kwargs(
     Returns a dummy dict of kwargs to use for AWS sync functions.
     The keys of this dict are also used to ensure that parameter names for all sync functions are standardized; see
     `test_standardize_aws_sync_kwargs`.
-    Note: aioboto3_session is NOT included here because it's only used by ecr:image_layers, which has a different
-    signature from the standard AWS sync functions.
+    Note: aioboto3_session is NOT included here because it's only used by the syncs in AIOBOTO3_RESOURCE_FUNCTIONS,
+    which have a different signature from the standard AWS sync functions.
     """
     return {
         "neo4j_session": neo4j_session,
@@ -1134,9 +1135,13 @@ def test_start_aws_ingestion_passes_organization_account_ids(
 )
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
 def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_mode(
     mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
     mock_perform_analysis,
     mock_sync_one,
     mock_sync_organizations_for_accounts,
@@ -1171,6 +1176,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     assert mock_sync_one.call_count == 2
     assert mock_sync_organizations_for_accounts.call_count == 1
     assert mock_run_cleanup_job.call_count == 0
+    assert mock_cleanup_orphan_tags.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
 
@@ -1184,9 +1190,13 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
 )
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
 def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
     mock_perform_analysis,
     mock_sync_one,
     mock_sync_organizations_for_accounts,
@@ -1218,6 +1228,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     assert mock_sync_one.call_count == 1
     assert mock_sync_organizations_for_accounts.call_count == 1
     assert mock_run_cleanup_job.call_count == 0
+    assert mock_cleanup_orphan_tags.call_count == 0
     assert mock_perform_analysis.call_count == 0
 
 
@@ -1231,9 +1242,13 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
 )
 @mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job")
 def test_start_aws_ingestion_does_cleanup(
     mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
     mock_perform_analysis,
     mock_sync_one,
     mock_sync_organizations_for_accounts,
@@ -1260,7 +1275,51 @@ def test_start_aws_ingestion_does_cleanup(
     # Assert
     assert mock_perform_analysis.call_count == 1
     assert mock_run_cleanup_job.call_count == 1
+    assert mock_cleanup_orphan_tags.call_count == 1
     assert mock_sync_organizations_for_accounts.call_count == 1
+
+
+@mock.patch("cartography.intel.aws.aioboto3.Session")
+@mock.patch("cartography.intel.aws.boto3.Session")
+@mock.patch("cartography.intel.aws.organizations.get_aws_accounts_from_botocore_config")
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
+@mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
+@mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws.resourcegroupstaggingapi, "cleanup_orphan_tags"
+)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job")
+def test_start_aws_ingestion_skips_tag_orphan_cleanup_without_tagging_sync(
+    mock_run_cleanup_job,
+    mock_cleanup_orphan_tags,
+    mock_perform_analysis,
+    mock_sync_one,
+    mock_sync_organizations_for_accounts,
+    mock_get_aws_account,
+    mock_boto3,
+    mock_aioboto3,
+    neo4j_session,
+):
+    # Arrange
+    mock_boto3.return_value.region_name = "us-east-1"
+    test_config = cartography.config.Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        aws_sync_all_profiles=True,
+        aws_requested_syncs="ec2:instance",
+    )
+    mock_get_aws_account.return_value = {"test_profile": "test_account"}
+
+    # Act
+    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+
+    # Assert
+    assert mock_run_cleanup_job.call_count == 1
+    assert mock_cleanup_orphan_tags.call_count == 0
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
@@ -1300,8 +1359,8 @@ def test_sync_one_account_all_sync_functions(
 
     # Test that ALL syncs got called.
     for sync_name in cartography.intel.aws.resources.RESOURCE_FUNCTIONS.keys():
-        # ecr:image_layers has a different signature (uses aioboto3_session instead of boto3_session)
-        # and is called with positional args in _sync_one_account
+        # The aioboto3 syncs take aioboto3_session instead of boto3_session and are
+        # called with positional args in _sync_one_account
         if sync_name == "ecr:image_layers":
             AWS_RESOURCE_FUNCTIONS_STUB[sync_name].assert_called_with(
                 neo4j_session,
@@ -1311,6 +1370,15 @@ def test_sync_one_account_all_sync_functions(
                 TEST_UPDATE_TAG,
                 GRAPH_JOB_PARAMETERS,
                 aioboto3_session_factory=None,
+            )
+        elif sync_name == "inspector":
+            AWS_RESOURCE_FUNCTIONS_STUB[sync_name].assert_called_with(
+                neo4j_session,
+                mock_aioboto3_session(),
+                TEST_REGIONS,
+                "1234",
+                TEST_UPDATE_TAG,
+                GRAPH_JOB_PARAMETERS,
             )
         else:
             AWS_RESOURCE_FUNCTIONS_STUB[sync_name].assert_called_with(
@@ -1322,8 +1390,10 @@ def test_sync_one_account_all_sync_functions(
     assert mock_cleanup.call_count == 0
     # All dependencies are present, so both guarded analyses reach the executor.
     assert mock_guarded_analysis.call_count == 2
-    # LB/NACL runs directly after its explicit dependency check.
-    assert mock_analysis.call_count == 1
+    # LB/NACL runs directly after its dependency check, and the unmodeled internet
+    # path check runs before the syncs, to withdraw the account's previous check, and
+    # after them.
+    assert mock_analysis.call_count == 3
 
 
 def test_sync_one_account_uses_owned_ecr_session_factory(
@@ -1434,12 +1504,11 @@ def test_standardize_aws_sync_kwargs():
     The set of standardized sync param names is maintained in
     tests.integration.cartography.intel.aws.test_init.make_aws_sync_test_kwargs.
 
-    Exception: ecr:image_layers has a different signature (uses aioboto3_session instead of boto3_session) and is
-    called with positional args in _sync_one_account, so it's excluded from this validation.
+    Exception: the syncs in AIOBOTO3_RESOURCE_FUNCTIONS take aioboto3_session instead of boto3_session and are
+    called with positional args in _sync_one_account, so they are checked against their own argument names.
     """
     aws_sync_test_kwargs = make_aws_sync_test_kwargs(mock.MagicMock, mock.MagicMock)
-    # aioboto3_session is used only by ecr:image_layers
-    ecr_image_layers_kwargs = [
+    aioboto3_sync_kwargs = [
         "neo4j_session",
         "aioboto3_session",
         "regions",
@@ -1452,8 +1521,7 @@ def test_standardize_aws_sync_kwargs():
         func_name,
         sync_func,
     ) in cartography.intel.aws.resources.RESOURCE_FUNCTIONS.items():
-        # ecr:image_layers has a different signature, so skip standardization check
-        if func_name == "ecr:image_layers":
+        if func_name in AIOBOTO3_RESOURCE_FUNCTIONS:
             all_args: List[str] = inspect.getfullargspec(sync_func).args
             if len(all_args) == 0:
                 all_args = inspect.getfullargspec(sync_func.__wrapped__).args
@@ -1462,9 +1530,9 @@ def test_standardize_aws_sync_kwargs():
                     inspect.signature(sync_func).parameters[arg_name].default
                     == inspect._empty
                 ):
-                    assert arg_name in ecr_image_layers_kwargs, (
-                        f'Argument name "{arg_name}" in ecr:image_layers sync function is non-standard. '
-                        f"Expected arguments: {', '.join(ecr_image_layers_kwargs)}"
+                    assert arg_name in aioboto3_sync_kwargs, (
+                        f'Argument name "{arg_name}" in {func_name} sync function is non-standard. '
+                        f"Expected arguments: {', '.join(aioboto3_sync_kwargs)}"
                     )
             continue
 

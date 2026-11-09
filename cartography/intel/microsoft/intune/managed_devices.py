@@ -15,6 +15,7 @@ from msgraph.generated.models.management_agent_type import ManagementAgentType
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft.util import normalize_azure_ad_device_id
 from cartography.models.microsoft.intune.managed_device import IntuneManagedDeviceSchema
 from cartography.util import timeit
 
@@ -76,6 +77,9 @@ def transform_managed_devices(
                 "wifi_mac_address": device.wi_fi_mac_address,
                 "ethernet_mac_address": device.ethernet_mac_address,
                 "azure_ad_device_id": device.azure_a_d_device_id,
+                "azure_ad_device_id_normalized": normalize_azure_ad_device_id(
+                    device.azure_a_d_device_id,
+                ),
                 "azure_ad_registered": device.azure_a_d_registered,
                 "device_enrollment_type": (
                     enrollment_type.value if enrollment_type else None

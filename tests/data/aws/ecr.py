@@ -212,6 +212,18 @@ SAMPLE_CONFIG_BLOB_WITH_CIRCLECI_LABELS = {
     },
 }
 
+SAMPLE_CONFIG_BLOB_WITH_OCI_LABELS = {
+    **SAMPLE_CONFIG_BLOB,
+    "config": {
+        "Labels": {
+            "org.opencontainers.image.source": "https://github.com/exampleorg/service",
+            "org.opencontainers.image.revision": (
+                "abcdef0123456789abcdef0123456789abcdef01"
+            ),
+        },
+    },
+}
+
 # Multi-arch manifest list for testing
 SAMPLE_MANIFEST_LIST = {
     "schemaVersion": 2,

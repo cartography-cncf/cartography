@@ -169,7 +169,7 @@ def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
     }
 
 
-def test_extract_ci_label_provenance_reads_codebuild_variables():
+def test_extract_config_label_provenance_reads_codebuild_variables():
     config_json = {
         "config": {
             "Labels": {
@@ -179,13 +179,13 @@ def test_extract_ci_label_provenance_reads_codebuild_variables():
         }
     }
 
-    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+    assert ecr_layers._extract_config_label_provenance(config_json) == {
         "source_uri": "https://github.com/ExampleOrg/service",
         "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
     }
 
 
-def test_extract_ci_label_provenance_prefers_circleci_labels():
+def test_extract_config_label_provenance_prefers_circleci_labels():
     config_json = {
         "config": {
             "Labels": {
@@ -195,8 +195,24 @@ def test_extract_ci_label_provenance_prefers_circleci_labels():
         }
     }
 
-    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+    assert ecr_layers._extract_config_label_provenance(config_json) == {
         "source_uri": "https://github.com/ExampleOrg/service",
+    }
+
+
+def test_extract_config_label_provenance_reads_oci_source_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "org.opencontainers.image.source": "https://github.com/ExampleOrg/service.git",
+                "org.opencontainers.image.revision": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_config_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
     }
 
 
@@ -993,6 +1009,7 @@ def test_transform_ecr_image_layers_marks_source_only_attestation_provenance():
             "layer_diff_ids": [
                 "sha256:1111111111111111111111111111111111111111111111111111111111111111"
             ],
+            "label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION,
             "source_uri": "https://github.com/exampleorg/service",
             "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
             "from_attestation": True,

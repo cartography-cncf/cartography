@@ -28,6 +28,11 @@ from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "1234"
 TEST_UPDATE_TAG = 123456789
+ROLE_LAST_USED = {
+    "arn:aws:iam::1234:role/example-role-0": datetime.fromisoformat(
+        "2019-01-01T00:00:00+00:00"
+    )
+}
 
 
 @patch.object(
@@ -667,6 +672,7 @@ def test_sync_iam_keeps_trusted_root_of_other_synced_account(
         group_memberships=GET_GROUP_MEMBERSHIPS_DATA,
         role_inline_policies=GET_ROLE_INLINE_POLS_SAMPLE,
         role_managed_policies=GET_ROLE_MANAGED_POLICY_DATA,
+        role_last_used=ROLE_LAST_USED,
     ),
 )
 @patch.object(cartography.intel.aws.iam, "get_server_certificates", return_value=[])
@@ -733,3 +739,7 @@ def test_sync_iam_from_account_authorization_details(
             p.stop()
 
     _assert_iam_graph(neo4j_session)
+    assert (
+        mock_sync_service_last_accessed_details.call_args.kwargs["role_last_used"]
+        == ROLE_LAST_USED
+    )

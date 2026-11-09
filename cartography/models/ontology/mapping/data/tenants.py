@@ -82,6 +82,21 @@ airbyte_mapping = OntologyMapping(
 
 # Anthropic: No field to map in AnthropicOrganization (minimal properties)
 
+# Opsgenie
+opsgenie_mapping = OntologyMapping(
+    module_name="opsgenie",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OpsgenieAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 # AWS
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -839,6 +854,29 @@ zendesk_mapping = OntologyMapping(
     ],
 )
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="LangSmithWorkspace",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -884,6 +922,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "keycloak": keycloak_mapping,
     "salesforce": salesforce_mapping,
     "okta": okta_mapping,
+    "opsgenie": opsgenie_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
     "sentry": sentry_mapping,
@@ -962,4 +1001,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "langsmith": langsmith_mapping,
 }

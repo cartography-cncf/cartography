@@ -57,3 +57,17 @@ DEVICES = [
         "_embedded": {"users": []},
     },
 ]
+
+LINUX_DEVICE = {
+    "id": "device-003",
+    "status": "ACTIVE",
+    "created": "2025-03-15T10:30:00Z",
+    "lastUpdated": "2025-12-03T14:22:00Z",
+    "profile": {
+        "displayName": "Linux Workstation",
+        "platform": "LINUX",
+        "serialNumber": "SERIAL-003",
+        "registered": True,
+    },
+    "_embedded": {"users": []},
+}

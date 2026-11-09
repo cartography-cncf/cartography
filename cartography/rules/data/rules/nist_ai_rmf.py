@@ -149,10 +149,12 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_label="ThirdPartyApp",
-    # app_client_id is the OAuth client id, which differs from the node id for
-    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    # app_client_id names the app, not the node: a GitHub App installed in two
+    # orgs is two installation nodes sharing one client id, and Keycloak client
+    # ids repeat across realms. Key both the anchor and the identity on the
+    # node's own id so each installation is its own finding.
     asset_id_field="asset_node_id",
-    identity_fields=("app_source", "app_client_id"),
+    identity_fields=("app_source", "asset_node_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -167,7 +169,7 @@ ai_third_party_app_inventory = Rule(
     output_model=NistAiAppInventoryOutput,
     facts=(_cross_cloud_nist_ai_app_inventory,),
     tags=("ai", "identity", "compliance", "governance"),
-    version="0.1.1",
+    version="0.1.2",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MAP 1"),
@@ -259,10 +261,12 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     RETURN COUNT(app) AS count
     """,
     asset_label="ThirdPartyApp",
-    # app_client_id is the OAuth client id, which differs from the node id for
-    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    # app_client_id names the app, not the node: a GitHub App installed in two
+    # orgs is two installation nodes sharing one client id, and Keycloak client
+    # ids repeat across realms. Key both the anchor and the identity on the
+    # node's own id so each installation is its own finding.
     asset_id_field="asset_node_id",
-    identity_fields=("app_source", "app_client_id"),
+    identity_fields=("app_source", "asset_node_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -277,7 +281,7 @@ ai_third_party_app_sensitive_scopes = Rule(
     output_model=NistAiSensitiveScopesOutput,
     facts=(_cross_cloud_nist_ai_app_sensitive_scopes,),
     tags=("ai", "identity", "oauth", "compliance"),
-    version="0.1.1",
+    version="0.1.2",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MEASURE 2"),
@@ -387,10 +391,12 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     RETURN COUNT(DISTINCT app) AS count
     """,
     asset_label="ThirdPartyApp",
-    # app_client_id is the OAuth client id, which differs from the node id for
-    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    # app_client_id names the app, not the node: a GitHub App installed in two
+    # orgs is two installation nodes sharing one client id, and Keycloak client
+    # ids repeat across realms. Key both the anchor and the identity on the
+    # node's own id so each installation is its own finding.
     asset_id_field="asset_node_id",
-    identity_fields=("app_source", "app_client_id"),
+    identity_fields=("app_source", "asset_node_id"),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -405,7 +411,7 @@ ai_admin_app_authorizations = Rule(
     output_model=NistAiAdminAuthorizationsOutput,
     facts=(_gw_nist_ai_admin_app_authorizations,),
     tags=("ai", "identity", "privileged_access", "compliance"),
-    version="0.1.1",
+    version="0.1.2",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),

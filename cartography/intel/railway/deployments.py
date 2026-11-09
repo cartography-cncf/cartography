@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_image import parse_image_uri
 from cartography.intel.railway.serviceinstances import iter_service_instances
 from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.deployment import RailwayDeploymentSchema
@@ -16,6 +17,17 @@ from cartography.models.railway.filesystem_snapshot import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_image_digest(value: Any) -> str | None:
+    # Cartography's canonical registry image nodes currently use SHA-256 identities. Do not
+    # accept another OCI algorithm until those node schemas and matchers support it too.
+    if not isinstance(value, str):
+        return None
+    digest = value.strip()
+    if not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+        return None
+    return digest.lower()
 
 
 @timeit
@@ -67,6 +79,19 @@ def transform(
         project_triggers: list[dict[str, Any]] = []
         for deployment in project_deployments_by_id.values():
             meta = deployment.get("meta")
+            # Only deployment-scoped metadata is runtime provenance. ServiceSource.image is the
+            # service instance's current configuration, which can be committed without a
+            # redeploy, so it never supplies a deployment's image.
+            meta_image = meta.get("image") if isinstance(meta, dict) else None
+            source_image, meta_pinned_digest = parse_image_uri(
+                meta_image if isinstance(meta_image, str) else None,
+            )
+            reported_digest = (
+                meta.get("imageDigest") if isinstance(meta, dict) else None
+            )
+            image_digest = _normalize_image_digest(
+                reported_digest,
+            ) or _normalize_image_digest(meta_pinned_digest)
             commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
             source_revision = (
                 commit_hash.lower()
@@ -78,6 +103,8 @@ def transform(
                 {
                     **deployment,
                     "source_revision": source_revision,
+                    "source_image": source_image,
+                    "image_digest": image_digest,
                     "lifecycle": (
                         "current" if deployment["id"] in current_ids else "historical"
                     ),

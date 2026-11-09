@@ -60,6 +60,22 @@ AZURE_COMPUTE_ASSET_EXPOSURE_LB = AnalysisJob(
                 SetProperty("lb", "exposed_internet", False, label="AzureLoadBalancer"),
             ),
         ),
+        AnalysisStatement(
+            match="MATCH (ag:AzureApplicationGateway)-[:CONTAINS]->(:AzureApplicationGatewayFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(pip:AzurePublicIPAddress) WHERE pip.ip_address IS NOT NULL WITH DISTINCT ag",
+            effects=(
+                SetProperty(
+                    "ag", "exposed_internet", True, label="AzureApplicationGateway"
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match="MATCH (ag:AzureApplicationGateway) WHERE ag.exposed_internet IS NULL",
+            effects=(
+                SetProperty(
+                    "ag", "exposed_internet", False, label="AzureApplicationGateway"
+                ),
+            ),
+        ),
     ),
 )
 AZURE_COMPUTE_ASSET_EXPOSURE_CONTAINER = AnalysisJob(

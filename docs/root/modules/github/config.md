@@ -98,7 +98,7 @@ data while continuing ingestion.
 | Repository secret scanning, push protection, Advanced Security, and Dependabot security updates status | Repository **Administration: Read**, with repository administrator, organization owner, or security manager access | `repo`, with repository administrator, organization owner, or security manager access |
 | Installed GitHub Apps and their permissions | Organization owner access with organization **Administration: Read** | Organization owner access and `read:org` |
 | Organization webhooks | Organization owner access with organization **Webhooks: Read** | Organization owner access and `admin:org_hook` |
-| Repository webhooks | Repository **Webhooks: Read**, with repository administrator access | `read:repo_hook`, with repository administrator access |
+| Repository webhooks | Repository **Webhooks: Read**, with repository administrator access | `repo`, with repository administrator access |
 | Enterprise owners | Appropriate GitHub Enterprise permissions | Appropriate GitHub Enterprise permissions |
 | SAML external identities | GitHub App installation token with organization **Members: Read**; fine-grained PATs are not supported by this GraphQL field | Organization owner access and `read:org` or `admin:org` |
 
@@ -185,6 +185,15 @@ cleanup, allowing other GitHub resources and organizations to sync. Graph write
 and cleanup errors still propagate. Refreshing the
 ontology removes links that no longer have an identity basis; SAML and existing
 GitHub email linking share the same relationship cleanup.
+
+## Workflow secret references
+
+Workflow `REFERENCES_SECRET` relationships include static dot and bracket
+references inside `${{ ... }}` expressions, including function arguments and
+fallback branches. Quoted expression literals such as `'secrets.EXAMPLE'` do
+not create references. This is a static inventory: Cartography does not evaluate
+which branch runs or resolve dynamically computed secret names. Cartography creates
+a relationship only after it ingests metadata for the referenced secret.
 
 ## Configure Cartography
 

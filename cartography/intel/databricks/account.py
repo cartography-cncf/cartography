@@ -27,7 +27,6 @@ def sync(
         [account],
         lastupdated=common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
     return api_session.account_id
 
 

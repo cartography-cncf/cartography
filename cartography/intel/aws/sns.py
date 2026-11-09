@@ -5,20 +5,29 @@ from typing import List
 from typing import Optional
 
 import boto3
+import botocore.client
 import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.sns.topic import SNSTopicSchema
 from cartography.models.aws.sns.topic_subscription import SNSTopicSubscriptionSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
+from cartography.util import is_throttling_exception
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.util import to_asynchronous
+from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+
+# Bounds the GetTopicAttributes calls in flight per region. The account shares
+# this quota with its own workloads, and it is as low as 30 TPS in some regions.
+TOPIC_ATTRIBUTES_BATCH_SIZE = 10
 
 
 @timeit
@@ -38,17 +47,51 @@ def get_sns_topics(boto3_session: boto3.session.Session, region: str) -> List[Di
 
 @timeit
 def get_topic_attributes(
-    boto3_session: boto3.session.Session, topic_arn: str, region: str
+    client: botocore.client.BaseClient, topic_arn: str
 ) -> Optional[Dict]:
     """
     Get attributes for an SNS Topic.
     """
-    client = create_boto3_client(boto3_session, "sns", region_name=region)
     try:
         return client.get_topic_attributes(TopicArn=topic_arn)
     except Exception as e:
+        # to_asynchronous backs off and retries throttled calls, so let them
+        # through rather than load the topic without its attributes.
+        if is_throttling_exception(e):
+            raise
         logger.warning(f"Error getting attributes for SNS topic {topic_arn}: {e}")
         return None
+
+
+@timeit
+def get_topics_attributes(
+    boto3_session: boto3.session.Session, topics: List[Dict], region: str
+) -> Dict[str, Dict]:
+    """
+    Get attributes for SNS Topics, keyed by topic ARN. Topics whose attributes
+    could not be fetched are omitted.
+    """
+    # One shared client reuses its connection pool. A client per topic opens a
+    # new TLS connection for every call.
+    client = create_boto3_client(
+        boto3_session,
+        "sns",
+        region_name=region,
+        config=get_botocore_config(max_pool_connections=TOPIC_ATTRIBUTES_BATCH_SIZE),
+    )
+
+    async def _get_attributes(topic_arn: str) -> Optional[Dict]:
+        return await to_asynchronous(get_topic_attributes, client, topic_arn)
+
+    topic_arns = [topic["TopicArn"] for topic in topics]
+    topic_attributes: Dict[str, Dict] = {}
+    for i in range(0, len(topic_arns), TOPIC_ATTRIBUTES_BATCH_SIZE):
+        batch = topic_arns[i : i + TOPIC_ATTRIBUTES_BATCH_SIZE]
+        results = to_synchronous(*[_get_attributes(arn) for arn in batch])
+        topic_attributes.update(
+            {arn: attrs for arn, attrs in zip(batch, results) if attrs},
+        )
+    return topic_attributes
 
 
 def transform_sns_topics(
@@ -184,13 +227,7 @@ def sync(
         )
         topics = get_sns_topics(boto3_session, region)
 
-        topic_attributes = {}
-        for topic in topics:
-            topic_arn = topic["TopicArn"]
-            attrs = get_topic_attributes(boto3_session, topic_arn, region)
-            if attrs:
-                topic_attributes[topic_arn] = attrs
-
+        topic_attributes = get_topics_attributes(boto3_session, topics, region)
         transformed_topics = transform_sns_topics(topics, topic_attributes, region)
 
         load_sns_topics(
