@@ -17,6 +17,10 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 logger = logging.getLogger(__name__)
 
 
+# Generic final layers such as `COPY . /app` appear in many unrelated Dockerfiles,
+# so one similar command cannot tell repositories apart.
+MIN_DOCKERFILE_MATCHED_COMMANDS = 2
+
 # An image whose provenance names a repository in the graph is linked exactly by
 # the provenance matchlink of the organization that owns the repository, which may
 # sync later in the same run. Dockerfile similarity must neither race that link nor
@@ -651,45 +655,70 @@ def match_images_to_dockerfiles(
                 )
                 continue
 
-        df_matches = find_best_dockerfile_matches(
-            image_commands,
-            [parsed for parsed, _ in candidate_dockerfiles],
-            min_confidence,
-        )
-
-        if df_matches:
-            best_match = df_matches[0]
-            df_info = next(
-                (
-                    candidate_info
-                    for parsed, candidate_info in candidate_dockerfiles
-                    if parsed is best_match.dockerfile
-                ),
-                {},
-            )
-
-            matches.append(
-                ImageDockerfileMatch(
-                    image_digest=image.digest,
-                    source_repo_id=df_info.get("source_repo_id", ""),
-                    dockerfile_path=df_info.get("path"),
-                    confidence=best_match.confidence,
-                    matched_commands=best_match.matched_commands,
-                    total_commands=best_match.total_commands,
-                    command_similarity=best_match.command_similarity,
+        info_by_dockerfile = {
+            id(parsed): candidate_info
+            for parsed, candidate_info in candidate_dockerfiles
+        }
+        # Confidence is bucketed, so rank and detect ties on raw similarity and on
+        # how many commands agree.
+        df_matches = sorted(
+            (
+                match
+                for match in find_best_dockerfile_matches(
+                    image_commands,
+                    [parsed for parsed, _ in candidate_dockerfiles],
+                    min_confidence,
                 )
-            )
-            logger.debug(
-                "Matched %s:%s -> %s (confidence: %.2f)",
-                image.display_name,
-                image.tag,
-                df_info.get("path"),
-                best_match.confidence,
-            )
-        else:
+                if match.matched_commands >= MIN_DOCKERFILE_MATCHED_COMMANDS
+            ),
+            key=lambda match: (
+                -match.confidence,
+                -match.command_similarity,
+                -match.matched_commands,
+            ),
+        )
+        if not df_matches:
             logger.debug(
                 "No match found for image %s:%s", image.display_name, image.tag
             )
+            continue
+
+        best_match = df_matches[0]
+        df_info = info_by_dockerfile[id(best_match.dockerfile)]
+        tied_repos = {
+            info_by_dockerfile[id(match.dockerfile)].get("source_repo_id")
+            for match in df_matches
+            if match.confidence == best_match.confidence
+            and match.command_similarity == best_match.command_similarity
+            and match.matched_commands == best_match.matched_commands
+        }
+        if len(tied_repos) > 1:
+            logger.debug(
+                "Ambiguous match for image %s:%s across %d repositories",
+                image.display_name,
+                image.tag,
+                len(tied_repos),
+            )
+            continue
+
+        matches.append(
+            ImageDockerfileMatch(
+                image_digest=image.digest,
+                source_repo_id=df_info.get("source_repo_id", ""),
+                dockerfile_path=df_info.get("path"),
+                confidence=best_match.confidence,
+                matched_commands=best_match.matched_commands,
+                total_commands=best_match.total_commands,
+                command_similarity=best_match.command_similarity,
+            )
+        )
+        logger.debug(
+            "Matched %s:%s -> %s (confidence: %.2f)",
+            image.display_name,
+            image.tag,
+            df_info.get("path"),
+            best_match.confidence,
+        )
 
     logger.info(
         "Matched %d images to Dockerfiles (out of %d images, %d Dockerfiles)",
