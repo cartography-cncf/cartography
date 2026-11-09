@@ -252,3 +252,92 @@ EXPECTED_DOCKERFILES_OUTPUT: list[dict[str, Any]] = [
         "html_url": "https://github.com/testorg/testrepo/blob/main/deploy/production.dockerfile",
     },
 ]
+
+
+# Two organizations synced in one run. The demo organization's short Dockerfile
+# copies the same final layer as the platform service, so Dockerfile similarity
+# alone cannot tell them apart; the image's OCI source label can.
+DEMO_ORG_REPOS: list[dict[str, Any]] = [
+    {
+        "url": "https://github.com/example-demos/node-starter",
+        "name": "node-starter",
+        "owner": {"login": "example-demos"},
+    },
+]
+
+PLATFORM_ORG_REPOS: list[dict[str, Any]] = [
+    {
+        "url": "https://github.com/example-platform/api",
+        "name": "api",
+        "owner": {"login": "example-platform"},
+    },
+]
+
+DEMO_DOCKERFILE_CONTENT = """FROM node:20-slim
+COPY . /app
+CMD ["node", "server.js"]
+"""
+
+PLATFORM_DOCKERFILE_CONTENT = """FROM node:20-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY . /app
+CMD ["node", "server.js"]
+"""
+
+
+def _search_response(org: str, repo: str, repo_id: int) -> dict[str, Any]:
+    return {
+        "total_count": 1,
+        "incomplete_results": False,
+        "items": [
+            {
+                "name": "Dockerfile",
+                "path": "Dockerfile",
+                "sha": f"{repo}-dockerfile-sha",
+                "url": f"https://api.github.com/repos/{org}/{repo}/contents/Dockerfile?ref=main",
+                "git_url": f"https://api.github.com/repos/{org}/{repo}/git/blobs/{repo}-dockerfile-sha",
+                "html_url": f"https://github.com/{org}/{repo}/blob/main/Dockerfile",
+                "repository": {
+                    "id": repo_id,
+                    "name": repo,
+                    "full_name": f"{org}/{repo}",
+                },
+                "score": 1.0,
+            },
+        ],
+    }
+
+
+def _file_content_response(content: str) -> dict[str, Any]:
+    return {
+        "type": "file",
+        "encoding": "base64",
+        "name": "Dockerfile",
+        "path": "Dockerfile",
+        "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+    }
+
+
+MULTI_ORG_REST_RESPONSES: dict[str, dict[str, Any]] = {
+    "org:example-demos": _search_response("example-demos", "node-starter", 700000001),
+    "org:example-platform": _search_response("example-platform", "api", 700000002),
+    "/repos/example-demos/node-starter/contents/Dockerfile": _file_content_response(
+        DEMO_DOCKERFILE_CONTENT,
+    ),
+    "/repos/example-platform/api/contents/Dockerfile": _file_content_response(
+        PLATFORM_DOCKERFILE_CONTENT,
+    ),
+}
+
+# BuildKit history for an image built from PLATFORM_DOCKERFILE_CONTENT.
+PLATFORM_IMAGE_LAYER_HISTORY: list[str] = [
+    "# debian.sh --arch 'amd64' out/ 'bookworm' '@1730073600'",
+    "ENV NODE_VERSION=20.18.0",
+    'RUN /bin/sh -c set -ex && ARCH= && dpkgArch="$(dpkg --print-architecture)" # buildkit',
+    "WORKDIR /app",
+    "COPY package.json package-lock.json ./ # buildkit",
+    "RUN /bin/sh -c npm ci --omit=dev # buildkit",
+    "COPY . /app # buildkit",
+]

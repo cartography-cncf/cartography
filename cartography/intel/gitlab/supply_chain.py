@@ -14,6 +14,7 @@ from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
+from cartography.intel.supply_chain import DOCKERFILE_MATCH_ELIGIBILITY
 from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.intel.supply_chain import get_unmatched_scaleway_images_with_history
 from cartography.intel.supply_chain import match_images_to_dockerfiles
@@ -59,7 +60,8 @@ def get_unmatched_gitlab_container_images_with_history(
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
-    query = """
+    query = (
+        """
         MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
@@ -71,6 +73,9 @@ def get_unmatched_gitlab_container_images_with_history(
               )
           )
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+"""
+        + DOCKERFILE_MATCH_ELIGIBILITY
+        + """
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitLabOrganization'}]->())
               OR exists((
@@ -89,6 +94,7 @@ def get_unmatched_gitlab_container_images_with_history(
         ]) AS selected
         WITH repo, selected[3] AS img, selected[4] AS repo_img
     """
+    )
 
     if limit is not None:
         query += f"        ORDER BY coalesce(repo.uri, repo.id), img.digest\n        LIMIT {int(limit)}\n"

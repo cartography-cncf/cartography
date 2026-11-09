@@ -4,12 +4,16 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.github.supply_chain
+from tests.data.github.dockerfiles import DEMO_ORG_REPOS
 from tests.data.github.dockerfiles import DOCKERFILE_CONTENT
 from tests.data.github.dockerfiles import DOCKERFILE_DEV_CONTENT
 from tests.data.github.dockerfiles import DOCKERFILE_PROD_CONTENT
 from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE
 from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE_DEV
 from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE_PROD
+from tests.data.github.dockerfiles import MULTI_ORG_REST_RESPONSES
+from tests.data.github.dockerfiles import PLATFORM_IMAGE_LAYER_HISTORY
+from tests.data.github.dockerfiles import PLATFORM_ORG_REPOS
 from tests.data.github.dockerfiles import SEARCH_DOCKERFILES_EMPTY_RESPONSE
 from tests.data.github.dockerfiles import SEARCH_DOCKERFILES_ORG_RESPONSE
 from tests.data.github.dockerfiles import TEST_REPOS
@@ -327,3 +331,75 @@ def test_get_file_content_handles_not_found(mock_rest_api):
 
     # Assert
     assert content is None
+
+
+def _route_rest_call(endpoint: str, token: str, base_url: str, params=None):
+    if endpoint == "/search/code":
+        org_filter = params["q"].split()[-1]
+        return MULTI_ORG_REST_RESPONSES[org_filter]
+    return MULTI_ORG_REST_RESPONSES[endpoint]
+
+
+@patch(
+    "cartography.intel.github.supply_chain.call_github_rest_api",
+    side_effect=_route_rest_call,
+)
+def test_sync_links_labeled_image_to_its_source_repo_across_orgs(
+    mock_rest_api, isolated_neo4j_session
+):
+    # Arrange: the platform image carries an OCI source label; the demo org
+    # syncs first and holds a stale Dockerfile link from an earlier run.
+    session = isolated_neo4j_session
+    session.run(
+        """
+        CREATE (:GitHubRepository {id: 'https://github.com/example-demos/node-starter'})
+        CREATE (:GitHubRepository {id: 'https://github.com/example-platform/api'})
+        CREATE (registry:ContainerRegistry {id: 'registry', uri: 'registry'})
+            -[:REPO_IMAGE]->(:ImageTag {id: 'registry/api:latest', tag: 'latest'})
+            -[:IMAGE]->(img:Image {
+                id: 'sha256:platform', digest: 'sha256:platform',
+                source_uri: 'https://github.com/example-platform/api',
+                layer_diff_ids: [i IN range(0, size($history) - 1) | 'sha256:layer-' + toString(i)]
+            })
+        WITH img
+        UNWIND range(0, size($history) - 1) AS i
+        CREATE (:ImageLayer {
+            id: 'sha256:layer-' + toString(i), diff_id: 'sha256:layer-' + toString(i),
+            history: $history[i], is_empty: false
+        })
+        WITH DISTINCT img
+        MATCH (demo:GitHubRepository {id: 'https://github.com/example-demos/node-starter'})
+        CREATE (img)-[:PACKAGED_FROM {
+            lastupdated: $stale_tag, match_method: 'dockerfile_analysis',
+            _sub_resource_label: 'GitHubOrganization', _sub_resource_id: 'example-demos'
+        }]->(demo)
+        """,
+        history=PLATFORM_IMAGE_LAYER_HISTORY,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    ).consume()
+
+    # Act
+    for organization, repos in (
+        ("example-demos", DEMO_ORG_REPOS),
+        ("example-platform", PLATFORM_ORG_REPOS),
+    ):
+        cartography.intel.github.supply_chain.sync(
+            session,
+            "test_token",
+            TEST_GITHUB_URL,
+            organization,
+            TEST_UPDATE_TAG,
+            TEST_JOB_PARAMS,
+            repos,
+        )
+
+    # Assert
+    links = session.run(
+        """
+        MATCH (:Image {id: 'sha256:platform'})-[rel:PACKAGED_FROM]->(repo:GitHubRepository)
+        RETURN repo.id AS repo, rel.match_method AS method
+        """
+    ).data()
+    assert links == [
+        {"repo": "https://github.com/example-platform/api", "method": "provenance"},
+    ]
