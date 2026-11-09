@@ -51,8 +51,9 @@ def get_unmatched_gitlab_container_images_with_history(
     Returns one image per container repository (preferring 'latest' tag, then most recent).
     Excludes images that already have a PACKAGED_FROM relationship created in the current
     sync iteration, any provenance PACKAGED_FROM, or a source_uri naming a repository in
-    the graph. Images whose only links are stale Dockerfile matches from previous iterations
-    are included so they can be re-matched before cleanup removes them.
+    the graph. Images whose only links are stale Dockerfile matches from this organization
+    are included so they can be re-matched before cleanup removes them; images another
+    GitLab organization already claimed are excluded.
 
     :param neo4j_session: Neo4j session
     :param organization_id: The GitLab organization numeric ID used for scoping
