@@ -21,7 +21,8 @@ Container images are keyed by digest and layers by their uncompressed
 attestations, the OCI `org.opencontainers.image.source` and
 `org.opencontainers.image.revision` labels (or BuildKit's `vcs.source` and
 `vcs.revision`), and Dockerfile command analysis can link ontology `Image` nodes to the GitLab
-projects that packaged them. Attestations take precedence over labels. The source
+projects that packaged them. An attestation that names a project supplies the
+whole source (project, commit and file) and overrides the labels. The source
 is also projected to the ontology `Image` fields `_ont_source_uri` and
 `_ont_source_revision`.
 

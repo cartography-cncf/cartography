@@ -55,8 +55,9 @@ which enables deduplication even when registries use different compressed
 digests. SLSA provenance, the OCI `org.opencontainers.image.source` and
 `org.opencontainers.image.revision` labels (or BuildKit's `vcs.source` and
 `vcs.revision`), and Dockerfile analysis can link ontology `Image` nodes to
-the GitHub repositories and workflows that produced them. Attestations take
-precedence over labels, and the source is projected to the ontology `Image`
+the GitHub repositories and workflows that produced them. An attestation that
+names a repository supplies the whole source (repository, commit and workflow
+file) and overrides the labels. The source is projected to the ontology `Image`
 fields `_ont_source_uri` and `_ont_source_revision`. Workloads from
 other providers match GitHub container images by digest when their declarative
 schemas expose compatible matcher fields.

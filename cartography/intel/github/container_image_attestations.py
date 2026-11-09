@@ -22,12 +22,9 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.github.container_images import get_ghcr_enriched_attestations
-from cartography.client.github.container_images import get_ghcr_image_sources
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import rest_api_base_url
-from cartography.intel.supply_chain import digests_missing_source_details
-from cartography.intel.supply_chain import keep_image_source_details
 from cartography.models.github.container_image_attestations import (
     GitHubContainerImageAttestationSchema,
 )
@@ -263,13 +260,7 @@ def load_image_provenance(
     load(
         neo4j_session,
         GitHubContainerImageProvenanceSchema(),
-        keep_image_source_details(
-            rows,
-            get_ghcr_image_sources(
-                neo4j_session,
-                digests_missing_source_details(rows),
-            ),
-        ),
+        rows,
         lastupdated=update_tag,
         org_url=org_url,
     )

@@ -1064,41 +1064,6 @@ def image_config_label_provenance(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def digests_missing_source_details(
-    provenance_rows: list[dict[str, Any]],
-) -> list[str]:
-    return [
-        row["digest"]
-        for row in provenance_rows
-        if row.get("source_uri")
-        and not (row.get("source_revision") and row.get("source_file"))
-    ]
-
-
-def keep_image_source_details(
-    provenance_rows: list[dict[str, Any]],
-    image_sources: dict[str, dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """
-    Fill a provenance row's missing source_revision or source_file from the image when
-    the row names the source the image already holds, typically from its OCI labels.
-    A row naming a different source keeps its gaps: the image's details describe
-    another repository, often a base image.
-    """
-    filled = []
-    for row in provenance_rows:
-        image = image_sources.get(row["digest"])
-        if image and image["source_uri"] == row.get("source_uri"):
-            row = {
-                **row,
-                "source_revision": row.get("source_revision")
-                or image["source_revision"],
-                "source_file": row.get("source_file") or image["source_file"],
-            }
-        filled.append(row)
-    return filled
-
-
 def extract_provenance_from_oci_config(
     config: dict[str, Any],
 ) -> dict[str, str]:
