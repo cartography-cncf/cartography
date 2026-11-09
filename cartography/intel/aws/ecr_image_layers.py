@@ -129,6 +129,9 @@ CIRCLECI_LABEL_SOURCE_FILE = "DOCKERFILE"
 CODEBUILD_LABEL_SOURCE_URI = "CODEBUILD_SOURCE_REPO_URL"
 CODEBUILD_LABEL_SOURCE_REVISION = "CODEBUILD_RESOLVED_SOURCE_VERSION"
 ATTESTATION_PROVENANCE_FIELD = "_from_attestation"
+# Bump when the config-label provenance extraction learns a new source so images
+# whose layers were already ingested are fetched once more to read their labels.
+LABEL_PROVENANCE_VERSION = 1
 
 
 def _get_config_labels(config_json: dict[str, Any]) -> dict[str, Any]:
@@ -757,6 +760,7 @@ def transform_ecr_image_layers(
                             platform_values,
                         )
             membership["layer_diff_ids"] = ordered_layers_for_image
+            membership["label_provenance_version"] = LABEL_PROVENANCE_VERSION
 
             # Add provenance data if available for this image
             if image_uri in image_attestation_map:
@@ -1446,6 +1450,7 @@ def sync(
             img.invocation_uri AS invocation_uri,
             img.invocation_workflow AS invocation_workflow,
             img.invocation_run_number AS invocation_run_number,
+            img.label_provenance_version AS label_provenance_version,
             parent.digest AS parent_image_digest,
             built_from.parent_image_uri AS parent_image_uri,
             built_from.from_attestation AS from_attestation,
@@ -1487,6 +1492,9 @@ def sync(
                     "invocation_uri": img_data.get("invocation_uri"),
                     "invocation_workflow": img_data.get("invocation_workflow"),
                     "invocation_run_number": img_data.get("invocation_run_number"),
+                    "label_provenance_version": img_data.get(
+                        "label_provenance_version"
+                    ),
                     "parent_image_digest": img_data.get("parent_image_digest"),
                     "parent_image_uri": img_data.get("parent_image_uri"),
                     "from_attestation": img_data.get("from_attestation"),
@@ -1519,6 +1527,12 @@ def sync(
             (image["imageDigest"] for image in repo_images_list),
             {"id": current_aws_account_id},
         )
+        complete_digests = {
+            digest
+            for digest in complete_digests
+            if (existing_properties[digest].get("label_provenance_version") or 0)
+            >= LABEL_PROVENANCE_VERSION
+        }
         repo_images_list, skipped_images = partition_layer_fetches(
             repo_images_list,
             complete_digests,

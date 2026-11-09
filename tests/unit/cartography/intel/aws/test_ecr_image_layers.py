@@ -1009,6 +1009,7 @@ def test_transform_ecr_image_layers_marks_source_only_attestation_provenance():
             "layer_diff_ids": [
                 "sha256:1111111111111111111111111111111111111111111111111111111111111111"
             ],
+            "label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION,
             "source_uri": "https://github.com/exampleorg/service",
             "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
             "from_attestation": True,
