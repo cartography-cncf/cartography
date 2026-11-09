@@ -160,9 +160,10 @@ and `org.opencontainers.image.revision` (and BuildKit's `vcs.source` and
 `vcs.revision`) from the image config. The GitHub and GitLab supply-chain syncs
 then create `PACKAGED_FROM` with `match_method` `provenance`. SLSA provenance
 attestations and CI labels take precedence when they are present. Images
-inherit labels from their base image, so set the source label on every build
-(for example with `docker/metadata-action`); otherwise an application image built
-from an in-house base image is linked to the base image's repository.
+inherit labels from their base image, so set the source and revision labels on
+every build (for example with `docker/metadata-action`); otherwise an application
+image built from an in-house base image is linked to the base image's repository
+and commit.
 
 ```bash
 docker build \
