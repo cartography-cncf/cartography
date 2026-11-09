@@ -64,8 +64,9 @@ label) names a synced repository is linked with `match_method` `provenance`.
 Dockerfile analysis is a fallback for images without known provenance. It compares
 the image's layer history with each Dockerfile's final stage and needs at least two
 similar commands, so a final stage with a single `COPY` does not match on its own.
-An image whose best match ties across repositories stays unlinked. Set the OCI
-source label on images built from short Dockerfiles.
+When the best match ties across repositories, Dockerfile analysis creates no link;
+a GHCR image can still be linked to the single repository that owns its package.
+Set the OCI source label on images built from short Dockerfiles.
 
 ## Compatibility model
 
