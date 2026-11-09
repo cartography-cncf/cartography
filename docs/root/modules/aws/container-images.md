@@ -153,6 +153,21 @@ LIMIT 1
 Layer-prefix inference is a heuristic. Restrict the candidate repository and
 prefer explicit provenance when available.
 
+### Build provenance from OCI labels
+
+The ECR layer sync reads the standard OCI labels `org.opencontainers.image.source`
+and `org.opencontainers.image.revision` (and BuildKit's `vcs.source` and
+`vcs.revision`) from the image config. The GitHub and GitLab supply-chain syncs
+then create `PACKAGED_FROM` with `match_method` `provenance`. SLSA provenance
+attestations and CI labels take precedence when they are present.
+
+```bash
+docker build \
+  --label org.opencontainers.image.source="https://github.com/example-org/service" \
+  --label org.opencontainers.image.revision="$(git rev-parse HEAD)" \
+  -t "$REPOSITORY_URI:$IMAGE_TAG" .
+```
+
 ### Build provenance from CodeBuild
 
 CodeBuild does not write provenance onto the images it builds: no attestations,

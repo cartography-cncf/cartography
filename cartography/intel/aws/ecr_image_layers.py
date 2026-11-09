@@ -30,6 +30,7 @@ from cartography.intel.container_image_layers import partition_layer_fetches
 from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
+from cartography.intel.supply_chain import extract_provenance_from_oci_config
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 from cartography.models.aws.ecr.image import ECRImageHasLayerRelSchema
 from cartography.models.aws.ecr.image import ECRImageLayerEnrichmentSchema
@@ -216,10 +217,12 @@ def _extract_codebuild_label_provenance(config_json: dict[str, Any]) -> dict[str
     )
 
 
-def _extract_ci_label_provenance(config_json: dict[str, Any]) -> dict[str, str]:
-    return _extract_circleci_label_provenance(
-        config_json
-    ) or _extract_codebuild_label_provenance(config_json)
+def _extract_config_label_provenance(config_json: dict[str, Any]) -> dict[str, str]:
+    return (
+        _extract_circleci_label_provenance(config_json)
+        or _extract_codebuild_label_provenance(config_json)
+        or extract_provenance_from_oci_config(config_json)
+    )
 
 
 def _mark_attestation_provenance(provenance: dict[str, Any]) -> dict[str, Any]:
@@ -598,7 +601,7 @@ async def _diff_ids_for_manifest(
     if not cfg_json:
         return {}, {}, {}
 
-    label_provenance = _extract_ci_label_provenance(cfg_json)
+    label_provenance = _extract_config_label_provenance(cfg_json)
 
     # Docker API uses inconsistent casing - check for known variations
     rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
