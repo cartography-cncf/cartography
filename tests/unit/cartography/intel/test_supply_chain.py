@@ -283,7 +283,24 @@ def test_match_images_to_dockerfiles_rejects_indistinct_matches(
     assert matches == []
 
 
-def test_match_images_to_dockerfiles_breaks_confidence_ties_on_similarity():
+@pytest.mark.parametrize(
+    ("web_dockerfile", "docs_dockerfile"),
+    [
+        (
+            "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /app\n",
+            "FROM node:20\nRUN npm ci\nRUN npm run build\nCOPY . /app\n",
+        ),
+        (
+            "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /app\n",
+            "FROM node:20\nRUN npm run build\nCOPY . /app\n",
+        ),
+    ],
+    ids=["higher-similarity", "more-matched-commands"],
+)
+def test_match_images_to_dockerfiles_breaks_confidence_ties(
+    web_dockerfile,
+    docs_dockerfile,
+):
     image = ContainerImage(
         digest="sha256:web",
         uri="registry.example.com/acme/web:latest",
@@ -297,22 +314,21 @@ def test_match_images_to_dockerfiles_breaks_confidence_ties_on_similarity():
         layer_history=[
             {"created_by": created_by, "empty_layer": False}
             for created_by in [
-                "RUN /bin/sh -c npm ci --omit=dev # buildkit",
-                "RUN /bin/sh -c npm run build # buildkit",
+                "RUN npm ci --omit=dev # buildkit",
+                "RUN npm run build # buildkit",
                 "COPY . /app # buildkit",
             ]
         ],
     )
-    # Both score in the same confidence bucket; web shares more of the history.
     dockerfiles = [
         {
             "path": "Dockerfile",
-            "content": "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /app\n",
+            "content": web_dockerfile,
             "source_repo_id": "https://github.com/acme/web",
         },
         {
             "path": "Dockerfile",
-            "content": "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /srv\n",
+            "content": docs_dockerfile,
             "source_repo_id": "https://github.com/acme/docs",
         },
     ]

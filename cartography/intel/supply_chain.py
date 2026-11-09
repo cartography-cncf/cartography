@@ -659,7 +659,8 @@ def match_images_to_dockerfiles(
             id(parsed): candidate_info
             for parsed, candidate_info in candidate_dockerfiles
         }
-        # Confidence is bucketed, so rank and detect ties on the raw similarity too.
+        # Confidence is bucketed, so rank and detect ties on raw similarity and on
+        # how many commands agree.
         df_matches = sorted(
             (
                 match
@@ -670,7 +671,11 @@ def match_images_to_dockerfiles(
                 )
                 if match.matched_commands >= MIN_DOCKERFILE_MATCHED_COMMANDS
             ),
-            key=lambda match: (-match.confidence, -match.command_similarity),
+            key=lambda match: (
+                -match.confidence,
+                -match.command_similarity,
+                -match.matched_commands,
+            ),
         )
         if not df_matches:
             logger.debug(
@@ -685,6 +690,7 @@ def match_images_to_dockerfiles(
             for match in df_matches
             if match.confidence == best_match.confidence
             and match.command_similarity == best_match.command_similarity
+            and match.matched_commands == best_match.matched_commands
         }
         if len(tied_repos) > 1:
             logger.debug(
