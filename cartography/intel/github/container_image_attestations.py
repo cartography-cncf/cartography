@@ -16,16 +16,17 @@ import binascii
 import json
 import logging
 from typing import Any
-from typing import cast
 from urllib.parse import quote
 
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import read_list_of_values_tx
+from cartography.client.github.container_images import get_ghcr_enriched_attestations
+from cartography.client.github.container_images import get_ghcr_image_sources
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import rest_api_base_url
+from cartography.intel.supply_chain import digests_missing_source_details
 from cartography.intel.supply_chain import keep_image_source_details
 from cartography.models.github.container_image_attestations import (
     GitHubContainerImageAttestationSchema,
@@ -47,28 +48,6 @@ def _digests_from_manifests(raw_manifests: list[dict[str, Any]]) -> list[str]:
             seen.add(digest)
             digests.append(digest)
     return digests
-
-
-def _digests_already_enriched(
-    neo4j_session: neo4j.Session,
-    org_url: str,
-) -> set[str]:
-    # The image must hold its attestation's source, not just any source_uri: an OCI
-    # label sets source_uri first, and a refetch of the image reloads it from labels.
-    # Either way the higher-priority attestation has to be read again.
-    query = """
-    MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(att:GitHubContainerImageAttestation)
-    WHERE att.source_uri IS NOT NULL
-    MATCH (org)-[:RESOURCE]->(img:GitHubContainerImage {digest: att.attests_digest})
-    WHERE img.source_uri = att.source_uri
-    RETURN DISTINCT att.attests_digest
-    """
-    values = neo4j_session.execute_read(
-        read_list_of_values_tx,
-        query,
-        org_url=org_url,
-    )
-    return {v for v in cast(list[str], values) if v}
 
 
 def _decode_dsse_payload(envelope: dict[str, Any]) -> dict[str, Any] | None:
@@ -284,36 +263,15 @@ def load_image_provenance(
     load(
         neo4j_session,
         GitHubContainerImageProvenanceSchema(),
-        keep_image_source_details(neo4j_session, "GitHubContainerImage", rows),
+        keep_image_source_details(
+            rows,
+            get_ghcr_image_sources(
+                neo4j_session,
+                digests_missing_source_details(rows),
+            ),
+        ),
         lastupdated=update_tag,
         org_url=org_url,
-    )
-
-
-def _refresh_skipped_attestation_lastupdated(
-    neo4j_session: neo4j.Session,
-    digests: set[str],
-    org_url: str,
-    update_tag: int,
-) -> None:
-    """
-    Bump ``lastupdated`` on attestations whose subject digest is still live in
-    GHCR but whose enrichment was short-circuited by the cross-run dedup.
-    Mirrors ``container_images._refresh_skipped_image_lastupdated``.
-    """
-    if not digests:
-        return
-    query = """
-    MATCH (org:GitHubOrganization {id: $org_url})-[r:RESOURCE]->(att:GitHubContainerImageAttestation)
-    WHERE att.attests_digest IN $digests
-    SET att.lastupdated = $update_tag,
-        r.lastupdated = $update_tag
-    """
-    neo4j_session.run(
-        query,
-        digests=list(digests),
-        org_url=org_url,
-        update_tag=update_tag,
     )
 
 
@@ -355,7 +313,8 @@ def sync_container_image_attestations(
             if d not in seen:
                 digests.append(d)
                 seen.add(d)
-    skip = _digests_already_enriched(neo4j_session, org_url)
+    enriched_attestations = get_ghcr_enriched_attestations(neo4j_session, org_url)
+    skip = {row["attests_digest"] for row in enriched_attestations}
 
     attestations_by_digest: dict[str, list[dict[str, Any]]] = {}
     observed_and_skipped: set[str] = set()
@@ -386,12 +345,15 @@ def sync_container_image_attestations(
     if provenance_rows:
         load_image_provenance(neo4j_session, provenance_rows, org_url, update_tag)
 
-    # Refresh lastupdated for digests we observed but whose attestations
-    # we skipped via cross-run dedup; otherwise cleanup reaps the still-live
-    # attestation nodes.
-    _refresh_skipped_attestation_lastupdated(
+    # Reload the stored attestations of digests skipped via cross-run dedup;
+    # otherwise cleanup reaps the still-live attestation nodes.
+    load_attestations(
         neo4j_session,
-        observed_and_skipped,
+        [
+            row
+            for row in enriched_attestations
+            if row["attests_digest"] in observed_and_skipped
+        ],
         org_url,
         update_tag,
     )

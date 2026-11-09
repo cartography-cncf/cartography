@@ -500,6 +500,14 @@ def test_sync_ghcr_idempotent_across_runs(
         "GitHubContainerImageAttestation",
         ["attests_digest"],
     ) == {(DIGEST_API_LATEST,)}
+    assert check_rels(
+        neo4j_session,
+        "GitHubContainerImageAttestation",
+        "attests_digest",
+        "GitHubContainerImage",
+        "digest",
+        "ATTESTS",
+    ) == {(DIGEST_API_LATEST, DIGEST_API_LATEST)}
 
     # Every surviving image's lastupdated must reflect the second run, not
     # the first — that is the bump the cross-run dedup must perform.

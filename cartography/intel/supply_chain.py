@@ -1064,10 +1064,20 @@ def image_config_label_provenance(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def keep_image_source_details(
-    neo4j_session: neo4j.Session,
-    image_label: str,
+def digests_missing_source_details(
     provenance_rows: list[dict[str, Any]],
+) -> list[str]:
+    return [
+        row["digest"]
+        for row in provenance_rows
+        if row.get("source_uri")
+        and not (row.get("source_revision") and row.get("source_file"))
+    ]
+
+
+def keep_image_source_details(
+    provenance_rows: list[dict[str, Any]],
+    image_sources: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
     Fill a provenance row's missing source_revision or source_file from the image when
@@ -1075,31 +1085,9 @@ def keep_image_source_details(
     A row naming a different source keeps its gaps: the image's details describe
     another repository, often a base image.
     """
-    digests = [
-        row["digest"]
-        for row in provenance_rows
-        if row.get("source_uri")
-        and not (row.get("source_revision") and row.get("source_file"))
-    ]
-    if not digests:
-        return provenance_rows
-    existing = {
-        record["digest"]: record
-        for record in neo4j_session.execute_read(
-            read_list_of_dicts_tx,
-            f"""
-            MATCH (img:{image_label})
-            WHERE img.digest IN $digests
-            RETURN img.digest AS digest, img.source_uri AS source_uri,
-                   img.source_revision AS source_revision,
-                   img.source_file AS source_file
-            """,
-            digests=digests,
-        )
-    }
     filled = []
     for row in provenance_rows:
-        image = existing.get(row.get("digest"))
+        image = image_sources.get(row["digest"])
         if image and image["source_uri"] == row.get("source_uri"):
             row = {
                 **row,

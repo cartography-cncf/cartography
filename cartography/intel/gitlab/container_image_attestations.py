@@ -15,10 +15,12 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.gitlab.container_images import get_gitlab_image_sources
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
+from cartography.intel.supply_chain import digests_missing_source_details
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import keep_image_source_details
@@ -405,13 +407,18 @@ def load_image_provenance(
     if not provenance_records:
         return
 
+    source_records = [
+        record for record in provenance_records if record.get("source_uri")
+    ]
     load(
         neo4j_session,
         GitLabContainerImageProvenanceSchema(),
         keep_image_source_details(
-            neo4j_session,
-            "GitLabContainerImage",
-            [record for record in provenance_records if record.get("source_uri")],
+            source_records,
+            get_gitlab_image_sources(
+                neo4j_session,
+                digests_missing_source_details(source_records),
+            ),
         ),
         lastupdated=update_tag,
     )
