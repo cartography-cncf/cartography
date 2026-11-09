@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_container_parent_image
@@ -161,6 +162,10 @@ def test_match_images_to_dockerfiles_scopes_by_scope_keys():
                 "created_by": "RUN apk add curl",
                 "empty_layer": False,
             },
+            {
+                "created_by": "COPY service /usr/local/bin/service # buildkit",
+                "empty_layer": False,
+            },
         ],
         scope_keys={"gitlab_project_id": "100"},
     )
@@ -168,13 +173,13 @@ def test_match_images_to_dockerfiles_scopes_by_scope_keys():
     dockerfiles = [
         {
             "path": "Dockerfile",
-            "content": "FROM alpine\nRUN apk add curl\n",
+            "content": "FROM alpine\nRUN apk add curl\nCOPY service /usr/local/bin/service\n",
             "scope_keys": {"gitlab_project_id": "100"},
             "source_repo_id": "https://gitlab.example.com/acme/service",
         },
         {
             "path": "Dockerfile",
-            "content": "FROM alpine\nRUN apk add curl\n",
+            "content": "FROM alpine\nRUN apk add curl\nCOPY service /usr/local/bin/service\n",
             "scope_keys": {"gitlab_project_id": "200"},
             "source_repo_id": "https://gitlab.example.com/acme/other-service",
         },
@@ -199,6 +204,10 @@ def test_match_images_to_dockerfiles_matches_copy_destination_patterns():
         os="linux",
         layer_history=[
             {
+                "created_by": "/bin/sh -c apk add --no-cache ca-certificates",
+                "empty_layer": False,
+            },
+            {
                 "created_by": "/bin/sh -c #(nop) COPY file:abcd1234 in /usr/local/bin/",
                 "empty_layer": False,
             },
@@ -208,7 +217,7 @@ def test_match_images_to_dockerfiles_matches_copy_destination_patterns():
     dockerfiles = [
         {
             "path": "Dockerfile",
-            "content": "FROM alpine\nCOPY ./bin/service /usr/local/bin/\n",
+            "content": "FROM alpine\nRUN apk add --no-cache ca-certificates\nCOPY ./bin/service /usr/local/bin/\n",
             "source_repo_id": "https://gitlab.example.com/acme/service",
         },
     ]
@@ -217,6 +226,118 @@ def test_match_images_to_dockerfiles_matches_copy_destination_patterns():
 
     assert len(matches) == 1
     assert matches[0].source_repo_id == "https://gitlab.example.com/acme/service"
+
+
+@pytest.mark.parametrize(
+    ("layer_history", "dockerfiles"),
+    [
+        (
+            ["COPY . /app # buildkit"],
+            [("FROM node:20-slim\nCOPY . /app\n", "https://github.com/acme/web")],
+        ),
+        (
+            ["RUN /bin/sh -c npm ci # buildkit", "COPY . /app # buildkit"],
+            [
+                (
+                    "FROM node:20\nRUN npm ci\nCOPY . /app\n",
+                    "https://github.com/acme/web",
+                ),
+                (
+                    "FROM node:20\nRUN npm ci\nCOPY . /app\n",
+                    "https://github.com/acme/docs",
+                ),
+            ],
+        ),
+    ],
+    ids=["single-generic-command", "tied-across-repositories"],
+)
+def test_match_images_to_dockerfiles_rejects_indistinct_matches(
+    layer_history,
+    dockerfiles,
+):
+    image = ContainerImage(
+        digest="sha256:indistinct",
+        uri="registry.example.com/acme/web:latest",
+        registry_id="registry.example.com/acme/web",
+        display_name="registry.example.com/acme/web",
+        tag="latest",
+        layer_diff_ids=[f"sha256:layer{i}" for i in range(len(layer_history))],
+        image_type="image",
+        architecture="amd64",
+        os="linux",
+        layer_history=[
+            {"created_by": created_by, "empty_layer": False}
+            for created_by in layer_history
+        ],
+    )
+
+    matches = match_images_to_dockerfiles(
+        [image],
+        [
+            {"path": "Dockerfile", "content": content, "source_repo_id": repo}
+            for content, repo in dockerfiles
+        ],
+        min_confidence=0.5,
+    )
+
+    assert matches == []
+
+
+@pytest.mark.parametrize(
+    ("web_dockerfile", "docs_dockerfile"),
+    [
+        (
+            "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /app\n",
+            "FROM node:20\nRUN npm ci\nRUN npm run build\nCOPY . /app\n",
+        ),
+        (
+            "FROM node:20\nRUN npm ci --omit=dev\nRUN npm run build\nCOPY . /app\n",
+            "FROM node:20\nRUN npm run build\nCOPY . /app\n",
+        ),
+    ],
+    ids=["higher-similarity", "more-matched-commands"],
+)
+def test_match_images_to_dockerfiles_breaks_confidence_ties(
+    web_dockerfile,
+    docs_dockerfile,
+):
+    image = ContainerImage(
+        digest="sha256:web",
+        uri="registry.example.com/acme/web:latest",
+        registry_id="registry.example.com/acme/web",
+        display_name="registry.example.com/acme/web",
+        tag="latest",
+        layer_diff_ids=["sha256:layer0", "sha256:layer1", "sha256:layer2"],
+        image_type="image",
+        architecture="amd64",
+        os="linux",
+        layer_history=[
+            {"created_by": created_by, "empty_layer": False}
+            for created_by in [
+                "RUN npm ci --omit=dev # buildkit",
+                "RUN npm run build # buildkit",
+                "COPY . /app # buildkit",
+            ]
+        ],
+    )
+    dockerfiles = [
+        {
+            "path": "Dockerfile",
+            "content": web_dockerfile,
+            "source_repo_id": "https://github.com/acme/web",
+        },
+        {
+            "path": "Dockerfile",
+            "content": docs_dockerfile,
+            "source_repo_id": "https://github.com/acme/docs",
+        },
+    ]
+
+    matches = match_images_to_dockerfiles([image], dockerfiles, min_confidence=0.5)
+
+    assert [match.source_repo_id for match in matches] == [
+        "https://github.com/acme/web"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -237,7 +358,7 @@ def test_unmatched_image_helpers_limit_before_layer_history_expansion(
     stable_order,
 ):
     neo4j_session = MagicMock()
-    neo4j_session.run.return_value = []
+    neo4j_session.execute_read.return_value = []
 
     helper(
         neo4j_session,
@@ -247,7 +368,8 @@ def test_unmatched_image_helpers_limit_before_layer_history_expansion(
         limit=10,
     )
 
-    query = neo4j_session.run.call_args.args[0]
+    tx_func, query = neo4j_session.execute_read.call_args.args[:2]
+    assert tx_func is read_list_of_dicts_tx
     assert (
         query.index(stable_order)
         < query.index("LIMIT 10")

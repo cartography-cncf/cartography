@@ -12,7 +12,7 @@ def test_framework_helpers_preserve_framework_metadata():
     helpers = [
         (
             cis_aws("4.1"),
-            "cis aws foundations benchmark",
+            "CIS AWS Foundations Benchmark",
             "cis",
             "aws",
             "6.0.0",
@@ -21,7 +21,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             cis_gcp("3.1"),
-            "cis gcp foundations benchmark",
+            "CIS GCP Foundations Benchmark",
             "cis",
             "gcp",
             "4.0",
@@ -30,7 +30,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             cis_kubernetes("5.1.1"),
-            "cis kubernetes benchmark",
+            "CIS Kubernetes Benchmark",
             "cis",
             "kubernetes",
             "1.12",
@@ -39,7 +39,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             cis_google_workspace("4.1.1.3"),
-            "cis google workspace foundations benchmark",
+            "CIS Google Workspace Foundations Benchmark",
             "cis",
             "googleworkspace",
             "1.3",
@@ -48,7 +48,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             iso27001_annex_a("8.15"),
-            "iso/iec 27001:2022 annex a",
+            "ISO/IEC 27001:2022 Annex A",
             "iso",
             "27001",
             "2022",
@@ -57,7 +57,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             nist_ai_rmf("MAP 1"),
-            "nist ai risk management framework",
+            "NIST AI Risk Management Framework",
             "nist",
             "ai-rmf",
             "1.0",
@@ -66,7 +66,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             soc2_tsc("CC6.6"),
-            "soc 2: trust services criteria",
+            "SOC 2: Trust Services Criteria",
             "soc2",
             "tsc",
             "2022",
@@ -76,7 +76,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             stig_okta("V-273188"),
-            "disa okta identity as a service (idaas) stig",
+            "DISA Okta Identity as a Service (IDaaS) STIG",
             "stig",
             "okta",
             "v1r2",

@@ -57,6 +57,18 @@ to the GitHub repositories and workflows that produced them. Workloads from
 other providers match GitHub container images by digest when their declarative
 schemas expose compatible matcher fields.
 
+## Image to repository matching
+
+An image whose provenance (SLSA attestation or an `org.opencontainers.image.source`
+label) names a synced repository is linked with `match_method` `provenance`.
+Dockerfile analysis is a fallback for images without known provenance. It compares
+the image's layer history with each Dockerfile's final stage and needs at least two
+similar commands, so a final stage with a single `COPY` does not match on its own.
+When the best match ties across repositories, Dockerfile analysis creates no link;
+a GHCR image can still be linked to the single repository that owns its package.
+Set the OCI source and revision labels on every build, especially for images built
+from short Dockerfiles.
+
 ## Compatibility model
 
 The legacy `DependencyGraphManifest` label remains alongside

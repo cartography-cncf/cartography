@@ -76,8 +76,13 @@ def test_extract_provenance_from_oci_config_reads_labels():
     assert provenance["source_revision"] == "deadbeef"
 
 
-def test_extract_provenance_from_oci_config_no_labels_returns_empty():
-    assert extract_provenance_from_oci_config({"config": {}}) == {}
+@pytest.mark.parametrize(
+    "config",
+    [{"config": {}}, {"config": None}, {"config": {"Labels": None}}],
+    ids=["no-labels", "null-config", "null-labels"],
+)
+def test_extract_provenance_from_oci_config_no_labels_returns_empty(config):
+    assert extract_provenance_from_oci_config(config) == {}
 
 
 # ---------------------------------------------------------------------------
@@ -435,6 +440,22 @@ def test_build_layer_dicts_aligns_history_skipping_empty_layers():
 
     assert layers["sha256:a"]["history"] == "FROM scratch"
     assert layers["sha256:b"]["history"] == "RUN apt-get install foo"
+    assert layers["sha256:a"]["next_diff_ids"] == ["sha256:b"]
+    assert layers["sha256:b"]["next_diff_ids"] == []
+
+
+def test_build_layer_dicts_keeps_all_shared_layer_successors():
+    # Arrange
+    enrichments = [
+        {"layer_diff_ids": ["sha256:a", "sha256:b"]},
+        {"layer_diff_ids": ["sha256:a", "sha256:c"]},
+    ]
+
+    # Act
+    layers = {layer["diff_id"]: layer for layer in _build_layer_dicts(enrichments)}
+
+    # Assert
+    assert layers["sha256:a"]["next_diff_ids"] == ["sha256:b", "sha256:c"]
 
 
 def test_build_layer_dicts_creates_layer_when_history_truncated():
@@ -522,8 +543,18 @@ def patched_sync(monkeypatch):
         "from_matchlink",
         MagicMock(return_value=fake_job),
     )
-    monkeypatch.setattr(supply_chain, "load_image_provenance", MagicMock())
+    monkeypatch.setattr(
+        supply_chain,
+        "run_scoped_analysis_job",
+        MagicMock(side_effect=lambda name, session, params: cleanup_runs.append(name)),
+    )
+    monkeypatch.setattr(
+        supply_chain,
+        "load_image_provenance",
+        MagicMock(side_effect=lambda _session, updates, _project, _tag: updates),
+    )
     monkeypatch.setattr(supply_chain, "load_image_layers", MagicMock())
+    monkeypatch.setattr(supply_chain, "load_image_layer_relationships", MagicMock())
     monkeypatch.setattr(
         supply_chain,
         "get_complete_layer_digests",
@@ -625,6 +656,11 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
         "sha256:b",
     }
     assert layer_call_args[2:] == ("proj", 1)
+    supply_chain.load_image_layer_relationships.assert_called_once_with(
+        neo4j_session,
+        supply_chain.load_image_provenance.call_args.args[1],
+        1,
+    )
 
 
 def test_load_image_provenance_preserves_existing_values(monkeypatch):
@@ -712,6 +748,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
 def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch):
     load_nodes_without_relationships = MagicMock()
     load_matchlinks_with_progress = MagicMock()
+    load = MagicMock()
     monkeypatch.setattr(
         supply_chain,
         "load_nodes_without_relationships",
@@ -722,6 +759,7 @@ def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch)
         "load_matchlinks_with_progress",
         load_matchlinks_with_progress,
     )
+    monkeypatch.setattr(supply_chain, "load", load)
     neo4j_session = MagicMock()
     layers = [{"diff_id": "sha256:a", "history": "FROM scratch"}]
 
@@ -748,6 +786,34 @@ def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch)
     assert rel_call.kwargs["_sub_resource_id"] == "proj"
 
 
+def test_build_image_layer_relationship_dicts_skips_manifest_lists():
+    # Act
+    relationships = supply_chain._build_image_layer_relationship_dicts(
+        [
+            {
+                "digest": "sha256:image",
+                "type": "image",
+                "layer_diff_ids": ["sha256:a", "sha256:b"],
+            },
+            {
+                "digest": "sha256:index",
+                "type": "manifest_list",
+                "layer_diff_ids": ["sha256:ignored"],
+            },
+        ],
+    )
+
+    # Assert
+    assert relationships == [
+        {
+            "digest": "sha256:image",
+            "layer_diff_ids": ["sha256:a", "sha256:b"],
+            "head_layer_diff_id": "sha256:a",
+            "tail_layer_diff_id": "sha256:b",
+        },
+    ]
+
+
 def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
     set_enrichments, cleanup_runs = patched_sync
     set_enrichments(enrichments=[], fetch_failures=0)
@@ -762,7 +828,8 @@ def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
         cleanup_safe=True,
     )
 
-    assert len(cleanup_runs) == 3
+    assert "gcp_artifact_registry_orphan_image_layer_cleanup.json" in cleanup_runs
+    assert len(cleanup_runs) == 2
 
 
 def test_sync_skips_cleanup_when_fetch_failures(patched_sync):

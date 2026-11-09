@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.databricks._unity_catalog import load_visibility
 from cartography.intel.databricks.util import DatabricksWorkspaceClient
 from cartography.intel.databricks.util import epoch_ms_to_datetime
 from cartography.intel.databricks.util import skip_or_raise_http
@@ -21,6 +22,7 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
     workspace_id: str,
+    metastore_id: str,
     catalogs: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -31,6 +33,7 @@ def sync(
         neo4j_session,
         transformed,
         workspace_id,
+        metastore_id,
         common_job_parameters["UPDATE_TAG"],
     )
     return schemas
@@ -100,6 +103,7 @@ def load_schemas(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     workspace_id: str,
+    metastore_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -107,8 +111,9 @@ def load_schemas(
         DatabricksSchemaSchema(),
         data,
         lastupdated=update_tag,
-        WORKSPACE_ID=workspace_id,
+        METASTORE_ID=metastore_id,
     )
+    load_visibility(neo4j_session, data, workspace_id, update_tag)
 
 
 @timeit

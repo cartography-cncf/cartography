@@ -8,13 +8,16 @@ To link findings to repositories, ingest the corresponding GitHub or GitLab modu
 
 ## Authentication
 
-For Semgrep Cloud, create a token by following the [SEMGREP_APP_TOKEN guide](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/#creating-a-semgrep_app_token). Store the token in an environment variable.
+For Semgrep Cloud, create an API token by following the [Semgrep access tokens guide](https://docs.semgrep.dev/deployment/tokens#create-an-api-token). Store the token in an environment variable.
 
 Semgrep OSS report ingestion does not require Semgrep API credentials.
 
 ## Required Permissions
 
-The Semgrep Cloud token requires the **Agent (CI)** and **Web API** scopes.
+The Semgrep Cloud token requires the **Web API** scope. Semgrep token scopes are mutually exclusive:
+
+- **Agent (CI)**, the default, cannot call the Web API. The sync fails with `404 Not Found` on `/api/v1/deployments`.
+- **Read-only** can read deployments, dependencies, and SAST and SCA findings, but gets `404 Not Found` on Secrets findings, so the Secrets sync is skipped.
 
 ## Configure Cartography
 

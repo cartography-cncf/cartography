@@ -314,16 +314,18 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "GCPInstance",
-        ["id", "instancename", "zone_name", "project_id"],
+        ["id", "instance_id", "instancename", "zone_name", "project_id"],
     ) == {
         (
             "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "1234",
             "instance-1",
             "europe-west2-b",
             "project-abc",
         ),
         (
             "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "2345",
             "instance-1-test",
             "europe-west2-b",
             "project-abc",

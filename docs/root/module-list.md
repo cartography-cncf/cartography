@@ -34,6 +34,7 @@ modules/jumpcloud/index
 modules/kandji/index
 modules/keycloak/index
 modules/kubernetes/index
+modules/langsmith/index
 modules/lastpass/index
 modules/microsoft/index
 modules/miradore/index
@@ -45,6 +46,7 @@ modules/okta/index
 modules/ontology/index
 modules/openai/index
 modules/orca/index
+modules/opsgenie/index
 modules/pagerduty/index
 modules/railway/index
 modules/salesforce/index

@@ -23,7 +23,7 @@ def test_framework_normalizes_to_lowercase():
         revision="5.0",
         control_title="Access Keys Not Rotated",
     )
-    assert fw.name == "cis aws foundations benchmark"
+    assert fw.name == "CIS AWS Foundations Benchmark"
     assert fw.short_name == "cis"
     assert fw.scope == "aws"
     assert fw.revision == "5.0"

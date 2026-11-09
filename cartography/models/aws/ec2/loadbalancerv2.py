@@ -188,6 +188,7 @@ class LoadBalancerV2NodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port.",
     )  # Populated by AWS_EC2_ASSET_EXPOSURE_JOBS.

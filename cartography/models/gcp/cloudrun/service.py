@@ -28,6 +28,11 @@ class GCPCloudRunServiceProperties(CartographyNodeProperties):
     uri: PropertyRef = PropertyRef(
         "uri", description="Default URL serving the service."
     )
+    uri_hostname: PropertyRef = PropertyRef(
+        "uri_hostname",
+        extra_index=True,
+        description="Canonical hostname extracted from the default service URL.",
+    )
     latest_ready_revision: PropertyRef = PropertyRef(
         "latest_ready_revision",
         description="Full resource name of the latest ready revision for this service.",
@@ -45,11 +50,13 @@ class GCPCloudRunServiceProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when `ingress` is `INGRESS_TRAFFIC_ALL`. `False` when ingress is internal-only or none.",
     )  # Populated by the GCP_COMPUTE_CLOUDRUN_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How it is exposed. Always `direct`.",
     )  # Populated by the GCP_COMPUTE_CLOUDRUN_EXPOSURE analysis job.

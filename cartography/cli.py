@@ -65,6 +65,7 @@ PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
 PANEL_JIRA = "Jira Options"
+PANEL_OPSGENIE = "Opsgenie Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
 PANEL_DUO = "Duo Options"
@@ -76,6 +77,7 @@ PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
+PANEL_LANGSMITH = "LangSmith Options"
 PANEL_DATABRICKS = "Databricks Options"
 PANEL_BBOT = "BBOT Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
@@ -136,6 +138,7 @@ MODULE_PANELS = {
     "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
     "zoom": PANEL_ZOOM,
+    "opsgenie": PANEL_OPSGENIE,
     "jumpcloud": PANEL_JUMPCLOUD,
     "socketdev": PANEL_SOCKETDEV,
     "jira": PANEL_JIRA,
@@ -150,6 +153,7 @@ MODULE_PANELS = {
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
+    "langsmith": PANEL_LANGSMITH,
     "databricks": PANEL_DATABRICKS,
     "bbot": PANEL_BBOT,
     "docker_scout": PANEL_DOCKER_SCOUT,
@@ -692,6 +696,7 @@ class CLI:
                 typer.Option(
                     "--aws-tagging-api-cleanup-batch",
                     help="Batch size for Resource Groups Tagging API cleanup (AWSTag nodes). Default: 1000.",
+                    min=1,
                     rich_help_panel=PANEL_AWS,
                     hidden=PANEL_AWS not in visible_panels,
                 ),
@@ -783,6 +788,19 @@ class CLI:
                         "Environment variable name containing an Azure Resource "
                         "Manager access token, such as a signed-in user's "
                         "delegated token. Cannot be combined with --azure-sp-auth."
+                    ),
+                    rich_help_panel=PANEL_AZURE,
+                    hidden=PANEL_AZURE not in visible_panels,
+                ),
+            ] = None,
+            azure_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--azure-requested-syncs",
+                    help=(
+                        "Comma-separated list of Azure resources to sync. "
+                        'Example: "rbac,compute". See '
+                        "cartography.intel.azure.resources for full list."
                     ),
                     rich_help_panel=PANEL_AZURE,
                     hidden=PANEL_AZURE not in visible_panels,
@@ -997,6 +1015,66 @@ class CLI:
                     hidden=PANEL_OKTA not in visible_panels,
                 ),
             ] = None,
+            okta_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-client-id",
+                    help=(
+                        "Client ID of an Okta OAuth service app. Used with "
+                        "--okta-private-key-env-var instead of an API key."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-private-key-env-var",
+                    help=(
+                        "Environment variable name containing the Okta OAuth "
+                        "service app's private key, as a PEM string or a JWK."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_private_key_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-private-key-id",
+                    help=(
+                        "Key ID (kid) of the Okta OAuth service app's public key. "
+                        "Not needed when the private key is a JWK with a kid."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_scopes: Annotated[
+                str | None,
+                typer.Option(
+                    "--okta-scopes",
+                    help=(
+                        "Comma-separated OAuth scopes to request. Defaults to "
+                        "every read scope the Okta sync uses."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = None,
+            okta_disable_dpop: Annotated[
+                bool,
+                typer.Option(
+                    "--okta-disable-dpop",
+                    help=(
+                        "Do not send DPoP proofs when requesting Okta OAuth "
+                        "access tokens."
+                    ),
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = False,
             okta_base_domain: Annotated[
                 str,
                 typer.Option(
@@ -1262,11 +1340,38 @@ class CLI:
                     hidden=PANEL_KUBERNETES not in visible_panels,
                 ),
             ] = None,
+            gke_clusters: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--gke-cluster",
+                    help="GKE resource name (projects/PROJECT/locations/LOCATION/clusters/NAME). Repeat for multiple clusters. Uses Google ADC without kubeconfig.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
+            gke_endpoint: Annotated[
+                str,
+                typer.Option(
+                    "--gke-endpoint",
+                    help="GKE API endpoint: dns, private, or public. No automatic fallback.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = "dns",
+            gke_impersonate_service_account: Annotated[
+                str | None,
+                typer.Option(
+                    "--gke-impersonate-service-account",
+                    help="Service account email to impersonate for GKE discovery and Kubernetes reads.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
             managed_kubernetes: Annotated[
                 str | None,
                 typer.Option(
                     "--managed-kubernetes",
-                    help="Type of managed Kubernetes service (e.g., 'eks').",
+                    help="Type of managed Kubernetes service ('eks' or 'gke').",
                     rich_help_panel=PANEL_KUBERNETES,
                     hidden=PANEL_KUBERNETES not in visible_panels,
                 ),
@@ -1308,7 +1413,10 @@ class CLI:
                 list[str] | None,
                 typer.Option(
                     "--cve-metadata-src",
-                    help="CVE metadata sources to enable. Valid values: nvd, epss. All enabled by default.",
+                    help=(
+                        "CVE metadata sources to enable. Valid values: nvd, epss, kev, "
+                        "vulnrichment. All enabled by default."
+                    ),
                     rich_help_panel=PANEL_CVE_METADATA,
                     hidden=PANEL_CVE_METADATA not in visible_panels,
                 ),
@@ -1347,6 +1455,37 @@ class CLI:
                     hidden=PANEL_PAGERDUTY not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Opsgenie Options
+            # =================================================================
+            opsgenie_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--opsgenie-api-key-env-var",
+                    help="Environment variable name containing the Opsgenie API key.",
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = None,
+            opsgenie_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--opsgenie-api-url",
+                    help="Opsgenie API base URL.",
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = "https://api.opsgenie.com",
+            opsgenie_request_timeout: Annotated[
+                int,
+                typer.Option(
+                    "--opsgenie-request-timeout",
+                    help="Timeout in seconds for Opsgenie API requests.",
+                    min=1,
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = 60,
             # =================================================================
             # GSuite Options
             # =================================================================
@@ -1720,7 +1859,10 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--tailscale-org",
-                    help="Tailscale organization name to sync.",
+                    help=(
+                        "Tailnet ID to sync, such as T1234CNTRL. Tailnets created "
+                        "before Oct 2025 also accept their legacy ID, such as example.com."
+                    ),
                     rich_help_panel=PANEL_TAILSCALE,
                     hidden=PANEL_TAILSCALE not in visible_panels,
                 ),
@@ -1893,6 +2035,48 @@ class CLI:
                 ),
             ] = "https://api.airbyte.com/v1",
             # =================================================================
+            # LangSmith Options
+            # =================================================================
+            langsmith_pat_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--langsmith-pat-env-var",
+                    help="Environment variable name containing a LangSmith personal access token.",
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = None,
+            langsmith_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--langsmith-api-url",
+                    help="LangSmith control plane base URL.",
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = "https://api.smith.langchain.com",
+            langsmith_host_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--langsmith-host-api-url",
+                    help="LangGraph Platform (api-host) base URL.",
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = "https://api.host.langchain.com",
+            langsmith_org_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--langsmith-org-id",
+                    help=(
+                        "Restrict the LangSmith sync to a single organization UUID. "
+                        "Omit to sync every organization the token can see."
+                    ),
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Databricks Options
             # =================================================================
             databricks_workspace_url: Annotated[
@@ -1927,6 +2111,33 @@ class CLI:
                 typer.Option(
                     "--databricks-client-secret-env-var",
                     help="Environment variable name containing the Databricks OAuth M2M client secret.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-tenant-id",
+                    help="Microsoft Entra ID tenant ID of the service principal for an Azure Databricks workspace.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-client-id",
+                    help="Microsoft Entra ID service principal client ID for an Azure Databricks workspace.",
+                    rich_help_panel=PANEL_DATABRICKS,
+                    hidden=PANEL_DATABRICKS not in visible_panels,
+                ),
+            ] = None,
+            databricks_azure_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--databricks-azure-client-secret-env-var",
+                    help="Environment variable name containing the Microsoft Entra ID service principal client secret.",
                     rich_help_panel=PANEL_DATABRICKS,
                     hidden=PANEL_DATABRICKS not in visible_panels,
                 ),
@@ -3047,6 +3258,14 @@ class CLI:
 
                 parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
 
+            # Validate Azure options
+            if azure_requested_syncs:
+                from cartography.intel.azure.util.common import (
+                    parse_and_validate_azure_requested_syncs,
+                )
+
+                parse_and_validate_azure_requested_syncs(azure_requested_syncs)
+
             # Validate Microsoft options
             if microsoft_requested_syncs:
                 from cartography.intel.microsoft.util import (
@@ -3119,6 +3338,21 @@ class CLI:
                     okta_api_key_env_var,
                 )
                 okta_api_key = os.environ.get(okta_api_key_env_var)
+            okta_private_key = None
+            if bool(okta_client_id) != bool(okta_private_key_env_var):
+                raise typer.BadParameter(
+                    "--okta-client-id and --okta-private-key-env-var must be set "
+                    "together.",
+                )
+            if okta_client_id and not okta_org_id:
+                raise typer.BadParameter(
+                    "--okta-client-id requires --okta-org-id.",
+                )
+            if okta_private_key_env_var:
+                okta_private_key = _read_access_token_env_var(
+                    "Okta",
+                    okta_private_key_env_var,
+                )
 
             # Read GitHub config
             github_config = None
@@ -3249,6 +3483,14 @@ class CLI:
                     pagerduty_api_key_env_var,
                 )
                 pagerduty_api_key = os.environ.get(pagerduty_api_key_env_var)
+
+            opsgenie_api_key = None
+            if opsgenie_api_key_env_var:
+                logger.debug(
+                    "Reading API key for Opsgenie from environment variable %s",
+                    opsgenie_api_key_env_var,
+                )
+                opsgenie_api_key = os.environ.get(opsgenie_api_key_env_var)
 
             # Read CrowdStrike credentials
             crowdstrike_client_id = None
@@ -3565,6 +3807,15 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
+            # Read LangSmith personal access token
+            langsmith_pat = None
+            if langsmith_pat_env_var:
+                logger.debug(
+                    "Reading LangSmith personal access token from environment variable %s",
+                    langsmith_pat_env_var,
+                )
+                langsmith_pat = os.environ.get(langsmith_pat_env_var)
+
             # Read Databricks credentials
             databricks_token = None
             if databricks_token_env_var:
@@ -3585,6 +3836,15 @@ class CLI:
                 )
                 databricks_client_secret = os.environ.get(
                     databricks_client_secret_env_var,
+                )
+            databricks_azure_client_secret = None
+            if databricks_azure_client_secret_env_var:
+                logger.debug(
+                    "Reading Databricks Entra ID client secret from environment variable %s",
+                    databricks_azure_client_secret_env_var,
+                )
+                databricks_azure_client_secret = os.environ.get(
+                    databricks_azure_client_secret_env_var,
                 )
             databricks_account_client_secret = None
             if databricks_account_client_secret_env_var:
@@ -3849,6 +4109,11 @@ class CLI:
                 )
                 workos_api_key = os.environ.get(workos_apikey_env_var)
 
+            if gke_endpoint not in ("dns", "private", "public"):
+                raise typer.BadParameter(
+                    "--gke-endpoint must be one of: dns, private, public."
+                )
+
             # Build the Config object
             config = Config(
                 neo4j_uri=neo4j_uri,
@@ -3874,6 +4139,7 @@ class CLI:
                 azure_client_secret=azure_client_secret,
                 azure_access_token=azure_access_token,
                 azure_subscription_id=azure_subscription_id,
+                azure_requested_syncs=azure_requested_syncs,
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
@@ -3886,6 +4152,11 @@ class CLI:
                 oci_sync_all_profiles=oci_sync_all_profiles,
                 okta_org_id=okta_org_id,
                 okta_api_key=okta_api_key,
+                okta_client_id=okta_client_id,
+                okta_private_key=okta_private_key,
+                okta_private_key_id=okta_private_key_id,
+                okta_scopes=okta_scopes,
+                okta_dpop_enabled=not okta_disable_dpop,
                 okta_base_domain=okta_base_domain,
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
@@ -3921,12 +4192,18 @@ class CLI:
                 huntress_api_secret=huntress_api_secret,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
+                gke_clusters=gke_clusters,
+                gke_endpoint=gke_endpoint,
+                gke_impersonate_service_account=gke_impersonate_service_account,
                 statsd_enabled=statsd_enabled,
                 statsd_prefix=statsd_prefix,
                 statsd_host=statsd_host,
                 statsd_port=statsd_port,
                 pagerduty_api_key=pagerduty_api_key,
                 pagerduty_request_timeout=pagerduty_request_timeout,
+                opsgenie_api_key=opsgenie_api_key,
+                opsgenie_api_url=opsgenie_api_url,
+                opsgenie_request_timeout=opsgenie_request_timeout,
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
@@ -4014,6 +4291,10 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                langsmith_pat=langsmith_pat,
+                langsmith_api_url=langsmith_api_url,
+                langsmith_host_api_url=langsmith_host_api_url,
+                langsmith_org_id=langsmith_org_id,
                 databricks_workspace_url=databricks_workspace_url,
                 databricks_token=databricks_token,
                 databricks_client_id=databricks_client_id,
@@ -4022,6 +4303,9 @@ class CLI:
                 databricks_account_host=databricks_account_host,
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
+                databricks_azure_tenant_id=databricks_azure_tenant_id,
+                databricks_azure_client_id=databricks_azure_client_id,
+                databricks_azure_client_secret=databricks_azure_client_secret,
                 bbot_source=bbot_source,
                 zendesk_subdomain=zendesk_subdomain,
                 zendesk_oauth_token=zendesk_oauth_token,

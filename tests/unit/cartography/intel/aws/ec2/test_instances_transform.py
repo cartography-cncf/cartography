@@ -1,4 +1,9 @@
+from copy import deepcopy
+
+import pytest
+
 from cartography.intel.aws.ec2.instances import transform_ec2_instances
+from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.data.aws.ec2.instances import INSTANCE_WITH_IAM_PROFILE
 from tests.data.aws.ec2.instances_missing_private_ip import (
     DESCRIBE_INSTANCES_MISSING_PRIVATE_IP,
@@ -6,6 +11,131 @@ from tests.data.aws.ec2.instances_missing_private_ip import (
 
 FAKE_REGION = "us-east-1"
 FAKE_ACCOUNT_ID = "123456789012"
+
+
+@pytest.mark.parametrize(
+    "overrides,eligible,reason",
+    [
+        pytest.param({}, True, None, id="running-linux-ebs"),
+        pytest.param({"Architecture": "arm64"}, True, None, id="arm-linux"),
+        pytest.param(
+            {"State": {"Name": "stopped"}},
+            False,
+            "instance is not running",
+            id="stopped",
+        ),
+        pytest.param(
+            {"State": {}}, False, "instance is not running", id="missing-state"
+        ),
+        pytest.param(
+            {"Platform": "windows"}, False, "non-Linux platform", id="windows"
+        ),
+        pytest.param(
+            {"Architecture": "x86_64_mac"},
+            False,
+            "macOS is not supported",
+            id="intel-mac",
+        ),
+        pytest.param(
+            {"Architecture": "arm64_mac"},
+            False,
+            "macOS is not supported",
+            id="arm-mac",
+        ),
+        pytest.param(
+            {"RootDeviceType": "instance-store"},
+            False,
+            "root device is not EBS",
+            id="instance-store",
+        ),
+        pytest.param(
+            {"RootDeviceName": None},
+            False,
+            "root EBS volume is missing",
+            id="missing-root-device",
+        ),
+        pytest.param(
+            {"BlockDeviceMappings": []},
+            False,
+            "root EBS volume is missing",
+            id="missing-root-volume",
+        ),
+        pytest.param(
+            {"RootDeviceName": "/dev/another-device"},
+            False,
+            "root EBS volume is missing",
+            id="only-data-volume-matches",
+        ),
+        *[
+            pytest.param(
+                {"Tags": [{"Key": key, "Value": "cluster"}]},
+                False,
+                "Kubernetes nodes are excluded",
+                id=key,
+            )
+            for key in (
+                "eks:cluster-name",
+                "alpha.eksctl.io/cluster-name",
+                "kubernetes.io/cluster/cluster",
+            )
+        ],
+    ],
+)
+def test_transform_ec2_filesystem_snapshot_eligibility(
+    overrides, eligible, reason, caplog
+):
+    # Arrange
+    reservations = deepcopy(DESCRIBE_INSTANCES["Reservations"][:1])
+    reservations[0]["Instances"][0].update(overrides)
+    caplog.set_level("DEBUG", logger="cartography.intel.aws.ec2.instances")
+
+    # Act
+    data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
+
+    # Assert
+    assert data.filesystem_snapshot_list == (
+        [
+            {
+                "id": "aws:ec2:i-01:rootfs",
+                "instance_id": "i-01",
+                "volume_id": "vol-0df",
+                "kind": "rootfs",
+            }
+        ]
+        if eligible
+        else []
+    )
+    assert data.instance_list[0]["InstanceId"] == "i-01"
+    if reason:
+        assert f"Skipping EC2 filesystem target for i-01: {reason}" in caplog.text
+
+
+@pytest.mark.parametrize("root_first", [True, False])
+def test_transform_ec2_filesystem_snapshot_selects_root_volume(root_first):
+    # Arrange
+    reservations = deepcopy(DESCRIBE_INSTANCES["Reservations"][:1])
+    mappings = reservations[0]["Instances"][0]["BlockDeviceMappings"]
+    mappings.append(
+        {
+            "DeviceName": "/dev/sdf",
+            "Ebs": {"VolumeId": "vol-data", "DeleteOnTermination": False},
+        }
+    )
+    if not root_first:
+        mappings.reverse()
+
+    # Act
+    data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
+
+    # Assert
+    assert data.filesystem_snapshot_list == [
+        {
+            "id": "aws:ec2:i-01:rootfs",
+            "instance_id": "i-01",
+            "volume_id": "vol-0df",
+            "kind": "rootfs",
+        }
+    ]
 
 
 def _make_reservation(instance_id, network_interfaces, block_device_mappings=None):

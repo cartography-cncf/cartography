@@ -72,6 +72,7 @@ PropertyRef("field_name")                          # Value from data dict
 PropertyRef("KWARG_NAME", set_in_kwargs=True)      # Value from load() kwargs
 PropertyRef("field", extra_index=True)             # Create database index
 PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
+PropertyRef("exposed_internet", set_by_analysis=True)  # Owned by an analysis job; load() never writes it
 ```
 
 **Debugging Tips:**

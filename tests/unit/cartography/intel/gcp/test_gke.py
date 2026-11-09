@@ -6,6 +6,7 @@ import pytest
 from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.gke import get_gke_clusters
+from cartography.intel.gcp.gke import sync_gke_clusters
 
 
 def _make_http_error(status: int) -> HttpError:
@@ -79,3 +80,36 @@ class TestGetGkeClustersCurrentStateSemantics:
         ):
             with pytest.raises(HttpError):
                 get_gke_clusters(mock_container, "test-project")
+
+
+@patch("cartography.intel.gcp.gke.cleanup_gke_clusters")
+@patch("cartography.intel.gcp.gke.sync_labels")
+@patch("cartography.intel.gcp.gke.load")
+def test_sync_skips_labels_and_cleanup_when_zones_are_missing(
+    mock_load, mock_sync_labels, mock_cleanup
+):
+    # Arrange
+    container = MagicMock()
+    container.projects.return_value.zones.return_value.clusters.return_value.list.return_value.execute.return_value = {
+        "clusters": [
+            {
+                "name": "example",
+                "selfLink": "https://container.googleapis.com/v1/projects/test-project/locations/us-central1/clusters/example",
+            },
+        ],
+        "missingZones": ["us-east1-b"],
+    }
+
+    # Act
+    sync_gke_clusters(
+        MagicMock(),
+        container,
+        "test-project",
+        1,
+        {"UPDATE_TAG": 1, "PROJECT_ID": "test-project"},
+    )
+
+    # Assert
+    mock_load.assert_called_once()
+    mock_sync_labels.assert_not_called()
+    mock_cleanup.assert_not_called()

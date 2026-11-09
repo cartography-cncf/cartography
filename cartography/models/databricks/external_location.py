@@ -76,23 +76,25 @@ class DatabricksExternalLocationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksExternalLocationToWorkspaceRelProperties(CartographyRelProperties):
+class DatabricksExternalLocationToMetastoreResourceRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksExternalLocation)
-class DatabricksExternalLocationToWorkspaceRel(CartographyRelSchema):
-    """A Databricks external location is a resource within a workspace."""
+# (:DatabricksMetastore)-[:RESOURCE]->(:DatabricksExternalLocation)
+class DatabricksExternalLocationToMetastoreResourceRel(CartographyRelSchema):
+    """A Databricks external location is a resource within a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
+    target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("METASTORE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DatabricksExternalLocationToWorkspaceRelProperties = (
-        DatabricksExternalLocationToWorkspaceRelProperties()
+    properties: DatabricksExternalLocationToMetastoreResourceRelProperties = (
+        DatabricksExternalLocationToMetastoreResourceRelProperties()
     )
 
 
@@ -193,8 +195,8 @@ class DatabricksExternalLocationSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [DATABRICKS_SECURABLE, OBJECT_STORAGE]
     )
-    sub_resource_relationship: DatabricksExternalLocationToWorkspaceRel = (
-        DatabricksExternalLocationToWorkspaceRel()
+    sub_resource_relationship: DatabricksExternalLocationToMetastoreResourceRel = (
+        DatabricksExternalLocationToMetastoreResourceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

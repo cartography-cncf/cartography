@@ -387,6 +387,7 @@ def test_supabase_database_tolerates_missing_posture(mock_get_posture, neo4j_ses
     """
     Ensure a project whose posture endpoints are unavailable still produces a
     database node, with the posture left unset when nothing was ever recorded.
+    An unread allowlist must not read as an empty one, which means "unrestricted".
     """
     # Arrange: a project not touched by any other test, so there is no stored
     # posture to carry forward.
@@ -419,7 +420,8 @@ def test_supabase_database_tolerates_missing_posture(mock_get_posture, neo4j_ses
         RETURN d.host AS host,
                d.ssl_enforced AS ssl_enforced,
                d.db_allowed_cidrs AS cidrs,
-               d.pitr_enabled AS pitr_enabled
+               d.pitr_enabled AS pitr_enabled,
+               d.exposed_internet AS exposed_internet
         """,
         id=f"{project['ref']}/postgres",
     ).single()
@@ -427,6 +429,7 @@ def test_supabase_database_tolerates_missing_posture(mock_get_posture, neo4j_ses
     assert record["ssl_enforced"] is None
     assert record["cidrs"] is None
     assert record["pitr_enabled"] is None
+    assert record["exposed_internet"] is None
 
 
 def test_supabase_database_posture_is_carried_forward_when_unreadable(neo4j_session):

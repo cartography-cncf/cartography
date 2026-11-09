@@ -103,11 +103,11 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     )
     persistent_volume_claim_read_write_ids: PropertyRef = PropertyRef(
         "persistent_volume_claim_read_write_ids",
-        description="Identifiers of PersistentVolumeClaims with at least one read-write entry in `container.volumeMounts[]`.",
+        description="Identifiers of PersistentVolumeClaims with at least one effectively read-write entry in `container.volumeMounts[]`. A mount is read-only when its own `readOnly` or the pod volume's `persistentVolumeClaim.readOnly` is set.",
     )
     persistent_volume_claim_mounts: PropertyRef = PropertyRef(
         "persistent_volume_claim_mounts",
-        description="PersistentVolumeClaim mount settings from `container.volumeMounts[]`, stored as a JSON-encoded list.",
+        description="PersistentVolumeClaim mount settings from `container.volumeMounts[]`, stored as a JSON-encoded list. Each entry's `read_only` is the effective value, including the pod volume's `persistentVolumeClaim.readOnly`.",
     )
     persistent_volume_claim_devices: PropertyRef = PropertyRef(
         "persistent_volume_claim_devices",
@@ -156,11 +156,13 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when the container's pod is targeted by an internet-exposed service. `False` otherwise.",
     )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How it is exposed. Always `lb`.",
     )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.

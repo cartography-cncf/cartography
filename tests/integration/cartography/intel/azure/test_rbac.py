@@ -114,6 +114,21 @@ def test_get_role_assignments_for_scope_filters_to_direct_scope(
 
 
 @patch.object(
+    cartography.intel.microsoft.entra.users,
+    "get_user_mfa_registrations",
+    new=AsyncMock(return_value=None),
+)
+@patch.object(
+    cartography.intel.microsoft.entra.users,
+    "get_risky_users",
+    new=AsyncMock(return_value={}),
+)
+@patch.object(
+    cartography.intel.microsoft.entra.service_principals,
+    "get_risky_service_principals",
+    new=AsyncMock(return_value={}),
+)
+@patch.object(
     cartography.intel.microsoft.entra.groups,
     "get_group_owners",
     return_value=async_return_empty_list(),

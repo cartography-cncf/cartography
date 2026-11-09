@@ -22,11 +22,13 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when the instance has a public access config reachable through an allowing firewall rule, or sits behind an exposed load balancer. `False` otherwise.",
     )  # Populated by the GCP_COMPUTE_INSTANCE_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
+        set_by_analysis=True,
         extra_index=True,
         description="How the instance is exposed: `direct` and/or `gcp_lb`.",
     )  # Populated by the GCP_COMPUTE_INSTANCE_EXPOSURE analysis job.
@@ -34,6 +36,11 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
     self_link: PropertyRef = PropertyRef(
         "selfLink",
         description="The full resource URI representing this instance. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}`.",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="The numeric instance ID assigned by Compute Engine.",
     )
     instancename: PropertyRef = PropertyRef(
         "name",

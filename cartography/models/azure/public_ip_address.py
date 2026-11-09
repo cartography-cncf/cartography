@@ -26,7 +26,7 @@ class AzurePublicIPAddressProperties(CartographyNodeProperties):
         description="Azure region where the public IP address is deployed.",
     )
     ip_address: PropertyRef = PropertyRef(
-        "ip_address", description="Assigned public IP address."
+        "ip_address", extra_index=True, description="Assigned public IP address."
     )
     allocation_method: PropertyRef = PropertyRef(
         "public_ip_allocation_method",

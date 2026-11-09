@@ -25,6 +25,15 @@ aws_mapping = OntologyMapping(
                 # rule nodes instead.
             ],
         ),
+        OntologyNodeMapping(
+            node_label="AWSWebACL",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # direction: Not applicable (WAF web ACLs apply to inbound requests)
+            ],
+        ),
     ],
 )
 
@@ -140,6 +149,25 @@ snowflake_mapping = OntologyMapping(
     ],
 )
 
+# DigitalOcean
+digitalocean_mapping = OntologyMapping(
+    module_name="digitalocean",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DOFirewall",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                # DigitalOcean firewalls contain both inbound and outbound
+                # rules, so direction belongs on individual rule nodes.
+            ],
+        ),
+    ],
+)
+
 FIREWALLS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -147,4 +175,5 @@ FIREWALLS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "databricks": databricks_mapping,
     "cloudflare": cloudflare_mapping,
     "snowflake": snowflake_mapping,
+    "digitalocean": digitalocean_mapping,
 }

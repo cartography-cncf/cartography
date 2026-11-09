@@ -63,7 +63,7 @@ ALERTS: list[dict[str, Any]] = [
             "Severity": {"value": "LOW"},
             "Category": {"value": "Data"},
             "AlertType": {"value": "DATA_AT_RISK"},
-            "Status": {"value": "DISMISS"},
+            "Status": {"value": "IN_PROGRESS"},
             "CreatedAt": {"value": "2026-08-03T12:00:00Z"},
             "AssetData": {
                 "value": {

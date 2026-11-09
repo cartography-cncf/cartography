@@ -1,3 +1,4 @@
+import json
 import logging
 from collections import deque
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import sync_root_principal
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.account import AWSAccountSchema
@@ -19,6 +21,10 @@ from cartography.models.aws.account import AWSOrganizationAccountSchema
 from cartography.models.aws.organization import AWSOrganizationalUnitSchema
 from cartography.models.aws.organization import AWSOrganizationRootSchema
 from cartography.models.aws.organization import AWSOrganizationSchema
+from cartography.models.aws.service_control_policy import AWSServiceControlPolicySchema
+from cartography.models.aws.service_control_policy import (
+    AWSServiceControlPolicyStatementSchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -144,6 +150,34 @@ def get_aws_organization_accounts_for_parent(
     )
 
 
+def get_service_control_policies(
+    organizations_client: Any,
+) -> list[dict[str, Any]]:
+    policies = []
+    for summary in _paginate_aws_organizations(
+        organizations_client,
+        "list_policies",
+        "Policies",
+        Filter="SERVICE_CONTROL_POLICY",
+    ):
+        policy_id = summary["Id"]
+        policy = organizations_client.describe_policy(PolicyId=policy_id)["Policy"]
+        targets = _paginate_aws_organizations(
+            organizations_client,
+            "list_targets_for_policy",
+            "Targets",
+            PolicyId=policy_id,
+        )
+        policies.append(
+            {
+                **summary,
+                "Content": policy.get("Content"),
+                "Targets": targets,
+            }
+        )
+    return policies
+
+
 def _get_account_state(account: dict[str, Any]) -> str | None:
     return account.get("State") or account.get("Status")
 
@@ -260,6 +294,69 @@ def transform_aws_organizational_units(
             }
         )
     return transformed
+
+
+def transform_service_control_policies(
+    policies: Iterable[dict[str, Any]],
+    organization_id: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    transformed_policies = []
+    statements = []
+    for policy in policies:
+        policy_id = _make_org_scoped_id(organization_id, policy["Id"])
+        targets = policy.get("Targets", [])
+        transformed_policies.append(
+            {
+                "id": policy_id,
+                "policy_id": policy["Id"],
+                "arn": policy.get("Arn"),
+                "name": policy.get("Name"),
+                "description": policy.get("Description"),
+                "aws_managed": policy.get("AwsManaged"),
+                "content": policy.get("Content"),
+                "org_id": organization_id,
+                "target_root_ids": [
+                    _make_org_scoped_id(organization_id, target["TargetId"])
+                    for target in targets
+                    if target["Type"] == "ROOT"
+                ],
+                "target_ou_ids": [
+                    _make_org_scoped_id(organization_id, target["TargetId"])
+                    for target in targets
+                    if target["Type"] == "ORGANIZATIONAL_UNIT"
+                ],
+                "target_account_ids": [
+                    target["TargetId"]
+                    for target in targets
+                    if target["Type"] == "ACCOUNT"
+                ],
+            }
+        )
+        if policy.get("Content"):
+            statements.extend(
+                _transform_service_control_policy_statements(
+                    json.loads(policy["Content"]).get("Statement", []),
+                    policy_id,
+                )
+            )
+    return transformed_policies, statements
+
+
+def _transform_service_control_policy_statements(
+    raw_statements: Any,
+    policy_id: str,
+) -> list[dict[str, Any]]:
+    if not isinstance(raw_statements, list):
+        raw_statements = [raw_statements]
+    statements = _transform_policy_statements(raw_statements, policy_id)
+    for index, (raw_statement, statement) in enumerate(
+        zip(raw_statements, statements),
+        start=1,
+    ):
+        # Sids are alphanumeric, so "index-N" cannot collide with a Sid such as "1".
+        statement_key = raw_statement.get("Sid") or f"index-{index}"
+        statement["id"] = f"{policy_id}/statement/{statement_key}"
+    return statements
 
 
 def get_aws_organization_hierarchy(
@@ -522,6 +619,76 @@ def load_aws_organizational_units(
     )
 
 
+def load_service_control_policies(
+    neo4j_session: neo4j.Session,
+    policies: list[dict[str, Any]],
+    statements: list[dict[str, Any]],
+    organization_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSServiceControlPolicySchema(),
+        policies,
+        lastupdated=update_tag,
+        ORG_ID=organization_id,
+    )
+    load(
+        neo4j_session,
+        AWSServiceControlPolicyStatementSchema(),
+        statements,
+        lastupdated=update_tag,
+        ORG_ID=organization_id,
+    )
+
+
+def cleanup_service_control_policies(
+    neo4j_session: neo4j.Session,
+    organization_id: str,
+    update_tag: int,
+) -> None:
+    cleanup_parameters = {"UPDATE_TAG": update_tag, "ORG_ID": organization_id}
+    GraphJob.from_node_schema(
+        AWSServiceControlPolicyStatementSchema(),
+        cleanup_parameters,
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSServiceControlPolicySchema(),
+        cleanup_parameters,
+    ).run(neo4j_session)
+
+
+def _get_service_control_policies_for_sync(
+    organizations_client: Any,
+    organization: dict[str, Any],
+) -> list[dict[str, Any]] | None:
+    """
+    Return None when access to the policies is denied, so the caller skips both
+    load and cleanup and keeps the last complete set of policies. A delegated
+    administrator can often read the hierarchy but not the policies. Other
+    errors propagate so the caller treats the organization sync as incomplete.
+    """
+    if organization.get("FeatureSet") != "ALL":
+        logger.debug(
+            "AWS Organization %s does not have all features enabled; skipping service control policies.",
+            organization["Id"],
+        )
+        return None
+    try:
+        return get_service_control_policies(organizations_client)
+    except botocore.exceptions.ClientError as e:
+        if not _is_access_denied_error(e):
+            raise
+        logger.warning(
+            "Unable to enumerate service control policies for AWS Organization %s; keeping previously synced "
+            "policies. AWS Organizations error code: %s.",
+            organization["Id"],
+            _get_client_error_code(e),
+            exc_info=True,
+        )
+        return None
+
+
 def get_existing_aws_organization_root_ids(
     neo4j_session: neo4j.Session,
     organization_id: str,
@@ -671,6 +838,24 @@ def sync_aws_organization(
             organization_id=organization_id,
         )
 
+    try:
+        service_control_policies = _get_service_control_policies_for_sync(
+            organizations_client,
+            organization,
+        )
+    except botocore.exceptions.ClientError as e:
+        result = get_aws_organization_sync_result_from_client_error(
+            current_aws_account_id,
+            e,
+            organization_id=organization_id,
+        )
+        logger.warning(
+            "Unable to enumerate service control policies for AWS Organization %s; skipping AWS Organizations sync.",
+            organization_id,
+            exc_info=True,
+        )
+        return result
+
     organization_accounts = transform_aws_organization_accounts(
         raw_accounts,
         organization_id,
@@ -711,6 +896,19 @@ def sync_aws_organization(
             _make_org_scoped_id(organization_id, root["Id"]),
             update_tag,
         )
+    if service_control_policies is not None:
+        policies, statements = transform_service_control_policies(
+            service_control_policies,
+            organization_id,
+        )
+        load_service_control_policies(
+            neo4j_session,
+            policies,
+            statements,
+            organization_id,
+            update_tag,
+        )
+        cleanup_service_control_policies(neo4j_session, organization_id, update_tag)
     cleanup_aws_organization_hierarchy(
         neo4j_session,
         update_tag,

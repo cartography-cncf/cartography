@@ -6,6 +6,8 @@ from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.common import copy_properties
+from cartography.intel.azure.util.common import rename_keys
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.application_gateway.application_gateway import (
     AzureApplicationGatewaySchema,
@@ -46,6 +48,75 @@ def _first_subnet_id(application_gateway: dict) -> str | None:
         if subnet_id:
             return subnet_id
     return None
+
+
+# azure-mgmt-network 31+ serializes `as_dict()` in ARM wire format: resource-specific
+# fields sit under `properties` with camelCase names. The transforms read flat
+# snake_case keys, so each payload is normalized back to that shape first.
+_APPLICATION_GATEWAY_PROPERTY_MAP = {
+    "sku": ("sku",),
+    "operational_state": ("operationalState",),
+    "provisioning_state": ("provisioningState",),
+    "enable_http2": ("enableHttp2",),
+    "firewall_policy": ("firewallPolicy",),
+    "gateway_ip_configurations": ("gatewayIPConfigurations",),
+    "frontend_ip_configurations": ("frontendIPConfigurations",),
+    "frontend_ports": ("frontendPorts",),
+    "backend_address_pools": ("backendAddressPools",),
+    "backend_http_settings_collection": ("backendHttpSettingsCollection",),
+    "http_listeners": ("httpListeners",),
+    "request_routing_rules": ("requestRoutingRules",),
+}
+_CHILD_PROPERTY_MAPS = {
+    "gateway_ip_configurations": {"subnet": ("subnet",)},
+    "frontend_ip_configurations": {
+        "private_ip_address": ("privateIPAddress",),
+        "private_ip_allocation_method": ("privateIPAllocationMethod",),
+        "public_ip_address": ("publicIPAddress",),
+        "subnet": ("subnet",),
+    },
+    "frontend_ports": {"port": ("port",)},
+    "backend_address_pools": {
+        "backend_addresses": ("backendAddresses",),
+        "backend_ip_configurations": ("backendIPConfigurations",),
+    },
+    "backend_http_settings_collection": {
+        "protocol": ("protocol",),
+        "port": ("port",),
+        "cookie_based_affinity": ("cookieBasedAffinity",),
+        "request_timeout": ("requestTimeout",),
+        "host_name": ("hostName",),
+        "pick_host_name_from_backend_address": ("pickHostNameFromBackendAddress",),
+    },
+    "http_listeners": {
+        "protocol": ("protocol",),
+        "host_name": ("hostName",),
+        "host_names": ("hostNames",),
+        "require_server_name_indication": ("requireServerNameIndication",),
+        "frontend_ip_configuration": ("frontendIPConfiguration",),
+        "frontend_port": ("frontendPort",),
+        "ssl_certificate": ("sslCertificate",),
+    },
+    "request_routing_rules": {
+        "rule_type": ("ruleType",),
+        "priority": ("priority",),
+        "http_listener": ("httpListener",),
+        "backend_address_pool": ("backendAddressPool",),
+        "backend_http_settings": ("backendHttpSettings",),
+        "url_path_map": ("urlPathMap",),
+    },
+}
+
+
+def _normalize_application_gateway(application_gateway: dict) -> dict:
+    copy_properties(application_gateway, _APPLICATION_GATEWAY_PROPERTY_MAP)
+    for key, property_map in _CHILD_PROPERTY_MAPS.items():
+        for child in application_gateway.get(key) or []:
+            copy_properties(child, property_map)
+    for pool in application_gateway.get("backend_address_pools") or []:
+        for address in pool.get("backend_addresses") or []:
+            rename_keys(address, {"ip_address": "ipAddress"})
+    return application_gateway
 
 
 @timeit
@@ -433,7 +504,9 @@ def sync(
     )
     client = NetworkManagementClient(credentials.credential, subscription_id)
 
-    application_gateways = get_application_gateways(client)
+    application_gateways = [
+        _normalize_application_gateway(ag) for ag in get_application_gateways(client)
+    ]
     transformed_ags = transform_application_gateways(application_gateways)
     load_application_gateways(
         neo4j_session, transformed_ags, subscription_id, update_tag

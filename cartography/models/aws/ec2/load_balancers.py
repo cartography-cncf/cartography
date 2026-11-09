@@ -45,6 +45,7 @@ class LoadBalancerNodeProperties(CartographyNodeProperties):
     )
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
+        set_by_analysis=True,
         extra_index=True,
         description="`True` when the scheme is `internet-facing` and a source security group opens a listener port to `0.0.0.0/0`. `False` otherwise.",
     )  # Populated by the AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER analysis job.

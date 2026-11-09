@@ -68,3 +68,24 @@ def test_context_scoped_gate_leaves_production_exposed():
         True,
         ["direct"],
     )
+
+
+def test_transform_normalizes_site_domains_without_changing_raw_values():
+    # Arrange
+    site = {
+        **_BASE,
+        "default_domain": " Site-1.Netlify.Example.COM. ",
+        "custom_domain": " WWW.Example.COM. ",
+        "domain_aliases": [" Alias.Example.COM. "],
+    }
+
+    # Act
+    transformed = transform_netlify_sites([site])[0]
+
+    # Assert
+    assert transformed["default_domain"] == " Site-1.Netlify.Example.COM. "
+    assert transformed["custom_domain"] == " WWW.Example.COM. "
+    assert transformed["domain_aliases"] == [" Alias.Example.COM. "]
+    assert transformed["default_domain_normalized"] == "site-1.netlify.example.com"
+    assert transformed["custom_domain_normalized"] == "www.example.com"
+    assert transformed["domain_aliases_normalized"] == ["alias.example.com"]

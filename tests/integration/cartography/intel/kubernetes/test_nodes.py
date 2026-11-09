@@ -55,7 +55,7 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
         ],
     )
 
-    client = SimpleNamespace(name=CLUSTER_NAME)
+    client = SimpleNamespace(name=CLUSTER_NAME, gke_cluster=None)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
 
     # Arrange: the backing EC2 instance must already exist for the IS_INSTANCE

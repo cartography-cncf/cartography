@@ -1,8 +1,11 @@
 import copy
+from dataclasses import asdict
 from unittest.mock import MagicMock
 
 import cartography.intel.aws.resourcegroupstaggingapi as rgta
 import tests.data.aws.resourcegroupstaggingapi as test_data
+from cartography.graph.querybuilder import build_matchlink_query
+from cartography.models.aws.resourcegroupstaggingapi.tag import AWSTagSchema
 from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 
 
@@ -62,15 +65,26 @@ def test_group_tag_data_by_resource_type():
     assert len(grouped["s3"]) == 1
 
 
+def _build_ingest_tag_query(resource_type: str) -> str:
+    mapping = rgta.TAG_RESOURCE_TYPE_MAPPINGS[resource_type]
+    return build_matchlink_query(
+        rgta._build_tagged_matchlink(
+            mapping["label"],
+            mapping["property"],
+            mapping.get("region_property"),
+        ),
+    )
+
+
 def test_build_ingest_tag_query_region_scoped():
     """
     Load balancer resource types are keyed by a non-unique `name`, so their
     ingest query must be scoped to the synced region (#1137).
     """
-    query = rgta._build_ingest_tag_query("elasticloadbalancing:loadbalancer")
-    assert "WHERE resource.region = $Region" in query
+    query = _build_ingest_tag_query("elasticloadbalancing:loadbalancer")
+    assert "region: $Region" in query
     # The tag node itself no longer stores region (#1094).
-    assert "aws_tag.region" not in query
+    assert "region" not in asdict(AWSTagSchema().properties)
 
 
 def test_build_ingest_tag_query_not_region_scoped():
@@ -78,9 +92,9 @@ def test_build_ingest_tag_query_not_region_scoped():
     ARN/id-keyed resource types (e.g. s3) keep their matching unchanged: no
     region predicate, no region property on the tag node.
     """
-    query = rgta._build_ingest_tag_query("s3")
-    assert "WHERE resource.region" not in query
-    assert "aws_tag.region" not in query
+    query = _build_ingest_tag_query("s3")
+    assert "$Region" not in query
+    assert "region" not in asdict(AWSTagSchema().properties)
 
 
 def test_transform_tags():

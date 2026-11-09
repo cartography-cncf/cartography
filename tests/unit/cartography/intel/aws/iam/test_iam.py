@@ -466,6 +466,7 @@ USER_ARN = "arn:aws:iam::000000000000:user/alice"
 GROUP_ARN = "arn:aws:iam::000000000000:group/admins"
 EMPTY_GROUP_ARN = "arn:aws:iam::000000000000:group/empty"
 ROLE_ARN = "arn:aws:iam::000000000000:role/app"
+ROLE_LAST_USED_DATE = datetime.datetime(2026, 1, 2, tzinfo=datetime.timezone.utc)
 
 GAAD_PAGE_1 = {
     "UserDetailList": [
@@ -510,6 +511,10 @@ GAAD_PAGE_2 = {
                 {"PolicyArn": SHARED_POLICY_ARN},
                 {"PolicyArn": LOCAL_POLICY_ARN},
             ],
+            "RoleLastUsed": {
+                "LastUsedDate": ROLE_LAST_USED_DATE,
+                "Region": "us-east-1",
+            },
         }
     ],
     "Policies": [
@@ -548,6 +553,7 @@ def test_get_account_authorization_details_builds_policy_maps(mocker):
     assert details.role_managed_policies == {
         ROLE_ARN: {SHARED_POLICY_ARN: ["shared"], LOCAL_POLICY_ARN: ["local"]}
     }
+    assert details.role_last_used == {ROLE_ARN: ROLE_LAST_USED_DATE}
     # Only default versions are kept, and nothing is fetched per policy.
     assert cache[SHARED_POLICY_ARN] == ["shared"]
     resource_client.Policy.assert_not_called()

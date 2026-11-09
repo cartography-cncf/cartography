@@ -46,3 +46,109 @@ RETURN pod.namespace, pod.name, container.name,
        labels(cloud_disk), cloud_disk.id, storage_class.name
 ORDER BY pod.namespace, pod.name, container.name;
 ```
+
+## GKE workload access to Google Cloud
+
+IAM allow bindings that grant something to a pod's Kubernetes service account through
+Workload Identity Federation for GKE. IAM conditions are not evaluated.
+
+```cypher
+MATCH (pod:KubernetesPod)-[:RUNS_AS]->(ksa:KubernetesServiceAccount)
+      -[grant:HAS_ALLOW_POLICY]->(binding:GCPPolicyBinding)
+OPTIONAL MATCH (binding)-[:APPLIES_TO]->(resource)
+RETURN pod.name, ksa.namespace, ksa.name, binding.role, grant.matched_members,
+       binding.condition_expression, labels(resource), resource.id
+```
+
+Annotated service accounts with no verified impersonation grant in the graph. Missing
+IAM policy inventory produces the same result, so check GCP policy-binding coverage
+before treating these as misconfigured:
+
+```cypher
+MATCH (ksa:KubernetesServiceAccount)-[:ANNOTATED_SERVICE_ACCOUNT]->(gsa:GCPServiceAccount)
+WHERE NOT (ksa)-[:WORKLOAD_IDENTITY_BINDING]->(gsa)
+RETURN ksa.namespace, ksa.name, gsa.email
+```
+
+What the impersonated Google service account is granted:
+
+```cypher
+MATCH (pod:KubernetesPod)-[:RUNS_AS]->(ksa:KubernetesServiceAccount)
+      -[:WORKLOAD_IDENTITY_BINDING]->(gsa:GCPServiceAccount)
+      -[:HAS_ALLOW_POLICY]->(binding:GCPPolicyBinding)
+RETURN pod.name, ksa.name, gsa.email, binding.role, binding.resource
+```
+
+## AWS load balancer paths
+
+From an AWS load balancer through a TargetGroupBinding to the pods and their images:
+
+```cypher
+MATCH (lb:AWSLoadBalancerV2)-[:ELBV2_TARGET_GROUP]->(tg:AWSELBV2TargetGroup)
+      -[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)
+      -[:CONTAINS]->(c:KubernetesContainer)
+RETURN lb.dnsname, lb.scheme, tg.name, svc.namespace, svc.name, pod.name, c.image
+```
+
+From a DNS name to the Services it serves, along the path traffic takes:
+
+```cypher
+MATCH (dns:DNSRecord)-[:DNS_POINTS_TO]->(lb:AWSLoadBalancerV2)
+      -[:ELBV2_TARGET_GROUP]->(tg:AWSELBV2TargetGroup)
+      -[:TARGETS]->(svc:KubernetesService)
+WHERE dns._ont_name = 'app.example.com'
+RETURN lb.dnsname, lb.scheme, tg.name, svc.namespace, svc.name
+```
+
+Ingresses that declare the same host, with the load balancer each one configures.
+That load balancer can differ from the one the DNS record resolves to:
+
+```cypher
+MATCH (ing:KubernetesIngress)-[:MATCHES_HOSTNAME]->(dns:DNSRecord)
+WHERE dns._ont_name = 'app.example.com'
+OPTIONAL MATCH (ing)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2)
+RETURN ing.namespace, ing.name, lb.dnsname, lb.scheme
+```
+
+## GKE load balancer paths
+
+From a GCP forwarding rule through a Gateway to the pods and their identities:
+
+```cypher
+MATCH (lb:GCPForwardingRule)<-[:USES_LOAD_BALANCER]-(gw:KubernetesGateway)
+      -[:ROUTES]->(:KubernetesHTTPRoute)-[:TARGETS]->(:KubernetesService)
+      -[:TARGETS]->(pod:KubernetesPod)-[:RUNS_AS]->(ksa:KubernetesServiceAccount)
+RETURN lb.name, lb.load_balancing_scheme, gw.name, pod.name, ksa.name
+```
+
+From a GCP backend service through a standalone NEG to the pods and their images:
+
+```cypher
+MATCH (bs:GCPBackendService)-[:ROUTES_TO]->(neg:GCPNetworkEndpointGroup)
+      -[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)
+      -[:CONTAINS]->(c:KubernetesContainer)
+RETURN bs.name, bs.load_balancing_scheme, neg.zone, svc.namespace, svc.name, pod.name, c.image
+```
+
+## GKE node credentials
+
+```cypher
+MATCH (cloud:GKECluster)-[:MAPS_TO]->(:KubernetesCluster)
+      -[:RESOURCE]->(node:KubernetesNode)-[:MEMBER_OF]->(pool:GKENodePool)
+OPTIONAL MATCH (pool)-[:RUNS_AS]->(account:GCPServiceAccount)
+RETURN cloud.name, cloud.autopilot_enabled, node.name,
+       pool.workload_metadata_mode, pool.oauth_scopes, account.email
+```
+
+Node pools in `GCE_METADATA` mode expose the node service account to pods.
+
+## AKS load balancer paths
+
+From an internet-facing Azure load balancer or Application Gateway to the pods behind it:
+
+```cypher
+MATCH (lb:LoadBalancer)<-[:USES_LOAD_BALANCER]-(src)
+WHERE (lb:AzureLoadBalancer OR lb:AzureApplicationGateway) AND lb.exposed_internet = true
+MATCH (lb)-[:EXPOSE]->(pod:KubernetesPod)
+RETURN lb.name, labels(src), src.name, pod.namespace, pod.name
+```

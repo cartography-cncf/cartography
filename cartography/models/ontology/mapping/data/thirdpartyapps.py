@@ -215,7 +215,7 @@ salesforce_mapping = OntologyMapping(
                 # use the ConnectedApplication record id as the client identifier.
                 OntologyFieldMapping(
                     ontology_field="client_id",
-                    node_field="id",
+                    node_field="salesforce_id",
                 ),
                 OntologyFieldMapping(
                     ontology_field="name",
@@ -308,6 +308,35 @@ github_mapping = OntologyMapping(
     ],
 )
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithOAuthClient",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id", node_field="id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="LangSmithOAuthProvider",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id", node_field="client_id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "github": github_mapping,
     "zoom": zoom_mapping,
@@ -320,4 +349,5 @@ THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "notion": notion_mapping,
     "jumpcloud": jumpcloud_mapping,
     "netlify": netlify_mapping,
+    "langsmith": langsmith_mapping,
 }

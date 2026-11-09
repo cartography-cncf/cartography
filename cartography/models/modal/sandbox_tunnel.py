@@ -27,6 +27,11 @@ class ModalSandboxTunnelNodeProperties(CartographyNodeProperties):
     host: PropertyRef = PropertyRef(
         "host", extra_index=True, description="Public TLS hostname."
     )
+    host_normalized: PropertyRef = PropertyRef(
+        "host_normalized",
+        extra_index=True,
+        description="Canonical public TLS hostname.",
+    )
     port: PropertyRef = PropertyRef("port", description="Public TLS port.")
     # Populated only for a tunnel opened on an *unencrypted* port. Traffic to it is
     # cleartext over the public internet, which is why it is indexed.
@@ -34,6 +39,11 @@ class ModalSandboxTunnelNodeProperties(CartographyNodeProperties):
         "unencrypted_host",
         extra_index=True,
         description="Set only for a tunnel opened on an unencrypted port. Traffic to it is cleartext over the public internet.",
+    )
+    unencrypted_host_normalized: PropertyRef = PropertyRef(
+        "unencrypted_host_normalized",
+        extra_index=True,
+        description="Canonical public cleartext hostname, when present.",
     )
     unencrypted_port: PropertyRef = PropertyRef(
         "unencrypted_port", description="The unencrypted port, if any."

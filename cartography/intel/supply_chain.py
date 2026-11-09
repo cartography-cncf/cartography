@@ -12,7 +12,31 @@ from typing import Any
 
 import neo4j
 
+from cartography.client.core.tx import read_list_of_dicts_tx
+
 logger = logging.getLogger(__name__)
+
+
+# Generic final layers such as `COPY . /app` appear in many unrelated Dockerfiles,
+# so one similar command cannot tell repositories apart.
+MIN_DOCKERFILE_MATCHED_COMMANDS = 2
+
+# An image whose provenance names a repository in the graph is linked exactly by
+# the provenance matchlink of the organization that owns the repository, which may
+# sync later in the same run. Dockerfile similarity must neither race that link nor
+# keep re-matching an image another organization already claimed by provenance.
+# A source_uri that names an unknown repository is often a label inherited from a
+# public base image, so those images stay eligible for Dockerfile matching.
+DOCKERFILE_MATCH_ELIGIBILITY = """
+          AND NOT exists((img)-[:PACKAGED_FROM {match_method: 'provenance'}]->())
+          AND NOT (
+              img.source_uri IS NOT NULL
+              AND (
+                  EXISTS { MATCH (:GitHubRepository {id: img.source_uri}) }
+                  OR EXISTS { MATCH (:GitLabProject {web_url: img.source_uri}) }
+              )
+          )
+"""
 
 
 @dataclass
@@ -631,45 +655,70 @@ def match_images_to_dockerfiles(
                 )
                 continue
 
-        df_matches = find_best_dockerfile_matches(
-            image_commands,
-            [parsed for parsed, _ in candidate_dockerfiles],
-            min_confidence,
-        )
-
-        if df_matches:
-            best_match = df_matches[0]
-            df_info = next(
-                (
-                    candidate_info
-                    for parsed, candidate_info in candidate_dockerfiles
-                    if parsed is best_match.dockerfile
-                ),
-                {},
-            )
-
-            matches.append(
-                ImageDockerfileMatch(
-                    image_digest=image.digest,
-                    source_repo_id=df_info.get("source_repo_id", ""),
-                    dockerfile_path=df_info.get("path"),
-                    confidence=best_match.confidence,
-                    matched_commands=best_match.matched_commands,
-                    total_commands=best_match.total_commands,
-                    command_similarity=best_match.command_similarity,
+        info_by_dockerfile = {
+            id(parsed): candidate_info
+            for parsed, candidate_info in candidate_dockerfiles
+        }
+        # Confidence is bucketed, so rank and detect ties on raw similarity and on
+        # how many commands agree.
+        df_matches = sorted(
+            (
+                match
+                for match in find_best_dockerfile_matches(
+                    image_commands,
+                    [parsed for parsed, _ in candidate_dockerfiles],
+                    min_confidence,
                 )
-            )
-            logger.debug(
-                "Matched %s:%s -> %s (confidence: %.2f)",
-                image.display_name,
-                image.tag,
-                df_info.get("path"),
-                best_match.confidence,
-            )
-        else:
+                if match.matched_commands >= MIN_DOCKERFILE_MATCHED_COMMANDS
+            ),
+            key=lambda match: (
+                -match.confidence,
+                -match.command_similarity,
+                -match.matched_commands,
+            ),
+        )
+        if not df_matches:
             logger.debug(
                 "No match found for image %s:%s", image.display_name, image.tag
             )
+            continue
+
+        best_match = df_matches[0]
+        df_info = info_by_dockerfile[id(best_match.dockerfile)]
+        tied_repos = {
+            info_by_dockerfile[id(match.dockerfile)].get("source_repo_id")
+            for match in df_matches
+            if match.confidence == best_match.confidence
+            and match.command_similarity == best_match.command_similarity
+            and match.matched_commands == best_match.matched_commands
+        }
+        if len(tied_repos) > 1:
+            logger.debug(
+                "Ambiguous match for image %s:%s across %d repositories",
+                image.display_name,
+                image.tag,
+                len(tied_repos),
+            )
+            continue
+
+        matches.append(
+            ImageDockerfileMatch(
+                image_digest=image.digest,
+                source_repo_id=df_info.get("source_repo_id", ""),
+                dockerfile_path=df_info.get("path"),
+                confidence=best_match.confidence,
+                matched_commands=best_match.matched_commands,
+                total_commands=best_match.total_commands,
+                command_similarity=best_match.command_similarity,
+            )
+        )
+        logger.debug(
+            "Matched %s:%s -> %s (confidence: %.2f)",
+            image.display_name,
+            image.tag,
+            df_info.get("path"),
+            best_match.confidence,
+        )
 
     logger.info(
         "Matched %d images to Dockerfiles (out of %d images, %d Dockerfiles)",
@@ -1012,7 +1061,7 @@ def extract_provenance_from_oci_config(
     """
     result: dict[str, str] = {}
 
-    labels = config.get("config", {}).get("Labels") or {}
+    labels = (config.get("config") or {}).get("Labels") or {}
 
     for key in _OCI_SOURCE_LABELS:
         value = labels.get(key)
@@ -1073,11 +1122,15 @@ def get_unmatched_gcp_images_with_history(
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
-    query = """
+    query = (
+        """
         MATCH (img:Image:GCPArtifactRegistryImage)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+"""
+        + DOCKERFILE_MATCH_ELIGIBILITY
+        + """
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
@@ -1098,6 +1151,7 @@ def get_unmatched_gcp_images_with_history(
         ]) AS selected
         WITH selected[3] AS img, selected[4] AS repo_img
     """
+    )
 
     if limit is not None:
         query += f"        ORDER BY coalesce(repo_img.uri, img.digest)\n        LIMIT {int(limit)}\n"
@@ -1126,7 +1180,8 @@ def get_unmatched_gcp_images_with_history(
             layer_history
     """
 
-    result = neo4j_session.run(
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         query,
         update_tag=update_tag,
         sub_resource_label=sub_resource_label,
@@ -1183,11 +1238,15 @@ def get_unmatched_scaleway_images_with_history(
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
-    query = """
+    query = (
+        """
         MATCH (img:Image:ScalewayContainerRegistryImage)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+"""
+        + DOCKERFILE_MATCH_ELIGIBILITY
+        + """
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
@@ -1206,6 +1265,7 @@ def get_unmatched_scaleway_images_with_history(
         ]) AS selected
         WITH selected[3] AS img, selected[4] AS t
     """
+    )
 
     if limit is not None:
         query += f"        ORDER BY coalesce(t.uri, img.digest)\n        LIMIT {int(limit)}\n"
@@ -1233,7 +1293,8 @@ def get_unmatched_scaleway_images_with_history(
             layer_history
     """
 
-    result = neo4j_session.run(
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         query,
         update_tag=update_tag,
         sub_resource_label=sub_resource_label,

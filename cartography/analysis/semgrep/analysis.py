@@ -27,6 +27,32 @@ SEMGREP_SAST_RISK_ANALYSIS = AnalysisJob(
         ),
     ),
 )
+SEMGREP_AI_SAST_RISK_ANALYSIS = AnalysisJob(
+    name="Semgrep AI SAST findings risk analysis based on severity and repository archive status.",
+    short_name="semgrep_ai_sast_risk_analysis",
+    scope=ScopeById("SemgrepDeployment", "DEPLOYMENT_ID", scope_on="s"),
+    statements=(
+        AnalysisStatement(
+            match="MATCH (g:GitHubRepository{archived:true})<-[:FOUND_IN]-(s:SemgrepAISASTFinding)",
+            effects=(
+                SetProperty("s", "risk_severity", "INFO", label="SemgrepAISASTFinding"),
+            ),
+            incremental_on="s",
+        ),
+        AnalysisStatement(
+            match="MATCH (g:GitHubRepository)<-[:FOUND_IN]-(s:SemgrepAISASTFinding) WHERE g.archived = false OR g.archived IS NULL",
+            effects=(
+                SetProperty(
+                    "s",
+                    "risk_severity",
+                    Var("s.severity"),
+                    label="SemgrepAISASTFinding",
+                ),
+            ),
+            incremental_on="s",
+        ),
+    ),
+)
 SEMGREP_SCA_RISK_ANALYSIS = AnalysisJob(
     name="Semgrep SCA findings reachability risk analysis based on likelihood and impact. Impact = Severity, Likelihood = reachability + reachability_check",
     short_name="semgrep_sca_risk_analysis",

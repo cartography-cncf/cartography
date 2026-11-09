@@ -18,7 +18,12 @@ logger = logging.getLogger(__name__)
 def start_semgrep_ingestion(
     neo4j_session: neo4j.Session,
     config: Config,
-) -> None:
+) -> str | None:
+    """
+    Return the id of the Semgrep Cloud deployment synced, if any, for an
+    orchestrator that skipped dependency cleanup to pass to
+    ``cleanup_dependencies``.
+    """
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
@@ -26,7 +31,7 @@ def start_semgrep_ingestion(
         logger.info(
             "Semgrep import is not configured - skipping this module. See docs to configure.",
         )
-        return
+        return None
 
     if config.semgrep_app_token:
         # sync_deployment must be called first since it populates common_job_parameters
@@ -47,7 +52,8 @@ def start_semgrep_ingestion(
             config.semgrep_dependency_ecosystems,
             config.update_tag,
             common_job_parameters,
-        )  # noqa: E501
+            skip_cleanup=config.semgrep_skip_dependency_cleanup,
+        )
         sync_findings(
             neo4j_session,
             config.semgrep_app_token,
@@ -68,3 +74,5 @@ def start_semgrep_ingestion(
             config.update_tag,
             config=config,
         )
+
+    return common_job_parameters.get("DEPLOYMENT_ID")

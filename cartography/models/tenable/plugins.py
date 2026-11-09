@@ -85,8 +85,11 @@ class TenablePluginNodeProperties(CartographyNodeProperties):
     epss_score: PropertyRef = PropertyRef(
         "epss_score", description="Exploit Prediction Scoring System score."
     )
+    # Deliberately not indexed. Neo4j indexes a list under a single key and rejects
+    # keys over ~8 KB, which the CVE list of a cumulative OS update plugin exceeds.
     cve_list: PropertyRef = PropertyRef(
-        "cve_list", description="CVE IDs associated with the plugin."
+        "cve_list",
+        description="CVE IDs the plugin checks for. To look up by CVE, use `HAS_CVE`.",
     )
     type: PropertyRef = PropertyRef("type", description="Plugin scan type.")
 

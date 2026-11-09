@@ -44,6 +44,7 @@ class PropertyRef:
         fuzzy_and_ignore_case=False,
         one_to_many=False,
         description: str | None = None,
+        set_by_analysis=False,
     ):
         """
         Initialize a PropertyRef instance.
@@ -70,6 +71,11 @@ class PropertyRef:
             description (str | None, optional): Human-readable description of the resulting
                 graph property. This is available to data-model introspection and documentation
                 tooling. Defaults to None.
+            set_by_analysis (bool, optional): If True, the property is owned by an analysis job
+                rather than by ingestion. It is still declared on the schema for indexes and
+                documentation, but ``load()`` never writes it, so re-ingesting a node does not
+                reset a value the analysis job computed. The analysis job's generated cleanup
+                is responsible for clearing stale values. Defaults to False.
 
         Examples:
             Case-insensitive matching for GitHub usernames:
@@ -106,6 +112,7 @@ class PropertyRef:
             ValueError: If ``ignore_case`` is used together with ``fuzzy_and_ignore_case``.
             ValueError: If ``one_to_many`` is used together with ``ignore_case`` or
                 ``fuzzy_and_ignore_case``.
+            ValueError: If ``set_by_analysis`` is used together with ``set_in_kwargs``.
         """
         self.name = name
         self.set_in_kwargs = set_in_kwargs
@@ -114,6 +121,7 @@ class PropertyRef:
         self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
         self.one_to_many = one_to_many
         self.description = description
+        self.set_by_analysis = set_by_analysis
 
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(
@@ -125,6 +133,12 @@ class PropertyRef:
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
                 "`ignore_case` or `fuzzy_and_ignore_case`.",
+            )
+
+        if self.set_by_analysis and self.set_in_kwargs:
+            raise ValueError(
+                f'Error setting PropertyRef "{self.name}": set_by_analysis cannot be used together '
+                "with `set_in_kwargs`.",
             )
 
     def _parameterize_name(self) -> str:

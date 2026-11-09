@@ -39,6 +39,10 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
         "members",
         description="A list of principal email addresses that are granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead.",
     )
+    raw_members: PropertyRef = PropertyRef(
+        "raw_members",
+        description="Every IAM member string from the policy binding's `members` field, unmodified (e.g. `principal://...`, `principalSet://...`, `serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/NAME]`).",
+    )
     wif_pools: PropertyRef = PropertyRef(
         "wif_pools",
         description="A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding.",

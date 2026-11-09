@@ -7,8 +7,9 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.databricks.extra_labels import DATABRICKS_SECURABLE
 
@@ -64,31 +65,12 @@ class DatabricksMetastoreNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DatabricksMetastoreToWorkspaceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksMetastore)
-# Sub-resource edge so metastore cleanup is scoped per workspace, matching the
-# single-workspace ingestion model used across the module.
-class DatabricksMetastoreToWorkspaceRel(CartographyRelSchema):
-    """A Databricks metastore is a resource within a workspace."""
-
-    target_node_label: str = "DatabricksWorkspace"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: DatabricksMetastoreToWorkspaceRelProperties = (
-        DatabricksMetastoreToWorkspaceRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class DatabricksMetastoreAssignmentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
     default_catalog_name: PropertyRef = PropertyRef(
         "default_catalog_name",
         description="Name of the workspace's default catalog.",
@@ -101,15 +83,20 @@ class DatabricksMetastoreAssignmentRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:ASSIGNED_METASTORE]->(:DatabricksMetastore)
-# The semantic assignment edge, carrying the workspace's default catalog.
+# A MatchLink scoped to the workspace, so each workspace prunes only its own
+# assignment and never another workspace's assignment to the same metastore.
 class DatabricksMetastoreAssignmentRel(CartographyRelSchema):
     """A Databricks workspace is assigned to a metastore."""
 
-    target_node_label: str = "DatabricksWorkspace"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+    source_node_label: str = "DatabricksWorkspace"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    target_node_label: str = "DatabricksMetastore"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSIGNED_METASTORE"
     properties: DatabricksMetastoreAssignmentRelProperties = (
         DatabricksMetastoreAssignmentRelProperties()
@@ -118,15 +105,14 @@ class DatabricksMetastoreAssignmentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksMetastoreSchema(CartographyNodeSchema):
-    """A Unity Catalog metastore that governs data and access controls."""
+    """A Unity Catalog metastore that governs data and access controls.
+
+    The metastore is the root of every Unity Catalog object and is shared by all
+    workspaces assigned to it, so it has no parent of its own and is never
+    pruned automatically; its objects are scoped to it for cleanup.
+    """
 
     label: str = "DatabricksMetastore"
     properties: DatabricksMetastoreNodeProperties = DatabricksMetastoreNodeProperties()
     # Metastores are grantable UC securables (metastore-level admin privileges).
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_SECURABLE])
-    sub_resource_relationship: DatabricksMetastoreToWorkspaceRel = (
-        DatabricksMetastoreToWorkspaceRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [DatabricksMetastoreAssignmentRel()],
-    )

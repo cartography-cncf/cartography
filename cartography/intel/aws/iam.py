@@ -1,9 +1,12 @@
 import enum
+import fnmatch
 import json
 import logging
 import time
 from collections import namedtuple
+from datetime import datetime
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -12,12 +15,20 @@ import backoff
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
+from cartography.intel.aws.permission_relationships import (
+    extract_condition_context_keys,
+)
+from cartography.intel.aws.permission_relationships import parse_condition_blob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
@@ -35,6 +46,7 @@ from cartography.models.aws.iam.principal_service_access import (
     AWSPrincipalServiceAccessSchema,
 )
 from cartography.models.aws.iam.role import AWSRoleSchema
+from cartography.models.aws.iam.role_trust import AWSRoleTrustsPrincipalMatchLink
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
 from cartography.models.aws.iam.samlprovider import AWSSAMLProviderSchema
 from cartography.models.aws.iam.server_certificate import AWSServerCertificateSchema
@@ -63,6 +75,7 @@ TransformedRoleData = namedtuple(
     "TransformedRoleData",
     [
         "role_data",
+        "trust_relationships",
         "federated_principals",
         "service_principals",
         "external_aws_accounts",
@@ -383,6 +396,12 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
     return {"Roles": roles}
 
 
+# Caps how many report jobs are pending at once. IAM throttles report generation
+# when an account submits many jobs back to back, and at 100 that throttle often
+# outlasted the retry budget. Twenty jobs submitted together still finish within
+# a few seconds, so reports keep building concurrently.
+_SERVICE_LAST_ACCESSED_BATCH_SIZE = 20
+
 _IAM_THROTTLING_ERROR_CODES = {
     "Throttling",
     "ThrottlingException",
@@ -400,6 +419,7 @@ AccountAuthorizationDetails = namedtuple(
         "group_memberships",
         "role_inline_policies",
         "role_managed_policies",
+        "role_last_used",
     ],
 )
 
@@ -525,6 +545,9 @@ def get_account_authorization_details(
         },
         role_managed_policies={
             r["Arn"]: managed(r.get("AttachedManagedPolicies", [])) for r in roles
+        },
+        role_last_used={
+            r["Arn"]: r.get("RoleLastUsed", {}).get("LastUsedDate") for r in roles
         },
     )
 
@@ -741,14 +764,218 @@ def transform_access_keys(
     return access_key_data
 
 
+# The sts actions that let a principal actually obtain credentials for a role. A trust
+# statement granting only e.g. sts:TagSession does not make the role assumable.
+ASSUME_ROLE_ACTIONS = frozenset(
+    {
+        "sts:assumerole",
+        "sts:assumerolewithwebidentity",
+        "sts:assumerolewithsaml",
+    }
+)
+
+# The Principal value that matches every principal. AWS treats the bare "*" and the
+# {"AWS": "*"} forms as equivalent, and does not allow wildcards inside a principal ARN.
+WILDCARD_PRINCIPAL = "*"
+
+
+def _matching_assume_role_actions(patterns: list[Any]) -> frozenset[str]:
+    """The assume-role actions matched by a list of IAM action patterns.
+
+    IAM action names are case-insensitive and may use `*` and `?` wildcards, so
+    "sts:AssumeRole*", "sts:*" and "*" all match every assume-role action.
+    """
+    lowered = [pattern.lower() for pattern in patterns if isinstance(pattern, str)]
+    return frozenset(
+        action
+        for action in ASSUME_ROLE_ACTIONS
+        if any(fnmatch.fnmatchcase(action, pattern) for pattern in lowered)
+    )
+
+
+def _account_principals(principal: str, partition: str) -> set[str]:
+    """The two ways a policy can name the account an AWS principal belongs to.
+
+    An account appears either as its bare ID or as its root ARN. The partition is only
+    used for a bare account ID, which carries none of its own.
+    """
+    if principal.isdigit():
+        account_id = principal
+    elif principal.startswith("arn:"):
+        parts = principal.split(":")
+        if len(parts) < 6 or not parts[4]:
+            return set()
+        partition, account_id = parts[1], parts[4]
+    else:
+        # e.g. the unique ID AWS leaves in a policy whose role or user was deleted.
+        return set()
+    return {account_id, f"arn:{partition}:iam::{account_id}:root"}
+
+
+def _statement_assume_role_actions(statement: dict[str, Any]) -> frozenset[str]:
+    """The assume-role actions a trust statement applies to, whether it allows or denies.
+
+    `Action` lists the actions the statement covers; `NotAction` covers every action
+    except the ones listed. Only the assume-role actions can draw a trust edge, so the
+    complement of a NotAction is computed exactly over that set rather than over the
+    whole action namespace: `"NotAction": "sts:AssumeRole"` covers the WebIdentity and
+    SAML flavours and leaves sts:AssumeRole alone, in an Allow and in a Deny alike.
+    """
+    if "NotAction" in statement:
+        excluded = _matching_assume_role_actions(
+            ensure_list(statement["NotAction"] or [])
+        )
+        return ASSUME_ROLE_ACTIONS - excluded
+    return _matching_assume_role_actions(ensure_list(statement.get("Action") or []))
+
+
+def _usable_assume_role_actions(principal_type: str, principal: str) -> frozenset[str]:
+    """The assume-role action that a principal of this type can call.
+
+    sts:AssumeRole is called with existing AWS credentials, so it is the only one an
+    account, user, role or service can use. A SAML provider is the principal of
+    sts:AssumeRoleWithSAML, and an OIDC provider, built-in ones such as
+    accounts.google.com included, that of sts:AssumeRoleWithWebIdentity.
+    """
+    if principal_type == "Federated":
+        if ":saml-provider/" in principal:
+            return frozenset({"sts:assumerolewithsaml"})
+        return frozenset({"sts:assumerolewithwebidentity"})
+    # "AWS" or "Service"
+    return frozenset({"sts:assumerole"})
+
+
+# The condition key a third party passes to sts:AssumeRole to prove it is acting for the
+# customer that configured the trust, which guards a role against the confused deputy
+# problem. IAM condition keys are case-insensitive.
+EXTERNAL_ID_CONDITION_KEY = "sts:externalid"
+
+
+def _condition_requires_external_id(condition: Any) -> bool:
+    """Whether a trust statement's Condition only matches a request carrying sts:ExternalId.
+
+    IAM ANDs every operator in a Condition block, so a single operator that fails when the
+    key is absent is enough. Most operators are false on a missing key, but these are
+    true and so do not require one:
+
+    - `...IfExists` operators and `ForAllValues:` set operators, by definition.
+    - Negated operators such as `StringNotEquals` or `ArnNotLike`, unless qualified
+      with `ForAnyValue:`, which requires at least one request value.
+    - `Null` with a value of "true", which requires the key to be absent. `Null` with
+      "false" requires it to be present, whatever its value.
+
+    A Condition that cannot be parsed is not proven to require an external ID.
+    """
+    for operator_map in parse_condition_blob(condition):
+        if not isinstance(operator_map, dict):
+            continue
+        for operator, context_map in operator_map.items():
+            if not isinstance(operator, str) or not isinstance(context_map, dict):
+                continue
+            values = next(
+                (
+                    value
+                    for key, value in context_map.items()
+                    if isinstance(key, str) and key.lower() == EXTERNAL_ID_CONDITION_KEY
+                ),
+                None,
+            )
+            if values is None:
+                continue
+            if operator.startswith("ForAllValues:") or operator.endswith("IfExists"):
+                continue
+            for_any_value = operator.startswith("ForAnyValue:")
+            operator = operator.removeprefix("ForAnyValue:")
+            if operator == "Null":
+                null_values = ensure_list(values)
+                if null_values and all(
+                    str(value).lower() == "false" for value in null_values
+                ):
+                    return True
+                continue
+            if "Not" in operator and not for_any_value:
+                continue
+            return True
+    return False
+
+
+def _aggregate_trust_conditions(
+    statement_conditions: list[Any],
+    *,
+    is_aws_principal: bool,
+) -> dict[str, Any]:
+    """Fold the Condition blocks of every statement trusting one principal into edge properties.
+
+    ``statement_conditions`` holds one entry per statement that trusts the principal, in
+    document order: the statement's raw ``Condition`` value, or None if it had none.
+
+    AWS evaluates conditions at request time against a token that does not exist at sync
+    time, so a conditional trust is annotated rather than resolved. Following the
+    precedent set for permission relationships in
+    cartography.intel.aws.permission_relationships.collect_edge_conditions:
+
+    - If any statement trusts the principal with no Condition, the trust is reachable
+      unconditionally and we report has_condition=False. An unconditional path wins.
+    - Otherwise every path to the trust is gated, so we report has_condition=True with
+      the union of referenced context keys and the raw condition blobs as a JSON string.
+
+    has_external_id follows the same rule: it is True only when every statement trusting
+    the principal requires sts:ExternalId, since any other statement is a path to the role
+    that skips it. It is always False for service and federated principals.
+    """
+    unconditional = {
+        "has_condition": False,
+        "condition_keys": [],
+        "conditions": None,
+        "has_external_id": False,
+    }
+    conditional_blobs: list[Any] = []
+    condition_keys: set[str] = set()
+
+    for condition in statement_conditions:
+        if not condition:
+            # An unconditional statement trusts this principal; the edge is effectively
+            # unconditional no matter what the other statements say.
+            return unconditional
+        parsed = parse_condition_blob(condition)
+        if parsed:
+            conditional_blobs.extend(parsed)
+            condition_keys.update(extract_condition_context_keys(parsed))
+        else:
+            # Fail safe toward "conditional": if the blob cannot be parsed, keep the edge
+            # flagged and preserve the raw value rather than downgrading it to
+            # unconditional.
+            conditional_blobs.append(
+                condition if isinstance(condition, str) else str(condition)
+            )
+
+    if not conditional_blobs:
+        # Defensive: a principal with no statements at all should not reach here.
+        return unconditional
+
+    return {
+        "has_condition": True,
+        "condition_keys": sorted(condition_keys),
+        "conditions": json.dumps(conditional_blobs),
+        "has_external_id": is_aws_principal
+        and all(
+            _condition_requires_external_id(condition)
+            for condition in statement_conditions
+        ),
+    }
+
+
 def transform_role_trust_policies(
     roles: list[dict[str, Any]], current_aws_account_id: str
 ) -> TransformedRoleData:
     """
     Processes AWS role assumption policy documents in the list_roles response.
-    Returns a TransformedRoleData object containing the role data, federated principals, service principals, and external AWS accounts.
+    Returns a TransformedRoleData object containing the role data, the trust
+    relationships to load, federated principals, service principals, and external AWS
+    accounts.
     """
     role_data: list[dict[str, Any]] = []
+    trust_relationships: list[dict[str, Any]] = []
     federated_principals: list[dict[str, Any]] = []
     service_principals: list[dict[str, Any]] = []
     external_aws_accounts: list[dict[str, Any]] = []
@@ -756,14 +983,55 @@ def transform_role_trust_policies(
     for role in roles:
         role_arn = role["Arn"]
 
-        # List of principals of type "AWS" that this role trusts
-        trusted_aws_principals = set()
-        # Process each statement in the assume role policy document
-        # TODO support conditions
-        for statement in role["AssumeRolePolicyDocument"]["Statement"]:
+        # Principal ARN -> one (statement index, assume-role actions, Condition) entry
+        # per Allow statement naming it, keeping only actions that principal can call.
+        # A role can trust the same principal from several statements under different
+        # conditions, so these are aggregated per (role, principal) below.
+        allowed_trusts: dict[str, list[tuple[int, frozenset[str], Any]]] = {}
+        wildcard_grants: list[tuple[int, frozenset[str], Any]] = []
+        principal_actions: dict[str, frozenset[str]] = {}
+        # Principal ARN -> the assume-role actions an unconditional Deny names for it.
+        # Deny beats Allow in IAM evaluation, so an Allow of a denied action draws no
+        # edge. The wildcard key holds the actions denied to every principal.
+        denied_actions: dict[str, set[str]] = {}
+        # The allowed principals of type AWS, i.e. IAM users, roles and accounts.
+        aws_principal_arns: set[str] = set()
 
-            principal_entries = _parse_principal_entries(statement["Principal"])
+        for statement_index, statement in enumerate(
+            role["AssumeRolePolicyDocument"]["Statement"]
+        ):
+            actions = _statement_assume_role_actions(statement)
+            if not actions:
+                # e.g. a statement granting only sts:TagSession. It names a principal but
+                # does not let it obtain credentials for the role.
+                continue
+
+            is_deny = statement.get("Effect") == "Deny"
+            condition = statement.get("Condition")
+            principal = statement["Principal"]
+            if principal == WILDCARD_PRINCIPAL:
+                # "Principal": "*" is shorthand for {"AWS": "*"}.
+                principal = {"AWS": WILDCARD_PRINCIPAL}
+            principal_entries = _parse_principal_entries(principal)
+
+            if is_deny:
+                # An unconditional Deny settles the question for the actions it names:
+                # the principal cannot obtain the role through them, whatever the Allow
+                # statements say. A conditional Deny only applies when its condition
+                # holds at request time, which we cannot evaluate here, so it is left to
+                # the Allow statements. Either way a Deny is not evidence that the named
+                # principal or its account exists, so no nodes are created from it.
+                if not condition:
+                    for _, principal_arn in principal_entries:
+                        denied_actions.setdefault(principal_arn, set()).update(actions)
+                continue
+
             for principal_type, principal_arn in principal_entries:
+                if principal_type == "AWS" and principal_arn == WILDCARD_PRINCIPAL:
+                    # No standalone wildcard edge, but this grant also applies to
+                    # concrete principals named elsewhere in the policy.
+                    wildcard_grants.append((statement_index, actions, condition))
+                    continue
                 if principal_type == "Federated":
                     # Add this to list of federated nodes to create
                     account_id = get_account_from_arn(principal_arn)
@@ -779,7 +1047,6 @@ def transform_role_trust_policies(
                             "role_arn": role_arn,
                         }
                     )
-                    trusted_aws_principals.add(principal_arn)
                 elif principal_type == "Service":
                     # Add to the list of service nodes to create
                     service_principals.append(
@@ -789,8 +1056,8 @@ def transform_role_trust_policies(
                         }
                     )
                     # Service principals are global so there is no account id.
-                    trusted_aws_principals.add(principal_arn)
                 elif principal_type == "AWS":
+                    aws_principal_arns.add(principal_arn)
                     if "root" in principal_arn:
                         # The current principal trusts a root principal.
 
@@ -804,10 +1071,56 @@ def transform_role_trust_policies(
                                     "partition": principal_arn.split(":")[1],
                                 }
                             )
-                    trusted_aws_principals.add(principal_arn)
                 else:
                     # This should not happen but who knows.
                     logger.warning(f"Unknown principal type: {principal_type}")
+                    continue
+
+                principal_actions[principal_arn] = _usable_assume_role_actions(
+                    principal_type, principal_arn
+                )
+                usable_actions = actions & principal_actions[principal_arn]
+                allowed_trusts.setdefault(principal_arn, []).append(
+                    (statement_index, usable_actions, condition)
+                )
+
+        partition = role_arn.split(":")[1]
+        for principal_arn, grants in allowed_trusts.items():
+            # Merge wildcard and explicit grants in document order before applying
+            # Denies and aggregating conditions for this concrete principal.
+            grants = sorted(
+                grants
+                + [
+                    (index, actions & principal_actions[principal_arn], condition)
+                    for index, actions, condition in wildcard_grants
+                ],
+                key=lambda grant: grant[0],
+            )
+            denied = denied_actions.get(principal_arn, set()) | denied_actions.get(
+                WILDCARD_PRINCIPAL, set()
+            )
+            if principal_arn in aws_principal_arns:
+                # A Deny naming an account covers every user and role in it, not only
+                # its root user.
+                for account_principal in _account_principals(principal_arn, partition):
+                    denied |= denied_actions.get(account_principal, set())
+            # A statement keeps granting the trust as long as an assume-role action it
+            # lets this principal call is not explicitly denied to it.
+            surviving_conditions = [
+                condition for _, actions, condition in grants if actions - denied
+            ]
+            if not surviving_conditions:
+                continue
+            trust_relationships.append(
+                {
+                    "source_role_arn": role_arn,
+                    "target_principal_arn": principal_arn,
+                    **_aggregate_trust_conditions(
+                        surviving_conditions,
+                        is_aws_principal=principal_arn in aws_principal_arns,
+                    ),
+                }
+            )
 
         role_record = {
             "arn": role["Arn"],
@@ -816,13 +1129,13 @@ def transform_role_trust_policies(
             "path": role["Path"],
             "createdate": str(role["CreateDate"]),
             "createdate_dt": role["CreateDate"],
-            "trusted_aws_principals": list(trusted_aws_principals),
             "account_id": get_account_from_arn(role["Arn"]),
         }
         role_data.append(role_record)
 
     return TransformedRoleData(
         role_data=role_data,
+        trust_relationships=trust_relationships,
         federated_principals=federated_principals,
         service_principals=service_principals,
         external_aws_accounts=external_aws_accounts,
@@ -1521,6 +1834,63 @@ def load_federated_principals(
 
 
 @timeit
+def load_role_trust_relationships(
+    neo4j_session: neo4j.Session,
+    trust_relationships: list[dict[str, Any]],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load the TRUSTS_AWS_PRINCIPAL edges declared by role trust policies.
+
+    Must be called after the roles and the principals they trust have been loaded: a
+    MatchLink only connects nodes that already exist, so a trust naming a principal in an
+    account outside the sync perimeter draws no edge, same as before.
+    """
+    load_matchlinks(
+        neo4j_session,
+        AWSRoleTrustsPrincipalMatchLink(),
+        trust_relationships,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
+    )
+
+
+# DEPRECATED: This compatibility migration will be removed in v1.0.0.
+def _cleanup_legacy_role_trust_relationships(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+) -> None:
+    """Delete stale TRUSTS_AWS_PRINCIPAL edges written before the edge became a MatchLink.
+
+    The node-schema relationship that used to draw this edge set no _sub_resource_label
+    or _sub_resource_id on it, and the MatchLink cleanup selects stale edges by those
+    properties, so an edge from that era whose trust has since been removed would never
+    be deleted. load_role_trust_relationships merges onto an existing edge and stamps
+    both properties, so once it has run every edge still declared by a trust policy in
+    this account carries them; whatever is left without them is stale.
+    """
+    statement = GraphStatement(
+        """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSRole)-[r:TRUSTS_AWS_PRINCIPAL]->(:AWSPrincipal)
+        WHERE r._sub_resource_id IS NULL
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r
+        """,
+        parameters={"AWS_ID": current_aws_account_id},
+        iterative=True,
+        iterationsize=10000,
+        parent_job_name="legacy_role_trust_cleanup",
+    )
+    GraphJob(
+        "Cleanup legacy TRUSTS_AWS_PRINCIPAL relationships",
+        [statement],
+        "legacy_role_trust_cleanup",
+    ).run(neo4j_session)
+
+
+@timeit
 def sync_role_assumptions(
     neo4j_session: neo4j.Session,
     data: dict[str, Any],
@@ -1546,6 +1916,14 @@ def sync_role_assumptions(
     )
     load_role_data(
         neo4j_session, transformed.role_data, current_aws_account_id, aws_update_tag
+    )
+    # The trust edges come last: a MatchLink connects nodes that already exist, so both
+    # the roles and the principals they trust must be in the graph by this point.
+    load_role_trust_relationships(
+        neo4j_session,
+        transformed.trust_relationships,
+        current_aws_account_id,
+        aws_update_tag,
     )
 
 
@@ -1821,6 +2199,17 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
 
     # Clean up roles before federated and service principals
     GraphJob.from_node_schema(AWSRoleSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_matchlink(
+        AWSRoleTrustsPrincipalMatchLink(),
+        sub_resource_label="AWSAccount",
+        sub_resource_id=common_job_parameters["AWS_ID"],
+        update_tag=common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    # Edges written before the MatchLink migration carry none of the properties the
+    # cleanup above selects on, so stale ones from that era need their own pass.
+    _cleanup_legacy_role_trust_relationships(
+        neo4j_session, common_job_parameters["AWS_ID"]
+    )
     GraphJob.from_node_schema(AWSFederatedPrincipalSchema(), common_job_parameters).run(
         neo4j_session
     )
@@ -1869,25 +2258,40 @@ def sync_root_principal(
     )
 
 
-@timeit
-@aws_handle_regions
-def get_service_last_accessed_details(
-    boto3_session: boto3.session.Session, arn: str
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    ClientError,
+    max_time=600,
+    giveup=lambda e: not _is_iam_throttling_error(e),
+    on_backoff=backoff_handler,
+)
+def _call_iam_with_throttle_retry(
+    operation: Callable[..., Dict], **kwargs: Any
 ) -> Dict:
-    """
-    Get service last accessed details for a given principal.
-    This is a two-step process: generate job, then get results.
-    Handles pagination to retrieve all services accessed.
-    """
-    client = create_boto3_client(boto3_session, "iam")
+    # Retried per call so a throttled poll keeps its job instead of starting over.
+    return operation(**kwargs)
 
+
+def _is_access_denied(error: ClientError) -> bool:
+    # Only a denial is per principal. Credential failures such as
+    # InvalidClientTokenId affect every principal and must fail the sync.
+    return error.response.get("Error", {}).get("Code") in (
+        "AccessDenied",
+        "AccessDeniedException",
+    )
+
+
+def _get_service_last_accessed_job_result(client: Any, arn: str, job_id: str) -> Dict:
     try:
-        response = client.generate_service_last_accessed_details(Arn=arn)
-        job_id = response["JobId"]
-
         max_attempts = 30
         for attempt in range(max_attempts):
-            job_response = client.get_service_last_accessed_details(JobId=job_id)
+            # The API maximum: at the default of 100, a principal with broad
+            # permissions needs several pages, each a call against the rate limit.
+            job_response = _call_iam_with_throttle_retry(
+                client.get_service_last_accessed_details,
+                JobId=job_id,
+                MaxItems=1000,
+            )
 
             if job_response["JobStatus"] == "COMPLETED":
                 # Handle pagination - collect all services
@@ -1897,8 +2301,11 @@ def get_service_last_accessed_details(
                     marker = job_response.get("Marker")
                     if not marker:
                         break
-                    job_response = client.get_service_last_accessed_details(
-                        JobId=job_id, Marker=marker
+                    job_response = _call_iam_with_throttle_retry(
+                        client.get_service_last_accessed_details,
+                        JobId=job_id,
+                        MaxItems=1000,
+                        Marker=marker,
                     )
                     all_services.extend(job_response.get("ServicesLastAccessed", []))
 
@@ -1922,57 +2329,95 @@ def get_service_last_accessed_details(
             exc_info=True,
         )
         return {}
-    except Exception:
-        logger.warning(
-            f"Error getting service last accessed details for {arn}", exc_info=True
+    except ClientError as e:
+        if not _is_access_denied(e):
+            raise
+        logger.warning(f"Skipping service last accessed details for {arn}: {e}")
+        return {}
+
+
+@timeit
+def get_service_last_accessed_details(
+    boto3_session: boto3.session.Session, principal_arns: List[str]
+) -> List[Tuple[str, Dict]]:
+    """
+    Get service last accessed details for a batch of principals.
+
+    Every job in the batch is generated before any is polled, so IAM builds the
+    reports concurrently and a whole batch waits about as long as one job.
+    """
+    client = create_boto3_client(boto3_session, "iam")
+
+    job_ids: Dict[str, str] = {}
+    for arn in principal_arns:
+        try:
+            job_ids[arn] = _call_iam_with_throttle_retry(
+                client.generate_service_last_accessed_details, Arn=arn
+            )["JobId"]
+        except client.exceptions.NoSuchEntityException:
+            logger.warning(
+                f"Principal {arn} not found for service last accessed details",
+                exc_info=True,
+            )
+        # Skipped here rather than by @aws_handle_regions, which would drop the
+        # whole batch for one principal's denial.
+        except ClientError as e:
+            if not _is_access_denied(e):
+                raise
+            logger.warning(f"Skipping service last accessed details for {arn}: {e}")
+
+    return [
+        (arn, _get_service_last_accessed_job_result(client, arn, job_id))
+        for arn, job_id in job_ids.items()
+    ]
+
+
+def transform_service_last_accessed_details(
+    service_details_by_principal: List[Tuple[str, Dict]],
+) -> List[Dict]:
+    """
+    Keep only the most recently accessed service for each principal.
+    """
+    principal_data = []
+    for principal_arn, service_details in service_details_by_principal:
+        services = service_details.get("ServicesLastAccessed", [])
+        accessed_services = [s for s in services if s.get("LastAuthenticated")]
+
+        if not accessed_services:
+            continue
+
+        most_recent_service = max(
+            accessed_services, key=lambda s: s.get("LastAuthenticated")
         )
-        raise
+
+        principal_data.append(
+            {
+                "arn": principal_arn,
+                "last_accessed_service_name": most_recent_service.get("ServiceName"),
+                "last_accessed_service_namespace": most_recent_service.get(
+                    "ServiceNamespace"
+                ),
+                "last_authenticated": str(
+                    most_recent_service.get("LastAuthenticated", "")
+                ),
+                "last_authenticated_entity": most_recent_service.get(
+                    "LastAuthenticatedEntity", ""
+                ),
+                "last_authenticated_region": most_recent_service.get(
+                    "LastAuthenticatedRegion", ""
+                ),
+            }
+        )
+    return principal_data
 
 
 @timeit
 def load_service_last_accessed_details(
     neo4j_session: neo4j.Session,
-    service_details: Dict,
-    principal_arn: str,
+    principal_data: List[Dict],
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    """
-    Load only the most recently accessed service details into Neo4j.
-    Updates the principal with last accessed service information.
-    """
-    if not service_details or not service_details.get("ServicesLastAccessed"):
-        return
-
-    services = service_details.get("ServicesLastAccessed", [])
-    accessed_services = [s for s in services if s.get("LastAuthenticated")]
-
-    if not accessed_services:
-        return
-
-    most_recent_service = max(
-        accessed_services, key=lambda s: s.get("LastAuthenticated")
-    )
-
-    # Transform the data for the data model
-    principal_data = [
-        {
-            "arn": principal_arn,
-            "last_accessed_service_name": most_recent_service.get("ServiceName"),
-            "last_accessed_service_namespace": most_recent_service.get(
-                "ServiceNamespace"
-            ),
-            "last_authenticated": str(most_recent_service.get("LastAuthenticated", "")),
-            "last_authenticated_entity": most_recent_service.get(
-                "LastAuthenticatedEntity", ""
-            ),
-            "last_authenticated_region": most_recent_service.get(
-                "LastAuthenticatedRegion", ""
-            ),
-        }
-    ]
-
-    # Use the data model to load the service access information
     load(
         neo4j_session,
         AWSPrincipalServiceAccessSchema(),
@@ -1982,6 +2427,28 @@ def load_service_last_accessed_details(
     )
 
 
+def _role_unused_since_last_report(
+    role_last_used: Dict[str, datetime | None] | None,
+    arn: str,
+    last_authenticated: str | None,
+) -> bool:
+    """
+    A role's report only changes after the role is used again, so a role with no
+    RoleLastUsed (unused within IAM's tracking period) or none newer than its stored
+    access would get the same report. Comparing against the stored access rather
+    than the previous run means a report that lagged behind RoleLastUsed is
+    generated again next run.
+    """
+    if role_last_used is None or arn not in role_last_used:
+        return False
+    last_used = role_last_used[arn]
+    if last_used is None:
+        return True
+    if not last_authenticated:
+        return False
+    return last_used <= datetime.fromisoformat(last_authenticated)
+
+
 @timeit
 def sync_service_last_accessed_details(
     neo4j_session: neo4j.Session,
@@ -1989,9 +2456,14 @@ def sync_service_last_accessed_details(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
+    role_last_used: Dict[str, datetime | None] | None = None,
 ) -> None:
     """
     Sync service last accessed details for all principals in the account.
+
+    With `role_last_used` (role ARN to RoleLastUsed.LastUsedDate), roles with no
+    recorded use or none since their stored access are skipped: IAM throttles
+    report generation, and their report would not change.
     """
     logger.info(
         "Syncing service last accessed details for account '%s'.",
@@ -2001,32 +2473,59 @@ def sync_service_last_accessed_details(
     principals_query = """
     MATCH (account:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(principal)
     WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSGroup
-    RETURN principal.arn as arn
+    RETURN principal.arn AS arn, principal.last_authenticated AS last_authenticated
+    ORDER BY arn
     """
 
     results = neo4j_session.run(principals_query, AWS_ACCOUNT_ID=current_aws_account_id)
-    principal_arns = [record["arn"] for record in results]
+    records = list(results)
+    principal_arns = [
+        record["arn"]
+        for record in records
+        if not _role_unused_since_last_report(
+            role_last_used, record["arn"], record["last_authenticated"]
+        )
+    ]
 
     logger.info(
-        f"Found {len(principal_arns)} principals to process for service last accessed details"
+        "Generating service last accessed reports for %d of %d principals; "
+        "the rest are roles not used since their stored access.",
+        len(principal_arns),
+        len(records),
     )
 
-    for principal_arn in principal_arns:
-        logger.debug(
-            f"Getting service last accessed details for principal: {principal_arn}"
-        )
-        service_details = get_service_last_accessed_details(
-            boto3_session, principal_arn
-        )
-
-        if service_details:
-            load_service_last_accessed_details(
-                neo4j_session,
-                service_details,
-                principal_arn,
+    principal_data: List[Dict] = []
+    for i in range(0, len(principal_arns), _SERVICE_LAST_ACCESSED_BATCH_SIZE):
+        batch = principal_arns[i : i + _SERVICE_LAST_ACCESSED_BATCH_SIZE]
+        # IAM runs first in an account's sync, so raising here would also skip
+        # every other resource in the account for want of this enrichment.
+        try:
+            service_details = get_service_last_accessed_details(boto3_session, batch)
+        except (
+            ClientError,
+            ConnectTimeoutError,
+            EndpointConnectionError,
+            ReadTimeoutError,
+        ) as e:
+            if isinstance(e, ClientError) and not _is_iam_throttling_error(e):
+                raise
+            logger.warning(
+                "Stopping service last accessed sync for account '%s' after %d of %d "
+                "principals; IAM stayed unavailable: %s",
                 current_aws_account_id,
-                aws_update_tag,
+                i,
+                len(principal_arns),
+                e,
             )
+            break
+        principal_data.extend(transform_service_last_accessed_details(service_details))
+
+    load_service_last_accessed_details(
+        neo4j_session,
+        principal_data,
+        current_aws_account_id,
+        aws_update_tag,
+    )
 
     # Cleanup: Remove service access data from principals that weren't updated in this sync
     GraphJob.from_node_schema(
@@ -2093,6 +2592,9 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+        role_last_used=(
+            authorization_details.role_last_used if authorization_details else None
+        ),
     )
     sync_assumerole_relationships(
         neo4j_session,

@@ -2,6 +2,7 @@ import pytest
 
 from cartography.intel.tenable.findings import get
 from cartography.intel.tenable.findings import transform
+from cartography.intel.tenable.findings import transform_cves
 from cartography.intel.tenable.findings import transform_plugins
 from cartography.intel.tenable.findings import transform_scans
 from tests.data.tenable.assets import ASSET_ID_1
@@ -11,7 +12,6 @@ from tests.data.tenable.findings import FINDING_ID_3
 from tests.data.tenable.findings import FINDINGS_DATA
 from tests.data.tenable.findings import PLUGIN_ID_1
 from tests.data.tenable.findings import PLUGIN_ID_2
-from tests.data.tenable.findings import PLUGIN_ID_3
 from tests.data.tenable.findings import SCAN_UUID_1
 from tests.data.tenable.findings import SCAN_UUID_2
 
@@ -74,11 +74,6 @@ def test_transform_maps_all_fields():
     assert f1["service"] == "cifs"
     # CVE fields: finding has CVEs
     assert f1["cve_id"] == "CVE-2022-21837"
-    assert set(f1["cve_list"]) == {
-        "CVE-2022-21837",
-        "CVE-2022-21840",
-        "CVE-2022-21842",
-    }
     assert f1["has_cve"] == "true"
 
 
@@ -89,7 +84,6 @@ def test_transform_cve_fields_no_cves():
     # Assert
     f2 = next(r for r in result if r["id"] == FINDING_ID_2)
     assert f2["cve_id"] is None
-    assert f2["cve_list"] == []
     assert f2["has_cve"] == "false"
 
 
@@ -172,7 +166,7 @@ def test_transform_plugins_basic():
     assert p1["cvss3_base_score"] == 8.8
     assert p1["vpr_score"] == 6.7
     assert p1["epss_score"] == 10.647
-    assert set(p1["cve_list"]) == {"CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"}
+    assert p1["cve_list"] == ["CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"]
 
 
 def test_transform_plugins_vpr_none_when_missing():
@@ -182,15 +176,6 @@ def test_transform_plugins_vpr_none_when_missing():
     # Assert
     p2 = next(r for r in result if r["id"] == PLUGIN_ID_2)
     assert p2["vpr_score"] is None
-
-
-def test_transform_plugins_empty_cve_list():
-    # Act
-    result = transform_plugins(FINDINGS_DATA)
-
-    # Assert
-    p3 = next(r for r in result if r["id"] == PLUGIN_ID_3)
-    assert p3["cve_list"] == []
 
 
 def test_transform_plugins_deduplicates():
@@ -239,6 +224,140 @@ def test_transform_plugins_skips_missing_id():
 def test_transform_plugins_empty_input():
     # Act and assert
     assert transform_plugins([]) == []
+
+
+# ---------------------------------------------------------------------------
+# CVE IDs on findings and plugins
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "plugin",
+    [
+        {"id": 1, "cve": []},
+        {"id": 1, "cve": None},
+        {"id": 1},
+    ],
+)
+def test_transform_plugins_gives_a_plugin_without_cves_an_empty_cve_list(plugin):
+    # Arrange
+    raw = [{"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": plugin}]
+
+    # Act
+    result = transform_plugins(raw)
+
+    # Assert
+    assert result[0]["cve_list"] == []
+
+
+@pytest.mark.parametrize("blank", ["", None])
+def test_transform_plugins_drops_blank_cve_ids(blank):
+    # Arrange
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {"id": 1, "cve": [blank, "CVE-2026-0001"]},
+        }
+    ]
+
+    # Act
+    result = transform_plugins(raw)
+
+    # Assert
+    assert result[0]["cve_list"] == ["CVE-2026-0001"]
+
+
+def test_transform_plugins_lists_each_cve_once():
+    # Arrange
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {
+                "id": 1,
+                "cve": ["CVE-2026-0001", "CVE-2026-0002", "CVE-2026-0001"],
+            },
+        }
+    ]
+
+    # Act
+    result = transform_plugins(raw)
+
+    # Assert
+    assert result[0]["cve_list"] == ["CVE-2026-0001", "CVE-2026-0002"]
+
+
+def test_transform_takes_the_first_cve_id_that_is_not_blank():
+    # Arrange
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {"id": 1, "cve": ["", "CVE-2026-0002", "CVE-2026-0001"]},
+        }
+    ]
+
+    # Act
+    finding = transform(raw)[0]
+
+    # Assert
+    assert finding["cve_id"] == "CVE-2026-0002"
+    assert finding["has_cve"] == "true"
+
+
+# ---------------------------------------------------------------------------
+# transform_cves()
+# ---------------------------------------------------------------------------
+
+
+def test_transform_cves_lists_every_plugin_that_names_each_cve():
+    # Arrange
+    plugins = [
+        {"id": 1, "cve_list": ["CVE-2026-0001", "CVE-2026-0002"]},
+        {"id": 2, "cve_list": ["CVE-2026-0002"]},
+    ]
+
+    # Act
+    result = transform_cves(plugins, "tenant-a")
+
+    # Assert
+    assert result == [
+        {
+            "id": "TNB|tenant-a|CVE-2026-0001",
+            "cve_id": "CVE-2026-0001",
+            "plugin_ids": [1],
+        },
+        {
+            "id": "TNB|tenant-a|CVE-2026-0002",
+            "cve_id": "CVE-2026-0002",
+            "plugin_ids": [1, 2],
+        },
+    ]
+
+
+def test_transform_cves_returns_nothing_when_no_plugin_names_a_cve():
+    # Arrange
+    plugins = [{"id": 1, "cve_list": []}]
+
+    # Act
+    result = transform_cves(plugins, "tenant-a")
+
+    # Assert
+    assert result == []
+
+
+def test_transform_cves_scopes_node_ids_to_the_tenant():
+    # Arrange
+    plugins = [{"id": 1, "cve_list": ["CVE-2026-0001"]}]
+
+    # Act
+    tenant_a_cve = transform_cves(plugins, "tenant-a")[0]
+    tenant_b_cve = transform_cves(plugins, "tenant-b")[0]
+
+    # Assert
+    assert tenant_a_cve["id"] == "TNB|tenant-a|CVE-2026-0001"
+    assert tenant_b_cve["id"] == "TNB|tenant-b|CVE-2026-0001"
 
 
 # ---------------------------------------------------------------------------

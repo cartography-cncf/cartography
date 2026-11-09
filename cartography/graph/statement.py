@@ -10,10 +10,29 @@ from typing import Union
 import neo4j
 
 from cartography.client.core.tx import execute_write_with_retry
+from cartography.client.core.tx import run_autocommit_query_with_retry
 from cartography.stats import get_stats_client
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+
+# A batched statement scans for at most this many batches of rows per run. Neo4j buffers the
+# scanned rows before it commits the first batch, at about 84 bytes a row on Neo4j 5.26.
+SCAN_BATCHES_PER_RUN = 100
+
+
+def _record_stats(summary: neo4j.ResultSummary) -> None:
+    stat_handler.incr("constraints_added", summary.counters.constraints_added)
+    stat_handler.incr("constraints_removed", summary.counters.constraints_removed)
+    stat_handler.incr("indexes_added", summary.counters.indexes_added)
+    stat_handler.incr("indexes_removed", summary.counters.indexes_removed)
+    stat_handler.incr("labels_added", summary.counters.labels_added)
+    stat_handler.incr("labels_removed", summary.counters.labels_removed)
+    stat_handler.incr("nodes_created", summary.counters.nodes_created)
+    stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
+    stat_handler.incr("properties_set", summary.counters.properties_set)
+    stat_handler.incr("relationships_created", summary.counters.relationships_created)
+    stat_handler.incr("relationships_deleted", summary.counters.relationships_deleted)
 
 
 class GraphStatementJSONEncoder(json.JSONEncoder):
@@ -117,6 +136,7 @@ class GraphStatement:
         iterationsize: int = 0,
         parent_job_name: Optional[str] = None,
         parent_job_sequence_num: Optional[int] = None,
+        batched_transactions: bool = False,
     ):
         """
         Initialize a GraphStatement instance.
@@ -133,6 +153,10 @@ class GraphStatement:
                 Defaults to None.
             parent_job_sequence_num (Optional[int], optional): Sequence number within the parent job.
                 Defaults to None (will be set to 1).
+            batched_transactions (bool, optional): Whether the query commits its own batches with
+                `CALL { ... } IN TRANSACTIONS OF $LIMIT_SIZE ROWS`, scanning up to
+                `$SCAN_LIMIT_SIZE` rows per run. Such a statement runs in auto-commit transactions
+                until it makes no updates. Defaults to False.
         """
         self.query = query
         self.parameters = parameters or {}
@@ -143,6 +167,16 @@ class GraphStatement:
                 f"iterationsize must be a positive integer, got {iterationsize}",
             )
         self.parameters["LIMIT_SIZE"] = self.iterationsize
+        self.batched_transactions = batched_transactions
+        if batched_transactions:
+            if iterationsize <= 0:
+                raise ValueError(
+                    "batched_transactions requires a positive iterationsize, "
+                    f"got {iterationsize}",
+                )
+            self.parameters["SCAN_LIMIT_SIZE"] = (
+                self.iterationsize * SCAN_BATCHES_PER_RUN
+            )
 
         self.parent_job_name = parent_job_name if parent_job_name else None
         self.parent_job_sequence_num = (
@@ -203,7 +237,9 @@ class GraphStatement:
             the query returns no updates (summary.counters.contains_updates is False).
             Completion is logged with the parent job name and sequence number.
         """
-        if self.iterative:
+        if self.batched_transactions:
+            self._run_batched_transactions(session)
+        elif self.iterative:
             self._run_iterative(session)
         else:
             execute_write_with_retry(session, self._run_noniterative)
@@ -253,6 +289,7 @@ class GraphStatement:
             "parameters": self.parameters,
             "iterative": self.iterative,
             "iterationsize": self.iterationsize,
+            "batched_transactions": self.batched_transactions,
         }
 
     def _run_noniterative(self, tx: neo4j.Transaction) -> neo4j.ResultSummary:
@@ -281,24 +318,25 @@ class GraphStatement:
         # Ensure we consume the result inside the transaction
         summary: neo4j.ResultSummary = result.consume()
 
-        # Handle stats
-        stat_handler.incr("constraints_added", summary.counters.constraints_added)
-        stat_handler.incr("constraints_removed", summary.counters.constraints_removed)
-        stat_handler.incr("indexes_added", summary.counters.indexes_added)
-        stat_handler.incr("indexes_removed", summary.counters.indexes_removed)
-        stat_handler.incr("labels_added", summary.counters.labels_added)
-        stat_handler.incr("labels_removed", summary.counters.labels_removed)
-        stat_handler.incr("nodes_created", summary.counters.nodes_created)
-        stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
-        stat_handler.incr("properties_set", summary.counters.properties_set)
-        stat_handler.incr(
-            "relationships_created", summary.counters.relationships_created
-        )
-        stat_handler.incr(
-            "relationships_deleted", summary.counters.relationships_deleted
-        )
-
+        _record_stats(summary)
         return summary
+
+    def _run_batched_transactions(self, session: neo4j.Session) -> None:
+        """
+        Run a statement that commits its own batches until a run makes no updates.
+
+        Each run changes up to $SCAN_LIMIT_SIZE rows from a single scan, so a large label is
+        scanned once per $SCAN_LIMIT_SIZE rows rather than once per $LIMIT_SIZE.
+        """
+        while True:
+            summary = run_autocommit_query_with_retry(
+                session,
+                self.query,
+                self.parameters,
+            )
+            _record_stats(summary)
+            if not summary.counters.contains_updates:
+                break
 
     def _run_iterative(self, session: neo4j.Session) -> None:
         """
@@ -343,7 +381,8 @@ class GraphStatement:
 
         Args:
             json_obj (Dict[str, Any]): The JSON object containing statement configuration.
-                Expected keys: "query", "parameters", "iterative", "iterationsize".
+                Expected keys: "query", "parameters", "iterative", "iterationsize",
+                "batched_transactions".
             short_job_name (Optional[str], optional): The short name of the job this statement
                 belongs to, used for logging and naming. Defaults to None.
             job_sequence_num (Optional[int], optional): The sequence number of this statement
@@ -358,6 +397,7 @@ class GraphStatement:
             - parameters: {} (empty dict)
             - iterative: False
             - iterationsize: 0
+            - batched_transactions: False
         """
         return cls(
             json_obj.get("query", ""),
@@ -366,6 +406,7 @@ class GraphStatement:
             json_obj.get("iterationsize", 0),
             short_job_name,
             job_sequence_num,
+            batched_transactions=json_obj.get("batched_transactions", False),
         )
 
     @classmethod

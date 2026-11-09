@@ -46,13 +46,27 @@ class NetlifySiteNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Always-present `*.netlify.app` hostname.",
     )
+    default_domain_normalized: PropertyRef = PropertyRef(
+        "default_domain_normalized",
+        extra_index=True,
+        description="Canonical Netlify-provided hostname.",
+    )
     custom_domain: PropertyRef = PropertyRef(
         "custom_domain",
         extra_index=True,
         description="Customer's own primary domain, if set.",
     )
+    custom_domain_normalized: PropertyRef = PropertyRef(
+        "custom_domain_normalized",
+        extra_index=True,
+        description="Canonical customer-owned primary hostname, if set.",
+    )
     domain_aliases: PropertyRef = PropertyRef(
         "domain_aliases", description="Additional domains serving the same site."
+    )
+    domain_aliases_normalized: PropertyRef = PropertyRef(
+        "domain_aliases_normalized",
+        description="Canonical additional hostnames serving the same site.",
     )
     branch_deploy_custom_domain: PropertyRef = PropertyRef(
         "branch_deploy_custom_domain",

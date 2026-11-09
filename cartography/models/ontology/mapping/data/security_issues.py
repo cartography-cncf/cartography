@@ -125,15 +125,12 @@ _ORCA_ALERT_SEVERITY = {
     "MEDIUM": "medium",
     "LOW": "low",
 }
+# Closed and dismissed alerts are not ingested.
 _ORCA_ALERT_STATUS = {
     "open": "open",
     "in_progress": "open",
-    "close": "fixed",
-    "dismiss": "ignored",
     "OPEN": "open",
     "IN_PROGRESS": "open",
-    "CLOSE": "fixed",
-    "DISMISS": "ignored",
 }
 
 aws_mapping = OntologyMapping(
@@ -171,6 +168,33 @@ semgrep_mapping = OntologyMapping(
     nodes=[
         OntologyNodeMapping(
             node_label="SemgrepSASTFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title",
+                    node_field="title",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _SEMGREP_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _SEMGREP_SAST_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="opened_at",
+                ),
+            ],
+        ),
+        # SemgrepAISASTFinding mirrors SemgrepSASTFinding; `state` shares the same vocabulary.
+        OntologyNodeMapping(
+            node_label="SemgrepAISASTFinding",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="title",
@@ -532,9 +556,55 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+microsoft_mapping = OntologyMapping(
+    module_name="microsoft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DefenderAlert",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "informational": "info",
+                            "low": "low",
+                            "medium": "medium",
+                            "high": "high",
+                        }
+                    },
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "new": "open",
+                            "inProgress": "open",
+                            "resolved": "fixed",
+                        }
+                    },
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type", node_field="detection_source"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="created_date_time"
+                ),
+            ],
+        ),
+    ],
+)
+
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bbot": bbot_mapping,
     "huntress": huntress_mapping,
+    "microsoft": microsoft_mapping,
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
     "socketdev": socketdev_mapping,

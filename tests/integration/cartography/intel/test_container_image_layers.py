@@ -20,17 +20,27 @@ def test_get_complete_layer_digests_preserves_completeness_and_scope(
                (other)-[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: 'foreign'})
         WITH project
         UNWIND $images AS image
-        CREATE (project)-[:RESOURCE]->(:GCPArtifactRegistryImage {
+        CREATE (project)-[:RESOURCE]->(img:GCPArtifactRegistryImage {
             digest: image.digest, layer_diff_ids: image.layers
         })
+        WITH img, image
+        OPTIONAL MATCH (layer:GCPArtifactRegistryImageLayer)
+        WHERE image.linked AND layer.id IN image.layers
+        FOREACH (_ IN CASE WHEN layer IS NULL THEN [] ELSE [1] END |
+            CREATE (img)-[:HAS_LAYER]->(layer),
+                   (img)-[:HEAD]->(layer),
+                   (img)-[:TAIL]->(layer)
+        )
         """,
         images=[
-            {"digest": "sha256:0", "layers": ["local"]},
-            {"digest": "sha256:1", "layers": None},
-            {"digest": "sha256:2", "layers": []},
-            {"digest": "sha256:3", "layers": ["local", "missing"]},
-            {"digest": "sha256:4", "layers": ["foreign"]},
-            {"digest": "sha256:5", "layers": ["local"]},
+            {"digest": "sha256:0", "layers": ["local"], "linked": True},
+            {"digest": "sha256:1", "layers": None, "linked": False},
+            {"digest": "sha256:2", "layers": [], "linked": False},
+            {"digest": "sha256:3", "layers": ["local", "missing"], "linked": True},
+            {"digest": "sha256:4", "layers": ["foreign"], "linked": True},
+            {"digest": "sha256:5", "layers": ["local"], "linked": True},
+            # Layer nodes exist but the image edges do not, so it is refetched.
+            {"digest": "sha256:6", "layers": ["local"], "linked": False},
         ],
     ).consume()
 

@@ -40,33 +40,36 @@ def sync(
     api_session: DatabricksWorkspaceClient,
     workspace_id: str,
     common_job_parameters: dict[str, Any],
-) -> None:
-    objects = get_objects(neo4j_session, workspace_id)
-    scopes = get_secret_scopes(neo4j_session, workspace_id)
+) -> bool:
+    """Load HAS_PERMISSION edges and report whether every ACL was read.
+
+    Returns False when an object's or secret scope's ACL was skipped (403/404):
+    its edges were not refreshed, so the caller must skip the whole-workspace
+    MatchLink cleanup rather than delete still-valid edges.
+    """
+    update_tag = common_job_parameters["UPDATE_TAG"]
+    objects = get_objects(neo4j_session, workspace_id, update_tag)
+    scopes = get_secret_scopes(neo4j_session, workspace_id, update_tag)
     object_permissions, objects_complete = get(api_session, objects)
     scope_permissions, scopes_complete = get_secret_scope_acls(api_session, scopes)
     permissions = object_permissions + scope_permissions
-    principals = get_principals(neo4j_session, workspace_id)
+    principals = get_principals(neo4j_session, workspace_id, update_tag)
     permissions = resolve_principals(permissions, principals)
-    load_permissions(
-        neo4j_session, permissions, workspace_id, common_job_parameters["UPDATE_TAG"]
-    )
-    # Only clean up when every object's ACL was read this run. A 403/404 on one
-    # object means its edges were not refreshed, so a whole-workspace MatchLink
-    # cleanup would delete still-valid HAS_PERMISSION edges for it; skip cleanup
-    # and let a fully successful run reconcile the stale edges instead.
-    if objects_complete and scopes_complete:
-        cleanup(neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"])
-    else:
+    load_permissions(neo4j_session, permissions, workspace_id, update_tag)
+    complete = objects_complete and scopes_complete
+    if not complete:
         logger.warning(
             "Databricks permissions were partially read for workspace %s; "
-            "skipping HAS_PERMISSION cleanup to avoid deleting valid edges.",
+            "HAS_PERMISSION cleanup will be skipped to avoid deleting valid edges.",
             workspace_id,
         )
+    return complete
 
 
 @timeit
-def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str, str]:
+def get_principals(
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
+) -> dict[str, str]:
     """Map each workspace principal's ACL name to its scoped node id.
 
     The permissions API reports ACL principals by name (user_name / group
@@ -79,7 +82,8 @@ def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str,
     # (an SP also has a display_name, so coalesce would mis-key it).
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(p)
-    WHERE p:DatabricksUser OR p:DatabricksGroup OR p:DatabricksServicePrincipal
+    WHERE (p:DatabricksUser OR p:DatabricksGroup OR p:DatabricksServicePrincipal)
+      AND p.lastupdated = $update_tag
     RETURN p.id AS id,
            CASE
                WHEN p:DatabricksServicePrincipal THEN p.application_id
@@ -87,7 +91,7 @@ def get_principals(neo4j_session: neo4j.Session, workspace_id: str) -> dict[str,
                ELSE p.user_name
            END AS name
     """
-    result = neo4j_session.run(query, workspace_id=workspace_id)
+    result = neo4j_session.run(query, workspace_id=workspace_id, update_tag=update_tag)
     principals: dict[str, str] = {}
     for record in result:
         if record["name"] and record["id"]:
@@ -115,7 +119,7 @@ def resolve_principals(
 
 @timeit
 def get_objects(
-    neo4j_session: neo4j.Session, workspace_id: str
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> list[dict[str, Any]]:
     """Read the ACL-bearing workspace objects already loaded for this workspace.
 
@@ -124,8 +128,12 @@ def get_objects(
     row carries the node id (MatchLink target) plus the API-native object ref the
     permissions endpoint keys by.
     """
+    # Cleanup runs only after every load, so stale nodes from earlier runs are
+    # still present here; filtering on the update tag keeps them from being read
+    # (a deleted object would 404 and block HAS_PERMISSION cleanup).
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(n:DatabricksAclObject)
+    WHERE n.lastupdated = $update_tag
     WITH n, [l IN labels(n) WHERE l IN $labels][0] AS label
     WHERE label IS NOT NULL
     RETURN n.id AS id,
@@ -144,6 +152,7 @@ def get_objects(
     result = neo4j_session.run(
         query,
         workspace_id=workspace_id,
+        update_tag=update_tag,
         labels=list(_ACL_OBJECT_BY_LABEL.keys()),
     )
     objects: list[dict[str, Any]] = []
@@ -164,7 +173,7 @@ def get_objects(
 
 @timeit
 def get_secret_scopes(
-    neo4j_session: neo4j.Session, workspace_id: str
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> list[dict[str, Any]]:
     """Read the secret scopes already loaded for this workspace.
 
@@ -173,9 +182,10 @@ def get_secret_scopes(
     """
     query = """
     MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(s:DatabricksSecretScope)
+    WHERE s.lastupdated = $update_tag
     RETURN s.id AS id, s.name AS name
     """
-    result = neo4j_session.run(query, workspace_id=workspace_id)
+    result = neo4j_session.run(query, workspace_id=workspace_id, update_tag=update_tag)
     scopes: list[dict[str, Any]] = []
     for record in result:
         if record["id"] and record["name"]:

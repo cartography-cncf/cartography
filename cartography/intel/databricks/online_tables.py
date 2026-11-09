@@ -20,22 +20,25 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: DatabricksWorkspaceClient,
     workspace_id: str,
+    metastore_id: str,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    candidates = get_candidate_tables(neo4j_session, workspace_id)
+    candidates = get_candidate_tables(
+        neo4j_session, workspace_id, common_job_parameters["UPDATE_TAG"]
+    )
     online_tables = get(api_session, candidates)
     transformed = transform(online_tables)
     load_online_tables(
         neo4j_session,
         transformed,
-        workspace_id,
+        metastore_id,
         common_job_parameters["UPDATE_TAG"],
     )
 
 
 @timeit
 def get_candidate_tables(
-    neo4j_session: neo4j.Session, workspace_id: str
+    neo4j_session: neo4j.Session, workspace_id: str, update_tag: int
 ) -> list[dict[str, Any]]:
     """Return managed UC tables to probe for an online-table twin.
 
@@ -43,12 +46,14 @@ def get_candidate_tables(
     tables already in the graph. ponytail: one GET per managed table; if this
     ever bites on a huge metastore, gate it behind a config flag.
     """
+    # Only tables this workspace listed this run: other workspaces on the
+    # metastore may list tables this one cannot read.
     query = """
-    MATCH (:DatabricksWorkspace {id: $workspace_id})-[:RESOURCE]->(t:DatabricksTable)
-    WHERE t.table_type = 'MANAGED'
+    MATCH (:DatabricksWorkspace {id: $workspace_id})<-[v:VISIBLE_IN]-(t:DatabricksTable)
+    WHERE t.table_type = 'MANAGED' AND v.lastupdated = $update_tag
     RETURN t.full_name AS full_name, t.metastore_id AS metastore_id
     """
-    result = neo4j_session.run(query, workspace_id=workspace_id)
+    result = neo4j_session.run(query, workspace_id=workspace_id, update_tag=update_tag)
     return [dict(record) for record in result]
 
 
@@ -110,7 +115,7 @@ def transform(online_tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def load_online_tables(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
-    workspace_id: str,
+    metastore_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -118,7 +123,7 @@ def load_online_tables(
         DatabricksOnlineTableSchema(),
         data,
         lastupdated=update_tag,
-        WORKSPACE_ID=workspace_id,
+        METASTORE_ID=metastore_id,
     )
 
 
