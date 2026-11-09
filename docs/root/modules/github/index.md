@@ -66,7 +66,8 @@ the image's layer history with each Dockerfile's final stage and needs at least 
 similar commands, so a final stage with a single `COPY` does not match on its own.
 When the best match ties across repositories, Dockerfile analysis creates no link;
 a GHCR image can still be linked to the single repository that owns its package.
-Set the OCI source label on images built from short Dockerfiles.
+Set the OCI source and revision labels on every build, especially for images built
+from short Dockerfiles.
 
 ## Compatibility model
 
