@@ -22,6 +22,8 @@ from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
+from cartography.intel.supply_chain import image_config_label_provenance
+from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from cartography.models.gitlab.container_image_layers import (
     GitLabContainerImageLayerSchema,
 )
@@ -474,6 +476,7 @@ def transform_container_images(
                 "layer_diff_ids": layer_diff_ids,
                 "head_layer_diff_id": head_layer_diff_id,
                 "tail_layer_diff_id": tail_layer_diff_id,
+                **({} if is_manifest_list else image_config_label_provenance(config)),
             }
         )
 
@@ -740,6 +743,7 @@ def sync_container_images(
         GITLAB_LAYER_GRAPH,
         None,
         {"id": org_id, "gitlab_url": gitlab_url},
+        min_label_provenance_version=LABEL_PROVENANCE_VERSION,
     )
     manifest_list_digests = _get_manifest_list_digests(
         neo4j_session,

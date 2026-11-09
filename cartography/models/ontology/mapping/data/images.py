@@ -9,6 +9,8 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # - architecture: CPU architecture (amd64, arm64, etc.)
 # - os: Operating system (linux, windows)
 # - variant: Architecture variant (v8, etc.)
+# - source_uri: Repository the image was built from (attestation or OCI label)
+# - source_revision: Commit the image was built from (attestation or OCI label)
 
 aws_ecr_mapping = OntologyMapping(
     module_name="aws",
@@ -21,6 +23,12 @@ aws_ecr_mapping = OntologyMapping(
                     ontology_field="architecture", node_field="architecture"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(
+                    ontology_field="source_uri", node_field="source_uri"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="source_revision", node_field="source_revision"
+                ),
             ],
         ),
     ],
@@ -38,6 +46,12 @@ gcp_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
                 OntologyFieldMapping(ontology_field="variant", node_field="variant"),
+                OntologyFieldMapping(
+                    ontology_field="source_uri", node_field="source_uri"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="source_revision", node_field="source_revision"
+                ),
             ],
         ),
     ],
@@ -55,6 +69,12 @@ gitlab_mapping = OntologyMapping(
                     ontology_field="architecture", node_field="architecture"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(
+                    ontology_field="source_uri", node_field="source_uri"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="source_revision", node_field="source_revision"
+                ),
             ],
         ),
     ],
@@ -73,6 +93,12 @@ github_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
                 OntologyFieldMapping(ontology_field="variant", node_field="variant"),
+                OntologyFieldMapping(
+                    ontology_field="source_uri", node_field="source_uri"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="source_revision", node_field="source_revision"
+                ),
             ],
         ),
     ],
@@ -86,7 +112,14 @@ scaleway_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 # Scaleway's registry API exposes no per-digest architecture/os
-                # or manifest-list metadata, so only the digest is mapped.
+                # or manifest-list metadata, so only the digest and the source
+                # fields are mapped.
+                OntologyFieldMapping(
+                    ontology_field="source_uri", node_field="source_uri"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="source_revision", node_field="source_revision"
+                ),
             ],
         ),
     ],

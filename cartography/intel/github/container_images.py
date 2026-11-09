@@ -26,6 +26,8 @@ from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.github.packages import get_package_versions
 from cartography.intel.github.util import fetch_ghcr_blob
 from cartography.intel.github.util import fetch_ghcr_manifest
+from cartography.intel.supply_chain import image_config_label_provenance
+from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from cartography.models.github.container_image_layers import (
     GitHubContainerImageLayerSchema,
 )
@@ -303,6 +305,7 @@ def transform_container_images(
                 "head_layer_diff_id": head_layer_diff_id,
                 "tail_layer_diff_id": tail_layer_diff_id,
                 "package_id": manifest.get("_package_id"),
+                **({} if is_manifest_list else image_config_label_provenance(config)),
             },
         )
     return transformed
@@ -492,6 +495,7 @@ def sync_container_images(
         GHCR_LAYER_GRAPH,
         None,
         {"id": org_url},
+        min_label_provenance_version=LABEL_PROVENANCE_VERSION,
     )
     if skip_digests:
         logger.info(

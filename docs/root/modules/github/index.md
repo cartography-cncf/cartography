@@ -52,8 +52,13 @@ relationships from those identifiers until identity can be normalized safely.
 
 GHCR images are keyed by digest. Layers are keyed by uncompressed `diff_id`,
 which enables deduplication even when registries use different compressed
-digests. SLSA provenance and Dockerfile analysis can link ontology `Image` nodes
-to the GitHub repositories and workflows that produced them. Workloads from
+digests. SLSA provenance, the OCI `org.opencontainers.image.source` and
+`org.opencontainers.image.revision` labels (or BuildKit's `vcs.source` and
+`vcs.revision`), and Dockerfile analysis can link ontology `Image` nodes to
+the GitHub repositories and workflows that produced them. When an attestation
+names a repository, all of the image's source fields come from that attestation,
+including any it leaves empty; label values are not mixed in. The source is projected to the ontology `Image`
+fields `_ont_source_uri` and `_ont_source_revision`. Workloads from
 other providers match GitHub container images by digest when their declarative
 schemas expose compatible matcher fields.
 

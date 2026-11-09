@@ -1036,6 +1036,10 @@ def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     return None
 
 
+# Bump when image-config label provenance learns a new source, so registries re-read
+# the config of images ingested before the change once.
+LABEL_PROVENANCE_VERSION = 1
+
 # Standard OCI annotation keys for source provenance
 _OCI_SOURCE_LABELS = [
     "org.opencontainers.image.source",
@@ -1045,6 +1049,19 @@ _OCI_REVISION_LABELS = [
     "org.opencontainers.image.revision",
     "vcs.revision",
 ]
+
+
+def image_config_label_provenance(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    Label provenance and the version stamp for a platform image whose config blob
+    was read. An empty config was not read, so it gets no stamp and is retried.
+    """
+    if not config:
+        return {}
+    return {
+        **extract_provenance_from_oci_config(config),
+        "label_provenance_version": LABEL_PROVENANCE_VERSION,
+    }
 
 
 def extract_provenance_from_oci_config(
