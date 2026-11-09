@@ -21,6 +21,7 @@ from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
+from cartography.intel.supply_chain import keep_image_source_details
 from cartography.models.gitlab.container_image_attestations import (
     GitLabContainerImageAttestationSchema,
 )
@@ -407,7 +408,11 @@ def load_image_provenance(
     load(
         neo4j_session,
         GitLabContainerImageProvenanceSchema(),
-        [record for record in provenance_records if record.get("source_uri")],
+        keep_image_source_details(
+            neo4j_session,
+            "GitLabContainerImage",
+            [record for record in provenance_records if record.get("source_uri")],
+        ),
         lastupdated=update_tag,
     )
     load(

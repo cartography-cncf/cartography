@@ -833,18 +833,24 @@ def test_parent_only_attestation_keeps_label_source(neo4j_session):
     )
 
     # Assert
-    assert check_nodes(
-        neo4j_session,
-        "GitLabContainerImage",
-        ["digest", "source_uri", "source_revision", "_ont_source_uri"],
-    ) >= {
-        (
-            digest,
-            "https://gitlab.example.com/myorg/awesome-project",
-            "3333333333333333333333333333333333333333",
-            "https://gitlab.example.com/myorg/awesome-project",
-        ),
-    }
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (img:GitLabContainerImage {digest: $digest})
+        RETURN img.source_uri AS source_uri,
+               img.source_revision AS source_revision,
+               img._ont_source_uri AS ont_source_uri
+        """,
+            digest=digest,
+        ).data()
+        == [
+            {
+                "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+                "source_revision": "3333333333333333333333333333333333333333",
+                "ont_source_uri": "https://gitlab.example.com/myorg/awesome-project",
+            },
+        ]
+    )
     assert check_rels(
         neo4j_session,
         "GitLabContainerImage",
@@ -853,3 +859,66 @@ def test_parent_only_attestation_keeps_label_source(neo4j_session):
         "digest",
         "BUILT_FROM",
     ) == {(digest, parent_digest)}
+
+
+def test_same_source_attestation_keeps_label_revision(neo4j_session):
+    # Arrange: labels name the repository and commit; the attestation names the same
+    # repository but no revision.
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    _create_test_org(neo4j_session)
+    source = "https://gitlab.example.com/myorg/awesome-project"
+    manifest = {
+        **GET_CONTAINER_IMAGES_RESPONSE[0],
+        "_config": {
+            **GET_CONTAINER_IMAGES_RESPONSE[0]["_config"],
+            "config": {
+                "Labels": {
+                    "org.opencontainers.image.source": source,
+                    "org.opencontainers.image.revision": "4444444444444444444444444444444444444444",
+                },
+            },
+        },
+    }
+    digest = manifest["_digest"]
+
+    # Act
+    load_container_images(
+        neo4j_session,
+        transform_container_images([manifest]),
+        TEST_ORG_ID,
+        TEST_GITLAB_URL,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": digest,
+                "source_uri": source,
+                "source_file": ".gitlab-ci.yml",
+                "from_attestation": True,
+                "confidence": 1.0,
+            },
+        ],
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (img:GitLabContainerImage {digest: $digest})
+        RETURN img.source_uri AS source_uri, img.source_revision AS revision,
+               img.source_file AS file, img._ont_source_revision AS ont_revision
+        """,
+            digest=digest,
+        ).data()
+        == [
+            {
+                "source_uri": source,
+                "revision": "4444444444444444444444444444444444444444",
+                "file": ".gitlab-ci.yml",
+                "ont_revision": "4444444444444444444444444444444444444444",
+            },
+        ]
+    )

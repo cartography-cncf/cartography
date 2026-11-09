@@ -18,8 +18,9 @@ glob scopes such as `production/*` are not expanded by Cartography.
 
 Container images are keyed by digest and layers by their uncompressed
 `diff_id`, which supports cross-registry layer deduplication. Provenance
-attestations, the OCI `org.opencontainers.image.source` and `.revision` labels,
-and Dockerfile command analysis can link ontology `Image` nodes to the GitLab
+attestations, the OCI `org.opencontainers.image.source` and
+`org.opencontainers.image.revision` labels (or BuildKit's `vcs.source` and
+`vcs.revision`), and Dockerfile command analysis can link ontology `Image` nodes to the GitLab
 projects that packaged them. Attestations take precedence over labels. The source
 is also projected to the ontology `Image` fields `_ont_source_uri` and
 `_ont_source_revision`.

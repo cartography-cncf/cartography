@@ -112,7 +112,8 @@ scaleway_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 # Scaleway's registry API exposes no per-digest architecture/os
-                # or manifest-list metadata, so only the digest is mapped.
+                # or manifest-list metadata, so only the digest and the source
+                # fields are mapped.
                 OntologyFieldMapping(
                     ontology_field="source_uri", node_field="source_uri"
                 ),

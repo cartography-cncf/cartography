@@ -7,8 +7,8 @@ and uses the parsed payload to enrich each image with ``source_uri``,
 relies on those properties to draw ``PACKAGED_FROM`` edges back to the
 ``GitHubRepository`` that built the image.
 
-Cross-run de-duplication: digests that already have ``source_uri`` set in
-the graph are skipped — a previous sync already enriched them.
+Cross-run de-duplication: a digest is skipped when its image already holds the
+``source_uri`` of one of its attestations — a previous sync already enriched it.
 """
 
 import base64
@@ -26,6 +26,7 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import rest_api_base_url
+from cartography.intel.supply_chain import keep_image_source_details
 from cartography.models.github.container_image_attestations import (
     GitHubContainerImageAttestationSchema,
 )
@@ -52,11 +53,14 @@ def _digests_already_enriched(
     neo4j_session: neo4j.Session,
     org_url: str,
 ) -> set[str]:
-    # Keyed on attestations rather than the image's source_uri, which an OCI label can
-    # set first: a label must not stop the higher-priority attestation being read.
+    # The image must hold its attestation's source, not just any source_uri: an OCI
+    # label sets source_uri first, and a refetch of the image reloads it from labels.
+    # Either way the higher-priority attestation has to be read again.
     query = """
     MATCH (org:GitHubOrganization {id: $org_url})-[:RESOURCE]->(att:GitHubContainerImageAttestation)
     WHERE att.source_uri IS NOT NULL
+    MATCH (org)-[:RESOURCE]->(img:GitHubContainerImage {digest: att.attests_digest})
+    WHERE img.source_uri = att.source_uri
     RETURN DISTINCT att.attests_digest
     """
     values = neo4j_session.execute_read(
@@ -280,7 +284,7 @@ def load_image_provenance(
     load(
         neo4j_session,
         GitHubContainerImageProvenanceSchema(),
-        rows,
+        keep_image_source_details(neo4j_session, "GitHubContainerImage", rows),
         lastupdated=update_tag,
         org_url=org_url,
     )
