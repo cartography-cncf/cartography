@@ -363,9 +363,15 @@ def raise_for_okta_error(error: Any, context: str) -> None:
 
 async def _get_raw_json(okta_client: Any, url: str) -> tuple[Any, Any]:
     executor = okta_client.get_request_executor()
-    request, error = await executor.create_request("GET", url, {}, {})
-    raise_for_okta_error(error, url)
-    response, body, error = await executor.execute(request)
+
+    # Each attempt builds a fresh request: under OAuth the request carries a
+    # DPoP proof, which Okta refuses to accept twice.
+    async def get_raw_page() -> tuple[Any, Any, Any]:
+        request, error = await executor.create_request("GET", url, {}, {})
+        raise_for_okta_error(error, url)
+        return await executor.execute(request)
+
+    response, body, error = await _call_retrying_transient_errors(get_raw_page)
     raise_for_okta_error(error, url)
     return response, json.loads(body) if body else None
 
