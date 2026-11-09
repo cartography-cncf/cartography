@@ -123,13 +123,6 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
-    # DEPRECATED: backfill _ont_source_* on images enriched before the source
-    # mappings existed. Remove in v1.0.0.
-    run_analysis_job(
-        "ontology_image_source_backfill.json",
-        neo4j_session,
-        common_job_parameters,
-    )
     # Strip stale _ont_status values left on nodes whose status mapping was
     # de-scoped (SpaceliftStack run-phase, AzureTenant geographic state). The
     # load statement no longer sets them, but existing values persist until removed.
