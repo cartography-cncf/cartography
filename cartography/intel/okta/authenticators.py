@@ -8,11 +8,10 @@ from typing import Any
 
 import neo4j
 from okta.client import Client as OktaClient
-from okta.models.authenticator_base import AuthenticatorBase as OktaAuthenticator
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.okta.common import raise_for_okta_error
+from cartography.intel.okta.common import collect_raw_paginated
 from cartography.models.okta.authenticator import OktaAuthenticatorSchema
 from cartography.util import timeit
 
@@ -43,44 +42,33 @@ def sync_okta_authenticators(
 
 
 @timeit
-async def _get_okta_authenticators(okta_client: OktaClient) -> list[OktaAuthenticator]:
-    """
-    Get Okta authenticators list from Okta
-    :param okta_client: An Okta client object
-    :return: List of Okta authenticators
-    """
-
-    authenticators, _, error = await okta_client.list_authenticators()
-    raise_for_okta_error(error, "list_authenticators")
-    return authenticators or []
+async def _get_okta_authenticators(okta_client: OktaClient) -> list[dict[str, Any]]:
+    # The SDK's AuthenticatorBase model rejects any `key` missing from its
+    # discriminator map (for example `custom_otp`), failing the whole sync.
+    return await collect_raw_paginated(okta_client, "/api/v1/authenticators")
 
 
 @timeit
 def _transform_okta_authenticators(
-    okta_authenticators: list[OktaAuthenticator],
+    okta_authenticators: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """
-    Convert a list of Okta authenticators into a format for Neo4j
-    :param okta_authenticators: List of Okta authenticators
-    :return: List of authenticators dicts
-    """
-    transformed_authenticators: list[dict] = []
+    transformed_authenticators: list[dict[str, Any]] = []
     logger.info("Transforming %s Okta Authenticators", len(okta_authenticators))
     for okta_authenticator in okta_authenticators:
-        authenticator_props = {}
-        authenticator_props["id"] = okta_authenticator.id
-        authenticator_props["created"] = okta_authenticator.created
-        authenticator_props["key"] = okta_authenticator.key
-        authenticator_props["last_updated"] = okta_authenticator.last_updated
-        authenticator_props["name"] = okta_authenticator.name
-        # Parse provider configuration into separate properties
-        provider = getattr(okta_authenticator, "provider", None)
+        authenticator_props: dict[str, Any] = {
+            "id": okta_authenticator["id"],
+            "created": okta_authenticator.get("created"),
+            "key": okta_authenticator.get("key"),
+            "last_updated": okta_authenticator.get("lastUpdated"),
+            "name": okta_authenticator.get("name"),
+            "status": okta_authenticator.get("status"),
+            "authenticator_type": okta_authenticator.get("type"),
+        }
+        provider = okta_authenticator.get("provider")
         if provider:
-            authenticator_props["provider_type"] = provider.type
-            provider_config = provider.configuration
-            if provider_config:
-                config_dict = provider_config.to_dict()
-                # Common provider configuration fields
+            authenticator_props["provider_type"] = provider.get("type")
+            config_dict = provider.get("configuration")
+            if config_dict:
                 authenticator_props["provider_auth_port"] = config_dict.get("authPort")
                 authenticator_props["provider_host_name"] = config_dict.get("hostName")
                 authenticator_props["provider_instance_id"] = config_dict.get(
@@ -89,21 +77,17 @@ def _transform_okta_authenticators(
                 authenticator_props["provider_integration_key"] = config_dict.get(
                     "integrationKey"
                 )
-                authenticator_props["provider_user_name_template"] = config_dict.get(
-                    "userNameTemplate", {}
+                authenticator_props["provider_user_name_template"] = (
+                    config_dict.get("userNameTemplate") or {}
                 ).get("template")
-                # Keep full configuration as JSON for any additional fields
                 safe_config = {
                     key: value
                     for key, value in config_dict.items()
                     if key not in {"secretKey", "sharedSecret"}
                 }
                 authenticator_props["provider_configuration"] = json.dumps(safe_config)
-        # Parse settings into separate properties
-        settings = getattr(okta_authenticator, "settings", None)
-        if settings:
-            settings_dict = settings.to_dict()
-            # Common settings fields
+        settings_dict = okta_authenticator.get("settings")
+        if settings_dict:
             authenticator_props["settings_allowed_for"] = settings_dict.get(
                 "allowedFor"
             )
@@ -114,8 +98,8 @@ def _transform_okta_authenticators(
             authenticator_props["settings_compliance"] = (
                 json.dumps(compliance) if compliance is not None else None
             )
-            authenticator_props["settings_channel_binding"] = settings_dict.get(
-                "channelBinding", {}
+            authenticator_props["settings_channel_binding"] = (
+                settings_dict.get("channelBinding") or {}
             ).get("style")
             authenticator_props["settings_user_verification"] = settings_dict.get(
                 "userVerification"
@@ -123,10 +107,7 @@ def _transform_okta_authenticators(
             authenticator_props["settings_app_instance_id"] = settings_dict.get(
                 "appInstanceId"
             )
-            # Keep full settings as JSON for any additional fields
             authenticator_props["settings"] = json.dumps(settings_dict)
-        authenticator_props["status"] = okta_authenticator.status
-        authenticator_props["authenticator_type"] = okta_authenticator.type
         transformed_authenticators.append(authenticator_props)
     return transformed_authenticators
 
