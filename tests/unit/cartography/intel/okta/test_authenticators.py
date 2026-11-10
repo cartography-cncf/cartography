@@ -1,5 +1,9 @@
+import asyncio
 import json
+from typing import Any
+from unittest.mock import MagicMock
 
+from cartography.intel.okta.authenticators import _get_okta_authenticators
 from cartography.intel.okta.authenticators import _transform_okta_authenticators
 
 
@@ -24,20 +28,45 @@ def test_transform_accepts_email_authenticator_without_provider() -> None:
     assert "provider_type" not in result[0]
 
 
-def test_transform_accepts_key_unknown_to_the_okta_sdk() -> None:
+class _RawPageExecutor:
+    def __init__(self, pages: dict[str, list[dict[str, Any]]]) -> None:
+        self.pages = pages
+
+    async def create_request(self, method, url, body, headers):
+        return url, None
+
+    async def execute(self, url):
+        response = MagicMock()
+        response.links = {}
+        return response, json.dumps(self.pages[url]), None
+
+
+def test_get_and_transform_accept_key_unknown_to_the_okta_sdk() -> None:
     # Arrange
-    authenticator = {
-        "id": "aut-custom-otp",
-        "key": "custom_otp",
-        "name": "Custom OTP Authenticator",
-        "status": "INACTIVE",
-        "type": "security_key",
-        "created": "2025-01-01T00:00:00.000Z",
-        "lastUpdated": "2025-01-02T00:00:00.000Z",
-    }
+    okta_client = MagicMock()
+    okta_client.list_authenticators.side_effect = AssertionError(
+        "typed SDK model rejects unknown authenticator keys",
+    )
+    okta_client.get_request_executor.return_value = _RawPageExecutor(
+        {
+            "/api/v1/authenticators": [
+                {
+                    "id": "aut-custom-otp",
+                    "key": "custom_otp",
+                    "name": "Custom OTP Authenticator",
+                    "status": "INACTIVE",
+                    "type": "security_key",
+                    "created": "2025-01-01T00:00:00.000Z",
+                    "lastUpdated": "2025-01-02T00:00:00.000Z",
+                },
+            ],
+        },
+    )
 
     # Act
-    result = _transform_okta_authenticators([authenticator])
+    result = _transform_okta_authenticators(
+        asyncio.run(_get_okta_authenticators(okta_client)),
+    )
 
     # Assert
     assert result == [
