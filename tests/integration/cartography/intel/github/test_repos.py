@@ -1228,6 +1228,22 @@ def test_sync_github_python_requirements(
     )
     assert expected_requires_rels.issubset(actual_requires_rels)
 
+    # Assert - transitivity comes from pip-compile `# via` annotations; every setup.cfg entry is direct
+    transitivity_by_library = {
+        record["library_id"]: record["transitivity"]
+        for record in neo4j_session.run(
+            """
+            MATCH (:GitHubRepository {id: $repo_url})-[r:REQUIRES]->(lib:PythonLibrary)
+            RETURN lib.id AS library_id, r.transitivity AS transitivity
+            """,
+            repo_url=sample_repo_url,
+        )
+    }
+    assert transitivity_by_library["okta|0.9.0"] == "direct"
+    assert transitivity_by_library["jinja2"] == "transitive"
+    assert transitivity_by_library["neo4j"] == "direct"
+    assert transitivity_by_library["lxml"] is None
+
 
 @patch.object(
     cartography.intel.github.repos,

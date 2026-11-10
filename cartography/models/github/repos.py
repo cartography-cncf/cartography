@@ -390,6 +390,14 @@ class GitHubPythonLibraryToRepositoryRelProperties(CartographyRelProperties):
     specifier: PropertyRef = PropertyRef(
         "specifier", description="Python version specifier from the requirements file."
     )
+    transitivity: PropertyRef = PropertyRef(
+        "transitivity",
+        description=(
+            "`direct` if the repository declares the library itself (setup.cfg, or a `-r` source in a "
+            "pip-compile `# via` annotation), `transitive` if the pip-compile `# via` annotation lists "
+            "only other packages. Unset when the requirements file carries no annotation."
+        ),
+    )
 
 
 @dataclass(frozen=True)

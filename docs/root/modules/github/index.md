@@ -42,6 +42,15 @@ It never applies a repository-root lockfile to a manifest in another directory.
 Conflicting exact versions for the same shared dependency identifier are left
 unresolved to avoid projecting an incorrect canonical `PackageVersion`.
 
+When a repository has no dependency graph, Cartography falls back to parsing
+`requirements.txt` and `setup.cfg` into `PythonLibrary` nodes. The `REQUIRES`
+relationship carries a `transitivity` property taken from the `# via`
+annotations written by `pip-compile` and `uv pip compile`: `direct` when a
+`-r <file>` or project file (`setup.py`, `setup.cfg`, `pyproject.toml`) is listed
+as a source, `transitive` when only other packages are listed. Every `setup.cfg`
+entry is `direct`. The property is unset for requirements without an
+annotation, and a requirement declared in both files is `direct`.
+
 Dependency and `PythonLibrary` nodes are shared globally across repositories and
 organizations. Their cleanup therefore runs once after all configured GitHub
 organizations have synced. Dependabot package, GHSA, CWE, and reference

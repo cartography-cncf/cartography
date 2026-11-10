@@ -2,6 +2,7 @@ import configparser
 import hashlib
 import json
 import logging
+import re
 from collections import defaultdict
 from collections import namedtuple
 from collections.abc import Callable
@@ -1251,16 +1252,19 @@ def transform(
         )
 
         if not has_dependency_graph:
+            repo_requirements: List[Dict] = []
             _transform_requirements_txt(
                 repo_object["requirements"],
                 repo_url,
-                transformed_requirements_files,
+                repo_requirements,
             )
             _transform_setup_cfg_requirements(
                 repo_object["setupCfg"],
                 repo_url,
-                transformed_requirements_files,
+                repo_requirements,
             )
+            _prefer_direct_transitivity(repo_requirements)
+            transformed_requirements_files.extend(repo_requirements)
 
         _transform_dependency_manifests(
             dependency_manifests,
@@ -1511,7 +1515,12 @@ def _transform_setup_cfg_requirements(
         )
         return
     requirements_list = parse_setup_cfg(setup_cfg)
-    _transform_python_requirements(requirements_list, repo_url, out_requirements_files)
+    _transform_python_requirements(
+        requirements_list,
+        repo_url,
+        out_requirements_files,
+        default_transitivity="direct",
+    )
 
 
 def _transform_dependency_manifests(
@@ -1954,28 +1963,114 @@ def _canonicalize_dependency_name(name: str, package_manager: Optional[str]) -> 
     return name.lower()
 
 
+# pip-compile / uv pip compile annotate each pinned requirement with the reason it is
+# present, e.g. "# via -r requirements.in" or "# via requests". A "-r <file>" source is a
+# requirement the project declared itself; anything else is another package pulling it in.
+_PIP_COMPILE_DIRECT_SOURCE_RE = re.compile(
+    r"^(-r\s+\S+|.*\((setup\.py|setup\.cfg|pyproject\.toml)\))$",
+)
+
+
+def _parse_pip_compile_via(comment_lines: List[str]) -> Optional[str]:
+    """
+    Derive `direct` / `transitive` from the pip-compile annotation comments of one requirement.
+
+    Handles both annotation styles:
+        # via -r requirements.in        (single source, split style)
+        # via
+        #   -r requirements.in          (multiple sources, split style)
+        #   requests
+        pkg==1.0  # via a, b            (--annotation-style=line)
+
+    :param comment_lines: comment text (without the leading "#") attached to the requirement.
+    :return: "direct" if any source is a "-r" file or a project file, "transitive" if there are
+        only package sources, None if there is no `via` annotation.
+    """
+    sources: List[str] = []
+    in_via = False
+    for comment in comment_lines:
+        text = comment.strip()
+        if text == "via" or text.startswith("via "):
+            in_via = True
+            text = text[len("via") :].strip()
+        elif not in_via:
+            continue
+        sources.extend(part.strip() for part in text.split(",") if part.strip())
+
+    if not sources:
+        return None
+    if any(_PIP_COMPILE_DIRECT_SOURCE_RE.match(source) for source in sources):
+        return "direct"
+    return "transitive"
+
+
+def _transitivity_rank(transitivity: Optional[str]) -> int:
+    return {"direct": 2, "transitive": 1}.get(transitivity or "", 0)
+
+
+def _prefer_direct_transitivity(requirements: List[Dict]) -> None:
+    """
+    The same requirement can be listed in both requirements.txt and setup.cfg. The relationship to
+    the repository is merged on load, so make every duplicate carry the strongest transitivity
+    instead of letting whichever is loaded last win.
+    """
+    best: Dict[str, Optional[str]] = {}
+    for req in requirements:
+        if req["id"] not in best or _transitivity_rank(
+            req["transitivity"],
+        ) > _transitivity_rank(best[req["id"]]):
+            best[req["id"]] = req["transitivity"]
+    for req in requirements:
+        req["transitivity"] = best[req["id"]]
+
+
 def _transform_python_requirements(
     requirements_list: List[str],
     repo_url: str,
     out_requirements_files: List[Dict],
+    default_transitivity: Optional[str] = None,
 ) -> None:
     """
     Helper function to perform data transformations on an arbitrary list of requirements.
     :param requirements_list: List[str]: List of requirements
     :param repo_url: str: The URL of the GitHub repo.
     :param out_requirements_files: Output array to append transformed results to.
+    :param default_transitivity: Transitivity to use for requirements that carry no pip-compile
+        annotation, e.g. "direct" for setup.cfg where every entry is declared by the project.
     :return: Nothing.
     """
     normalized_requirements: List[str] = []
+    # Comment text attached to each entry of `normalized_requirements`, by index.
+    requirement_comments: List[List[str]] = []
     current_line = ""
+    current_comments: List[str] = []
+    # Index of the requirement that following comment-only lines annotate. pip-compile writes the
+    # annotation directly below the pin, so a blank line ends the association.
+    annotated_index: Optional[int] = None
+
+    def finish_current() -> None:
+        nonlocal current_line, current_comments, annotated_index
+        if current_line:
+            normalized_requirements.append(current_line)
+            requirement_comments.append(current_comments)
+            annotated_index = len(normalized_requirements) - 1
+        current_line = ""
+        current_comments = []
 
     for line in requirements_list:
-        stripped_line = line.partition("#")[0].strip()
+        content, _, comment = line.partition("#")
+        stripped_line = content.strip()
         if not stripped_line:
-            if current_line:
-                normalized_requirements.append(current_line)
-                current_line = ""
+            # Blank and comment-only lines end the requirement being accumulated.
+            finish_current()
+            if not comment.strip():
+                annotated_index = None
+            elif annotated_index is not None:
+                requirement_comments[annotated_index].append(comment)
             continue
+
+        if comment:
+            current_comments.append(comment)
 
         continues = stripped_line.endswith("\\")
         if continues:
@@ -1990,18 +2085,15 @@ def _transform_python_requirements(
             )
 
         if not continues:
-            if current_line:
-                normalized_requirements.append(current_line)
-                current_line = ""
+            finish_current()
 
-    if current_line:
-        normalized_requirements.append(current_line)
+    finish_current()
 
     parsed_list = []
-    for line in normalized_requirements:
+    for line, comments in zip(normalized_requirements, requirement_comments):
         try:
             req = Requirement(line)
-            parsed_list.append(req)
+            parsed_list.append((req, comments))
         except InvalidRequirement:
             # INFO and not WARN/ERROR as we intentionally don't support all ways to specify Python requirements
             logger.info(
@@ -2009,7 +2101,7 @@ def _transform_python_requirements(
                 exc_info=True,
             )
 
-    for req in parsed_list:
+    for req, comments in parsed_list:
         pinned_version = None
         if len(req.specifier) == 1:
             specifier = next(iter(req.specifier))
@@ -2034,6 +2126,8 @@ def _transform_python_requirements(
                 "name": canon_name,
                 "specifier": spec,
                 "version": pinned_version,
+                "transitivity": _parse_pip_compile_via(comments)
+                or default_transitivity,
                 "repo_url": repo_url,
             },
         )
