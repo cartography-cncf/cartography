@@ -209,6 +209,7 @@ def test_aws_label_migration_registry_matches_model_aliases():
         ("cartography.models.crowdstrike", "Crowdstrike"),
         ("cartography.models.spacelift", "Spacelift"),
         ("cartography.models.supabase", "Supabase"),
+        ("cartography.models.neon", "Neon"),
     ],
 )
 def test_provider_primary_node_labels_use_provider_prefix(module_name, prefix):

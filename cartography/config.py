@@ -424,6 +424,15 @@ class Config:
     :param langsmith_host_api_url: LangGraph Platform (api-host) base URL. Optional.
     :type langsmith_org_id: str
     :param langsmith_org_id: Restrict the LangSmith sync to a single organization UUID. Optional.
+    :type neon_api_key: str
+    :param neon_api_key: Neon API key, either personal or organization-scoped.
+        Optional.
+    :type neon_org_ids: str
+    :param neon_org_ids: Comma-separated list of Neon organization IDs to sync.
+        Required with an organization API key. When unset, every organization the
+        key's user belongs to is synced. Optional.
+    :type neon_base_url: str
+    :param neon_base_url: Neon API base URL. Optional.
     :type databricks_workspace_url: str
     :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
     :type databricks_token: str
@@ -884,6 +893,9 @@ class Config:
         langsmith_api_url: str | None = None,
         langsmith_host_api_url: str | None = None,
         langsmith_org_id: str | None = None,
+        neon_api_key: str | None = None,
+        neon_org_ids: str | None = None,
+        neon_base_url: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1085,6 +1097,9 @@ class Config:
         self.langsmith_api_url = langsmith_api_url
         self.langsmith_host_api_url = langsmith_host_api_url
         self.langsmith_org_id = langsmith_org_id
+        self.neon_api_key = neon_api_key
+        self.neon_org_ids = neon_org_ids
+        self.neon_base_url = neon_base_url
         self.databricks_workspace_url = databricks_workspace_url
         self.databricks_token = databricks_token
         self.databricks_client_id = databricks_client_id
