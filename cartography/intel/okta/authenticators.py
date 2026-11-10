@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import datetime
 from typing import Any
 
 import neo4j
@@ -48,6 +49,12 @@ async def _get_okta_authenticators(okta_client: OktaClient) -> list[dict[str, An
     return await collect_raw_paginated(okta_client, "/api/v1/authenticators")
 
 
+def _parse_okta_timestamp(value: str | None) -> datetime | None:
+    # Keep storing DateTime values, as the typed SDK model did before this
+    # module switched to raw JSON.
+    return datetime.fromisoformat(value) if value else None
+
+
 @timeit
 def _transform_okta_authenticators(
     okta_authenticators: list[dict[str, Any]],
@@ -57,9 +64,11 @@ def _transform_okta_authenticators(
     for okta_authenticator in okta_authenticators:
         authenticator_props: dict[str, Any] = {
             "id": okta_authenticator["id"],
-            "created": okta_authenticator.get("created"),
+            "created": _parse_okta_timestamp(okta_authenticator.get("created")),
             "key": okta_authenticator.get("key"),
-            "last_updated": okta_authenticator.get("lastUpdated"),
+            "last_updated": _parse_okta_timestamp(
+                okta_authenticator.get("lastUpdated"),
+            ),
             "name": okta_authenticator.get("name"),
             "status": okta_authenticator.get("status"),
             "authenticator_type": okta_authenticator.get("type"),

@@ -1,5 +1,7 @@
 import asyncio
 import json
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -72,9 +74,9 @@ def test_get_and_transform_accept_key_unknown_to_the_okta_sdk() -> None:
     assert result == [
         {
             "id": "aut-custom-otp",
-            "created": "2025-01-01T00:00:00.000Z",
+            "created": datetime(2025, 1, 1, tzinfo=timezone.utc),
             "key": "custom_otp",
-            "last_updated": "2025-01-02T00:00:00.000Z",
+            "last_updated": datetime(2025, 1, 2, tzinfo=timezone.utc),
             "name": "Custom OTP Authenticator",
             "status": "INACTIVE",
             "authenticator_type": "security_key",
