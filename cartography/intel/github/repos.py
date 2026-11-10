@@ -27,6 +27,9 @@ from cartography.intel.github.codeowners import normalize_repo_relative_path
 from cartography.intel.github.label_migrations import (
     migrate_dependency_graph_manifest_label,
 )
+from cartography.intel.github.label_migrations import (
+    migrate_python_library_dependency_label,
+)
 from cartography.intel.github.lockfiles import parse_npm_lock
 from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
@@ -2385,6 +2388,7 @@ def load_github_dependencies(
     # dependency graph or the lockfile fallback) to avoid projecting a wrong
     # version into the Package ontology.
     reconcile_dependency_version_conflicts(dependencies)
+    migrate_python_library_dependency_label(neo4j_session)
     load_data(
         neo4j_session,
         GitHubDependencySchema(),

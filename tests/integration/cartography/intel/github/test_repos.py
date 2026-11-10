@@ -709,6 +709,71 @@ def test_github_dependency_cleanup_spares_other_modules(neo4j_session):
     assert ("staleghdep|1.0.0",) not in github_deps
 
 
+def test_python_library_labeled_by_old_dependency_loader_is_not_refreshed_as_a_dependency(
+    neo4j_session,
+):
+    stale_tag = TEST_UPDATE_TAG - 1
+    neo4j_session.run(
+        """
+        CREATE (manifest:GitHubDependencyGraphManifest {id: $manifest_id})
+        CREATE (library:PythonLibrary:Dependency:GitHubDependency {
+            id: 'sharedlib', name: 'sharedlib', specifier: '>=1.0',
+            ecosystem: 'pip', purl: 'pkg:pypi/sharedlib', lastupdated: $stale_tag})
+        CREATE (dependency:GitHubDependency:Dependency {
+            id: 'sharedlib', name: 'sharedlib', lastupdated: $stale_tag})
+        CREATE (manifest)-[:HAS_DEP {lastupdated: $stale_tag}]->(library)
+        CREATE (manifest)-[:HAS_DEP {lastupdated: $stale_tag}]->(dependency)
+        """,
+        manifest_id="https://github.com/test-org/app#/requirements.txt",
+        stale_tag=stale_tag,
+    )
+
+    load_github_dependencies(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        [
+            {
+                "id": "sharedlib",
+                "name": "sharedlib",
+                "ecosystem": "pip",
+                "manifest_id": "https://github.com/test-org/app#/requirements.txt",
+                "repo_url": "https://github.com/test-org/app",
+            },
+        ],
+    )
+
+    nodes = neo4j_session.run(
+        """
+        MATCH (n {id: 'sharedlib'})
+        RETURN n:PythonLibrary AS is_python_library,
+               n:GitHubDependency AS is_github_dependency,
+               n.lastupdated AS lastupdated,
+               n.ecosystem AS ecosystem,
+               n.specifier AS specifier,
+               COUNT { (n)<-[:HAS_DEP]-() } AS manifests
+        ORDER BY is_python_library
+        """,
+    ).data()
+    assert nodes == [
+        {
+            "is_python_library": False,
+            "is_github_dependency": True,
+            "lastupdated": TEST_UPDATE_TAG,
+            "ecosystem": "pip",
+            "specifier": None,
+            "manifests": 1,
+        },
+        {
+            "is_python_library": True,
+            "is_github_dependency": False,
+            "lastupdated": stale_tag,
+            "ecosystem": None,
+            "specifier": ">=1.0",
+            "manifests": 0,
+        },
+    ]
+
+
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
