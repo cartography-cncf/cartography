@@ -72,8 +72,9 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             tenant_id,
         )
 
-    # A sync that runs cleanup fetches only active records and lets cleanup remove
-    # closed ones; any other sync fetches closed records to refresh their status.
+    # A full sync skips closed records, and cleanup deletes the ones stored earlier.
+    # A lookback or project-filtered sync skips cleanup, so it must fetch closed
+    # records too, or a record closed in Wiz would stay open in the graph.
     do_cleanup = config.wiz_lookback_days is None and not config.wiz_project_ids
     if config.wiz_lookback_days is not None:
         logger.warning(
