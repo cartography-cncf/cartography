@@ -34,6 +34,16 @@ Collaborator relationships encode both affiliation and effective permission:
 enterprise without appearing in an organization's member list. Such users use
 the `UNAFFILIATED` relationship when Cartography can retrieve them.
 
+GitHub scopes a user's two-factor authentication status, enterprise ownership,
+and verified-domain emails to the organization being synced. Cartography stores
+each organization's values on the user's `MEMBER_OF` or `UNAFFILIATED`
+relationship and combines them on the `GitHubUser` node, so a user in several
+organizations keeps what any one of them reports. GitHub returns the two-factor
+status only to organization owners: `has_2fa_enabled` is true when any
+organization reports it enabled, false when none does and one reports it
+disabled, and unset otherwise. A user with no membership in a synced
+organization, such as a repository collaborator, has none of these properties.
+
 ## Dependency behavior
 
 When GitHub's dependency graph provides only a version range, Cartography can

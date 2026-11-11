@@ -2,6 +2,8 @@ import cartography.intel.github.users
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.github.users import GITHUB_ENTERPRISE_OWNER_DATA
 from tests.data.github.users import GITHUB_ORG_DATA
+from tests.data.github.users import GITHUB_SECOND_ORG_DATA
+from tests.data.github.users import GITHUB_SECOND_ORG_USER_DATA
 from tests.data.github.users import GITHUB_USER_DATA
 from tests.data.github.users import GITHUB_USER_DATA_AT_TIMESTAMP_2
 from tests.integration.util import check_nodes
@@ -11,14 +13,41 @@ TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 
 
-def _seed_organization(neo4j_session):
+def _seed_organization(neo4j_session, org_data=GITHUB_ORG_DATA):
     """The GitHubOrganization node is written by the organization settings sync."""
     neo4j_session.run(
         "MERGE (org:GitHubOrganization {id: $url}) "
         "SET org.username = coalesce(org.username, $login)",
-        url=GITHUB_ORG_DATA["url"],
-        login=GITHUB_ORG_DATA["login"],
+        url=org_data["url"],
+        login=org_data["login"],
     )
+
+
+def _node_organization_facts(neo4j_session, user_url):
+    return neo4j_session.run(
+        """
+        MATCH (g:GitHubUser {id: $user_url})
+        RETURN g{
+            .has_2fa_enabled, ._ont_has_mfa, .is_enterprise_owner,
+            .organization_verified_domain_emails, .normalized_emails
+        } AS facts
+        """,
+        user_url=user_url,
+    ).single()["facts"]
+
+
+def _membership_organization_facts(neo4j_session, user_url):
+    result = neo4j_session.run(
+        """
+        MATCH (:GitHubUser {id: $user_url})-[r:MEMBER_OF|UNAFFILIATED]->(org:GitHubOrganization)
+        RETURN org.id AS org, r{
+            .has_2fa_enabled, .is_enterprise_owner,
+            .organization_verified_domain_emails, .normalized_emails
+        } AS facts
+        """,
+        user_url=user_url,
+    )
+    return {row["org"]: row["facts"] for row in result}
 
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
@@ -130,11 +159,82 @@ def test_sync(neo4j_session):
     }
     expected_emails = {
         "https://github.com/hjsimpson": ["hjsimpson@burns.corp"],
-        "https://github.com/lmsimpson": None,
-        "https://github.com/mbsimpson": None,
-        "https://github.com/kbroflovski": None,
+        "https://github.com/lmsimpson": [],
+        "https://github.com/mbsimpson": ["mbsimpson@burns.corp"],
+        "https://github.com/kbroflovski": [],
     }
     assert actual_emails == expected_emails
+
+
+def test_sync_keeps_facts_that_another_organization_reports(neo4j_session):
+    # Arrange
+    _seed_organization(neo4j_session)
+    _seed_organization(neo4j_session, GITHUB_SECOND_ORG_DATA)
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        GITHUB_USER_DATA[0],
+        GITHUB_ENTERPRISE_OWNER_DATA[0],
+        GITHUB_ORG_DATA,
+    )
+
+    # Act
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        GITHUB_SECOND_ORG_USER_DATA[0],
+        [],
+        GITHUB_SECOND_ORG_DATA,
+    )
+
+    # Assert
+    assert _node_organization_facts(neo4j_session, "https://github.com/mbsimpson") == {
+        "has_2fa_enabled": True,
+        "_ont_has_mfa": True,
+        "is_enterprise_owner": True,
+        "organization_verified_domain_emails": ["mbsimpson@burns.corp"],
+        "normalized_emails": ["mbsimpson@burns.corp", "mbsimpson@simpson.corp"],
+    }
+    assert _membership_organization_facts(
+        neo4j_session, "https://github.com/mbsimpson"
+    ) == {
+        "https://github.com/simpsoncorp": {
+            "has_2fa_enabled": True,
+            "is_enterprise_owner": True,
+            "organization_verified_domain_emails": ["mbsimpson@burns.corp"],
+            "normalized_emails": ["mbsimpson@burns.corp", "mbsimpson@simpson.corp"],
+        },
+        "https://github.com/burnscorp": {
+            "has_2fa_enabled": None,
+            "is_enterprise_owner": False,
+            "organization_verified_domain_emails": [],
+            "normalized_emails": ["mbsimpson@simpson.corp"],
+        },
+    }
+
+
+def test_cleanup_clears_facts_of_user_without_memberships(neo4j_session):
+    # Arrange
+    _seed_organization(neo4j_session)
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        {"UPDATE_TAG": 100},
+        GITHUB_USER_DATA[0],
+        GITHUB_ENTERPRISE_OWNER_DATA[0],
+        GITHUB_ORG_DATA,
+    )
+
+    # Act: the next run finds no organization that still lists Marge.
+    cartography.intel.github.users.cleanup(neo4j_session, {"UPDATE_TAG": 200})
+
+    # Assert
+    assert _node_organization_facts(neo4j_session, "https://github.com/mbsimpson") == {
+        "has_2fa_enabled": None,
+        "_ont_has_mfa": None,
+        "is_enterprise_owner": None,
+        "organization_verified_domain_emails": None,
+        "normalized_emails": None,
+    }
 
 
 def test_sync_with_cleanups(neo4j_session):
