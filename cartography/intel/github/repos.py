@@ -2832,6 +2832,15 @@ def sync(
         f"https://github.com/{organization}",
     )
     migrate_dependency_graph_manifest_label(neo4j_session, owner_org_id)
+    # DEPRECATED: detaches PythonLibrary nodes that the dependency graph loader
+    # labeled GitHubDependency when it merged on the shared Dependency label.
+    # It runs before the load so the loader no longer matches them. Remove in
+    # v1.0.0.
+    run_analysis_job(
+        "github_python_library_dependency_label_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
     load(neo4j_session, common_job_parameters, repo_data)
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
@@ -2850,14 +2859,6 @@ def sync(
         "github_dependency_manifest_resource_edge_migration.json",
         neo4j_session,
         migration_params,
-    )
-    # DEPRECATED: detaches PythonLibrary nodes that the dependency graph loader
-    # labeled GitHubDependency when it merged on the shared Dependency label.
-    # Remove in v1.0.0.
-    run_analysis_job(
-        "github_python_library_dependency_label_migration.json",
-        neo4j_session,
-        common_job_parameters,
     )
     if dep_manifests_cleanup_safe:
         cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)
