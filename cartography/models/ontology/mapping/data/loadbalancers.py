@@ -147,9 +147,44 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+# Tencent Cloud CLB LoadBalancerType
+_TENCENTCLOUD_CLB_SCHEME = {
+    "OPEN": "internet_facing",
+    "INTERNAL": "internal",
+}
+
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudCLBLoadBalancer",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scheme",
+                    node_field="load_balancer_type",
+                    special_handling="mapping",
+                    extra={"map": _TENCENTCLOUD_CLB_SCHEME},
+                ),
+                OntologyFieldMapping(ontology_field="dns_name", node_field="domain"),
+                OntologyFieldMapping(
+                    ontology_field="ip_address", node_field="ip_address"
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                # lb_type: not mapped. Tencent reports the CLB class only as the
+                # integer `forward` flag (1 = standard, 0 = classic), which carries
+                # no meaning on its own next to other providers' raw type names.
+            ],
+        ),
+    ],
+)
+
 LOADBALANCERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

@@ -210,6 +210,32 @@ cloudflare_mapping = OntologyMapping(
     ],
 )
 
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudCOSBucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # `anonymous_access` is tri-state: true/false from the bucket ACL, null
+                # when the ACL could not be read. Mapped directly to preserve the unknown
+                # state instead of coalescing it to false. Bucket policies are not
+                # evaluated, so a bucket made public only by policy reads as false.
+                OntologyFieldMapping(
+                    ontology_field="public", node_field="anonymous_access"
+                ),
+                # encrypted: Not available - the bucket encryption configuration is
+                # not ingested.
+                # versioning: Not available - the bucket versioning configuration is
+                # not ingested.
+            ],
+        ),
+    ],
+)
+
 OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -261,4 +287,5 @@ OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "tencentcloud": tencentcloud_mapping,
 }

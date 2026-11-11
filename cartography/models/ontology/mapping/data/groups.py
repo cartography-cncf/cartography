@@ -424,6 +424,27 @@ zoom_mapping = OntologyMapping(
     ],
 )
 
+# Tencent Cloud CAM
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudCAMGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="remark",
+                    indexed=False,
+                ),
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "zoom": zoom_mapping,
     "aws": aws_mapping,
@@ -475,4 +496,5 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "tencentcloud": tencentcloud_mapping,
 }

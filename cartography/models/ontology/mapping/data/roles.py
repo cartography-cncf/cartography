@@ -539,4 +539,37 @@ ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "langsmith": langsmith_mapping,
+    "tencentcloud": OntologyMapping(
+        module_name="tencentcloud",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="TencentCloudCAMRole",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    # `user` roles are customer-created; `system` and
+                    # `service_linked` roles are created by Tencent Cloud services.
+                    OntologyFieldMapping(
+                        ontology_field="type",
+                        node_field="role_type",
+                        special_handling="mapping",
+                        extra={
+                            "map": {
+                                "user": "custom",
+                                "system": "builtin",
+                                "service_linked": "builtin",
+                            }
+                        },
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="scope",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "account"},
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

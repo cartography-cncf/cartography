@@ -897,6 +897,7 @@ dependencies = [
     { name = "scaleway" },
     { name = "slack-sdk" },
     { name = "statsd" },
+    { name = "tencentcloud-sdk-python-common" },
     { name = "typer" },
     { name = "types-aiobotocore-ecr" },
     { name = "urllib3" },
@@ -1002,6 +1003,7 @@ requires-dist = [
     { name = "scaleway", specifier = ">=2.12.0" },
     { name = "slack-sdk", specifier = ">=3.37.0" },
     { name = "statsd", specifier = ">=4.0.0" },
+    { name = "tencentcloud-sdk-python-common", specifier = ">=3.1.0" },
     { name = "typer", specifier = ">=0.9.0" },
     { name = "types-aiobotocore-ecr", specifier = ">=3.1.0" },
     { name = "urllib3", specifier = ">=2.0.0" },
@@ -4246,6 +4248,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
+]
+
+[[package]]
+name = "tencentcloud-sdk-python-common"
+version = "3.1.202"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/58/14/0a4fd54bd6d26262455c7f533bd284ae3235ac921342e8f93a8933cfccca/tencentcloud_sdk_python_common-3.1.202.tar.gz", hash = "sha256:e28cdef64af2741f801b0df0b305a30a94584c238aa9624b0f385d6f4a2b4db2", size = 22660, upload-time = "2026-11-04T19:34:37.361Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/97/3e1954096270636fce028a5f1e64d6dd9a2e56ce916622a35715b8232b40/tencentcloud_sdk_python_common-3.1.202-py2.py3-none-any.whl", hash = "sha256:9a6658d4a3ea9240a5bcd62b634ae08baa8dac6b5370f4a68f5f8b1dff7c906f", size = 34273, upload-time = "2026-11-04T19:34:35.436Z" },
 ]
 
 [[package]]

@@ -876,6 +876,25 @@ langsmith_mapping = OntologyMapping(
     ],
 )
 
+# Tencent Cloud
+tencentcloud_mapping = OntologyMapping(
+    module_name="tencentcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TencentCloudAccount",
+            fields=[
+                # The ingested APIs expose no account display name; the root account UIN
+                # (`id`) is how a Tencent Cloud account is identified.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
@@ -1002,4 +1021,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "langsmith": langsmith_mapping,
+    "tencentcloud": tencentcloud_mapping,
 }

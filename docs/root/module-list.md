@@ -64,6 +64,7 @@ modules/supabase/index
 modules/syft/index
 modules/tailscale/index
 modules/tenable/index
+modules/tencentcloud/index
 modules/trivy/index
 modules/ubuntu/index
 modules/vercel/index
