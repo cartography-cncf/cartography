@@ -148,7 +148,10 @@ def test_member_kind_change_relabels_the_existing_node(
 ):
     _sync_teams_and_users(neo4j_session)
     node_before = neo4j_session.run(
-        "MATCH (n:SlackUser{id: $id}) RETURN elementId(n) AS element_id",
+        """
+        MATCH (n:SlackUser{id: $id})
+        RETURN elementId(n) AS element_id, n.firstseen AS firstseen
+        """,
         id=member_id,
     ).single(strict=True)
 
@@ -164,6 +167,7 @@ def test_member_kind_change_relabels_the_existing_node(
         """
         MATCH (n{id: $id})
         RETURN elementId(n) AS element_id,
+               n.firstseen AS firstseen,
                labels(n) AS labels,
                n[$former_kind_property] AS former_kind_value
         """,
@@ -171,5 +175,6 @@ def test_member_kind_change_relabels_the_existing_node(
         former_kind_property=former_kind_property,
     ).single(strict=True)
     assert node_after["element_id"] == node_before["element_id"]
+    assert node_after["firstseen"] == node_before["firstseen"]
     assert set(node_after["labels"]) == expected_labels
     assert node_after["former_kind_value"] is None
