@@ -75,23 +75,21 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 def _workload_identity_federation(
     config: Config,
 ) -> WorkloadIdentityFederation | None:
-    required = (
-        config.anthropic_identity_token_file,
-        config.anthropic_federation_rule_id,
-        config.anthropic_organization_id,
-        config.anthropic_service_account_id,
-    )
-    if not any(required):
+    token_file = config.anthropic_identity_token_file
+    rule_id = config.anthropic_federation_rule_id
+    organization_id = config.anthropic_organization_id
+    service_account_id = config.anthropic_service_account_id
+    if not (token_file or rule_id or organization_id or service_account_id):
         return None
-    if not all(required):
+    if not (token_file and rule_id and organization_id and service_account_id):
         raise ValueError(
             "Anthropic workload identity federation needs an identity token file, "
             "a federation rule ID, an organization ID, and a service account ID.",
         )
     return WorkloadIdentityFederation(
-        identity_token_file=config.anthropic_identity_token_file,
-        federation_rule_id=config.anthropic_federation_rule_id,
-        organization_id=config.anthropic_organization_id,
-        service_account_id=config.anthropic_service_account_id,
+        identity_token_file=token_file,
+        federation_rule_id=rule_id,
+        organization_id=organization_id,
+        service_account_id=service_account_id,
         workspace_id=config.anthropic_workspace_id,
     )
