@@ -162,9 +162,9 @@ def get(
     project_id_filter: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
-    vulnerability_filter: dict[str, Any] = {}
-    if since_iso:
-        vulnerability_filter["updatedAt"] = {"after": since_iso}
+    vulnerability_filter: dict[str, Any] = (
+        {"updatedAt": {"after": since_iso}} if since_iso else {"status": ["OPEN"]}
+    )
 
     configuration_filter: dict[str, Any] = {
         "result": ["FAIL"],
@@ -196,7 +196,7 @@ def get(
         (
             _VULNERABILITY_QUERY,
             "vulnerabilityFindings",
-            vulnerability_filter or None,
+            vulnerability_filter,
             FINDING_TYPE_VULNERABILITY,
         ),
         (

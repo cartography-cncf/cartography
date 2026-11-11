@@ -307,10 +307,16 @@ def test_get_issues_uses_status_changed_filter_when_since_is_set():
     assert variables["filterBy"]["statusChangedAt"] == {
         "after": "2026-01-01T00:00:00Z",
     }
+    assert variables["filterBy"]["status"] == [
+        "OPEN",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "REJECTED",
+    ]
     assert "createdAt" not in variables["filterBy"]
 
 
-def test_get_issues_omits_time_filter_for_full_sync():
+def test_get_issues_full_sync_fetches_only_active_issues():
     session = FakeSession(
         [
             FakeResponse(
@@ -334,6 +340,7 @@ def test_get_issues_omits_time_filter_for_full_sync():
     )
 
     filter_by = session.calls[0][1]["json"]["variables"]["filterBy"]
+    assert filter_by["status"] == ["OPEN", "IN_PROGRESS"]
     assert "createdAt" not in filter_by
     assert "updatedAt" not in filter_by
     assert "statusChangedAt" not in filter_by
@@ -383,8 +390,8 @@ def test_get_findings_uses_updated_at_filters_without_order_by():
     )
 
     variables = [call[1]["json"]["variables"] for call in session.calls]
-    assert variables[0]["filterBy"]["updatedAt"] == {
-        "after": "2026-01-01T00:00:00Z",
+    assert variables[0]["filterBy"] == {
+        "updatedAt": {"after": "2026-01-01T00:00:00Z"},
     }
     assert variables[1]["filterBy"]["updatedAt"] == {
         "after": "2026-01-01T00:00:00Z",
@@ -407,7 +414,7 @@ def test_get_findings_uses_updated_at_filters_without_order_by():
     assert "triggeringEvents" not in detection_query
 
 
-def test_get_findings_full_sync_fetches_only_active_configuration_failures():
+def test_get_findings_full_sync_fetches_only_active_findings():
     session = FakeSession(
         [
             FakeResponse(
@@ -450,6 +457,8 @@ def test_get_findings_full_sync_fetches_only_active_configuration_failures():
         None,
     )
 
+    vulnerability_filter = session.calls[0][1]["json"]["variables"]["filterBy"]
+    assert vulnerability_filter == {"status": ["OPEN"]}
     filter_by = session.calls[1][1]["json"]["variables"]["filterBy"]
     assert filter_by["result"] == ["FAIL"]
     assert filter_by["status"] == ["OPEN", "IN_PROGRESS"]

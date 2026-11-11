@@ -67,7 +67,11 @@ def get(
     project_id_filter: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     filter_by: dict[str, Any] = {
-        "status": ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
+        "status": (
+            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
+            if since_iso
+            else ["OPEN", "IN_PROGRESS"]
+        ),
         "severity": ["INFORMATIONAL", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
         "type": ["TOXIC_COMBINATION", "THREAT_DETECTION", "CLOUD_CONFIGURATION"],
     }
