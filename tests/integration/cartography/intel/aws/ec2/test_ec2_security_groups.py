@@ -74,23 +74,43 @@ def test_load_security_groups_relationships(neo4j_session):
     )
 
     expected_nodes = {
-        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissionsEgress/443443tcp"),
-        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissionsEgress/NoneNone-1"),
-        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissionsEgress/8080tcp"),
-        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissions/443443tcp"),
-        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissions/8080tcp"),
-        ("sg-053dba35430032a0d", "sg-053dba35430032a0d/IpPermissionsEgress/NoneNone-1"),
-        ("sg-053dba35430032a0d", "sg-053dba35430032a0d/IpPermissions/NoneNone-1"),
-        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissionsEgress/443443tcp"),
-        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissionsEgress/NoneNone-1"),
-        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissionsEgress/8080tcp"),
-        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissions/443443tcp"),
-        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissions/8080tcp"),
-        ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1"),
-        ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f/IpPermissions/NoneNone-1"),
-        ("sg-web-server-12345", "sg-web-server-12345/IpPermissionsEgress/NoneNone-1"),
-        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/2222tcp"),
-        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/8080tcp"),
+        (
+            "sg-028e2522c72719996",
+            "sg-028e2522c72719996/IpPermissionsEgress/443/443/tcp",
+        ),
+        (
+            "sg-028e2522c72719996",
+            "sg-028e2522c72719996/IpPermissionsEgress/None/None/-1",
+        ),
+        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissionsEgress/80/80/tcp"),
+        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissions/443/443/tcp"),
+        ("sg-028e2522c72719996", "sg-028e2522c72719996/IpPermissions/80/80/tcp"),
+        (
+            "sg-053dba35430032a0d",
+            "sg-053dba35430032a0d/IpPermissionsEgress/None/None/-1",
+        ),
+        ("sg-053dba35430032a0d", "sg-053dba35430032a0d/IpPermissions/None/None/-1"),
+        (
+            "sg-06c795c66be8937be",
+            "sg-06c795c66be8937be/IpPermissionsEgress/443/443/tcp",
+        ),
+        (
+            "sg-06c795c66be8937be",
+            "sg-06c795c66be8937be/IpPermissionsEgress/None/None/-1",
+        ),
+        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissionsEgress/80/80/tcp"),
+        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissions/443/443/tcp"),
+        ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissions/80/80/tcp"),
+        (
+            "sg-0fd4fff275d63600f",
+            "sg-0fd4fff275d63600f/IpPermissionsEgress/None/None/-1",
+        ),
+        ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f/IpPermissions/None/None/-1"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissionsEgress/None/None/-1"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/22/22/tcp"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/22/2222/tcp"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/80/80/tcp"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/222/222/tcp"),
     }
 
     # Fetch relationships
@@ -155,39 +175,78 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
 
     # Assert IpPermissionInbound rules exist (only inbound rules)
     expected_inbound_rules = {
-        ("sg-028e2522c72719996/IpPermissions/8080tcp", "sg-028e2522c72719996"),
-        ("sg-028e2522c72719996/IpPermissions/443443tcp", "sg-028e2522c72719996"),
-        ("sg-053dba35430032a0d/IpPermissions/NoneNone-1", "sg-053dba35430032a0d"),
-        ("sg-06c795c66be8937be/IpPermissions/8080tcp", "sg-06c795c66be8937be"),
-        ("sg-06c795c66be8937be/IpPermissions/443443tcp", "sg-06c795c66be8937be"),
-        ("sg-0fd4fff275d63600f/IpPermissions/NoneNone-1", "sg-0fd4fff275d63600f"),
-        ("sg-web-server-12345/IpPermissions/2222tcp", "sg-web-server-12345"),
-        ("sg-web-server-12345/IpPermissions/8080tcp", "sg-web-server-12345"),
+        ("sg-028e2522c72719996/IpPermissions/80/80/tcp", "sg-028e2522c72719996"),
+        ("sg-028e2522c72719996/IpPermissions/443/443/tcp", "sg-028e2522c72719996"),
+        ("sg-053dba35430032a0d/IpPermissions/None/None/-1", "sg-053dba35430032a0d"),
+        ("sg-06c795c66be8937be/IpPermissions/80/80/tcp", "sg-06c795c66be8937be"),
+        ("sg-06c795c66be8937be/IpPermissions/443/443/tcp", "sg-06c795c66be8937be"),
+        ("sg-0fd4fff275d63600f/IpPermissions/None/None/-1", "sg-0fd4fff275d63600f"),
+        ("sg-web-server-12345/IpPermissions/22/22/tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/22/2222/tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/80/80/tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/222/222/tcp", "sg-web-server-12345"),
     }
     assert (
         check_nodes(neo4j_session, "IpPermissionInbound", ["ruleid", "groupid"])
         == expected_inbound_rules
     )
 
+    # Assert each inbound rule keeps its own port range. sg-web-server-12345 holds
+    # two rules whose ports and protocol concatenate to the same digits.
+    assert check_nodes(
+        neo4j_session, "IpPermissionInbound", ["groupid", "fromport", "toport"]
+    ) == {
+        ("sg-028e2522c72719996", 80, 80),
+        ("sg-028e2522c72719996", 443, 443),
+        ("sg-053dba35430032a0d", None, None),
+        ("sg-06c795c66be8937be", 80, 80),
+        ("sg-06c795c66be8937be", 443, 443),
+        ("sg-0fd4fff275d63600f", None, None),
+        ("sg-web-server-12345", 22, 22),
+        ("sg-web-server-12345", 22, 2222),
+        ("sg-web-server-12345", 80, 80),
+        ("sg-web-server-12345", 222, 222),
+    }
+
     # Assert IpRule rules exist (both inbound and outbound rules mixed together)
     expected_ip_rules = {
-        ("sg-028e2522c72719996/IpPermissionsEgress/8080tcp", "sg-028e2522c72719996"),
-        ("sg-028e2522c72719996/IpPermissionsEgress/443443tcp", "sg-028e2522c72719996"),
-        ("sg-028e2522c72719996/IpPermissionsEgress/NoneNone-1", "sg-028e2522c72719996"),
-        ("sg-028e2522c72719996/IpPermissions/8080tcp", "sg-028e2522c72719996"),
-        ("sg-028e2522c72719996/IpPermissions/443443tcp", "sg-028e2522c72719996"),
-        ("sg-053dba35430032a0d/IpPermissionsEgress/NoneNone-1", "sg-053dba35430032a0d"),
-        ("sg-053dba35430032a0d/IpPermissions/NoneNone-1", "sg-053dba35430032a0d"),
-        ("sg-06c795c66be8937be/IpPermissionsEgress/8080tcp", "sg-06c795c66be8937be"),
-        ("sg-06c795c66be8937be/IpPermissionsEgress/443443tcp", "sg-06c795c66be8937be"),
-        ("sg-06c795c66be8937be/IpPermissionsEgress/NoneNone-1", "sg-06c795c66be8937be"),
-        ("sg-06c795c66be8937be/IpPermissions/8080tcp", "sg-06c795c66be8937be"),
-        ("sg-06c795c66be8937be/IpPermissions/443443tcp", "sg-06c795c66be8937be"),
-        ("sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1", "sg-0fd4fff275d63600f"),
-        ("sg-0fd4fff275d63600f/IpPermissions/NoneNone-1", "sg-0fd4fff275d63600f"),
-        ("sg-web-server-12345/IpPermissionsEgress/NoneNone-1", "sg-web-server-12345"),
-        ("sg-web-server-12345/IpPermissions/2222tcp", "sg-web-server-12345"),
-        ("sg-web-server-12345/IpPermissions/8080tcp", "sg-web-server-12345"),
+        ("sg-028e2522c72719996/IpPermissionsEgress/80/80/tcp", "sg-028e2522c72719996"),
+        (
+            "sg-028e2522c72719996/IpPermissionsEgress/443/443/tcp",
+            "sg-028e2522c72719996",
+        ),
+        (
+            "sg-028e2522c72719996/IpPermissionsEgress/None/None/-1",
+            "sg-028e2522c72719996",
+        ),
+        ("sg-028e2522c72719996/IpPermissions/80/80/tcp", "sg-028e2522c72719996"),
+        ("sg-028e2522c72719996/IpPermissions/443/443/tcp", "sg-028e2522c72719996"),
+        (
+            "sg-053dba35430032a0d/IpPermissionsEgress/None/None/-1",
+            "sg-053dba35430032a0d",
+        ),
+        ("sg-053dba35430032a0d/IpPermissions/None/None/-1", "sg-053dba35430032a0d"),
+        ("sg-06c795c66be8937be/IpPermissionsEgress/80/80/tcp", "sg-06c795c66be8937be"),
+        (
+            "sg-06c795c66be8937be/IpPermissionsEgress/443/443/tcp",
+            "sg-06c795c66be8937be",
+        ),
+        (
+            "sg-06c795c66be8937be/IpPermissionsEgress/None/None/-1",
+            "sg-06c795c66be8937be",
+        ),
+        ("sg-06c795c66be8937be/IpPermissions/80/80/tcp", "sg-06c795c66be8937be"),
+        ("sg-06c795c66be8937be/IpPermissions/443/443/tcp", "sg-06c795c66be8937be"),
+        (
+            "sg-0fd4fff275d63600f/IpPermissionsEgress/None/None/-1",
+            "sg-0fd4fff275d63600f",
+        ),
+        ("sg-0fd4fff275d63600f/IpPermissions/None/None/-1", "sg-0fd4fff275d63600f"),
+        ("sg-web-server-12345/IpPermissionsEgress/None/None/-1", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/22/22/tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/22/2222/tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/80/80/tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/222/222/tcp", "sg-web-server-12345"),
     }
     assert (
         check_nodes(neo4j_session, "IpRule", ["ruleid", "groupid"]) == expected_ip_rules
@@ -203,23 +262,25 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ("sg-028e2522c72719996/IpPermissionsEgress/8080tcp", "000000000000"),
-        ("sg-028e2522c72719996/IpPermissionsEgress/443443tcp", "000000000000"),
-        ("sg-028e2522c72719996/IpPermissionsEgress/NoneNone-1", "000000000000"),
-        ("sg-028e2522c72719996/IpPermissions/8080tcp", "000000000000"),
-        ("sg-028e2522c72719996/IpPermissions/443443tcp", "000000000000"),
-        ("sg-053dba35430032a0d/IpPermissionsEgress/NoneNone-1", "000000000000"),
-        ("sg-053dba35430032a0d/IpPermissions/NoneNone-1", "000000000000"),
-        ("sg-06c795c66be8937be/IpPermissionsEgress/8080tcp", "000000000000"),
-        ("sg-06c795c66be8937be/IpPermissionsEgress/443443tcp", "000000000000"),
-        ("sg-06c795c66be8937be/IpPermissionsEgress/NoneNone-1", "000000000000"),
-        ("sg-06c795c66be8937be/IpPermissions/8080tcp", "000000000000"),
-        ("sg-06c795c66be8937be/IpPermissions/443443tcp", "000000000000"),
-        ("sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1", "000000000000"),
-        ("sg-0fd4fff275d63600f/IpPermissions/NoneNone-1", "000000000000"),
-        ("sg-web-server-12345/IpPermissionsEgress/NoneNone-1", "000000000000"),
-        ("sg-web-server-12345/IpPermissions/2222tcp", "000000000000"),
-        ("sg-web-server-12345/IpPermissions/8080tcp", "000000000000"),
+        ("sg-028e2522c72719996/IpPermissionsEgress/80/80/tcp", "000000000000"),
+        ("sg-028e2522c72719996/IpPermissionsEgress/443/443/tcp", "000000000000"),
+        ("sg-028e2522c72719996/IpPermissionsEgress/None/None/-1", "000000000000"),
+        ("sg-028e2522c72719996/IpPermissions/80/80/tcp", "000000000000"),
+        ("sg-028e2522c72719996/IpPermissions/443/443/tcp", "000000000000"),
+        ("sg-053dba35430032a0d/IpPermissionsEgress/None/None/-1", "000000000000"),
+        ("sg-053dba35430032a0d/IpPermissions/None/None/-1", "000000000000"),
+        ("sg-06c795c66be8937be/IpPermissionsEgress/80/80/tcp", "000000000000"),
+        ("sg-06c795c66be8937be/IpPermissionsEgress/443/443/tcp", "000000000000"),
+        ("sg-06c795c66be8937be/IpPermissionsEgress/None/None/-1", "000000000000"),
+        ("sg-06c795c66be8937be/IpPermissions/80/80/tcp", "000000000000"),
+        ("sg-06c795c66be8937be/IpPermissions/443/443/tcp", "000000000000"),
+        ("sg-0fd4fff275d63600f/IpPermissionsEgress/None/None/-1", "000000000000"),
+        ("sg-0fd4fff275d63600f/IpPermissions/None/None/-1", "000000000000"),
+        ("sg-web-server-12345/IpPermissionsEgress/None/None/-1", "000000000000"),
+        ("sg-web-server-12345/IpPermissions/22/22/tcp", "000000000000"),
+        ("sg-web-server-12345/IpPermissions/22/2222/tcp", "000000000000"),
+        ("sg-web-server-12345/IpPermissions/80/80/tcp", "000000000000"),
+        ("sg-web-server-12345/IpPermissions/222/222/tcp", "000000000000"),
     }
 
     assert check_rels(

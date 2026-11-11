@@ -76,7 +76,7 @@ def transform_ec2_security_group_data(
                 from_port = rule.get("FromPort")
                 to_port = rule.get("ToPort")
                 rule_id = (
-                    f"{group['GroupId']}/{rule_type}/{from_port}{to_port}{protocol}"
+                    f"{group['GroupId']}/{rule_type}/{from_port}/{to_port}/{protocol}"
                 )
                 target.append(
                     {
