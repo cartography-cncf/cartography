@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -8,7 +9,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import OBJECT_STORAGE
 
@@ -126,62 +126,40 @@ class GCPBucketSchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
-class GCPBucketLabelNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef(
-        "id", extra_index=True, description="Identifier derived from the label key."
-    )
-    key: PropertyRef = PropertyRef("key", extra_index=True, description="Label key.")
-    value: PropertyRef = PropertyRef("value", description="Label value.")
+class LegacyGCPBucketLabelNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GCPBucketLabelToProjectRelProperties(CartographyRelProperties):
+class LegacyGCPBucketLabelToProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPProject)-[:RESOURCE]->(:GCPBucketLabel)
-class GCPBucketLabelToProjectRel(CartographyRelSchema):
+class LegacyGCPBucketLabelToProjectRel(CartographyRelSchema):
+    __cartography_introspection_exclude__: ClassVar[bool] = True
+
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPBucketLabelToProjectRelProperties = (
-        GCPBucketLabelToProjectRelProperties()
+    properties: LegacyGCPBucketLabelToProjectRelProperties = (
+        LegacyGCPBucketLabelToProjectRelProperties()
     )
 
 
+# DEPRECATED: cleanup of bucket label nodes keyed only by label key will be removed in v1.0.0.
 @dataclass(frozen=True)
-class GCPBucketLabelToBucketRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:GCPBucket)-[:LABELED]->(:GCPBucketLabel)
-class GCPBucketLabelToBucketRel(CartographyRelSchema):
-    target_node_label: str = "GCPBucket"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("bucket_id")}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "LABELED"
-    properties: GCPBucketLabelToBucketRelProperties = (
-        GCPBucketLabelToBucketRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class GCPBucketLabelSchema(CartographyNodeSchema):
-    """Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/docs/key-terms#bucket-labels).  This node contains a key-value pair."""
+class LegacyGCPBucketLabelCleanupSchema(CartographyNodeSchema):
+    __cartography_introspection_exclude__: ClassVar[bool] = True
 
     label: str = "GCPBucketLabel"
-    properties: GCPBucketLabelNodeProperties = GCPBucketLabelNodeProperties()
-    sub_resource_relationship: GCPBucketLabelToProjectRel = GCPBucketLabelToProjectRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            GCPBucketLabelToBucketRel(),
-        ]
+    properties: LegacyGCPBucketLabelNodeProperties = (
+        LegacyGCPBucketLabelNodeProperties()
+    )
+    sub_resource_relationship: LegacyGCPBucketLabelToProjectRel = (
+        LegacyGCPBucketLabelToProjectRel()
     )

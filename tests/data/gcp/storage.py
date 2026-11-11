@@ -46,5 +46,18 @@ STORAGE_RESPONSE = {
                 },
             ],
         },
+        {
+            "kind": "storage#bucket",
+            "id": "bucket_name_2",
+            "selfLink": "https://www.googleapis.com/storage/v1/b/bucket_name_2",
+            "projectNumber": 123456789012,
+            "name": "bucket_name_2",
+            "location": "US",
+            "locationType": "multi-region",
+            "storageClass": "STANDARD",
+            "labels": {
+                "label_key_1": "label_value_3",
+            },
+        },
     ],
 }
