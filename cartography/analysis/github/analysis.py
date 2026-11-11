@@ -11,12 +11,10 @@ from cartography.graph.analysis import Var
 # organization's answer, and the GitHubUser node holds the combination. max() skips
 # nulls and ranks true above false, so an organization that reports 2FA or enterprise
 # ownership outranks one that denies it or cannot see it.
-def _organization_facts(users: str, memberships_counted: str = "") -> AnalysisStatement:
+def _organization_facts(memberships: str) -> AnalysisStatement:
     return AnalysisStatement(
         match=f"""
-        MATCH {users}
-        MATCH (user)-[membership:MEMBER_OF|UNAFFILIATED]->(member_of:GitHubOrganization)
-        {memberships_counted}
+        {memberships}
         WITH user,
             max(membership.has_2fa_enabled) AS has_2fa_enabled,
             coalesce(max(membership.is_enterprise_owner), false) AS is_enterprise_owner,
@@ -62,11 +60,16 @@ GITHUB_ORGANIZATION_USER_FACTS = AnalysisJob(
     short_name="github_organization_user_facts",
     scope=ScopeById("GitHubOrganization", "ORG_URL", scope_on="org"),
     statements=(
+        # A user who changes between member and unaffiliated keeps the old
+        # relationship to this organization until the global cleanup runs, so
+        # only the user's freshest relationship to it counts.
         _organization_facts(
-            "(org:GitHubOrganization)<-[:MEMBER_OF|UNAFFILIATED]-(user:GitHubUser)",
-            # A user who changes between member and unaffiliated keeps the old
-            # relationship to this organization until the global cleanup runs.
-            "WHERE member_of <> org OR membership.lastupdated = $UPDATE_TAG",
+            """
+            MATCH (org:GitHubOrganization)<-[current:MEMBER_OF|UNAFFILIATED]-(user:GitHubUser)
+            WITH org, user, max(current.lastupdated) AS refreshed
+            MATCH (user)-[membership:MEMBER_OF|UNAFFILIATED]->(member_of:GitHubOrganization)
+            WHERE member_of <> org OR membership.lastupdated = refreshed
+            """
         ),
     ),
 )
@@ -75,5 +78,9 @@ GITHUB_ORGANIZATION_USER_FACTS = AnalysisJob(
 GITHUB_USER_ORGANIZATION_FACTS = AnalysisJob(
     name="GitHub user organization facts",
     short_name="github_user_organization_facts",
-    statements=(_organization_facts("(user:GitHubUser)"),),
+    statements=(
+        _organization_facts(
+            "MATCH (user:GitHubUser)-[membership:MEMBER_OF|UNAFFILIATED]->(:GitHubOrganization)"
+        ),
+    ),
 )
