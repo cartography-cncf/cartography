@@ -392,12 +392,29 @@ def _assert_iam_graph(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSAccountAccessKey",
-        ["accesskeyid", "id"],
+        ["accesskeyid", "id", "lastuseddate"],
     ) == {
-        ("AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
-        ("AKIAI44QH8DHBEXAMPLE", "AKIAI44QH8DHBEXAMPLE"),
-        ("AKIAJQ5CMEXAMPLE", "AKIAJQ5CMEXAMPLE"),
-        ("AKIAEXAMPLE123", "AKIAEXAMPLE123"),
+        ("AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE", "2023-01-15 10:30:00+00:00"),
+        ("AKIAI44QH8DHBEXAMPLE", "AKIAI44QH8DHBEXAMPLE", "2022-12-20 16:45:30+00:00"),
+        ("AKIAJQ5CMEXAMPLE", "AKIAJQ5CMEXAMPLE", "2023-02-10 09:15:00+00:00"),
+        ("AKIAEXAMPLE123", "AKIAEXAMPLE123", None),
+    }
+
+    # The ontology fields must be datetimes, so keys sort with other APIKeys
+    # and a never-used key reads as missing rather than as a string.
+    result = neo4j_session.run(
+        """
+        MATCH (k:AWSAccountAccessKey)
+        RETURN k.accesskeyid AS id,
+               valueType(k._ont_created_at) AS created_type,
+               valueType(k._ont_last_used_at) AS last_used_type
+        """,
+    )
+    assert {(r["id"], r["created_type"], r["last_used_type"]) for r in result} == {
+        ("AKIAIOSFODNN7EXAMPLE", "ZONED DATETIME NOT NULL", "ZONED DATETIME NOT NULL"),
+        ("AKIAI44QH8DHBEXAMPLE", "ZONED DATETIME NOT NULL", "ZONED DATETIME NOT NULL"),
+        ("AKIAJQ5CMEXAMPLE", "ZONED DATETIME NOT NULL", "ZONED DATETIME NOT NULL"),
+        ("AKIAEXAMPLE123", "ZONED DATETIME NOT NULL", "NULL"),
     }
 
     # Assert: Check that relationships were created between access keys and users
