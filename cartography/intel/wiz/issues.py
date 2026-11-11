@@ -66,11 +66,14 @@ def get(
     since_iso: str | None = None,
     project_id_filter: list[str] | None = None,
 ) -> list[dict[str, Any]]:
+    # Closed issues are skipped only when cleanup runs to remove the ones
+    # already in the graph; otherwise they are fetched to refresh their status.
+    active_only = since_iso is None and not project_id_filter
     filter_by: dict[str, Any] = {
         "status": (
-            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
-            if since_iso
-            else ["OPEN", "IN_PROGRESS"]
+            ["OPEN", "IN_PROGRESS"]
+            if active_only
+            else ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
         ),
         "severity": ["INFORMATIONAL", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
         "type": ["TOXIC_COMBINATION", "THREAT_DETECTION", "CLOUD_CONFIGURATION"],

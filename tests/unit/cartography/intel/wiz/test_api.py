@@ -316,7 +316,17 @@ def test_get_issues_uses_status_changed_filter_when_since_is_set():
     assert "createdAt" not in variables["filterBy"]
 
 
-def test_get_issues_full_sync_fetches_only_active_issues():
+@pytest.mark.parametrize(
+    ("project_id_filter", "expected_statuses"),
+    [
+        (None, ["OPEN", "IN_PROGRESS"]),
+        (["project-1"], ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]),
+    ],
+)
+def test_get_issues_complete_sync_skips_closed_issues_only_when_unfiltered(
+    project_id_filter,
+    expected_statuses,
+):
     session = FakeSession(
         [
             FakeResponse(
@@ -337,10 +347,11 @@ def test_get_issues_full_sync_fetches_only_active_issues():
         "https://api.us1.app.wiz.io/graphql",
         "token-1",
         None,
+        project_id_filter,
     )
 
     filter_by = session.calls[0][1]["json"]["variables"]["filterBy"]
-    assert filter_by["status"] == ["OPEN", "IN_PROGRESS"]
+    assert filter_by["status"] == expected_statuses
     assert "createdAt" not in filter_by
     assert "updatedAt" not in filter_by
     assert "statusChangedAt" not in filter_by
@@ -414,7 +425,26 @@ def test_get_findings_uses_updated_at_filters_without_order_by():
     assert "triggeringEvents" not in detection_query
 
 
-def test_get_findings_full_sync_fetches_only_active_findings():
+@pytest.mark.parametrize(
+    (
+        "project_id_filter",
+        "expected_vulnerability_filter",
+        "expected_configuration_statuses",
+    ),
+    [
+        (None, {"status": ["OPEN"]}, ["OPEN", "IN_PROGRESS"]),
+        (
+            ["project-1"],
+            None,
+            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
+        ),
+    ],
+)
+def test_get_findings_complete_sync_skips_closed_findings_only_when_unfiltered(
+    project_id_filter,
+    expected_vulnerability_filter,
+    expected_configuration_statuses,
+):
     session = FakeSession(
         [
             FakeResponse(
@@ -455,11 +485,12 @@ def test_get_findings_full_sync_fetches_only_active_findings():
         "https://api.us1.app.wiz.io/graphql",
         "token-1",
         None,
+        project_id_filter,
     )
 
-    vulnerability_filter = session.calls[0][1]["json"]["variables"]["filterBy"]
-    assert vulnerability_filter == {"status": ["OPEN"]}
+    vulnerability_filter = session.calls[0][1]["json"]["variables"].get("filterBy")
+    assert vulnerability_filter == expected_vulnerability_filter
     filter_by = session.calls[1][1]["json"]["variables"]["filterBy"]
     assert filter_by["result"] == ["FAIL"]
-    assert filter_by["status"] == ["OPEN", "IN_PROGRESS"]
+    assert filter_by["status"] == expected_configuration_statuses
     assert "updatedAt" not in filter_by

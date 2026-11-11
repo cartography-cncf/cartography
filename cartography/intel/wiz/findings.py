@@ -162,17 +162,20 @@ def get(
     project_id_filter: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
-    vulnerability_filter: dict[str, Any] = (
-        {"updatedAt": {"after": since_iso}} if since_iso else {"status": ["OPEN"]}
-    )
+    # Closed records are skipped only when cleanup runs to remove the ones
+    # already in the graph; otherwise they are fetched to refresh their status.
+    active_only = since_iso is None and not project_id_filter
+    vulnerability_filter: dict[str, Any] = {"status": ["OPEN"]} if active_only else {}
+    if since_iso:
+        vulnerability_filter["updatedAt"] = {"after": since_iso}
 
     configuration_filter: dict[str, Any] = {
         "result": ["FAIL"],
         "severity": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
         "status": (
-            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
-            if since_iso
-            else ["OPEN", "IN_PROGRESS"]
+            ["OPEN", "IN_PROGRESS"]
+            if active_only
+            else ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
         ),
     }
     if since_iso:
@@ -196,7 +199,7 @@ def get(
         (
             _VULNERABILITY_QUERY,
             "vulnerabilityFindings",
-            vulnerability_filter,
+            vulnerability_filter or None,
             FINDING_TYPE_VULNERABILITY,
         ),
         (
