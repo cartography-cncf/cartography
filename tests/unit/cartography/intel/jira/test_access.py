@@ -483,3 +483,48 @@ def test_pagination_without_is_last_uses_total(mocker: MockerFixture) -> None:
     groups = client.pages("group/bulk")
     # Assert
     assert groups == [{"groupId": "1"}, {"groupId": "2"}]
+
+
+ADMIN_GROUP = {"groupId": "g-admin", "name": "jira-admins"}
+
+
+def client_failing_access_filter(access: str, status: int) -> Mock:
+    client = Mock()
+    client.get.side_effect = lambda path, **params: {
+        "mypermissions": {
+            "permissions": {
+                p: {"havePermission": True} for p in ("ADMINISTER", "USER_PICKER")
+            }
+        },
+        "serverInfo": {"deploymentType": "Cloud"},
+    }[path]
+
+    def pages(path: str, **params: Any) -> list[dict[str, Any]]:
+        if params.get("accessType") == access:
+            raise requests.HTTPError(response=response({}, status))
+        return [ADMIN_GROUP] if params.get("accessType") == "admin" else []
+
+    client.pages.side_effect = pages
+    return client
+
+
+def test_site_admin_filter_jira_cannot_serve_is_skipped() -> None:
+    # Arrange
+    client = client_failing_access_filter("site-admin", 500)
+    # Act
+    raw = get(client)
+    # Assert
+    assert raw["admin_groups"] == {"admin": [ADMIN_GROUP], "site-admin": []}
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    ("access", "status"), [("site-admin", 403), ("admin", 500)]
+)
+def test_other_admin_access_filter_failures_remain_fatal(
+    access: str, status: int
+) -> None:
+    # Arrange
+    client = client_failing_access_filter(access, status)
+    # Act and assert
+    with pytest.raises(requests.HTTPError):
+        get(client)
