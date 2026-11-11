@@ -50,6 +50,7 @@ def test_load_host_data_does_not_link_fargate_tasks(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
+    assert check_nodes(neo4j_session, "CrowdstrikeHost", ["id"]) == {(HOST_ID,)}
     assert (
         check_rels(
             neo4j_session,
