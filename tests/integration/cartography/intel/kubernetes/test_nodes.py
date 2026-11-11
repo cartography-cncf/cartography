@@ -7,8 +7,11 @@ from cartography.intel.kubernetes.nodes import sync_nodes
 from cartography.intel.kubernetes.pods import sync_pods
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
+from tests.data.kubernetes.nodes import RAW_CSI_NODES
 from tests.data.kubernetes.nodes import RAW_NODES
 from tests.data.kubernetes.nodes import RAW_PODS
+from tests.data.kubernetes.nodes import RAW_SCALEWAY_NODES
+from tests.data.kubernetes.nodes import SCALEWAY_INSTANCE_ID
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -20,6 +23,7 @@ CLUSTER_NAME = KUBERNETES_CLUSTER_NAMES[0]
 def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     # Arrange
     monkeypatch.setattr(nodes_module, "get_nodes", lambda client: RAW_NODES)
+    monkeypatch.setattr(nodes_module, "get_csi_nodes", lambda client: [])
     monkeypatch.setattr(
         pods_module,
         "get_pods",
@@ -133,4 +137,49 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
     ) == {
         ("arm-node-test-container", "arm64"),
         ("node-test-container", "amd64"),
+    }
+
+
+def test_sync_nodes_links_scaleway_instance_from_csi_node(neo4j_session, monkeypatch):
+    # Arrange: a self-managed node whose providerID does not reference
+    # Scaleway; only its CSINode object carries the Instance server id.
+    monkeypatch.setattr(
+        nodes_module, "get_nodes", lambda client: RAW_NODES + RAW_SCALEWAY_NODES
+    )
+    monkeypatch.setattr(nodes_module, "get_csi_nodes", lambda client: RAW_CSI_NODES)
+    client = SimpleNamespace(name=CLUSTER_NAME, gke_cluster=None)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
+    neo4j_session.run(
+        "MERGE (i:ScalewayInstance {id: $id})",
+        id=SCALEWAY_INSTANCE_ID,
+    )
+
+    # Act
+    sync_nodes(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
+
+    # Assert: the CSI driver node IDs are recorded on the node
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesNode",
+        ["name", "scaleway_instance_id", "csi_node_ids"],
+    ) == {
+        ("my-node", None, None),
+        ("my-arm-node", None, None),
+        (
+            "my-scaleway-node",
+            SCALEWAY_INSTANCE_ID,
+            f'{{"csi.scaleway.com": "fr-par-2/{SCALEWAY_INSTANCE_ID}"}}',
+        ),
+    }
+
+    # Assert: only the Scaleway node is linked to the Scaleway Instance
+    assert check_rels(
+        neo4j_session,
+        "KubernetesNode",
+        "name",
+        "ScalewayInstance",
+        "id",
+        "IS_INSTANCE",
+    ) == {
+        ("my-scaleway-node", SCALEWAY_INSTANCE_ID),
     }

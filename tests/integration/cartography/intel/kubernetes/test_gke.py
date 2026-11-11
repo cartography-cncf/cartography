@@ -118,6 +118,7 @@ def _load_kubernetes(session, monkeypatch, update_tag: int) -> None:
         update_tag,
     )
     monkeypatch.setattr(nodes_module, "get_nodes", lambda _: GKE_NODES)
+    monkeypatch.setattr(nodes_module, "get_csi_nodes", lambda _: [])
     sync_nodes(session, client, update_tag, {**COMMON, "UPDATE_TAG": update_tag})
     load_service_accounts(
         session,
