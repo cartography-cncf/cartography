@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 import neo4j
+from dateutil.parser import isoparse
 from okta.client import Client as OktaClient
 
 from cartography.client.core.tx import load
@@ -52,7 +53,9 @@ async def _get_okta_authenticators(okta_client: OktaClient) -> list[dict[str, An
 def _parse_okta_timestamp(value: str | None) -> datetime | None:
     # Keep storing DateTime values, as the typed SDK model did before this
     # module switched to raw JSON.
-    return datetime.fromisoformat(value) if value else None
+    if value is None or value == "":
+        return None
+    return isoparse(value)
 
 
 @timeit
