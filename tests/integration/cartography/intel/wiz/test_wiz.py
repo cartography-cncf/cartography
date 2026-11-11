@@ -261,9 +261,6 @@ def test_start_wiz_ingestion_links_ami_finding_to_regional_image(
         "id",
         "AFFECTS",
     ) == {(VULNERABILITY_ID_1, AMI_ID)}
-    neo4j_session.run(
-        "MATCH (i:AWSEC2Image {id: 'ami-0abc|us-east-1'}) DETACH DELETE i"
-    )
 
 
 def test_start_wiz_ingestion_removes_stale_records_on_second_sync(
