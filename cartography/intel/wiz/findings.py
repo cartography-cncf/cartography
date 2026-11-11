@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from time import monotonic
 from typing import Any
 
@@ -153,15 +154,13 @@ query WizDetections($filterBy: DetectionFilters, $first: Int, $after: String, $o
 """
 
 
-@timeit
 def get(
     session: requests.Session,
     graphql_url: str,
     token: str,
     since_iso: str | None = None,
     project_id_filter: list[str] | None = None,
-) -> list[dict[str, Any]]:
-    findings: list[dict[str, Any]] = []
+) -> Iterator[list[dict[str, Any]]]:
     # Closed records are skipped only when cleanup runs to remove the ones
     # already in the graph; otherwise they are fetched to refresh their status.
     active_only = since_iso is None and not project_id_filter
@@ -216,7 +215,8 @@ def get(
         ),
     ):
         start_time = monotonic()
-        raw_findings = get_paginated(
+        fetched = 0
+        for raw_findings in get_paginated(
             session,
             graphql_url,
             token,
@@ -224,20 +224,18 @@ def get(
             connection_name,
             filter_by=filter_by,
             progress_label=f"{finding_type.lower()} findings",
-        )
+        ):
+            fetched += len(raw_findings)
+            yield _with_finding_type(
+                filter_by_project_ids(raw_findings, project_id_filter),
+                finding_type,
+            )
         logger.info(
             "Fetched %d Wiz %s findings in %.2fs",
-            len(raw_findings),
+            fetched,
             finding_type.lower(),
             monotonic() - start_time,
         )
-        findings.extend(
-            _with_finding_type(
-                filter_by_project_ids(raw_findings, project_id_filter),
-                finding_type,
-            ),
-        )
-    return findings
 
 
 def _with_finding_type(
@@ -635,8 +633,8 @@ def sync(
         if lookback_days is not None
         else None
     )
-    raw_findings = get(session, graphql_url, token, since_iso, project_id_filter)
-    findings = transform(raw_findings, tenant_id)
-    load_findings(neo4j_session, findings, tenant_id, update_tag)
+    for raw_findings in get(session, graphql_url, token, since_iso, project_id_filter):
+        findings = transform(raw_findings, tenant_id)
+        load_findings(neo4j_session, findings, tenant_id, update_tag)
     if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)

@@ -78,8 +78,8 @@ def _seed_cve(neo4j_session):
 
 def _patch_wiz_api(mocker, issues=ISSUES, findings=FINDINGS):
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
-    mocker.patch("cartography.intel.wiz.issues.get", return_value=issues)
-    mocker.patch("cartography.intel.wiz.findings.get", return_value=findings)
+    mocker.patch("cartography.intel.wiz.issues.get", return_value=[issues])
+    mocker.patch("cartography.intel.wiz.findings.get", return_value=[findings])
 
 
 def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker):
@@ -210,8 +210,8 @@ def test_start_wiz_ingestion_removes_stale_records_on_second_sync(
     # Arrange
     _seed_cve(neo4j_session)
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
-    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[ISSUES, []])
-    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[FINDINGS, []])
+    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[[ISSUES], []])
+    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[[FINDINGS], []])
 
     # Act
     cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config(TEST_UPDATE_TAG))
@@ -232,8 +232,8 @@ def test_start_wiz_ingestion_lookback_mode_preserves_older_records(
     # Arrange
     _seed_cve(neo4j_session)
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
-    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[ISSUES, []])
-    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[FINDINGS, []])
+    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[[ISSUES], []])
+    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[[FINDINGS], []])
 
     # Act
     cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config(TEST_UPDATE_TAG))
@@ -261,8 +261,8 @@ def test_start_wiz_ingestion_project_filter_preserves_older_records(
     # Arrange
     _seed_cve(neo4j_session)
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
-    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[ISSUES, []])
-    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[FINDINGS, []])
+    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[[ISSUES], []])
+    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[[FINDINGS], []])
 
     # Act
     cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config(TEST_UPDATE_TAG))

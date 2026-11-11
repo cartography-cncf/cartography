@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 
 import requests
@@ -11,6 +12,8 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _DEFAULT_PAGE_SIZE = 100
 _PROGRESS_PAGE_INTERVAL = 10
+# A batch is what one load transaction writes, and the most a sync holds in memory.
+_BATCH_SIZE = 5000
 WIZ_AUTH_AUDIENCE = "wiz-api"
 _RETRY_STATUSES = (429, 500, 502, 503, 504)
 
@@ -91,8 +94,10 @@ def get_paginated(
     order_by: dict[str, Any] | None = None,
     page_size: int = _DEFAULT_PAGE_SIZE,
     progress_label: str | None = None,
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
+    batch_size: int = _BATCH_SIZE,
+) -> Iterator[list[dict[str, Any]]]:
+    batch: list[dict[str, Any]] = []
+    fetched = 0
     after = None
     page_count = 0
     seen_cursors: set[str] = set()
@@ -111,13 +116,17 @@ def get_paginated(
         nodes = connection.get("nodes")
         if nodes is None:
             raise RuntimeError(f"Wiz {connection_name} response omitted nodes")
-        results.extend(nodes)
+        batch.extend(nodes)
+        fetched += len(nodes)
         page_count += 1
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
 
         if progress_label and page_count % _PROGRESS_PAGE_INTERVAL == 0:
             logger.info(
                 "Fetched %d Wiz %s across %d page(s) so far.",
-                len(results),
+                fetched,
                 progress_label,
                 page_count,
             )
@@ -138,4 +147,5 @@ def get_paginated(
             )
         seen_cursors.add(after)
 
-    return results
+    if batch:
+        yield batch
