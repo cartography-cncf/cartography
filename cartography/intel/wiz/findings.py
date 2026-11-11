@@ -1,5 +1,6 @@
 import logging
-from time import monotonic
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -160,9 +161,9 @@ def get(
     token: str,
     since_iso: str | None = None,
     project_id_filter: list[str] | None = None,
-) -> list[dict[str, Any]]:
-    findings: list[dict[str, Any]] = []
-    vulnerability_filter: dict[str, Any] = {}
+    active_only: bool = False,
+) -> Iterator[list[dict[str, Any]]]:
+    vulnerability_filter: dict[str, Any] = {"status": ["OPEN"]} if active_only else {}
     if since_iso:
         vulnerability_filter["updatedAt"] = {"after": since_iso}
 
@@ -170,9 +171,9 @@ def get(
         "result": ["FAIL"],
         "severity": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
         "status": (
-            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
-            if since_iso
-            else ["OPEN", "IN_PROGRESS"]
+            ["OPEN", "IN_PROGRESS"]
+            if active_only
+            else ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
         ),
     }
     if since_iso:
@@ -212,8 +213,7 @@ def get(
             FINDING_TYPE_DETECTION,
         ),
     ):
-        start_time = monotonic()
-        raw_findings = get_paginated(
+        for raw_findings in get_paginated(
             session,
             graphql_url,
             token,
@@ -221,20 +221,11 @@ def get(
             connection_name,
             filter_by=filter_by,
             progress_label=f"{finding_type.lower()} findings",
-        )
-        logger.info(
-            "Fetched %d Wiz %s findings in %.2fs",
-            len(raw_findings),
-            finding_type.lower(),
-            monotonic() - start_time,
-        )
-        findings.extend(
-            _with_finding_type(
+        ):
+            yield _with_finding_type(
                 filter_by_project_ids(raw_findings, project_id_filter),
                 finding_type,
-            ),
-        )
-    return findings
+            )
 
 
 def _with_finding_type(
@@ -589,7 +580,7 @@ def _names(records: list[dict[str, Any]]) -> list[str]:
 @timeit
 def load_findings(
     neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
+    data: Iterable[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -624,6 +615,7 @@ def sync(
     lookback_days: int | None,
     project_id_filter: list[str] | None = None,
     *,
+    active_only: bool = False,
     do_cleanup: bool = True,
 ) -> None:
     logger.info("Syncing Wiz findings for tenant %s", tenant_id)
@@ -632,8 +624,15 @@ def sync(
         if lookback_days is not None
         else None
     )
-    raw_findings = get(session, graphql_url, token, since_iso, project_id_filter)
-    findings = transform(raw_findings, tenant_id)
+    pages = get(
+        session,
+        graphql_url,
+        token,
+        since_iso,
+        project_id_filter,
+        active_only=active_only,
+    )
+    findings = (finding for page in pages for finding in transform(page, tenant_id))
     load_findings(neo4j_session, findings, tenant_id, update_tag)
     if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)

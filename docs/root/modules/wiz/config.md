@@ -62,9 +62,19 @@ Wiz issues and findings. Set `--wiz-lookback-days` only for incremental imports
 where preserving older unchanged records is preferable to deleting stale
 records.
 
-Configuration findings are limited to failing checks. A complete sync imports
-active failing checks; lookback mode also fetches recently updated resolved or
-rejected failures so their status can be refreshed without cleanup.
+A complete, unfiltered sync imports only active records:
+
+- Vulnerability findings with the `OPEN` status.
+- Issues and configuration findings with the `OPEN` or `IN_PROGRESS` status.
+
+Cleanup then removes the records that Wiz resolved or rejected since the last
+sync.
+
+Lookback and project-filtered syncs don't run cleanup, so they also fetch
+resolved and rejected records and update their status.
+
+Detection findings have no status, so every sync fetches all of them.
+Configuration findings are limited to failing checks in every sync mode.
 
 `--wiz-project-ids` is applied to records that include Wiz project metadata.
 Records without project metadata are kept so finding feeds that omit project

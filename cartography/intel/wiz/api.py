@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 
 import requests
@@ -91,8 +92,8 @@ def get_paginated(
     order_by: dict[str, Any] | None = None,
     page_size: int = _DEFAULT_PAGE_SIZE,
     progress_label: str | None = None,
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
+) -> Iterator[list[dict[str, Any]]]:
+    fetched = 0
     after = None
     page_count = 0
     seen_cursors: set[str] = set()
@@ -111,13 +112,14 @@ def get_paginated(
         nodes = connection.get("nodes")
         if nodes is None:
             raise RuntimeError(f"Wiz {connection_name} response omitted nodes")
-        results.extend(nodes)
+        yield nodes
+        fetched += len(nodes)
         page_count += 1
 
         if progress_label and page_count % _PROGRESS_PAGE_INTERVAL == 0:
             logger.info(
                 "Fetched %d Wiz %s across %d page(s) so far.",
-                len(results),
+                fetched,
                 progress_label,
                 page_count,
             )
@@ -138,4 +140,5 @@ def get_paginated(
             )
         seen_cursors.add(after)
 
-    return results
+    if progress_label:
+        logger.info("Fetched %d Wiz %s in total.", fetched, progress_label)

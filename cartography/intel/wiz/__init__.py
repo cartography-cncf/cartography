@@ -72,6 +72,10 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             tenant_id,
         )
 
+    # A full sync skips closed records because cleanup deletes the closed records
+    # that earlier syncs stored. Lookback and project-filtered syncs don't run
+    # cleanup, so they fetch closed records too. Otherwise, a record that Wiz
+    # closed stays open in the graph.
     do_cleanup = config.wiz_lookback_days is None and not config.wiz_project_ids
     if config.wiz_lookback_days is not None:
         logger.warning(
@@ -113,6 +117,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.wiz_lookback_days,
         config.wiz_project_ids,
+        active_only=do_cleanup,
         do_cleanup=False,
     )
     cartography.intel.wiz.findings.sync(
@@ -125,6 +130,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.wiz_lookback_days,
         config.wiz_project_ids,
+        active_only=do_cleanup,
         do_cleanup=False,
     )
 

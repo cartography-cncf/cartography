@@ -112,14 +112,14 @@ def test_get_access_token_uses_client_credentials_payload():
     }
 
 
-def test_get_paginated_collects_all_nodes_and_passes_cursor():
+def test_get_paginated_yields_each_page_and_passes_cursor():
     session = FakeSession(
         [
             FakeResponse(
                 {
                     "data": {
                         "cloudResourcesV2": {
-                            "nodes": [{"id": "resource-1"}],
+                            "nodes": [{"id": "resource-1"}, {"id": "resource-2"}],
                             "pageInfo": {
                                 "hasNextPage": True,
                                 "endCursor": "cursor-1",
@@ -132,7 +132,7 @@ def test_get_paginated_collects_all_nodes_and_passes_cursor():
                 {
                     "data": {
                         "cloudResourcesV2": {
-                            "nodes": [{"id": "resource-2"}],
+                            "nodes": [{"id": "resource-3"}],
                             "pageInfo": {
                                 "hasNextPage": False,
                                 "endCursor": None,
@@ -144,7 +144,7 @@ def test_get_paginated_collects_all_nodes_and_passes_cursor():
         ],
     )
 
-    nodes = get_paginated(
+    pages = get_paginated(
         session,
         "https://api.us1.app.wiz.io/graphql",
         "token-1",
@@ -153,7 +153,12 @@ def test_get_paginated_collects_all_nodes_and_passes_cursor():
         filter_by={"updatedAt": {"after": "2026-01-01T00:00:00Z"}},
     )
 
-    assert nodes == [{"id": "resource-1"}, {"id": "resource-2"}]
+    first_page = next(pages)
+    assert len(session.calls) == 1
+    assert [first_page, *pages] == [
+        [{"id": "resource-1"}, {"id": "resource-2"}],
+        [{"id": "resource-3"}],
+    ]
     assert session.calls[0][1]["json"]["variables"]["after"] is None
     assert session.calls[1][1]["json"]["variables"]["after"] == "cursor-1"
 
@@ -162,12 +167,14 @@ def test_get_paginated_raises_on_graphql_errors():
     session = FakeSession([FakeResponse({"errors": [{"message": "bad query"}]})])
 
     with pytest.raises(RuntimeError):
-        get_paginated(
-            session,
-            "https://api.us1.app.wiz.io/graphql",
-            "token-1",
-            "query Test { cloudResourcesV2 { nodes { id } } }",
-            "cloudResourcesV2",
+        list(
+            get_paginated(
+                session,
+                "https://api.us1.app.wiz.io/graphql",
+                "token-1",
+                "query Test { cloudResourcesV2 { nodes { id } } }",
+                "cloudResourcesV2",
+            )
         )
 
 
@@ -191,12 +198,14 @@ def test_get_paginated_raises_when_next_page_has_no_cursor():
     )
 
     with pytest.raises(RuntimeError, match="omitted endCursor"):
-        get_paginated(
-            session,
-            "https://api.us1.app.wiz.io/graphql",
-            "token-1",
-            "query Test { cloudResourcesV2 { nodes { id } } }",
-            "cloudResourcesV2",
+        list(
+            get_paginated(
+                session,
+                "https://api.us1.app.wiz.io/graphql",
+                "token-1",
+                "query Test { cloudResourcesV2 { nodes { id } } }",
+                "cloudResourcesV2",
+            )
         )
 
     assert len(session.calls) == 1
@@ -235,12 +244,14 @@ def test_get_paginated_raises_when_cursor_repeats():
     )
 
     with pytest.raises(RuntimeError, match="repeated pagination cursor cursor-1"):
-        get_paginated(
-            session,
-            "https://api.us1.app.wiz.io/graphql",
-            "token-1",
-            "query Test { cloudResourcesV2 { nodes { id } } }",
-            "cloudResourcesV2",
+        list(
+            get_paginated(
+                session,
+                "https://api.us1.app.wiz.io/graphql",
+                "token-1",
+                "query Test { cloudResourcesV2 { nodes { id } } }",
+                "cloudResourcesV2",
+            )
         )
 
 
@@ -265,16 +276,17 @@ def test_get_paginated_logs_progress_every_ten_pages(caplog):
     session = FakeSession(responses)
 
     with caplog.at_level(logging.INFO, logger="cartography.intel.wiz.api"):
-        nodes = get_paginated(
-            session,
-            "https://api.us1.app.wiz.io/graphql",
-            "token-1",
-            "query Test { configurationFindings { nodes { id } } }",
-            "configurationFindings",
-            progress_label="configuration findings",
+        list(
+            get_paginated(
+                session,
+                "https://api.us1.app.wiz.io/graphql",
+                "token-1",
+                "query Test { configurationFindings { nodes { id } } }",
+                "configurationFindings",
+                progress_label="configuration findings",
+            )
         )
 
-    assert len(nodes) == 10
     assert (
         "Fetched 10 Wiz configuration findings across 10 page(s) so far." in caplog.text
     )
@@ -296,21 +308,36 @@ def test_get_issues_uses_status_changed_filter_when_since_is_set():
         ],
     )
 
-    cartography.intel.wiz.issues.get(
-        session,
-        "https://api.us1.app.wiz.io/graphql",
-        "token-1",
-        "2026-01-01T00:00:00Z",
+    list(
+        cartography.intel.wiz.issues.get(
+            session,
+            "https://api.us1.app.wiz.io/graphql",
+            "token-1",
+            "2026-01-01T00:00:00Z",
+        )
     )
 
     variables = session.calls[0][1]["json"]["variables"]
     assert variables["filterBy"]["statusChangedAt"] == {
         "after": "2026-01-01T00:00:00Z",
     }
+    assert variables["filterBy"]["status"] == [
+        "OPEN",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "REJECTED",
+    ]
     assert "createdAt" not in variables["filterBy"]
 
 
-def test_get_issues_omits_time_filter_for_full_sync():
+@pytest.mark.parametrize(
+    ("active_only", "expected_statuses"),
+    [
+        (True, ["OPEN", "IN_PROGRESS"]),
+        (False, ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]),
+    ],
+)
+def test_get_issues_full_sync_statuses(active_only, expected_statuses):
     session = FakeSession(
         [
             FakeResponse(
@@ -326,14 +353,18 @@ def test_get_issues_omits_time_filter_for_full_sync():
         ],
     )
 
-    cartography.intel.wiz.issues.get(
-        session,
-        "https://api.us1.app.wiz.io/graphql",
-        "token-1",
-        None,
+    list(
+        cartography.intel.wiz.issues.get(
+            session,
+            "https://api.us1.app.wiz.io/graphql",
+            "token-1",
+            None,
+            active_only=active_only,
+        )
     )
 
     filter_by = session.calls[0][1]["json"]["variables"]["filterBy"]
+    assert filter_by["status"] == expected_statuses
     assert "createdAt" not in filter_by
     assert "updatedAt" not in filter_by
     assert "statusChangedAt" not in filter_by
@@ -375,16 +406,18 @@ def test_get_findings_uses_updated_at_filters_without_order_by():
         ],
     )
 
-    cartography.intel.wiz.findings.get(
-        session,
-        "https://api.us1.app.wiz.io/graphql",
-        "token-1",
-        "2026-01-01T00:00:00Z",
+    list(
+        cartography.intel.wiz.findings.get(
+            session,
+            "https://api.us1.app.wiz.io/graphql",
+            "token-1",
+            "2026-01-01T00:00:00Z",
+        )
     )
 
     variables = [call[1]["json"]["variables"] for call in session.calls]
-    assert variables[0]["filterBy"]["updatedAt"] == {
-        "after": "2026-01-01T00:00:00Z",
+    assert variables[0]["filterBy"] == {
+        "updatedAt": {"after": "2026-01-01T00:00:00Z"},
     }
     assert variables[1]["filterBy"]["updatedAt"] == {
         "after": "2026-01-01T00:00:00Z",
@@ -407,7 +440,22 @@ def test_get_findings_uses_updated_at_filters_without_order_by():
     assert "triggeringEvents" not in detection_query
 
 
-def test_get_findings_full_sync_fetches_only_active_configuration_failures():
+@pytest.mark.parametrize(
+    (
+        "active_only",
+        "expected_vulnerability_filter",
+        "expected_configuration_statuses",
+    ),
+    [
+        (True, {"status": ["OPEN"]}, ["OPEN", "IN_PROGRESS"]),
+        (False, None, ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]),
+    ],
+)
+def test_get_findings_full_sync_statuses(
+    active_only,
+    expected_vulnerability_filter,
+    expected_configuration_statuses,
+):
     session = FakeSession(
         [
             FakeResponse(
@@ -443,14 +491,19 @@ def test_get_findings_full_sync_fetches_only_active_configuration_failures():
         ],
     )
 
-    cartography.intel.wiz.findings.get(
-        session,
-        "https://api.us1.app.wiz.io/graphql",
-        "token-1",
-        None,
+    list(
+        cartography.intel.wiz.findings.get(
+            session,
+            "https://api.us1.app.wiz.io/graphql",
+            "token-1",
+            None,
+            active_only=active_only,
+        )
     )
 
+    vulnerability_filter = session.calls[0][1]["json"]["variables"].get("filterBy")
+    assert vulnerability_filter == expected_vulnerability_filter
     filter_by = session.calls[1][1]["json"]["variables"]["filterBy"]
     assert filter_by["result"] == ["FAIL"]
-    assert filter_by["status"] == ["OPEN", "IN_PROGRESS"]
+    assert filter_by["status"] == expected_configuration_statuses
     assert "updatedAt" not in filter_by
