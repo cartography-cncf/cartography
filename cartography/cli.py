@@ -85,6 +85,7 @@ PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
 PANEL_ZIZMOR = "Zizmor Options"
+PANEL_ONEPASSWORD = "1Password Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
@@ -161,6 +162,7 @@ MODULE_PANELS = {
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
     "zizmor": PANEL_ZIZMOR,
+    "onepassword": PANEL_ONEPASSWORD,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
@@ -2512,6 +2514,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # 1Password Options
+            # =================================================================
+            onepassword_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--onepassword-source",
+                    help="1Password collector snapshot source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_ONEPASSWORD,
+                    hidden=PANEL_ONEPASSWORD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Ubuntu Security Options
             # =================================================================
             ubuntu_security_enabled: Annotated[
@@ -4389,6 +4403,7 @@ class CLI:
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
                 zizmor_source=zizmor_source,
+                onepassword_source=onepassword_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,

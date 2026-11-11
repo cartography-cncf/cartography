@@ -323,6 +323,8 @@ keycloak_mapping = OntologyMapping(
 
 # LastPass: No field to map in LastpassTenant (minimal properties)
 
+# 1Password: No field to map in OnePasswordAccount (snapshots carry no account name or domain)
+
 
 # Okta
 okta_mapping = OntologyMapping(

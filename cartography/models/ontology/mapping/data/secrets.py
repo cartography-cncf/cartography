@@ -216,6 +216,28 @@ langsmith_mapping = OntologyMapping(
     ],
 )
 
+onepassword_mapping = OntologyMapping(
+    module_name="onepassword",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OnePasswordItem",
+            fields=[
+                # name: present only when the collector runs with --include-titles.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="updated_at"
+                ),
+                # rotation_enabled: 1Password items have no rotation setting.
+            ],
+        ),
+    ],
+)
+
 
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
@@ -227,6 +249,7 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "supabase": supabase_mapping,
     "modal": modal_mapping,
     "netlify": netlify_mapping,
+    "onepassword": onepassword_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[

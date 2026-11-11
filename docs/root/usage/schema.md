@@ -65,6 +65,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Notion](../modules/notion/schema.md)
 - [Oci](../modules/oci/schema.md)
 - [Okta](../modules/okta/schema.md)
+- [1Password](../modules/onepassword/schema.md)
 - [Ontology](../modules/ontology/schema.md)
 - [Openai](../modules/openai/schema.md)
 - [Orca Security](../modules/orca/schema.md)

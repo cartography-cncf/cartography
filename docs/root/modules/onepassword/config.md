@@ -1,0 +1,85 @@
+# 1Password Configuration
+
+Cartography reads snapshots that the
+[1Password collector](https://github.com/subimagesec/collectors/tree/main/1password)
+produces. Run the collector first, then point Cartography at its output.
+
+## Prerequisites
+
+- A 1Password Business account
+- The 1Password collector, running on a schedule in your environment. See its
+  [setup guide](https://github.com/subimagesec/collectors/tree/main/1password#readme).
+
+## Authentication
+
+Cartography never authenticates to 1Password. The collector uses a 1Password
+service account token. Cartography authenticates only to the storage that holds
+the snapshots, with its usual provider credentials.
+
+## Required Permissions
+
+| Source | Permissions required |
+|---|---|
+| Local file or directory | Read access to the files |
+| Amazon S3 | `s3:ListBucket` on the bucket and `s3:GetObject` on the prefix |
+| Google Cloud Storage | `storage.objects.list` and `storage.objects.get` on the bucket |
+| Azure Blob Storage | Storage Blob Data Reader on the container |
+
+## Configure Cartography
+
+Set `--onepassword-source` to one of the following:
+
+- A snapshot `.json` file
+- A local directory that contains snapshots
+- An `s3://bucket/prefix`, `gs://bucket/prefix`, or
+  `azblob://account/container/prefix` URI
+
+Use a prefix that contains only 1Password snapshots. Cartography reads every
+`.json` object under it.
+
+## Run Cartography
+
+```bash
+cartography --selected-modules onepassword,ontology \
+    --onepassword-source s3://example-snapshots/onepassword/
+```
+
+To test with a local snapshot:
+
+```bash
+cartography --selected-modules onepassword,ontology \
+    --onepassword-source ./output/onepassword.json
+```
+
+Include `ontology` after `onepassword` to link 1Password users to canonical
+users from your other identity sources.
+
+## Input Artifacts
+
+### Generate Input Artifacts
+
+The collector writes one snapshot per run:
+
+```bash
+onepassword-collector \
+    --account-id <account-uuid> \
+    --vault-id <vault-uuid> \
+    --output s3://example-snapshots/onepassword/snapshot.json
+```
+
+Repeat `--vault-id` for every vault to cover. The service account must have
+**Read Items** access to each one.
+
+### Input Format
+
+Cartography accepts snapshots that use schema version `1.x` and have the status
+`complete`. The collector repository documents the
+[snapshot format](https://github.com/subimagesec/collectors/blob/main/1password/docs/format.md).
+
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `No 1Password snapshots found` | Check that the source path or prefix contains the collector's `.json` output. |
+| `is not a 1Password collector snapshot` | Remove other JSON files from the prefix, or point to a narrower prefix. |
+| `uses unsupported snapshot schema version` | Upgrade Cartography to a version that supports the collector's schema. |
