@@ -20,6 +20,8 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
+EC2_ID = "i-123"
+EC2_ARN = "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +36,7 @@ def cleanup_wiz_test_data(neo4j_session):
         """,
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
+    neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
     yield
     neo4j_session.run(
         """
@@ -45,6 +48,7 @@ def cleanup_wiz_test_data(neo4j_session):
         """,
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
+    neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
 
 
 def _config(
@@ -76,6 +80,15 @@ def _seed_cve(neo4j_session):
     )
 
 
+def _seed_ec2_instance(neo4j_session):
+    neo4j_session.run(
+        "MERGE (i:AWSEC2Instance {id: $id}) SET i.arn = $arn, i.lastupdated = $tag",
+        id=EC2_ID,
+        arn=EC2_ARN,
+        tag=TEST_UPDATE_TAG,
+    )
+
+
 def _patch_wiz_api(mocker, issues=ISSUES, findings=FINDINGS):
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
     mocker.patch("cartography.intel.wiz.issues.get", return_value=[issues])
@@ -85,6 +98,7 @@ def _patch_wiz_api(mocker, issues=ISSUES, findings=FINDINGS):
 def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker):
     # Arrange
     _seed_cve(neo4j_session)
+    _seed_ec2_instance(neo4j_session)
     _patch_wiz_api(mocker)
 
     # Act
@@ -201,6 +215,14 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         "id",
         "LINKED_TO",
     ) == {(VULNERABILITY_ID_1, CVE_ID_1)}
+    assert check_rels(
+        neo4j_session,
+        "WizFinding",
+        "id",
+        "AWSEC2Instance",
+        "id",
+        "AFFECTS",
+    ) == {(VULNERABILITY_ID_1, EC2_ID), (NON_CVE_VULNERABILITY_ID, EC2_ID)}
 
 
 def test_start_wiz_ingestion_removes_stale_records_on_second_sync(

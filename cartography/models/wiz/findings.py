@@ -320,6 +320,81 @@ class WizFindingToCVERel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class WizFindingToAssetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# Wiz names the affected resource only by its provider ID. Each rel below matches
+# one provider's exact ID, which the transform extracts only for that resource
+# type, so a finding never links to an asset of a different kind.
+
+
+@dataclass(frozen=True)
+class WizFindingToEC2InstanceRel(CartographyRelSchema):
+    """Links a Wiz finding to the EC2 instance it affects, matched on the instance ARN."""
+
+    target_node_label: str = "AWSEC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("affected_ec2_instance_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: WizFindingToAssetRelProperties = WizFindingToAssetRelProperties()
+
+
+@dataclass(frozen=True)
+class WizFindingToEC2ImageRel(CartographyRelSchema):
+    """Links a Wiz finding to the AMI it affects, matched on the AMI ID."""
+
+    target_node_label: str = "AWSEC2Image"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_ami_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: WizFindingToAssetRelProperties = WizFindingToAssetRelProperties()
+
+
+@dataclass(frozen=True)
+class WizFindingToLambdaRel(CartographyRelSchema):
+    """Links a Wiz finding to the Lambda function it affects, matched on the function ARN."""
+
+    target_node_label: str = "AWSLambda"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_lambda_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: WizFindingToAssetRelProperties = WizFindingToAssetRelProperties()
+
+
+@dataclass(frozen=True)
+class WizFindingToGCPInstanceRel(CartographyRelSchema):
+    """Links a Wiz finding to the GCP instance it affects, matched on the instance's partial URI."""
+
+    target_node_label: str = "GCPInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_gcp_instance_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: WizFindingToAssetRelProperties = WizFindingToAssetRelProperties()
+
+
+@dataclass(frozen=True)
+class WizFindingToOntologyImageRel(CartographyRelSchema):
+    """Links a Wiz finding to the container image it affects, matched on the image digest."""
+
+    target_node_label: str = "Image"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_digest": PropertyRef("affected_image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: WizFindingToAssetRelProperties = WizFindingToAssetRelProperties()
+
+
+@dataclass(frozen=True)
 class WizFindingSchema(CartographyNodeSchema):
     label: str = "WizFinding"
     properties: WizFindingNodeProperties = WizFindingNodeProperties()
@@ -327,6 +402,11 @@ class WizFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             WizFindingToCVERel(),
+            WizFindingToEC2InstanceRel(),
+            WizFindingToEC2ImageRel(),
+            WizFindingToLambdaRel(),
+            WizFindingToGCPInstanceRel(),
+            WizFindingToOntologyImageRel(),
         ],
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
