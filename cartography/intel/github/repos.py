@@ -2381,6 +2381,7 @@ def load_github_dependencies(
     :param dependencies: List of dependency objects from GitHub's dependency graph
     :return: Nothing
     """
+    migrate_python_library_dependency_label(neo4j_session)
     if not dependencies:
         return
     # Final guard before load: rows sharing a Dependency id merge into one node,
@@ -2388,7 +2389,6 @@ def load_github_dependencies(
     # dependency graph or the lockfile fallback) to avoid projecting a wrong
     # version into the Package ontology.
     reconcile_dependency_version_conflicts(dependencies)
-    migrate_python_library_dependency_label(neo4j_session)
     load_data(
         neo4j_session,
         GitHubDependencySchema(),
