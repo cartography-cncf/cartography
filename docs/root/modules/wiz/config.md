@@ -9,11 +9,10 @@ credentials.
 Create a Wiz service account for a custom integration:
 
 1. In Wiz, open **Settings**.
-1. Select **Tenant**.
-1. Select **General**.
 1. Select **Access Management**.
+1. Select **Service Accounts**.
 1. Select **Add Service Account**.
-1. Choose **Custom Integration**.
+1. Choose the **Custom Integration** type.
 1. Leave the project selection empty.
 1. Under scopes, select **Read all entities**.
 1. Copy the client ID and client secret. Wiz only displays the secret when the
