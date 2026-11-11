@@ -5,10 +5,10 @@ from slack_sdk import WebClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.slack.label_migrations import migrate_members_that_changed_kind
 from cartography.intel.slack.utils import slack_paginate
 from cartography.models.slack.bot import SlackBotSchema
 from cartography.models.slack.user import SlackUserSchema
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 
@@ -22,7 +22,17 @@ def sync(
 ) -> None:
     members = get(slack_client, team_id)
     users, bots = transform(members)
-    migrate_members_that_changed_kind(neo4j_session, users, bots)
+    # DEPRECATED: relabels a member that changed between user and bot. Remove in
+    # v1.0.0 with the SlackUser compatibility label on SlackBot.
+    run_analysis_job(
+        "slack_member_kind_label_migration.json",
+        neo4j_session,
+        {
+            **common_job_parameters,
+            "user_ids": [user["id"] for user in users],
+            "bot_ids": [bot["id"] for bot in bots],
+        },
+    )
     load_users(neo4j_session, users, team_id, update_tag)
     load_bots(neo4j_session, bots, team_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
