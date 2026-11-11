@@ -1,3 +1,7 @@
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
+from email.utils import format_datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,10 +15,15 @@ from cartography.intel.anthropic.auth import WorkloadIdentityFederation
 API_URL = "https://api.anthropic.com/v1/organizations/users"
 
 
-def _token_response(status_code: int, access_token: str = "") -> MagicMock:
+def _token_response(
+    status_code: int, access_token: str = "", retry_after: str = "30"
+) -> MagicMock:
     response = MagicMock()
     response.status_code = status_code
-    response.headers = {"retry-after": "30"} if status_code == 429 else {}
+    response.headers = {"retry-after": retry_after} if status_code == 429 else {}
+    response.raise_for_status.side_effect = (
+        requests.HTTPError(response=response) if status_code >= 400 else None
+    )
     response.json.return_value = {
         "access_token": access_token,
         "token_type": "Bearer",
@@ -138,12 +147,24 @@ def test_a_rejected_access_token_is_replaced_only_with_a_new_identity_token(
     assert _exchanged_assertions(post) == (["jwt-1", "jwt-2"] if rotated else ["jwt-1"])
 
 
-def test_a_retried_exchange_sends_the_current_identity_token(tmp_path, mocker):
+@pytest.mark.parametrize(
+    "retry_after",
+    [
+        "30",
+        format_datetime(datetime.now(timezone.utc) + timedelta(seconds=30), True),
+    ],
+    ids=["seconds", "http-date"],
+)
+def test_a_retried_exchange_sends_the_current_identity_token(
+    retry_after, tmp_path, mocker
+):
     token_file = tmp_path / "token"
     token_file.write_text("jwt-1\n")
     sleep = mocker.patch.object(cartography.intel.anthropic.auth.time, "sleep")
 
-    responses = iter([_token_response(429), _token_response(200, "first")])
+    responses = iter(
+        [_token_response(429, retry_after=retry_after), _token_response(200, "first")]
+    )
 
     def rotate_while_throttled(*args, **kwargs):
         response = next(responses)
@@ -159,4 +180,22 @@ def test_a_retried_exchange_sends_the_current_identity_token(tmp_path, mocker):
     _session(_auth(token_file), _AnthropicApi({"first"})).get(API_URL)
 
     assert _exchanged_assertions(post) == ["jwt-1", "jwt-2"]
-    sleep.assert_called_once_with(30.0)
+    assert sleep.call_args.args[0] == pytest.approx(30, abs=5)
+
+
+def test_a_refused_replay_after_a_server_error_reports_the_server_error(
+    tmp_path, mocker
+):
+    token_file = tmp_path / "token"
+    token_file.write_text("jwt-1\n")
+    mocker.patch.object(cartography.intel.anthropic.auth.time, "sleep")
+    mocker.patch.object(
+        cartography.intel.anthropic.auth.requests,
+        "post",
+        side_effect=[_token_response(503), _token_response(400)],
+    )
+
+    with pytest.raises(requests.HTTPError) as error:
+        _session(_auth(token_file), _AnthropicApi(set())).get(API_URL)
+
+    assert error.value.response.status_code == 503

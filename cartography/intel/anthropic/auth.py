@@ -1,5 +1,8 @@
 import time
 from dataclasses import dataclass
+from datetime import datetime
+from datetime import timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +50,7 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
         ):
             self._exchange()
         request.headers["Authorization"] = f"Bearer {self._access_token}"
-        request.register_hook("response", self._resend_once_on_unauthorized)
+        request.hooks["response"].append(self._resend_once_on_unauthorized)
         return request
 
     def _resend_once_on_unauthorized(
@@ -73,6 +76,7 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
         return Path(self._federation.identity_token_file).read_text().strip()
 
     def _exchange(self) -> None:
+        server_errors: dict[str, requests.Response] = {}
         for attempt in range(_EXCHANGE_ATTEMPTS):
             assertion = self._read_assertion()
             body = {
@@ -85,12 +89,23 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
             if self._federation.workspace_id:
                 body["workspace_id"] = self._federation.workspace_id
             response = requests.post(TOKEN_URL, json=body, timeout=TIMEOUT)
+            if response.status_code >= 500:
+                server_errors[assertion] = response
             if (
                 response.status_code not in _RETRYABLE_STATUS
                 or attempt == _EXCHANGE_ATTEMPTS - 1
             ):
                 break
             time.sleep(_retry_delay(response, attempt))
+        if (
+            400 <= response.status_code < 500
+            and response.status_code not in _RETRYABLE_STATUS
+            and assertion in server_errors
+        ):
+            # A server error can land after Anthropic consumed the identity
+            # token, so refusing its replay says nothing about the federation
+            # rule. Report the server error instead.
+            server_errors[assertion].raise_for_status()
         response.raise_for_status()
         token = response.json()
         self._access_token = token["access_token"]
@@ -101,8 +116,14 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
 
 
 def _retry_delay(response: requests.Response, attempt: int) -> float:
+    retry_after = response.headers.get("retry-after", "")
     try:
-        delay = float(response.headers.get("retry-after", ""))
+        delay = float(retry_after)
     except ValueError:
-        delay = 2.0**attempt
+        try:
+            delay = (
+                parsedate_to_datetime(retry_after) - datetime.now(timezone.utc)
+            ).total_seconds()
+        except (TypeError, ValueError):
+            delay = 2.0**attempt
     return min(max(delay, 0.0), _MAX_RETRY_DELAY_SECONDS)
