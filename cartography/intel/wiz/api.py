@@ -2,6 +2,9 @@ import logging
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
+
+from cartography.client.http import CappedRetry
 
 logger = logging.getLogger(__name__)
 
@@ -9,6 +12,28 @@ _TIMEOUT = (60, 60)
 _DEFAULT_PAGE_SIZE = 100
 _PROGRESS_PAGE_INTERVAL = 10
 WIZ_AUTH_AUDIENCE = "wiz-api"
+_RETRY_STATUSES = (429, 500, 502, 503, 504)
+
+
+def build_session() -> requests.Session:
+    # Wiz throttles each service account per second, so a short backoff clears a 429.
+    # Every Wiz call is a POST (token exchange and read-only GraphQL queries), and
+    # both are safe to repeat. A stalled read gets one more attempt, so a hung request
+    # fails within two read timeouts instead of seven.
+    retry_policy = CappedRetry(
+        total=6,
+        read=1,
+        backoff_factor=1,
+        status_forcelist=_RETRY_STATUSES,
+        allowed_methods=["POST"],
+        respect_retry_after_header=True,
+        raise_on_status=False,
+    )
+    session = requests.Session()
+    adapter = HTTPAdapter(max_retries=retry_policy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
 
 def get_access_token(

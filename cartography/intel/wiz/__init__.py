@@ -2,12 +2,12 @@ import logging
 from urllib.parse import urlparse
 
 import neo4j
-import requests
 
 import cartography.intel.wiz.findings
 import cartography.intel.wiz.issues
 from cartography.client.core.tx import load
 from cartography.config import Config
+from cartography.intel.wiz.api import build_session
 from cartography.intel.wiz.api import get_access_token
 from cartography.models.wiz.tenant import WizTenantSchema
 from cartography.stats import get_stats_client
@@ -89,7 +89,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "WIZ_TENANT_ID": tenant_id,
     }
 
-    session = requests.Session()
+    session = build_session()
     token = get_access_token(
         session,
         auth_url,
