@@ -23,6 +23,7 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 EC2_ID = "i-123"
 EC2_ARN = "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
+AMI_ID = "ami-0abc|us-east-1"
 
 
 @pytest.fixture(autouse=True)
@@ -38,6 +39,7 @@ def cleanup_wiz_test_data(neo4j_session):
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
     neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
+    neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
     yield
     neo4j_session.run(
         """
@@ -50,6 +52,7 @@ def cleanup_wiz_test_data(neo4j_session):
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
     neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
+    neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
 
 
 def _config(
@@ -232,7 +235,8 @@ def test_start_wiz_ingestion_links_ami_finding_to_regional_image(
 ):
     # Arrange
     neo4j_session.run(
-        "MERGE (i:AWSEC2Image {id: 'ami-0abc|us-east-1'}) SET i.imageid = 'ami-0abc'",
+        "MERGE (i:AWSEC2Image {id: $id}) SET i.imageid = 'ami-0abc'",
+        id=AMI_ID,
     )
     ami_finding = {
         **VULNERABILITY_FINDINGS[0],
@@ -256,7 +260,7 @@ def test_start_wiz_ingestion_links_ami_finding_to_regional_image(
         "AWSEC2Image",
         "id",
         "AFFECTS",
-    ) == {(VULNERABILITY_ID_1, "ami-0abc|us-east-1")}
+    ) == {(VULNERABILITY_ID_1, AMI_ID)}
     neo4j_session.run(
         "MATCH (i:AWSEC2Image {id: 'ami-0abc|us-east-1'}) DETACH DELETE i"
     )
