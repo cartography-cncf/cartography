@@ -164,21 +164,31 @@ def get_ecr_repository_images(
     # Paging describe_images directly at its maximum page size replaces a
     # list_images call plus a describe_images call for every 100 image IDs.
     all_image_details: List[Dict] = []
-    for page in client.get_paginator("describe_images").paginate(
-        repositoryName=repository_name,
-        PaginationConfig={"PageSize": DESCRIBE_IMAGES_PAGE_SIZE},
-    ):
-        all_image_details.extend(page["imageDetails"])
+    try:
+        for page in client.get_paginator("describe_images").paginate(
+            repositoryName=repository_name,
+            PaginationConfig={"PageSize": DESCRIBE_IMAGES_PAGE_SIZE},
+        ):
+            all_image_details.extend(page["imageDetails"])
 
-    manifest_list_images = _get_manifest_list_images(
-        client,
-        repository_name,
-        [
-            detail["imageDigest"]
-            for detail in all_image_details
-            if detail.get("imageManifestMediaType") in MANIFEST_LIST_MEDIA_TYPES
-        ],
-    )
+        manifest_list_images = _get_manifest_list_images(
+            client,
+            repository_name,
+            [
+                detail["imageDigest"]
+                for detail in all_image_details
+                if detail.get("imageManifestMediaType") in MANIFEST_LIST_MEDIA_TYPES
+            ],
+        )
+    except client.exceptions.RepositoryNotFoundException:
+        # The repository was deleted after describe_repositories listed it;
+        # short-lived repositories (CI, integration tests) hit this race.
+        logger.info(
+            "ECR repository '%s' in region '%s' was deleted during sync; skipping its images.",
+            repository_name,
+            region,
+        )
+        return []
     # Track ALL digests so we don't create ECRRepositoryImages for them
     manifest_list_referenced_digests = {
         image["digest"] for images in manifest_list_images.values() for image in images
