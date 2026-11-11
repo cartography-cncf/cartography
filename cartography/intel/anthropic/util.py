@@ -49,3 +49,12 @@ def paginated_get(
         )
         results.extend(next_results)
     return organization_id, results
+
+
+def is_unavailable_to_organization(error: requests.HTTPError) -> bool:
+    """Report whether an Admin API endpoint does not exist for this organization.
+
+    Claude Enterprise organizations have no workspaces or API keys, and their
+    scoped admin keys and federated tokens are refused on those endpoints.
+    """
+    return error.response is not None and error.response.status_code in (403, 404)

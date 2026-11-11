@@ -408,6 +408,16 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type anthropic_identity_token_file: string
+    :param anthropic_identity_token_file: Path to an OIDC token file for Anthropic workload identity federation. Optional.
+    :type anthropic_federation_rule_id: string
+    :param anthropic_federation_rule_id: Anthropic federation rule ID (fdrl_...). Optional.
+    :type anthropic_organization_id: string
+    :param anthropic_organization_id: Anthropic organization UUID used for workload identity federation. Optional.
+    :type anthropic_service_account_id: string
+    :param anthropic_service_account_id: Anthropic service account ID (svac_...). Optional.
+    :type anthropic_workspace_id: string
+    :param anthropic_workspace_id: Anthropic workspace ID, needed when the federation rule covers several workspaces. Optional.
     :type socketdev_token: str
     :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
@@ -736,6 +746,11 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        anthropic_identity_token_file=None,
+        anthropic_federation_rule_id=None,
+        anthropic_organization_id=None,
+        anthropic_service_account_id=None,
+        anthropic_workspace_id=None,
         subimage_client_id=None,
         subimage_client_secret=None,
         subimage_tenant_url=None,
@@ -1074,6 +1089,11 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.anthropic_identity_token_file = anthropic_identity_token_file
+        self.anthropic_federation_rule_id = anthropic_federation_rule_id
+        self.anthropic_organization_id = anthropic_organization_id
+        self.anthropic_service_account_id = anthropic_service_account_id
+        self.anthropic_workspace_id = anthropic_workspace_id
         self.subimage_client_id = subimage_client_id
         self.subimage_client_secret = subimage_client_secret
         self.subimage_tenant_url = subimage_tenant_url
