@@ -24,6 +24,8 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
         "owner_org_id": "my_owner_org_id",
         "org_url": "my_org_url",
         "account_id": "my_account_id",
+        "user_ids": [],
+        "bot_ids": [],
     }
 
     for job_name in contents("cartography.data.jobs.analysis"):
