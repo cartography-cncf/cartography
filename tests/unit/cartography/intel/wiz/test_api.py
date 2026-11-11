@@ -144,18 +144,18 @@ def test_get_paginated_yields_each_page_and_passes_cursor():
         ],
     )
 
-    pages = list(
-        get_paginated(
-            session,
-            "https://api.us1.app.wiz.io/graphql",
-            "token-1",
-            "query Test { cloudResourcesV2 { nodes { id } } }",
-            "cloudResourcesV2",
-            filter_by={"updatedAt": {"after": "2026-01-01T00:00:00Z"}},
-        ),
+    pages = get_paginated(
+        session,
+        "https://api.us1.app.wiz.io/graphql",
+        "token-1",
+        "query Test { cloudResourcesV2 { nodes { id } } }",
+        "cloudResourcesV2",
+        filter_by={"updatedAt": {"after": "2026-01-01T00:00:00Z"}},
     )
 
-    assert pages == [
+    first_page = next(pages)
+    assert len(session.calls) == 1
+    assert [first_page, *pages] == [
         [{"id": "resource-1"}, {"id": "resource-2"}],
         [{"id": "resource-3"}],
     ]
