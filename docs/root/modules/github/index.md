@@ -41,8 +41,9 @@ relationship and combines them on the `GitHubUser` node, so a user in several
 organizations keeps what any one of them reports. GitHub returns the two-factor
 status only to organization owners: `has_2fa_enabled` is true when any
 organization reports it enabled, false when none does and one reports it
-disabled, and unset otherwise. A user with no membership in a synced
-organization, such as a repository collaborator, has none of these properties.
+disabled, and unset otherwise. A user with no `MEMBER_OF` or `UNAFFILIATED`
+relationship to a synced organization, such as a repository collaborator, has
+none of these properties.
 
 ## Dependency behavior
 

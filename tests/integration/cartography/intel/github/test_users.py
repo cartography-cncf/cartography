@@ -213,6 +213,32 @@ def test_sync_keeps_facts_that_another_organization_reports(neo4j_session):
     }
 
 
+def test_sync_ignores_the_stale_relationship_of_a_user_who_changed_role(neo4j_session):
+    # Arrange: Kyle is an unaffiliated enterprise owner.
+    _seed_organization(neo4j_session)
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        {"UPDATE_TAG": 100},
+        GITHUB_USER_DATA[0],
+        GITHUB_ENTERPRISE_OWNER_DATA[0],
+        GITHUB_ORG_DATA,
+    )
+    kyle = GITHUB_ENTERPRISE_OWNER_DATA[0][0]["node"]
+
+    # Act: the next run lists Kyle as a plain member and no longer as an owner.
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        {"UPDATE_TAG": 200},
+        [{"hasTwoFactorEnabled": None, "node": kyle, "role": "MEMBER"}],
+        [],
+        GITHUB_ORG_DATA,
+    )
+
+    # Assert
+    facts = _node_organization_facts(neo4j_session, kyle["url"])
+    assert facts["is_enterprise_owner"] is False
+
+
 def test_cleanup_clears_facts_of_user_without_memberships(neo4j_session):
     # Arrange
     _seed_organization(neo4j_session)

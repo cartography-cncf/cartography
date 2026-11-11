@@ -1,7 +1,6 @@
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import Param
-from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import ScopeById
 from cartography.graph.analysis import SetProperties
 from cartography.graph.analysis import Var
@@ -12,16 +11,26 @@ from cartography.graph.analysis import Var
 # organization's answer, and the GitHubUser node holds the combination. max() skips
 # nulls and ranks true above false, so an organization that reports 2FA or enterprise
 # ownership outranks one that denies it or cannot see it.
-def _organization_facts(users: str) -> AnalysisStatement:
+def _organization_facts(users: str, memberships_counted: str = "") -> AnalysisStatement:
     return AnalysisStatement(
         match=f"""
         MATCH {users}
-        MATCH (user)-[membership:MEMBER_OF|UNAFFILIATED]->(:GitHubOrganization)
+        MATCH (user)-[membership:MEMBER_OF|UNAFFILIATED]->(member_of:GitHubOrganization)
+        {memberships_counted}
         WITH user,
             max(membership.has_2fa_enabled) AS has_2fa_enabled,
             coalesce(max(membership.is_enterprise_owner), false) AS is_enterprise_owner,
-            collect(membership.organization_verified_domain_emails) AS verified_emails,
-            collect(membership.normalized_emails) AS normalized_emails
+            collect(membership.organization_verified_domain_emails) AS verified_email_lists,
+            collect(membership.normalized_emails) AS normalized_email_lists
+        WITH user, has_2fa_enabled, is_enterprise_owner,
+            COLLECT {{
+                UNWIND verified_email_lists AS emails UNWIND emails AS email
+                RETURN DISTINCT email ORDER BY email
+            }} AS organization_verified_domain_emails,
+            COLLECT {{
+                UNWIND normalized_email_lists AS emails UNWIND emails AS email
+                RETURN DISTINCT email ORDER BY email
+            }} AS normalized_emails
         """,
         effects=(
             SetProperties(
@@ -30,14 +39,10 @@ def _organization_facts(users: str) -> AnalysisStatement:
                     "has_2fa_enabled": Var("has_2fa_enabled"),
                     "_ont_has_mfa": Var("has_2fa_enabled"),
                     "is_enterprise_owner": Var("is_enterprise_owner"),
-                    "organization_verified_domain_emails": RawCypher(
-                        "COLLECT { UNWIND verified_emails AS emails UNWIND emails AS email "
-                        "RETURN DISTINCT email ORDER BY email }"
+                    "organization_verified_domain_emails": Var(
+                        "organization_verified_domain_emails"
                     ),
-                    "normalized_emails": RawCypher(
-                        "COLLECT { UNWIND normalized_emails AS emails UNWIND emails AS email "
-                        "RETURN DISTINCT email ORDER BY email }"
-                    ),
+                    "normalized_emails": Var("normalized_emails"),
                     "organization_facts_lastupdated": Param("UPDATE_TAG"),
                 },
                 label="GitHubUser",
@@ -58,7 +63,10 @@ GITHUB_ORGANIZATION_USER_FACTS = AnalysisJob(
     scope=ScopeById("GitHubOrganization", "ORG_URL", scope_on="org"),
     statements=(
         _organization_facts(
-            "(org:GitHubOrganization)<-[:MEMBER_OF|UNAFFILIATED]-(user:GitHubUser)"
+            "(org:GitHubOrganization)<-[:MEMBER_OF|UNAFFILIATED]-(user:GitHubUser)",
+            # A user who changes between member and unaffiliated keeps the old
+            # relationship to this organization until the global cleanup runs.
+            "WHERE member_of <> org OR membership.lastupdated = $UPDATE_TAG",
         ),
     ),
 )
