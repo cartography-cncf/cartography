@@ -1,11 +1,18 @@
 import logging
+from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer
+from threading import Thread
 
 import pytest
+import requests
 
 import cartography.intel.wiz.findings
 import cartography.intel.wiz.issues
+from cartography.intel.wiz.api import build_session
 from cartography.intel.wiz.api import get_access_token
 from cartography.intel.wiz.api import get_paginated
+from cartography.intel.wiz.api import graphql_query
 
 
 class FakeResponse:
@@ -29,6 +36,60 @@ class FakeSession:
     def post(self, *args, **kwargs):
         self.calls.append((args, kwargs))
         return self.responses.pop(0)
+
+
+@pytest.fixture  # type: ignore[misc]
+def wiz_api() -> Iterator[tuple[str, list[int]]]:
+    statuses: list[int] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            self.rfile.read(int(self.headers["Content-Length"]))
+            status = statuses.pop(0)
+            body = b'{"data": {"ok": true}}'
+            self.send_response(status)
+            if status == 429:
+                self.send_header("Retry-After", "1")
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/graphql", statuses
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+def test_graphql_query_retries_transient_failure(wiz_api, mocker, status):
+    url, statuses = wiz_api
+    statuses.extend([status, status, 200])
+    mocker.patch("urllib3.util.retry.time.sleep")
+
+    data = graphql_query(build_session(), url, "token", "query {}", {})
+
+    assert data == {"ok": True}
+    assert statuses == []
+
+
+def test_graphql_query_raises_when_rate_limit_persists(wiz_api, mocker):
+    url, statuses = wiz_api
+    statuses.extend([429] * 7)
+    mocker.patch("urllib3.util.retry.time.sleep")
+
+    with pytest.raises(requests.HTTPError, match="429"):
+        graphql_query(build_session(), url, "token", "query {}", {})
+
+    assert statuses == []
 
 
 def test_get_access_token_uses_client_credentials_payload():
