@@ -4,6 +4,7 @@ from urllib.parse import quote
 from urllib.parse import urlsplit
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -19,6 +20,23 @@ from cartography.models.jira.access import JiraUserSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _groups_with_access(client: JiraClient, access: str) -> list[dict[str, Any]]:
+    # Some sites answer an accessType filter with a persistent 500 ("Couldn't
+    # retrieve groups with the 'site-admin' accessType"). The filter only feeds
+    # the experimental admin_access_types tag, so it must not fail the sync.
+    try:
+        return client.pages("group/bulk", accessType=access)
+    except requests.HTTPError as e:
+        if e.response is None or e.response.status_code != 500:
+            raise
+        logger.warning(
+            "Jira returned HTTP 500 for groups with accessType=%s; "
+            "skipping that admin_access_types tag this sync",
+            access,
+        )
+        return []
 
 
 @timeit
@@ -37,7 +55,7 @@ def get(client: JiraClient) -> dict[str, Any]:
     users = client.pages("users/search")
     groups = client.pages("group/bulk")
     admin_groups = {
-        access: client.pages("group/bulk", accessType=access)
+        access: _groups_with_access(client, access)
         for access in ("admin", "site-admin")
     }
     logger.info("Fetching Jira membership for %d groups", len(groups))
