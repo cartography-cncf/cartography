@@ -30,6 +30,9 @@ TEST_UPDATE_TAG = 123456789
 OTHER_ORGANIZATION_ID = "other-orca-organization"
 
 
+AMI_ID = "ami-0abc|us-west-2"
+
+
 def _sync_metadata_id(organization_id: str) -> str:
     return f"OrcaOrganization_{organization_id}_OrcaData"
 
@@ -54,6 +57,7 @@ def cleanup_orca_test_data(neo4j_session):
         "MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n",
         id=PROVIDER_ID_1,
     )
+    neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
     neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
@@ -77,6 +81,7 @@ def cleanup_orca_test_data(neo4j_session):
         "MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n",
         id=PROVIDER_ID_1,
     )
+    neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
     neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
@@ -373,7 +378,8 @@ def test_start_orca_ingestion_loads_findings_and_links_affected_assets(
 def test_vulnerability_on_ami_links_to_regional_image(neo4j_session, mocker):
     # Arrange
     neo4j_session.run(
-        "MERGE (i:AWSEC2Image {id: 'ami-0abc|us-west-2'}) SET i.imageid = 'ami-0abc'",
+        "MERGE (i:AWSEC2Image {id: $id}) SET i.imageid = 'ami-0abc'",
+        id=AMI_ID,
     )
     vulnerability = deepcopy(VULNERABILITIES[0])
     vulnerability["Inventory"].update(
@@ -392,10 +398,7 @@ def test_vulnerability_on_ami_links_to_regional_image(neo4j_session, mocker):
         "AWSEC2Image",
         "id",
         "AFFECTS",
-    ) == {(CVE_ID_1, "ami-0abc|us-west-2")}
-    neo4j_session.run(
-        "MATCH (i:AWSEC2Image {id: 'ami-0abc|us-west-2'}) DETACH DELETE i"
-    )
+    ) == {(CVE_ID_1, AMI_ID)}
 
 
 def test_same_target_identifiers_remain_scoped_by_organization(
