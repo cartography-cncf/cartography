@@ -79,8 +79,19 @@ def _workload_identity_federation(
     rule_id = config.anthropic_federation_rule_id
     organization_id = config.anthropic_organization_id
     service_account_id = config.anthropic_service_account_id
-    if not (token_file or rule_id or organization_id or service_account_id):
+    if not (
+        token_file
+        or rule_id
+        or organization_id
+        or service_account_id
+        or config.anthropic_workspace_id
+    ):
         return None
+    if config.anthropic_apikey:
+        raise ValueError(
+            "Configure Anthropic with an Admin API key or workload identity "
+            "federation, not both.",
+        )
     if not (token_file and rule_id and organization_id and service_account_id):
         raise ValueError(
             "Anthropic workload identity federation needs an identity token file, "

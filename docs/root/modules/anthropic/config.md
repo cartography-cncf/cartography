@@ -50,6 +50,8 @@ cartography \
 Add `--anthropic-workspace-id` when the federation rule covers several
 workspaces.
 
-Cartography reads the token file every time it exchanges it, so a token that
-your platform rotates in place, such as a projected Kubernetes service account
-token, keeps working across a long sync.
+Anthropic refuses an identity token it has already exchanged, so Cartography
+exchanges again only after the token file holds a new token. Give the
+federation rule a token lifetime longer than a sync, or source the token from a
+file your platform rotates in place, such as a projected Kubernetes service
+account token.

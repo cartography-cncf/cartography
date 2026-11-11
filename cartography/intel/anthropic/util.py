@@ -3,6 +3,9 @@ from urllib.parse import urlparse
 
 import requests
 
+# Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+TIMEOUT = (60, 60)
+
 
 def paginated_get(
     api_session: requests.Session,

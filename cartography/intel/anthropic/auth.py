@@ -1,20 +1,17 @@
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3 import Retry
+
+from cartography.intel.anthropic.util import TIMEOUT
 
 TOKEN_URL = "https://api.anthropic.com/v1/oauth/token"
 JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
-_TIMEOUT = (60, 60)
-# Exchange once this share of the access token's lifetime has passed, so a
-# request in flight never carries a token that expires on the way. A fixed margin
-# would refresh a 60-second token at once and replay the identity token, which
-# Anthropic refuses when the token is single-use.
-_REFRESH_AT_LIFETIME_FRACTION = 0.8
+_EXCHANGE_ATTEMPTS = 4
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
 @dataclass(frozen=True)
@@ -29,47 +26,74 @@ class WorkloadIdentityFederation:
 class WorkloadIdentityAuth(requests.auth.AuthBase):
     """Exchanges a workload's OIDC token for a short-lived Anthropic access token.
 
-    The token file is read on every exchange because projected Kubernetes tokens
-    and similar sources rotate the file in place.
+    Anthropic refuses an identity token it has already exchanged, so the auth
+    only exchanges again once the token file holds a new one (projected
+    Kubernetes tokens rotate in place) or once Anthropic rejects the access
+    token. A rejected request is resent once with the new access token, which
+    also covers a retry that waited past the token's expiry.
     """
 
     def __init__(self, federation: WorkloadIdentityFederation) -> None:
         self._federation = federation
-        self._session = requests.Session()
-        self._session.mount(
-            "https://",
-            HTTPAdapter(
-                max_retries=Retry(
-                    total=5,
-                    backoff_factor=1,
-                    status_forcelist=[429, 500, 502, 503, 504],
-                    allowed_methods=["POST"],
-                ),
-            ),
-        )
         self._access_token: str | None = None
+        self._assertion: str | None = None
         self._refresh_at = 0.0
 
     def __call__(self, request: requests.PreparedRequest) -> requests.PreparedRequest:
-        if time.monotonic() >= self._refresh_at:
+        if self._access_token is None or (
+            time.monotonic() >= self._refresh_at
+            and self._read_assertion() != self._assertion
+        ):
             self._exchange()
         request.headers["Authorization"] = f"Bearer {self._access_token}"
+        request.register_hook("response", self._resend_once_on_unauthorized)
         return request
 
+    def _resend_once_on_unauthorized(
+        self,
+        response: requests.Response,
+        **kwargs: Any,
+    ) -> requests.Response:
+        if response.status_code != 401:
+            return response
+        self._exchange()
+        # Drain the rejected response so its connection can carry the resend.
+        response.content
+        response.close()
+        resend = response.request.copy()
+        resend.hooks["response"] = []
+        resend.headers["Authorization"] = f"Bearer {self._access_token}"
+        retried = response.connection.send(resend, **kwargs)
+        retried.history.append(response)
+        retried.request = resend
+        return retried
+
+    def _read_assertion(self) -> str:
+        return Path(self._federation.identity_token_file).read_text().strip()
+
     def _exchange(self) -> None:
-        body = {
-            "grant_type": JWT_BEARER_GRANT,
-            "assertion": Path(self._federation.identity_token_file).read_text().strip(),
-            "federation_rule_id": self._federation.federation_rule_id,
-            "organization_id": self._federation.organization_id,
-            "service_account_id": self._federation.service_account_id,
-        }
-        if self._federation.workspace_id:
-            body["workspace_id"] = self._federation.workspace_id
-        response = self._session.post(TOKEN_URL, json=body, timeout=_TIMEOUT)
+        for attempt in range(_EXCHANGE_ATTEMPTS):
+            assertion = self._read_assertion()
+            body = {
+                "grant_type": JWT_BEARER_GRANT,
+                "assertion": assertion,
+                "federation_rule_id": self._federation.federation_rule_id,
+                "organization_id": self._federation.organization_id,
+                "service_account_id": self._federation.service_account_id,
+            }
+            if self._federation.workspace_id:
+                body["workspace_id"] = self._federation.workspace_id
+            response = requests.post(TOKEN_URL, json=body, timeout=TIMEOUT)
+            if (
+                response.status_code not in _RETRYABLE_STATUS
+                or attempt == _EXCHANGE_ATTEMPTS - 1
+            ):
+                break
+            time.sleep(2**attempt)
         response.raise_for_status()
         token = response.json()
         self._access_token = token["access_token"]
-        self._refresh_at = (
-            time.monotonic() + token["expires_in"] * _REFRESH_AT_LIFETIME_FRACTION
-        )
+        self._assertion = assertion
+        # Refresh at half the lifetime so a rotated identity token is picked up
+        # well before the access token lapses.
+        self._refresh_at = time.monotonic() + token["expires_in"] / 2
