@@ -13,6 +13,7 @@ from cartography.intel.anthropic.auth import WorkloadIdentityAuth
 from cartography.intel.anthropic.auth import WorkloadIdentityFederation
 
 API_URL = "https://api.anthropic.com/v1/organizations/users"
+NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
 def _token_response(
@@ -151,7 +152,7 @@ def test_a_rejected_access_token_is_replaced_only_with_a_new_identity_token(
     "retry_after",
     [
         "30",
-        format_datetime(datetime.now(timezone.utc) + timedelta(seconds=30), True),
+        format_datetime(NOW + timedelta(seconds=30), True),
     ],
     ids=["seconds", "http-date"],
 )
@@ -161,6 +162,9 @@ def test_a_retried_exchange_sends_the_current_identity_token(
     token_file = tmp_path / "token"
     token_file.write_text("jwt-1\n")
     sleep = mocker.patch.object(cartography.intel.anthropic.auth.time, "sleep")
+    mocker.patch.object(
+        cartography.intel.anthropic.auth, "datetime", wraps=datetime
+    ).now.return_value = NOW
 
     responses = iter(
         [_token_response(429, retry_after=retry_after), _token_response(200, "first")]
@@ -180,7 +184,7 @@ def test_a_retried_exchange_sends_the_current_identity_token(
     _session(_auth(token_file), _AnthropicApi({"first"})).get(API_URL)
 
     assert _exchanged_assertions(post) == ["jwt-1", "jwt-2"]
-    assert sleep.call_args.args[0] == pytest.approx(30, abs=5)
+    sleep.assert_called_once_with(30.0)
 
 
 def test_a_refused_replay_after_a_server_error_reports_the_server_error(
