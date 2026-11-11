@@ -176,8 +176,11 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
         # path or short name, so some Go packages won't merge with Trivy/Syft.
         # Normalize the leading "v" and the name form on all sources if it matters.
         pkg_type = ECOSYSTEM_TO_PACKAGE_TYPE.get(raw_dep["ecosystem"])
+        # Maven package names are formatted as `group:artifact`; purl-based sources
+        # Trivy/Syft/GitHub use `group/artifact`. Align the name only.
+        normalized_name = name.replace(":", "/", 1) if pkg_type == "maven" else name
         normalized_id = make_normalized_package_id(
-            name=name,
+            name=normalized_name,
             version=version,
             pkg_type=pkg_type,
         )

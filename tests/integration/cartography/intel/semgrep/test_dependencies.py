@@ -192,6 +192,13 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
         ),
     }
 
+    # Cross-tool contract: must match the purl-derived ID from Trivy/Syft/GitHub.
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepMavenLibrary",
+        ["normalized_id"],
+    ) == {("maven|org.springframework/spring-core|6.1.5",)}
+
     assert check_nodes(
         neo4j_session,
         "SemgrepNpmLibrary",
