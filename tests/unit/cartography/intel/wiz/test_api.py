@@ -112,14 +112,7 @@ def test_get_access_token_uses_client_credentials_payload():
     }
 
 
-@pytest.mark.parametrize(
-    ("batch_size", "expected_batches"),
-    [
-        (5000, [[{"id": "resource-1"}, {"id": "resource-2"}, {"id": "resource-3"}]]),
-        (1, [[{"id": "resource-1"}], [{"id": "resource-2"}], [{"id": "resource-3"}]]),
-    ],
-)
-def test_get_paginated_yields_batches_and_passes_cursor(batch_size, expected_batches):
+def test_get_paginated_yields_each_page_and_passes_cursor():
     session = FakeSession(
         [
             FakeResponse(
@@ -151,7 +144,7 @@ def test_get_paginated_yields_batches_and_passes_cursor(batch_size, expected_bat
         ],
     )
 
-    batches = list(
+    pages = list(
         get_paginated(
             session,
             "https://api.us1.app.wiz.io/graphql",
@@ -159,11 +152,13 @@ def test_get_paginated_yields_batches_and_passes_cursor(batch_size, expected_bat
             "query Test { cloudResourcesV2 { nodes { id } } }",
             "cloudResourcesV2",
             filter_by={"updatedAt": {"after": "2026-01-01T00:00:00Z"}},
-            batch_size=batch_size,
         ),
     )
 
-    assert batches == expected_batches
+    assert pages == [
+        [{"id": "resource-1"}, {"id": "resource-2"}],
+        [{"id": "resource-3"}],
+    ]
     assert session.calls[0][1]["json"]["variables"]["after"] is None
     assert session.calls[1][1]["json"]["variables"]["after"] == "cursor-1"
 
@@ -336,16 +331,13 @@ def test_get_issues_uses_status_changed_filter_when_since_is_set():
 
 
 @pytest.mark.parametrize(
-    ("project_id_filter", "expected_statuses"),
+    ("active_only", "expected_statuses"),
     [
-        (None, ["OPEN", "IN_PROGRESS"]),
-        (["project-1"], ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]),
+        (True, ["OPEN", "IN_PROGRESS"]),
+        (False, ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]),
     ],
 )
-def test_get_issues_complete_sync_skips_closed_issues_only_when_unfiltered(
-    project_id_filter,
-    expected_statuses,
-):
+def test_get_issues_full_sync_statuses(active_only, expected_statuses):
     session = FakeSession(
         [
             FakeResponse(
@@ -367,7 +359,7 @@ def test_get_issues_complete_sync_skips_closed_issues_only_when_unfiltered(
             "https://api.us1.app.wiz.io/graphql",
             "token-1",
             None,
-            project_id_filter,
+            active_only=active_only,
         )
     )
 
@@ -450,21 +442,17 @@ def test_get_findings_uses_updated_at_filters_without_order_by():
 
 @pytest.mark.parametrize(
     (
-        "project_id_filter",
+        "active_only",
         "expected_vulnerability_filter",
         "expected_configuration_statuses",
     ),
     [
-        (None, {"status": ["OPEN"]}, ["OPEN", "IN_PROGRESS"]),
-        (
-            ["project-1"],
-            None,
-            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
-        ),
+        (True, {"status": ["OPEN"]}, ["OPEN", "IN_PROGRESS"]),
+        (False, None, ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]),
     ],
 )
-def test_get_findings_complete_sync_skips_closed_findings_only_when_unfiltered(
-    project_id_filter,
+def test_get_findings_full_sync_statuses(
+    active_only,
     expected_vulnerability_filter,
     expected_configuration_statuses,
 ):
@@ -509,7 +497,7 @@ def test_get_findings_complete_sync_skips_closed_findings_only_when_unfiltered(
             "https://api.us1.app.wiz.io/graphql",
             "token-1",
             None,
-            project_id_filter,
+            active_only=active_only,
         )
     )
 

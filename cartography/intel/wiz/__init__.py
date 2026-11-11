@@ -72,6 +72,8 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             tenant_id,
         )
 
+    # A sync that runs cleanup fetches only active records and lets cleanup remove
+    # closed ones; any other sync fetches closed records to refresh their status.
     do_cleanup = config.wiz_lookback_days is None and not config.wiz_project_ids
     if config.wiz_lookback_days is not None:
         logger.warning(
@@ -113,6 +115,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.wiz_lookback_days,
         config.wiz_project_ids,
+        active_only=do_cleanup,
         do_cleanup=False,
     )
     cartography.intel.wiz.findings.sync(
@@ -125,6 +128,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.wiz_lookback_days,
         config.wiz_project_ids,
+        active_only=do_cleanup,
         do_cleanup=False,
     )
 

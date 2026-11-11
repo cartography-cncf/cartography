@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 from collections.abc import Iterator
 from typing import Any
 
@@ -66,10 +67,8 @@ def get(
     token: str,
     since_iso: str | None = None,
     project_id_filter: list[str] | None = None,
+    active_only: bool = False,
 ) -> Iterator[list[dict[str, Any]]]:
-    # Closed issues are skipped only when cleanup runs to remove the ones
-    # already in the graph; otherwise they are fetched to refresh their status.
-    active_only = since_iso is None and not project_id_filter
     filter_by: dict[str, Any] = {
         "status": (
             ["OPEN", "IN_PROGRESS"]
@@ -143,7 +142,7 @@ def transform(raw_issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
 @timeit
 def load_issues(
     neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
+    data: Iterable[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -178,6 +177,7 @@ def sync(
     lookback_days: int | None,
     project_id_filter: list[str] | None = None,
     *,
+    active_only: bool = False,
     do_cleanup: bool = True,
 ) -> None:
     logger.info("Syncing Wiz issues for tenant %s", tenant_id)
@@ -186,7 +186,15 @@ def sync(
         if lookback_days is not None
         else None
     )
-    for raw_issues in get(session, graphql_url, token, since_iso, project_id_filter):
-        load_issues(neo4j_session, transform(raw_issues), tenant_id, update_tag)
+    pages = get(
+        session,
+        graphql_url,
+        token,
+        since_iso,
+        project_id_filter,
+        active_only=active_only,
+    )
+    issues = (issue for page in pages for issue in transform(page))
+    load_issues(neo4j_session, issues, tenant_id, update_tag)
     if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)

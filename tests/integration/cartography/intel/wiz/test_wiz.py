@@ -210,8 +210,14 @@ def test_start_wiz_ingestion_removes_stale_records_on_second_sync(
     # Arrange
     _seed_cve(neo4j_session)
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
-    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[[ISSUES], []])
-    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[[FINDINGS], []])
+    issues_get = mocker.patch(
+        "cartography.intel.wiz.issues.get",
+        side_effect=[[ISSUES], []],
+    )
+    findings_get = mocker.patch(
+        "cartography.intel.wiz.findings.get",
+        side_effect=[[FINDINGS], []],
+    )
 
     # Act
     cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config(TEST_UPDATE_TAG))
@@ -221,6 +227,14 @@ def test_start_wiz_ingestion_removes_stale_records_on_second_sync(
     )
 
     # Assert
+    assert [call.kwargs["active_only"] for call in issues_get.call_args_list] == [
+        True,
+        True,
+    ]
+    assert [call.kwargs["active_only"] for call in findings_get.call_args_list] == [
+        True,
+        True,
+    ]
     assert check_nodes(neo4j_session, "WizIssue", ["id"]) == set()
     assert check_nodes(neo4j_session, "WizFinding", ["id"]) == set()
 
@@ -232,8 +246,14 @@ def test_start_wiz_ingestion_lookback_mode_preserves_older_records(
     # Arrange
     _seed_cve(neo4j_session)
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
-    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[[ISSUES], []])
-    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[[FINDINGS], []])
+    issues_get = mocker.patch(
+        "cartography.intel.wiz.issues.get",
+        side_effect=[[ISSUES], []],
+    )
+    findings_get = mocker.patch(
+        "cartography.intel.wiz.findings.get",
+        side_effect=[[FINDINGS], []],
+    )
 
     # Act
     cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config(TEST_UPDATE_TAG))
@@ -243,6 +263,14 @@ def test_start_wiz_ingestion_lookback_mode_preserves_older_records(
     )
 
     # Assert
+    assert [call.kwargs["active_only"] for call in issues_get.call_args_list] == [
+        True,
+        False,
+    ]
+    assert [call.kwargs["active_only"] for call in findings_get.call_args_list] == [
+        True,
+        False,
+    ]
     assert check_nodes(neo4j_session, "WizIssue", ["id"]) == {
         (ISSUE_ID_1,),
     }
@@ -261,8 +289,14 @@ def test_start_wiz_ingestion_project_filter_preserves_older_records(
     # Arrange
     _seed_cve(neo4j_session)
     mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
-    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[[ISSUES], []])
-    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[[FINDINGS], []])
+    issues_get = mocker.patch(
+        "cartography.intel.wiz.issues.get",
+        side_effect=[[ISSUES], []],
+    )
+    findings_get = mocker.patch(
+        "cartography.intel.wiz.findings.get",
+        side_effect=[[FINDINGS], []],
+    )
 
     # Act
     cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config(TEST_UPDATE_TAG))
@@ -272,6 +306,14 @@ def test_start_wiz_ingestion_project_filter_preserves_older_records(
     )
 
     # Assert
+    assert [call.kwargs["active_only"] for call in issues_get.call_args_list] == [
+        True,
+        False,
+    ]
+    assert [call.kwargs["active_only"] for call in findings_get.call_args_list] == [
+        True,
+        False,
+    ]
     assert check_nodes(neo4j_session, "WizIssue", ["id"]) == {
         (ISSUE_ID_1,),
     }
