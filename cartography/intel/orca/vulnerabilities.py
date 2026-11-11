@@ -17,6 +17,9 @@ from cartography.intel.orca.response import optional_string
 from cartography.intel.orca.response import parse_datetime
 from cartography.intel.orca.response import require_nonempty_string
 from cartography.intel.orca.response import require_object
+from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.intel.trivy.util import parse_purl
+from cartography.models.orca import OrcaPackageSchema
 from cartography.models.orca import OrcaVulnerabilityFindingSchema
 from cartography.util import timeit
 
@@ -131,6 +134,31 @@ def _package_key(package: dict[str, str | None]) -> tuple[str, ...]:
         normalized_version = version or ""
         return ("name-version", normalized_name, normalized_version)
     return ("asset-wide",)
+
+
+def _package_node_id(organization_id: str, purl: str | None) -> str | None:
+    normalized_id = make_normalized_package_id(purl=purl)
+    return f"{organization_id}|{normalized_id}" if normalized_id else None
+
+
+def transform_packages(
+    vulnerabilities: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    packages: dict[str, dict[str, Any]] = {}
+    for vulnerability in vulnerabilities:
+        node_id = vulnerability["package_node_id"]
+        if node_id is None or node_id in packages:
+            continue
+        parsed = parse_purl(vulnerability["purl"]) or {}
+        packages[node_id] = {
+            "id": node_id,
+            "normalized_id": make_normalized_package_id(purl=vulnerability["purl"]),
+            "name": parsed.get("name"),
+            "version": parsed.get("version"),
+            "type": parsed.get("type"),
+            "purl": vulnerability["purl"],
+        }
+    return list(packages.values())
 
 
 def _vulnerability_id(
@@ -268,6 +296,10 @@ def transform(
                     "cve_id": cve_id,
                     **common_fields,
                     **package_properties,
+                    "package_node_id": _package_node_id(
+                        organization_id,
+                        package_properties["purl"],
+                    ),
                 }
                 if finding_id in transformed:
                     duplicate_count += 1
@@ -293,6 +325,13 @@ def load_vulnerabilities(
     organization_id: str,
     update_tag: int,
 ) -> None:
+    load(
+        neo4j_session,
+        OrcaPackageSchema(),
+        transform_packages(vulnerabilities),
+        lastupdated=update_tag,
+        ORCA_ORGANIZATION_ID=organization_id,
+    )
     load(
         neo4j_session,
         OrcaVulnerabilityFindingSchema(),
@@ -363,6 +402,11 @@ def cleanup(
 ) -> None:
     GraphJob.from_node_schema(
         OrcaVulnerabilityFindingSchema(),
+        common_job_parameters,
+        iterationsize=CLEANUP_ITERATION_SIZE,
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        OrcaPackageSchema(),
         common_job_parameters,
         iterationsize=CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)
