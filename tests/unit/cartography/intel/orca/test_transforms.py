@@ -340,7 +340,7 @@ def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
                 ),
             },
         ),
-        ("AwsEc2Image", None, "ami-0abc", {"affected_ami_id": "ami-0abc"}),
+        ("AwsEc2Image", None, "ami-0abc", {"affected_ami_id": "ami-0abc|us-west-2"}),
         ("AwsEcrImage", None, "ecr-repository-app-tag", {}),
     ],
 )  # type: ignore[misc]

@@ -43,7 +43,6 @@ def cleanup_orca_test_data(neo4j_session):
     cleanup_query = """
     MATCH (n)
     WHERE n:OrcaOrganization
-       OR n:AWSEC2Instance
        OR n:OrcaAsset
        OR n:OrcaAlert
        OR n:OrcaVulnerability
@@ -51,6 +50,10 @@ def cleanup_orca_test_data(neo4j_session):
     DETACH DELETE n
     """
     neo4j_session.run(cleanup_query)
+    neo4j_session.run(
+        "MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n",
+        id=PROVIDER_ID_1,
+    )
     neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
@@ -70,6 +73,10 @@ def cleanup_orca_test_data(neo4j_session):
     yield
 
     neo4j_session.run(cleanup_query)
+    neo4j_session.run(
+        "MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n",
+        id=PROVIDER_ID_1,
+    )
     neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
@@ -361,6 +368,34 @@ def test_start_orca_ingestion_loads_findings_and_links_affected_assets(
         """,
     ).single()
     assert semantic_collisions["count"] == 0
+
+
+def test_vulnerability_on_ami_links_to_regional_image(neo4j_session, mocker):
+    # Arrange
+    neo4j_session.run(
+        "MERGE (i:AWSEC2Image {id: 'ami-0abc|us-west-2'}) SET i.imageid = 'ami-0abc'",
+    )
+    vulnerability = deepcopy(VULNERABILITIES[0])
+    vulnerability["Inventory"].update(
+        {"Type": "AwsEc2Image", "Arn": None, "UiUniqueField": "ami-0abc"},
+    )
+    _patch_orca_api(mocker, vulnerabilities=[vulnerability])
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(neo4j_session, _config())
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "AWSEC2Image",
+        "id",
+        "AFFECTS",
+    ) == {(CVE_ID_1, "ami-0abc|us-west-2")}
+    neo4j_session.run(
+        "MATCH (i:AWSEC2Image {id: 'ami-0abc|us-west-2'}) DETACH DELETE i"
+    )
 
 
 def test_same_target_identifiers_remain_scoped_by_organization(

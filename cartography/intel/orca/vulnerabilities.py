@@ -156,9 +156,12 @@ def _affected_asset_ids(target_context: dict[str, str | None]) -> dict[str, str 
         "affected_lambda_arn": (
             target_context["target_arn"] if target_type == "AwsLambdaFunction" else None
         ),
+        # AWSEC2Image IDs are regional: "<ami id>|<region>".
         "affected_ami_id": (
-            target_context["target_provider_id"]
+            f"{target_context['target_provider_id']}|{target_context['target_region']}"
             if target_type == "AwsEc2Image"
+            and target_context["target_provider_id"]
+            and target_context["target_region"]
             else None
         ),
     }
