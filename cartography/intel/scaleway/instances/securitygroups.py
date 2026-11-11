@@ -9,7 +9,7 @@ from scaleway.instance.v1 import SecurityGroupRule
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import DEFAULT_ZONE
+from cartography.intel.scaleway.utils import list_all_zones
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.instance.securitygroup import (
     ScalewayInboundSecurityGroupRuleSchema,
@@ -48,16 +48,22 @@ def get(
     org_id: str,
 ) -> tuple[list[SecurityGroup], dict[str, list[SecurityGroupRule]]]:
     api = InstanceV1API(client)
-    groups = api.list_security_groups_all(organization=org_id, zone=DEFAULT_ZONE)
-    rules_by_group = {group.id: _list_all_rules(api, group.id) for group in groups}
+    groups = list_all_zones(api.list_security_groups_all, organization=org_id)
+    rules_by_group = {
+        group.id: _list_all_rules(api, group.id, group.zone) for group in groups
+    }
     return groups, rules_by_group
 
 
 def _list_all_rules(
     api: InstanceV1API,
     security_group_id: str,
+    zone: str,
 ) -> list[SecurityGroupRule]:
     """Paginate a security group's rules manually.
+
+    Rules are zone-scoped like their group, so ``zone`` must be the zone the
+    security group lives in.
 
     We can't use the SDK's ``list_security_group_rules_all`` helper: it never
     terminates against the live API. ``fetch_all_pages`` only stops when it
@@ -72,7 +78,7 @@ def _list_all_rules(
     while True:
         response = api.list_security_group_rules(
             security_group_id=security_group_id,
-            zone=DEFAULT_ZONE,
+            zone=zone,
             per_page=100,
             page=page,
         )

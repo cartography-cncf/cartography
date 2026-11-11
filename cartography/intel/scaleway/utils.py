@@ -9,16 +9,15 @@ from scaleway_core.api import ScalewayException
 
 logger = logging.getLogger(__name__)
 
-# Zone does not really matter for readonly access, but we need to set it
-DEFAULT_ZONE = "fr-par-1"
-
 # Scaleway regions. Most regional APIs (Object Storage, VPC, IPAM, Load
 # Balancer, ...) list per-region, so we fan out over all of them. Not every
 # service is deployed in every region; list_all_regions skips the gaps.
 DEFAULT_REGIONS = ("fr-par", "nl-ams", "pl-waw", "it-mil")
 
-# Scaleway availability zones. Zone-scoped APIs (Elastic Metal, Apple silicon,
-# Dedibox, flexible IPs, ...) list per-zone, so we fan out over all of them.
+# Scaleway availability zones. Zone-scoped APIs (Instances, security groups,
+# volumes, Elastic Metal, Apple silicon, Dedibox, flexible IPs, ...) list
+# per-zone and only return that zone's resources, so we fan out over all of
+# them.
 # Not every product is available in every zone; list_all_zones skips the gaps.
 DEFAULT_ZONES = (
     "fr-par-1",
