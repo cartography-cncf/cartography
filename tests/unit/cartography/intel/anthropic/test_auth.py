@@ -32,8 +32,8 @@ def test_exchanges_the_current_identity_token_once_per_access_token(tmp_path, mo
         cartography.intel.anthropic.auth.requests,
         "post",
         side_effect=[
-            _token_response("sk-ant-oat01-first", 600),
-            _token_response("sk-ant-oat01-second", 600),
+            _token_response("sk-ant-oat01-first", 60),
+            _token_response("sk-ant-oat01-second", 60),
         ],
     )
     auth = WorkloadIdentityAuth(
@@ -46,11 +46,11 @@ def test_exchanges_the_current_identity_token_once_per_access_token(tmp_path, mo
     )
 
     assert _authorize(auth) == "Bearer sk-ant-oat01-first"
-    clock.return_value = 500.0
+    clock.return_value = 40.0
     assert _authorize(auth) == "Bearer sk-ant-oat01-first"
 
     token_file.write_text("jwt-2\n")
-    clock.return_value = 550.0
+    clock.return_value = 50.0
     assert _authorize(auth) == "Bearer sk-ant-oat01-second"
 
     assert [call.kwargs["json"] for call in post.call_args_list] == [

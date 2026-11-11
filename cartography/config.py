@@ -746,11 +746,6 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
-        anthropic_identity_token_file=None,
-        anthropic_federation_rule_id=None,
-        anthropic_organization_id=None,
-        anthropic_service_account_id=None,
-        anthropic_workspace_id=None,
         subimage_client_id=None,
         subimage_client_secret=None,
         subimage_tenant_url=None,
@@ -899,6 +894,11 @@ class Config:
         langsmith_api_url: str | None = None,
         langsmith_host_api_url: str | None = None,
         langsmith_org_id: str | None = None,
+        anthropic_identity_token_file: str | None = None,
+        anthropic_federation_rule_id: str | None = None,
+        anthropic_organization_id: str | None = None,
+        anthropic_service_account_id: str | None = None,
+        anthropic_workspace_id: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

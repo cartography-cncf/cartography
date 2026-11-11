@@ -8,9 +8,11 @@ TOKEN_URL = "https://api.anthropic.com/v1/oauth/token"
 JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
 _TIMEOUT = (60, 60)
-# Exchange before the access token lapses so a request in flight never carries
-# a token that expires on the way.
-_REFRESH_MARGIN_SECONDS = 60
+# Exchange once this share of the access token's lifetime has passed, so a
+# request in flight never carries a token that expires on the way. A fixed margin
+# would refresh a 60-second token at once and replay the identity token, which
+# Anthropic refuses when the token is single-use.
+_REFRESH_AT_LIFETIME_FRACTION = 0.8
 
 
 @dataclass(frozen=True)
@@ -32,10 +34,10 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
     def __init__(self, federation: WorkloadIdentityFederation) -> None:
         self._federation = federation
         self._access_token: str | None = None
-        self._expires_at = 0.0
+        self._refresh_at = 0.0
 
     def __call__(self, request: requests.PreparedRequest) -> requests.PreparedRequest:
-        if time.monotonic() >= self._expires_at - _REFRESH_MARGIN_SECONDS:
+        if time.monotonic() >= self._refresh_at:
             self._exchange()
         request.headers["Authorization"] = f"Bearer {self._access_token}"
         return request
@@ -54,4 +56,6 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
         response.raise_for_status()
         token = response.json()
         self._access_token = token["access_token"]
-        self._expires_at = time.monotonic() + token["expires_in"]
+        self._refresh_at = (
+            time.monotonic() + token["expires_in"] * _REFRESH_AT_LIFETIME_FRACTION
+        )
