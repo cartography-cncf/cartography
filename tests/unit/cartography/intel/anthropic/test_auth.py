@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+import pytest
 import requests
 from requests.adapters import HTTPAdapter
 
@@ -13,6 +14,7 @@ API_URL = "https://api.anthropic.com/v1/organizations/users"
 def _token_response(status_code: int, access_token: str = "") -> MagicMock:
     response = MagicMock()
     response.status_code = status_code
+    response.headers = {"retry-after": "30"} if status_code == 429 else {}
     response.json.return_value = {
         "access_token": access_token,
         "token_type": "Bearer",
@@ -99,26 +101,47 @@ def test_exchanges_again_only_once_the_identity_token_rotates(tmp_path, mocker):
     assert _exchanged_assertions(post) == ["jwt-1", "jwt-2"]
 
 
-def test_a_rejected_access_token_is_replaced_and_the_request_resent(tmp_path, mocker):
+@pytest.mark.parametrize(
+    ("rotated", "status_code", "seen"),
+    [
+        (True, 200, ["Bearer expired", "Bearer fresh"]),
+        (False, 401, ["Bearer expired"]),
+    ],
+)
+def test_a_rejected_access_token_is_replaced_only_with_a_new_identity_token(
+    rotated, status_code, seen, tmp_path, mocker
+):
     token_file = tmp_path / "token"
     token_file.write_text("jwt-1\n")
-    mocker.patch.object(
+    post = mocker.patch.object(
         cartography.intel.anthropic.auth.requests,
         "post",
         side_effect=[_token_response(200, "expired"), _token_response(200, "fresh")],
     )
+    auth = _auth(token_file)
     api = _AnthropicApi({"fresh"})
+    session = _session(auth, api)
+    original_send = api.send
 
-    response = _session(_auth(token_file), api).get(API_URL)
+    def send_then_rotate(request, **kwargs):
+        response = original_send(request, **kwargs)
+        if rotated:
+            token_file.write_text("jwt-2\n")
+        return response
 
-    assert response.status_code == 200
-    assert api.seen == ["Bearer expired", "Bearer fresh"]
+    api.send = send_then_rotate
+
+    response = session.get(API_URL)
+
+    assert response.status_code == status_code
+    assert api.seen == seen
+    assert _exchanged_assertions(post) == (["jwt-1", "jwt-2"] if rotated else ["jwt-1"])
 
 
 def test_a_retried_exchange_sends_the_current_identity_token(tmp_path, mocker):
     token_file = tmp_path / "token"
     token_file.write_text("jwt-1\n")
-    mocker.patch.object(cartography.intel.anthropic.auth.time, "sleep")
+    sleep = mocker.patch.object(cartography.intel.anthropic.auth.time, "sleep")
 
     responses = iter([_token_response(429), _token_response(200, "first")])
 
@@ -136,3 +159,4 @@ def test_a_retried_exchange_sends_the_current_identity_token(tmp_path, mocker):
     _session(_auth(token_file), _AnthropicApi({"first"})).get(API_URL)
 
     assert _exchanged_assertions(post) == ["jwt-1", "jwt-2"]
+    sleep.assert_called_once_with(30.0)

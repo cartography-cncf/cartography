@@ -12,6 +12,7 @@ JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
 _EXCHANGE_ATTEMPTS = 4
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+_MAX_RETRY_DELAY_SECONDS = 60.0
 
 
 @dataclass(frozen=True)
@@ -28,9 +29,9 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
 
     Anthropic refuses an identity token it has already exchanged, so the auth
     only exchanges again once the token file holds a new one (projected
-    Kubernetes tokens rotate in place) or once Anthropic rejects the access
-    token. A rejected request is resent once with the new access token, which
-    also covers a retry that waited past the token's expiry.
+    Kubernetes tokens rotate in place). When Anthropic rejects the access token
+    and the file has rotated, the request is resent once with a new access
+    token, which also covers a retry that waited past the token's expiry.
     """
 
     def __init__(self, federation: WorkloadIdentityFederation) -> None:
@@ -54,7 +55,7 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
         response: requests.Response,
         **kwargs: Any,
     ) -> requests.Response:
-        if response.status_code != 401:
+        if response.status_code != 401 or self._read_assertion() == self._assertion:
             return response
         self._exchange()
         # Drain the rejected response so its connection can carry the resend.
@@ -89,7 +90,7 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
                 or attempt == _EXCHANGE_ATTEMPTS - 1
             ):
                 break
-            time.sleep(2**attempt)
+            time.sleep(_retry_delay(response, attempt))
         response.raise_for_status()
         token = response.json()
         self._access_token = token["access_token"]
@@ -97,3 +98,11 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
         # Refresh at half the lifetime so a rotated identity token is picked up
         # well before the access token lapses.
         self._refresh_at = time.monotonic() + token["expires_in"] / 2
+
+
+def _retry_delay(response: requests.Response, attempt: int) -> float:
+    try:
+        delay = float(response.headers.get("retry-after", ""))
+    except ValueError:
+        delay = 2.0**attempt
+    return min(max(delay, 0.0), _MAX_RETRY_DELAY_SECONDS)
