@@ -178,3 +178,17 @@ def test_member_kind_change_relabels_the_existing_node(
     assert node_after["firstseen"] == node_before["firstseen"]
     assert set(node_after["labels"]) == expected_labels
     assert node_after["former_kind_value"] is None
+
+
+def test_bot_that_an_older_version_refreshed_as_a_user_loses_the_user_label(
+    neo4j_session,
+):
+    _sync_teams_and_users(neo4j_session)
+    neo4j_session.run("MATCH (n:SlackBot{id: 'SLACKBOT1'}) SET n:UserAccount")
+
+    _sync_teams_and_users(neo4j_session)
+
+    labels = neo4j_session.run(
+        "MATCH (n{id: 'SLACKBOT1'}) RETURN labels(n) AS labels",
+    ).single(strict=True)["labels"]
+    assert set(labels) == {"SlackBot", "ThirdPartyApp", "SlackUser"}
