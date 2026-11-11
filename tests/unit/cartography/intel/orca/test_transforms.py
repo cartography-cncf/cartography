@@ -681,4 +681,7 @@ def test_vulnerability_cleanup_uses_bounded_iteration_size(mocker) -> None:
         vulnerabilities.CLEANUP_ITERATION_SIZE,
         vulnerabilities.CLEANUP_ITERATION_SIZE,
     ]
-    assert from_node_schema.return_value.run.call_count == 2
+    assert from_node_schema.return_value.run.call_args_list == [
+        mocker.call(neo4j_session),
+        mocker.call(neo4j_session),
+    ]

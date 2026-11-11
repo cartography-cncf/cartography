@@ -435,6 +435,14 @@ def test_vulnerability_package_reaches_package_version(neo4j_session, mocker):
     ) == {(f"{PACKAGE_ID}|1.0.0", "synthetic-lib", "1.0.0", "deb")}
     assert check_rels(
         neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaPackage",
+        "normalized_id",
+        "RESOURCE",
+    ) == {(ORGANIZATION_ID, f"{PACKAGE_ID}|1.0.0")}
+    assert check_rels(
+        neo4j_session,
         "PackageVersion",
         "id",
         "OrcaPackage",
