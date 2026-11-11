@@ -289,9 +289,12 @@ _AMI_ID = re.compile(r"^ami-[0-9a-f]+$")
 def _affected_asset_ids(record: dict[str, Any]) -> dict[str, str | None]:
     resource_type = record.get("resource_type")
     external_id = record.get("resource_external_id") or ""
+    region = record.get("resource_region")
+    # Detections carry no cloud platform, so a GCP instance is recognized by its
+    # Compute self link.
     is_gcp_instance = (
         resource_type == "VIRTUAL_MACHINE"
-        and record.get("resource_cloud_platform") == "GCP"
+        and external_id.startswith("https://www.googleapis.com/compute/")
         and "/instances/" in external_id
     )
     return {
@@ -301,9 +304,12 @@ def _affected_asset_ids(record: dict[str, Any]) -> dict[str, str | None]:
             and _EC2_INSTANCE_ARN.match(external_id)
             else None
         ),
+        # AWSEC2Image IDs are regional: "<ami id>|<region>".
         "affected_ami_id": (
-            external_id
-            if resource_type == "VIRTUAL_MACHINE_IMAGE" and _AMI_ID.match(external_id)
+            f"{external_id}|{region}"
+            if resource_type == "VIRTUAL_MACHINE_IMAGE"
+            and _AMI_ID.match(external_id)
+            and region
             else None
         ),
         "affected_lambda_arn": (

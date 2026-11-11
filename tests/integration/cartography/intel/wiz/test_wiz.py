@@ -15,6 +15,7 @@ from tests.data.wiz import ISSUES
 from tests.data.wiz import NON_CVE_VULNERABILITY_ID
 from tests.data.wiz import RESOURCE_ID_1
 from tests.data.wiz import TENANT_ID
+from tests.data.wiz import VULNERABILITY_FINDINGS
 from tests.data.wiz import VULNERABILITY_ID_1
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -223,6 +224,42 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         "id",
         "AFFECTS",
     ) == {(VULNERABILITY_ID_1, EC2_ID), (NON_CVE_VULNERABILITY_ID, EC2_ID)}
+
+
+def test_start_wiz_ingestion_links_ami_finding_to_regional_image(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    neo4j_session.run(
+        "MERGE (i:AWSEC2Image {id: 'ami-0abc|us-east-1'}) SET i.imageid = 'ami-0abc'",
+    )
+    ami_finding = {
+        **VULNERABILITY_FINDINGS[0],
+        "vulnerableAsset": {
+            **VULNERABILITY_FINDINGS[0]["vulnerableAsset"],
+            "type": "VIRTUAL_MACHINE_IMAGE",
+            "providerUniqueId": "ami-0abc",
+            "region": "us-east-1",
+        },
+    }
+    _patch_wiz_api(mocker, findings=[ami_finding])
+
+    # Act
+    cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config())
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "WizFinding",
+        "id",
+        "AWSEC2Image",
+        "id",
+        "AFFECTS",
+    ) == {(VULNERABILITY_ID_1, "ami-0abc|us-east-1")}
+    neo4j_session.run(
+        "MATCH (i:AWSEC2Image {id: 'ami-0abc|us-east-1'}) DETACH DELETE i"
+    )
 
 
 def test_start_wiz_ingestion_removes_stale_records_on_second_sync(

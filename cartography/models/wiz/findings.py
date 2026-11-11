@@ -344,7 +344,7 @@ class WizFindingToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WizFindingToEC2ImageRel(CartographyRelSchema):
-    """Links a Wiz finding to the AMI it affects, matched on the AMI ID."""
+    """Links a Wiz finding to the AMI it affects, matched on the AMI ID and region."""
 
     target_node_label: str = "AWSEC2Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -383,7 +383,7 @@ class WizFindingToGCPInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WizFindingToOntologyImageRel(CartographyRelSchema):
-    """Links a Wiz finding to the container image it affects, matched on the image digest."""
+    """Links a Wiz finding to every synced copy of the container image it affects, matched on the image digest."""
 
     target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

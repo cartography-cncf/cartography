@@ -58,7 +58,13 @@ def test_transform_findings_extracts_vulnerability_cve_and_resource_metadata():
             "VIRTUAL_MACHINE_IMAGE",
             "AWS",
             "ami-0abc",
-            {"affected_ami_id": "ami-0abc"},
+            {"affected_ami_id": "ami-0abc|us-east-1"},
+        ),
+        (
+            "VIRTUAL_MACHINE",
+            None,
+            "https://www.googleapis.com/compute/v1/projects/p/zones/z/instances/vm",
+            {"affected_gcp_instance_id": "projects/p/zones/z/instances/vm"},
         ),
         (
             "SERVERLESS",
@@ -99,6 +105,7 @@ def test_transform_findings_extracts_affected_asset_id(
             "type": resource_type,
             "cloudPlatform": cloud_platform,
             "providerUniqueId": external_id,
+            "region": "us-east-1",
         },
     }
 
