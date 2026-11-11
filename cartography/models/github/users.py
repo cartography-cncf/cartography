@@ -20,12 +20,17 @@ To allow for this in the schema, this relationship is treated as any other node-
 RE: GitHubOrganizationUserSchema vs GitHubUnaffiliatedUserSchema
 
 As noted above, there are implicitly two types of users, those that are part of, or affiliated, to a target
-GitHubOrganization, and those that are not part, or unaffiliated.   Both are represented as GitHubUser nodes,
-but there are two schemas below to allow for a difference between them: unaffiliated nodes lack this property:
-  * the 'has_2fa_enabled' property, because the GitHub api does not return it, for these users
-The main importance of having two schemas is to allow the two sets of users to be loaded separately.  If we are loading
-an unaffiliated user, but the user already exists in the graph (perhaps they are members of another GitHub orgs for
-example), then loading the unaffiliated user will not blank out the 'has_2fa_enabled' property.
+GitHubOrganization, and those that are not part, or unaffiliated.  Both are represented as GitHubUser nodes with the
+same properties.  The two schemas differ only in their relationships to the organization: affiliated users get
+'MEMBER_OF' and 'ADMIN_OF', unaffiliated users get 'UNAFFILIATED'.
+
+RE: Organization-scoped facts
+
+A GitHubUser node is global, but the sync runs once per organization, and GitHub scopes some facts to the organization
+being synced: 'has_2fa_enabled', 'is_enterprise_owner', 'organization_verified_domain_emails' and 'normalized_emails'.
+A user can belong to several organizations, so the 'MEMBER_OF' and 'UNAFFILIATED' relationships hold each
+organization's answer.  The node properties of the same names are owned by the analysis jobs in
+cartography.analysis.github.analysis, which combine the answers of all of a user's organizations.
 """
 
 from dataclasses import dataclass
@@ -44,8 +49,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
-class BaseGitHubUserNodeProperties(CartographyNodeProperties):
-    # core properties in all GitHubUser nodes
+class GitHubUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("url", description="GitHub user profile URL.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     fullname: PropertyRef = PropertyRef("name", description="GitHub user display name.")
@@ -56,43 +60,62 @@ class BaseGitHubUserNodeProperties(CartographyNodeProperties):
         "isSiteAdmin", description="Whether the user is a GitHub site administrator."
     )
     is_enterprise_owner: PropertyRef = PropertyRef(
-        "isEnterpriseOwner",
-        description="Whether the user is a GitHub enterprise owner.",
+        "is_enterprise_owner",
+        set_by_analysis=True,
+        description="Whether the user is an enterprise owner in any of their organizations.",
     )
     email: PropertyRef = PropertyRef(
         "email", description="Publicly visible profile email."
     )
     company: PropertyRef = PropertyRef("company", description="Public profile company.")
     organization_verified_domain_emails: PropertyRef = PropertyRef(
-        "organizationVerifiedDomainEmails",
-        description="Email addresses verified against organization domains.",
+        "organization_verified_domain_emails",
+        set_by_analysis=True,
+        description="Distinct email addresses verified against the domains of any of the "
+        "user's organizations.",
     )
-
     normalized_emails: PropertyRef = PropertyRef(
         "normalized_emails",
-        description="Distinct nonempty public and organization verified-domain emails, "
-        "normalized with the canonical user email policy for SAML conflict checks.",
+        set_by_analysis=True,
+        description="Distinct nonempty public and organization verified-domain emails "
+        "across the user's organizations, normalized with the canonical user email "
+        "policy for SAML conflict checks.",
     )
-
-
-@dataclass(frozen=True)
-class GitHubOrganizationUserNodeProperties(BaseGitHubUserNodeProperties):
-    # specified for affiliated users only. The GitHub api does not return this property for unaffiliated users.
     has_2fa_enabled: PropertyRef = PropertyRef(
-        "hasTwoFactorEnabled",
-        description="Whether the organization member has two-factor authentication enabled.",
+        "has_2fa_enabled",
+        set_by_analysis=True,
+        description="Whether the user has two-factor authentication enabled. True when "
+        "any of the user's organizations reports it, false when none does and one "
+        "reports it disabled, and unset when no organization exposes it.",
     )
-
-
-@dataclass(frozen=True)
-class GitHubUnaffiliatedUserNodeProperties(BaseGitHubUserNodeProperties):
-    # No additional properties needed
-    pass
 
 
 @dataclass(frozen=True)
 class GitHubUserToOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubUserOrganizationFactsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    has_2fa_enabled: PropertyRef = PropertyRef(
+        "hasTwoFactorEnabled",
+        description="Whether this organization reports two-factor authentication as "
+        "enabled for the user. Unset when the organization does not expose it.",
+    )
+    is_enterprise_owner: PropertyRef = PropertyRef(
+        "isEnterpriseOwner",
+        description="Whether the user is an owner of this organization's enterprise.",
+    )
+    organization_verified_domain_emails: PropertyRef = PropertyRef(
+        "organizationVerifiedDomainEmails",
+        description="Email addresses verified against this organization's domains.",
+    )
+    normalized_emails: PropertyRef = PropertyRef(
+        "normalized_emails",
+        description="Distinct nonempty public and verified-domain emails for this "
+        "organization, normalized with the canonical user email policy.",
+    )
 
 
 @dataclass(frozen=True)
@@ -105,8 +128,8 @@ class GitHubUserMemberOfOrganizationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
-    properties: GitHubUserToOrganizationRelProperties = (
-        GitHubUserToOrganizationRelProperties()
+    properties: GitHubUserOrganizationFactsRelProperties = (
+        GitHubUserOrganizationFactsRelProperties()
     )
 
 
@@ -135,8 +158,8 @@ class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "UNAFFILIATED"
-    properties: GitHubUserToOrganizationRelProperties = (
-        GitHubUserToOrganizationRelProperties()
+    properties: GitHubUserOrganizationFactsRelProperties = (
+        GitHubUserOrganizationFactsRelProperties()
     )
 
 
@@ -148,9 +171,7 @@ class GitHubOrganizationUserSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
-    properties: GitHubOrganizationUserNodeProperties = (
-        GitHubOrganizationUserNodeProperties()
-    )
+    properties: GitHubUserNodeProperties = GitHubUserNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubUserMemberOfOrganizationRel(),
@@ -168,9 +189,7 @@ class GitHubUnaffiliatedUserSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
-    properties: GitHubUnaffiliatedUserNodeProperties = (
-        GitHubUnaffiliatedUserNodeProperties()
-    )
+    properties: GitHubUserNodeProperties = GitHubUserNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubUserUnaffiliatedOrganizationRel(),

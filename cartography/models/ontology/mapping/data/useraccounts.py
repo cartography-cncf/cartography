@@ -216,9 +216,9 @@ github_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="fullname"),
-                OntologyFieldMapping(
-                    ontology_field="has_mfa", node_field="has_2fa_enabled"
-                ),
+                # has_mfa: GitHub reports 2FA per organization, so the GitHub user
+                # organization facts analysis jobs project `_ont_has_mfa` together
+                # with `has_2fa_enabled` from all of the user's organizations.
             ],
         ),
     ],
