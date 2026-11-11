@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Iterator
-from time import monotonic
 from typing import Any
 
 import neo4j
@@ -154,6 +153,7 @@ query WizDetections($filterBy: DetectionFilters, $first: Int, $after: String, $o
 """
 
 
+@timeit
 def get(
     session: requests.Session,
     graphql_url: str,
@@ -214,7 +214,6 @@ def get(
             FINDING_TYPE_DETECTION,
         ),
     ):
-        start_time = monotonic()
         fetched = 0
         for raw_findings in get_paginated(
             session,
@@ -230,12 +229,7 @@ def get(
                 filter_by_project_ids(raw_findings, project_id_filter),
                 finding_type,
             )
-        logger.info(
-            "Fetched %d Wiz %s findings in %.2fs",
-            fetched,
-            finding_type.lower(),
-            monotonic() - start_time,
-        )
+        logger.info("Fetched %d Wiz %s findings", fetched, finding_type.lower())
 
 
 def _with_finding_type(

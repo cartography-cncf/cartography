@@ -115,8 +115,8 @@ def test_get_access_token_uses_client_credentials_payload():
 @pytest.mark.parametrize(
     ("batch_size", "expected_batches"),
     [
-        (5000, [[{"id": "resource-1"}, {"id": "resource-2"}]]),
-        (1, [[{"id": "resource-1"}], [{"id": "resource-2"}]]),
+        (5000, [[{"id": "resource-1"}, {"id": "resource-2"}, {"id": "resource-3"}]]),
+        (1, [[{"id": "resource-1"}], [{"id": "resource-2"}], [{"id": "resource-3"}]]),
     ],
 )
 def test_get_paginated_yields_batches_and_passes_cursor(batch_size, expected_batches):
@@ -126,7 +126,7 @@ def test_get_paginated_yields_batches_and_passes_cursor(batch_size, expected_bat
                 {
                     "data": {
                         "cloudResourcesV2": {
-                            "nodes": [{"id": "resource-1"}],
+                            "nodes": [{"id": "resource-1"}, {"id": "resource-2"}],
                             "pageInfo": {
                                 "hasNextPage": True,
                                 "endCursor": "cursor-1",
@@ -139,7 +139,7 @@ def test_get_paginated_yields_batches_and_passes_cursor(batch_size, expected_bat
                 {
                     "data": {
                         "cloudResourcesV2": {
-                            "nodes": [{"id": "resource-2"}],
+                            "nodes": [{"id": "resource-3"}],
                             "pageInfo": {
                                 "hasNextPage": False,
                                 "endCursor": None,

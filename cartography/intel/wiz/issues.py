@@ -59,6 +59,7 @@ query WizIssues($first: Int, $after: String, $filterBy: IssueFilters, $orderBy: 
 """
 
 
+@timeit
 def get(
     session: requests.Session,
     graphql_url: str,

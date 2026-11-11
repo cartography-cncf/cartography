@@ -119,9 +119,9 @@ def get_paginated(
         batch.extend(nodes)
         fetched += len(nodes)
         page_count += 1
-        if len(batch) >= batch_size:
-            yield batch
-            batch = []
+        while len(batch) >= batch_size:
+            yield batch[:batch_size]
+            batch = batch[batch_size:]
 
         if progress_label and page_count % _PROGRESS_PAGE_INTERVAL == 0:
             logger.info(
