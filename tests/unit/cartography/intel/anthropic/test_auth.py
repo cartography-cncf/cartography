@@ -29,7 +29,7 @@ def test_exchanges_the_current_identity_token_once_per_access_token(tmp_path, mo
         cartography.intel.anthropic.auth.time, "monotonic", return_value=0.0
     )
     post = mocker.patch.object(
-        cartography.intel.anthropic.auth.requests,
+        requests.Session,
         "post",
         side_effect=[
             _token_response("sk-ant-oat01-first", 60),
@@ -42,6 +42,7 @@ def test_exchanges_the_current_identity_token_once_per_access_token(tmp_path, mo
             federation_rule_id="fdrl_test",
             organization_id="00000000-0000-0000-0000-000000000000",
             service_account_id="svac_test",
+            workspace_id="wrkspc_test",
         ),
     )
 
@@ -60,6 +61,7 @@ def test_exchanges_the_current_identity_token_once_per_access_token(tmp_path, mo
             "federation_rule_id": "fdrl_test",
             "organization_id": "00000000-0000-0000-0000-000000000000",
             "service_account_id": "svac_test",
+            "workspace_id": "wrkspc_test",
         }
         for assertion in ("jwt-1", "jwt-2")
     ]

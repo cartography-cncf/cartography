@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 TOKEN_URL = "https://api.anthropic.com/v1/oauth/token"
 JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
@@ -33,6 +35,18 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
 
     def __init__(self, federation: WorkloadIdentityFederation) -> None:
         self._federation = federation
+        self._session = requests.Session()
+        self._session.mount(
+            "https://",
+            HTTPAdapter(
+                max_retries=Retry(
+                    total=5,
+                    backoff_factor=1,
+                    status_forcelist=[429, 500, 502, 503, 504],
+                    allowed_methods=["POST"],
+                ),
+            ),
+        )
         self._access_token: str | None = None
         self._refresh_at = 0.0
 
@@ -52,7 +66,7 @@ class WorkloadIdentityAuth(requests.auth.AuthBase):
         }
         if self._federation.workspace_id:
             body["workspace_id"] = self._federation.workspace_id
-        response = requests.post(TOKEN_URL, json=body, timeout=_TIMEOUT)
+        response = self._session.post(TOKEN_URL, json=body, timeout=_TIMEOUT)
         response.raise_for_status()
         token = response.json()
         self._access_token = token["access_token"]

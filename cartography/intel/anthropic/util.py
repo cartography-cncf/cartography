@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -55,6 +56,13 @@ def is_unavailable_to_organization(error: requests.HTTPError) -> bool:
     """Report whether an Admin API endpoint does not exist for this organization.
 
     Claude Enterprise organizations have no workspaces or API keys, and their
-    scoped admin keys and federated tokens are refused on those endpoints.
+    scoped admin keys and federated tokens are refused on those endpoints. Only a
+    refusal from an organizations endpoint counts: a failed token exchange during
+    a refresh surfaces through the same request and must still fail the sync.
     """
-    return error.response is not None and error.response.status_code in (403, 404)
+    response = error.response
+    return (
+        response is not None
+        and response.status_code in (403, 404)
+        and urlparse(response.url).path.startswith("/v1/organizations/")
+    )
