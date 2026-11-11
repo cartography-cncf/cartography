@@ -147,6 +147,23 @@ def _vulnerability_id(
     return f"orca:{organization_id}:vulnerability:{digest}"
 
 
+def _affected_asset_ids(target_context: dict[str, str | None]) -> dict[str, str | None]:
+    target_type = target_context["target_type"]
+    return {
+        "affected_ec2_instance_arn": (
+            target_context["target_arn"] if target_type == "AwsEc2Instance" else None
+        ),
+        "affected_lambda_arn": (
+            target_context["target_arn"] if target_type == "AwsLambdaFunction" else None
+        ),
+        "affected_ami_id": (
+            target_context["target_provider_id"]
+            if target_type == "AwsEc2Image"
+            else None
+        ),
+    }
+
+
 def transform(
     raw_vulnerabilities: list[dict[str, Any]],
     organization_id: str,
@@ -230,6 +247,7 @@ def transform(
                 "Orca vulnerability.FirstSeen",
             ),
             **target_context,
+            **_affected_asset_ids(target_context),
         }
 
         for package in _related_packages(vulnerability):

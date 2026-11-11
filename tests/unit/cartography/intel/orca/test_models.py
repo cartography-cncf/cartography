@@ -78,10 +78,9 @@ def test_orca_child_schemas_use_flat_organization_ownership() -> None:
         assert organization_property.set_in_kwargs is True
 
 
-def test_orca_findings_do_not_create_asset_relationships() -> None:
+def test_orca_alerts_do_not_create_asset_relationships() -> None:
     # Act and assert
-    for schema in (OrcaAlertSchema(), OrcaVulnerabilityFindingSchema()):
-        assert schema.other_relationships is None
+    assert OrcaAlertSchema().other_relationships is None
 
 
 def test_orca_findings_retain_consistent_target_context() -> None:

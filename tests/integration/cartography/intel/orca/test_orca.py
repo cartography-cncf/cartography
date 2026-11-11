@@ -43,6 +43,7 @@ def cleanup_orca_test_data(neo4j_session):
     cleanup_query = """
     MATCH (n)
     WHERE n:OrcaOrganization
+       OR n:AWSEC2Instance
        OR n:OrcaAsset
        OR n:OrcaAlert
        OR n:OrcaVulnerability
@@ -184,11 +185,20 @@ def _affects_count(neo4j_session) -> int:
     ).single()["count"]
 
 
-def test_start_orca_ingestion_loads_finding_only_ontology_graph(
+def _seed_ec2_instance(neo4j_session) -> None:
+    neo4j_session.run(
+        "MERGE (i:AWSEC2Instance {id: $id}) SET i.arn = $arn",
+        id=PROVIDER_ID_1,
+        arn=TARGET_ARN_1,
+    )
+
+
+def test_start_orca_ingestion_loads_findings_and_links_affected_assets(
     neo4j_session,
     mocker,
 ):
     # Arrange
+    _seed_ec2_instance(neo4j_session)
     _patch_orca_api(mocker)
 
     # Act
@@ -334,7 +344,14 @@ def test_start_orca_ingestion_loads_finding_only_ontology_graph(
         "cve_id",
         "RESOURCE",
     ) == {(ORGANIZATION_ID, CVE_ID_1)}
-    assert _affects_count(neo4j_session) == 0
+    assert check_rels(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "AWSEC2Instance",
+        "id",
+        "AFFECTS",
+    ) == {(CVE_ID_1, PROVIDER_ID_1)}
     semantic_collisions = neo4j_session.run(
         """
         MATCH (n)
