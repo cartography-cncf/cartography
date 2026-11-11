@@ -52,8 +52,9 @@ The permissions below are genuinely optional: withholding them is a supported lo
   instance ID, which identifies the backing instance on self-managed clusters
   (k3s, kubeadm, ...) whose `spec.providerID` carries no cloud reference. See
   [Scaleway](#scaleway). `CSINode` objects hold no sensitive data. When omitted,
-  Cartography logs a warning and syncs nodes without `csi_node_ids`, so links
-  that rely on it are not created and existing ones are removed.
+  Cartography logs a warning and still syncs nodes: `csi_node_ids` values from
+  an earlier sync, and the links that rely on them, are kept, but no new ones
+  are recorded.
 
 Create a ClusterRole and bind it to the identity used by Cartography. The
 example includes both required and recommended optional permissions:
@@ -402,9 +403,15 @@ health and network security group rules are not evaluated.
 
 ## Scaleway
 
-Clusters on Scaleway connect with a kubeconfig; no extra flags are needed. Run the
-Scaleway module before the Kubernetes module. The link below matches against
-`ScalewayInstance` nodes that already exist in the graph.
+Clusters on Scaleway connect with a kubeconfig; no extra flags are needed. The link
+below matches against `ScalewayInstance` nodes that already exist in the graph, so run
+the Scaleway module before the Kubernetes module. A default full sync runs Kubernetes
+first, so a new node is only linked on the following run. To link it in the same
+run, select the modules in order:
+
+```bash
+cartography --selected-modules scaleway,kubernetes ...
+```
 
 - `KubernetesNode -[:IS_INSTANCE]-> ScalewayInstance`, matched on the Instance server
   ID stored on `KubernetesNode` as `scaleway_instance_id`. The ID is read from

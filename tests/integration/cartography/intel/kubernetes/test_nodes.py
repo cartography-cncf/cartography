@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
+from kubernetes.client.exceptions import ApiException
+
 import cartography.intel.kubernetes.nodes as nodes_module
 import cartography.intel.kubernetes.pods as pods_module
 from cartography.intel.kubernetes.nodes import sync_nodes
@@ -153,6 +155,9 @@ def test_sync_nodes_links_scaleway_instance_from_csi_node(neo4j_session, monkeyp
         "MERGE (i:ScalewayInstance {id: $id})",
         id=SCALEWAY_INSTANCE_ID,
     )
+    # The nodes attach to their cluster, which previously synced CSI node IDs
+    # are read back through.
+    neo4j_session.run("MERGE (c:KubernetesCluster {id: $id})", id=CLUSTER_ID)
 
     # Act
     sync_nodes(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
@@ -173,6 +178,41 @@ def test_sync_nodes_links_scaleway_instance_from_csi_node(neo4j_session, monkeyp
     }
 
     # Assert: only the Scaleway node is linked to the Scaleway Instance
+    assert check_rels(
+        neo4j_session,
+        "KubernetesNode",
+        "name",
+        "ScalewayInstance",
+        "id",
+        "IS_INSTANCE",
+    ) == {
+        ("my-scaleway-node", SCALEWAY_INSTANCE_ID),
+    }
+
+    # Act: a later sync is denied `list csinodes`
+    def _forbidden(client):
+        raise ApiException(status=403)
+
+    monkeypatch.setattr(nodes_module, "get_csi_nodes", _forbidden)
+    later_update_tag = TEST_UPDATE_TAG + 1
+    sync_nodes(
+        neo4j_session,
+        client,
+        later_update_tag,
+        {"UPDATE_TAG": later_update_tag, "CLUSTER_ID": CLUSTER_ID},
+    )
+
+    # Assert: the previously synced CSI node IDs and the link they produce are
+    # kept rather than cleared by a denied list
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesNode",
+        ["name", "scaleway_instance_id", "lastupdated"],
+    ) == {
+        ("my-node", None, later_update_tag),
+        ("my-arm-node", None, later_update_tag),
+        ("my-scaleway-node", SCALEWAY_INSTANCE_ID, later_update_tag),
+    }
     assert check_rels(
         neo4j_session,
         "KubernetesNode",

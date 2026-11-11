@@ -42,8 +42,8 @@ def test_transform_csi_node_ids_keeps_only_nodes_with_registered_drivers():
         ),
         (
             None,
-            {"csi.scaleway.com": f"fr-par-2/{SCALEWAY_INSTANCE_ID.upper()}"},
-            SCALEWAY_INSTANCE_ID,
+            {"csi.scaleway.com": f"fr-par-2/{OTHER_ID.upper()}"},
+            OTHER_ID,
         ),
         # providerID wins over the CSI driver
         (
@@ -71,24 +71,49 @@ def test_transform_nodes_without_csi_data_leaves_scaleway_fields_empty():
 
 
 @pytest.mark.parametrize("status", [401, 403])
-def test_forbidden_csinodes_still_syncs_nodes(status, caplog):
+def test_forbidden_csinodes_keeps_previously_synced_ids(status, caplog):
     client = MagicMock(gke_cluster=None)
     client.name = "my-cluster"
+    previous = {
+        "my-scaleway-node": {"csi.scaleway.com": f"fr-par-2/{SCALEWAY_INSTANCE_ID}"},
+    }
 
     with (
         patch(f"{MODULE}.get_nodes", return_value=RAW_SCALEWAY_NODES),
         patch(f"{MODULE}.get_csi_nodes", side_effect=ApiException(status=status)),
+        patch(f"{MODULE}.get_synced_csi_node_ids", return_value=previous) as mock_read,
         patch(f"{MODULE}.load_nodes") as mock_load,
         patch(f"{MODULE}.cleanup") as mock_cleanup,
         caplog.at_level("WARNING"),
     ):
         sync_nodes(MagicMock(), client, 1, {"CLUSTER_ID": "cluster-id"})
 
+    assert mock_read.call_args.args[1] == "cluster-id"
     loaded = mock_load.call_args.args[1]
     assert [node["name"] for node in loaded] == ["my-scaleway-node"]
-    assert loaded[0]["scaleway_instance_id"] is None
+    assert loaded[0]["scaleway_instance_id"] == SCALEWAY_INSTANCE_ID
     mock_cleanup.assert_called_once()
     assert any("list csinodes" in r.message for r in caplog.records)
+
+
+def test_missing_csinode_api_syncs_nodes_without_csi_ids():
+    client = MagicMock(gke_cluster=None)
+    client.name = "my-cluster"
+
+    with (
+        patch(f"{MODULE}.get_nodes", return_value=RAW_SCALEWAY_NODES),
+        patch(f"{MODULE}.get_csi_nodes", side_effect=ApiException(status=404)),
+        patch(f"{MODULE}.get_synced_csi_node_ids") as mock_read,
+        patch(f"{MODULE}.load_nodes") as mock_load,
+        patch(f"{MODULE}.cleanup") as mock_cleanup,
+    ):
+        sync_nodes(MagicMock(), client, 1, {"CLUSTER_ID": "cluster-id"})
+
+    mock_read.assert_not_called()
+    loaded = mock_load.call_args.args[1]
+    assert loaded[0]["csi_node_ids"] is None
+    assert loaded[0]["scaleway_instance_id"] is None
+    mock_cleanup.assert_called_once()
 
 
 def test_other_csinodes_errors_raise_without_load_or_cleanup():

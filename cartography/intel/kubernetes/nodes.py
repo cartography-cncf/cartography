@@ -9,6 +9,7 @@ from kubernetes.client.models import V1CSINode
 from kubernetes.client.models import V1Node
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.gke_utils import instance_id_from_provider_id
@@ -31,6 +32,20 @@ def get_nodes(client: K8sClient) -> list[V1Node]:
 @timeit
 def get_csi_nodes(client: K8sClient) -> list[V1CSINode]:
     return k8s_paginate(client.storage.list_csi_node, raise_on_error=True)
+
+
+def get_synced_csi_node_ids(
+    session: neo4j.Session,
+    cluster_id: str,
+) -> dict[str, dict[str, str]]:
+    """Read the CSI driver node IDs a previous sync stored on the cluster's nodes."""
+    query = """
+    MATCH (:KubernetesCluster {id: $CLUSTER_ID})-[:RESOURCE]->(n:KubernetesNode)
+    WHERE n.csi_node_ids IS NOT NULL
+    RETURN n.name AS name, n.csi_node_ids AS csi_node_ids
+    """
+    rows = session.execute_read(read_list_of_dicts_tx, query, CLUSTER_ID=cluster_id)
+    return {row["name"]: json.loads(row["csi_node_ids"]) for row in rows}
 
 
 def transform_csi_node_ids(csi_nodes: list[V1CSINode]) -> dict[str, dict[str, str]]:
@@ -221,21 +236,34 @@ def sync_nodes(
             )
             return {}
         raise
+    # CSINode data only enriches nodes with the IDs their CSI drivers know them
+    # by, so nodes still sync when it cannot be read.
     try:
         csi_node_ids = transform_csi_node_ids(get_csi_nodes(client))
     except ApiException as err:
-        if err.status not in (401, 403):
+        if err.status in (401, 403):
+            # A denied list cannot be told apart from "no CSI drivers", so keep
+            # the IDs from the last successful sync instead of clearing them
+            # and the links derived from them.
+            logger.warning(
+                "Cartography lacks permission to list csinodes on cluster %s (status %s). "
+                "Keeping previously synced CSI driver node IDs; nodes that only expose "
+                "their cloud instance through a CSI driver are not newly linked to it.",
+                client.name,
+                err.status,
+            )
+            csi_node_ids = get_synced_csi_node_ids(
+                session, common_job_parameters["CLUSTER_ID"]
+            )
+        elif err.status == 404:
+            logger.info(
+                "Cluster %s does not serve the CSINode API; syncing nodes without "
+                "CSI driver node IDs.",
+                client.name,
+            )
+            csi_node_ids = {}
+        else:
             raise
-        # CSINode data only enriches nodes with the IDs their CSI drivers know
-        # them by, so nodes still sync without it.
-        logger.warning(
-            "Cartography lacks permission to list csinodes on cluster %s (status %s). "
-            "Nodes are synced without CSI driver node IDs, so nodes that only "
-            "expose their cloud instance through a CSI driver are not linked to it.",
-            client.name,
-            err.status,
-        )
-        csi_node_ids = {}
     gke_ref = get_gke_cluster_ref(client)
     transformed = transform_nodes(
         raw_nodes,
