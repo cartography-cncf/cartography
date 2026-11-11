@@ -1,0 +1,15 @@
+{
+  "name": "GitHub PythonLibrary dependency label migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. The dependency graph loader used to merge on the shared Dependency label, which PythonLibrary nodes also carry. It matched those nodes, labeled them GitHubDependency, and wrote its properties and HAS_DEP relationships to them. A node that kept the label still matches the loader, so a package that also has a dependency graph node of its own keeps two GitHubDependency nodes that are both refreshed on every sync. Delete the HAS_DEP relationships of those PythonLibrary nodes. Idempotent. Remove in v1.0.0.",
+      "query": "MATCH (library:PythonLibrary:GitHubDependency)<-[declared:HAS_DEP]-() DELETE declared",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Remove the GitHubDependency label and the properties that only the dependency graph loader sets, so the node is a PythonLibrary again and the PythonLibrary cleanup owns it. Idempotent. Remove in v1.0.0.",
+      "query": "MATCH (library:PythonLibrary:GitHubDependency) REMOVE library:GitHubDependency, library.ecosystem, library.manifest_file, library.normalized_id, library.original_name, library.package_manager, library.purl, library.requirements, library.source, library.type, library.version_confidence",
+      "iterative": false
+    }
+  ]
+}

@@ -91,6 +91,7 @@ PropertyRef("exposed_internet", set_by_analysis=True)  # Owned by an analysis jo
 - Prefer `load()` / `load_matchlinks()` for normal ingestion and `GraphJob` for cleanup.
 - If you must execute a handwritten write query, use `run_write_query()` instead of `neo4j_session.run()` so the write runs in a managed transaction with Cartography's retry handling.
 - Reserve direct `neo4j_session.run()` for read queries or intentional low-level paths that cannot use the managed write helpers.
+- Write a one-off migration of data that an older version left in the graph (a renamed label, a moved or reversed edge, a stale property) as a JSON analysis job, not as Cypher in an intel module. Name it `<module>_<change>_migration.json` under `cartography/data/jobs/analysis/`, run it with `run_analysis_job()` from the module's sync, keep it idempotent, and put the `DEPRECATED: ... Remove in v1.0.0.` note in each statement's `__comment__`. See `vercel_label_migration.json`.
 
 **Deprecation Conventions:**
 - For temporary compatibility shims, legacy aliases, and migration-only edges, add a code comment in the form `# DEPRECATED: ... will be removed in v1.0.0`.

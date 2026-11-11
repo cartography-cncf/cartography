@@ -27,9 +27,6 @@ from cartography.intel.github.codeowners import normalize_repo_relative_path
 from cartography.intel.github.label_migrations import (
     migrate_dependency_graph_manifest_label,
 )
-from cartography.intel.github.label_migrations import (
-    migrate_python_library_dependency_label,
-)
 from cartography.intel.github.lockfiles import parse_npm_lock
 from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
@@ -2381,7 +2378,6 @@ def load_github_dependencies(
     :param dependencies: List of dependency objects from GitHub's dependency graph
     :return: Nothing
     """
-    migrate_python_library_dependency_label(neo4j_session)
     if not dependencies:
         return
     # Final guard before load: rows sharing a Dependency id merge into one node,
@@ -2854,6 +2850,14 @@ def sync(
         "github_dependency_manifest_resource_edge_migration.json",
         neo4j_session,
         migration_params,
+    )
+    # DEPRECATED: detaches PythonLibrary nodes that the dependency graph loader
+    # labeled GitHubDependency when it merged on the shared Dependency label.
+    # Remove in v1.0.0.
+    run_analysis_job(
+        "github_python_library_dependency_label_migration.json",
+        neo4j_session,
+        common_job_parameters,
     )
     if dep_manifests_cleanup_safe:
         cleanup_github_manifests(neo4j_session, common_job_parameters, owner_org_id)

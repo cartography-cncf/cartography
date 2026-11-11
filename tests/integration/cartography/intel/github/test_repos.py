@@ -7,6 +7,7 @@ import cartography.intel.github.repos
 from cartography.intel.github.repos import enrich_dependencies_with_lockfile_versions
 from cartography.intel.github.repos import load_github_dependencies
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.util import run_analysis_job
 from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
 from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DIRECT_COLLABORATORS
@@ -728,6 +729,11 @@ def test_python_library_labeled_by_old_dependency_loader_is_not_refreshed_as_a_d
         stale_tag=stale_tag,
     )
 
+    run_analysis_job(
+        "github_python_library_dependency_label_migration.json",
+        neo4j_session,
+        TEST_JOB_PARAMS,
+    )
     load_github_dependencies(
         neo4j_session,
         TEST_UPDATE_TAG,
