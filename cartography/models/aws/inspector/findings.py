@@ -48,6 +48,7 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     )
     severity: PropertyRef = PropertyRef(
         "severity",
+        extra_index=True,
         description="Inspector severity assigned to the finding.",
     )
     firstobservedat: PropertyRef = PropertyRef(
