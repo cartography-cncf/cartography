@@ -9,6 +9,8 @@ import cartography.intel.anthropic.apikeys
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
+from cartography.intel.anthropic.auth import WorkloadIdentityAuth
+from cartography.intel.anthropic.auth import WorkloadIdentityFederation
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -23,14 +25,14 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :return: None
     """
 
-    if not config.anthropic_apikey:
+    federation = _workload_identity_federation(config)
+    if not config.anthropic_apikey and federation is None:
         logger.info(
             "Anthropic import is not configured - skipping this module. "
             "See docs to configure.",
         )
         return
 
-    # Create requests sessions
     api_session = requests.session()
     retry_policy = Retry(
         total=5,
@@ -39,12 +41,11 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         allowed_methods=["GET"],
     )
     api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    api_session.headers.update(
-        {
-            "X-Api-Key": config.anthropic_apikey,
-            "anthropic-version": "2023-06-01",
-        }
-    )
+    api_session.headers.update({"anthropic-version": "2023-06-01"})
+    if federation is not None:
+        api_session.auth = WorkloadIdentityAuth(federation)
+    else:
+        api_session.headers["X-Api-Key"] = config.anthropic_apikey
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
@@ -68,4 +69,29 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         neo4j_session,
         api_session,
         common_job_parameters,
+    )
+
+
+def _workload_identity_federation(
+    config: Config,
+) -> WorkloadIdentityFederation | None:
+    required = (
+        config.anthropic_identity_token_file,
+        config.anthropic_federation_rule_id,
+        config.anthropic_organization_id,
+        config.anthropic_service_account_id,
+    )
+    if not any(required):
+        return None
+    if not all(required):
+        raise ValueError(
+            "Anthropic workload identity federation needs an identity token file, "
+            "a federation rule ID, an organization ID, and a service account ID.",
+        )
+    return WorkloadIdentityFederation(
+        identity_token_file=config.anthropic_identity_token_file,
+        federation_rule_id=config.anthropic_federation_rule_id,
+        organization_id=config.anthropic_organization_id,
+        service_account_id=config.anthropic_service_account_id,
+        workspace_id=config.anthropic_workspace_id,
     )

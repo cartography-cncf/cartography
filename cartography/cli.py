@@ -1935,6 +1935,51 @@ class CLI:
                     hidden=PANEL_ANTHROPIC not in visible_panels,
                 ),
             ] = None,
+            anthropic_identity_token_file: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-identity-token-file",
+                    help="Path to an OIDC token file to exchange for an Anthropic access token through workload identity federation. Use instead of an Admin API key.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_federation_rule_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-federation-rule-id",
+                    help="Anthropic federation rule ID (fdrl_...) for workload identity federation.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_organization_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-organization-id",
+                    help="Anthropic organization UUID for workload identity federation.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_service_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-service-account-id",
+                    help="Anthropic service account ID (svac_...) for workload identity federation.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_workspace_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-workspace-id",
+                    help="Anthropic workspace ID, required when the federation rule covers several workspaces.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Sentry Options
             # =================================================================
@@ -4281,6 +4326,11 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
+                anthropic_identity_token_file=anthropic_identity_token_file,
+                anthropic_federation_rule_id=anthropic_federation_rule_id,
+                anthropic_organization_id=anthropic_organization_id,
+                anthropic_service_account_id=anthropic_service_account_id,
+                anthropic_workspace_id=anthropic_workspace_id,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,
