@@ -18,9 +18,11 @@ _RETRY_STATUSES = (429, 500, 502, 503, 504)
 def build_session() -> requests.Session:
     # Wiz throttles each service account per second, so a short backoff clears a 429.
     # Every Wiz call is a POST (token exchange and read-only GraphQL queries), and
-    # both are safe to repeat.
+    # both are safe to repeat. A stalled read gets one more attempt, so a hung request
+    # fails within two read timeouts instead of seven.
     retry_policy = CappedRetry(
         total=6,
+        read=1,
         backoff_factor=1,
         status_forcelist=_RETRY_STATUSES,
         allowed_methods=["POST"],
