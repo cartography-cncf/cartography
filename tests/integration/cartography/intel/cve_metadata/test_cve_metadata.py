@@ -479,68 +479,59 @@ def test_sync_vulnrichment_truncated_archive(neo4j_session):
     ) == {(True, None)}
 
 
-def _mock_euvd(http_session, cve_ids):
-    records = {"CVE-2024-3094": EUVD_XZ_RECORD}
-    return {
-        cve_id: cartography.intel.cve_metadata.euvd.transform_euvd_record(
-            records[cve_id],
-        )
-        for cve_id in cve_ids
-        if cve_id in records
-    }
+def _euvd_search(failing_cve_id=None, failure=None):
+    def search(http_session, cve_id):
+        if cve_id == failing_cve_id:
+            raise failure
+        return EUVD_XZ_RECORD if cve_id == "CVE-2024-3094" else None
+
+    return search
+
+
+_NVD_SCORED = ("CVE-2023-41782", 3.9, "LOW", "nvd", None, "none")
+_EUVD_SCORED = ("CVE-2024-3094", 10.0, "CRITICAL", "euvd", "EUVD-2024-31700", "cvss")
+_XZ_UNSCORED = ("CVE-2024-3094", None, None, None, None, "none")
+_OTHER_UNSCORED = {
+    ("CVE-2024-9999", None, None, None, None, "none"),
+    ("CVE-2025-0001", None, None, None, None, "none"),
+}
 
 
 @pytest.mark.parametrize(
-    "fetch, euvd_calls, expected",
+    "search, looked_up, expected",
     [
         (
-            _mock_euvd,
-            [["CVE-2024-3094"], ["CVE-2025-0001"]],
-            {
-                ("CVE-2023-41782", 3.9, "LOW", "nvd", None, "none"),
-                (
-                    "CVE-2024-3094",
-                    10.0,
-                    "CRITICAL",
-                    "euvd",
-                    "EUVD-2024-31700",
-                    "cvss",
-                ),
-                ("CVE-2025-0001", None, None, None, None, "none"),
-            },
+            _euvd_search(),
+            ["CVE-2024-3094", "CVE-2024-9999", "CVE-2025-0001"],
+            {_NVD_SCORED, _EUVD_SCORED, *_OTHER_UNSCORED},
         ),
         (
-            requests.exceptions.ConnectionError("EUVD unreachable"),
-            [["CVE-2024-3094"]],
-            {
-                ("CVE-2023-41782", 3.9, "LOW", "nvd", None, "none"),
-                ("CVE-2024-3094", None, None, None, None, "none"),
-                ("CVE-2025-0001", None, None, None, None, "none"),
-            },
+            _euvd_search(
+                "CVE-2024-9999",
+                requests.exceptions.ConnectionError("EUVD unreachable"),
+            ),
+            ["CVE-2024-3094", "CVE-2024-9999"],
+            {_NVD_SCORED, _EUVD_SCORED, *_OTHER_UNSCORED},
         ),
         (
-            KeyError("id"),
-            [["CVE-2024-3094"]],
-            {
-                ("CVE-2023-41782", 3.9, "LOW", "nvd", None, "none"),
-                ("CVE-2024-3094", None, None, None, None, "none"),
-                ("CVE-2025-0001", None, None, None, None, "none"),
-            },
+            _euvd_search("CVE-2024-3094", KeyError("id")),
+            ["CVE-2024-3094"],
+            {_NVD_SCORED, _XZ_UNSCORED, *_OTHER_UNSCORED},
         ),
     ],
-    ids=["euvd-fills-nvd-gap", "euvd-unreachable", "euvd-unexpected-response"],
+    ids=["euvd-fills-nvd-gaps", "failure-keeps-earlier-lookups", "unexpected-response"],
 )
 @patch.object(
     cartography.intel.cve_metadata.nvd,
     "get_and_transform_nvd_cves",
     side_effect=_mock_nvd,
 )
-def test_sync_euvd(mock_nvd, fetch, euvd_calls, expected, neo4j_session):
-    # Arrange - NVD scores CVE-2023-41782 but has no record of the other two,
-    # which fall in separate yearly batches.
+def test_sync_euvd(mock_nvd, search, looked_up, expected, neo4j_session):
+    # Arrange - NVD scores CVE-2023-41782 but has no record of the other three.
+    # CVE-2025-0001 falls in a later yearly batch than the 2024 CVEs.
     _create_cve_nodes(
         neo4j_session,
-        ["CVE-2023-41782", "CVE-2024-3094", "CVE-2025-0001"],
+        ["CVE-2023-41782", "CVE-2024-3094", "CVE-2024-9999", "CVE-2025-0001"],
     )
     config = Config(
         neo4j_uri="bolt://localhost:7687",
@@ -551,14 +542,14 @@ def test_sync_euvd(mock_nvd, fetch, euvd_calls, expected, neo4j_session):
     # Act
     with patch.object(
         cartography.intel.cve_metadata.euvd,
-        "get_euvd_records",
-        side_effect=fetch,
-    ) as mock_euvd:
+        "_search_record",
+        side_effect=search,
+    ) as mock_search:
         start_cve_metadata_ingestion(neo4j_session, config)
 
-    # Assert - only CVEs without an NVD score are looked up, and a failed lookup
-    # stops EUVD for the later batches.
-    assert [c.args[1] for c in mock_euvd.call_args_list] == euvd_calls
+    # Assert - only CVEs without an NVD score are looked up; a failed lookup stops
+    # EUVD for the rest of the sync but keeps the records found before it.
+    assert [c.args[1] for c in mock_search.call_args_list] == looked_up
     assert (
         check_nodes(
             neo4j_session,

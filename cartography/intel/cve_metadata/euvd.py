@@ -8,6 +8,8 @@ without a CVSS score and that are not rejected.
 """
 
 import logging
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -156,17 +158,29 @@ def needs_euvd(cve: dict[str, Any]) -> bool:
     return cve.get("baseScore") is None and cve.get("vulnStatus") != "Rejected"
 
 
+@dataclass(frozen=True)
+class EuvdLookup:
+    records: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Set when a lookup failed; the records fetched before it are still valid.
+    failed: bool = False
+
+
 @timeit
-def get_euvd_records(
-    http_session: Session,
-    cve_ids: list[str],
-) -> dict[str, dict[str, Any]]:
+def get_euvd_records(http_session: Session, cve_ids: list[str]) -> EuvdLookup:
     records: dict[str, dict[str, Any]] = {}
     for cve_id in cve_ids:
-        record = _search_record(http_session, cve_id)
-        if record is not None:
-            records[cve_id] = transform_euvd_record(record)
-    return records
+        try:
+            record = _search_record(http_session, cve_id)
+            if record is not None:
+                records[cve_id] = transform_euvd_record(record)
+        except FETCH_ERRORS:
+            logger.warning(
+                "Failed to look up %s in EUVD; skipping EUVD for the rest of the sync.",
+                cve_id,
+                exc_info=True,
+            )
+            return EuvdLookup(records=records, failed=True)
+    return EuvdLookup(records=records)
 
 
 def _search_record(http_session: Session, cve_id: str) -> dict[str, Any] | None:

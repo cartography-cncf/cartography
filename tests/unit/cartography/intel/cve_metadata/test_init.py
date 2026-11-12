@@ -99,7 +99,7 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
         },
     ]
     mock_get_kev_catalog.return_value = GET_KEV_CATALOG
-    mock_get_euvd_records.return_value = {}
+    mock_get_euvd_records.return_value = cve_metadata.euvd.EuvdLookup()
     vulnrichment_snapshot = cve_metadata.vulnrichment.VulnrichmentSnapshot(
         commit="0123abcd",
     )

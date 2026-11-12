@@ -263,21 +263,15 @@ def start_cve_metadata_ingestion(
 
                 gap_cve_ids = [cve["id"] for cve in cves if euvd.needs_euvd(cve)]
                 if euvd_available and gap_cve_ids:
-                    try:
-                        euvd_data = euvd.get_euvd_records(http_session, gap_cve_ids)
-                        euvd.merge_euvd_into_cves(cves, euvd_data)
-                        logger.info(
-                            "EUVD has records for %d of %d CVEs in batch without an "
-                            "NVD score.",
-                            len(euvd_data),
-                            len(gap_cve_ids),
-                        )
-                    except euvd.FETCH_ERRORS:
-                        euvd_available = False
-                        logger.warning(
-                            "Failed to query EUVD, continuing without EUVD enrichment.",
-                            exc_info=True,
-                        )
+                    lookup = euvd.get_euvd_records(http_session, gap_cve_ids)
+                    euvd.merge_euvd_into_cves(cves, lookup.records)
+                    euvd_available = not lookup.failed
+                    logger.info(
+                        "EUVD has records for %d of %d CVEs in batch without an "
+                        "NVD score.",
+                        len(lookup.records),
+                        len(gap_cve_ids),
+                    )
 
                 # Runs without a catalog too, so that is_kev_source records the
                 # NVD fallback.

@@ -106,16 +106,17 @@ def _search_session():
 
 def test_get_euvd_records_keeps_the_record_aliasing_the_cve():
     # Act
-    records = euvd.get_euvd_records(
+    lookup = euvd.get_euvd_records(
         _search_session(),
         ["CVE-2024-3094", "CVE-2026-0002"],
     )
 
     # Assert - the record that only mentions CVE-2024-3094 is skipped, and a CVE
     # EUVD does not know is left out.
-    assert {cve_id: r["euvd_id"] for cve_id, r in records.items()} == {
+    assert {cve_id: r["euvd_id"] for cve_id, r in lookup.records.items()} == {
         "CVE-2024-3094": "EUVD-2024-31700",
     }
+    assert lookup.failed is False
 
 
 def test_get_euvd_records_pages_until_the_alias_matches():
@@ -138,10 +139,10 @@ def test_get_euvd_records_pages_until_the_alias_matches():
     session.get.side_effect = get
 
     # Act
-    records = euvd.get_euvd_records(session, ["CVE-2024-3094"])
+    lookup = euvd.get_euvd_records(session, ["CVE-2024-3094"])
 
     # Assert
-    assert records["CVE-2024-3094"]["euvd_id"] == "EUVD-2024-31700"
+    assert lookup.records["CVE-2024-3094"]["euvd_id"] == "EUVD-2024-31700"
 
 
 @pytest.mark.parametrize(
