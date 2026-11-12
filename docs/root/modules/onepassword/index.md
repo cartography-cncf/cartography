@@ -11,6 +11,14 @@ config
 schema
 ```
 
+```{note}
+The module is named `onepassword` because identifiers can't start with a
+digit. `1password` isn't a valid Python module name or keyword argument, and
+Neo4j labels such as `1PasswordUser` would need backticks in every query. Use
+`onepassword` in `--selected-modules`, `--onepassword-source`, and the
+`OnePassword*` node labels. 1Password's own Python SDK uses the same name.
+```
+
 ## What Cartography ingests
 
 - Users, guests, and service accounts, with their states
