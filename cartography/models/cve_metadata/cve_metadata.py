@@ -212,8 +212,9 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
     euvd_id: PropertyRef = PropertyRef(
         "euvd_id",
         description=(
-            "EUVD identifier (EUVD-YYYY-NNNN) of the CVE. Set only for CVEs that "
-            "NVD has not scored, the only ones the sync looks up in EUVD."
+            "EUVD identifier of the CVE, for example EUVD-2024-31700. Set only "
+            "for CVEs that the sync looks up in EUVD and that EUVD lists as an "
+            "alias of one of its records."
         ),
     )
 

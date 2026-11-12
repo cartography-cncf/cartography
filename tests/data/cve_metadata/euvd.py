@@ -31,6 +31,17 @@ EUVD_V4_RECORD = {
     "aliases": "CVE-2026-123087\nGHSA-x2hr-mpw9-c694\n",
 }
 
+EUVD_V2_RECORD = {
+    "id": "EUVD-2013-0001",
+    "description": "An old vulnerability scored only with CVSS 2.0.",
+    "datePublished": "Jan 2, 2013, 3:04:05 PM",
+    "baseScore": 0.0,
+    "baseScoreVersion": "2.0",
+    "baseScoreVector": "AV:N/AC:L/Au:N/C:C/I:P/A:N",
+    "references": "",
+    "aliases": "CVE-2013-0001\n",
+}
+
 EUVD_UNSCORED_RECORD = {
     "id": "EUVD-2026-00001",
     "description": "A vulnerability EUVD has not scored.",

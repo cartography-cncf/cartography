@@ -7,6 +7,7 @@ import pytest
 from cartography.intel.cve_metadata import euvd
 from tests.data.cve_metadata.euvd import EUVD_SEARCH_RESPONSES
 from tests.data.cve_metadata.euvd import EUVD_UNSCORED_RECORD
+from tests.data.cve_metadata.euvd import EUVD_V2_RECORD
 from tests.data.cve_metadata.euvd import EUVD_V4_RECORD
 from tests.data.cve_metadata.euvd import EUVD_XZ_RECORD
 
@@ -60,6 +61,22 @@ from tests.data.cve_metadata.euvd import EUVD_XZ_RECORD
             },
         ),
         (
+            EUVD_V2_RECORD,
+            {
+                "euvd_id": "EUVD-2013-0001",
+                "description_en": "An old vulnerability scored only with CVSS 2.0.",
+                "references_urls": [],
+                "published": datetime(2013, 1, 2, 15, 4, 5, tzinfo=timezone.utc),
+                "cvss_version": "2.0",
+                "vectorString": "AV:N/AC:L/Au:N/C:C/I:P/A:N",
+                "baseScore": 0.0,
+                "baseSeverity": "LOW",
+                "confidentialityImpact": "COMPLETE",
+                "integrityImpact": "PARTIAL",
+                "availabilityImpact": "NONE",
+            },
+        ),
+        (
             EUVD_UNSCORED_RECORD,
             {
                 "euvd_id": "EUVD-2026-00001",
@@ -69,7 +86,7 @@ from tests.data.cve_metadata.euvd import EUVD_XZ_RECORD
             },
         ),
     ],
-    ids=["cvss-3.1", "cvss-4.0-matches-nvd-fields", "unscored"],
+    ids=["cvss-3.1", "cvss-4.0-matches-nvd-fields", "cvss-2.0-zero-score", "unscored"],
 )
 def test_transform_euvd_record(record, expected):
     assert euvd.transform_euvd_record(record) == expected

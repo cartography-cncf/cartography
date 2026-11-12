@@ -26,7 +26,7 @@ default. Each one downloads:
 | `epss` | One request per 100 CVEs |
 | `kev` | The KEV catalog JSON, about 2 MB |
 | `vulnrichment` | The Vulnrichment repository tarball, about 100 MB |
-| `euvd` | One request per CVE that NVD has not scored |
+| `euvd` | One request per CVE that NVD has neither scored nor rejected; every CVE when `nvd` is disabled |
 
 Nothing is downloaded when the graph has no `CVE` nodes.
 

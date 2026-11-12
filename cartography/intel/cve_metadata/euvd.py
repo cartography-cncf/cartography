@@ -13,10 +13,14 @@ from datetime import timezone
 from typing import Any
 
 from requests import Session
+from requests.exceptions import RequestException
 
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Errors that mean EUVD could not be queried or answered in an unexpected shape.
+FETCH_ERRORS = (RequestException, ValueError, KeyError, TypeError, AttributeError)
 
 EUVD_SEARCH_URL = "https://euvdservices.enisa.europa.eu/api/search"
 CONNECT_AND_READ_TIMEOUT = (30, 60)
@@ -51,7 +55,15 @@ _CVSS_V4_METRICS = {
     "PR": ("privilegesRequired", {"N": "NONE", "L": "LOW", "H": "HIGH"}),
     "UI": ("userInteraction", {"N": "NONE", "P": "PASSIVE", "A": "ACTIVE"}),
 }
+# NVD's CVSS 2.0 cvssData names its attack vector and complexity differently, so
+# only the impacts carry over; effect_tags reads COMPLETE as a high impact.
+_CVSS_V2_METRICS = {
+    "C": ("confidentialityImpact", {"N": "NONE", "P": "PARTIAL", "C": "COMPLETE"}),
+    "I": ("integrityImpact", {"N": "NONE", "P": "PARTIAL", "C": "COMPLETE"}),
+    "A": ("availabilityImpact", {"N": "NONE", "P": "PARTIAL", "C": "COMPLETE"}),
+}
 _METRICS_BY_VERSION = {
+    "2.0": _CVSS_V2_METRICS,
     "3.0": _CVSS_V3_METRICS,
     "3.1": _CVSS_V3_METRICS,
     "4.0": _CVSS_V4_METRICS,
@@ -118,7 +130,7 @@ def transform_euvd_record(record: dict[str, Any]) -> dict[str, Any]:
     score = record.get("baseScore")
     version = record.get("baseScoreVersion")
     # EUVD reports an unscored record as a base score of 0 with no version.
-    if score and version:
+    if score is not None and version:
         vector = record.get("baseScoreVector") or None
         transformed.update(
             {

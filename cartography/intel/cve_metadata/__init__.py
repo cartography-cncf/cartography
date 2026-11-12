@@ -272,7 +272,7 @@ def start_cve_metadata_ingestion(
                             len(euvd_data),
                             len(gap_cve_ids),
                         )
-                    except requests.exceptions.RequestException:
+                    except euvd.FETCH_ERRORS:
                         euvd_available = False
                         logger.warning(
                             "Failed to query EUVD, continuing without EUVD enrichment.",

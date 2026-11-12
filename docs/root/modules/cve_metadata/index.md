@@ -45,11 +45,12 @@ without an NVD CVSS score that NVD has not rejected, the sync looks the CVE up
 in EUVD and fills the CVSS fields from EUVD's score. It also fills the
 description, references, and publication date where NVD has none. EUVD never
 replaces a value that NVD provides. `cvss_source` records whether the CVSS
-fields came from `nvd` or `euvd`, and `euvd_id` holds the EUVD identifier of
-each CVE looked up there.
+fields came from `nvd` or `euvd`. `euvd_id` holds the EUVD identifier of each
+CVE looked up there for which EUVD has a record listing the CVE as an alias.
 
 EUVD has no bulk download, so the sync makes one request per CVE it looks up.
-Only CVEs that NVD has not scored are looked up.
+When the `nvd` source is disabled, no CVE has an NVD score, so every CVE is
+looked up.
 
 ## Failed fetches
 
@@ -58,8 +59,9 @@ full, or holds no records, the sync continues without that source: `is_kev`
 falls back to NVD's copy of the KEV data, and the SSVC fields are left unset.
 A KEV catalog whose `count` disagrees with the number of entries it lists is
 treated the same way.
-If an EUVD request fails, the sync stops querying EUVD for the rest of the run
-and leaves the CVSS fields of unscored CVEs unset.
+If an EUVD request fails or EUVD answers in an unexpected shape, the sync stops
+querying EUVD for the rest of the run and leaves the CVSS fields of unscored
+CVEs unset.
 The `CVEMetadataFeed` node records the KEV catalog version as
 `kev_catalog_version` and the archive's commit as `vulnrichment_commit`. Each
 is unset when its source was not used.
