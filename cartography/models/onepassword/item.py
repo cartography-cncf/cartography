@@ -21,8 +21,7 @@ class OnePasswordItemNodeProperties(CartographyNodeProperties):
     title: PropertyRef = PropertyRef(
         "title",
         description=(
-            "Item title. Present only when the collector runs with "
-            "`--include-titles`."
+            "Item title. Absent when the collector runs with " "`--omit-titles`."
         ),
     )
     category: PropertyRef = PropertyRef(

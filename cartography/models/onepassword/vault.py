@@ -20,8 +20,7 @@ class OnePasswordVaultNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name",
         description=(
-            "Vault name. Present only when the collector runs with "
-            "`--include-titles`."
+            "Vault name. Absent when the collector runs with " "`--omit-titles`."
         ),
     )
 

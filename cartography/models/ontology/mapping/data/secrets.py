@@ -222,7 +222,7 @@ onepassword_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="OnePasswordItem",
             fields=[
-                # name: present only when the collector runs with --include-titles.
+                # name: absent when the collector runs with --omit-titles.
                 OntologyFieldMapping(
                     ontology_field="name", node_field="title", required=True
                 ),
