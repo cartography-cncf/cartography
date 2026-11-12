@@ -70,16 +70,16 @@ def prepare(snapshot: dict[str, Any]) -> PreparedAccount:
     )
 
 
-def get_ingested_collected_at(
+def get_ingested_snapshot(
     neo4j_session: neo4j.Session,
     account_id: str,
-) -> str | None:
+) -> tuple[str, str] | None:
     record = neo4j_session.run(
         "MATCH (a:OnePasswordAccount {id: $account_id}) "
-        "RETURN a.snapshot_collected_at AS collected_at",
+        "RETURN a.snapshot_collected_at AS collected_at, a.snapshot_id AS snapshot_id",
         account_id=account_id,
     ).single()
-    return record["collected_at"] if record else None
+    return (record["collected_at"], record["snapshot_id"]) if record else None
 
 
 def load_account(
@@ -111,10 +111,12 @@ def sync_account(
 ) -> None:
     snapshot = account.snapshot
     account_id = snapshot["account_id"]
-    ingested_at = get_ingested_collected_at(neo4j_session, account_id)
-    if ingested_at is not None and datetime.fromisoformat(
-        ingested_at
-    ) > datetime.fromisoformat(snapshot["collected_at"]):
+    ingested = get_ingested_snapshot(neo4j_session, account_id)
+    # Order snapshots the way snapshots.get does: collection time, then ID.
+    if ingested is not None and (
+        datetime.fromisoformat(ingested[0]),
+        ingested[1],
+    ) > (datetime.fromisoformat(snapshot["collected_at"]), snapshot["snapshot_id"]):
         # A snapshot older than the graph's would restore access that a newer
         # snapshot already revoked.
         logger.warning(
@@ -122,7 +124,7 @@ def sync_account(
             "than the ingested snapshot collected at %s.",
             account_id,
             snapshot["collected_at"],
-            ingested_at,
+            ingested[0],
         )
         return
 

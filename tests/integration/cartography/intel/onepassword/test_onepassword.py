@@ -11,6 +11,27 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 NEXT_UPDATE_TAG = 123456790
 
+SNAPSHOT_GRANTS = {
+    (data.BART_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
+    (data.COLLECTOR_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
+    (
+        data.ENGINEERING_ID,
+        data.INFRA_VAULT_ID,
+        ("read_items", "reveal_item_password"),
+        data.READ_ITEMS | data.REVEAL_ITEM_PASSWORD,
+    ),
+    (
+        data.OWNERS_ID,
+        data.SHARED_VAULT_ID,
+        ("manage_vault",),
+        data.MANAGE_VAULT | data.UNKNOWN_BIT,
+    ),
+}
+NEWER_SNAPSHOT_GRANTS = {
+    (data.COLLECTOR_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
+    (data.ENGINEERING_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
+}
+
 
 def _write(directory, name, snapshot):
     (directory / name).write_text(json.dumps(snapshot))
@@ -106,22 +127,7 @@ def test_sync_onepassword_snapshot(neo4j_session, tmp_path):
         "name",
         "MEMBER_OF",
     ) == {(data.DEPLOY_BOT_ID, "Engineering")}
-    assert _grants(neo4j_session) == {
-        (data.BART_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
-        (data.COLLECTOR_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
-        (
-            data.ENGINEERING_ID,
-            data.INFRA_VAULT_ID,
-            ("read_items", "reveal_item_password"),
-            data.READ_ITEMS | data.REVEAL_ITEM_PASSWORD,
-        ),
-        (
-            data.OWNERS_ID,
-            data.SHARED_VAULT_ID,
-            ("manage_vault",),
-            data.MANAGE_VAULT | data.UNKNOWN_BIT,
-        ),
-    }
+    assert _grants(neo4j_session) == SNAPSHOT_GRANTS
     assert check_rels(
         neo4j_session,
         "OnePasswordVault",
@@ -165,10 +171,7 @@ def test_newer_snapshot_replaces_removed_access(neo4j_session, tmp_path):
     assert data.BART_ID not in {
         user_id for (user_id,) in check_nodes(neo4j_session, "OnePasswordUser", ["id"])
     }
-    assert _grants(neo4j_session) == {
-        (data.COLLECTOR_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
-        (data.ENGINEERING_ID, data.INFRA_VAULT_ID, ("read_items",), data.READ_ITEMS),
-    }
+    assert _grants(neo4j_session) == NEWER_SNAPSHOT_GRANTS
 
 
 def test_sync_ingests_newest_snapshot_per_account(neo4j_session, tmp_path):
@@ -240,9 +243,7 @@ def test_older_snapshot_never_replaces_a_newer_one(neo4j_session, tmp_path):
     assert check_nodes(neo4j_session, "OnePasswordAccount", ["id", "snapshot_id"]) == {
         (data.ACCOUNT_ID, data.newer_snapshot()["snapshot_id"]),
     }
-    assert data.BART_ID not in {
-        user_id for (user_id,) in check_nodes(neo4j_session, "OnePasswordUser", ["id"])
-    }
+    assert _grants(neo4j_session) == NEWER_SNAPSHOT_GRANTS
 
 
 def test_malformed_snapshot_leaves_the_graph_unchanged(neo4j_session, tmp_path):
@@ -259,4 +260,4 @@ def test_malformed_snapshot_leaves_the_graph_unchanged(neo4j_session, tmp_path):
     assert check_nodes(neo4j_session, "OnePasswordAccount", ["snapshot_id"]) == {
         (data.SNAPSHOT["snapshot_id"],),
     }
-    assert len(_grants(neo4j_session)) == 4
+    assert _grants(neo4j_session) == SNAPSHOT_GRANTS

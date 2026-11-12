@@ -1,6 +1,7 @@
 # 1Password Queries
 
-These queries report the vault grants recorded in the latest snapshot. A
+These queries report the vault grants recorded in the newest ingested snapshot
+for each account. A
 principal reaches a vault directly or through a group. Each grant is its own
 `CAN_ACCESS` relationship, so the queries follow `MEMBER_OF` zero or one hops
 to include both paths and report which one applies. `permissions` holds the

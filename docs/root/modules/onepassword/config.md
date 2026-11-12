@@ -89,8 +89,9 @@ Each snapshot covers one account and the vaults the collector was configured to
 read. Run one collector per account. When the source holds several snapshots
 for the same account, Cartography ingests only the most recently collected one.
 Anything that snapshot no longer contains is deleted from that account, so a
-revoked grant disappears on the next sync. Removing a vault from the
-collector's scope also removes it from the graph.
+revoked grant disappears on the next sync. After you remove a vault from the
+collector's scope and delete snapshots that still list it, the next sync removes
+that vault from the graph.
 
 Cartography stops before changing the graph if any snapshot in the source is
 incomplete, malformed, or unreadable, uses an unsupported schema version, or
