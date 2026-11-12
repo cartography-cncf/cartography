@@ -24,9 +24,10 @@ FETCH_ERRORS = (RequestException, ValueError, KeyError, TypeError, AttributeErro
 
 EUVD_SEARCH_URL = "https://euvdservices.enisa.europa.eu/api/search"
 CONNECT_AND_READ_TIMEOUT = (30, 60)
-# The search also matches CVE ids inside descriptions, so ask for a few records
-# and keep the one that lists the CVE as an alias.
-SEARCH_PAGE_SIZE = 10
+# The search also matches text in descriptions, so the sync pages through the
+# results until it finds the record that lists the CVE as an alias. 100 is the
+# API's largest page.
+SEARCH_PAGE_SIZE = 100
 EUVD_DATE_FORMAT = "%b %d, %Y, %I:%M:%S %p"
 
 # Vector abbreviations expanded to the values NVD uses in cvssData, so the
@@ -162,16 +163,29 @@ def get_euvd_records(
 ) -> dict[str, dict[str, Any]]:
     records: dict[str, dict[str, Any]] = {}
     for cve_id in cve_ids:
-        response = http_session.get(
-            EUVD_SEARCH_URL,
-            params={"text": cve_id, "size": str(SEARCH_PAGE_SIZE)},
-            timeout=CONNECT_AND_READ_TIMEOUT,
-        )
-        response.raise_for_status()
-        record = _find_record(response.json().get("items") or [], cve_id)
+        record = _search_record(http_session, cve_id)
         if record is not None:
             records[cve_id] = transform_euvd_record(record)
     return records
+
+
+def _search_record(http_session: Session, cve_id: str) -> dict[str, Any] | None:
+    page = 0
+    seen = 0
+    while True:
+        response = http_session.get(
+            EUVD_SEARCH_URL,
+            params={"text": cve_id, "size": str(SEARCH_PAGE_SIZE), "page": str(page)},
+            timeout=CONNECT_AND_READ_TIMEOUT,
+        )
+        response.raise_for_status()
+        body = response.json()
+        items = body.get("items") or []
+        record = _find_record(items, cve_id)
+        seen += len(items)
+        if record is not None or not items or seen >= body.get("total", 0):
+            return record
+        page += 1
 
 
 def merge_euvd_into_cves(

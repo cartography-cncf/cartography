@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from cartography.intel.cve_metadata import euvd
+from tests.data.cve_metadata.euvd import EUVD_MENTIONING_RECORD
 from tests.data.cve_metadata.euvd import EUVD_SEARCH_RESPONSES
 from tests.data.cve_metadata.euvd import EUVD_UNSCORED_RECORD
 from tests.data.cve_metadata.euvd import EUVD_V2_RECORD
@@ -115,6 +116,32 @@ def test_get_euvd_records_keeps_the_record_aliasing_the_cve():
     assert {cve_id: r["euvd_id"] for cve_id, r in records.items()} == {
         "CVE-2024-3094": "EUVD-2024-31700",
     }
+
+
+def test_get_euvd_records_pages_until_the_alias_matches():
+    # Arrange - the first page holds only records mentioning the CVE in their text.
+    first_page = {
+        "items": [
+            {**EUVD_MENTIONING_RECORD, "id": f"EUVD-2024-{i:05d}"}
+            for i in range(euvd.SEARCH_PAGE_SIZE)
+        ],
+        "total": euvd.SEARCH_PAGE_SIZE + 1,
+    }
+    pages = {"0": first_page, "1": {"items": [EUVD_XZ_RECORD], "total": 101}}
+
+    def get(url, params, timeout):
+        response = MagicMock()
+        response.json.return_value = pages[params["page"]]
+        return response
+
+    session = MagicMock()
+    session.get.side_effect = get
+
+    # Act
+    records = euvd.get_euvd_records(session, ["CVE-2024-3094"])
+
+    # Assert
+    assert records["CVE-2024-3094"]["euvd_id"] == "EUVD-2024-31700"
 
 
 @pytest.mark.parametrize(
