@@ -5,6 +5,7 @@ import pytest
 import requests
 
 import cartography.intel.cve_metadata
+import cartography.intel.ontology.packages
 import cartography.intel.orca
 from cartography.config import Config
 from tests.data.orca import ALERT_ID_1
@@ -31,6 +32,7 @@ OTHER_ORGANIZATION_ID = "other-orca-organization"
 
 
 AMI_ID = "ami-0abc|us-west-2"
+PACKAGE_ID = "deb|example/synthetic-lib"
 
 
 def _sync_metadata_id(organization_id: str) -> str:
@@ -46,6 +48,7 @@ def cleanup_orca_test_data(neo4j_session):
     cleanup_query = """
     MATCH (n)
     WHERE n:OrcaOrganization
+       OR n:OrcaPackage
        OR n:OrcaAsset
        OR n:OrcaAlert
        OR n:OrcaVulnerability
@@ -58,6 +61,11 @@ def cleanup_orca_test_data(neo4j_session):
         id=PROVIDER_ID_1,
     )
     neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
+    neo4j_session.run(
+        "MATCH (n) WHERE (n:PackageVersion OR n:Package) AND n.id STARTS WITH $id "
+        "DETACH DELETE n",
+        id=PACKAGE_ID,
+    )
     neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
@@ -82,6 +90,11 @@ def cleanup_orca_test_data(neo4j_session):
         id=PROVIDER_ID_1,
     )
     neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
+    neo4j_session.run(
+        "MATCH (n) WHERE (n:PackageVersion OR n:Package) AND n.id STARTS WITH $id "
+        "DETACH DELETE n",
+        id=PACKAGE_ID,
+    )
     neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
@@ -187,11 +200,12 @@ def _resource_edges(neo4j_session) -> set[tuple[str, str]]:
     return alert_edges | vulnerability_edges
 
 
-def _affects_count(neo4j_session) -> int:
+def _asset_affects_count(neo4j_session) -> int:
     return neo4j_session.run(
         """
-        MATCH (finding)-[r:AFFECTS]->()
-        WHERE finding:OrcaAlert OR finding:OrcaVulnerabilityFinding
+        MATCH (finding)-[r:AFFECTS]->(target)
+        WHERE (finding:OrcaAlert OR finding:OrcaVulnerabilityFinding)
+          AND NOT target:OrcaPackage
         RETURN count(r) AS count
         """,
     ).single()["count"]
@@ -399,6 +413,50 @@ def test_vulnerability_on_ami_links_to_regional_image(neo4j_session, mocker):
         "id",
         "AFFECTS",
     ) == {(CVE_ID_1, AMI_ID)}
+
+
+def test_vulnerability_package_reaches_package_version(neo4j_session, mocker):
+    # Arrange
+    _patch_orca_api(mocker)
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(neo4j_session, _config())
+    cartography.intel.ontology.packages.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "OrcaPackage",
+        ["normalized_id", "name", "version", "type"],
+    ) == {(f"{PACKAGE_ID}|1.0.0", "synthetic-lib", "1.0.0", "deb")}
+    assert check_rels(
+        neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaPackage",
+        "normalized_id",
+        "RESOURCE",
+    ) == {(ORGANIZATION_ID, f"{PACKAGE_ID}|1.0.0")}
+    assert check_rels(
+        neo4j_session,
+        "PackageVersion",
+        "id",
+        "OrcaPackage",
+        "normalized_id",
+        "DETECTED_AS",
+    ) == {(f"{PACKAGE_ID}|1.0.0", f"{PACKAGE_ID}|1.0.0")}
+    assert check_rels(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "PackageVersion",
+        "id",
+        "AFFECTS",
+    ) == {(CVE_ID_1, f"{PACKAGE_ID}|1.0.0")}
 
 
 def test_same_target_identifiers_remain_scoped_by_organization(
@@ -672,7 +730,7 @@ def test_complete_sync_cleans_stale_findings_and_retargets_alert_context(
         "orca_id",
         "RESOURCE",
     ) == {(ORGANIZATION_ID, ALERT_ID_1)}
-    assert _affects_count(neo4j_session) == 0
+    assert _asset_affects_count(neo4j_session) == 0
     metadata = neo4j_session.run(
         """
         MATCH (n:ModuleSyncMetadata {id: $id})
@@ -804,7 +862,7 @@ def test_vulnerability_target_change_replaces_the_occurrence(
         "id",
         "RESOURCE",
     ) == {(ORGANIZATION_ID, new_id)}
-    assert _affects_count(neo4j_session) == 0
+    assert _asset_affects_count(neo4j_session) == 0
 
 
 def test_failed_second_sync_preserves_last_known_good_findings(
@@ -866,7 +924,7 @@ def test_failed_second_sync_preserves_last_known_good_findings(
         == original_vulnerabilities
     )
     assert _resource_edges(neo4j_session) == original_resource_edges
-    assert _affects_count(neo4j_session) == 0
+    assert _asset_affects_count(neo4j_session) == 0
     metadata = neo4j_session.run(
         """
         MATCH (n:ModuleSyncMetadata {id: $id})
@@ -978,7 +1036,7 @@ def test_identical_sync_is_idempotent_with_exact_counts(neo4j_session, mocker):
     ).single()["count"]
     assert resource_count == 3
     assert len(_resource_edges(neo4j_session)) == resource_count
-    assert _affects_count(neo4j_session) == 0
+    assert _asset_affects_count(neo4j_session) == 0
     metadata_count = neo4j_session.run(
         """
         MATCH (n:ModuleSyncMetadata {id: $id})

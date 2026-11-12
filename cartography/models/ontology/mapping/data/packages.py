@@ -102,10 +102,31 @@ semgrep_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaPackage",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="normalized_id",
+                    node_field="normalized_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="purl", node_field="purl"),
+            ],
+        ),
+    ],
+)
+
 PACKAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "trivy": trivy_mapping,
     "syft": syft_mapping,
     "gitlab": gitlab_mapping,
     "github": github_mapping,
     "semgrep": semgrep_mapping,
+    "orca": orca_mapping,
 }

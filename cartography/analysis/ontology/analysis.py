@@ -546,6 +546,24 @@ PACKAGE_AFFECTS_SEMGREP_SCA_LINKING = AnalysisJob(
         ),
     ),
 )
+PACKAGE_AFFECTS_ORCA_LINKING = AnalysisJob(
+    name="Ontology - OrcaVulnerabilityFinding AFFECTS PackageVersion linking",
+    short_name="ontology_packages_orca_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (f:OrcaVulnerabilityFinding)-[:AFFECTS]->(:OrcaPackage)<-[:DETECTED_AS]-(p:PackageVersion)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "p",
+                    source_label="OrcaVulnerabilityFinding",
+                    target_label="PackageVersion",
+                ),
+            ),
+        ),
+    ),
+)
 PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
     name="Ontology - PackageVersion SHOULD_UPDATE_TO TrivyFix linking",
     short_name="ontology_packages_should_update_to",
@@ -587,6 +605,7 @@ PACKAGE_LINKING_JOBS = (
     PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT,
     PACKAGE_AFFECTS_LINKING,
     PACKAGE_AFFECTS_SEMGREP_SCA_LINKING,
+    PACKAGE_AFFECTS_ORCA_LINKING,
     PACKAGE_SHOULD_UPDATE_TO_LINKING,
     PACKAGE_DEPENDS_ON_LINKING,
 )
