@@ -1,8 +1,9 @@
 # 1Password Configuration
 
-Cartography reads snapshots that the
-[1Password collector](https://github.com/subimagesec/collectors/tree/main/1password)
-produces. Run the collector first, then point Cartography at its output.
+Cartography reads snapshots that the open source
+[1Password collector](https://github.com/subimagesec/collectors/tree/main/1password),
+maintained by [Subimage](https://subimage.io), produces. Run the collector
+first, then point Cartography at its output.
 
 ## Prerequisites
 
