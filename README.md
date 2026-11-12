@@ -118,6 +118,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [CVE Metadata](https://docs.cartography.dev/modules/cve_metadata/index.html) - CVE enrichment with CVSS scores from NVD, EPSS scores from FIRST.org, known exploited vulnerabilities from the CISA KEV catalog, and SSVC decisions from CISA Vulnrichment
 - [NIST CVE](https://docs.cartography.dev/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database (deprecated - use CVE Metadata instead)
 - [Netlify](https://docs.cartography.dev/modules/netlify/index.html) - Accounts, Users, Invites, Sites, Deploys, Functions, Dev Servers, Agent Runners, Database Branches, Database Snapshots, Environment Variables, Build Hooks, Notification Hooks, Deploy Keys, Snippets, Service Instances, DNS Zones, DNS Records, Certificates, Forms
+- [1Password](https://docs.cartography.dev/modules/onepassword/index.html) - Accounts, Users, Service Accounts, Groups, Vaults, Vault Grants, Item metadata (from collector snapshots)
 - [Okta](https://docs.cartography.dev/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs, federation to AWS roles, federation to AWS Identity Center
 - [OpenAI](https://docs.cartography.dev/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
 - [Oracle Cloud Infrastructure](https://docs.cartography.dev/modules/oci/index.html) - IAM

@@ -43,6 +43,7 @@ modules/netlify/index
 modules/notion/index
 modules/oci/index
 modules/okta/index
+modules/onepassword/index
 modules/ontology/index
 modules/openai/index
 modules/orca/index

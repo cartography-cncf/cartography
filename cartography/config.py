@@ -602,6 +602,10 @@ class Config:
     :param zizmor_source: Report source locator for the Zizmor repository mapping file.
         Accepts a local file, s3://bucket/key, gs://bucket/object, or
         azblob://account/container/blob. Optional.
+    :type onepassword_source: str
+    :param onepassword_source: Report source locator for 1Password collector snapshots.
+        Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or
+        azblob://account/container/prefix. Optional.
     :type zoom_account_id: str
     :param zoom_account_id: Zoom account ID for server-to-server OAuth. Optional.
     :type zoom_client_id: str
@@ -899,6 +903,7 @@ class Config:
         anthropic_organization_id: str | None = None,
         anthropic_service_account_id: str | None = None,
         anthropic_workspace_id: str | None = None,
+        onepassword_source: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1216,6 +1221,7 @@ class Config:
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix
         self.zizmor_source = zizmor_source
+        self.onepassword_source = onepassword_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.zoom_account_id = zoom_account_id
