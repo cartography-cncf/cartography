@@ -11,6 +11,7 @@ from tests.data.cve_metadata.euvd import EUVD_UNSCORED_RECORD
 from tests.data.cve_metadata.euvd import EUVD_V2_RECORD
 from tests.data.cve_metadata.euvd import EUVD_V4_RECORD
 from tests.data.cve_metadata.euvd import EUVD_XZ_RECORD
+from tests.data.cve_metadata.euvd import EUVD_ZERO_SCORE_RECORD
 
 
 @pytest.mark.parametrize(
@@ -70,10 +71,31 @@ from tests.data.cve_metadata.euvd import EUVD_XZ_RECORD
                 "published": datetime(2013, 1, 2, 15, 4, 5, tzinfo=timezone.utc),
                 "cvss_version": "2.0",
                 "vectorString": "AV:N/AC:L/Au:N/C:C/I:P/A:N",
-                "baseScore": 0.0,
-                "baseSeverity": "LOW",
+                "baseScore": 8.5,
+                "baseSeverity": "HIGH",
                 "confidentialityImpact": "COMPLETE",
                 "integrityImpact": "PARTIAL",
+                "availabilityImpact": "NONE",
+            },
+        ),
+        (
+            EUVD_ZERO_SCORE_RECORD,
+            {
+                "euvd_id": "EUVD-2026-00002",
+                "description_en": "A vulnerability with no impact.",
+                "references_urls": [],
+                "published": datetime(2026, 11, 2, 0, 0, 0, tzinfo=timezone.utc),
+                "cvss_version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N",
+                "baseScore": 0.0,
+                "baseSeverity": "NONE",
+                "attackVector": "NETWORK",
+                "attackComplexity": "LOW",
+                "privilegesRequired": "NONE",
+                "userInteraction": "NONE",
+                "scope": "UNCHANGED",
+                "confidentialityImpact": "NONE",
+                "integrityImpact": "NONE",
                 "availabilityImpact": "NONE",
             },
         ),
@@ -87,7 +109,13 @@ from tests.data.cve_metadata.euvd import EUVD_XZ_RECORD
             },
         ),
     ],
-    ids=["cvss-3.1", "cvss-4.0-matches-nvd-fields", "cvss-2.0-zero-score", "unscored"],
+    ids=[
+        "cvss-3.1",
+        "cvss-4.0-matches-nvd-fields",
+        "cvss-2.0",
+        "versioned-zero-score",
+        "unscored",
+    ],
 )
 def test_transform_euvd_record(record, expected):
     assert euvd.transform_euvd_record(record) == expected
