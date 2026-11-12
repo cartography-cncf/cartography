@@ -29,7 +29,8 @@ class OnePasswordUserNodeProperties(CartographyNodeProperties):
         "state",
         description=(
             "Account state reported by 1Password, such as `ACTIVE`, `PENDING`, "
-            "or `SUSPENDED`."
+            "or `SUSPENDED`. The ontology marks `SUSPENDED`, "
+            "`PROVISION_SUSPENDED`, and `DELETED` users inactive."
         ),
     )
     type: PropertyRef = PropertyRef(

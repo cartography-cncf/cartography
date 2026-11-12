@@ -35,7 +35,7 @@ class OnePasswordItemNodeProperties(CartographyNodeProperties):
     )
     state: PropertyRef = PropertyRef(
         "state",
-        description="`ARCHIVED` for archived items. Active items have no state.",
+        description="Item state reported by 1Password, such as `ARCHIVED`.",
     )
     created_at: PropertyRef = PropertyRef(
         "created_at",

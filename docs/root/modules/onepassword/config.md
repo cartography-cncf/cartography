@@ -38,6 +38,14 @@ Use a prefix that contains only 1Password snapshots. Cartography reads every
 `.json` object under it on each sync, so have the collector overwrite one fixed
 object per account rather than keep timestamped copies.
 
+```{note}
+The module is named `onepassword` because identifiers can't start with a
+digit. `1password` isn't a valid Python module name or keyword argument, and
+Neo4j labels such as `1PasswordUser` would need backticks in every query. Use
+`onepassword` in `--selected-modules`, `--onepassword-source`, and the
+`OnePassword*` node labels. 1Password's own Python SDK uses the same name.
+```
+
 ## Run Cartography
 
 ```bash
@@ -76,6 +84,20 @@ Repeat `--vault-id` for every vault to cover. The service account must have
 Cartography accepts snapshots that use schema version `1.x` and have the status
 `complete`. The collector repository documents the
 [snapshot format](https://github.com/subimagesec/collectors/blob/main/1password/docs/format.md).
+
+Each snapshot covers one account and the vaults the collector was configured to
+read. When the source holds several snapshots for the same account, Cartography
+ingests only the most recently collected one. Anything the snapshot no longer
+contains is deleted from that account, so a revoked grant disappears on the
+next sync.
+
+Cartography stops before changing the graph if any snapshot in the source is
+incomplete, malformed, unreadable, or uses an unsupported schema version. An
+older snapshot could otherwise restore access that 1Password already revoked.
+
+`OnePasswordAccount.snapshot_collected_at` records when the collector finished.
+If it falls behind your collection schedule, the collector stopped running and
+the graph shows access as of that time.
 
 ## Troubleshooting
 
