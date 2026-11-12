@@ -33,6 +33,9 @@ from cartography.models.github.container_image_layers import (
     GitHubContainerImageLayerNextRelSchema,
 )
 from cartography.models.github.container_image_layers import (
+    GitHubContainerImageLayerNodeSchema,
+)
+from cartography.models.github.container_image_layers import (
     GitHubContainerImageLayerSchema,
 )
 from cartography.models.github.container_images import GitHubContainerImageSchema
@@ -422,7 +425,7 @@ def load_container_image_layers(
 ) -> None:
     load(
         neo4j_session,
-        GitHubContainerImageLayerSchema(),
+        GitHubContainerImageLayerNodeSchema(),
         layers,
         batch_size=CONTAINER_IMAGE_LAYER_BATCH_SIZE,
         lastupdated=update_tag,

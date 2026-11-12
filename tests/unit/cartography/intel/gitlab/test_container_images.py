@@ -5,10 +5,19 @@ from cartography.intel.gitlab.container_images import GITLAB_CONTAINER_IMAGE_BAT
 from cartography.intel.gitlab.container_images import (
     GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE,
 )
+from cartography.intel.gitlab.container_images import (
+    GITLAB_CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE,
+)
 from cartography.intel.gitlab.container_images import load_container_image_layers
 from cartography.intel.gitlab.container_images import load_container_images
 from cartography.intel.gitlab.container_images import sync_container_images
 from cartography.intel.gitlab.container_images import transform_container_image_layers
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerNextRelSchema,
+)
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerNodeSchema,
+)
 
 
 def _patch_sync_container_images_dependencies(
@@ -110,7 +119,10 @@ def test_load_container_image_layers_sends_one_next_pair_per_row(monkeypatch):
     )
 
     node_load, next_load = load_mock.call_args_list
+    assert isinstance(node_load.args[1], GitLabContainerImageLayerNodeSchema)
     assert node_load.kwargs["batch_size"] == GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE
+    assert isinstance(next_load.args[1], GitLabContainerImageLayerNextRelSchema)
+    assert next_load.kwargs["batch_size"] == GITLAB_CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE
     assert next_load.args[2] == [
         {"diff_id": "sha256:a", "next_diff_ids": ["sha256:b"]},
         {"diff_id": "sha256:a", "next_diff_ids": ["sha256:c"]},

@@ -106,11 +106,32 @@ class GitHubContainerImageLayerSchema(CartographyNodeSchema):
     sub_resource_relationship: GitHubContainerImageLayerToOrgRel = (
         GitHubContainerImageLayerToOrgRel()
     )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubContainerImageLayerToNextRel()],
+    )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
 
 
 @dataclass(frozen=True)
-class GitHubContainerImageLayerRelNodeProperties(CartographyNodeProperties):
+class GitHubContainerImageLayerNodeSchema(CartographyNodeSchema):
+    """An uncompressed container image layer identified by its diff ID."""
+
+    # Implementation note:
+    # Load layer nodes without the high-fanout NEXT relationship.
+    # GitHubContainerImageLayerSchema keeps NEXT so cleanup still removes stale edges.
+
+    label: str = "GitHubContainerImageLayer"
+    properties: GitHubContainerImageLayerNodeProperties = (
+        GitHubContainerImageLayerNodeProperties()
+    )
+    sub_resource_relationship: GitHubContainerImageLayerToOrgRel = (
+        GitHubContainerImageLayerToOrgRel()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageLayerRelLoadProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "diff_id",
         description="Uncompressed layer diff ID used as the stable identifier.",
@@ -120,17 +141,16 @@ class GitHubContainerImageLayerRelNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GitHubContainerImageLayerNextRelSchema(CartographyNodeSchema):
-    """Relationship-only NEXT writes, one (layer, next layer) pair per row.
+    """An uncompressed container image layer identified by its diff ID."""
 
-    A shared base layer can precede a different layer in every image built on
-    it. Loading those successors as one list in a single row makes Neo4j's
-    pipelined runtime request one allocation sized for the whole list, which
-    exceeds the per-transaction memory cap on large registries.
-    """
+    # Implementation note:
+    # Load NEXT one (layer, next layer) pair per row. A shared base layer can
+    # precede a different layer in every image built on it, and one row with
+    # that whole list exceeds Neo4j's per-transaction memory cap.
 
     label: str = "GitHubContainerImageLayer"
-    properties: GitHubContainerImageLayerRelNodeProperties = (
-        GitHubContainerImageLayerRelNodeProperties()
+    properties: GitHubContainerImageLayerRelLoadProperties = (
+        GitHubContainerImageLayerRelLoadProperties()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubContainerImageLayerToNextRel()],

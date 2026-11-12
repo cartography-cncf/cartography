@@ -29,6 +29,9 @@ from cartography.models.gitlab.container_image_layers import (
     GitLabContainerImageLayerNextRelSchema,
 )
 from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerNodeSchema,
+)
+from cartography.models.gitlab.container_image_layers import (
     GitLabContainerImageLayerSchema,
 )
 from cartography.models.gitlab.container_images import GitLabContainerImageSchema
@@ -662,7 +665,7 @@ def load_container_image_layers(
     """
     load(
         neo4j_session,
-        GitLabContainerImageLayerSchema(),
+        GitLabContainerImageLayerNodeSchema(),
         layers,
         batch_size=GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE,
         lastupdated=update_tag,
