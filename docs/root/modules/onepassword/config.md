@@ -86,18 +86,22 @@ Cartography accepts snapshots that use schema version `1.x` and have the status
 [snapshot format](https://github.com/subimagesec/collectors/blob/main/1password/docs/format.md).
 
 Each snapshot covers one account and the vaults the collector was configured to
-read. When the source holds several snapshots for the same account, Cartography
-ingests only the most recently collected one. Anything the snapshot no longer
-contains is deleted from that account, so a revoked grant disappears on the
-next sync.
+read. Run one collector per account. When the source holds several snapshots
+for the same account, Cartography ingests only the most recently collected one.
+Anything that snapshot no longer contains is deleted from that account, so a
+revoked grant disappears on the next sync. Removing a vault from the
+collector's scope also removes it from the graph.
 
 Cartography stops before changing the graph if any snapshot in the source is
-incomplete, malformed, unreadable, or uses an unsupported schema version. An
+incomplete, malformed, or unreadable, uses an unsupported schema version, or
+covers different vaults than another snapshot of the same account. It also
+skips an account whose snapshot is older than the one already in the graph. An
 older snapshot could otherwise restore access that 1Password already revoked.
 
 `OnePasswordAccount.snapshot_collected_at` records when the collector finished.
-If it falls behind your collection schedule, the collector stopped running and
-the graph shows access as of that time.
+If it falls behind your collection schedule, the snapshot is stale: check that
+the collector still runs and that its output still reaches the source. The
+graph shows access as of that time.
 
 ## Troubleshooting
 
@@ -106,3 +110,5 @@ the graph shows access as of that time.
 | `No 1Password snapshots found` | Check that the source path or prefix contains the collector's `.json` output. |
 | `is not a 1Password collector snapshot` | Remove other JSON files from the prefix, or point to a narrower prefix. |
 | `uses unsupported snapshot schema version` | Upgrade Cartography to a version that supports the collector's schema. |
+| `cover different vaults` | Run one collector per account, and delete snapshots left from an earlier vault scope. |
+| `Skipping 1Password account ... is older than the ingested snapshot` | Check why the source holds an older snapshot, such as a restored backup or a second collector. |

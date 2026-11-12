@@ -24,6 +24,7 @@ NO_SNAPSHOT = "no_snapshot"
 NOT_A_SNAPSHOT = "not_a_snapshot"
 UNSUPPORTED_VERSION = "unsupported_version"
 INCOMPLETE = "incomplete"
+CONFLICTING_SCOPE = "conflicting_scope"
 
 _REQUIRED_FIELDS: dict[str, type] = {
     "account_id": str,
@@ -65,6 +66,14 @@ def validate_snapshot(snapshot: Any, source_uri: str) -> dict[str, Any]:
         for field, field_type in _REQUIRED_FIELDS.items()
         if not isinstance(snapshot.get(field), field_type)
     )
+    if not malformed:
+        try:
+            _collected_at(snapshot)
+        except ValueError:
+            malformed.append("collected_at")
+        vault_ids = {vault.get("id") for vault in snapshot["vaults"]}
+        if not vault_ids or vault_ids != set(snapshot["scope"].get("vault_ids", [])):
+            malformed.append("vaults")
     if malformed:
         raise SnapshotError(
             NOT_A_SNAPSHOT,
@@ -97,6 +106,17 @@ def get(reader: ReportReader) -> list[dict[str, Any]]:
         snapshot = validate_snapshot(read_json_report(reader, ref), ref.uri)
         account_id = snapshot["account_id"]
         current = newest.get(account_id)
+        # Two collectors with different vault scopes for one account would
+        # take turns deleting each other's vaults.
+        if current is not None and set(current["scope"]["vault_ids"]) != set(
+            snapshot["scope"]["vault_ids"]
+        ):
+            raise SnapshotError(
+                CONFLICTING_SCOPE,
+                f"Snapshots for 1Password account {account_id} in "
+                f"{reader.source_uri} cover different vaults. Run one collector "
+                "per account, or remove the snapshots for the old scope.",
+            )
         if current is None or (_collected_at(snapshot), snapshot["snapshot_id"]) > (
             _collected_at(current),
             current["snapshot_id"],

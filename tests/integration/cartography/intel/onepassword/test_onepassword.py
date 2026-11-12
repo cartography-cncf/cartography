@@ -225,3 +225,38 @@ def test_sync_of_one_account_keeps_other_accounts(neo4j_session, tmp_path):
         account_id=data.ACCOUNT_ID,
     ).single()["count"]
     assert first_account_resources == 12
+
+
+def test_older_snapshot_never_replaces_a_newer_one(neo4j_session, tmp_path):
+    # Arrange: the newer snapshot revoked Bart; the source later regresses.
+    _write(tmp_path, "snapshot.json", data.newer_snapshot())
+    _sync(neo4j_session, tmp_path, TEST_UPDATE_TAG)
+    _write(tmp_path, "snapshot.json", data.SNAPSHOT)
+
+    # Act
+    _sync(neo4j_session, tmp_path, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert check_nodes(neo4j_session, "OnePasswordAccount", ["id", "snapshot_id"]) == {
+        (data.ACCOUNT_ID, data.newer_snapshot()["snapshot_id"]),
+    }
+    assert data.BART_ID not in {
+        user_id for (user_id,) in check_nodes(neo4j_session, "OnePasswordUser", ["id"])
+    }
+
+
+def test_malformed_snapshot_leaves_the_graph_unchanged(neo4j_session, tmp_path):
+    # Arrange
+    _write(tmp_path, "snapshot.json", data.SNAPSHOT)
+    _sync(neo4j_session, tmp_path, TEST_UPDATE_TAG)
+    malformed = data.newer_snapshot()
+    malformed["groups"] = [{}]
+    _write(tmp_path, "snapshot.json", malformed)
+
+    # Act and assert
+    with pytest.raises(KeyError):
+        _sync(neo4j_session, tmp_path, NEXT_UPDATE_TAG)
+    assert check_nodes(neo4j_session, "OnePasswordAccount", ["snapshot_id"]) == {
+        (data.SNAPSHOT["snapshot_id"],),
+    }
+    assert len(_grants(neo4j_session)) == 4

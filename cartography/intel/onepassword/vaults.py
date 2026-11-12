@@ -14,7 +14,6 @@ from cartography.models.onepassword.vault import (
 )
 from cartography.models.onepassword.vault import OnePasswordUserCanAccessVaultRel
 from cartography.models.onepassword.vault import OnePasswordVaultSchema
-from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
@@ -101,16 +100,3 @@ def cleanup(
             common_job_parameters["ACCOUNT_ID"],
             common_job_parameters["UPDATE_TAG"],
         ).run(neo4j_session)
-
-
-@timeit
-def sync(
-    neo4j_session: neo4j.Session,
-    snapshot: dict[str, Any],
-    update_tag: int,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    vaults = transform_vaults(snapshot)
-    grants = transform_grants(snapshot)
-    load_vaults(neo4j_session, vaults, grants, snapshot["account_id"], update_tag)
-    cleanup(neo4j_session, common_job_parameters)

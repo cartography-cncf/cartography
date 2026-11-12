@@ -30,6 +30,8 @@ def _with(**changes):
         (_with(provider="lastpass"), snapshots.NOT_A_SNAPSHOT),
         (["not", "a", "snapshot"], snapshots.NOT_A_SNAPSHOT),
         (_with(items=None), snapshots.NOT_A_SNAPSHOT),
+        (_with(collected_at="not-a-timestamp"), snapshots.NOT_A_SNAPSHOT),
+        (_with(vaults=[]), snapshots.NOT_A_SNAPSHOT),
     ],
 )
 def test_get_rejects_snapshots_that_cannot_be_trusted(tmp_path, document, reason):
@@ -77,3 +79,15 @@ def test_get_stops_on_unparseable_json(tmp_path):
     with pytest.raises(ObjectStoreError, match="broken.json"):
         with LocalReportReader(str(tmp_path)) as reader:
             snapshots.get(reader)
+
+
+def test_get_rejects_snapshots_of_one_account_with_different_scopes(tmp_path):
+    # Arrange
+    narrower = data.newer_snapshot()
+    narrower["scope"]["vault_ids"] = [data.INFRA_VAULT_ID]
+    narrower["vaults"] = [{"id": data.INFRA_VAULT_ID}]
+
+    # Act and assert
+    with pytest.raises(snapshots.SnapshotError) as error:
+        _get(tmp_path, {"old-scope.json": data.SNAPSHOT, "new-scope.json": narrower})
+    assert error.value.reason == snapshots.CONFLICTING_SCOPE

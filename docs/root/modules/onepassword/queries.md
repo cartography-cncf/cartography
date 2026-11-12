@@ -1,10 +1,12 @@
 # 1Password Queries
 
-A principal reaches a vault directly or through a group. Each grant is its own
-`CAN_ACCESS` relationship, so these queries follow `MEMBER_OF` zero or one hops
+These queries report the vault grants recorded in the latest snapshot. A
+principal reaches a vault directly or through a group. Each grant is its own
+`CAN_ACCESS` relationship, so the queries follow `MEMBER_OF` zero or one hops
 to include both paths and report which one applies. `permissions` holds the
 granted 1Password permission names. `manage_vault` and group ownership don't
-imply `read_items`.
+imply `read_items`, and account state or 1Password policies can further limit
+effective access.
 
 ## Find Who Can Reveal Passwords in Each Vault
 
@@ -17,11 +19,11 @@ RETURN v.id AS vault, coalesce(p.email, p.name, p.id) AS principal,
 ORDER BY vault, principal
 ```
 
-## Find Suspended Users Who Still Hold Vault Access
+## Find Inactive Users Who Still Hold Vault Access
 
 ```cypher
 MATCH (u:OnePasswordUser)-[:MEMBER_OF*0..1]->(holder)-[grant:CAN_ACCESS]->(v:OnePasswordVault)
-WHERE u.state <> 'ACTIVE'
+WHERE u.state IN ['SUSPENDED', 'PROVISION_SUSPENDED', 'DELETED']
 RETURN u.email, u.state, v.id AS vault,
        CASE WHEN u = holder THEN 'direct' ELSE holder.name END AS via,
        grant.permissions
@@ -32,7 +34,8 @@ RETURN u.email, u.state, v.id AS vault,
 ```cypher
 MATCH (p)-[grant:CAN_ACCESS]->(v:OnePasswordVault)
 WHERE p:OnePasswordUser OR p:OnePasswordServiceAccount
-RETURN coalesce(p.email, p.name, p.id) AS principal, labels(p)[0] AS kind,
+RETURN coalesce(p.email, p.name, p.id) AS principal,
+       CASE WHEN p:OnePasswordServiceAccount THEN 'service account' ELSE 'user' END AS kind,
        v.id AS vault, grant.permissions
 ```
 

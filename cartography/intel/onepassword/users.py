@@ -8,7 +8,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.onepassword.user import OnePasswordServiceAccountSchema
 from cartography.models.onepassword.user import OnePasswordUserSchema
-from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
@@ -86,21 +85,3 @@ def cleanup(
         OnePasswordServiceAccountSchema(),
         common_job_parameters,
     ).run(neo4j_session)
-
-
-@timeit
-def sync(
-    neo4j_session: neo4j.Session,
-    snapshot: dict[str, Any],
-    update_tag: int,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    users, service_accounts = transform(snapshot)
-    load_users(
-        neo4j_session,
-        users,
-        service_accounts,
-        snapshot["account_id"],
-        update_tag,
-    )
-    cleanup(neo4j_session, common_job_parameters)
