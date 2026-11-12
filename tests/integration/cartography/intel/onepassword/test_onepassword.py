@@ -243,6 +243,9 @@ def test_older_snapshot_never_replaces_a_newer_one(neo4j_session, tmp_path):
     assert check_nodes(neo4j_session, "OnePasswordAccount", ["id", "snapshot_id"]) == {
         (data.ACCOUNT_ID, data.newer_snapshot()["snapshot_id"]),
     }
+    assert data.BART_ID not in {
+        user_id for (user_id,) in check_nodes(neo4j_session, "OnePasswordUser", ["id"])
+    }
     assert _grants(neo4j_session) == NEWER_SNAPSHOT_GRANTS
 
 
