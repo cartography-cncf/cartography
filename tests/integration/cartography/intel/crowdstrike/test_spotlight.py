@@ -4,6 +4,8 @@ from unittest.mock import patch
 import cartography.intel.crowdstrike
 import cartography.intel.crowdstrike.endpoints
 import cartography.intel.crowdstrike.spotlight
+import cartography.intel.ontology.devices
+import cartography.intel.ontology.packages
 from tests.data.crowdstrike.endpoints import GET_HOSTS
 from tests.data.crowdstrike.spotlight import GET_SPOTLIGHT_VULNERABILITIES
 from tests.integration.util import check_nodes
@@ -135,6 +137,87 @@ def test_sync_spotlight_vulnerabilities(
     assert check_nodes(neo4j_session, "CrowdstrikeFinding", ["id"]) == {
         ("CVE-2019-5094",),
     }
+
+
+@patch.object(cartography.intel.crowdstrike.spotlight, "Spotlight_Vulnerabilities")
+@patch.object(
+    cartography.intel.crowdstrike.spotlight,
+    "get_spotlight_vulnerabilities",
+    return_value=[GET_SPOTLIGHT_VULNERABILITIES],
+)
+@patch.object(cartography.intel.crowdstrike.endpoints, "Hosts")
+@patch.object(
+    cartography.intel.crowdstrike.endpoints, "get_hosts", return_value=GET_HOSTS
+)
+@patch.object(
+    cartography.intel.crowdstrike.endpoints, "get_host_ids", return_value=[["dummy-id"]]
+)
+def test_spotlight_applications_reach_package_versions_and_devices(
+    mock_host_ids,
+    mock_hosts,
+    mock_hosts_cls,
+    mock_vulns,
+    mock_spotlight_cls,
+    neo4j_session,
+):
+    # Arrange
+    authorization = MagicMock()
+    package_id = "generic|e2fsprogs|1.42.9-12.amzn2.0.2"
+
+    # Act
+    cartography.intel.crowdstrike.endpoints.sync_hosts(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        authorization,
+    )
+    cartography.intel.crowdstrike.spotlight.sync_vulnerabilities(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        authorization,
+    )
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["crowdstrike"],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    cartography.intel.ontology.packages.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "CrowdstrikeApplication",
+        ["normalized_id", "name", "vendor", "version"],
+    ) == {(package_id, "e2fsprogs", "Unknown", "1.42.9-12.amzn2.0.2")}
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeApplication",
+        "normalized_id",
+        "CrowdstrikeHost",
+        "id",
+        "DEPLOYED",
+    ) == {(package_id, "00000000000000000000000000000000")}
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeFinding",
+        "id",
+        "PackageVersion",
+        "id",
+        "AFFECTS",
+    ) == {("CVE-2019-5094", package_id)}
+    assert check_rels(
+        neo4j_session,
+        "PackageVersion",
+        "id",
+        "Device",
+        "hostname",
+        "DEPLOYED",
+    ) == {(package_id, "test")}
 
 
 @patch.object(cartography.intel.crowdstrike.spotlight, "Spotlight_Vulnerabilities")

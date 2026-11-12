@@ -12,6 +12,7 @@ from cartography.intel.crowdstrike.label_migrations import (
 )
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
+from cartography.models.crowdstrike.applications import CrowdstrikeApplicationSchema
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import (
@@ -113,6 +114,9 @@ def cleanup(
         if spotlight_synced:
             GraphJob.from_node_schema(
                 SpotlightVulnerabilitySchema(), scoped_params
+            ).run(neo4j_session)
+            GraphJob.from_node_schema(
+                CrowdstrikeApplicationSchema(), scoped_params
             ).run(neo4j_session)
 
     if not spotlight_synced:
