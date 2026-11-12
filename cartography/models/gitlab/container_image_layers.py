@@ -118,7 +118,8 @@ class GitLabContainerImageLayerSchema(CartographyNodeSchema):
     Relationships:
     - RESOURCE: Sub-resource to GitLabOrganization for cleanup
     - HAS_LAYER: Inward relationship from GitLabContainerImage (defined in image schema)
-    - NEXT: Outward relationship to the next layer in the stack (linked list)
+    - NEXT: Outward relationship to the next layer in the stack (linked list),
+      loaded through GitLabContainerImageLayerNextRelSchema
     - HEAD: Inward relationship from images to their first layer (defined in image schema)
     - TAIL: Inward relationship from images to their last layer (defined in image schema)
     """
@@ -130,9 +131,32 @@ class GitLabContainerImageLayerSchema(CartographyNodeSchema):
     sub_resource_relationship: GitLabContainerImageLayerToOrgRel = (
         GitLabContainerImageLayerToOrgRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            GitLabContainerImageLayerToNextRel(),
-        ]
-    )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageLayerRelNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description="Uncompressed layer diff ID used as the stable identifier.",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageLayerNextRelSchema(CartographyNodeSchema):
+    """Relationship-only NEXT writes, one (layer, next layer) pair per row.
+
+    A shared base layer can precede a different layer in every image built on
+    it. Loading those successors as one list in a single row makes Neo4j's
+    pipelined runtime request one allocation sized for the whole list, which
+    exceeds the per-transaction memory cap on large registries.
+    """
+
+    label: str = "GitLabContainerImageLayer"
+    properties: GitLabContainerImageLayerRelNodeProperties = (
+        GitLabContainerImageLayerRelNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitLabContainerImageLayerToNextRel()],
+    )

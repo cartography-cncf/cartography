@@ -106,7 +106,32 @@ class GitHubContainerImageLayerSchema(CartographyNodeSchema):
     sub_resource_relationship: GitHubContainerImageLayerToOrgRel = (
         GitHubContainerImageLayerToOrgRel()
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageLayerRelNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description="Uncompressed layer diff ID used as the stable identifier.",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageLayerNextRelSchema(CartographyNodeSchema):
+    """Relationship-only NEXT writes, one (layer, next layer) pair per row.
+
+    A shared base layer can precede a different layer in every image built on
+    it. Loading those successors as one list in a single row makes Neo4j's
+    pipelined runtime request one allocation sized for the whole list, which
+    exceeds the per-transaction memory cap on large registries.
+    """
+
+    label: str = "GitHubContainerImageLayer"
+    properties: GitHubContainerImageLayerRelNodeProperties = (
+        GitHubContainerImageLayerRelNodeProperties()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [GitHubContainerImageLayerToNextRel()],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
