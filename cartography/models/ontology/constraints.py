@@ -85,6 +85,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="Container", dst="FilesystemSnapshot", label="SCANNED_AS"),
     RelConstraint(src="ComputeInstance", dst="FilesystemSnapshot", label="SCANNED_AS"),
     RelConstraint(src="CVE", dst="FilesystemSnapshot", label="AFFECTS"),
+    # A finding without package data names the asset it affects directly.
+    RelConstraint(src="CVE", dst="Image", label="AFFECTS"),
+    RelConstraint(src="CVE", dst="ComputeInstance", label="AFFECTS"),
+    RelConstraint(src="CVE", dst="Function", label="AFFECTS"),
     RelConstraint(src="PackageVersion", dst="FilesystemSnapshot", label="DEPLOYED"),
     # A source snapshot identifies the repository whose exact revision it represents.
     RelConstraint(src="FilesystemSnapshot", dst="CodeRepository", label="SNAPSHOT_OF"),
