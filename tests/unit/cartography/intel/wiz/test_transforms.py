@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.intel.wiz.findings import get_finding_id
 from cartography.intel.wiz.findings import transform as transform_findings
 from cartography.intel.wiz.issues import transform as transform_issues
@@ -37,6 +39,83 @@ def test_transform_findings_extracts_vulnerability_cve_and_resource_metadata():
     assert findings[0]["resource_external_id"] == (
         "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
     )
+
+
+@pytest.mark.parametrize(
+    ("resource_type", "cloud_platform", "external_id", "expected"),
+    [
+        (
+            "VIRTUAL_MACHINE",
+            "AWS",
+            "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc",
+            {
+                "affected_ec2_instance_arn": (
+                    "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc"
+                ),
+            },
+        ),
+        (
+            "VIRTUAL_MACHINE_IMAGE",
+            "AWS",
+            "ami-0abc",
+            {"affected_ami_id": "ami-0abc|us-east-1"},
+        ),
+        (
+            "VIRTUAL_MACHINE",
+            None,
+            "https://www.googleapis.com/compute/v1/projects/p/zones/z/instances/vm",
+            {"affected_gcp_instance_id": "projects/p/zones/z/instances/vm"},
+        ),
+        (
+            "SERVERLESS",
+            "AWS",
+            "arn:aws:lambda:us-east-1:123456789012:function:handler",
+            {
+                "affected_lambda_arn": (
+                    "arn:aws:lambda:us-east-1:123456789012:function:handler"
+                ),
+            },
+        ),
+        (
+            "VIRTUAL_MACHINE",
+            "GCP",
+            "https://www.googleapis.com/compute/v1/projects/p/zones/z/instances/vm",
+            {"affected_gcp_instance_id": "projects/p/zones/z/instances/vm"},
+        ),
+        (
+            "CONTAINER_IMAGE",
+            "AWS",
+            "sha256:abc",
+            {"affected_image_digest": "sha256:abc"},
+        ),
+        ("CONTAINER", "AWS", "abc123", {}),
+        ("SERVERLESS", "GCP", "f40515c8-ed8e-49b9-9451-423ef05fefe1", {}),
+    ],
+)
+def test_transform_findings_extracts_affected_asset_id(
+    resource_type,
+    cloud_platform,
+    external_id,
+    expected,
+):
+    finding = {
+        **VULNERABILITY_FINDINGS[0],
+        "vulnerableAsset": {
+            "id": RESOURCE_ID_1,
+            "type": resource_type,
+            "cloudPlatform": cloud_platform,
+            "providerUniqueId": external_id,
+            "region": "us-east-1",
+        },
+    }
+
+    record = transform_findings([finding], TENANT_ID)[0]
+
+    assert {
+        key: value
+        for key, value in record.items()
+        if key.startswith("affected_") and value is not None
+    } == expected
 
 
 def test_transform_findings_labels_non_cve_vulnerabilities_as_security_issues():

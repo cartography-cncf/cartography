@@ -1,4 +1,5 @@
 import logging
+import re
 from collections.abc import Iterable
 from collections.abc import Iterator
 from typing import Any
@@ -8,6 +9,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.wiz.api import get_paginated
 from cartography.intel.wiz.util import epoch_days_ago_iso
 from cartography.intel.wiz.util import extract_cve_id
@@ -263,18 +265,69 @@ def transform(
     for finding in raw_findings:
         finding_type = finding.get(_FINDING_TYPE_KEY)
         if finding_type == FINDING_TYPE_VULNERABILITY:
-            result.append(_transform_vulnerability_finding(finding, tenant_id))
+            record = _transform_vulnerability_finding(finding, tenant_id)
         elif finding_type == FINDING_TYPE_CONFIGURATION:
-            result.append(_transform_configuration_finding(finding, tenant_id))
+            record = _transform_configuration_finding(finding, tenant_id)
         elif finding_type == FINDING_TYPE_DETECTION:
-            result.append(_transform_detection(finding, tenant_id))
+            record = _transform_detection(finding, tenant_id)
         else:
             logger.warning(
                 "Skipping Wiz finding %s with unknown finding type %s",
                 finding.get("id"),
                 finding_type,
             )
+            continue
+        result.append(record | _affected_asset_ids(record))
     return result
+
+
+_EC2_INSTANCE_ARN = re.compile(r"^arn:aws[a-z-]*:ec2:[^:]*:\d*:instance/i-[0-9a-f]+$")
+_LAMBDA_ARN = re.compile(r"^arn:aws[a-z-]*:lambda:[^:]*:\d*:function:[^:]+$")
+_AMI_ID = re.compile(r"^ami-[0-9a-f]+$")
+
+
+def _affected_asset_ids(record: dict[str, Any]) -> dict[str, str | None]:
+    resource_type = record.get("resource_type")
+    external_id = record.get("resource_external_id") or ""
+    region = record.get("resource_region")
+    # Detections carry no cloud platform, so a GCP instance is recognized by its
+    # Compute self link.
+    is_gcp_instance = (
+        resource_type == "VIRTUAL_MACHINE"
+        and external_id.startswith("https://www.googleapis.com/compute/")
+        and "/instances/" in external_id
+    )
+    return {
+        "affected_ec2_instance_arn": (
+            external_id
+            if resource_type == "VIRTUAL_MACHINE"
+            and _EC2_INSTANCE_ARN.match(external_id)
+            else None
+        ),
+        # AWSEC2Image IDs are regional: "<ami id>|<region>".
+        "affected_ami_id": (
+            f"{external_id}|{region}"
+            if resource_type == "VIRTUAL_MACHINE_IMAGE"
+            and _AMI_ID.match(external_id)
+            and region
+            else None
+        ),
+        "affected_lambda_arn": (
+            external_id
+            if resource_type == "SERVERLESS" and _LAMBDA_ARN.match(external_id)
+            else None
+        ),
+        "affected_gcp_instance_id": (
+            parse_compute_full_uri_to_partial_uri(external_id)
+            if is_gcp_instance
+            else None
+        ),
+        "affected_image_digest": (
+            external_id
+            if resource_type == "CONTAINER_IMAGE" and external_id.startswith("sha256:")
+            else None
+        ),
+    }
 
 
 def _transform_vulnerability_finding(
