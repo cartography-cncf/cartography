@@ -321,6 +321,57 @@ def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("target_type", "arn", "provider_id", "expected"),
+    [
+        (
+            "AwsEc2Instance",
+            TARGET_ARN_1,
+            PROVIDER_ID_1,
+            {"affected_ec2_instance_arn": TARGET_ARN_1},
+        ),
+        (
+            "AwsLambdaFunction",
+            "arn:aws:lambda:us-west-2:111122223333:function:handler",
+            "arn:aws:lambda:us-west-2:111122223333:function:handler",
+            {
+                "affected_lambda_arn": (
+                    "arn:aws:lambda:us-west-2:111122223333:function:handler"
+                ),
+            },
+        ),
+        ("AwsEc2Image", None, "ami-0abc", {"affected_ami_id": "ami-0abc|us-west-2"}),
+        ("AwsEcrImage", None, "ecr-repository-app-tag", {}),
+    ],
+)  # type: ignore[misc]
+def test_vulnerability_transform_extracts_affected_asset_id(
+    target_type: str,
+    arn: str | None,
+    provider_id: str,
+    expected: dict[str, str],
+) -> None:
+    # Arrange
+    raw = {
+        **VULNERABILITIES[0],
+        "Inventory": {
+            **VULNERABILITIES[0]["Inventory"],
+            "Type": target_type,
+            "Arn": arn,
+            "UiUniqueField": provider_id,
+        },
+    }
+
+    # Act
+    result = vulnerabilities.transform([raw], ORGANIZATION_ID)[0]
+
+    # Assert
+    assert {
+        key: value
+        for key, value in result.items()
+        if key.startswith("affected_") and value is not None
+    } == expected
+
+
 def test_vulnerability_identity_ignores_nonidentity_target_context() -> None:
     # Arrange
     changed = deepcopy(VULNERABILITIES[0])

@@ -14,4 +14,6 @@ removes alerts that were closed or dismissed since the previous sync. A
 reopened alert returns on the next sync.
 
 The module retains exact Orca and provider target identifiers as finding
-properties. It doesn't ingest Orca Inventory or create asset relationships.
+properties. It doesn't ingest Orca Inventory. A vulnerability finding links with
+`AFFECTS` to the AWS EC2 instance, Lambda function, or AMI that its provider
+identifier names exactly, when Cartography has synced that asset.

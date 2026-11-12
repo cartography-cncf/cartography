@@ -30,6 +30,9 @@ TEST_UPDATE_TAG = 123456789
 OTHER_ORGANIZATION_ID = "other-orca-organization"
 
 
+AMI_ID = "ami-0abc|us-west-2"
+
+
 def _sync_metadata_id(organization_id: str) -> str:
     return f"OrcaOrganization_{organization_id}_OrcaData"
 
@@ -51,6 +54,11 @@ def cleanup_orca_test_data(neo4j_session):
     """
     neo4j_session.run(cleanup_query)
     neo4j_session.run(
+        "MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n",
+        id=PROVIDER_ID_1,
+    )
+    neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
+    neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
     )
@@ -69,6 +77,11 @@ def cleanup_orca_test_data(neo4j_session):
     yield
 
     neo4j_session.run(cleanup_query)
+    neo4j_session.run(
+        "MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n",
+        id=PROVIDER_ID_1,
+    )
+    neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
     neo4j_session.run(
         "MATCH (n:CVEMetadata {id: $cve_id}) DETACH DELETE n",
         cve_id=CVE_ID_1,
@@ -184,11 +197,20 @@ def _affects_count(neo4j_session) -> int:
     ).single()["count"]
 
 
-def test_start_orca_ingestion_loads_finding_only_ontology_graph(
+def _seed_ec2_instance(neo4j_session) -> None:
+    neo4j_session.run(
+        "MERGE (i:AWSEC2Instance {id: $id}) SET i.arn = $arn",
+        id=PROVIDER_ID_1,
+        arn=TARGET_ARN_1,
+    )
+
+
+def test_start_orca_ingestion_loads_findings_and_links_affected_assets(
     neo4j_session,
     mocker,
 ):
     # Arrange
+    _seed_ec2_instance(neo4j_session)
     _patch_orca_api(mocker)
 
     # Act
@@ -334,7 +356,14 @@ def test_start_orca_ingestion_loads_finding_only_ontology_graph(
         "cve_id",
         "RESOURCE",
     ) == {(ORGANIZATION_ID, CVE_ID_1)}
-    assert _affects_count(neo4j_session) == 0
+    assert check_rels(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "AWSEC2Instance",
+        "id",
+        "AFFECTS",
+    ) == {(CVE_ID_1, PROVIDER_ID_1)}
     semantic_collisions = neo4j_session.run(
         """
         MATCH (n)
@@ -344,6 +373,32 @@ def test_start_orca_ingestion_loads_finding_only_ontology_graph(
         """,
     ).single()
     assert semantic_collisions["count"] == 0
+
+
+def test_vulnerability_on_ami_links_to_regional_image(neo4j_session, mocker):
+    # Arrange
+    neo4j_session.run(
+        "MERGE (i:AWSEC2Image {id: $id}) SET i.imageid = 'ami-0abc'",
+        id=AMI_ID,
+    )
+    vulnerability = deepcopy(VULNERABILITIES[0])
+    vulnerability["Inventory"].update(
+        {"Type": "AwsEc2Image", "Arn": None, "UiUniqueField": "ami-0abc"},
+    )
+    _patch_orca_api(mocker, vulnerabilities=[vulnerability])
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(neo4j_session, _config())
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "AWSEC2Image",
+        "id",
+        "AFFECTS",
+    ) == {(CVE_ID_1, AMI_ID)}
 
 
 def test_same_target_identifiers_remain_scoped_by_organization(
