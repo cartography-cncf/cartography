@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CrowdstrikeApplicationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="CrowdStrike customer ID and the application's package URL, joined by `|`.",
+        description="CrowdStrike customer ID, vendor, and `product_name_version`, joined by `|`.",
     )
     normalized_id: PropertyRef = PropertyRef(
         "normalized_id",

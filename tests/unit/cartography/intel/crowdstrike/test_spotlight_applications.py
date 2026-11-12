@@ -47,8 +47,8 @@ def _item(aid: str, cve_id: str, app: dict) -> dict:
             {
                 "name": "Windows",
                 "vendor": "Microsoft",
-                "version": "Server 2022",
-                "normalized_id": "generic|microsoft/windows|Server 2022",
+                "version": None,
+                "normalized_id": None,
             },
         ),
         (
@@ -95,3 +95,36 @@ def test_transform_applications_groups_hosts_and_cves_per_application():
     assert len(applications) == 1
     assert applications[0]["host_ids"] == ["host-1", "host-2"]
     assert applications[0]["cve_ids"] == ["CVE-2024-0001", "CVE-2024-0002"]
+
+
+def test_transform_applications_keeps_unversioned_products_apart():
+    # Arrange
+    items = [
+        _item(
+            "host-1",
+            "CVE-2024-0001",
+            {
+                "product_name_version": "Windows Server 2022",
+                "product_name_normalized": "Windows",
+                "vendor_normalized": "Microsoft",
+            },
+        ),
+        _item(
+            "host-2",
+            "CVE-2024-0001",
+            {
+                "product_name_version": "Windows Server 2019",
+                "product_name_normalized": "Windows",
+                "vendor_normalized": "Microsoft",
+            },
+        ),
+    ]
+
+    # Act
+    applications = transform_applications(items)
+
+    # Assert
+    assert sorted(application["host_ids"] for application in applications) == [
+        ["host-1"],
+        ["host-2"],
+    ]

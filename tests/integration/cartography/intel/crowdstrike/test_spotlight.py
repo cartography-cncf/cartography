@@ -259,6 +259,9 @@ def test_cleanup_drops_orphan_crowdstrike_cves(
     cartography.intel.crowdstrike.cleanup(neo4j_session, common_job_parameters)
 
     assert check_nodes(neo4j_session, "CVE", ["id"]) == {("CVE-2019-5094",)}
+    assert check_nodes(neo4j_session, "CrowdstrikeApplication", ["name"]) == {
+        ("e2fsprogs",),
+    }
 
     # Second run: vulnerability is closed -> not returned, update_tag advances
     next_tag = TEST_UPDATE_TAG + 1
@@ -277,6 +280,7 @@ def test_cleanup_drops_orphan_crowdstrike_cves(
     assert (
         check_nodes(neo4j_session, "CrowdstrikeSpotlightVulnerability", ["id"]) == set()
     )
+    assert check_nodes(neo4j_session, "CrowdstrikeApplication", ["id"]) == set()
 
 
 def test_cleanup_removes_legacy_unscoped_spotlight_data(neo4j_session):

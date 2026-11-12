@@ -141,7 +141,9 @@ def transform_applications(data: list[dict]) -> list[dict[str, Any]]:
             name=name,
             version=version,
         ).to_string()
-        node_id = f"{cid}|{purl}"
+        # Keyed on what Spotlight reports, so two versions of a product stay apart
+        # even when no version can be parsed out of the name.
+        node_id = f"{cid}|{vendor}|{product_name_version}"
         application = applications.setdefault(
             node_id,
             {
@@ -176,9 +178,10 @@ def transform_applications(data: list[dict]) -> list[dict[str, Any]]:
 def _application_version(name: str, product_name_version: str) -> str | None:
     # Spotlight reports the version only inside `product_name_version`, after the
     # normalized product name: ".Net Framework 4.8" for ".Net Framework".
-    if product_name_version.startswith(name):
-        return product_name_version[len(name) :].strip() or None
-    return None
+    if not product_name_version.startswith(name):
+        return None
+    remainder = product_name_version[len(name) :].strip()
+    return remainder if remainder[:1].isdigit() else None
 
 
 def _remediation_ids(item: dict[str, Any]) -> list[str]:
