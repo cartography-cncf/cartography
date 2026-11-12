@@ -34,7 +34,7 @@ and how:
 MATCH (p)-[:MEMBER_OF*0..1]->(holder)-[grant:CAN_ACCESS]->(v:OnePasswordVault)
 WHERE (p:OnePasswordUser OR p:OnePasswordServiceAccount)
   AND 'reveal_item_password' IN grant.permissions
-RETURN v.id AS vault, p.email AS principal,
+RETURN v.id AS vault, coalesce(p.email, p.name, p.id) AS principal,
        CASE WHEN p = holder THEN 'direct' ELSE holder.name END AS via
 ```
 

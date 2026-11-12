@@ -4,6 +4,7 @@ import json
 import pytest
 
 from cartography.intel.common.object_store import LocalReportReader
+from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.onepassword import snapshots
 from tests.data.onepassword import snapshots as data
 
@@ -28,6 +29,7 @@ def _with(**changes):
         (_with(schema_version="2.0"), snapshots.UNSUPPORTED_VERSION),
         (_with(provider="lastpass"), snapshots.NOT_A_SNAPSHOT),
         (["not", "a", "snapshot"], snapshots.NOT_A_SNAPSHOT),
+        (_with(items=None), snapshots.NOT_A_SNAPSHOT),
     ],
 )
 def test_get_rejects_snapshots_that_cannot_be_trusted(tmp_path, document, reason):
@@ -64,3 +66,14 @@ def test_get_breaks_collection_time_ties_deterministically(tmp_path):
 
     # Assert
     assert [snapshot["snapshot_id"] for snapshot in result] == [later_id["snapshot_id"]]
+
+
+def test_get_stops_on_unparseable_json(tmp_path):
+    # Arrange
+    (tmp_path / "newest.json").write_text(json.dumps(data.newer_snapshot()))
+    (tmp_path / "broken.json").write_text("{not json")
+
+    # Act and assert
+    with pytest.raises(ObjectStoreError, match="broken.json"):
+        with LocalReportReader(str(tmp_path)) as reader:
+            snapshots.get(reader)

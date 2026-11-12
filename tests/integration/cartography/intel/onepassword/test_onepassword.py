@@ -217,3 +217,11 @@ def test_sync_of_one_account_keeps_other_accounts(neo4j_session, tmp_path):
     # Assert
     assert len(check_nodes(neo4j_session, "OnePasswordUser", ["id"])) == 3
     assert len(_grants(neo4j_session)) == 4
+    first_account_resources = neo4j_session.run(
+        """
+        MATCH (:OnePasswordAccount {id: $account_id})-[:RESOURCE]->(n)
+        RETURN count(n) AS count
+        """,
+        account_id=data.ACCOUNT_ID,
+    ).single()["count"]
+    assert first_account_resources == 12

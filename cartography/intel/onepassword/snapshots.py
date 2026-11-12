@@ -25,6 +25,21 @@ NOT_A_SNAPSHOT = "not_a_snapshot"
 UNSUPPORTED_VERSION = "unsupported_version"
 INCOMPLETE = "incomplete"
 
+_REQUIRED_FIELDS: dict[str, type] = {
+    "account_id": str,
+    "collected_at": str,
+    "snapshot_id": str,
+    "collector": dict,
+    "scope": dict,
+    "users": list,
+    "groups": list,
+    "group_memberships": list,
+    "vaults": list,
+    "vault_user_grants": list,
+    "vault_group_grants": list,
+    "items": list,
+}
+
 
 def validate_snapshot(snapshot: Any, source_uri: str) -> dict[str, Any]:
     # A snapshot describes the complete access state of its vault scope, so a
@@ -43,6 +58,18 @@ def validate_snapshot(snapshot: Any, source_uri: str) -> dict[str, Any]:
         )
     if snapshot["status"] != "complete":
         raise SnapshotError(INCOMPLETE, f"{source_uri} is not a complete snapshot.")
+    # Check the shape of every snapshot before any account syncs, so a
+    # malformed one stops the run instead of failing after others loaded.
+    malformed = sorted(
+        field
+        for field, field_type in _REQUIRED_FIELDS.items()
+        if not isinstance(snapshot.get(field), field_type)
+    )
+    if malformed:
+        raise SnapshotError(
+            NOT_A_SNAPSHOT,
+            f"{source_uri} has missing or malformed fields: {', '.join(malformed)}.",
+        )
     return snapshot
 
 
