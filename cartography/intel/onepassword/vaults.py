@@ -43,32 +43,30 @@ def transform_vaults(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
 
 def transform_grants(
     snapshot: dict[str, Any],
-) -> list[tuple[CartographyRelSchema, list[dict[str, Any]]]]:
-    """Pair vault grants with the relationship schema of the principal's node label."""
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split vault grants by principal, in GRANT_SCHEMAS order."""
     service_account_ids = {
         user["id"] for user in snapshot["users"] if is_service_account(user)
     }
     user_grants: list[dict[str, Any]] = []
     service_account_grants: list[dict[str, Any]] = []
     for grant in snapshot["vault_user_grants"]:
-        if grant["user_id"] in service_account_ids:
-            service_account_grants.append(_grant(grant, grant["user_id"]))
-        else:
-            user_grants.append(_grant(grant, grant["user_id"]))
+        rows = (
+            service_account_grants
+            if grant["user_id"] in service_account_ids
+            else user_grants
+        )
+        rows.append(_grant(grant, grant["user_id"]))
     group_grants = [
         _grant(grant, grant["group_id"]) for grant in snapshot["vault_group_grants"]
     ]
-    return [
-        (OnePasswordUserCanAccessVaultRel(), user_grants),
-        (OnePasswordServiceAccountCanAccessVaultRel(), service_account_grants),
-        (OnePasswordGroupCanAccessVaultRel(), group_grants),
-    ]
+    return user_grants, service_account_grants, group_grants
 
 
 def load_vaults(
     neo4j_session: neo4j.Session,
     vaults: list[dict[str, Any]],
-    grants: list[tuple[CartographyRelSchema, list[dict[str, Any]]]],
+    grants: tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]],
     account_id: str,
     update_tag: int,
 ) -> None:
@@ -79,7 +77,7 @@ def load_vaults(
         lastupdated=update_tag,
         ACCOUNT_ID=account_id,
     )
-    for schema, rows in grants:
+    for schema, rows in zip(GRANT_SCHEMAS, grants, strict=True):
         load_matchlinks(
             neo4j_session,
             schema,

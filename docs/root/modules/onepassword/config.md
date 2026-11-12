@@ -35,7 +35,8 @@ Set `--onepassword-source` to one of the following:
   `azblob://account/container/prefix` URI
 
 Use a prefix that contains only 1Password snapshots. Cartography reads every
-`.json` object under it.
+`.json` object under it on each sync, so have the collector overwrite one fixed
+object per account rather than keep timestamped copies.
 
 ## Run Cartography
 

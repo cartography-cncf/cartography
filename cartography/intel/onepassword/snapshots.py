@@ -12,19 +12,37 @@ PROVIDER = "onepassword"
 SUPPORTED_SCHEMA_MAJOR_VERSION = "1"
 
 
+class SnapshotError(ValueError):
+    """A snapshot source that Cartography refuses to ingest, with a stable reason."""
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message)
+        self.reason = reason
+
+
+NO_SNAPSHOT = "no_snapshot"
+NOT_A_SNAPSHOT = "not_a_snapshot"
+UNSUPPORTED_VERSION = "unsupported_version"
+INCOMPLETE = "incomplete"
+
+
 def validate_snapshot(snapshot: Any, source_uri: str) -> dict[str, Any]:
     # A snapshot describes the complete access state of its vault scope, so a
     # partial or unknown document must never reach the graph: its absences
     # would be cleaned up as revoked access.
     if not isinstance(snapshot, dict) or snapshot.get("provider") != PROVIDER:
-        raise ValueError(f"{source_uri} is not a 1Password collector snapshot.")
+        raise SnapshotError(
+            NOT_A_SNAPSHOT,
+            f"{source_uri} is not a 1Password collector snapshot.",
+        )
     schema_version = snapshot["schema_version"]
     if schema_version.split(".")[0] != SUPPORTED_SCHEMA_MAJOR_VERSION:
-        raise ValueError(
+        raise SnapshotError(
+            UNSUPPORTED_VERSION,
             f"{source_uri} uses unsupported snapshot schema version {schema_version}.",
         )
     if snapshot["status"] != "complete":
-        raise ValueError(f"{source_uri} is not a complete snapshot.")
+        raise SnapshotError(INCOMPLETE, f"{source_uri} is not a complete snapshot.")
     return snapshot
 
 
@@ -42,7 +60,10 @@ def get(reader: ReportReader) -> list[dict[str, Any]]:
     """
     refs = filter_report_refs(reader.list_reports(), suffix=".json")
     if not refs:
-        raise ValueError(f"No 1Password snapshots found in {reader.source_uri}.")
+        raise SnapshotError(
+            NO_SNAPSHOT,
+            f"No 1Password snapshots found in {reader.source_uri}.",
+        )
 
     newest: dict[str, dict[str, Any]] = {}
     for ref in refs:

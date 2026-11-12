@@ -77,6 +77,15 @@ def test_sync_onepassword_snapshot(neo4j_session, tmp_path):
         (data.MARGE_ID, "marge@example.com", "ACTIVE", "MEMBER"),
         (data.BART_ID, "bart@example.com", "SUSPENDED", "GUEST"),
     }
+    assert check_nodes(
+        neo4j_session,
+        "OnePasswordUser",
+        ["id", "_ont_email", "_ont_inactive", "_ont_source"],
+    ) == {
+        (data.HOMER_ID, "homer@example.com", False, "onepassword"),
+        (data.MARGE_ID, "marge@example.com", False, "onepassword"),
+        (data.BART_ID, "bart@example.com", True, "onepassword"),
+    }
     assert check_nodes(neo4j_session, "OnePasswordServiceAccount", ["id", "name"]) == {
         (data.DEPLOY_BOT_ID, "Deploy bot"),
         (data.COLLECTOR_ID, None),
@@ -141,25 +150,6 @@ def test_sync_onepassword_snapshot(neo4j_session, tmp_path):
     ).single()["count"]
     # 3 users, 2 service accounts, 2 groups, 2 vaults, 3 items
     assert resource_count == 12
-
-
-def test_onepassword_users_map_to_ontology(neo4j_session, tmp_path):
-    # Arrange
-    _write(tmp_path, "snapshot.json", data.SNAPSHOT)
-
-    # Act
-    _sync(neo4j_session, tmp_path, TEST_UPDATE_TAG)
-
-    # Assert
-    assert check_nodes(
-        neo4j_session,
-        "OnePasswordUser",
-        ["id", "_ont_email", "_ont_inactive", "_ont_source"],
-    ) == {
-        (data.HOMER_ID, "homer@example.com", False, "onepassword"),
-        (data.MARGE_ID, "marge@example.com", False, "onepassword"),
-        (data.BART_ID, "bart@example.com", True, "onepassword"),
-    }
 
 
 def test_newer_snapshot_replaces_removed_access(neo4j_session, tmp_path):
