@@ -13,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image_layers import build_next_layer_rows
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
 from cartography.intel.container_image_layers import get_complete_layer_digests
 from cartography.intel.container_image_layers import refresh_layer_closures
@@ -1450,7 +1451,7 @@ def load_image_layers(
     load(
         neo4j_session,
         GCPArtifactRegistryImageLayerNextRelSchema(),
-        layer_dicts,
+        build_next_layer_rows(layer_dicts),
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
         lastupdated=update_tag,
     )

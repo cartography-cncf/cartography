@@ -745,7 +745,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
     assert call.kwargs["PROJECT_ID"] == "proj"
 
 
-def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch):
+def test_load_image_layers_sends_one_next_pair_per_row(monkeypatch):
     load_nodes_without_relationships = MagicMock()
     load_matchlinks_with_progress = MagicMock()
     load = MagicMock()
@@ -761,7 +761,13 @@ def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch)
     )
     monkeypatch.setattr(supply_chain, "load", load)
     neo4j_session = MagicMock()
-    layers = [{"diff_id": "sha256:a", "history": "FROM scratch"}]
+    layers = [
+        {
+            "diff_id": "sha256:a",
+            "history": "FROM scratch",
+            "next_diff_ids": ["sha256:b", "sha256:c"],
+        },
+    ]
 
     supply_chain.load_image_layers(neo4j_session, layers, "proj", 1)
 
@@ -784,6 +790,16 @@ def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch)
     assert rel_call.kwargs["PROJECT_ID"] == "proj"
     assert rel_call.kwargs["_sub_resource_label"] == "GCPProject"
     assert rel_call.kwargs["_sub_resource_id"] == "proj"
+
+    load.assert_called_once()
+    next_call = load.call_args
+    assert next_call.args[1].__class__.__name__ == (
+        "GCPArtifactRegistryImageLayerNextRelSchema"
+    )
+    assert next_call.args[2] == [
+        {"diff_id": "sha256:a", "next_diff_ids": ["sha256:b"]},
+        {"diff_id": "sha256:a", "next_diff_ids": ["sha256:c"]},
+    ]
 
 
 def test_build_image_layer_relationship_dicts_skips_manifest_lists():

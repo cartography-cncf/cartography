@@ -74,6 +74,23 @@ def _scope_parameters(
     return ", ".join(entries), parameters
 
 
+def build_next_layer_rows(
+    layers: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return one NEXT row per (layer, next layer) pair.
+
+    A shared base layer is followed by a different layer in every image built on
+    it, so its next_diff_ids list grows with the registry. Sent as one row, that
+    list makes Neo4j size a single allocation for the whole fan-out, which on a
+    registry with millions of layers exceeds the transaction memory limit.
+    """
+    return [
+        {"diff_id": layer["diff_id"], "next_diff_ids": [next_diff_id]}
+        for layer in layers
+        for next_diff_id in layer.get("next_diff_ids") or []
+    ]
+
+
 def get_complete_layer_digests(
     neo4j_session: neo4j.Session,
     shape: ContainerImageLayerGraphShape,
