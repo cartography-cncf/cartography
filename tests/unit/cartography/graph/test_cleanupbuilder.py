@@ -2,11 +2,13 @@ from typing import List
 
 import pytest
 
+from cartography.graph.cleanupbuilder import _build_cleanup_detach_query
 from cartography.graph.cleanupbuilder import _build_cleanup_node_and_rel_queries
 from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_resource
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import get_parameters
 from cartography.models.aws.emr import EMRClusterToAWSAccountRel
+from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm import (
     FakeEC2InstanceSchema,
@@ -57,6 +59,23 @@ def test_cleanup_sub_rel():
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
+
+
+def test_build_cleanup_detach_query_excludes_sub_resource_rel():
+    """
+    Test that the detach query excludes the sub resource relationship, since the node
+    cleanup query still needs it to find stale nodes.
+    """
+    actual_query = _build_cleanup_detach_query(InterestingAssetSchema())
+    expected_query = """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """
+    assert clean_query_list([actual_query]) == clean_query_list([expected_query])
 
 
 def test_cleanup_with_selected_rel():
@@ -112,6 +131,14 @@ def test_build_cleanup_queries():
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+        """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $SCAN_LIMIT_SIZE
         CALL (n) {
             DETACH DELETE n
@@ -140,6 +167,43 @@ def test_build_cleanup_queries():
         WITH r LIMIT $SCAN_LIMIT_SIZE
         CALL (r) {
             DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """,
+    ]
+    assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
+
+
+def test_build_cleanup_queries_aws_inspector_package():
+    """
+    Regression test for the production incident that motivated this module: AWSInspectorPackage
+    cleanup OOM'd (MemoryPoolOutOfMemoryError) because DETACH DELETE's relationship cascade was
+    unbounded for this densely-connected label. Uses the real schema, not a synthetic fixture, to
+    prove the fix applies to the label that actually broke.
+    """
+    actual_queries: list[str] = build_cleanup_queries(AWSInspectorPackageSchema())
+    expected_queries = [
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RESOURCE'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """,
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE s.lastupdated <> $UPDATE_TAG
+        WITH s LIMIT $SCAN_LIMIT_SIZE
+        CALL (s) {
+            DELETE s
         } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
     ]
