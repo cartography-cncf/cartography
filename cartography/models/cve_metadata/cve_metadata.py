@@ -44,7 +44,18 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
         ),
     )
     cvss_version: PropertyRef = PropertyRef(
-        "cvss_version", description="CVSS version selected from the NVD metrics."
+        "cvss_version",
+        description=(
+            "CVSS version of the score, the newest primary one NVD reports, or "
+            "EUVD's when NVD has no score."
+        ),
+    )
+    cvss_source: PropertyRef = PropertyRef(
+        "cvss_source",
+        description=(
+            "Where the CVSS fields come from: nvd, or euvd when NVD has no score "
+            "for the CVE. Unset when neither has one."
+        ),
     )
     vector_string: PropertyRef = PropertyRef(
         "vectorString", description="CVSS vector string."
@@ -197,6 +208,14 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
             "SSVC decision."
         ),
     )
+    # ENISA EU Vulnerability Database fields
+    euvd_id: PropertyRef = PropertyRef(
+        "euvd_id",
+        description=(
+            "EUVD identifier (EUVD-YYYY-NNNN) of the CVE. Set only for CVEs that "
+            "NVD has not scored, the only ones the sync looks up in EUVD."
+        ),
+    )
 
 
 # Relationships
@@ -247,7 +266,7 @@ class CVEMetadataToCVERel(CartographyRelSchema):
 class CVEMetadataSchema(CartographyNodeSchema):
     """
     Enrichment metadata for a CVE, sourced from NVD, EPSS, the CISA KEV catalog,
-    and CISA Vulnrichment.
+    CISA Vulnrichment, and ENISA's EU Vulnerability Database.
     """
 
     label: str = "CVEMetadata"

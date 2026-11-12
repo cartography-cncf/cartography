@@ -15,6 +15,7 @@ from cartography.intel.cve_metadata import start_cve_metadata_ingestion
 from cartography.intel.cve_metadata.nvd import transform_cves
 from cartography.intel.cve_metadata.vulnrichment import read_vulnrichment_archive
 from cartography.util import run_analysis_job
+from tests.data.cve_metadata.euvd import EUVD_XZ_RECORD
 from tests.data.cve_metadata.kev import GET_KEV_CATALOG
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
 from tests.data.cve_metadata.vulnrichment import ARCHIVE_RECORDS
@@ -476,3 +477,85 @@ def test_sync_vulnrichment_truncated_archive(neo4j_session):
         "CVEMetadataFeed",
         ["source_vulnrichment", "vulnrichment_commit"],
     ) == {(True, None)}
+
+
+def _mock_euvd(http_session, cve_ids):
+    records = {"CVE-2024-3094": EUVD_XZ_RECORD}
+    return {
+        cve_id: cartography.intel.cve_metadata.euvd.transform_euvd_record(
+            records[cve_id],
+        )
+        for cve_id in cve_ids
+        if cve_id in records
+    }
+
+
+@pytest.mark.parametrize(
+    "fetch, expected",
+    [
+        (
+            _mock_euvd,
+            {
+                ("CVE-2023-41782", 3.9, "LOW", "nvd", None, "none"),
+                (
+                    "CVE-2024-3094",
+                    10.0,
+                    "CRITICAL",
+                    "euvd",
+                    "EUVD-2024-31700",
+                    "cvss",
+                ),
+            },
+        ),
+        (
+            requests.exceptions.ConnectionError("EUVD unreachable"),
+            {
+                ("CVE-2023-41782", 3.9, "LOW", "nvd", None, "none"),
+                ("CVE-2024-3094", None, None, None, None, "none"),
+            },
+        ),
+    ],
+    ids=["euvd-fills-nvd-gap", "euvd-unreachable"],
+)
+@patch.object(
+    cartography.intel.cve_metadata.nvd,
+    "get_and_transform_nvd_cves",
+    side_effect=_mock_nvd,
+)
+def test_sync_euvd(mock_nvd, fetch, expected, neo4j_session):
+    # Arrange - NVD scores CVE-2023-41782 but has no record of CVE-2024-3094.
+    _create_cve_nodes(neo4j_session, ["CVE-2023-41782", "CVE-2024-3094"])
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        update_tag=TEST_UPDATE_TAG,
+        cve_metadata_src=["nvd", "euvd"],
+    )
+
+    # Act
+    with patch.object(
+        cartography.intel.cve_metadata.euvd,
+        "get_euvd_records",
+        side_effect=fetch,
+    ) as mock_euvd:
+        start_cve_metadata_ingestion(neo4j_session, config)
+
+    # Assert - only the CVE without an NVD score is looked up in EUVD.
+    assert [c.args[1] for c in mock_euvd.call_args_list] == [["CVE-2024-3094"]]
+    assert (
+        check_nodes(
+            neo4j_session,
+            "CVEMetadata",
+            [
+                "id",
+                "base_score",
+                "base_severity",
+                "cvss_source",
+                "euvd_id",
+                "effect_tags_source",
+            ],
+        )
+        == expected
+    )
+    assert check_nodes(neo4j_session, "CVEMetadataFeed", ["source_euvd"]) == {
+        (True,),
+    }
