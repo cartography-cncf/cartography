@@ -52,6 +52,46 @@ RAW_NODES = [
     ),
 ]
 
+# A self-managed (k3s) node on a Scaleway Instance: providerID carries no cloud
+# reference, so the instance is only identifiable through the CSI driver.
+SCALEWAY_INSTANCE_ID = "11111111-2222-3333-4444-555555555555"
+RAW_SCALEWAY_NODES = [
+    SimpleNamespace(
+        metadata=SimpleNamespace(name="my-scaleway-node", labels={}),
+        spec=SimpleNamespace(provider_id="k3s://my-scaleway-node"),
+        status=SimpleNamespace(
+            capacity={"cpu": "2", "memory": "8Gi"},
+            allocatable={"cpu": "2", "memory": "8Gi"},
+            node_info=SimpleNamespace(
+                architecture="amd64",
+                operating_system="linux",
+                os_image="Ubuntu 24.04 LTS",
+                kernel_version="6.8.0-31-generic",
+                container_runtime_version="containerd://2.0.0-k3s1",
+                kubelet_version="v1.31.1+k3s1",
+            ),
+        ),
+    ),
+]
+RAW_CSI_NODES = [
+    SimpleNamespace(
+        metadata=SimpleNamespace(name="my-scaleway-node"),
+        spec=SimpleNamespace(
+            drivers=[
+                SimpleNamespace(
+                    name="csi.scaleway.com",
+                    node_id=f"fr-par-2/{SCALEWAY_INSTANCE_ID}",
+                ),
+            ],
+        ),
+    ),
+    # A node with no CSI driver registered.
+    SimpleNamespace(
+        metadata=SimpleNamespace(name="my-arm-node"),
+        spec=SimpleNamespace(drivers=None),
+    ),
+]
+
 RAW_PODS = [
     SimpleNamespace(
         metadata=SimpleNamespace(

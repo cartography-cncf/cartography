@@ -5,9 +5,11 @@ from typing import Any
 
 import neo4j
 from kubernetes.client.exceptions import ApiException
+from kubernetes.client.models import V1CSINode
 from kubernetes.client.models import V1Node
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gcp.gke_utils import instance_id_from_provider_id
@@ -25,6 +27,45 @@ logger = logging.getLogger(__name__)
 @timeit
 def get_nodes(client: K8sClient) -> list[V1Node]:
     return k8s_paginate(client.core.list_node, raise_on_error=True)
+
+
+@timeit
+def get_csi_nodes(client: K8sClient) -> list[V1CSINode]:
+    return k8s_paginate(client.storage.list_csi_node, raise_on_error=True)
+
+
+def get_synced_csi_node_ids(
+    session: neo4j.Session,
+    cluster_id: str,
+) -> dict[str, dict[str, str]]:
+    """Read the CSI driver node IDs a previous sync stored on the cluster's nodes."""
+    query = """
+    MATCH (:KubernetesCluster {id: $CLUSTER_ID})-[:RESOURCE]->(n:KubernetesNode)
+    WHERE n.csi_node_ids IS NOT NULL
+    RETURN n.name AS name, n.csi_node_ids AS csi_node_ids
+    """
+    rows = session.execute_read(read_list_of_dicts_tx, query, CLUSTER_ID=cluster_id)
+    return {row["name"]: json.loads(row["csi_node_ids"]) for row in rows}
+
+
+def transform_csi_node_ids(csi_nodes: list[V1CSINode]) -> dict[str, dict[str, str]]:
+    """Map each node name to the node ID every CSI driver registered for it.
+
+    A ``CSINode`` object is named after its node. Each installed CSI driver
+    records the ID it knows the node by (``spec.drivers[].nodeID``), which for
+    cloud block-storage drivers is usually the cloud instance ID.
+    """
+    result: dict[str, dict[str, str]] = {}
+    for csi_node in csi_nodes:
+        drivers = getattr(csi_node.spec, "drivers", None) or []
+        node_ids = {
+            driver.name: driver.node_id
+            for driver in drivers
+            if driver.name and driver.node_id
+        }
+        if node_ids:
+            result[csi_node.metadata.name] = node_ids
+    return result
 
 
 def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:
@@ -55,11 +96,43 @@ def _azure_scope_from_provider_id(
     return match.group(1).lower(), match.group(2).lower()
 
 
+_SCALEWAY_INSTANCE_PROVIDER_ID_PREFIX = "scaleway://instance/"
+_SCALEWAY_CSI_DRIVER = "csi.scaleway.com"
+_UUID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
+
+
+def _scaleway_instance_id(
+    provider_id: str | None,
+    csi_node_ids: dict[str, str] | None,
+) -> str | None:
+    """Resolve the Scaleway Instance server ID backing a node.
+
+    Kapsule and clusters running the Scaleway cloud controller manager set
+    ``spec.providerID`` to ``scaleway://instance/<zone>/<server-id>``.
+    Self-managed distributions without a cloud controller (k3s, kubeadm, ...)
+    leave no Scaleway reference there, but the Scaleway CSI driver still
+    registers each node as ``<zone>/<server-id>``, so fall back to that.
+    """
+    candidates: list[str | None] = []
+    if provider_id and provider_id.startswith(_SCALEWAY_INSTANCE_PROVIDER_ID_PREFIX):
+        candidates.append(provider_id)
+    candidates.append((csi_node_ids or {}).get(_SCALEWAY_CSI_DRIVER))
+    for candidate in candidates:
+        server_id = (candidate or "").rsplit("/", 1)[-1]
+        if _UUID.match(server_id):
+            return server_id.lower()
+    return None
+
+
 def transform_nodes(
     nodes: list[V1Node],
     cluster_name: str,
     gke_resource_name: str | None = None,
+    csi_node_ids: dict[str, dict[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
+    csi_node_ids = csi_node_ids or {}
     transformed = []
     for node in nodes:
         ni = node.status.node_info if node.status else None
@@ -71,6 +144,7 @@ def transform_nodes(
         azure_subscription_id, azure_resource_group = _azure_scope_from_provider_id(
             provider_id
         )
+        node_csi_ids = csi_node_ids.get(node.metadata.name)
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
@@ -80,6 +154,12 @@ def transform_nodes(
                 "gcp_instance_id": instance_id_from_provider_id(provider_id),
                 "azure_subscription_id": azure_subscription_id,
                 "azure_resource_group": azure_resource_group,
+                "csi_node_ids": (
+                    json.dumps(node_csi_ids, sort_keys=True) if node_csi_ids else None
+                ),
+                "scaleway_instance_id": _scaleway_instance_id(
+                    provider_id, node_csi_ids
+                ),
                 "gke_node_pool": gke_node_pool,
                 "gke_node_pool_id": (
                     f"{gke_resource_name}/nodePools/{gke_node_pool}"
@@ -156,9 +236,40 @@ def sync_nodes(
             )
             return {}
         raise
+    # CSINode data only enriches nodes with the IDs their CSI drivers know them
+    # by, so nodes still sync when it cannot be read.
+    try:
+        csi_node_ids = transform_csi_node_ids(get_csi_nodes(client))
+    except ApiException as err:
+        if err.status in (401, 403):
+            # A denied list cannot be told apart from "no CSI drivers", so keep
+            # the IDs from the last successful sync instead of clearing them
+            # and the links derived from them.
+            logger.warning(
+                "Cartography lacks permission to list csinodes on cluster %s (status %s). "
+                "Keeping previously synced CSI driver node IDs; nodes that only expose "
+                "their cloud instance through a CSI driver are not newly linked to it.",
+                client.name,
+                err.status,
+            )
+            csi_node_ids = get_synced_csi_node_ids(
+                session, common_job_parameters["CLUSTER_ID"]
+            )
+        elif err.status == 404:
+            logger.info(
+                "Cluster %s does not serve the CSINode API; syncing nodes without "
+                "CSI driver node IDs.",
+                client.name,
+            )
+            csi_node_ids = {}
+        else:
+            raise
     gke_ref = get_gke_cluster_ref(client)
     transformed = transform_nodes(
-        raw_nodes, client.name, gke_ref.resource_name if gke_ref else None
+        raw_nodes,
+        client.name,
+        gke_ref.resource_name if gke_ref else None,
+        csi_node_ids,
     )
     load_nodes(
         session,

@@ -33,7 +33,9 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 
 ## Optional Permissions
 
-The permission below is genuinely optional: withholding it is a supported long-term configuration (not a transitional grace period), because it carries a data-exposure trade-off. Cartography logs a warning and skips the corresponding step, including its cleanup, so previously synced nodes are preserved.
+The permissions below are genuinely optional: withholding them is a supported long-term configuration (not a transitional grace period).
+
+`list secrets` carries a data-exposure trade-off. When it is withheld, Cartography logs a warning and skips the corresponding step, including its cleanup, so previously synced nodes are preserved.
 
 - `list secrets` enables ingestion of `KubernetesSecret` metadata (name,
   namespace, type, and owner references). Kubernetes RBAC has no verb that
@@ -43,6 +45,16 @@ The permission below is genuinely optional: withholding it is a supported long-t
   but any identity with this permission can. When omitted, Cartography skips
   `sync_secrets`, including cleanup, so previously synced
   `KubernetesSecret` nodes are preserved.
+
+- `list csinodes` in the `storage.k8s.io` group records, on each
+  `KubernetesNode`, the node ID every installed CSI driver registered for it
+  (`csi_node_ids`). Cloud block-storage drivers usually register the cloud
+  instance ID, which identifies the backing instance on self-managed clusters
+  (k3s, kubeadm, ...) whose `spec.providerID` carries no cloud reference. See
+  [Scaleway](#scaleway). `CSINode` objects hold no sensitive data. When omitted,
+  Cartography logs a warning and still syncs nodes: `csi_node_ids` values from
+  an earlier sync, and the links that rely on them, are kept, but no new ones
+  are recorded.
 
 Create a ClusterRole and bind it to the identity used by Cartography. The
 example includes both required and recommended optional permissions:
@@ -77,6 +89,12 @@ rules:
 - apiGroups: ["storage.k8s.io"]
   resources:
     - storageclasses
+  verbs: ["list"]
+# CSI node IDs (optional): link nodes to their cloud instance through the IDs
+# registered by CSI drivers, for clusters whose providerID has no cloud reference.
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - csinodes
   verbs: ["list"]
 # Secrets (optional): omit if you don't want to grant cluster-wide read access
 # to secret contents. Kubernetes RBAC has no metadata-only verb: `list secrets`
@@ -382,3 +400,24 @@ The cluster's subscription and node resource group are read from each node's
 Exposure analysis reads `exposed_internet` on the Azure load balancer or Application
 Gateway, which the Azure module sets when a frontend has a public IP address. Backend
 health and network security group rules are not evaluated.
+
+## Scaleway
+
+Clusters on Scaleway connect with a kubeconfig; no extra flags are needed. The link
+below matches against `ScalewayInstance` nodes that already exist in the graph, so run
+the Scaleway module before the Kubernetes module. A default full sync runs Kubernetes
+first, so a new node is only linked on the following run. To link it in the same
+run, select the modules in order:
+
+```bash
+cartography --selected-modules scaleway,kubernetes ...
+```
+
+- `KubernetesNode -[:IS_INSTANCE]-> ScalewayInstance`, matched on the Instance server
+  ID stored on `KubernetesNode` as `scaleway_instance_id`. The ID is read from
+  `spec.providerID` (`scaleway://instance/{zone}/{server id}`), which Kapsule and the
+  Scaleway cloud controller manager set. Self-managed clusters without a cloud
+  controller (k3s, kubeadm, ...) have no Scaleway reference there, so the ID falls
+  back to the node ID registered by the Scaleway CSI driver (`csi.scaleway.com`,
+  `{zone}/{server id}`). The fallback needs the optional `list csinodes` permission.
+  Nodes that expose neither are not linked.
