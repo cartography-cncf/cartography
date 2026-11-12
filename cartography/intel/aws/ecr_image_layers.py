@@ -24,6 +24,7 @@ from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image_layers import build_next_layer_rows
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
 from cartography.intel.container_image_layers import get_complete_layer_digests
 from cartography.intel.container_image_layers import partition_layer_fetches
@@ -811,17 +812,6 @@ def transform_ecr_image_layers(
     return layers, memberships
 
 
-def _build_next_relationships(image_layers: list[dict]) -> list[dict[str, Any]]:
-    return [
-        {
-            "diff_id": layer["diff_id"],
-            "next_diff_ids": [next_diff_id],
-        }
-        for layer in image_layers
-        for next_diff_id in layer.get("next_diff_ids", [])
-    ]
-
-
 def _build_image_to_layer_relationships(
     image_layers: list[dict],
     image_id_field: str,
@@ -874,7 +864,7 @@ def load_ecr_image_layers(
         AWS_ID=current_aws_account_id,
     )
 
-    next_relationships = _build_next_relationships(image_layers)
+    next_relationships = build_next_layer_rows(image_layers)
     logger.info(
         "Loading %d ECR image layer NEXT relationships for region %s into graph.",
         len(next_relationships),
