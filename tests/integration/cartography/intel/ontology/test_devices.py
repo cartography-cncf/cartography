@@ -821,6 +821,58 @@ def test_link_ontology_device_affected_by_huntress_incident_report(neo4j_session
     ) == {(4001, "SN-HUNTRESS-AFFECTS")}
 
 
+def test_link_ontology_device_to_defender_machine_and_alert_through_intune(
+    neo4j_session,
+):
+    """Defender reports no serial, so its machines and alerts reach the Device through Intune."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (i:IntuneManagedDevice {
+            id: 'intune-device-defender',
+            device_name: 'bart-laptop',
+            operating_system: 'Windows',
+            serial_number: 'SN-INTUNE-DEFENDER',
+            lastupdated: $update_tag
+        })
+        CREATE (m:DefenderMachine {id: 'tenant-1/machine-enrolled', lastupdated: $update_tag})
+        CREATE (:DefenderMachine {id: 'tenant-1/machine-unenrolled', lastupdated: $update_tag})
+        CREATE (a:DefenderAlert {id: 'alert-1', lastupdated: $update_tag})
+        MERGE (m)-[mi:ASSOCIATED_WITH]->(i)
+        SET mi.lastupdated = $update_tag
+        MERGE (a)-[am:AFFECTS]->(m)
+        SET am.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["microsoft"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "DefenderMachine",
+        "id",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("SN-INTUNE-DEFENDER", "tenant-1/machine-enrolled")}
+    assert check_rels(
+        neo4j_session,
+        "DefenderAlert",
+        "id",
+        "Device",
+        "serial_number",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("alert-1", "SN-INTUNE-DEFENDER")}
+
+
 def test_crowdstrike_finding_affects_device_is_not_projected(neo4j_session):
     """CrowdStrike findings stay reachable through the host, and old AFFECTS edges are cleaned up."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
