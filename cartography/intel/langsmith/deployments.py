@@ -6,7 +6,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_preserving_unread
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.langsmith.agent import LangSmithAgentSchema
@@ -39,7 +39,7 @@ def sync(
     loads them, so it must not clean up on an incomplete inventory.
     """
     raw: list[dict[str, Any]] = []
-    deployments_complete = True
+    unread_workspace_ids: set[str] = set()
     for workspace in workspaces:
         try:
             raw.extend(get(client, org_id, workspace["id"]))
@@ -50,7 +50,8 @@ def sync(
                 workspace["id"],
                 err,
             )
-            deployments_complete = deployments_complete and err.not_found
+            if not err.not_found:
+                unread_workspace_ids.add(workspace["id"])
             continue
 
     deployments = transform_deployments(raw)
@@ -60,11 +61,11 @@ def sync(
     load_deployments(
         neo4j_session, agents, deployments, org_id, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup_if_complete(
+    cleanup_preserving_unread(
         neo4j_session,
         LangSmithDeploymentSchema(),
-        deployments_complete,
         common_job_parameters,
+        unread_workspace_ids,
     )
 
     workspace_by_deployment = {
@@ -73,7 +74,7 @@ def sync(
     return (
         agents,
         workspace_by_deployment,
-        deployments_complete and assistants_complete,
+        not unread_workspace_ids and assistants_complete,
     )
 
 

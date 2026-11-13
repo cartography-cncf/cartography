@@ -490,6 +490,109 @@ def test_resync_preserves_what_could_not_be_read(
     assert node_id in _ids(neo4j_session, label)
 
 
+# Each case deletes a resource upstream in one scope while a sibling scope cannot be
+# read: (deleted route, its payload once deleted, label, node that must be cleaned up,
+# unreadable route, node in that scope that must be preserved).
+SCOPED_CASES = [
+    pytest.param(
+        ("/api/v1/workspaces/current/secrets", WORKSPACE_PROD_ID),
+        [{"key": "OPENAI_API_KEY"}],
+        "LangSmithSecret",
+        f"{WORKSPACE_PROD_ID}|SLACK_BOT_TOKEN",
+        ("/api/v1/workspaces/current/secrets", WORKSPACE_DEV_ID),
+        f"{WORKSPACE_DEV_ID}|OPENAI_API_KEY",
+        id="secret",
+    ),
+    pytest.param(
+        ("/api/v1/workspaces/current/members", WORKSPACE_DEV_ID),
+        {"members": [], "pending": []},
+        "LangSmithWorkspaceMembership",
+        f"{BART_LS_USER_ID}|{WORKSPACE_DEV_ID}",
+        ("/api/v1/workspaces/current/members", WORKSPACE_PROD_ID),
+        f"{MARGE_LS_USER_ID}|{WORKSPACE_PROD_ID}",
+        id="workspace-membership",
+    ),
+    pytest.param(
+        ("/v2/deployments", WORKSPACE_DEV_ID),
+        [],
+        "LangSmithDeployment",
+        TRIAGE_DEPLOYMENT_ID,
+        ("/v2/deployments", WORKSPACE_PROD_ID),
+        SUPPORT_DEPLOYMENT_ID,
+        id="deployment",
+    ),
+    pytest.param(
+        ("/api/v1/api-key", WORKSPACE_PROD_ID),
+        [],
+        "LangSmithApiKey",
+        "9b9b9b9b-0001-4001-8001-9b9b9b9b9b9b",
+        ("/api/v1/orgs/current/members/personal-access-tokens", None),
+        "7a7a7a7a-0001-4001-8001-7a7a7a7a7a7a",
+        id="api-key-by-key-type",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "deleted_route, deleted_payload, label, deleted_id, unread_route, preserved_id",
+    SCOPED_CASES,
+)
+def test_one_unreadable_scope_does_not_block_cleanup_elsewhere(
+    neo4j_session,
+    deleted_route,
+    deleted_payload,
+    label,
+    deleted_id,
+    unread_route,
+    preserved_id,
+):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    assert {deleted_id, preserved_id} <= _ids(neo4j_session, label)
+    partial = FakeLangSmithClient(
+        routes={**SIMPSON_CORP_ROUTES, deleted_route: deleted_payload},
+        failures={unread_route: 403},
+    )
+
+    # Act
+    _sync(neo4j_session, partial, NEXT_UPDATE_TAG)
+
+    # Assert
+    # What was read is cleaned up; only the scope the credential could not see is kept.
+    ids = _ids(neo4j_session, label)
+    assert deleted_id not in ids
+    assert preserved_id in ids
+
+
+def test_a_preserved_node_keeps_its_relationships(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    partial = FakeLangSmithClient(
+        failures={("/api/v1/workspaces/current/secrets", WORKSPACE_DEV_ID): 403},
+    )
+
+    # Act
+    _sync(neo4j_session, partial, NEXT_UPDATE_TAG)
+
+    # Assert
+    # Stale-relationship cleanup must skip the preserved node too, or it would survive
+    # detached from its workspace and organization.
+    assert (WORKSPACE_DEV_ID, "OPENAI_API_KEY") in check_rels(
+        neo4j_session, "LangSmithWorkspace", "id", "LangSmithSecret", "name", "CONTAINS"
+    )
+    assert f"{WORKSPACE_DEV_ID}|OPENAI_API_KEY" in {
+        secret_id
+        for (_, secret_id) in check_rels(
+            neo4j_session,
+            "LangSmithOrganization",
+            "id",
+            "LangSmithSecret",
+            "id",
+            "RESOURCE",
+        )
+    }
+
+
 def test_resync_keeps_agents_on_a_deployment_that_did_not_answer(neo4j_session):
     # Arrange
     _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)

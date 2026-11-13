@@ -3,7 +3,8 @@ Workspace-scoped resources: secrets, resource tags, OAuth clients and MCP server
 
 These all need an ``X-Tenant-Id`` header and are fetched per workspace. A credential
 commonly holds ``workspaces:read`` in only some workspaces, so each fetch degrades to a
-warning rather than failing the module, and the resource type it belongs to skips cleanup.
+warning rather than failing the module. That resource type is then cleaned up everywhere
+except in the workspace that could not be read.
 """
 
 import logging
@@ -14,7 +15,7 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_preserving_unread
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -39,9 +40,10 @@ def sync(
     tags: list[dict[str, Any]] = []
     oauth_clients: list[dict[str, Any]] = []
     mcp_servers: list[dict[str, Any]] = []
-    secrets_complete = tags_complete = oauth_clients_complete = mcp_servers_complete = (
-        True
-    )
+    unread_secrets: set[str] = set()
+    unread_tags: set[str] = set()
+    unread_oauth_clients: set[str] = set()
+    unread_mcp_servers: set[str] = set()
     unconnected_vendors: Counter[str] = Counter()
 
     for workspace in workspaces:
@@ -49,21 +51,25 @@ def sync(
 
         raw_secrets, ok = get_secrets(client, org_id, workspace_id)
         secrets.extend(transform_secrets(workspace_id, raw_secrets))
-        secrets_complete = secrets_complete and ok
+        if not ok:
+            unread_secrets.add(workspace_id)
 
         rows, ok = get_tags(client, org_id, workspace_id)
         tags.extend(rows)
-        tags_complete = tags_complete and ok
+        if not ok:
+            unread_tags.add(workspace_id)
 
         rows, ok = get_oauth_clients(client, org_id, workspace_id)
         oauth_clients.extend(rows)
-        oauth_clients_complete = oauth_clients_complete and ok
+        if not ok:
+            unread_oauth_clients.add(workspace_id)
 
         rows, ok = get_mcp_servers(
             client, org_id, workspace_id, unconnected_vendors=unconnected_vendors
         )
         mcp_servers.extend(rows)
-        mcp_servers_complete = mcp_servers_complete and ok
+        if not ok:
+            unread_mcp_servers.add(workspace_id)
 
     if unconnected_vendors:
         logger.info(
@@ -89,10 +95,10 @@ def sync(
         neo4j_session,
         common_job_parameters,
         [
-            (LangSmithSecretSchema(), secrets_complete),
-            (LangSmithResourceTagSchema(), tags_complete),
-            (LangSmithOAuthClientSchema(), oauth_clients_complete),
-            (LangSmithMcpServerSchema(), mcp_servers_complete),
+            (LangSmithSecretSchema(), unread_secrets),
+            (LangSmithResourceTagSchema(), unread_tags),
+            (LangSmithOAuthClientSchema(), unread_oauth_clients),
+            (LangSmithMcpServerSchema(), unread_mcp_servers),
         ],
     )
 
@@ -314,7 +320,9 @@ def load_workspace_resources(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    schemas: list[tuple[CartographyNodeSchema, bool]],
+    schemas: list[tuple[CartographyNodeSchema, set[str]]],
 ) -> None:
-    for schema, complete in schemas:
-        cleanup_if_complete(neo4j_session, schema, complete, common_job_parameters)
+    for schema, unread_workspace_ids in schemas:
+        cleanup_preserving_unread(
+            neo4j_session, schema, common_job_parameters, unread_workspace_ids
+        )

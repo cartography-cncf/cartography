@@ -7,7 +7,9 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.models.core.nodes import CartographyNodeSchema
 
 logger = logging.getLogger(__name__)
@@ -378,3 +380,89 @@ def cleanup_if_complete(
         )
         return
     GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+
+
+# A node is preserved when it hangs off a workspace that could not be read, or when it is
+# an API key of a type whose organization-wide listing could not be read. Only the
+# parameter values vary; the clause text is fixed.
+_PRESERVE_UNREAD = (
+    "EXISTS { MATCH (n)--(unread:LangSmithWorkspace) "
+    "WHERE unread.id IN $LANGSMITH_UNREAD_WORKSPACE_IDS } "
+    "OR n.key_type IN $LANGSMITH_UNREAD_KEY_TYPES"
+)
+_CLEANUP_ITERATION_SIZE = 10000
+
+
+def cleanup_preserving_unread(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    common_job_parameters: dict[str, Any],
+    unread_workspace_ids: set[str],
+    unread_key_types: set[str] | None = None,
+) -> None:
+    """
+    Run a schema's cleanup everywhere its collection succeeded.
+
+    A credential commonly cannot read one or two workspaces. Skipping cleanup outright
+    would let stale nodes pile up in every other workspace as well, so instead the
+    cleanup leaves alone only the nodes linked to a workspace (or, for API keys, of a key
+    type) that could not be read, along with their relationships.
+
+    The schema must be scoped to the organization through a relationship bound as ``s``,
+    which every LangSmith node schema is.
+    """
+    unread_key_types = unread_key_types or set()
+    if not unread_workspace_ids and not unread_key_types:
+        GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+        return
+
+    logger.warning(
+        "Cleaning up %s for LangSmith organization %s, but preserving nodes in %d "
+        "workspace(s) that could not be read (%s)%s.",
+        schema.label,
+        common_job_parameters["ORG_ID"],
+        len(unread_workspace_ids),
+        ", ".join(sorted(unread_workspace_ids)) or "none",
+        (
+            f" and of key type(s) {', '.join(sorted(unread_key_types))}"
+            if unread_key_types
+            else ""
+        ),
+    )
+    parameters = {
+        **common_job_parameters,
+        "LANGSMITH_UNREAD_WORKSPACE_IDS": sorted(unread_workspace_ids),
+        "LANGSMITH_UNREAD_KEY_TYPES": sorted(unread_key_types),
+    }
+    statements = [
+        GraphStatement(
+            preserve_unread_in_cleanup_query(query, schema.label),
+            parameters=parameters,
+            iterationsize=_CLEANUP_ITERATION_SIZE,
+            batched_transactions=True,
+            parent_job_name=schema.label,
+            parent_job_sequence_num=idx,
+        )
+        for idx, query in enumerate(build_cleanup_queries(schema), start=1)
+    ]
+    GraphJob(f"Cleanup {schema.label}", statements, schema.label).run(neo4j_session)
+
+
+def preserve_unread_in_cleanup_query(query: str, label: str) -> str:
+    """
+    Narrow one generated cleanup query so it skips nodes in unread scopes.
+
+    Every query cartography generates for an organization-scoped schema opens by matching
+    ``(n:<label>)`` and its organization edge ``s``. A filter on ``n`` is inserted right
+    after that line, so it applies to both the stale-node and the stale-relationship
+    statements. Anything else is refused rather than guessed at: a mis-scoped cleanup
+    deletes data.
+    """
+    lines = query.strip().splitlines()
+    first = lines[0].strip()
+    if not first.startswith(f"MATCH (n:{label})") or "-[s:" not in first:
+        raise ValueError(
+            f"Unexpected cleanup query shape for {label}; refusing to scope it: {first!r}"
+        )
+    narrowed = [first, f"WITH n, s WHERE NOT ({_PRESERVE_UNREAD})", "MATCH (n)"]
+    return "\n".join(narrowed + lines[1:])

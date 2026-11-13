@@ -101,7 +101,7 @@ to `--langsmith-host-api-url`.
 
 | Symptom | Cause |
 | --- | --- |
-| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types. |
+| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning and continues. It still cleans up every other workspace, but keeps the existing nodes in that one. |
 | Timeouts logged for some routes | LangSmith was slow or unreachable. Cartography logs a warning, keeps the existing nodes for those routes, and retries on the next run. |
 | No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. |
 | No `LangSmithApiKey` nodes with `key_type = pat` for other members | The token lacks `organization:pats:read`. |
