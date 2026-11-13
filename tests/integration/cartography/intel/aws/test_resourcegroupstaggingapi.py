@@ -111,7 +111,7 @@ def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session, caplog):
         and record.levelno == logging.INFO
     ] == [
         "Syncing AWS tags for account 1234 and region us-east-1",
-        "Loaded 1 tags for 1 resource types (region=us-east-1)",
+        "Loaded 1 tags on 1 resources (region=us-east-1)",
     ]
 
 

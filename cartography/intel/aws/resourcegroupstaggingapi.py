@@ -324,17 +324,21 @@ def _load_resource_type_tags(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
+    total_resources = 0
     total_tags = 0
     for resource_type in resource_types:
         tag_data = grouped_tag_data.get(resource_type, [])
         transform_tags(tag_data, resource_type)  # type: ignore[arg-type]
+        tag_count = sum(len(mapping.get("Tags") or []) for mapping in tag_data)
         logger.debug(
-            "Loading %d tags for resource type %s (region=%s)",
+            "Loading %d tags on %d %s resources (region=%s)",
+            tag_count,
             len(tag_data),
             resource_type,
             region,
         )
-        total_tags += len(tag_data)
+        total_resources += len(tag_data)
+        total_tags += tag_count
         load_tags(
             neo4j_session=neo4j_session,
             tag_data=tag_data,  # type: ignore[arg-type]
@@ -344,9 +348,9 @@ def _load_resource_type_tags(
             aws_update_tag=update_tag,
         )
     logger.info(
-        "Loaded %d tags for %d resource types (region=%s)",
+        "Loaded %d tags on %d resources (region=%s)",
         total_tags,
-        len(resource_types),
+        total_resources,
         region,
     )
 
