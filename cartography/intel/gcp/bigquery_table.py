@@ -7,14 +7,12 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import GCP_EXPECTED_SKIP_CATEGORIES
 from cartography.intel.gcp.util import is_gcp_http_error_category
 from cartography.models.gcp.bigquery.table import GCPBigQueryTableSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-# tables.get errors that deny the whole dataset rather than one table.
-DATASET_DENIED_ERROR_CATEGORIES = ("api_disabled", "billing_disabled", "forbidden")
 
 
 def _normalize_connection_id(connection_id: str | None) -> str | None:
@@ -95,11 +93,12 @@ def get_bigquery_table_detail(
 
     Returns:
         dict: The full table resource
-        None: If the table is gone or the request is invalid for this table
+        None: If the table is gone, the request is invalid for this table, or
+            the quota is still exhausted after retries
 
     Raises:
-        HttpError: For any other error, including 403s, which the caller handles
-            once per dataset
+        HttpError: For any other error, including access-denied 403s, which
+            the caller handles once per dataset
     """
     try:
         request = client.tables().get(
@@ -109,7 +108,11 @@ def get_bigquery_table_detail(
         )
         return gcp_api_execute_with_retry(request)
     except HttpError as e:
-        if is_gcp_http_error_category(e, ("invalid", "not_found")):
+        if is_gcp_http_error_category(
+            e,
+            ("invalid", "not_found"),
+            include_transient_403=True,
+        ):
             logger.warning(
                 "Could not retrieve BigQuery table detail for %s:%s.%s - %s. Skipping.",
                 project_id,
@@ -207,11 +210,7 @@ def sync_bigquery_tables(
                         client, project_id, dataset_id, tid
                     )
                 except HttpError as e:
-                    if not is_gcp_http_error_category(
-                        e,
-                        DATASET_DENIED_ERROR_CATEGORIES,
-                        include_transient_403=True,
-                    ):
+                    if not is_gcp_http_error_category(e, GCP_EXPECTED_SKIP_CATEGORIES):
                         raise
                     # The rest of the dataset would fail the same way. Its tables
                     # still load with the fields tables.list returned.

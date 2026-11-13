@@ -73,17 +73,20 @@ def test_bigquery_handlers_skip_legacy_403_errors(
 
 
 @pytest.mark.parametrize(
-    "reason",
+    "reason,expected_detail_requests",
     [
-        "accessDenied",
-        "BILLING_DISABLED",
-        "rateLimitExceeded",
+        # Access denials cover the whole dataset: stop after the first table.
+        ("accessDenied", 1),
+        ("BILLING_DISABLED", 1),
+        # Quota exhaustion is per request: skip only the table it hit.
+        ("rateLimitExceeded", 3),
     ],
 )
-def test_sync_bigquery_tables_stops_table_details_at_first_403(
+def test_sync_bigquery_tables_stops_table_details_at_first_access_denied(
     monkeypatch,
     caplog,
     reason,
+    expected_detail_requests,
 ):
     # Arrange
     client = MagicMock()
@@ -114,15 +117,14 @@ def test_sync_bigquery_tables_stops_table_details_at_first_403(
     )
 
     # Assert
-    assert len(detail_requests) == 1
+    assert len(detail_requests) == expected_detail_requests
     assert [table["table_id"] for table in load_tables.call_args.args[1]] == [
         "table-0",
         "table-1",
         "table-2",
     ]
-    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
-    assert len(warnings) == 1
-    assert "Skipping details for its 3 remaining tables." in warnings[0]
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == expected_detail_requests
 
 
 # These three return the parent object regardless of the detail/list call's own
