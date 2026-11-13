@@ -324,12 +324,17 @@ def _load_resource_type_tags(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
+    total_tags = 0
     for resource_type in resource_types:
         tag_data = grouped_tag_data.get(resource_type, [])
         transform_tags(tag_data, resource_type)  # type: ignore[arg-type]
-        logger.info(
-            f"Loading {len(tag_data)} tags for resource type {resource_type} (region={region})",
+        logger.debug(
+            "Loading %d tags for resource type %s (region=%s)",
+            len(tag_data),
+            resource_type,
+            region,
         )
+        total_tags += len(tag_data)
         load_tags(
             neo4j_session=neo4j_session,
             tag_data=tag_data,  # type: ignore[arg-type]
@@ -338,6 +343,12 @@ def _load_resource_type_tags(
             current_aws_account_id=current_aws_account_id,
             aws_update_tag=update_tag,
         )
+    logger.info(
+        "Loaded %d tags for %d resource types (region=%s)",
+        total_tags,
+        len(resource_types),
+        region,
+    )
 
 
 @timeit

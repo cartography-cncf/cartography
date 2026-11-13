@@ -533,7 +533,7 @@ def evaluate_and_load_scope_aware_permission_relationships(
         # principal from the residual entirely, which would discard the direct
         # binding of a principal that also holds project-wide access.
         direct_principals = broad_scope_filter(principals, permissions, project_id)
-        logger.info(
+        logger.debug(
             "Loading relationship '%s' for %d %s resources in project '%s' from direct "
             "bindings only: %d of %d principals hold one, broader grants stay on the container node",
             matchlink_schema.rel_label,
@@ -578,7 +578,7 @@ def evaluate_and_load_scope_aware_permission_relationships(
 
     # Project bulk is the broadest scope, so it runs last and wins over everything.
     if project_scope_principals:
-        logger.info(
+        logger.debug(
             "Bulk loading relationship '%s' for %d project-scope principals across %d %s resources in project '%s'",
             matchlink_schema.rel_label,
             len(project_scope_principals),
@@ -767,9 +767,12 @@ def load_principal_mappings(
     if not principal_mappings:
         return
 
-    logger.info(
-        f"Loading {len(principal_mappings)} {matchlink_schema.rel_label} relationships "
-        f"for {matchlink_schema.source_node_label} -> {matchlink_schema.target_node_label}"
+    logger.debug(
+        "Loading %d %s relationships for %s -> %s",
+        len(principal_mappings),
+        matchlink_schema.rel_label,
+        matchlink_schema.source_node_label,
+        matchlink_schema.target_node_label,
     )
 
     load_matchlinks(
@@ -799,7 +802,7 @@ def evaluate_and_load_permission_relationships(
 
     total_resources = len(resource_dict)
     if total_resources == 0:
-        logger.info(
+        logger.debug(
             "No %s resources found for relationship '%s' in project '%s'.",
             matchlink_schema.target_node_label,
             matchlink_schema.rel_label,
@@ -816,7 +819,7 @@ def evaluate_and_load_permission_relationships(
             or resources_processed == total_resources
         ):
             percent = (resources_processed / total_resources) * 100
-            logger.info(
+            logger.debug(
                 "Relationship '%s' for '%s': processed %d/%d resources (%.1f%%), loaded %d relationships so far",
                 matchlink_schema.rel_label,
                 matchlink_schema.target_node_label,
@@ -843,7 +846,7 @@ def evaluate_and_load_permission_relationships(
         )
         relationships_loaded += len(batch)
 
-    logger.info(
+    logger.debug(
         "Completed relationship '%s' for '%s': processed %d resources and loaded %d relationships",
         matchlink_schema.rel_label,
         matchlink_schema.target_node_label,
@@ -860,7 +863,7 @@ def cleanup_rpr(
     update_tag: int,
     project_id: str,
 ) -> None:
-    logger.info(
+    logger.debug(
         "Cleaning up relationship '%s' for node label '%s'",
         matchlink_schema.rel_label,
         matchlink_schema.target_node_label,
@@ -896,6 +899,8 @@ def sync(
     relationship_mapping = parse_permission_relationships_file(pr_file)
 
     # 2. EVALUATE - Evaluate each relationship and resource ID
+    relationship_types_synced = 0
+    relationships_loaded = 0
     for rpr in relationship_mapping:
         if not is_valid_gcp_rpr(rpr):
             logger.error(f"Invalid permission relationship configuration: {rpr}")
@@ -909,7 +914,7 @@ def sync(
         principal_count = len(principals)
         resource_count = len(resource_dict)
 
-        logger.info(
+        logger.debug(
             "Starting relationship '%s' for resource type '%s' in project '%s' with %d permissions, %d principals, and %d resources",
             relationship_name,
             target_label,
@@ -938,7 +943,7 @@ def sync(
                 batch_size=GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
             )
         )
-        logger.info(
+        logger.debug(
             "Finished loading relationship '%s' for resource type '%s' in project '%s' with %d total relationships before cleanup",
             relationship_name,
             target_label,
@@ -951,5 +956,13 @@ def sync(
             update_tag,
             project_id,
         )
+        relationship_types_synced += 1
+        relationships_loaded += loaded_relationship_count
 
-    logger.info(f"Completed GCP Permission Relationships sync for project {project_id}")
+    logger.info(
+        "Completed GCP Permission Relationships sync for project '%s': loaded %d "
+        "relationships for %d relationship types.",
+        project_id,
+        relationships_loaded,
+        relationship_types_synced,
+    )
