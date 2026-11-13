@@ -532,6 +532,17 @@ SCOPED_CASES = [
         "7a7a7a7a-0001-4001-8001-7a7a7a7a7a7a",
         id="api-key-by-key-type",
     ),
+    pytest.param(
+        ("/api/v1/orgs/current/service-keys", None),
+        [],
+        "LangSmithApiKey",
+        # An organization key that defaults to the unread workspace was still read
+        # through the organization-wide listing.
+        "6a6a6a6a-0001-4001-8001-6a6a6a6a6a6a",
+        ("/api/v1/api-key", WORKSPACE_PROD_ID),
+        "9b9b9b9b-0001-4001-8001-9b9b9b9b9b9b",
+        id="org-key-in-unread-workspace",
+    ),
 ]
 
 
@@ -748,6 +759,84 @@ def test_an_unreadable_agent_does_not_block_credential_cleanup_elsewhere(
     assert SUPPORT_GOOGLE_CREDENTIAL_ID not in credentials
     assert TRIAGE_CREDENTIAL_ID in credentials
     assert TRIAGE_AGENT in _ids(neo4j_session, "LangSmithAgent")
+
+
+def test_a_credential_held_through_an_unread_workspace_is_kept(neo4j_session):
+    # Arrange
+    # The FAQ agent is served by the support deployment (production) and the triage
+    # deployment (development), and holds a credential in the development workspace.
+    assistants: dict[str, list[dict[str, Any]]] = {
+        **LANGSMITH_ASSISTANTS,
+        SUPPORT_URL: [
+            *LANGSMITH_ASSISTANTS[SUPPORT_URL],
+            {"assistant_id": FAQ_AGENT_ID, "name": "FAQ Bot"},
+        ],
+        TRIAGE_URL: [
+            *LANGSMITH_ASSISTANTS[TRIAGE_URL],
+            {"assistant_id": FAQ_AGENT_ID, "name": "FAQ Bot"},
+        ],
+    }
+    routes = {
+        **SIMPSON_CORP_ROUTES,
+        (f"/v2/auth/agents/{FAQ_AGENT_ID}/connections", WORKSPACE_DEV_ID): {
+            "data": [
+                {
+                    "id": FAQ_CREDENTIAL_ID,
+                    "agent_id": FAQ_AGENT_ID,
+                    "provider_id": "github-prod",
+                    "created_by": MARGE_LS_USER_ID,
+                }
+            ]
+        },
+    }
+    _sync(
+        neo4j_session,
+        FakeLangSmithClient(routes=routes, assistants=assistants),
+        TEST_UPDATE_TAG,
+    )
+    assert FAQ_CREDENTIAL_ID in _ids(neo4j_session, "LangSmithAgentCredential")
+    # The development workspace's deployments can no longer be read, so the agent is
+    # reached only through production, where it holds nothing.
+    partial = FakeLangSmithClient(
+        routes=routes,
+        assistants=assistants,
+        failures={("/v2/deployments", WORKSPACE_DEV_ID): 403},
+    )
+
+    # Act
+    _sync(neo4j_session, partial, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert FAQ_CREDENTIAL_ID in _ids(neo4j_session, "LangSmithAgentCredential")
+
+
+def test_the_summary_view_keeps_a_known_data_plane_creation_time(neo4j_session):
+    # Arrange
+    data_plane = {
+        "id": "dd11dd11-0001-4001-8001-dd11dd11dd11",
+        "name": "eu-hybrid",
+        "status": "active",
+        "created_at": "2026-02-01T09:00:00Z",
+    }
+    route = ("/orgs/current/data-planes", None)
+    _sync(
+        neo4j_session,
+        FakeLangSmithClient(routes={**SIMPSON_CORP_ROUTES, route: [data_plane]}),
+        TEST_UPDATE_TAG,
+    )
+    summary_row = {k: v for k, v in data_plane.items() if k != "created_at"}
+
+    # Act
+    _sync(
+        neo4j_session,
+        FakeLangSmithClient(routes={**SIMPSON_CORP_ROUTES, route: [summary_row]}),
+        NEXT_UPDATE_TAG,
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "LangSmithDataPlane", ["id", "created_at", "lastupdated"]
+    ) == {(data_plane["id"], data_plane["created_at"], NEXT_UPDATE_TAG)}
 
 
 def test_providers_are_cleaned_up_when_one_workspace_answers(neo4j_session):

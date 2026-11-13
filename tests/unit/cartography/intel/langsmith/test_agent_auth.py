@@ -114,3 +114,46 @@ def test_data_planes_are_incomplete_when_the_summary_view_is_denied_too():
     # Assert
     assert planes == []
     assert complete is False
+
+
+def test_a_summary_data_plane_keeps_its_stored_creation_time():
+    # Arrange
+    session = MagicMock()
+    session.execute_read.return_value = [
+        {"id": "dp-1", "created_at": "2026-02-01T09:00:00Z"}
+    ]
+    planes = [
+        {"id": "dp-1", "name": "eu", "status": "active"},
+        {"id": "dp-2", "name": "us", "status": "active"},
+    ]
+
+    # Act
+    kept = sso.keep_known_created_at(session, planes, "org")
+
+    # Assert
+    assert kept == [
+        {
+            "id": "dp-1",
+            "name": "eu",
+            "status": "active",
+            "created_at": "2026-02-01T09:00:00Z",
+        },
+        {"id": "dp-2", "name": "us", "status": "active"},
+    ]
+    assert session.execute_read.call_args.kwargs == {
+        "ORG_ID": "org",
+        "IDS": ["dp-1", "dp-2"],
+    }
+
+
+def test_a_full_view_data_plane_is_not_looked_up():
+    # Arrange
+    session = MagicMock()
+    planes = [{"id": "dp-1", "created_at": "2026-02-01T09:00:00Z"}]
+
+    # Act
+    kept = sso.keep_known_created_at(session, planes, "org")
+
+    # Assert
+    assert kept == planes
+    session.execute_read.assert_not_called()

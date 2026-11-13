@@ -40,9 +40,18 @@ _PRESERVE_AGENTS = (
     "OR ($LANGSMITH_CONNECTIONS_INCOMPLETE "
     "AND NOT EXISTS { MATCH (n)--(:LangSmithDeployment) })"
 )
-# A credential is kept when its agent's connections were not read in full this run. A
-# credential whose agent was deleted is an orphan and is cleaned up.
-_PRESERVE_CREDENTIALS = "EXISTS { MATCH (n)--(a:LangSmithAgent) WHERE NOT a.id IN $LANGSMITH_READ_AGENT_IDS }"
+# A credential is kept when its agent's connections were not read in full this run: the
+# agent was not queried, a listing for it failed, or it is also served by a deployment
+# that could not be listed or sits in an unread workspace, whose connections were never
+# asked for. A credential whose agent was deleted is an orphan and is cleaned up.
+_PRESERVE_CREDENTIALS = (
+    "EXISTS { MATCH (n)--(a:LangSmithAgent) "
+    "WHERE NOT a.id IN $LANGSMITH_READ_AGENT_IDS "
+    "OR EXISTS { MATCH (a)--(d:LangSmithDeployment) "
+    "WHERE d.id IN $LANGSMITH_UNLISTED_DEPLOYMENT_IDS "
+    "OR EXISTS { MATCH (d)<-[:CONTAINS]-(w:LangSmithWorkspace) "
+    "WHERE w.id IN $LANGSMITH_UNREAD_WORKSPACE_IDS } } }"
+)
 
 
 @timeit
@@ -121,7 +130,13 @@ def sync(
         LangSmithAgentCredentialSchema(),
         common_job_parameters,
         _PRESERVE_CREDENTIALS,
-        {"LANGSMITH_READ_AGENT_IDS": sorted(read_agent_ids)},
+        {
+            "LANGSMITH_READ_AGENT_IDS": sorted(read_agent_ids),
+            "LANGSMITH_UNLISTED_DEPLOYMENT_IDS": sorted(
+                coverage.unlisted_deployment_ids
+            ),
+            "LANGSMITH_UNREAD_WORKSPACE_IDS": sorted(coverage.unread_workspace_ids),
+        },
     )
 
 

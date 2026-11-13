@@ -391,11 +391,14 @@ def cleanup_if_complete(
 
 
 # A node is preserved when it hangs off a workspace that could not be read, or when it is
-# an API key of a type whose organization-wide listing could not be read. Only the
+# an API key of a type whose organization-wide listing could not be read. Among API keys,
+# only workspace keys come from a per-workspace listing; an organization key that merely
+# defaults to an unread workspace was still read through its own listing. Only the
 # parameter values vary; the clause text is fixed.
 _PRESERVE_UNREAD = (
-    "EXISTS { MATCH (n)--(unread:LangSmithWorkspace) "
-    "WHERE unread.id IN $LANGSMITH_UNREAD_WORKSPACE_IDS } "
+    "((n.key_type IS NULL OR n.key_type = 'workspace_key') "
+    "AND EXISTS { MATCH (n)--(unread:LangSmithWorkspace) "
+    "WHERE unread.id IN $LANGSMITH_UNREAD_WORKSPACE_IDS }) "
     "OR n.key_type IN $LANGSMITH_UNREAD_KEY_TYPES"
 )
 _CLEANUP_ITERATION_SIZE = 10000
