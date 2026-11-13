@@ -51,43 +51,73 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     )
     permissions_actions: PropertyRef = PropertyRef(
         "permissions_actions",
-        description="Actions permission level parsed from workflow YAML.",
+        description=(
+            "Actions permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_contents: PropertyRef = PropertyRef(
         "permissions_contents",
-        description="Contents permission level parsed from workflow YAML.",
+        description=(
+            "Contents permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_packages: PropertyRef = PropertyRef(
         "permissions_packages",
-        description="Packages permission level parsed from workflow YAML.",
+        description=(
+            "Packages permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_pull_requests: PropertyRef = PropertyRef(
         "permissions_pull_requests",
-        description="Pull requests permission level parsed from workflow YAML.",
+        description=(
+            "Pull requests permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_issues: PropertyRef = PropertyRef(
         "permissions_issues",
-        description="Issues permission level parsed from workflow YAML.",
+        description=(
+            "Issues permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_deployments: PropertyRef = PropertyRef(
         "permissions_deployments",
-        description="Deployments permission level parsed from workflow YAML.",
+        description=(
+            "Deployments permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_statuses: PropertyRef = PropertyRef(
         "permissions_statuses",
-        description="Statuses permission level parsed from workflow YAML.",
+        description=(
+            "Statuses permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_checks: PropertyRef = PropertyRef(
         "permissions_checks",
-        description="Checks permission level parsed from workflow YAML.",
+        description=(
+            "Checks permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_id_token: PropertyRef = PropertyRef(
         "permissions_id_token",
-        description="ID token permission level parsed from workflow YAML.",
+        description=(
+            "ID token (write/none only) permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     permissions_security_events: PropertyRef = PropertyRef(
         "permissions_security_events",
-        description="Security events permission level parsed from workflow YAML.",
+        description=(
+            "Security events permission summarized across YAML jobs. "
+            "See the GitHub config docs for calculation rules."
+        ),
     )
     env_vars: PropertyRef = PropertyRef(
         "env_vars",

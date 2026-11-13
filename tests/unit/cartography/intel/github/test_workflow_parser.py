@@ -172,7 +172,7 @@ def test_parse_permissions_read_all():
     assert result["deployments"] == "read"
     assert result["statuses"] == "read"
     assert result["checks"] == "read"
-    assert result["id_token"] == "read"
+    assert result["id_token"] == "none"
     assert result["security_events"] == "read"
 
 
@@ -346,7 +346,7 @@ def test_enrich_workflow_read_all_permissions():
     assert enriched["permissions_deployments"] == "read"
     assert enriched["permissions_statuses"] == "read"
     assert enriched["permissions_checks"] == "read"
-    assert enriched["permissions_id_token"] == "read"
+    assert enriched["permissions_id_token"] == "none"
     assert enriched["permissions_security_events"] == "read"
 
 
