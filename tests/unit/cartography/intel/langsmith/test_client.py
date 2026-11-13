@@ -3,7 +3,12 @@ from unittest.mock import patch
 
 import pytest
 import requests
+from urllib3.exceptions import ConnectTimeoutError
+from urllib3.exceptions import MaxRetryError
+from urllib3.exceptions import ResponseError
 
+from cartography.intel.langsmith.util import _build_assistant_session
+from cartography.intel.langsmith.util import _request_failure_reason
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 
@@ -55,3 +60,68 @@ def test_envelope_without_its_rows_fails_rather_than_reading_empty():
     with patch.object(requests.Session, "get", return_value=malformed):
         with pytest.raises(KeyError):
             client.get_paginated_envelope("/v2/deployments", key="resources")
+
+
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (
+            requests.ConnectionError(
+                MaxRetryError(
+                    MagicMock(), "/assistants/search", ConnectTimeoutError("slow")
+                )
+            ),
+            "ConnectTimeoutError",
+        ),
+        (
+            requests.exceptions.RetryError(
+                MaxRetryError(
+                    MagicMock(), "/assistants/search", ResponseError("too many 503")
+                )
+            ),
+            "repeated 429/5xx",
+        ),
+        (requests.ReadTimeout("read timed out"), "ReadTimeout"),
+    ],
+)
+def test_assistant_search_failures_are_named_by_root_cause(error, expected):
+    # Act and assert
+    assert _request_failure_reason(error) == expected
+
+
+def test_an_unreachable_deployment_is_not_retried():
+    # Arrange
+    session = _build_assistant_session()
+
+    # Act
+    retry = session.get_adapter("https://dep.example").max_retries
+
+    # Assert
+    # A deployment that does not accept a connection within the timeout will not on a
+    # retry either; retrying only stretches the slowest worker.
+    assert retry.connect == 0
+    assert retry.read == 0
+
+
+def test_assistant_search_asks_custom_auth_deployments_for_langsmith_auth():
+    # Arrange
+    client = _client()
+    session = MagicMock()
+    session.post.return_value = MagicMock(
+        status_code=200,
+        is_redirect=False,
+        is_permanent_redirect=False,
+        json=MagicMock(return_value=[]),
+    )
+    client._thread_local.session = session
+
+    # Act
+    _, failure = client.search_assistants("https://dep.example", "ws-1")
+
+    # Assert
+    # Without it, a deployment with custom auth hands the key to the customer's handler,
+    # which answers 401.
+    headers = session.post.call_args.kwargs["headers"]
+    assert failure is None
+    assert headers["x-auth-scheme"] == "langsmith"
+    assert headers["X-Tenant-Id"] == "ws-1"
