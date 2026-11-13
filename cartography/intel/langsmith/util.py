@@ -237,7 +237,7 @@ class LangSmithClient:
 
         Expressed as a POST because /assistants/search is a search; it reads and never
         mutates. The deployment API key check is tenant-scoped, so X-Tenant-Id is required:
-        without it the data plane answers 403 "API key tenant mismatch".
+        without it the data plane answers 403 "Invalid tenant ID".
 
         Returns the assistants and, when the listing did not complete, a short reason such
         as ``HTTP 401`` or an exception class name (``None`` means it completed). A failure
@@ -260,7 +260,15 @@ class LangSmithClient:
         assistants: list[dict[str, Any]] = []
         offset = 0
         url = deployment_url.rstrip("/") + "/assistants/search"
-        headers = {"X-Api-Key": self._pat, "X-Tenant-Id": tenant_id}
+        headers = {
+            "X-Api-Key": self._pat,
+            "X-Tenant-Id": tenant_id,
+            # A deployment with custom auth hands every request to the customer's own
+            # handler, which rejects a LangSmith key with 401. This header asks it to
+            # route the key to LangSmith auth instead; deployments that disabled
+            # LangSmith (studio) auth still refuse it.
+            "x-auth-scheme": "langsmith",
+        }
         while True:
             try:
                 response = self._worker_session.post(
@@ -429,14 +437,36 @@ def cleanup_preserving_unread(
             else ""
         ),
     )
-    parameters = {
-        **common_job_parameters,
-        "LANGSMITH_UNREAD_WORKSPACE_IDS": sorted(unread_workspace_ids),
-        "LANGSMITH_UNREAD_KEY_TYPES": sorted(unread_key_types),
-    }
+    run_preserving_cleanup(
+        neo4j_session,
+        schema,
+        common_job_parameters,
+        _PRESERVE_UNREAD,
+        {
+            "LANGSMITH_UNREAD_WORKSPACE_IDS": sorted(unread_workspace_ids),
+            "LANGSMITH_UNREAD_KEY_TYPES": sorted(unread_key_types),
+        },
+    )
+
+
+def run_preserving_cleanup(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    common_job_parameters: dict[str, Any],
+    preserve_clause: str,
+    preserve_parameters: dict[str, Any],
+) -> None:
+    """
+    Run a schema's generated cleanup, leaving alone every node ``preserve_clause`` matches.
+
+    ``preserve_clause`` is a Cypher boolean over the node ``n``. Callers pass a fixed
+    module constant and supply every value it uses through ``preserve_parameters``, so
+    no data from the API is ever interpolated into query text.
+    """
+    parameters = {**common_job_parameters, **preserve_parameters}
     statements = [
         GraphStatement(
-            preserve_unread_in_cleanup_query(query, schema.label),
+            scope_cleanup_query(query, schema.label, preserve_clause),
             parameters=parameters,
             iterationsize=_CLEANUP_ITERATION_SIZE,
             batched_transactions=True,
@@ -448,9 +478,9 @@ def cleanup_preserving_unread(
     GraphJob(f"Cleanup {schema.label}", statements, schema.label).run(neo4j_session)
 
 
-def preserve_unread_in_cleanup_query(query: str, label: str) -> str:
+def scope_cleanup_query(query: str, label: str, preserve_clause: str) -> str:
     """
-    Narrow one generated cleanup query so it skips nodes in unread scopes.
+    Narrow one generated cleanup query so it skips the nodes ``preserve_clause`` matches.
 
     Every query cartography generates for an organization-scoped schema opens by matching
     ``(n:<label>)`` and its organization edge ``s``. A filter on ``n`` is inserted right
@@ -464,5 +494,5 @@ def preserve_unread_in_cleanup_query(query: str, label: str) -> str:
         raise ValueError(
             f"Unexpected cleanup query shape for {label}; refusing to scope it: {first!r}"
         )
-    narrowed = [first, f"WITH n, s WHERE NOT ({_PRESERVE_UNREAD})", "MATCH (n)"]
+    narrowed = [first, f"WITH n, s WHERE NOT ({preserve_clause})", "MATCH (n)"]
     return "\n".join(narrowed + lines[1:])

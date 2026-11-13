@@ -546,11 +546,11 @@ class TestAssistantDiscovery:
         ]
 
         # Act
-        out, complete = deployments.get_assistants(client, deps, ORG)
+        out, unlisted = deployments.get_assistants(client, deps, ORG)
 
         # Assert
         # d2 has no URL, so its agents cannot be listed this run.
-        assert complete is False
+        assert unlisted == {"d2"}
         assert [a["id"] for a in out] == [f"{ORG}|asst-1"]
         assert out[0]["graph_id"] == "support_graph"
         assert out[0]["deployment_ids"] == ["d1"]
@@ -619,11 +619,11 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
         deps = [{"id": "d", "tenant_id": "w", "url": "https://d", "status": "READY"}]
 
         # Act
-        out, complete = deployments.get_assistants(self._FailingClient(), deps, ORG)
+        out, unlisted = deployments.get_assistants(self._FailingClient(), deps, ORG)
 
         # Assert
         assert out == []
-        assert complete is False
+        assert unlisted == {"d"}
 
     def test_one_failure_among_many_still_reports_incomplete(self):
         # Arrange
@@ -633,11 +633,11 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
         ]
 
         # Act
-        out, complete = deployments.get_assistants(self._PartialClient(), deps, ORG)
+        out, unlisted = deployments.get_assistants(self._PartialClient(), deps, ORG)
 
         # Assert
         assert len(out) == 1
-        assert complete is False
+        assert unlisted == {"b"}
 
     def test_failures_are_summarized_in_one_warning(self, caplog):
         # Arrange
@@ -654,23 +654,25 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
 
         # Act
         with caplog.at_level(logging.DEBUG):
-            _, complete = deployments.get_assistants(_MixedClient(), deps, ORG)
+            _, unlisted = deployments.get_assistants(_MixedClient(), deps, ORG)
 
         # Assert
         # Hundreds of deployments can fail the same way; one line per run, not per host.
-        warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
-        assert complete is False
+        warnings = [
+            r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING
+        ]
+        assert unlisted == {"a", "b", "c"}
         assert len(warnings) == 1
         assert "3 of 3" in warnings[0]
         assert "HTTP 401: 2, ConnectTimeoutError: 1" in warnings[0]
 
     def test_no_deployments_is_a_complete_empty_inventory(self):
         # Act
-        out, complete = deployments.get_assistants(self._FailingClient(), [], ORG)
+        out, unlisted = deployments.get_assistants(self._FailingClient(), [], ORG)
 
         # Assert
         assert out == []
-        assert complete is True
+        assert unlisted == set()
 
     def test_a_deployment_without_a_url_leaves_the_inventory_incomplete(self):
         """It still exists, so its agents may too; they just cannot be listed."""
@@ -678,11 +680,11 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
         deps = [{"id": "d", "tenant_id": "w", "url": None, "status": "READY"}]
 
         # Act
-        out, complete = deployments.get_assistants(self._FailingClient(), deps, ORG)
+        out, unlisted = deployments.get_assistants(self._FailingClient(), deps, ORG)
 
         # Assert
         assert out == []
-        assert complete is False
+        assert unlisted == {"d"}
 
 
 class TestAssistantSearchIsScopedAndConcurrent:
@@ -726,12 +728,12 @@ class TestAssistantSearchIsScopedAndConcurrent:
         ]
 
         # Act
-        out, complete = deployments.get_assistants(client, deps, ORG)
+        out, unlisted = deployments.get_assistants(client, deps, ORG)
 
         # Assert
         assert client.asked == ["https://a"]
         assert [a["assistant_id"] for a in out] == ["asst-a"]
-        assert complete is False
+        assert unlisted == {"b", "c", "d", "e", "f"}
 
     def test_nothing_serving_means_no_requests(self):
         # Arrange
@@ -742,7 +744,7 @@ class TestAssistantSearchIsScopedAndConcurrent:
         result = deployments.get_assistants(client, deps, ORG)
 
         # Assert
-        assert result == ([], False)
+        assert result == ([], {"a"})
         assert client.asked == []
 
     def test_searches_run_concurrently(self):
@@ -765,11 +767,11 @@ class TestAssistantSearchIsScopedAndConcurrent:
         ]
 
         # Act
-        out, complete = deployments.get_assistants(_BarrierClient(), deps, ORG)
+        out, unlisted = deployments.get_assistants(_BarrierClient(), deps, ORG)
 
         # Assert
         assert len(out) == count
-        assert complete is True
+        assert unlisted == set()
 
     def test_worker_count_never_exceeds_the_cap(self):
         # Arrange
@@ -814,7 +816,7 @@ class TestNonServingDeploymentsAreStillInventoried:
         assert transformed[0]["status"] == "AWAITING_DELETE"
 
         # Act and assert
-        assert deployments.get_assistants(_Boom(), transformed, ORG) == ([], False)
+        assert deployments.get_assistants(_Boom(), transformed, ORG) == ([], {"d1"})
 
 
 class TestCredentialsAreNotLeakedToRedirectTargets:

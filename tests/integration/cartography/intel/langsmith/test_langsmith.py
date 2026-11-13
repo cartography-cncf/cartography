@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -6,6 +7,7 @@ import cartography.intel.langsmith
 from cartography.config import Config
 from tests.data.langsmith.agent_auth import GITHUB_PROVIDER_ID
 from tests.data.langsmith.agent_auth import GOOGLE_PROVIDER_ID
+from tests.data.langsmith.deployments import LANGSMITH_ASSISTANTS
 from tests.data.langsmith.deployments import SUPPORT_AGENT_ID
 from tests.data.langsmith.deployments import SUPPORT_DEPLOYMENT_ID
 from tests.data.langsmith.deployments import TRIAGE_AGENT_ID
@@ -660,6 +662,121 @@ def test_resync_keeps_credential_providers_when_providers_cannot_be_read(
         "id",
         "FOR_PROVIDER",
     )
+
+
+SUPPORT_URL = "https://support-bot.us.langgraph.app"
+TRIAGE_URL = "https://triage-bot.us.langgraph.app"
+FAQ_AGENT_ID = "agent-faq-bot"
+FAQ_AGENT = f"{LANGSMITH_ORG_ID}|{FAQ_AGENT_ID}"
+FAQ_CREDENTIAL_ID = "cc11cc11-0004-4004-8004-cc11cc11cc11"
+SUPPORT_GOOGLE_CREDENTIAL_ID = "cc11cc11-0002-4002-8002-cc11cc11cc11"
+
+
+def _with_faq_agent() -> FakeLangSmithClient:
+    """The support deployment also serves an FAQ agent holding one credential."""
+    assistants: dict[str, list[dict[str, Any]]] = {
+        **LANGSMITH_ASSISTANTS,
+        SUPPORT_URL: [
+            *LANGSMITH_ASSISTANTS[SUPPORT_URL],
+            {"assistant_id": FAQ_AGENT_ID, "name": "FAQ Bot"},
+        ],
+    }
+    connection = {
+        "id": FAQ_CREDENTIAL_ID,
+        "agent_id": FAQ_AGENT_ID,
+        "provider_id": "github-prod",
+        "created_by": MARGE_LS_USER_ID,
+    }
+    routes = {
+        **SIMPSON_CORP_ROUTES,
+        (f"/v2/auth/agents/{FAQ_AGENT_ID}/connections", WORKSPACE_PROD_ID): {
+            "data": [connection]
+        },
+    }
+    return FakeLangSmithClient(routes=routes, assistants=assistants)
+
+
+def test_an_unlisted_deployment_does_not_block_agent_cleanup_elsewhere(
+    neo4j_session,
+):
+    # Arrange
+    _sync(neo4j_session, _with_faq_agent(), TEST_UPDATE_TAG)
+    assert FAQ_AGENT in _ids(neo4j_session, "LangSmithAgent")
+    # The FAQ agent is removed from the support deployment while the triage deployment
+    # is cold.
+    removed = FakeLangSmithClient(cold_deployment_urls=frozenset({TRIAGE_URL}))
+
+    # Act
+    _sync(neo4j_session, removed, NEXT_UPDATE_TAG)
+
+    # Assert
+    agents = _ids(neo4j_session, "LangSmithAgent")
+    credentials = _ids(neo4j_session, "LangSmithAgentCredential")
+    # Gone from a deployment that answered: removed, with the credential it held.
+    assert FAQ_AGENT not in agents
+    assert FAQ_CREDENTIAL_ID not in credentials
+    # On the deployment that did not answer: kept, with its credential.
+    assert TRIAGE_AGENT in agents
+    assert TRIAGE_CREDENTIAL_ID in credentials
+
+
+def test_an_unreadable_agent_does_not_block_credential_cleanup_elsewhere(
+    neo4j_session,
+):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    support_route = (
+        f"/v2/auth/agents/{SUPPORT_AGENT_ID}/connections",
+        WORKSPACE_PROD_ID,
+    )
+    support_connections = SIMPSON_CORP_ROUTES[support_route]["data"]
+    revoked = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            support_route: {"data": support_connections[:1]},
+        },
+        failures={
+            (f"/v2/auth/agents/{TRIAGE_AGENT_ID}/connections", WORKSPACE_DEV_ID): 403,
+        },
+    )
+
+    # Act
+    _sync(neo4j_session, revoked, NEXT_UPDATE_TAG)
+
+    # Assert
+    credentials = _ids(neo4j_session, "LangSmithAgentCredential")
+    assert SUPPORT_GOOGLE_CREDENTIAL_ID not in credentials
+    assert TRIAGE_CREDENTIAL_ID in credentials
+    assert TRIAGE_AGENT in _ids(neo4j_session, "LangSmithAgent")
+
+
+def test_providers_are_cleaned_up_when_one_workspace_answers(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    github_only = [
+        provider
+        for provider in SIMPSON_CORP_ROUTES[("/v2/auth/providers", WORKSPACE_DEV_ID)]
+        if provider["id"] == GITHUB_PROVIDER_ID
+    ]
+    one_workspace = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            ("/v2/auth/providers", WORKSPACE_DEV_ID): github_only,
+        },
+        failures={
+            ("/v2/auth/providers", WORKSPACE_PROD_ID): 403,
+            ("/v2/auth/platform-providers", WORKSPACE_PROD_ID): 403,
+        },
+    )
+
+    # Act
+    _sync(neo4j_session, one_workspace, NEXT_UPDATE_TAG)
+
+    # Assert
+    # The provider listing is organization-wide, so one workspace answering is enough.
+    providers = _ids(neo4j_session, "LangSmithOAuthProvider")
+    assert GITHUB_PROVIDER_ID in providers
+    assert GOOGLE_PROVIDER_ID not in providers
 
 
 def test_syncing_another_organization_keeps_this_organizations_graph(neo4j_session):

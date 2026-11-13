@@ -1,6 +1,8 @@
 import logging
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 
 import neo4j
@@ -23,6 +25,17 @@ _SERVING_STATUS = "READY"
 _MAX_ASSISTANT_WORKERS = 10
 
 
+@dataclass(frozen=True)
+class AgentCoverage:
+    """Where this run's agent inventory has gaps, so cleanup can work around them."""
+
+    # Deployments whose assistants could not be listed: not serving, no URL, or the
+    # search failed. Agents they run may still exist.
+    unlisted_deployment_ids: set[str] = field(default_factory=set)
+    # Workspaces whose deployments could not be listed at all.
+    unread_workspace_ids: set[str] = field(default_factory=set)
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -30,13 +43,14 @@ def sync(
     org_id: str,
     workspaces: list[dict[str, Any]],
     common_job_parameters: dict[str, Any],
-) -> tuple[list[dict[str, Any]], dict[str, str], bool]:
+) -> tuple[list[dict[str, Any]], dict[str, str], AgentCoverage]:
     """
     Load deployments and any agents they serve.
 
-    Returns the agent inventory, a deployment id -> workspace id mapping, and whether the
-    agent inventory is complete. Agents are cleaned up by the agent_auth sync, which also
-    loads them, so it must not clean up on an incomplete inventory.
+    Returns the agent inventory, a deployment id -> workspace id mapping, and which
+    deployments and workspaces the inventory could not cover. Agents are cleaned up by
+    the agent_auth sync, which also loads them, and it must preserve the agents in
+    those uncovered places.
     """
     raw: list[dict[str, Any]] = []
     unread_workspace_ids: set[str] = set()
@@ -56,7 +70,7 @@ def sync(
 
     deployments = transform_deployments(raw)
     agents = transform_agents(deployments, org_id)
-    assistants, assistants_complete = get_assistants(client, deployments, org_id)
+    assistants, unlisted_deployment_ids = get_assistants(client, deployments, org_id)
     agents = merge_assistants(agents, assistants)
     load_deployments(
         neo4j_session, agents, deployments, org_id, common_job_parameters["UPDATE_TAG"]
@@ -74,14 +88,17 @@ def sync(
     return (
         agents,
         workspace_by_deployment,
-        not unread_workspace_ids and assistants_complete,
+        AgentCoverage(
+            unlisted_deployment_ids=unlisted_deployment_ids,
+            unread_workspace_ids=unread_workspace_ids,
+        ),
     )
 
 
 @timeit
 def get_assistants(
     client: LangSmithClient, deployments: list[dict[str, Any]], org_id: str
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], set[str]]:
     """
     Enumerate the assistants served by each deployment.
 
@@ -91,6 +108,9 @@ def get_assistants(
     or half-provisioned deployment costs a full timeout to discover that.
 
     The remaining requests run concurrently, because they target independent hosts.
+
+    Returns the assistants found and the ids of the deployments that could not be
+    listed, whose agents cleanup must preserve.
     """
     candidates = [
         deployment
@@ -98,18 +118,23 @@ def get_assistants(
         if deployment.get("url") and deployment.get("status") == _SERVING_STATUS
     ]
     # A deployment that is not serving still exists and may still hold agents with live
-    # credentials. Its agents cannot be listed, so the inventory is incomplete and agent
-    # cleanup must wait until it serves again or is deleted.
-    skipped = len(deployments) - len(candidates)
-    if skipped:
+    # credentials. Its agents cannot be listed, so cleanup must keep them until it serves
+    # again or is deleted.
+    candidate_ids = {deployment["id"] for deployment in candidates}
+    unlisted = {
+        deployment["id"]
+        for deployment in deployments
+        if deployment["id"] not in candidate_ids
+    }
+    if unlisted:
         logger.info(
             "Skipping assistant search for %d deployment(s) that are not %s or have no "
-            "URL; agent cleanup will be skipped this run.",
-            skipped,
+            "URL; their agents are kept as they are.",
+            len(unlisted),
             _SERVING_STATUS,
         )
     if not candidates:
-        return [], not skipped
+        return [], unlisted
 
     worker_count = min(_MAX_ASSISTANT_WORKERS, len(candidates))
     logger.info(
@@ -128,13 +153,17 @@ def get_assistants(
     if failures:
         logger.warning(
             "Assistant search did not complete for %d of %d LangSmith deployment(s) "
-            "(%s); agent cleanup will be skipped so existing agents are not deleted.",
+            "(%s); agents on those deployments are kept as they are.",
             sum(failures.values()),
             len(candidates),
             ", ".join(f"{reason}: {count}" for reason, count in failures.most_common()),
         )
-    complete = not skipped and not failures
-    return [assistant for batch, _ in results for assistant in batch], complete
+    unlisted.update(
+        deployment["id"]
+        for deployment, (_, failure) in zip(candidates, results)
+        if failure
+    )
+    return [assistant for batch, _ in results for assistant in batch], unlisted
 
 
 def _assistants_for(

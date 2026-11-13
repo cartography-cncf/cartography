@@ -54,7 +54,12 @@ def sync(
     )
 
 
-def _get_optional(client: LangSmithClient, org_id: str, path: str) -> tuple[Any, bool]:
+def _get_optional(
+    client: LangSmithClient,
+    org_id: str,
+    path: str,
+    params: dict[str, Any] | None = None,
+) -> tuple[Any, bool]:
     """
     Fetch an organization-level listing that a credential or plan may not expose.
 
@@ -63,7 +68,7 @@ def _get_optional(client: LangSmithClient, org_id: str, path: str) -> tuple[Any,
     answer. A 401/403 means the listing exists but is hidden, so it is reported incomplete.
     """
     try:
-        return client.get(path, org_id=org_id), True
+        return client.get(path, params=params, org_id=org_id), True
     except LangSmithFetchError as err:
         logger.warning("Skipping LangSmith %s: %s", path, err)
         return None, err.not_found
@@ -98,11 +103,33 @@ def get_data_planes(
 
     Data planes only exist for hybrid and self-hosted deployments, and the route is not
     served for organizations without one.
+
+    The full view needs organization:infrastructure:read, which only Organization Admin
+    and Operator hold. When it is denied, the summary view is requested instead: it
+    needs only organization:read and still carries id, name and status, but not
+    created_at.
     """
-    payload, complete = _get_optional(client, org_id, "/orgs/current/data-planes")
+    path = "/orgs/current/data-planes"
+    try:
+        payload = client.get(path, org_id=org_id)
+    except LangSmithFetchError as err:
+        if err.not_found or err.status_code not in (401, 403):
+            logger.warning("Skipping LangSmith %s: %s", path, err)
+            return [], err.not_found
+        logger.info(
+            "LangSmith %s full view was denied (%s); using the summary view, which "
+            "omits created_at.",
+            path,
+            err,
+        )
+        payload, complete = _get_optional(
+            client, org_id, path, params={"view": "SUMMARY"}
+        )
+        if not complete:
+            return [], False
     if isinstance(payload, dict):
-        return payload.get("data_planes") or [], complete
-    return payload or [], complete
+        return payload.get("data_planes") or [], True
+    return payload or [], True
 
 
 def transform_providers(

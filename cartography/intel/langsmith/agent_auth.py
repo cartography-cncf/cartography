@@ -16,16 +16,33 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.intel.langsmith.deployments import AgentCoverage
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import resolve_ls_user_id
+from cartography.intel.langsmith.util import run_preserving_cleanup
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.agentcredential import LangSmithAgentCredentialSchema
 from cartography.models.langsmith.oauthprovider import LangSmithOAuthProviderSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# An agent is kept when a deployment serving it could not be listed, or sits in a
+# workspace whose deployments could not be read. An agent known only through a
+# credential has no deployment, so it is kept whenever any connection listing failed.
+_PRESERVE_AGENTS = (
+    "EXISTS { MATCH (n)--(d:LangSmithDeployment) "
+    "WHERE d.id IN $LANGSMITH_UNLISTED_DEPLOYMENT_IDS "
+    "OR EXISTS { MATCH (d)<-[:CONTAINS]-(w:LangSmithWorkspace) "
+    "WHERE w.id IN $LANGSMITH_UNREAD_WORKSPACE_IDS } } "
+    "OR ($LANGSMITH_CONNECTIONS_INCOMPLETE "
+    "AND NOT EXISTS { MATCH (n)--(:LangSmithDeployment) })"
+)
+# A credential is kept when its agent's connections were not read in full this run. A
+# credential whose agent was deleted is an orphan and is cleaned up.
+_PRESERVE_CREDENTIALS = "EXISTS { MATCH (n)--(a:LangSmithAgent) WHERE NOT a.id IN $LANGSMITH_READ_AGENT_IDS }"
 
 
 @timeit
@@ -37,11 +54,11 @@ def sync(
     agents: list[dict[str, Any]],
     workspace_by_deployment: dict[str, str],
     user_lookup: dict[str, str],
-    agents_complete: bool,
+    coverage: AgentCoverage,
     common_job_parameters: dict[str, Any],
 ) -> None:
     providers, providers_complete = get_providers(client, org_id, workspaces)
-    connections, connections_complete = get_connections(
+    connections, read_agent_ids, connections_complete = get_connections(
         client, org_id, agents, workspace_by_deployment
     )
     # Resolve each credential's provider slug to that provider's UUID within this
@@ -70,23 +87,41 @@ def sync(
         providers_complete,
         common_job_parameters,
     )
-    # Credentials are only fetched for agents we know about, and agents are loaded by
-    # both this module and the deployments sync, so both depend on a complete agent
-    # inventory. A cold deployment must not be mistaken for "these no longer exist".
-    agents_and_connections_complete = agents_complete and connections_complete
-    # A credential's FOR_PROVIDER edge is resolved through the provider listing, so
-    # cleaning credentials after a failed provider fetch would prune those edges.
-    cleanup_if_complete(
-        neo4j_session,
-        LangSmithAgentCredentialSchema(),
-        agents_and_connections_complete and providers_complete,
-        common_job_parameters,
-    )
-    cleanup_if_complete(
+    # Agents first: a credential left without its agent is then an orphan, and the
+    # credential cleanup below removes it in the same run.
+    run_preserving_cleanup(
         neo4j_session,
         LangSmithAgentSchema(),
-        agents_and_connections_complete,
         common_job_parameters,
+        _PRESERVE_AGENTS,
+        {
+            "LANGSMITH_UNLISTED_DEPLOYMENT_IDS": sorted(
+                coverage.unlisted_deployment_ids
+            ),
+            "LANGSMITH_UNREAD_WORKSPACE_IDS": sorted(coverage.unread_workspace_ids),
+            "LANGSMITH_CONNECTIONS_INCOMPLETE": not connections_complete,
+        },
+    )
+    if connections_complete:
+        # Agents known only through a credential were not queried themselves, but every
+        # listing that could name them answered.
+        read_agent_ids |= {agent["id"] for agent in extra_agents}
+    # A credential's FOR_PROVIDER edge is resolved through the provider listing, so
+    # cleaning credentials after a failed provider fetch would prune those edges.
+    if not providers_complete:
+        cleanup_if_complete(
+            neo4j_session,
+            LangSmithAgentCredentialSchema(),
+            False,
+            common_job_parameters,
+        )
+        return
+    run_preserving_cleanup(
+        neo4j_session,
+        LangSmithAgentCredentialSchema(),
+        common_job_parameters,
+        _PRESERVE_CREDENTIALS,
+        {"LANGSMITH_READ_AGENT_IDS": sorted(read_agent_ids)},
     )
 
 
@@ -99,33 +134,56 @@ def get_providers(
     """
     Fetch the OAuth providers agents can obtain tokens from.
 
-    Provider records are organization-scoped, but the route is gated on the
-    workspace-scoped deployments:read permission, so it is called per workspace and the
-    results are deduplicated.
+    Neither route depends on the workspace: /v2/auth/providers lists the organization's
+    providers, and /v2/auth/platform-providers lists a global, platform-owned set. Both
+    are gated on the workspace-scoped deployments:read permission, though, so each is
+    tried workspace by workspace until one answers. The listing is complete once both
+    have answered.
     """
     providers: dict[str, dict[str, Any]] = {}
     complete = True
-    for workspace in workspaces:
-        for path, is_platform in (
-            ("/v2/auth/providers", False),
-            ("/v2/auth/platform-providers", True),
-        ):
-            try:
-                rows = client.get(
-                    path, org_id=org_id, tenant_id=workspace["id"], host=True
-                )
-            except LangSmithFetchError as err:
-                logger.warning(
-                    "Skipping LangSmith %s for workspace %s: %s",
-                    path,
-                    workspace["id"],
-                    err,
-                )
-                complete = complete and err.not_found
-                continue
-            for row in rows:
-                providers[row["id"]] = transform_provider(row, is_platform=is_platform)
+    for path, is_platform in (
+        ("/v2/auth/providers", False),
+        ("/v2/auth/platform-providers", True),
+    ):
+        rows, ok = _first_readable(client, org_id, workspaces, path)
+        complete = complete and ok
+        for row in rows:
+            providers[row["id"]] = transform_provider(row, is_platform=is_platform)
     return list(providers.values()), complete
+
+
+def _first_readable(
+    client: LangSmithClient,
+    org_id: str,
+    workspaces: list[dict[str, Any]],
+    path: str,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Read a workspace-independent listing through the first workspace that allows it."""
+    denied: list[str] = []
+    for workspace in workspaces:
+        try:
+            rows = client.get(path, org_id=org_id, tenant_id=workspace["id"], host=True)
+        except LangSmithFetchError as err:
+            if err.not_found:
+                # The route is not served for this organization: nothing to list.
+                return [], True
+            denied.append(workspace["id"])
+            continue
+        if denied:
+            logger.debug(
+                "LangSmith %s was denied in %d workspace(s) before one answered",
+                path,
+                len(denied),
+            )
+        return rows, True
+    if workspaces:
+        logger.warning(
+            "Skipping LangSmith %s: no workspace allowed it; the credential needs "
+            "deployments:read in at least one workspace.",
+            path,
+        )
+    return [], not workspaces
 
 
 @timeit
@@ -134,7 +192,7 @@ def get_connections(
     org_id: str,
     agents: list[dict[str, Any]],
     workspace_by_deployment: dict[str, str],
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], set[str], bool]:
     """
     Fetch each agent's OAuth connections.
 
@@ -142,8 +200,12 @@ def get_connections(
     gives the organization-wide view of which agent holds which user's token. It is
     workspace-scoped, so each agent is queried in the workspaces of the deployments that
     serve it.
+
+    Returns the connections, the graph ids of the agents whose connections were read in
+    every one of their workspaces, and whether every listing answered.
     """
     connections: dict[str, dict[str, Any]] = {}
+    read_agent_ids: set[str] = set()
     complete = True
     for agent in agents:
         # The API is keyed by the raw assistant id; agent["id"] is namespaced by
@@ -156,6 +218,7 @@ def get_connections(
                 if deployment_id in workspace_by_deployment
             }
         )
+        agent_read = bool(workspace_ids)
         for workspace_id in workspace_ids:
             try:
                 payload = client.get(
@@ -175,10 +238,13 @@ def get_connections(
                         err,
                     )
                     complete = False
+                    agent_read = False
                 continue
             for row in payload.get("data") or []:
                 connections.setdefault(row["id"], row)
-    return list(connections.values()), complete
+        if agent_read:
+            read_agent_ids.add(agent["id"])
+    return list(connections.values()), read_agent_ids, complete
 
 
 def transform_provider(

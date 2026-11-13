@@ -102,7 +102,8 @@ class FakeLangSmithClient:
     Unknown routes answer 404, as the real API does. Routes in ``failures`` fail with the
     given status, or with a timeout when the status is None, the way the real client
     reports them. Deployments in ``cold_deployment_urls`` fail their assistant search,
-    the way a scaled-to-zero deployment times out.
+    the way a scaled-to-zero deployment times out. ``assistants`` replaces what each
+    deployment URL serves.
     """
 
     def __init__(
@@ -110,10 +111,14 @@ class FakeLangSmithClient:
         routes: dict[Route, Any] | None = None,
         failures: dict[Route, int | None] | None = None,
         cold_deployment_urls: frozenset[str] = frozenset(),
+        assistants: dict[str, list[dict[str, Any]]] | None = None,
     ) -> None:
         self.routes = SIMPSON_CORP_ROUTES if routes is None else routes
         self.failures = failures or {}
         self.cold_deployment_urls = cold_deployment_urls
+        self.assistants = (
+            deployments.LANGSMITH_ASSISTANTS if assistants is None else assistants
+        )
 
     def get(self, path: str, *, tenant_id: str | None = None, **_: Any) -> Any:
         route = (path, tenant_id)
@@ -134,6 +139,6 @@ class FakeLangSmithClient:
         if deployment_url in self.cold_deployment_urls:
             return [], "ReadTimeoutError"
         return (
-            copy.deepcopy(deployments.LANGSMITH_ASSISTANTS.get(deployment_url, [])),
+            copy.deepcopy(self.assistants.get(deployment_url, [])),
             None,
         )
