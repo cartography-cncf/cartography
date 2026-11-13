@@ -7,6 +7,7 @@ warning rather than failing the module, and the resource type it belongs to skip
 """
 
 import logging
+from collections import Counter
 from typing import Any
 
 import neo4j
@@ -41,6 +42,7 @@ def sync(
     secrets_complete = tags_complete = oauth_clients_complete = mcp_servers_complete = (
         True
     )
+    unconnected_vendors: Counter[str] = Counter()
 
     for workspace in workspaces:
         workspace_id = workspace["id"]
@@ -57,9 +59,22 @@ def sync(
         oauth_clients.extend(rows)
         oauth_clients_complete = oauth_clients_complete and ok
 
-        rows, ok = get_mcp_servers(client, org_id, workspace_id)
+        rows, ok = get_mcp_servers(
+            client, org_id, workspace_id, unconnected_vendors=unconnected_vendors
+        )
         mcp_servers.extend(rows)
         mcp_servers_complete = mcp_servers_complete and ok
+
+    if unconnected_vendors:
+        logger.info(
+            "LangSmith MCP vendors registered but not connected, so exposing no gateways, "
+            "in organization %s: %s",
+            org_id,
+            ", ".join(
+                f"{vendor} in {count} workspace(s)"
+                for vendor, count in sorted(unconnected_vendors.items())
+            ),
+        )
 
     load_workspace_resources(
         neo4j_session,
@@ -190,13 +205,18 @@ def get_oauth_clients(
 
 @timeit
 def get_mcp_servers(
-    client: LangSmithClient, org_id: str, workspace_id: str
+    client: LangSmithClient,
+    org_id: str,
+    workspace_id: str,
+    unconnected_vendors: Counter[str] | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch the vendor-managed MCP gateways a workspace exposes.
 
     Each MCP vendor is listed first, then its gateways, because the gateway route is
-    keyed by vendor slug.
+    keyed by vendor slug. The vendor listing can name a vendor the workspace never
+    connected, which is the common case, so each one is tallied in
+    ``unconnected_vendors`` for a single summary line rather than logged per workspace.
     """
     try:
         vendor_payload = client.get(
@@ -233,15 +253,15 @@ def get_mcp_servers(
         except requests.HTTPError as err:
             # A vendor that is registered but not yet OAuth-connected in this workspace
             # answers 400 ("Please connect your Arcade account first"). It exposes no
-            # gateways, so treat it as empty rather than failing the whole sync.
+            # gateways, which is a complete answer, so it is not a skip.
             if err.response is not None and err.response.status_code == 400:
-                logger.warning(
-                    "Skipping LangSmith MCP gateways for vendor %s in workspace %s: "
-                    "the vendor is not connected (%s)",
+                logger.debug(
+                    "LangSmith MCP vendor %s is not connected in workspace %s",
                     vendor_slug,
                     workspace_id,
-                    err,
                 )
+                if unconnected_vendors is not None:
+                    unconnected_vendors[vendor_slug] += 1
                 continue
             raise
         for gateway in gateways:

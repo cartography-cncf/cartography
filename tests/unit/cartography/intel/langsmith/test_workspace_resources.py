@@ -1,3 +1,5 @@
+import logging
+from collections import Counter
 from unittest.mock import MagicMock
 
 import pytest
@@ -57,3 +59,22 @@ def test_get_mcp_servers_reraises_other_http_errors():
     # Act and assert
     with pytest.raises(requests.HTTPError):
         get_mcp_servers(client, "org-1", "ws-1")
+
+
+def test_an_unconnected_vendor_is_tallied_not_warned(caplog):
+    # Arrange
+    client = _client([_http_error(400), []])
+    unconnected = Counter()
+
+    # Act
+    with caplog.at_level(logging.DEBUG):
+        _, complete = get_mcp_servers(
+            client, "org-1", "ws-1", unconnected_vendors=unconnected
+        )
+
+    # Assert
+    # Every workspace without an Arcade connection answers 400; that is an expected
+    # state, so it must not add a warning per workspace.
+    assert complete is True
+    assert unconnected == Counter({"arcade": 1})
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]

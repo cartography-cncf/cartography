@@ -46,13 +46,15 @@ def _build_assistant_session() -> requests.Session:
     """
     Build a session for the read-only assistant search, which is expressed as a POST.
 
-    Throttling and transient 5xx responses are retried, but read timeouts are not: a
-    scaled-to-zero deployment that times out once will time out again, and retrying it
-    would multiply the worst case the tight timeout exists to bound.
+    Throttling and transient 5xx responses are retried, but connect and read timeouts
+    are not: a scaled-to-zero or unreachable deployment that times out once will time out
+    again, and retrying it would multiply the worst case the tight timeout exists to
+    bound. A failed listing only defers agent cleanup, so giving up early is safe.
     """
     session = requests.Session()
     retry_policy = Retry(
         total=3,
+        connect=0,
         read=0,
         backoff_factor=1,
         status_forcelist=_RETRY_STATUSES,
@@ -223,7 +225,7 @@ class LangSmithClient:
         deployment_url: str,
         tenant_id: str,
         page_size: int = 100,
-    ) -> tuple[list[dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """
         List the assistants (agents) served by one deployment.
 
@@ -235,9 +237,11 @@ class LangSmithClient:
         mutates. The deployment API key check is tenant-scoped, so X-Tenant-Id is required:
         without it the data plane answers 403 "API key tenant mismatch".
 
-        Returns the assistants and whether the listing completed. A failure must not be
-        reported as an empty inventory, because callers use that inventory to decide what
-        to delete.
+        Returns the assistants and, when the listing did not complete, a short reason such
+        as ``HTTP 401`` or an exception class name (``None`` means it completed). A failure
+        must not be reported as an empty inventory, because callers use that inventory to
+        decide what to delete. Per-deployment failures are logged at DEBUG; the caller
+        reports them in aggregate, since one organization can have hundreds.
 
         Redirects are refused. The deployment host comes from API data rather than from
         operator configuration, and requests only strips the Authorization header when a
@@ -249,7 +253,7 @@ class LangSmithClient:
                 "Refusing to send credentials to non-HTTPS deployment URL for tenant %s",
                 tenant_id,
             )
-            return [], False
+            return [], "non-HTTPS URL"
 
         assistants: list[dict[str, Any]] = []
         offset = 0
@@ -265,31 +269,47 @@ class LangSmithClient:
                     allow_redirects=False,
                 )
             except requests.RequestException as err:
-                logger.warning("Assistant search failed for a deployment: %s", err)
-                return assistants, False
+                logger.debug("Assistant search failed for %s: %s", url, err)
+                return assistants, _request_failure_reason(err)
             if response.is_redirect or response.is_permanent_redirect:
                 logger.warning(
                     "Refusing to follow a redirect from a deployment's assistant search "
                     "(status %s): following it would forward the API key to another host.",
                     response.status_code,
                 )
-                return assistants, False
+                return assistants, "redirect"
             if response.status_code != 200:
-                logger.warning(
-                    "Assistant search returned %s for a deployment",
-                    response.status_code,
+                logger.debug(
+                    "Assistant search returned %s for %s", response.status_code, url
                 )
-                return assistants, False
+                return assistants, f"HTTP {response.status_code}"
             page = response.json()
             if not isinstance(page, list):
                 logger.warning(
                     "Assistant search returned an unexpected shape for a deployment"
                 )
-                return assistants, False
+                return assistants, "unexpected response shape"
             assistants.extend(page)
             if len(page) < page_size:
-                return assistants, True
+                return assistants, None
             offset += len(page)
+
+
+def _request_failure_reason(err: requests.RequestException) -> str:
+    """
+    Name a transport failure by its root cause, without headers or the URL.
+
+    requests wraps exhausted retries in ConnectionError or RetryError, so the class name
+    alone would lump a connect timeout together with repeated 503s.
+    """
+    cause = err.args[0] if err.args else None
+    reason = getattr(cause, "reason", None)
+    if isinstance(reason, Exception):
+        # urllib3's ResponseError means retryable statuses (429/5xx) never cleared.
+        if type(reason).__name__ == "ResponseError":
+            return "repeated 429/5xx"
+        return type(reason).__name__
+    return type(err).__name__
 
 
 def org_scoped_id(org_id: str, raw_id: str | None) -> str | None:

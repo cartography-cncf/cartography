@@ -130,10 +130,10 @@ class FakeLangSmithClient:
 
     def search_assistants(
         self, deployment_url: str, tenant_id: str
-    ) -> tuple[list[dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], str | None]:
         if deployment_url in self.cold_deployment_urls:
-            return [], False
+            return [], "ReadTimeoutError"
         return (
             copy.deepcopy(deployments.LANGSMITH_ASSISTANTS.get(deployment_url, [])),
-            True,
+            None,
         )
