@@ -13,7 +13,7 @@ Build a brand new Cartography intel module from scratch using the modern declara
 2. **Sub-resource relationships always point to a tenant-like node** (AWSAccount, AzureSubscription, GCPProject, GitHubOrganization, your `<Service>Tenant`). Never to an infrastructure parent.
 3. **Required fields use direct dict access**, optional fields use `.get()` with `None` default. Do not silently swallow exceptions in `get()`.
 4. **Only standard schema fields**: any custom field added to a `CartographyNodeSchema` / `CartographyRelSchema` subclass is ignored. See the `add-node-type` and `add-relationship` skills.
-5. **Integration tests must call `sync()`**, not individual `load()` calls. Mock only external boundaries (API clients, credentials).
+5. **Follow [the test policy](../../../tests/AGENTS.md).** Exercise real `sync()` with mocked provider input and assert expected relationships using `check_rels`.
 6. **All commits use `git commit -s`** (DCO).
 
 ## Instructions
@@ -127,7 +127,11 @@ If you hand-write a Cypher write query during prototyping, use `run_write_query(
 
 ### Step 7 — Integration test
 
-In `tests/integration/cartography/intel/your_service/test_users.py`, patch only `get()` and call `sync()` end-to-end. Assert outcomes (nodes + relationships) using `tests.integration.util.check_nodes` / `check_rels`. Do not assert on mock call counts or internal parameters. See `references/testing.md` for a full template and the test boundary policy.
+In `tests/integration/cartography/intel/your_service/test_users.py`, exercise real
+`sync()` with mocked provider input and assert expected relationships using
+`check_rels`. Follow [tests/AGENTS.md](../../../tests/AGENTS.md) when deciding
+whether additional tests are warranted; do not scaffold separate API, transform,
+cleanup, or CLI tests by default. See `references/testing.md` for an example.
 
 ### Step 8 — Module documentation
 
@@ -152,8 +156,8 @@ If the module needs post-ingestion enrichment (internet exposure, permission inh
 ### Step 10 — Pre-submission checks
 
 ```bash
-make lint
-# integration test for the module:
+make test_lint
+# Focused integration test while iterating:
 pytest tests/integration/cartography/intel/your_service/ -x
 ```
 
@@ -168,12 +172,12 @@ Sign every commit: `git commit -s -m "..."`. Update the PR description to match 
 - [ ] All schemas use only standard fields (`label`, `properties`, `sub_resource_relationship`, `other_relationships`, `extra_node_labels`, `scoped_cleanup`)
 - [ ] Sub-resource relationship targets a tenant-like node
 - [ ] Required fields use `data["x"]`, optional use `data.get("x")` with `None` default
-- [ ] `extra_index=True` set on frequently queried fields
-- [ ] Integration test exercises `sync()`, asserts nodes + rels with `check_nodes` / `check_rels`
+- [ ] `extra_index=True` set on frequently queried fields that are not referenced in a TargetNodeMatcher.
+- [ ] Integration test exercises `sync()` and asserts expected relationships with `check_rels`; additional tests follow `tests/AGENTS.md`
 - [ ] `index.md` and canonical `config.md` added with a `config` / `schema` toctree
 - [ ] Schema classes have docstrings and displayed `PropertyRef` values have descriptions
 - [ ] No hand-written `schema.md` was added
-- [ ] `make lint` clean, `git commit -s` used
+- [ ] `make test_lint` clean, `git commit -s` used
 
 ## Common issues
 
@@ -183,6 +187,6 @@ See the `troubleshooting` skill for `ModuleNotFoundError`, `PropertyRef validati
 
 - `references/sync-pattern.md` — full templates for `__init__.py`, `sync()`, `get()`, `transform()`, error-handling rules.
 - `references/data-model.md` — node properties, schema, sub-resource relationships, loading, ECS example.
-- `references/testing.md` — integration test template, `check_nodes` / `check_rels`, mocking policy, integration test boundary.
+- `references/testing.md` — minimal sync test example using `check_rels`; test policy lives in `tests/AGENTS.md`.
 - `references/coding-conventions.md` — error handling, type hints, logging levels and format, deprecation conventions.
 - `references/config-docs.md` — canonical module `config.md` template and content-placement rules.
