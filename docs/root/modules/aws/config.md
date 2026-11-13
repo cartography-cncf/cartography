@@ -76,6 +76,10 @@ Center and Identity Store actions that Cartography calls: `sso:ListInstances`,
 `sso:ListAccountAssignmentsForPrincipal`, `identitystore:ListUsers`,
 `identitystore:ListGroups`, and `identitystore:ListGroupMemberships`.
 
+Resource Access Manager ingestion calls `ram:GetResourceShares`,
+`ram:ListPrincipals` and `ram:ListResources`, all covered by `SecurityAudit`
+(which grants `ram:GetResourceShares` and `ram:List*`).
+
 Full AWS Organizations hierarchy enumeration requires credentials from the
 management account or a delegated administrator account. Grant
 `organizations:Describe*` and `organizations:List*` permissions. The managed
