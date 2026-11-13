@@ -20,8 +20,9 @@ class ReportRef:
     """One enumerated report.
 
     uri: human-readable provenance string (used in logs and errors).
-    name: backend-specific key passed to read_bytes (S3 object key, blob name,
-    or absolute filesystem path).
+    name: backend-specific report name or key, used for filtering and ordering.
+    Cloud readers use it as the object key; local directory readers use a
+    root-relative POSIX path.
     """
 
     uri: str
@@ -109,7 +110,7 @@ class LocalReportReader(_BaseReader):
         refs: list[ReportRef] = [
             ReportRef(
                 uri=str(path),
-                name=str(path.relative_to(self._root)),
+                name=path.relative_to(self._root).as_posix(),
             )
             for path in self._root.rglob("*")
             if path.is_file()
