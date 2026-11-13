@@ -1,4 +1,6 @@
 import asyncio
+import contextlib
+import json
 import logging
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
@@ -613,6 +615,101 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert isinstance(history_by_diff_id, dict)
     assert image_attestation_map == {}
     assert fetch_complete is False
+
+
+@pytest.mark.asyncio
+async def test_fetch_image_layers_async_downloads_blobs_on_one_connection_per_slot(
+    mocker,
+):
+    """
+    Every download URL gets a connection right away, and child manifests share the
+    max_concurrent limit. Downloads that queued for a connection used to time out
+    and fail as if the registry had.
+    """
+    # Arrange
+    max_concurrent = 101  # above httpx's default pool of 100 connections
+    outstanding = 0  # download URL issued, blob not yet served
+    peak_outstanding = 0
+    in_flight = 0  # request received, blob not yet served
+    peak_in_flight = 0
+    all_slots_busy = asyncio.Event()
+    blob = json.dumps(test_data.SAMPLE_CONFIG_BLOB).encode()
+
+    async def serve_blobs(reader, writer):
+        nonlocal outstanding, in_flight, peak_in_flight
+        try:
+            while True:
+                await reader.readuntil(b"\r\n\r\n")
+                in_flight += 1
+                peak_in_flight = max(peak_in_flight, in_flight)
+                if in_flight == max_concurrent:
+                    all_slots_busy.set()
+                # Hold each download until every slot is busy, so the peak shows
+                # how many downloads the fetch can run at once.
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(all_slots_busy.wait(), timeout=1)
+                in_flight -= 1
+                outstanding -= 1
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s"
+                    % (len(blob), blob),
+                )
+                await writer.drain()
+        except (asyncio.IncompleteReadError, ConnectionError):
+            writer.close()
+
+    server = await asyncio.start_server(
+        serve_blobs, "127.0.0.1", 0, backlog=2 * max_concurrent
+    )
+    port = server.sockets[0].getsockname()[1]
+
+    async def issue_download_url(**_kwargs):
+        nonlocal outstanding, peak_outstanding
+        outstanding += 1
+        peak_outstanding = max(peak_outstanding, outstanding)
+        return {"downloadUrl": f"http://127.0.0.1:{port}/blob"}
+
+    ecr_client = AsyncMock()
+    ecr_client.get_download_url_for_layer.side_effect = issue_download_url
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref.startswith("sha256:list"):
+            return (
+                test_data.SAMPLE_MANIFEST_LIST,
+                "application/vnd.docker.distribution.manifest.list.v2+json",
+            )
+        return (
+            test_data.SAMPLE_MANIFEST,
+            "application/vnd.docker.distribution.manifest.v2+json",
+        )
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    repo_images_list = [
+        {
+            "uri": f"{repo_uri}@sha256:list{i}",
+            "imageDigest": f"sha256:list{i}",
+            "repo_uri": repo_uri,
+        }
+        for i in range(max_concurrent)
+    ]
+
+    # Act
+    async with server:
+        image_layers_data, _, _, _, fetch_complete = await fetch_image_layers_async(
+            ecr_client,
+            repo_images_list,
+            max_concurrent=max_concurrent,
+        )
+
+    # Assert
+    assert peak_outstanding == max_concurrent
+    assert peak_in_flight == max_concurrent
+    assert len(image_layers_data) == max_concurrent
+    assert fetch_complete is True
 
 
 @pytest.mark.asyncio

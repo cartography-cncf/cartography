@@ -123,6 +123,9 @@ RETRYABLE_HTTPX_EXCEPTIONS = (
     httpx.WriteTimeout,
 )
 MAX_BLOB_DOWNLOAD_ATTEMPTS = 3
+# Waiting for a free connection in the local pool is queueing, not a registry
+# failure, so it has no timeout and never burns a download attempt.
+BLOB_DOWNLOAD_TIMEOUT = httpx.Timeout(30.0, pool=None)
 CIRCLECI_LABEL_SOURCE_URI = "CIRCLE_REPOSITORY_URL"
 CIRCLECI_LABEL_SOURCE_REVISION = "CIRCLE_SHA1"
 CIRCLECI_LABEL_SOURCE_FILE = "DOCKERFILE"
@@ -406,7 +409,7 @@ async def get_blob_json_via_presigned(
     last_error: httpx.HTTPError | None = None
     for attempt in range(1, MAX_BLOB_DOWNLOAD_ATTEMPTS + 1):
         try:
-            response = await http_client.get(url, timeout=30.0)
+            response = await http_client.get(url, timeout=BLOB_DOWNLOAD_TIMEOUT)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as error:
@@ -1044,18 +1047,25 @@ async def fetch_image_layers_async(
         - history_by_diff_id: Map of diff_id to history command (created_by)
         - provenance_by_image_uri: Maps image URI to provenance info
         """
+        # Caller guarantees these fields exist in every repo_image
+        uri = repo_image["uri"]
+        digest = repo_image["imageDigest"]
+        repo_uri = repo_image["repo_uri"]
+
+        # Extract repository name
+        parts = repo_uri.split("/", 1)
+        if len(parts) != 2:
+            raise ValueError(f"Unexpected ECR repository URI format: {repo_uri}")
+        repo_name = parts[1]
+
+        platform_layers: dict[str, list[str]] = {}
+        history_by_diff_id: dict[str, str] = {}
+        provenance_by_image_uri: dict[str, dict[str, Any]] = {}
+
+        # Each manifest or blob fetch holds one semaphore slot, and the HTTP pool
+        # has one connection per slot. A manifest list frees its slot before it
+        # fans out, so its children count against the same limit.
         async with semaphore:
-            # Caller guarantees these fields exist in every repo_image
-            uri = repo_image["uri"]
-            digest = repo_image["imageDigest"]
-            repo_uri = repo_image["repo_uri"]
-
-            # Extract repository name
-            parts = repo_uri.split("/", 1)
-            if len(parts) != 2:
-                raise ValueError(f"Unexpected ECR repository URI format: {repo_uri}")
-            repo_name = parts[1]
-
             # Get manifest using optimized caching
             doc, media_type = await _fetch_and_cache_manifest(
                 repo_name, digest, ALL_ACCEPTED
@@ -1065,19 +1075,32 @@ async def fetch_image_layers_async(
                 return None
 
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
-            platform_layers: dict[str, list[str]] = {}
-            history_by_diff_id: dict[str, str] = {}
-            provenance_by_image_uri: dict[str, dict[str, Any]] = {}
+            is_manifest_list = bool(
+                doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER
+            )
+            if not is_manifest_list:
+                diff_map, hist_map, label_provenance = await _diff_ids_for_manifest(
+                    ecr_client,
+                    repo_name,
+                    doc,
+                    http_client,
+                    None,
+                )
+                platform_layers.update(diff_map)
+                history_by_diff_id.update(hist_map)
+                if label_provenance:
+                    provenance_by_image_uri[uri] = label_provenance
 
-            if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
+        if is_manifest_list:
 
-                async def _process_child_manifest(
-                    manifest_ref: dict,
-                ) -> tuple[
-                    dict[str, list[str]],
-                    dict[str, str],
-                    Optional[tuple[str, dict[str, str], bool]],
-                ]:
+            async def _process_child_manifest(
+                manifest_ref: dict,
+            ) -> tuple[
+                dict[str, list[str]],
+                dict[str, str],
+                Optional[tuple[str, dict[str, str], bool]],
+            ]:
+                async with semaphore:
                     # Check if this is an attestation manifest
                     if (
                         manifest_ref.get("annotations", {}).get(
@@ -1148,82 +1171,73 @@ async def fetch_image_layers_async(
                     )
                     return diff_map, history_map, provenance
 
-                # Process all child manifests in parallel
-                child_tasks = [
-                    _process_child_manifest(manifest_ref)
-                    for manifest_ref in doc.get("manifests", [])
-                ]
-                child_results = await asyncio.gather(
-                    *child_tasks,
-                    return_exceptions=True,
+            # Process all child manifests in parallel
+            child_tasks = [
+                _process_child_manifest(manifest_ref)
+                for manifest_ref in doc.get("manifests", [])
+            ]
+            child_results = await asyncio.gather(
+                *child_tasks,
+                return_exceptions=True,
+            )
+
+            # Merge results from successful child manifest processing
+            # Track provenance by child digest for proper mapping. SLSA
+            # attestation data overrides label fallback data for the same field.
+            provenance_by_child_digest: dict[str, dict[str, Any]] = {}
+
+            transient_failures = [
+                result
+                for result in child_results
+                if isinstance(result, ECRLayerFetchTransientError)
+            ]
+            if transient_failures:
+                logger.warning(
+                    "Discarding partial ECR manifest-list enrichment after "
+                    "a child manifest failed: %s",
+                    transient_failures[0],
                 )
+                raise transient_failures[0]
 
-                # Merge results from successful child manifest processing
-                # Track provenance by child digest for proper mapping. SLSA
-                # attestation data overrides label fallback data for the same field.
-                provenance_by_child_digest: dict[str, dict[str, Any]] = {}
-
-                transient_failures = [
-                    result
-                    for result in child_results
-                    if isinstance(result, ECRLayerFetchTransientError)
-                ]
-                if transient_failures:
-                    logger.warning(
-                        "Discarding partial ECR manifest-list enrichment after "
-                        "a child manifest failed: %s",
-                        transient_failures[0],
+            for result in child_results:
+                if isinstance(result, BaseException):
+                    raise result
+                layer_data, hist_data, provenance_data = result
+                if layer_data:
+                    platform_layers.update(layer_data)
+                if hist_data:
+                    history_by_diff_id.update(hist_data)
+                if provenance_data:
+                    child_digest, provenance_info, is_fallback = provenance_data
+                    _merge_provenance(
+                        provenance_by_child_digest,
+                        child_digest,
+                        provenance_info,
+                        fallback=is_fallback,
                     )
-                    raise transient_failures[0]
 
-                for result in child_results:
-                    if isinstance(result, BaseException):
-                        raise result
-                    layer_data, hist_data, provenance_data = result
-                    if layer_data:
-                        platform_layers.update(layer_data)
-                    if hist_data:
-                        history_by_diff_id.update(hist_data)
-                    if provenance_data:
-                        child_digest, provenance_info, is_fallback = provenance_data
-                        _merge_provenance(
-                            provenance_by_child_digest,
-                            child_digest,
-                            provenance_info,
-                            fallback=is_fallback,
-                        )
+            for child_digest, provenance_info in provenance_by_child_digest.items():
+                provenance_by_image_uri[f"{repo_uri}@{child_digest}"] = provenance_info
 
-                for child_digest, provenance_info in provenance_by_child_digest.items():
-                    provenance_by_image_uri[f"{repo_uri}@{child_digest}"] = (
-                        provenance_info
-                    )
-            else:
-                diff_map, hist_map, label_provenance = await _diff_ids_for_manifest(
-                    ecr_client,
-                    repo_name,
-                    doc,
-                    http_client,
-                    None,
-                )
-                platform_layers.update(diff_map)
-                history_by_diff_id.update(hist_map)
-                if label_provenance:
-                    provenance_by_image_uri[uri] = label_provenance
+        # Return if we found layers or provenance data.
+        # Manifest lists may have provenance data without platform_layers.
+        if platform_layers or provenance_by_image_uri:
+            return (
+                uri,
+                digest,
+                platform_layers,
+                history_by_diff_id,
+                provenance_by_image_uri,
+            )
 
-            # Return if we found layers or provenance data.
-            # Manifest lists may have provenance data without platform_layers.
-            if platform_layers or provenance_by_image_uri:
-                return (
-                    uri,
-                    digest,
-                    platform_layers,
-                    history_by_diff_id,
-                    provenance_by_image_uri,
-                )
+        return None
 
-            return None
-
-    async with httpx.AsyncClient() as http_client:
+    async with httpx.AsyncClient(
+        limits=httpx.Limits(
+            max_connections=max_concurrent,
+            max_keepalive_connections=max_concurrent,
+        ),
+    ) as http_client:
 
         async def _fetch_single_image_layers_with_uri(
             repo_image: dict,
@@ -1283,7 +1297,6 @@ async def fetch_image_layers_async(
                 logger.warning(
                     "Skipping ECR layer extraction after transient failures were exhausted: %s",
                     error,
-                    exc_info=True,
                 )
                 completed += 1
                 if completed % progress_interval == 0 or completed == total:
