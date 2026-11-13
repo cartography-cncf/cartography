@@ -6,6 +6,7 @@ Each test names the assumption or defect it guards against, so a future refactor
 quietly reintroduce it. These run without Neo4j.
 """
 
+import logging
 import threading
 import time
 
@@ -370,7 +371,7 @@ class TestAgentIdentityIsNamespacedByOrg:
     def _client(self):
         class _C:
             def search_assistants(self, url, tenant_id, page_size=100):
-                return [{"assistant_id": "asst-shared", "name": "Shared"}], True
+                return [{"assistant_id": "asst-shared", "name": "Shared"}], None
 
         return _C()
 
@@ -515,7 +516,7 @@ class TestAssistantDiscovery:
         def search_assistants(self, deployment_url, tenant_id, page_size=100):
             with self._lock:
                 self.calls.append((deployment_url, tenant_id))
-            return self.by_url.get(deployment_url, []), True
+            return self.by_url.get(deployment_url, []), None
 
     def test_assistants_become_agents(self):
         # Arrange
@@ -605,13 +606,13 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
 
     class _FailingClient:
         def search_assistants(self, url, tenant_id, page_size=100):
-            return [], False
+            return [], "HTTP 503"
 
     class _PartialClient:
         def search_assistants(self, url, tenant_id, page_size=100):
             if url.endswith("bad"):
-                return [], False
-            return [{"assistant_id": "asst-ok"}], True
+                return [], "HTTP 503"
+            return [{"assistant_id": "asst-ok"}], None
 
     def test_total_failure_reports_incomplete(self):
         # Arrange
@@ -637,6 +638,31 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
         # Assert
         assert len(out) == 1
         assert complete is False
+
+    def test_failures_are_summarized_in_one_warning(self, caplog):
+        # Arrange
+        class _MixedClient:
+            def search_assistants(self, url, tenant_id, page_size=100):
+                return [], {"https://a": "HTTP 401", "https://b": "HTTP 401"}.get(
+                    url, "ConnectTimeoutError"
+                )
+
+        deps = [
+            {"id": d, "tenant_id": "w", "url": f"https://{d}", "status": "READY"}
+            for d in ("a", "b", "c")
+        ]
+
+        # Act
+        with caplog.at_level(logging.DEBUG):
+            _, complete = deployments.get_assistants(_MixedClient(), deps, ORG)
+
+        # Assert
+        # Hundreds of deployments can fail the same way; one line per run, not per host.
+        warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        assert complete is False
+        assert len(warnings) == 1
+        assert "3 of 3" in warnings[0]
+        assert "HTTP 401: 2, ConnectTimeoutError: 1" in warnings[0]
 
     def test_no_deployments_is_a_complete_empty_inventory(self):
         # Act
@@ -675,7 +701,7 @@ class TestAssistantSearchIsScopedAndConcurrent:
             time.sleep(0.02)
             with self._lock:
                 self._active -= 1
-            return [{"assistant_id": f"asst-{deployment_url[-1]}"}], True
+            return [{"assistant_id": f"asst-{deployment_url[-1]}"}], None
 
     def test_only_ready_deployments_with_a_url_are_probed(self):
         # Arrange
@@ -731,7 +757,7 @@ class TestAssistantSearchIsScopedAndConcurrent:
         class _BarrierClient:
             def search_assistants(self, deployment_url, tenant_id, page_size=100):
                 barrier.wait()
-                return [{"assistant_id": f"asst-{deployment_url[-1]}"}], True
+                return [{"assistant_id": f"asst-{deployment_url[-1]}"}], None
 
         deps = [
             {"id": str(i), "tenant_id": "w", "url": f"https://{i}", "status": "READY"}
@@ -823,14 +849,14 @@ class TestCredentialsAreNotLeakedToRedirectTargets:
         client._thread_local.session = _Session()
 
         # Act
-        assistants, complete = client.search_assistants("https://dep.example", "w1")
+        assistants, failure = client.search_assistants("https://dep.example", "w1")
 
         # Assert
         assert posted["allow_redirects"] is False
-        assert (assistants, complete) == ([], False)
+        assert (assistants, failure) == ([], "redirect")
 
     def test_a_redirect_is_reported_as_incomplete_not_empty(self):
-        """Returning ([], True) here would let cleanup delete the agents behind it."""
+        """Returning ([], None) here would let cleanup delete the agents behind it."""
         # Arrange
         client = self._client()
 
@@ -846,7 +872,7 @@ class TestCredentialsAreNotLeakedToRedirectTargets:
         client._thread_local.session = _Session()
 
         # Act and assert
-        assert client.search_assistants("https://dep.example", "w1") == ([], False)
+        assert client.search_assistants("https://dep.example", "w1") == ([], "redirect")
 
     def test_plaintext_deployment_urls_never_receive_the_token(self):
         # Arrange
@@ -859,7 +885,10 @@ class TestCredentialsAreNotLeakedToRedirectTargets:
         client._thread_local.session = _Session()
 
         # Act and assert
-        assert client.search_assistants("http://dep.example", "w1") == ([], False)
+        assert client.search_assistants("http://dep.example", "w1") == (
+            [],
+            "non-HTTPS URL",
+        )
 
     def test_non_200_is_incomplete(self):
         # Arrange
@@ -877,7 +906,7 @@ class TestCredentialsAreNotLeakedToRedirectTargets:
         client._thread_local.session = _Session()
 
         # Act and assert
-        assert client.search_assistants("https://dep.example", "w1") == ([], False)
+        assert client.search_assistants("https://dep.example", "w1") == ([], "HTTP 500")
 
     def test_unexpected_shape_is_incomplete(self):
         # Arrange
@@ -898,4 +927,7 @@ class TestCredentialsAreNotLeakedToRedirectTargets:
         client._thread_local.session = _Session()
 
         # Act and assert
-        assert client.search_assistants("https://dep.example", "w1") == ([], False)
+        assert client.search_assistants("https://dep.example", "w1") == (
+            [],
+            "unexpected response shape",
+        )
