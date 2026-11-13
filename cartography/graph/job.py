@@ -14,8 +14,10 @@ import neo4j
 
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.cleanupbuilder import build_cleanup_query_for_matchlink
+from cartography.graph.cleanupbuilder import build_mark_then_delete_queries
 from cartography.graph.statement import get_job_shortname
 from cartography.graph.statement import GraphStatement
+from cartography.graph.statement import SinglePassStatement
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
 
@@ -332,6 +334,7 @@ class GraphJob:
         parameters: Dict[str, Any],
         iterationsize: int = 10000,
         cascade_delete: bool = False,
+        mark_then_delete: bool = False,
     ) -> "GraphJob":
         """
         Create a cleanup job from a CartographyNodeSchema.
@@ -357,6 +360,11 @@ class GraphJob:
             cascade_delete (bool): If True, also delete all child nodes that have a
                 relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
                 Defaults to False to preserve existing behavior.
+            mark_then_delete (bool): If True, label the stale nodes in one scan of the sub
+                resource and then delete the labeled ones, instead of rescanning the sub resource
+                for every $SCAN_LIMIT_SIZE stale nodes; see ``build_mark_then_delete_queries``.
+                Worth it when a sub resource holds many current nodes and many stale ones.
+                Requires a sub resource relationship and no ``cascade_delete``.
 
         Returns:
             GraphJob: A new GraphJob instance configured for cleanup operations.
@@ -392,6 +400,29 @@ class GraphJob:
             )
             for idx, query in enumerate(queries, start=1)
         ]
+        if mark_then_delete:
+            if cascade_delete:
+                raise ValueError(
+                    "mark_then_delete does not support cascade_delete yet.",
+                )
+            unmark_query, mark_query, delete_query = build_mark_then_delete_queries(
+                node_schema,
+            )
+            # The first query deletes the stale nodes; the rest clean up stale relationships.
+            statements[:1] = [
+                statement_class(
+                    query,
+                    parameters=parameters,
+                    iterationsize=iterationsize,
+                    batched_transactions=True,
+                    parent_job_name=node_schema.label,
+                )
+                for statement_class, query in (
+                    (GraphStatement, unmark_query),
+                    (SinglePassStatement, mark_query),
+                    (GraphStatement, delete_query),
+                )
+            ]
 
         return cls(
             f"Cleanup {node_schema.label}",

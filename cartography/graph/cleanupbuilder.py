@@ -2,6 +2,7 @@ from dataclasses import asdict
 from string import Template
 from typing import Dict
 from typing import List
+from typing import Tuple
 
 from cartography.graph.querybuilder import _asdict_with_validate_relprops
 from cartography.graph.querybuilder import _build_match_clause
@@ -11,6 +12,8 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import TargetNodeMatcher
+
+_SERIAL_BATCHES = "IN TRANSACTIONS OF $LIMIT_SIZE ROWS"
 
 
 def _delete_in_batches(variable: str, delete_statement: str) -> str:
@@ -29,7 +32,56 @@ def _delete_in_batches(variable: str, delete_statement: str) -> str:
     return f"""WITH {variable} LIMIT $SCAN_LIMIT_SIZE
         CALL ({variable}) {{
             {delete_statement}
-        }} IN TRANSACTIONS OF $LIMIT_SIZE ROWS;"""
+        }} {_SERIAL_BATCHES};"""
+
+
+STALE_LABEL = "_CartographyStale"
+
+
+def build_mark_then_delete_queries(
+    node_schema: CartographyNodeSchema,
+) -> Tuple[str, str, str]:
+    """
+    Build the queries that delete a node schema's stale nodes by marking them first.
+
+    The standard node cleanup query deletes up to $SCAN_LIMIT_SIZE stale nodes per run and then
+    scans the sub resource again from the start. Current nodes the last run walked past are
+    read again on every run, so the cost grows with the number of current nodes times the
+    number of runs. On a graph larger than the page cache, those reads are disk reads.
+
+    These queries scan the sub resource once. The first clears ``STALE_LABEL`` from nodes a
+    later sync refreshed after a run stopped between the other two. The second labels every
+    stale node in one pass; it has no LIMIT, so it must run once rather than until it makes
+    no updates. The third deletes labeled stale nodes, found through the label's index, so
+    each run reads only nodes it deletes.
+    """
+    if not node_schema.sub_resource_relationship or not node_schema.scoped_cleanup:
+        raise ValueError(
+            f"{node_schema.label}: mark-then-delete cleanup needs a sub resource relationship "
+            "and scoped_cleanup=True, because it marks stale nodes under their sub resource.",
+        )
+    match_under_sub_resource = _build_match_statement_for_cleanup(node_schema)
+    unmark_query = f"""
+        MATCH (n:{node_schema.label}:{STALE_LABEL})
+        WHERE n.lastupdated = $UPDATE_TAG
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {{
+            REMOVE n:{STALE_LABEL}
+        }} {_SERIAL_BATCHES};
+        """
+    mark_query = f"""
+        {match_under_sub_resource}
+        WHERE n.lastupdated <> $UPDATE_TAG
+        CALL (n) {{
+            SET n:{STALE_LABEL}
+        }} {_SERIAL_BATCHES};
+        """
+    delete_query = f"""
+        MATCH (n:{node_schema.label}:{STALE_LABEL})
+        WHERE n.lastupdated <> $UPDATE_TAG AND EXISTS {{ {match_under_sub_resource} }}
+        {_delete_in_batches('n', 'DETACH DELETE n')}
+        """
+    return unmark_query, mark_query, delete_query
 
 
 def build_cleanup_queries(

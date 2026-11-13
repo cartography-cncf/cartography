@@ -437,3 +437,17 @@ class GraphStatement:
             data = json.load(json_file)
 
         return cls.create_from_json(data, get_job_shortname(file_path))
+
+
+class SinglePassStatement(GraphStatement):
+    """
+    A batched statement whose query has no LIMIT, so one run updates every row it matches.
+
+    Running it again until it makes no updates, as ``GraphStatement`` does, would repeat a
+    full scan to learn that nothing is left.
+    """
+
+    def _run_batched_transactions(self, session: neo4j.Session) -> None:
+        _record_stats(
+            run_autocommit_query_with_retry(session, self.query, self.parameters),
+        )
