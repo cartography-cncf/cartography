@@ -72,14 +72,17 @@ def test_bigquery_handlers_skip_legacy_403_errors(
     assert func(client, *args) == expected
 
 
+DATASET_SKIPPED = "Skipping details for its 3 remaining tables."
+
+
 @pytest.mark.parametrize(
-    "reason,expected_detail_requests",
+    "reason,expected_detail_requests,expected_warning_endings",
     [
         # Access denials cover the whole dataset: stop after the first table.
-        ("accessDenied", 1),
-        ("BILLING_DISABLED", 1),
+        ("accessDenied", 1, [DATASET_SKIPPED]),
+        ("BILLING_DISABLED", 1, [DATASET_SKIPPED]),
         # Quota exhaustion is per request: skip only the table it hit.
-        ("rateLimitExceeded", 3),
+        ("rateLimitExceeded", 3, ["Skipping."] * 3),
     ],
 )
 def test_sync_bigquery_tables_stops_table_details_at_first_access_denied(
@@ -87,6 +90,7 @@ def test_sync_bigquery_tables_stops_table_details_at_first_access_denied(
     caplog,
     reason,
     expected_detail_requests,
+    expected_warning_endings,
 ):
     # Arrange
     client = MagicMock()
@@ -123,8 +127,11 @@ def test_sync_bigquery_tables_stops_table_details_at_first_access_denied(
         "table-1",
         "table-2",
     ]
-    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert len(warnings) == expected_detail_requests
+    assert [
+        r.getMessage().rsplit(". ", 1)[-1]
+        for r in caplog.records
+        if r.levelname == "WARNING"
+    ] == expected_warning_endings
 
 
 # These three return the parent object regardless of the detail/list call's own
