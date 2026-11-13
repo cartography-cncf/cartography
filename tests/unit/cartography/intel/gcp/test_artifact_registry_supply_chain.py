@@ -1906,3 +1906,82 @@ async def test_fetch_all_image_provenance_counts_attestation_failures(monkeypatc
 
     assert fetch_failures == 1
     assert processed == [{}]
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_image_provenance_skips_repository_after_403(
+    monkeypatch,
+    caplog,
+):
+    # Arrange
+    credentials = MagicMock()
+    credentials.valid = True
+    monkeypatch.setattr(supply_chain, "_resolve_credentials", lambda _: credentials)
+    denied_prefix = "/v2/test-project/denied-repo/"
+    allowed_responses = {
+        MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: httpx.Response(
+            200,
+            json=MOCK_SINGLE_IMAGE_MANIFEST,
+            headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
+        ),
+        MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: httpx.Response(
+            200,
+            json=MOCK_SINGLE_IMAGE_CONFIG,
+        ),
+    }
+    denied_requests = []
+
+    def registry(request):
+        if request.url.path.startswith(denied_prefix):
+            denied_requests.append(request.url.path)
+            return httpx.Response(403)
+        return allowed_responses.get(str(request.url), httpx.Response(404))
+
+    real_async_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        supply_chain.httpx,
+        "AsyncClient",
+        lambda **kwargs: real_async_client(
+            transport=httpx.MockTransport(registry),
+            **kwargs,
+        ),
+    )
+    denied_images = [
+        {
+            "uri": "us-central1-docker.pkg.dev/test-project/denied-repo/"
+            f"image-{i}@sha256:{i:064x}",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        }
+        for i in range(3)
+    ]
+    allowed_image = {
+        "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+        "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    }
+
+    # Act
+    results, fetch_failures = await supply_chain._fetch_all_image_provenance(
+        None,
+        [*denied_images, allowed_image],
+        "test-project",
+        max_concurrent=1,
+    )
+
+    # Assert
+    assert denied_requests == [
+        f"{denied_prefix}image-0/manifests/sha256:{0:064x}",
+    ]
+    assert [result["digest"] for result in results] == [
+        MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+    ]
+    assert fetch_failures == len(denied_images)
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelname == "WARNING"
+    ] == [
+        "Could not enrich 3 artifact(s) in Artifact Registry repository "
+        "us-central1-docker.pkg.dev/test-project/denied-repo: access denied "
+        "(HTTP 403).",
+    ]
