@@ -823,6 +823,50 @@ def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_tr
     assert fetch_complete is False
 
 
+def test_fetch_image_layers_async_raises_unexpected_child_failure_over_transient(
+    mocker,
+):
+    """An unexpected child error must fail the sync even if a sibling failed transiently."""
+    # Arrange
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    unexpected_error = ClientError(
+        {"Error": {"Code": "ValidationException", "Message": "Synthetic error"}},
+        "BatchGetImage",
+    )
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref == "sha256:manifest-list":
+            return (
+                test_data.SAMPLE_MANIFEST_LIST,
+                "application/vnd.docker.distribution.manifest.list.v2+json",
+            )
+        if image_ref.endswith("1"):
+            raise ECRLayerFetchTransientError("temporary child failure")
+        raise unexpected_error
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+
+    # Act and assert
+    with pytest.raises(ClientError) as raised:
+        asyncio.run(
+            fetch_image_layers_async(
+                AsyncMock(),
+                [
+                    {
+                        "uri": f"{repo_uri}:manifest-list",
+                        "imageDigest": "sha256:manifest-list",
+                        "repo_uri": repo_uri,
+                    },
+                ],
+                max_concurrent=4,
+            )
+        )
+    assert raised.value is unexpected_error
+
+
 @pytest.mark.asyncio
 async def test_extract_provenance_from_attestation_supports_slsa_v1():
     mock_ecr_client = MagicMock()

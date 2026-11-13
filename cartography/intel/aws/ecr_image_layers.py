@@ -1186,6 +1186,14 @@ async def fetch_image_layers_async(
             # attestation data overrides label fallback data for the same field.
             provenance_by_child_digest: dict[str, dict[str, Any]] = {}
 
+            # An unexpected child error fails the sync, so it takes precedence
+            # over a transient one, which would only skip this image.
+            for result in child_results:
+                if isinstance(result, BaseException) and not isinstance(
+                    result, ECRLayerFetchTransientError
+                ):
+                    raise result
+
             transient_failures = [
                 result
                 for result in child_results
