@@ -737,6 +737,23 @@ Every cleanup query that `GraphJob.from_node_schema` generates deletes in batche
 - Only valid with scoped cleanup (`scoped_cleanup=True`). Unscoped cleanups will raise an error if `cascade_delete=True`.
 - Default is `False` for backward compatibility.
 
+#### Large cleanups and mark_then_delete
+
+Each rerun of a cleanup query scans the sub resource from the start, so it reads again every current node that the earlier runs walked past. When a sub resource holds millions of current nodes and deletes millions of stale ones in a sync, those repeated reads dominate the cleanup, and on a graph larger than Neo4j's page cache each one can be a disk read.
+
+Pass `mark_then_delete=True` to scan the sub resource once instead:
+
+```python
+GraphJob.from_node_schema(
+    AWSInspectorFindingSchema(),
+    common_job_parameters,
+    iterationsize=1000,
+    mark_then_delete=True,
+).run(neo4j_session)
+```
+
+The job labels every stale node `_CartographyStale` in one pass, then deletes the labeled stale nodes, which it finds through the label's index. A node keeps that label only while it waits to be deleted. If a sync stops between the two steps, the next cleanup deletes the labeled nodes that are still stale and removes the label from any that the sync refreshed. Use it for node types whose sub resources hold many current and many stale nodes at once, such as findings on short-lived compute. It requires a sub resource relationship and does not support `cascade_delete`.
+
 #### Legacy notes
 
 Older intel modules still do this process with hand-written cleanup jobs that work like this:
