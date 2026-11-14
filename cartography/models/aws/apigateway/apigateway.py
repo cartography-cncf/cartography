@@ -10,6 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_GATEWAY
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,9 @@ class APIGatewayRestAPISchema(CartographyNodeSchema):
 
     label: str = "AWSAPIGatewayRestAPI"
     # DEPRECATED: legacy APIGatewayRestAPI node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_REST_API])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_API_GATEWAY_REST_API, API_GATEWAY]
+    )
     properties: APIGatewayRestAPINodeProperties = APIGatewayRestAPINodeProperties()
     sub_resource_relationship: APIGatewayRestAPIToAWSAccountRel = (
         APIGatewayRestAPIToAWSAccountRel()
