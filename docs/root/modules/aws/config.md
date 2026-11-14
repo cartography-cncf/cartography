@@ -195,7 +195,8 @@ Cartography-managed AWS clients use these environment variables:
   `120`.
 
 Lambda regional calls use a 30-second read timeout and two attempts while
-inheriting the shared retry mode. These settings take precedence over ambient
+inheriting the shared retry mode; `CARTOGRAPHY_AWS_MAX_ATTEMPTS` overrides the
+Lambda attempt budget when set. These settings take precedence over ambient
 AWS retry environment variables for clients configured by Cartography.
 
 ### Regional STS Endpoints
