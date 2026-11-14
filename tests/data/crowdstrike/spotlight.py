@@ -9,6 +9,8 @@ GET_SPOTLIGHT_VULNERABILITIES = [
         "apps": [
             {
                 "product_name_version": "e2fsprogs 1.42.9-12.amzn2.0.2",
+                "product_name_normalized": "e2fsprogs",
+                "vendor_normalized": "Unknown",
                 "sub_status": "open",
                 "remediation": {
                     "ids": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
