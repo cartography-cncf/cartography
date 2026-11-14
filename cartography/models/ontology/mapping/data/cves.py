@@ -482,11 +482,16 @@ aws_inspector_mapping = OntologyMapping(
             node_label="AWSInspectorFinding",
             fields=[
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                # Package vulnerability findings leave description unset, so their
+                # _ont_description is cleared; their AWSInspectorVulnerability holds it.
                 OntologyFieldMapping(
                     ontology_field="description",
                     node_field="description",
                     indexed=False,
                 ),
+                # DEPRECATED: referenceurls is always unset on findings; mapping it
+                # clears the _ont_references that findings synced before the move
+                # still carry. Will be removed in v1.0.0.
                 OntologyFieldMapping(
                     ontology_field="references",
                     node_field="referenceurls",
