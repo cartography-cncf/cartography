@@ -509,6 +509,22 @@ aws_inspector_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="AWSInspectorFindingContent",
+            fields=[
+                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                OntologyFieldMapping(
+                    ontology_field="base_score",
+                    node_field="cvssscore",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _INSPECTOR_SEVERITY},
+                ),
+            ],
+        ),
     ],
 )
 
