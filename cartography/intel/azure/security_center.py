@@ -17,6 +17,19 @@ from cartography.util import timeit
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+_sdk_serializer_logger = logging.getLogger("azure.mgmt.security._serialization")
+
+
+def _drop_missing_resource_details_source(record: logging.LogRecord) -> bool:
+    """
+    Drop the SDK warning logged for each assessment without resourceDetails.source.
+
+    The SDK falls back to the base ResourceDetails class, and Cartography reads no
+    field that depends on the subclass. Other serializer messages still pass.
+    """
+    return not record.getMessage().startswith(
+        "Discriminator source is absent or null, use base class ResourceDetails",
+    )
 
 
 @timeit
@@ -24,6 +37,8 @@ def get_assessments(client: SecurityCenter, subscription_id: str) -> list[dict]:
     """
     Get a list of Security Assessments from the given Azure subscription.
     """
+    # Adding the same filter again is a no-op.
+    _sdk_serializer_logger.addFilter(_drop_missing_resource_details_source)
     try:
         scope = f"subscriptions/{subscription_id}"
         return [a.as_dict() for a in client.assessments.list(scope)]
