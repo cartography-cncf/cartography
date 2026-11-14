@@ -30,8 +30,9 @@ class LangSmithApiKeyNodeProperties(CartographyNodeProperties):
         "key_type",
         extra_index=True,
         description=(
-            "One of pat (personal access token, lsv2_pt), service_key (organization service "
-            "key, lsv2_sk), workspace_key (workspace API key, lsv2_sk) or scim_token (lsv2_sc)."
+            "Credential type from the key's prefix: pat (lsv2_pt), service_key (lsv2_sk), "
+            "tracing_key (lsv2_tr), scim_token (lsv2_sc) or legacy_key (ls__, no longer "
+            "accepted). A workspace-listed key with an unrecognized prefix is workspace_key."
         ),
     )
     access_scope: PropertyRef = PropertyRef(
@@ -56,6 +57,13 @@ class LangSmithApiKeyNodeProperties(CartographyNodeProperties):
     revoked_at: PropertyRef = PropertyRef(
         "revoked_at",
         description="Timestamp when the key was revoked, or null if the key is still live.",
+    )
+    is_tracing_key: PropertyRef = PropertyRef(
+        "is_tracing_key",
+        description=(
+            "Whether this is a tracing key (lsv2_tr_), which can only write runs and keeps "
+            "working after its creator leaves the organization."
+        ),
     )
     workspace_names: PropertyRef = PropertyRef(
         "workspace_names", description="Names of the workspaces this key can reach."
@@ -152,6 +160,27 @@ class LangSmithApiKeyToWorkspaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class LangSmithApiKeyToScopedWorkspaceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:LangSmithApiKey)-[:SCOPED_TO]->(:LangSmithWorkspace)
+class LangSmithApiKeyToScopedWorkspaceRel(CartographyRelSchema):
+    """A key can act in the workspaces it is scoped to."""
+
+    target_node_label: str = "LangSmithWorkspace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("scoped_workspace_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SCOPED_TO"
+    properties: LangSmithApiKeyToScopedWorkspaceRelProperties = (
+        LangSmithApiKeyToScopedWorkspaceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class LangSmithApiKeySchema(CartographyNodeSchema):
     """
     An organization credential: a personal access token, a service key, or a SCIM token.
@@ -171,6 +200,7 @@ class LangSmithApiKeySchema(CartographyNodeSchema):
             LangSmithApiKeyToUserRel(),
             LangSmithApiKeyToRoleRel(),
             LangSmithApiKeyToWorkspaceRel(),
+            LangSmithApiKeyToScopedWorkspaceRel(),
         ],
     )
 
@@ -216,5 +246,6 @@ class LangSmithWorkspaceApiKeySchema(CartographyNodeSchema):
         [
             LangSmithApiKeyToUserRel(),
             LangSmithApiKeyToRoleRel(),
+            LangSmithApiKeyToScopedWorkspaceRel(),
         ],
     )
