@@ -13,6 +13,7 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.cve_metadata import epss
+from cartography.intel.cve_metadata import euvd
 from cartography.intel.cve_metadata import kev
 from cartography.intel.cve_metadata import nvd
 from cartography.intel.cve_metadata import vulnrichment
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 CVE_METADATA_FEED_ID = "CVE_METADATA"
-ALL_SOURCES = {"nvd", "epss", "kev", "vulnrichment"}
+ALL_SOURCES = {"nvd", "epss", "kev", "vulnrichment", "euvd"}
 
 # Each CVEMetadata row fans out to every node carrying the :CVE label with the same cve_id
 # (the deprecated CVE node plus AWSInspectorFinding / SemgrepSCAFinding / TrivyImageFinding /
@@ -94,6 +95,7 @@ def load_cve_metadata_feed(
             "source_epss": "epss" in sources,
             "source_kev": "kev" in sources,
             "source_vulnrichment": "vulnrichment" in sources,
+            "source_euvd": "euvd" in sources,
             "kev_catalog_version": (
                 kev_catalog.catalog_version if kev_catalog else None
             ),
@@ -161,7 +163,7 @@ def start_cve_metadata_ingestion(
 ) -> None:
     """
     Enrich existing CVE nodes with metadata from NVD, EPSS, the CISA KEV catalog,
-    and CISA Vulnrichment.
+    CISA Vulnrichment, and ENISA's EU Vulnerability Database.
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
     """
@@ -230,6 +232,10 @@ def start_cve_metadata_ingestion(
                 vulnrichment_snapshot,
             )
 
+            # One failed EUVD request stops EUVD for the rest of the sync, so an outage
+            # costs one retry cycle instead of one per CVE.
+            euvd_available = "euvd" in sources
+
             # Step 2: Enrich and load one CVE year at a time to keep memory bounded.
             for batch_cve_ids in yearly_batches:
                 cves: list[dict[str, Any]] = [
@@ -254,6 +260,18 @@ def start_cve_metadata_ingestion(
                             "Failed to fetch EPSS scores, continuing without EPSS enrichment.",
                             exc_info=True,
                         )
+
+                gap_cve_ids = [cve["id"] for cve in cves if euvd.needs_euvd(cve)]
+                if euvd_available and gap_cve_ids:
+                    lookup = euvd.get_euvd_records(http_session, gap_cve_ids)
+                    euvd.merge_euvd_into_cves(cves, lookup.records)
+                    euvd_available = not lookup.failed
+                    logger.info(
+                        "EUVD has records for %d of %d CVEs in batch without an "
+                        "NVD score.",
+                        len(lookup.records),
+                        len(gap_cve_ids),
+                    )
 
                 # Runs without a catalog too, so that is_kev_source records the
                 # NVD fallback.

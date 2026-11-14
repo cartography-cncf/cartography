@@ -1417,7 +1417,7 @@ class CLI:
                     "--cve-metadata-src",
                     help=(
                         "CVE metadata sources to enable. Valid values: nvd, epss, kev, "
-                        "vulnrichment. All enabled by default."
+                        "vulnrichment, euvd. All enabled by default."
                     ),
                     rich_help_panel=PANEL_CVE_METADATA,
                     hidden=PANEL_CVE_METADATA not in visible_panels,
