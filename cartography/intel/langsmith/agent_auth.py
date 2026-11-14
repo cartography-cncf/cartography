@@ -11,6 +11,7 @@ and none is returned by the endpoints used here.
 """
 
 import logging
+import re
 from typing import Any
 
 import neo4j
@@ -26,6 +27,12 @@ from cartography.models.langsmith.oauthprovider import LangSmithOAuthProviderSch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Agent auth keys connections on assistant ids, which LangGraph issues as UUIDs. Agent
+# registry ids are user-chosen slugs the route can't resolve: it answers 500 for them.
+_ASSISTANT_ID = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
 
 
 @timeit
@@ -146,9 +153,11 @@ def get_connections(
     connections: dict[str, dict[str, Any]] = {}
     complete = True
     for agent in agents:
-        # The API is keyed by the raw assistant id; agent["id"] is namespaced by
+        # The API is keyed by the raw agent id; agent["id"] is namespaced by
         # organization for the graph and is not a valid path segment here.
-        assistant_id = agent["assistant_id"]
+        agent_id = agent["agent_id"]
+        if not _ASSISTANT_ID.match(agent_id):
+            continue
         workspace_ids = sorted(
             {
                 workspace_by_deployment[deployment_id]
@@ -159,7 +168,7 @@ def get_connections(
         for workspace_id in workspace_ids:
             try:
                 payload = client.get(
-                    f"/v2/auth/agents/{assistant_id}/connections",
+                    f"/v2/auth/agents/{agent_id}/connections",
                     org_id=org_id,
                     tenant_id=workspace_id,
                     host=True,
@@ -170,7 +179,7 @@ def get_connections(
                 if not err.not_found:
                     logger.warning(
                         "Skipping LangSmith connections for agent %s in workspace %s: %s",
-                        assistant_id,
+                        agent_id,
                         workspace_id,
                         err,
                     )
@@ -226,15 +235,14 @@ def transform_credentials(
         transformed.append(
             {
                 "id": connection["id"],
-                # Namespaced to match the agent node, which is namespaced because
-                # LangSmith derives assistant ids from graphs and they can repeat across
-                # organizations.
+                # Namespaced to match the agent node: agent ids are chosen by users, so
+                # two organizations can pick the same one.
                 "agent_id": (
                     f"{org_id}|{connection['agent_id']}"
                     if connection.get("agent_id")
                     else None
                 ),
-                "assistant_id": connection.get("agent_id"),
+                "raw_agent_id": connection.get("agent_id"),
                 "provider_id": connection.get("provider_id"),
                 "provider_uuid": (
                     provider_uuid_by_slug.get(connection["provider_id"])
@@ -267,7 +275,8 @@ def transform_missing_agents(
             continue
         extra[agent_id] = {
             "id": agent_id,
-            "assistant_id": credential.get("assistant_id"),
+            "agent_id": credential.get("raw_agent_id"),
+            "environments": [],
             "deployment_ids": [],
         }
     return list(extra.values())

@@ -16,39 +16,33 @@ class LangSmithAgentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
         description=(
-            "Synthetic identifier of the form <organization_id>|<assistant_id>. LangSmith "
-            "derives an assistant id from its graph, so two organizations running the same "
-            "graph can produce the same assistant id; namespacing keeps their agents, "
-            "deployments and credential paths from merging."
+            "Synthetic identifier of the form <organization_id>|<agent_id>. Agent IDs are "
+            "chosen by users, so two organizations can pick the same one; namespacing "
+            "keeps their agents, deployments and credential paths from merging."
         ),
     )
-    assistant_id: PropertyRef = PropertyRef(
-        "assistant_id",
+    agent_id: PropertyRef = PropertyRef(
+        "agent_id",
         extra_index=True,
-        description="The raw LangSmith assistant ID, as used by the agent-auth API.",
+        description="The user-assigned LangSmith agent ID, as used by the agent-auth API.",
     )
-    name: PropertyRef = PropertyRef(
-        "name",
-        description="Agent name, taken from the deployment that serves it when one exists.",
+    name: PropertyRef = PropertyRef("name", description="Agent name.")
+    agent_type: PropertyRef = PropertyRef(
+        "agent_type", description="Agent type, for example CUSTOM or CODING."
     )
-    environment: PropertyRef = PropertyRef(
-        "environment",
-        description="Environment the agent is deployed to, for example production.",
+    source_type: PropertyRef = PropertyRef(
+        "source_type",
+        description=(
+            "Where the agent runs: LSD (LangSmith Deployment), MDA (managed deep agent), "
+            "FLEET, or EXTERNAL."
+        ),
     )
-    graph_id: PropertyRef = PropertyRef(
-        "graph_id", description="Identifier of the LangGraph graph this agent runs."
-    )
-    description: PropertyRef = PropertyRef(
-        "description", description="Human-readable description of the agent."
-    )
-    version: PropertyRef = PropertyRef(
-        "version", description="Assistant version number."
+    environments: PropertyRef = PropertyRef(
+        "environments",
+        description="Environments the agent has, for example production and staging.",
     )
     created_at: PropertyRef = PropertyRef(
-        "created_at", description="Timestamp when the assistant was created."
-    )
-    updated_at: PropertyRef = PropertyRef(
-        "updated_at", description="Timestamp when the assistant was last updated."
+        "created_at", description="Timestamp when the agent was created."
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -85,12 +79,10 @@ class LangSmithAgentToDeploymentRel(CartographyRelSchema):
     """
     Links an agent to the deployment serving it.
 
-    Set when Cartography discovers the agent by listing the deployment's assistants, which
-    is the usual case. LangSmith fills a deployment's own agent block only for deployments
+    Set from the deployment's agent block, which LangSmith fills only for deployments
     created with an explicit agent binding.
 
-    One-to-many: LangGraph derives an assistant id from its graph, so the same agent can be
-    served by several deployments.
+    One-to-many: an agent has one deployment per environment.
     """
 
     target_node_label: str = "LangSmithDeployment"
@@ -105,14 +97,32 @@ class LangSmithAgentToDeploymentRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class LangSmithAgentToUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:LangSmithAgent)-[:OWNED_BY]->(:LangSmithUser)
+class LangSmithAgentToUserRel(CartographyRelSchema):
+    """An agent is owned by the user that registered it."""
+
+    target_node_label: str = "LangSmithUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_ls_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: LangSmithAgentToUserRelProperties = LangSmithAgentToUserRelProperties()
+
+
+@dataclass(frozen=True)
 class LangSmithAgentSchema(CartographyNodeSchema):
     """
-    An agent (assistant) that can hold OAuth credentials.
+    An agent registered in LangSmith that can hold OAuth credentials.
 
-    Cartography discovers agents by listing each deployment's assistants on its own data
-    plane, because a LangGraph Platform agent id is an assistant id and the control plane
-    doesn't expose it. Deployments that declare an agent block, and credential records that name an
-    agent, top up the inventory.
+    Cartography reads agents from the control plane's agent registry. Deployments that
+    declare an agent block, and credential records that name an agent, top up the
+    inventory.
     """
 
     label: str = "LangSmithAgent"
@@ -123,5 +133,6 @@ class LangSmithAgentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             LangSmithAgentToDeploymentRel(),
+            LangSmithAgentToUserRel(),
         ],
     )

@@ -103,11 +103,10 @@ to `--langsmith-host-api-url`.
 | --- | --- |
 | `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types. |
 | Timeouts logged for some routes | LangSmith was slow or unreachable. Cartography logs a warning, keeps the existing nodes for those routes, and retries on the next run. |
-| No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. |
+| No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. Agent auth looks connections up by assistant ID, so Cartography queries only agents whose ID is a UUID: registry agents with a user-chosen ID can't be looked up. |
 | No `LangSmithApiKey` nodes with `key_type = pat` for other members | The token lacks `organization:pats:read`. |
 | `401 Unauthorized` on every route | The token expired, or LangSmith deactivated the identity that owns it. LangSmith rejects tokens that belong to a deactivated identity. |
 | No custom `LangSmithRole` nodes | Your plan doesn't include custom roles. |
-| Deleted agents stay in the graph | A deployment isn't `READY` or has no URL, so Cartography can't list its agents. Agent cleanup resumes when every deployment serves again or is deleted. |
 
 ## References
 
