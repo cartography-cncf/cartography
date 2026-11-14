@@ -1,4 +1,8 @@
+import pytest
+
 from cartography.client.core.tx import load_graph_data
+from cartography.graph.cleanupbuilder import build_mark_then_delete_queries
+from cartography.graph.cleanupbuilder import STALE_LABEL
 from cartography.graph.job import GraphJob
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.statement import SCAN_BATCHES_PER_RUN
@@ -297,12 +301,16 @@ def test_cleanup_interesting_asset_end_to_end_no_world_asset(neo4j_session):
     }
 
 
-def test_cleanup_runs_until_every_stale_node_is_gone(neo4j_session):
-    # Arrange: more stale nodes than a single cleanup scan deletes.
+@pytest.mark.parametrize("mark_then_delete", [False, True])
+def test_cleanup_runs_until_every_stale_node_is_gone(neo4j_session, mark_then_delete):
+    # Arrange: more stale nodes than a single cleanup scan deletes, all linked to the same
+    # HelloAsset and WorldAsset.
     neo4j_session.run(MERGE_SUB_RESOURCE_QUERY)
+    neo4j_session.run(MERGE_HELLO_ASSET_QUERY)
+    neo4j_session.run(MERGE_WORLD_ASSET_QUERY)
     query = build_ingestion_query(InterestingAssetSchema())
     stale = [
-        {**INTERESTING_NODE_SUB_RES_ONLY[0], "Id": f"stale-asset-{i}"}
+        {**INTERESTING_NODE_WITH_ALL_RELS[0], "Id": f"stale-asset-{i}"}
         for i in range(SCAN_BATCHES_PER_RUN + 50)
     ]
     load_graph_data(
@@ -321,9 +329,57 @@ def test_cleanup_runs_until_every_stale_node_is_gone(neo4j_session):
         InterestingAssetSchema(),
         {"UPDATE_TAG": 11, "sub_resource_id": "sub-resource-id"},
         iterationsize=1,
+        mark_then_delete=mark_then_delete,
     ).run(neo4j_session)
 
     # Assert
     assert check_nodes(neo4j_session, "InterestingAsset", ["id", "lastupdated"]) == {
         ("interesting-node-id", 11),
     }
+    assert check_nodes(neo4j_session, "HelloAsset", ["id"]) == {
+        ("the-helloasset-id-1",),
+    }
+    assert check_nodes(neo4j_session, "WorldAsset", ["id"]) == {
+        ("the-worldasset-id-1",),
+    }
+
+
+def test_mark_then_delete_keeps_a_node_refreshed_after_a_stopped_run(neo4j_session):
+    # Arrange: a run marked a node stale and stopped, then a later sync refreshed the node.
+    neo4j_session.run(MERGE_SUB_RESOURCE_QUERY)
+    query = build_ingestion_query(InterestingAssetSchema())
+    load_graph_data(
+        neo4j_session,
+        query,
+        INTERESTING_NODE_SUB_RES_ONLY,
+        lastupdated=10,
+        sub_resource_id="sub-resource-id",
+    )
+    _, mark_query, _ = build_mark_then_delete_queries(InterestingAssetSchema())
+    neo4j_session.run(
+        mark_query,
+        UPDATE_TAG=11,
+        sub_resource_id="sub-resource-id",
+        LIMIT_SIZE=1,
+    ).consume()
+    load_graph_data(
+        neo4j_session,
+        query,
+        INTERESTING_NODE_SUB_RES_ONLY,
+        lastupdated=12,
+        sub_resource_id="sub-resource-id",
+    )
+
+    # Act
+    GraphJob.from_node_schema(
+        InterestingAssetSchema(),
+        {"UPDATE_TAG": 12, "sub_resource_id": "sub-resource-id"},
+        iterationsize=1,
+        mark_then_delete=True,
+    ).run(neo4j_session)
+
+    # Assert
+    assert check_nodes(neo4j_session, "InterestingAsset", ["id", "lastupdated"]) == {
+        ("interesting-node-id", 12),
+    }
+    assert check_nodes(neo4j_session, STALE_LABEL, ["id"]) == set()

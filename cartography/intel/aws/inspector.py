@@ -354,8 +354,15 @@ def cleanup(
     logger.info("Running AWS Inspector cleanup")
     # Stale findings go first: deleting them also deletes their HAS rels, which
     # leaves the matchlink cleanup only the rels of findings that are still current.
+    # Inspector closes the findings of terminated instances, so an account with a
+    # large, short-lived EC2 fleet holds millions of current findings and deletes
+    # millions of stale ones a day. Marking them first scans the account once
+    # instead of once per batch.
     GraphJob.from_node_schema(
-        AWSInspectorFindingSchema(), common_job_parameters, iterationsize=batch_size
+        AWSInspectorFindingSchema(),
+        common_job_parameters,
+        iterationsize=batch_size,
+        mark_then_delete=True,
     ).run(
         neo4j_session,
     )
