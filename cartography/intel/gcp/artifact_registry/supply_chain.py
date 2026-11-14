@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import logging
+from collections import Counter
 from typing import Any
 
 import httpx
@@ -91,6 +92,18 @@ GITHUB_URL_PREFIXES = (
     "ssh://git@github.com/",
 )
 GOLANG_GITHUB_PURL_PREFIX = "pkg:golang/github.com/"
+
+
+def _repository_path(registry: str, image_path: str) -> str:
+    """Return the repository holding an image path (``PROJECT/REPOSITORY/IMAGE``)."""
+    project, repository = image_path.split("/")[:2]
+    return f"{registry}/{project}/{repository}"
+
+
+def _is_access_denied(error: Exception) -> bool:
+    return (
+        isinstance(error, httpx.HTTPStatusError) and error.response.status_code == 403
+    )
 
 
 def _artifact_digest(artifact: dict[str, Any]) -> str | None:
@@ -888,7 +901,8 @@ async def _process_single_image(
     Returns (enrichment_or_none, fetch_failed). `fetch_failed` is True when the
     image's config or attestation could not be fetched due to a transient or
     unexpected error; callers use it to decide whether stale-layer cleanup is
-    safe.
+    safe. Raises httpx.HTTPStatusError when the registry denies access (403), so
+    the caller can skip the rest of the repository.
     """
     name = artifact.get("name", "")
     uri = artifact.get("uri", "")
@@ -913,6 +927,8 @@ async def _process_single_image(
                 http_client, token_manager, registry, image_path, reference
             )
         except (httpx.HTTPError, json.JSONDecodeError) as e:
+            if _is_access_denied(e):
+                raise
             logger.warning(
                 "Failed to fetch image config for %s: %s",
                 uri or name,
@@ -946,6 +962,8 @@ async def _process_single_image(
                 subject_digest_str,
             )
         except (httpx.HTTPError, json.JSONDecodeError) as e:
+            if _is_access_denied(e):
+                raise
             logger.warning(
                 "Failed to fetch attestation provenance for %s: %s",
                 uri or name,
@@ -1107,18 +1125,28 @@ async def _fetch_all_image_provenance(
     results: list[dict[str, Any]] = []
     fetch_failures = 0
     embedded_provenance: dict[str, dict[str, str]] = {}
+    # Read access is granted per repository, so once a repository answers 403
+    # the rest of its fetches are skipped and reported once, with a count.
+    denied_repositories: Counter[str] = Counter()
 
     async def bounded_attestation(
         ref: tuple[str, str, str], client: httpx.AsyncClient
     ) -> dict[str, dict[str, str]] | None:
         """Return provenance keyed by subject digest, or None if the fetch failed."""
         registry, image_path, attestation_digest = ref
+        repository = _repository_path(registry, image_path)
         async with semaphore:
+            if repository in denied_repositories:
+                denied_repositories[repository] += 1
+                return None
             try:
                 return await _fetch_embedded_attestation_provenance(
                     client, token_manager, registry, image_path, attestation_digest
                 )
             except (httpx.HTTPError, json.JSONDecodeError) as e:
+                if _is_access_denied(e):
+                    denied_repositories[repository] += 1
+                    return None
                 logger.warning(
                     "Failed to fetch BuildKit attestation %s/%s@%s: %s",
                     registry,
@@ -1131,15 +1159,26 @@ async def _fetch_all_image_provenance(
     async def bounded_process(
         artifact: dict[str, Any], client: httpx.AsyncClient
     ) -> tuple[dict[str, Any] | None, bool]:
+        parsed = parse_docker_image_uri(artifact.get("uri", ""))
+        repository = _repository_path(parsed[0], parsed[1]) if parsed else ""
         async with semaphore:
-            return await _process_single_image(
-                client,
-                token_manager,
-                artifact,
-                sbom_artifacts_by_digest,
-                fetch_config=_artifact_digest(artifact) not in cached_layer_digests,
-                embedded_provenance=embedded_provenance,
-            )
+            if repository in denied_repositories:
+                denied_repositories[repository] += 1
+                return None, True
+            try:
+                return await _process_single_image(
+                    client,
+                    token_manager,
+                    artifact,
+                    sbom_artifacts_by_digest,
+                    fetch_config=_artifact_digest(artifact) not in cached_layer_digests,
+                    embedded_provenance=embedded_provenance,
+                )
+            except httpx.HTTPStatusError as e:
+                if not _is_access_denied(e):
+                    raise
+                denied_repositories[repository] += 1
+                return None, True
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
         attestation_refs = _embedded_attestation_refs(
@@ -1180,6 +1219,13 @@ async def _fetch_all_image_provenance(
             if result is not None:
                 results.append(result)
 
+    for repository, skipped in denied_repositories.items():
+        logger.warning(
+            "Could not enrich %d artifact(s) in Artifact Registry repository %s: "
+            "access denied (HTTP 403).",
+            skipped,
+            repository,
+        )
     logger.info(
         "Extracted provenance/layer data for %d of %d images (%d fetch failures)",
         len(results),
