@@ -23,7 +23,7 @@ _PER_PAGE = 1000
 Jurisdiction = Literal["default", "eu", "fedramp"]
 
 # Every R2 call is scoped to a single jurisdiction through the
-# `cf-r2-jurisdiction` header, which the SDK sets from its `jurisdiction`
+# `cf-r2-jurisdiction` header, which the SDK sets from its `cf_r2_jurisdiction`
 # argument and defaults to `default`. Jurisdictions are separate namespaces, so
 # one listing only reports the buckets of one of them and the same bucket name
 # can exist in several. Each one is therefore listed on its own.
@@ -118,7 +118,7 @@ def get_jurisdiction_buckets(
     page_params: Dict[str, Any] = {
         "account_id": account_id,
         "per_page": _PER_PAGE,
-        "jurisdiction": jurisdiction,
+        "cf_r2_jurisdiction": jurisdiction,
     }
     while True:
         try:
@@ -168,7 +168,7 @@ def get_managed_domain(
         return client.r2.buckets.domains.managed.list(
             bucket_name,
             account_id=account_id,
-            jurisdiction=jurisdiction,
+            cf_r2_jurisdiction=jurisdiction,
         ).to_dict()
     except APIError:
         # A token without the R2 domain scope must not abort the whole sync: the
@@ -195,7 +195,7 @@ def get_custom_domains(
         response = client.r2.buckets.domains.custom.list(
             bucket_name,
             account_id=account_id,
-            jurisdiction=jurisdiction,
+            cf_r2_jurisdiction=jurisdiction,
         )
     except APIError:
         logger.warning(
