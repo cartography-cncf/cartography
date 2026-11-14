@@ -13,12 +13,16 @@ from tests.data.langsmith.deployments import TRIAGE_DEPLOYMENT_ID
 from tests.data.langsmith.fake_client import FakeLangSmithClient
 from tests.data.langsmith.fake_client import SIMPSON_CORP_ROUTES
 from tests.data.langsmith.organizations import LANGSMITH_ORG_ID
+from tests.data.langsmith.organizations import LANGSMITH_ORG_INFO
 from tests.data.langsmith.roles import CUSTOM_ROLE_ID
 from tests.data.langsmith.roles import ORG_ADMIN_ROLE_ID
 from tests.data.langsmith.roles import WORKSPACE_VIEWER_ROLE_ID
 from tests.data.langsmith.users import BART_LS_USER_ID
 from tests.data.langsmith.users import HOMER_LS_USER_ID
 from tests.data.langsmith.users import MARGE_LS_USER_ID
+from tests.data.langsmith.workspace_resources import PUBLIC_REPO_ID
+from tests.data.langsmith.workspace_resources import PUBLIC_RUN_ID
+from tests.data.langsmith.workspace_resources import TRACE_BUCKET
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 from tests.integration.util import check_nodes
@@ -163,6 +167,7 @@ def test_sync_attributes_every_credential_to_its_owner(neo4j_session):
         ("lsv2_sk_abcd", "service_key"),
         ("lsv2_pt_wxyz", "pat"),
         ("lsv2_sc_1234", "scim_token"),
+        ("lsv2_tr_trc1", "tracing_key"),
         ("lsv2_ws_prod", "workspace_key"),
     }
     # created_by holds an identity UUID, an ls_user_id or a bare username depending on
@@ -173,6 +178,7 @@ def test_sync_attributes_every_credential_to_its_owner(neo4j_session):
         ("lsv2_sk_abcd", MARGE_LS_USER_ID),
         ("lsv2_sc_1234", MARGE_LS_USER_ID),
         ("lsv2_pt_wxyz", BART_LS_USER_ID),
+        ("lsv2_tr_trc1", BART_LS_USER_ID),
         ("lsv2_ws_prod", HOMER_LS_USER_ID),
     }
     assert check_rels(
@@ -220,13 +226,17 @@ def test_sync_shows_which_workspaces_a_key_reaches(neo4j_session):
         "LangSmithWorkspace",
         "id",
         "SCOPED_TO",
-    ) == {("lsv2_sk_abcd", WORKSPACE_PROD_ID)}
+    ) == {
+        ("lsv2_sk_abcd", WORKSPACE_PROD_ID),
+        ("lsv2_tr_trc1", WORKSPACE_DEV_ID),
+    }
     assert check_nodes(
         neo4j_session, "LangSmithApiKey", ["short_key", "is_tracing_key"]
     ) == {
         ("lsv2_sk_abcd", None),
         ("lsv2_pt_wxyz", None),
         ("lsv2_sc_1234", None),
+        ("lsv2_tr_trc1", True),
         ("lsv2_ws_prod", True),
     }
 
@@ -384,6 +394,66 @@ def test_deployment_secret_values_never_reach_the_graph(neo4j_session):
     assert leaked == []
 
 
+def test_sync_shows_how_data_leaves_a_workspace(neo4j_session):
+    # Arrange
+    neo4j_session.run(
+        "MERGE (:S3Bucket {id: $bucket, name: $bucket})", bucket=TRACE_BUCKET
+    )
+
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    # Another organization's public repo appears in the listing but is not ingested.
+    assert check_nodes(
+        neo4j_session, "LangSmithPublicShare", ["share_type", "entity_id"]
+    ) == {("run", PUBLIC_RUN_ID), ("repo", PUBLIC_REPO_ID)}
+    assert check_nodes(
+        neo4j_session, "LangSmithWebhook", ["source", "scheme", "host"]
+    ) == {
+        ("run_rule", "https", "hooks.slack.com"),
+        ("prompt", "http", "ci.simpson.internal:8080"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "LangSmithBulkExportDestination",
+        "name",
+        "S3Bucket",
+        "id",
+        "EXPORTS_TO",
+    ) == {("Trace archive", TRACE_BUCKET)}
+    leaked = neo4j_session.run(
+        """
+        MATCH (n) WHERE n:LangSmithPublicShare OR n:LangSmithWebhook
+        WITH n, [k IN keys(n) | n[k]] AS values
+        WHERE any(x IN values WHERE toString(x) CONTAINS 'SENTINEL-MUST-NOT-BE-INGESTED')
+        RETURN count(n) AS leaked
+        """
+    ).single()["leaked"]
+    assert leaked == 0
+
+
+def test_disabling_public_sharing_removes_public_shares(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    sharing_disabled = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            ("/api/v1/orgs/current/info", None): {
+                **LANGSMITH_ORG_INFO,
+                "public_sharing_disabled": True,
+            },
+        }
+    )
+
+    # Act
+    _sync(neo4j_session, sharing_disabled, NEXT_UPDATE_TAG)
+
+    # Assert
+    # LangSmith serves no share link while sharing is disabled, so nothing is public.
+    assert _ids(neo4j_session, "LangSmithPublicShare") == set()
+
+
 def test_sync_loads_workspace_resources(neo4j_session):
     # Act
     _sync(neo4j_session, FakeLangSmithClient())
@@ -486,6 +556,13 @@ STALE_CASES = [
         "LangSmithAgentCredential",
         TRIAGE_CREDENTIAL_ID,
         id="agent-credential",
+    ),
+    pytest.param(
+        ("/api/v1/workspaces/current/shared", WORKSPACE_PROD_ID),
+        [],
+        "LangSmithPublicShare",
+        f"run|{PUBLIC_RUN_ID}",
+        id="public-share",
     ),
     pytest.param(
         ("/api/v1/platform/oauth/clients", WORKSPACE_PROD_ID),

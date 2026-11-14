@@ -49,6 +49,7 @@ SIMPSON_CORP_ROUTES: dict[Route, Any] = {
         None,
     ): apikeys.LANGSMITH_PATS,
     ("/api/v1/platform/orgs/current/scim/tokens", None): apikeys.LANGSMITH_SCIM_TOKENS,
+    ("/api/v1/orgs/current/tracing-keys", None): apikeys.LANGSMITH_TRACING_KEYS,
     **_per_workspace("/api/v1/api-key", apikeys.LANGSMITH_WORKSPACE_KEYS),
     (
         "/api/v1/orgs/current/sso-settings",
@@ -88,6 +89,18 @@ SIMPSON_CORP_ROUTES: dict[Route, Any] = {
     ),
     **_per_workspace(
         "/api/v1/platform/mcp-vendors", workspace_resources.LANGSMITH_MCP_VENDORS
+    ),
+    **_per_workspace(
+        "/api/v1/workspaces/current/shared", workspace_resources.LANGSMITH_SHARED
+    ),
+    **_per_workspace("/api/v1/repos", workspace_resources.LANGSMITH_PUBLIC_REPOS),
+    **_per_workspace("/api/v1/runs/rules", workspace_resources.LANGSMITH_RUN_RULES),
+    **_per_workspace(
+        "/api/v1/prompt-webhooks", workspace_resources.LANGSMITH_PROMPT_WEBHOOKS
+    ),
+    **_per_workspace(
+        "/api/v1/bulk-exports/destinations",
+        workspace_resources.LANGSMITH_BULK_EXPORT_DESTINATIONS,
     ),
     (
         "/api/v1/platform/mcp-vendors/arcade/mcp-servers",

@@ -88,3 +88,20 @@ LANGSMITH_WORKSPACE_KEYS = {
     ],
     WORKSPACE_DEV_ID: [],
 }
+
+# Tracing keys keep working after their creator leaves the organization.
+LANGSMITH_TRACING_KEYS = [
+    {
+        "id": "8b8b8b8b-0001-4001-8001-8b8b8b8b8b8b",
+        "short_key": "lsv2_tr_trc1",
+        "description": "Batch job tracing",
+        "is_tracing_key": True,
+        "created_at": "2026-02-05T09:00:00Z",
+        "last_used_at": "2026-03-04T09:00:00Z",
+        "expires_at": None,
+        "revoked_at": None,
+        "access_scope": "workspace",
+        "workspace_ids": [WORKSPACE_DEV_ID],
+        "created_by": BART_LS_USER_ID,
+    },
+]
