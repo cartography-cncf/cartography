@@ -39,23 +39,23 @@ class LangSmithAgentCredentialNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithAgentCredentialToOrganizationRelProperties(CartographyRelProperties):
+class LangSmithAgentCredentialToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithAgentCredential)
-class LangSmithAgentCredentialToOrganizationRel(CartographyRelSchema):
-    """Links an organization to an agent credential held within it."""
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithAgentCredential)
+class LangSmithAgentCredentialToWorkspaceRel(CartographyRelSchema):
+    """Links an agent credential to the workspace it belongs to."""
 
-    target_node_label: str = "LangSmithOrganization"
+    target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LangSmithAgentCredentialToOrganizationRelProperties = (
-        LangSmithAgentCredentialToOrganizationRelProperties()
+    properties: LangSmithAgentCredentialToWorkspaceRelProperties = (
+        LangSmithAgentCredentialToWorkspaceRelProperties()
     )
 
 
@@ -146,8 +146,8 @@ class LangSmithAgentCredentialSchema(CartographyNodeSchema):
     properties: LangSmithAgentCredentialNodeProperties = (
         LangSmithAgentCredentialNodeProperties()
     )
-    sub_resource_relationship: LangSmithAgentCredentialToOrganizationRel = (
-        LangSmithAgentCredentialToOrganizationRel()
+    sub_resource_relationship: LangSmithAgentCredentialToWorkspaceRel = (
+        LangSmithAgentCredentialToWorkspaceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -3,10 +3,10 @@ from typing import Any
 
 import neo4j
 
-from cartography.client.core.tx import load
-from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_workspaces
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import load_by_workspace
 from cartography.intel.langsmith.util import resolve_ls_user_id
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.deployment import LangSmithDeploymentSchema
@@ -23,13 +23,13 @@ def sync(
     workspaces: list[dict[str, Any]],
     user_lookup: dict[str, str],
     common_job_parameters: dict[str, Any],
-) -> tuple[list[dict[str, Any]], dict[str, str], bool]:
+) -> tuple[list[dict[str, Any]], set[str]]:
     """
     Load deployments and the agents in the control plane's agent registry.
 
-    Returns the agent inventory, a deployment id -> workspace id mapping, and whether the
+    Returns one agent row per workspace the agent was seen in, and the workspaces whose
     agent inventory is complete. Agents are cleaned up by the agent_auth sync, which also
-    loads them, so it must not clean up on an incomplete inventory.
+    loads them, so it must clean up only those workspaces.
 
     Agents come from the control plane only. A deployment's own data plane can also list
     its assistants, but this module never calls it: the deployment runs code its authors
@@ -37,7 +37,7 @@ def sync(
     request there would hand them the organization token.
     """
     raw: list[dict[str, Any]] = []
-    deployments_complete = True
+    readable_workspace_ids: set[str] = set()
     for workspace in workspaces:
         try:
             raw.extend(get(client, org_id, workspace["id"]))
@@ -48,26 +48,24 @@ def sync(
                 workspace["id"],
                 err,
             )
-            deployments_complete = deployments_complete and err.not_found
+            if err.not_found:
+                readable_workspace_ids.add(workspace["id"])
             continue
+        readable_workspace_ids.add(workspace["id"])
 
     deployments = transform_deployments(raw)
-    registry_agents, registry_complete = get_agents(client, org_id, workspaces)
+    registry_agents, registry_readable = get_agents(client, org_id, workspaces)
     agents = transform_agents(deployments, registry_agents, org_id, user_lookup)
     load_deployments(
         neo4j_session, agents, deployments, org_id, common_job_parameters["UPDATE_TAG"]
     )
-    cleanup_if_complete(
+    cleanup_workspaces(
         neo4j_session,
         LangSmithDeploymentSchema(),
-        deployments_complete,
+        readable_workspace_ids,
         common_job_parameters,
     )
-
-    workspace_by_deployment = {
-        deployment["id"]: deployment["tenant_id"] for deployment in deployments
-    }
-    return agents, workspace_by_deployment, deployments_complete and registry_complete
+    return agents, readable_workspace_ids & registry_readable
 
 
 @timeit
@@ -86,33 +84,35 @@ def get(
 @timeit
 def get_agents(
     client: LangSmithClient, org_id: str, workspaces: list[dict[str, Any]]
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], set[str]]:
     """
-    Read the agent registry in every workspace, and report whether every read completed.
+    Read the agent registry in every workspace.
 
-    The same agent can be visible from more than one workspace, so it is kept once.
+    Returns one record per agent per workspace it is visible from, and the workspaces whose
+    registry listing completed.
     """
-    agents: dict[str, dict[str, Any]] = {}
-    complete = True
+    records: list[dict[str, Any]] = []
+    readable_workspace_ids: set[str] = set()
     for workspace in workspaces:
+        workspace_id = workspace["id"]
         try:
             rows = client.get_cursor_paginated(
                 "/api/v1/agents",
                 key="items",
                 org_id=org_id,
-                tenant_id=workspace["id"],
+                tenant_id=workspace_id,
             )
         except LangSmithFetchError as err:
             logger.warning(
-                "Skipping LangSmith agents for workspace %s: %s",
-                workspace["id"],
-                err,
+                "Skipping LangSmith agents for workspace %s: %s", workspace_id, err
             )
-            complete = complete and err.not_found
+            if err.not_found:
+                readable_workspace_ids.add(workspace_id)
             continue
+        readable_workspace_ids.add(workspace_id)
         for row in rows:
-            agents.setdefault(row["id"], row)
-    return list(agents.values()), complete
+            records.append({**row, "workspace_id": workspace_id})
+    return records, readable_workspace_ids
 
 
 def transform_deployments(deployments: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -167,7 +167,8 @@ def transform_agents(
     user_lookup: dict[str, str],
 ) -> list[dict[str, Any]]:
     """
-    Merge the agent registry with the agents that deployments name.
+    Merge the agent registry with the agents that deployments name, one row per agent per
+    workspace.
 
     The registry carries each agent's owner and environments. An environment traces into a
     tracing project, and so does the deployment serving it, so a shared project links the
@@ -181,12 +182,13 @@ def transform_agents(
             deployments_by_project.setdefault(
                 deployment["tracer_session_id"], []
             ).append(deployment["id"])
-    agents: dict[str, dict[str, Any]] = {}
+    rows: dict[tuple[str, str], dict[str, Any]] = {}
     for agent in registry_agents:
         environments = agent.get("environments") or []
-        agents[agent["id"]] = {
+        rows[(agent["id"], agent["workspace_id"])] = {
             "id": f"{org_id}|{agent['id']}",
             "agent_id": agent["id"],
+            "workspace_id": agent["workspace_id"],
             "name": agent.get("name"),
             "agent_type": agent.get("agent_type"),
             "source_type": agent.get("source_type"),
@@ -215,11 +217,12 @@ def transform_agents(
         agent_id = deployment.get("agent_id")
         if not agent_id:
             continue
-        record = agents.setdefault(
-            agent_id,
+        record = rows.setdefault(
+            (agent_id, deployment["tenant_id"]),
             {
                 "id": f"{org_id}|{agent_id}",
                 "agent_id": agent_id,
+                "workspace_id": deployment["tenant_id"],
                 "name": deployment.get("display_name") or deployment.get("name"),
                 "environments": [],
                 "deployment_ids": [],
@@ -230,7 +233,7 @@ def transform_agents(
         environment = (deployment.get("agent_environment") or "").lower()
         if environment and environment not in record["environments"]:
             record["environments"] = sorted([*record["environments"], environment])
-    return list(agents.values())
+    return list(rows.values())
 
 
 @timeit
@@ -243,17 +246,14 @@ def load_deployments(
 ) -> None:
     # Deployments must land before agents: every agent carries the ids of the deployments
     # serving it, and that one-to-many RUNS edge can only match deployments that exist.
-    load(
+    load_by_workspace(
         neo4j_session,
         LangSmithDeploymentSchema(),
-        deployments,
-        lastupdated=update_tag,
-        ORG_ID=org_id,
+        [
+            {**deployment, "workspace_id": deployment["tenant_id"]}
+            for deployment in deployments
+        ],
+        org_id,
+        update_tag,
     )
-    load(
-        neo4j_session,
-        LangSmithAgentSchema(),
-        agents,
-        lastupdated=update_tag,
-        ORG_ID=org_id,
-    )
+    load_by_workspace(neo4j_session, LangSmithAgentSchema(), agents, org_id, update_tag)

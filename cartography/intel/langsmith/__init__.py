@@ -91,15 +91,13 @@ def start_langsmith_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
             neo4j_session, client, org_id, org_common_job_parameters
         )
 
-        agents, workspace_by_deployment, agents_complete = (
-            cartography.intel.langsmith.deployments.sync(
-                neo4j_session,
-                client,
-                org_id,
-                workspaces,
-                user_lookup,
-                org_common_job_parameters,
-            )
+        agents, agents_readable = cartography.intel.langsmith.deployments.sync(
+            neo4j_session,
+            client,
+            org_id,
+            workspaces,
+            user_lookup,
+            org_common_job_parameters,
         )
 
         cartography.intel.langsmith.agent_auth.sync(
@@ -108,9 +106,8 @@ def start_langsmith_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
             org_id,
             workspaces,
             agents,
-            workspace_by_deployment,
             user_lookup,
-            agents_complete,
+            agents_readable,
             org_common_job_parameters,
         )
 

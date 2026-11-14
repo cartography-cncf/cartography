@@ -7,7 +7,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -71,42 +70,21 @@ class LangSmithDeploymentNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithDeploymentToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithDeployment)
-class LangSmithDeploymentToOrganizationRel(CartographyRelSchema):
-    """Links an organization to a deployment running within it."""
-
-    target_node_label: str = "LangSmithOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: LangSmithDeploymentToOrganizationRelProperties = (
-        LangSmithDeploymentToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithDeploymentToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithWorkspace)-[:CONTAINS]->(:LangSmithDeployment)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithDeployment)
 class LangSmithDeploymentToWorkspaceRel(CartographyRelSchema):
-    """Links a deployment to the workspace that owns it."""
+    """Links a deployment to the workspace it belongs to."""
 
     target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("tenant_id")},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: LangSmithDeploymentToWorkspaceRelProperties = (
         LangSmithDeploymentToWorkspaceRelProperties()
     )
@@ -118,11 +96,6 @@ class LangSmithDeploymentSchema(CartographyNodeSchema):
 
     label: str = "LangSmithDeployment"
     properties: LangSmithDeploymentNodeProperties = LangSmithDeploymentNodeProperties()
-    sub_resource_relationship: LangSmithDeploymentToOrganizationRel = (
-        LangSmithDeploymentToOrganizationRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            LangSmithDeploymentToWorkspaceRel(),
-        ],
+    sub_resource_relationship: LangSmithDeploymentToWorkspaceRel = (
+        LangSmithDeploymentToWorkspaceRel()
     )
