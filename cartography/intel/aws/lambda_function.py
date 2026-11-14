@@ -70,7 +70,8 @@ def _is_retryable_lambda_error(error: ClientError) -> bool:
 @aws_handle_regions
 def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
     """
-    Create an Lambda boto3 client and grab all the lambda functions.
+    Create an Lambda boto3 client and grab all the lambda functions, then
+    enrich each function with its function URL configuration, if one exists.
     """
     client = create_boto3_client(
         boto3_session,
@@ -101,7 +102,72 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
         raise LambdaTransientRegionFailure(
             "Encountered a transient regional Lambda endpoint failure while calling ListFunctions"
         ) from error
+
+    # There is no list API for function URL configs, so each function needs
+    # one extra GetFunctionUrlConfig call, the same order of magnitude as the
+    # existing per-function policy fetch. Functions without a URL config keep
+    # the FunctionUrl fields unset.
+    logger.debug(
+        "Fetching function URL configs for %d Lambda functions in region '%s'",
+        len(lambda_functions),
+        region,
+    )
+    for each_function in lambda_functions:
+        url_config = get_function_url_config(client, each_function["FunctionName"])
+        if url_config:
+            each_function["FunctionUrl"] = url_config.get("FunctionUrl")
+            each_function["FunctionUrlAuthType"] = url_config.get("AuthType")
     return lambda_functions
+
+
+@timeit
+def get_function_url_config(
+    client: botocore.client.BaseClient,
+    function_name: str,
+) -> Dict[str, Any] | None:
+    """
+    Get the function URL configuration for a single Lambda function.
+
+    Functions without a function URL raise a not-found ClientError, which is
+    tolerated by returning None so that the function's URL fields stay unset.
+    Retry-exhausted transient failures abort the region so the sync preserves
+    last-known-good URL config state.
+    """
+    try:
+        return client.get_function_url_config(FunctionName=function_name)
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+            logger.debug(
+                f"No function URL config found for Lambda function {function_name}"
+            )
+            return None
+        if _is_retryable_lambda_error(error):
+            raise LambdaTransientRegionFailure(
+                f"AWS SDK retries were exhausted for transient GetFunctionUrlConfig failure on function {function_name}"
+            ) from error
+        logger.warning(
+            "Error getting function URL config for Lambda function %s: %s",
+            function_name,
+            error,
+        )
+        return None
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise LambdaTransientRegionFailure(
+            f"Encountered a transient Lambda endpoint failure while calling GetFunctionUrlConfig on function {function_name}"
+        ) from error
+    except Exception as error:
+        logger.warning(
+            "Error getting function URL config for Lambda function %s: %s",
+            function_name,
+            error,
+        )
+        return None
 
 
 @timeit
@@ -189,6 +255,13 @@ def transform_lambda_functions(
         permission_data = permissions_by_arn[function_arn]
         transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
         transformed_function["AnonymousActions"] = permission_data["AnonymousActions"]
+
+        # Function URL config was attached per function during get_lambda_data;
+        # functions without one leave these as None.
+        transformed_function["functionurl"] = function_data.get("FunctionUrl")
+        transformed_function["functionurlauthtype"] = function_data.get(
+            "FunctionUrlAuthType"
+        )
 
         # list_functions does not include container image details, so those are
         # resolved separately with GetFunction for image-based Lambdas only.

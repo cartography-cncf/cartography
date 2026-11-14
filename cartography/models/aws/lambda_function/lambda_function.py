@@ -131,6 +131,14 @@ class AWSLambdaNodeProperties(CartographyNodeProperties):
         "AnonymousActions",
         description="List of anonymous internet accessible actions that may be run on the function.",
     )
+    functionurl: PropertyRef = PropertyRef(
+        "functionurl",
+        description="The function URL endpoint, if a function URL is configured",
+    )
+    functionurlauthtype: PropertyRef = PropertyRef(
+        "functionurlauthtype",
+        description="The auth type of the function URL (AWS_IAM or NONE)",
+    )
     region: PropertyRef = PropertyRef(
         "Region",
         set_in_kwargs=True,
