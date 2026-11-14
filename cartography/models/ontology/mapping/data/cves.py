@@ -480,18 +480,13 @@ aws_inspector_mapping = OntologyMapping(
     nodes=[
         OntologyNodeMapping(
             node_label="AWSInspectorFinding",
+            # No description or references: Inspector repeats the CVE's text on every finding,
+            # one per resource and package, so a large EC2 fleet holds millions of copies. An
+            # _ont_ copy of each doubles that, and cleanup has to delete every copy again when
+            # short-lived instances' findings close. Read the text from `description` and
+            # `referenceurls`, or once per CVE from CVEMetadata.
             fields=[
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
-                OntologyFieldMapping(
-                    ontology_field="description",
-                    node_field="description",
-                    indexed=False,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="references",
-                    node_field="referenceurls",
-                    indexed=False,
-                ),
                 OntologyFieldMapping(
                     ontology_field="base_score",
                     node_field="cvssscore",
