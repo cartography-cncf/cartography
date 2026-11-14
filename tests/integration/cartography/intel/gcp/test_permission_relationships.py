@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -186,6 +187,7 @@ def test_sync_gcp_permission_relationships(
     mock_get_instance_responses,
     mock_parse_yaml,
     neo4j_session,
+    caplog,
 ):
     """
     Test that GCP permission relationships sync creates the expected nodes and relationships.
@@ -261,6 +263,12 @@ def test_sync_gcp_permission_relationships(
     )
 
     _create_extended_test_resources(neo4j_session)
+
+    caplog.set_level(
+        logging.INFO,
+        logger="cartography.intel.gcp.permission_relationships",
+    )
+    caplog.clear()
 
     # ACT
     cartography.intel.gcp.permission_relationships.sync(
@@ -402,6 +410,18 @@ def test_sync_gcp_permission_relationships(
     ) == {
         ("bob@example.com", "sa@project-abc.iam.gserviceaccount.com"),
     }
+
+    # Per-relationship lines are DEBUG; INFO gets one summary per project.
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "cartography.intel.gcp.permission_relationships"
+        and record.levelno == logging.INFO
+    ] == [
+        "Syncing GCP Permission Relationships for project 'project-abc'.",
+        "Completed GCP Permission Relationships sync for project 'project-abc': "
+        "loaded 8 relationships for 7 relationship types.",
+    ]
 
 
 @patch.object(
