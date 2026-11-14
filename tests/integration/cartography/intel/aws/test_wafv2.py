@@ -3,9 +3,11 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import cartography.intel.aws.apigateway
+import cartography.intel.aws.apigatewayv2
 import cartography.intel.aws.cloudfront
 import cartography.intel.aws.ec2.load_balancer_v2s
 import tests.data.aws.apigateway
+import tests.data.aws.apigatewayv2
 import tests.data.aws.cloudfront
 import tests.data.aws.ec2.load_balancer_v2s
 import tests.data.aws.wafv2 as test_data
@@ -28,8 +30,16 @@ LIST_WEB_ACLS = {
     ("us-east-1", "CLOUDFRONT"): test_data.LIST_WEB_ACLS_CLOUDFRONT,
     ("us-gov-west-1", "REGIONAL"): test_data.LIST_WEB_ACLS_REGIONAL_US_GOV_WEST_1,
 }
+# What list_resources_for_web_acl returns, by web ACL ARN and resource type.
 LIST_RESOURCES_FOR_WEB_ACL = {
-    test_data.ALB_WEB_ACL_ARN: test_data.LIST_RESOURCES_FOR_ALB_WEB_ACL,
+    (
+        test_data.ALB_WEB_ACL_ARN,
+        "APPLICATION_LOAD_BALANCER",
+    ): test_data.LIST_RESOURCES_FOR_ALB_WEB_ACL,
+    (
+        test_data.ALB_WEB_ACL_ARN,
+        "API_GATEWAY",
+    ): test_data.LIST_RESOURCES_FOR_API_GATEWAY_WEB_ACL,
 }
 
 
@@ -41,12 +51,14 @@ def _fake_boto3_session(list_web_acls: dict[tuple[str, str], Any]) -> MagicMock:
         wafv2.list_web_acls.side_effect = lambda Scope: copy.deepcopy(
             list_web_acls.get((region_name, Scope), {"WebACLs": []}),
         )
-        wafv2.list_resources_for_web_acl.side_effect = (
-            lambda WebACLArn, ResourceType: LIST_RESOURCES_FOR_WEB_ACL.get(
-                WebACLArn,
+
+        def _list_resources(WebACLArn: str, ResourceType: str) -> dict:
+            return LIST_RESOURCES_FOR_WEB_ACL.get(
+                (WebACLArn, ResourceType),
                 test_data.LIST_RESOURCES_NONE,
             )
-        )
+
+        wafv2.list_resources_for_web_acl.side_effect = _list_resources
         return wafv2
 
     session = MagicMock()
@@ -246,6 +258,50 @@ def test_sync_links_web_acl_to_api_gateway_stages_that_name_it(neo4j_session):
     ) == {
         (test_data.API_GATEWAY_WEB_ACL_ARN, STAGE_INFRA_ID),
         (test_data.API_GATEWAY_WEB_ACL_ARN, STAGE_UNIT_ID),
+    }
+
+
+def test_sync_links_web_acl_to_the_api_gateway_v2_stages_it_protects(neo4j_session):
+    # Arrange
+    _reset_graph(neo4j_session)
+    # API Gateway v2 stages carry no web ACL ARN of their own, so the web ACL
+    # resolves the association from the WAF side instead.
+    cartography.intel.aws.apigatewayv2.load_apigatewayv2_apis(
+        neo4j_session,
+        cartography.intel.aws.apigatewayv2.transform_apigatewayv2_apis(
+            tests.data.aws.apigatewayv2.GET_APIS,
+        ),
+        "us-east-1",
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.apigatewayv2.load_apigatewayv2_stages(
+        neo4j_session,
+        cartography.intel.aws.apigatewayv2.transform_apigatewayv2_stages(
+            tests.data.aws.apigatewayv2.STAGES_BY_API_ID["api-001"],
+            "us-east-1",
+            "api-001",
+        ),
+        "us-east-1",
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    _sync(neo4j_session, ["us-east-1"], TEST_UPDATE_TAG)
+
+    # Assert
+    # Only the stage that ListResourcesForWebACL names gets the edge.
+    assert check_rels(
+        neo4j_session,
+        "AWSWebACL",
+        "arn",
+        "AWSAPIGatewayV2Stage",
+        "id",
+        "PROTECTS",
+        rel_direction_right=True,
+    ) == {
+        (test_data.ALB_WEB_ACL_ARN, test_data.PROTECTED_V2_STAGE_ARN),
     }
 
 

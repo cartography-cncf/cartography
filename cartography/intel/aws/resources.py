@@ -162,8 +162,9 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
         "glue": glue.sync,
-        # `wafv2` must run after `ec2:load_balancer_v2`, `apigateway`, and
-        # `cloudfront` so that web ACL PROTECTS edges can match those nodes.
+        # `wafv2` must run after `ec2:load_balancer_v2`, `apigateway`,
+        # `apigatewayv2`, and `cloudfront` so that web ACL PROTECTS edges can
+        # match those nodes.
         "wafv2": wafv2.sync,
         # These resources feed final AWS analysis jobs and have no remaining
         # regular-resource consumers, so keep them close to that analysis.
