@@ -25,7 +25,20 @@ def get_acm_certificates(
     client = create_boto3_client(boto3_session, "acm", region_name=region)
     paginator = client.get_paginator("list_certificates")
     summaries: list[dict[str, Any]] = []
-    for page in paginator.paginate():
+    # ACM's default filter omits ECDSA and larger RSA certificates.
+    for page in paginator.paginate(
+        Includes={
+            "keyTypes": [
+                "RSA_1024",
+                "RSA_2048",
+                "RSA_3072",
+                "RSA_4096",
+                "EC_prime256v1",
+                "EC_secp384r1",
+                "EC_secp521r1",
+            ],
+        },
+    ):
         summaries.extend(page.get("CertificateSummaryList", []))
 
     details: list[dict[str, Any]] = []
