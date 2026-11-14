@@ -23,6 +23,9 @@ API_GATEWAY_WEB_ACL_ARN = (
     "arn:aws:wafv2:us-west-2:1234567890:regional/webacl/"
     "test-cli/a1b2c3d4-5678-90ab-cdef-EXAMPLE111"
 )
+# The 'prod' stage of the API in tests.data.aws.apigatewayv2.GET_APIS, in the
+# ARN format that ListResourcesForWebACL returns for API_GATEWAY associations.
+PROTECTED_V2_STAGE_ARN = "arn:aws:apigateway:us-east-1::/apis/api-001/stages/prod"
 # The WebACLId of the distribution in
 # tests.data.aws.cloudfront.CLOUDFRONT_DISTRIBUTIONS_WITH_LAMBDA.
 CLOUDFRONT_WEB_ACL_ARN = (
@@ -73,6 +76,8 @@ LIST_WEB_ACLS_REGIONAL_US_GOV_WEST_1 = {"WebACLs": [GOVCLOUD_WEB_ACL_SUMMARY]}
 
 # list_resources_for_web_acl(ResourceType="APPLICATION_LOAD_BALANCER").
 LIST_RESOURCES_FOR_ALB_WEB_ACL = {"ResourceArns": [PROTECTED_ALB_ARN]}
+# list_resources_for_web_acl(ResourceType="API_GATEWAY").
+LIST_RESOURCES_FOR_API_GATEWAY_WEB_ACL = {"ResourceArns": [PROTECTED_V2_STAGE_ARN]}
 LIST_RESOURCES_NONE: dict[str, list[str]] = {"ResourceArns": []}
 
 # Two list_web_acls pages. WAF returns a NextMarker whenever it fills a page,
