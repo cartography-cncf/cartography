@@ -114,3 +114,101 @@ LANGSMITH_MCP_SERVERS = {
         },
     ],
 }
+
+SENTINEL = "SENTINEL-MUST-NOT-BE-INGESTED"
+PUBLIC_RUN_ID = "ad11ad11-0001-4001-8001-ad11ad11ad11"
+PUBLIC_REPO_ID = "ad11ad11-0002-4002-8002-ad11ad11ad11"
+
+# Share tokens are the public URL's credential, so they carry the sentinel.
+LANGSMITH_SHARED = {
+    WORKSPACE_PROD_ID: [
+        {
+            "type": "run",
+            "share_token": SENTINEL,
+            "created_at": "2026-03-05T09:00:00Z",
+            "run_id": PUBLIC_RUN_ID,
+            "run_name": "support-bot-trace",
+            "session_id": "bb22bb22-0001-4001-8001-bb22bb22bb22",
+            "session_name": "support-bot",
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
+}
+
+# The public repo listing spans organizations, so it includes another organization's.
+LANGSMITH_PUBLIC_REPOS = {
+    WORKSPACE_PROD_ID: [
+        {
+            "id": PUBLIC_REPO_ID,
+            "tenant_id": WORKSPACE_PROD_ID,
+            "full_name": "simpson-corp/support-prompt",
+            "repo_handle": "support-prompt",
+            "repo_type": "prompt",
+            "is_public": True,
+            "created_at": "2026-02-10T09:00:00Z",
+        },
+        {
+            "id": "ad11ad11-0003-4003-8003-ad11ad11ad11",
+            "tenant_id": "ffffffff-0000-4000-8000-ffffffffffff",
+            "full_name": "someone-else/prompt",
+            "repo_type": "prompt",
+            "is_public": True,
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
+}
+
+# Webhook URLs and headers often embed a secret, so they carry the sentinel.
+LANGSMITH_RUN_RULES = {
+    WORKSPACE_PROD_ID: [
+        {
+            "id": "ae11ae11-0001-4001-8001-ae11ae11ae11",
+            "display_name": "Errors to Slack",
+            "session_name": "support-bot",
+            "dataset_name": None,
+            "is_enabled": True,
+            "created_at": "2026-03-01T09:00:00Z",
+            "webhooks": [
+                {
+                    "url": f"https://hooks.slack.com/services/T0/B0/{SENTINEL}",
+                    "headers": {"Authorization": f"Bearer {SENTINEL}"},
+                },
+            ],
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
+}
+
+LANGSMITH_PROMPT_WEBHOOKS = {
+    WORKSPACE_PROD_ID: [
+        {
+            "id": "ae11ae11-0002-4002-8002-ae11ae11ae11",
+            "url": f"http://ci.simpson.internal:8080/prompts?token={SENTINEL}",
+            "headers": None,
+            "triggers": ["commit"],
+            "created_at": "2026-03-02T09:00:00Z",
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
+}
+
+TRACE_BUCKET = "simpson-langsmith-traces"
+LANGSMITH_BULK_EXPORT_DESTINATIONS = {
+    WORKSPACE_PROD_ID: [
+        {
+            "id": "af11af11-0001-4001-8001-af11af11af11",
+            "display_name": "Trace archive",
+            "destination_type": "s3",
+            "config": {
+                "bucket_name": TRACE_BUCKET,
+                "prefix": "langsmith/",
+                "region": "us-east-1",
+                "endpoint_url": None,
+                "aws_role_arn": "arn:aws:iam::000000000000:role/langsmith-export",
+            },
+            "credentials_keys": [],
+            "created_at": "2026-02-20T09:00:00Z",
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
+}

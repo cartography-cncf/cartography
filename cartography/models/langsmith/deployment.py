@@ -27,6 +27,25 @@ class LangSmithDeploymentNodeProperties(CartographyNodeProperties):
         "source",
         description="Where the deployment image comes from, for example github or external_docker.",
     )
+    repo_url: PropertyRef = PropertyRef(
+        "repo_url",
+        description="Git repository a github-sourced deployment builds from.",
+    )
+    build_on_push: PropertyRef = PropertyRef(
+        "build_on_push",
+        description="Whether a push to the repository redeploys automatically.",
+    )
+    custom_url: PropertyRef = PropertyRef(
+        "custom_url",
+        description=(
+            "URL set by the deployment's author for an external_docker deployment on a "
+            "self-hosted or hybrid listener, rather than one LangSmith assigns."
+        ),
+    )
+    listener_id: PropertyRef = PropertyRef(
+        "listener_id",
+        description="Self-hosted or hybrid listener that runs the deployment, if any.",
+    )
     image_version: PropertyRef = PropertyRef(
         "image_version", description="Image version currently deployed."
     )

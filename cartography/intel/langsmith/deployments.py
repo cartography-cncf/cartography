@@ -10,6 +10,7 @@ from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import load_by_workspace
 from cartography.intel.langsmith.util import resolve_ls_user_id
+from cartography.intel.langsmith.util import without_credentials
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.deployment import LangSmithDeploymentSchema
 from cartography.models.langsmith.legacy import LangSmithLegacyWorkspaceContainsRel
@@ -136,6 +137,7 @@ def transform_deployments(deployments: list[dict[str, Any]]) -> list[dict[str, A
     transformed = []
     for deployment in deployments:
         agent = deployment.get("agent") or {}
+        source_config = deployment.get("source_config") or {}
         transformed.append(
             {
                 "id": deployment["id"],
@@ -145,6 +147,10 @@ def transform_deployments(deployments: list[dict[str, Any]]) -> list[dict[str, A
                 "status": deployment.get("status"),
                 "url": deployment.get("url"),
                 "source": deployment.get("source"),
+                "repo_url": without_credentials(source_config.get("repo_url")),
+                "build_on_push": source_config.get("build_on_push"),
+                "custom_url": without_credentials(source_config.get("custom_url")),
+                "listener_id": source_config.get("listener_id"),
                 "image_version": deployment.get("image_version"),
                 "shareable": deployment.get("shareable"),
                 "route_through_gateway": deployment.get("route_through_gateway"),
