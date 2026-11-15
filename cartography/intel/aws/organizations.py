@@ -528,10 +528,23 @@ def load_aws_accounts(
     common_job_parameters: dict[str, Any],
     account_partitions: dict[str, str],
 ) -> None:
+    # Organizations names are authoritative; a per-account scan must not
+    # overwrite them with the AWS profile name.
+    org_names = {
+        record["id"]: record["name"]
+        for record in neo4j_session.run(
+            """
+            MATCH (a:AWSAccount)
+            WHERE a.id IN $ACCOUNT_IDS AND a.org_id IS NOT NULL
+            RETURN a.id AS id, a.name AS name
+            """,
+            ACCOUNT_IDS=list(aws_accounts.values()),
+        )
+    }
     account_data = [
         {
             "id": account_id,
-            "name": account_name,
+            "name": org_names.get(account_id, account_name),
             "foreign": None,
         }
         for account_name, account_id in aws_accounts.items()
