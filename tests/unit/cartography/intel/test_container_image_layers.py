@@ -54,8 +54,8 @@ def test_get_complete_layer_digests_accepts_empty_layer_lists():
     # Arrange
     neo4j_session = MagicMock()
     neo4j_session.execute_read.return_value = [
-        "sha256:with-layers",
-        "sha256:scratch",
+        {"digest": "sha256:with-layers", "layer_ids": ["sha256:layer"]},
+        {"digest": "sha256:scratch", "layer_ids": []},
     ]
 
     # Act
@@ -75,7 +75,6 @@ def test_get_complete_layer_digests_accepts_empty_layer_lists():
     assert "MATCH (img)-[:HAS_LAYER]->" in query
     assert "MATCH (img)-[:HEAD]->" in query
     assert "MATCH (img)-[:TAIL]->" in query
-    assert "})-[:NEXT]->(" in query
 
 
 def test_refresh_layer_closures_updates_the_full_existing_closure(monkeypatch):
@@ -149,7 +148,9 @@ def test_get_complete_layer_digests_bounds_queries_and_combines_results(count):
     cached = set(digests[::3])
     neo4j_session = MagicMock()
     neo4j_session.execute_read.side_effect = lambda _, query, **params: [
-        digest for digest in params["digests"] if digest in cached
+        {"digest": digest, "layer_ids": []}
+        for digest in params["digests"]
+        if digest in cached
     ]
 
     # Act
@@ -172,7 +173,9 @@ def test_get_complete_layer_digests_bounds_queries_and_combines_results(count):
 def test_get_complete_layer_digests_preserves_whole_scope_lookup():
     # Arrange
     neo4j_session = MagicMock()
-    neo4j_session.execute_read.return_value = ["sha256:cached"]
+    neo4j_session.execute_read.return_value = [
+        {"digest": "sha256:cached", "layer_ids": []},
+    ]
 
     # Act
     result = get_complete_layer_digests(
@@ -189,7 +192,10 @@ def test_get_complete_layer_digests_preserves_whole_scope_lookup():
 def test_get_complete_layer_digests_propagates_later_batch_failure():
     # Arrange
     neo4j_session = MagicMock()
-    neo4j_session.execute_read.side_effect = [["sha256:cached"], RuntimeError("failed")]
+    neo4j_session.execute_read.side_effect = [
+        [{"digest": "sha256:cached", "layer_ids": []}],
+        RuntimeError("failed"),
+    ]
 
     # Act and assert
     with pytest.raises(RuntimeError, match="failed"):

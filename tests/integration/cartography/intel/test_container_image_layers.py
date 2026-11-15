@@ -11,10 +11,10 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 @pytest.mark.parametrize(
     ("min_label_provenance_version", "expected"),
     [
-        (None, {"sha256:0", "sha256:2", "sha256:5", "sha256:7"}),
+        (None, {"sha256:0", "sha256:2", "sha256:5", "sha256:7", "sha256:8"}),
         # sha256:5 was enriched before label provenance existed: read it again.
         # sha256:7 already has a source, which its labels could not outrank.
-        (1, {"sha256:0", "sha256:2", "sha256:7"}),
+        (1, {"sha256:0", "sha256:2", "sha256:7", "sha256:8"}),
     ],
 )
 def test_get_complete_layer_digests_preserves_completeness_and_scope(
@@ -26,8 +26,10 @@ def test_get_complete_layer_digests_preserves_completeness_and_scope(
         """
         CREATE (project:GCPProject {id: 'project-1'}),
                (other:GCPProject {id: 'project-2'}),
-               (project)-[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: 'local'}),
-               (other)-[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: 'foreign'})
+               (project)-[:RESOURCE]->(local:GCPArtifactRegistryImageLayer {id: 'local'}),
+               (project)-[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: 'unlinked'}),
+               (other)-[:RESOURCE]->(:GCPArtifactRegistryImageLayer {id: 'foreign'}),
+               (local)-[:NEXT]->(local)
         WITH project
         UNWIND $images AS image
         CREATE (project)-[:RESOURCE]->(img:GCPArtifactRegistryImage {
@@ -58,6 +60,20 @@ def test_get_complete_layer_digests_preserves_completeness_and_scope(
                 "linked": True,
                 "source": "https://github.com/example/app",
             },
+            # A repeated layer needs its NEXT self-loop, which exists.
+            {
+                "digest": "sha256:8",
+                "layers": ["local", "local"],
+                "linked": True,
+                "version": 1,
+            },
+            # Every layer edge exists but local has no NEXT edge to unlinked.
+            {
+                "digest": "sha256:9",
+                "layers": ["local", "unlinked"],
+                "linked": True,
+                "version": 1,
+            },
         ],
     ).consume()
 
@@ -65,7 +81,7 @@ def test_get_complete_layer_digests_preserves_completeness_and_scope(
     result = get_complete_layer_digests(
         neo4j_session,
         GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
-        [f"sha256:{index}" for index in range(8)],
+        [f"sha256:{index}" for index in range(10)],
         {"id": "project-1"},
         batch_size=batch_size,
         min_label_provenance_version=min_label_provenance_version,

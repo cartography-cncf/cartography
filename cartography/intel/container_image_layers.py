@@ -10,11 +10,13 @@ from typing import TypeVar
 
 import neo4j
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.helpers import batch
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_NEXT_PAIR_BATCH_SIZE = 10_000
 _T = TypeVar("_T", bound=Mapping[str, Any])
 
 
@@ -180,22 +182,6 @@ def get_complete_layer_digests(
             )
             """,
         )
-    if shape.has_next:
-        relationship_predicates.append(
-            f"""
-            AND all(layer_index IN CASE
-                WHEN size({layer_ids}) > 1
-                    THEN range(0, size({layer_ids}) - 2)
-                ELSE []
-            END WHERE EXISTS {{
-                MATCH (:{shape.layer_label} {{
-                    {shape.layer_id_property}: {layer_ids}[layer_index]
-                }})-[:NEXT]->(:{shape.layer_label} {{
-                    {shape.layer_id_property}: {layer_ids}[layer_index + 1]
-                }})
-            }})
-            """,
-        )
     relationship_predicate = "\n".join(relationship_predicates)
 
     digest_predicate = (
@@ -218,27 +204,82 @@ def get_complete_layer_digests(
       {image_scope_predicate}
       {layer_scope_predicate}
       {relationship_predicate}
-    RETURN img.{shape.image_digest_property}
+    RETURN img.{shape.image_digest_property} AS digest,
+           img.{shape.image_layer_ids_property} AS layer_ids
     """
     if unique_digests is None:
-        values = neo4j_session.execute_read(
-            read_list_of_values_tx,
+        rows = neo4j_session.execute_read(
+            read_list_of_dicts_tx,
             query,
             **parameters,
         )
-        return {str(value) for value in values if value}
+        return _digests_with_complete_next(neo4j_session, shape, rows)
 
     # Large IN lists can exhaust Neo4j's heap even when no layers are cached.
     complete_digests: set[str] = set()
     for digest_batch in batch(unique_digests, size=batch_size):
-        values = neo4j_session.execute_read(
-            read_list_of_values_tx,
+        rows = neo4j_session.execute_read(
+            read_list_of_dicts_tx,
             query,
             digests=digest_batch,
             **parameters,
         )
-        complete_digests.update(str(value) for value in values if value)
+        complete_digests.update(
+            _digests_with_complete_next(neo4j_session, shape, rows),
+        )
     return complete_digests
+
+
+def _digests_with_complete_next(
+    neo4j_session: neo4j.Session,
+    shape: ContainerImageLayerGraphShape,
+    rows: Sequence[Mapping[str, Any]],
+) -> set[str]:
+    rows = [row for row in rows if row["digest"]]
+    if not shape.has_next:
+        return {str(row["digest"]) for row in rows}
+
+    pairs_by_digest = {
+        str(row["digest"]): set(zip(row["layer_ids"], row["layer_ids"][1:]))
+        for row in rows
+    }
+    present_pairs = _present_next_pairs(
+        neo4j_session,
+        shape,
+        set().union(*pairs_by_digest.values()),
+    )
+    return {
+        digest for digest, pairs in pairs_by_digest.items() if pairs <= present_pairs
+    }
+
+
+def _present_next_pairs(
+    neo4j_session: neo4j.Session,
+    shape: ContainerImageLayerGraphShape,
+    pairs: set[tuple[str, str]],
+) -> set[tuple[str, str]]:
+    # Shared layers such as Docker's empty layer can have hundreds of thousands
+    # of NEXT edges, and the empty layer can follow itself. Matching a pair out
+    # of one endpoint walks all of them, which takes minutes per 500-image batch.
+    # Binding both endpoints first lets Neo4j check each pair from the side with
+    # fewer edges, and each distinct pair is checked once for all images sharing it.
+    query = f"""
+    UNWIND $pairs AS pair
+    MATCH (left:{shape.layer_label} {{{shape.layer_id_property}: pair[0]}})
+    MATCH (right:{shape.layer_label} {{{shape.layer_id_property}: pair[1]}})
+    WITH pair, left, right
+    WHERE EXISTS {{ (left)-[:NEXT]->(right) }}
+    RETURN pair
+    """
+    present: set[tuple[str, str]] = set()
+    for pair_batch in batch(sorted(pairs), size=_NEXT_PAIR_BATCH_SIZE):
+        values = neo4j_session.execute_read(
+            read_list_of_values_tx,
+            query,
+            pairs=[list(pair) for pair in pair_batch],
+        )
+        present.update((left, right) for left, right in values)
+    return present
 
 
 def partition_layer_fetches(
@@ -386,6 +427,8 @@ def _refresh_layer_closure_batch(
         )
 
     if shape.has_next:
+        # Bind both layers before matching NEXT, as in _present_next_pairs. The
+        # subquery keeps the planner from expanding NEXT out of one endpoint.
         next_query = f"""
         MATCH (img:{shape.image_label})
         WHERE img.{shape.image_digest_property} IN $digests
@@ -394,11 +437,12 @@ def _refresh_layer_closure_batch(
             WHEN size(layer_ids) > 1 THEN range(0, size(layer_ids) - 2)
             ELSE []
         END AS index
-        MATCH (left:{shape.layer_label}
-               {{{shape.layer_id_property}: layer_ids[index]}})
-              -[relationship:NEXT]->
-              (right:{shape.layer_label}
-               {{{shape.layer_id_property}: layer_ids[index + 1]}})
-        SET relationship.lastupdated = $update_tag
+        WITH DISTINCT layer_ids[index] AS left_id, layer_ids[index + 1] AS right_id
+        MATCH (left:{shape.layer_label} {{{shape.layer_id_property}: left_id}})
+        MATCH (right:{shape.layer_label} {{{shape.layer_id_property}: right_id}})
+        CALL (left, right) {{
+            MATCH (left)-[relationship:NEXT]->(right)
+            SET relationship.lastupdated = $update_tag
+        }}
         """
         run_write_query(neo4j_session, next_query, **parameters)
