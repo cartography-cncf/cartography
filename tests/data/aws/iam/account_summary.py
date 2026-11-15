@@ -1,5 +1,6 @@
 GET_ACCOUNT_SUMMARY_RESPONSE = {
     "AccountMFAEnabled": 1,
+    "AccountPasswordPresent": 1,
     "MFADevices": 3,
     "MFADevicesInUse": 2,
     "AccountAccessKeysPresent": 0,
