@@ -27,6 +27,9 @@ def test_start_tenable_ingestion_skips_when_credentials_are_missing(mocker):
     mock_assets_sync = mocker.patch.object(tenable.assets, "sync")
     mock_findings_sync = mocker.patch.object(tenable.findings, "sync")
     mock_was_sync = mocker.patch.object(tenable.was_findings, "sync")
+    mock_keep_cves = mocker.patch.object(
+        tenable.was_findings, "keep_cves_named_by_was_plugins"
+    )
 
     # Act
     tenable.start_tenable_ingestion(
@@ -39,6 +42,7 @@ def test_start_tenable_ingestion_skips_when_credentials_are_missing(mocker):
     mock_assets_sync.assert_not_called()
     mock_findings_sync.assert_not_called()
     mock_was_sync.assert_not_called()
+    mock_keep_cves.assert_not_called()
 
 
 def test_start_tenable_ingestion_skips_when_lookback_is_invalid(mocker):
@@ -47,6 +51,9 @@ def test_start_tenable_ingestion_skips_when_lookback_is_invalid(mocker):
     mock_assets_sync = mocker.patch.object(tenable.assets, "sync")
     mock_findings_sync = mocker.patch.object(tenable.findings, "sync")
     mock_was_sync = mocker.patch.object(tenable.was_findings, "sync")
+    mock_keep_cves = mocker.patch.object(
+        tenable.was_findings, "keep_cves_named_by_was_plugins"
+    )
 
     # Act
     tenable.start_tenable_ingestion(
@@ -59,6 +66,7 @@ def test_start_tenable_ingestion_skips_when_lookback_is_invalid(mocker):
     mock_assets_sync.assert_not_called()
     mock_findings_sync.assert_not_called()
     mock_was_sync.assert_not_called()
+    mock_keep_cves.assert_not_called()
 
 
 def test_start_tenable_ingestion_derives_tenant_id_from_default_url(mocker):
@@ -69,6 +77,9 @@ def test_start_tenable_ingestion_derives_tenant_id_from_default_url(mocker):
     mock_assets_sync = mocker.patch.object(tenable.assets, "sync")
     mock_findings_sync = mocker.patch.object(tenable.findings, "sync")
     mock_was_sync = mocker.patch.object(tenable.was_findings, "sync")
+    mock_keep_cves = mocker.patch.object(
+        tenable.was_findings, "keep_cves_named_by_was_plugins"
+    )
     mock_metadata = mocker.patch.object(tenable, "merge_module_sync_metadata")
 
     # Act
@@ -95,6 +106,9 @@ def test_start_tenable_ingestion_derives_tenant_id_from_default_url(mocker):
         TEST_UPDATE_TAG,
         common_job_parameters,
         lookback_days=180,
+    )
+    mock_keep_cves.assert_called_once_with(
+        neo4j_session, "cloud.tenable.com", TEST_UPDATE_TAG
     )
     mock_was_sync.assert_called_once_with(
         neo4j_session,
@@ -127,6 +141,9 @@ def test_start_tenable_ingestion_uses_explicit_url_and_tenant_id(mocker):
     mock_assets_sync = mocker.patch.object(tenable.assets, "sync")
     mock_findings_sync = mocker.patch.object(tenable.findings, "sync")
     mock_was_sync = mocker.patch.object(tenable.was_findings, "sync")
+    mock_keep_cves = mocker.patch.object(
+        tenable.was_findings, "keep_cves_named_by_was_plugins"
+    )
     mocker.patch.object(tenable, "merge_module_sync_metadata")
     config = _config(
         tenable_url="https://tenable.example.test/api",
@@ -142,16 +159,17 @@ def test_start_tenable_ingestion_uses_explicit_url_and_tenant_id(mocker):
     assert mock_assets_sync.call_args.args[3] == "tenant-1"
     assert mock_findings_sync.call_args.args[3] == "tenant-1"
     assert mock_findings_sync.call_args.kwargs["lookback_days"] == 30
+    assert mock_keep_cves.call_args.args[1] == "tenant-1"
     assert mock_was_sync.call_args.args[3] == "tenant-1"
     assert mock_was_sync.call_args.kwargs["lookback_days"] == 30
 
 
-def test_start_tenable_ingestion_survives_was_failure(mocker):
-    # Arrange: WAS blows up after the vulnerability data has synced.
-    neo4j_session = MagicMock()
+def test_start_tenable_ingestion_propagates_was_failure(mocker):
+    # Arrange: WAS fails after the vulnerability data has synced.
     mocker.patch.object(tenable, "get_tenable_session")
     mocker.patch.object(tenable.assets, "sync")
     mocker.patch.object(tenable.findings, "sync")
+    mocker.patch.object(tenable.was_findings, "keep_cves_named_by_was_plugins")
     mocker.patch.object(
         tenable.was_findings,
         "sync",
@@ -159,33 +177,40 @@ def test_start_tenable_ingestion_survives_was_failure(mocker):
     )
     mock_metadata = mocker.patch.object(tenable, "merge_module_sync_metadata")
 
-    # Act: must not raise, or every module after Tenable would be skipped.
-    tenable.start_tenable_ingestion(neo4j_session, _config())
+    # Act / Assert: the failure is not swallowed...
+    with pytest.raises(RuntimeError, match="WAS export exploded"):
+        tenable.start_tenable_ingestion(MagicMock(), _config())
 
-    # Assert: the vulnerability sync is still recorded.
+    # ...but the vulnerability sync was already recorded.
     mock_metadata.assert_called_once()
 
 
-def test_start_tenable_ingestion_records_metadata_before_was(mocker):
+def test_start_tenable_ingestion_stage_order(mocker):
     # Arrange
     calls: list[str] = []
+
+    def record(name):
+        return lambda *args, **kwargs: calls.append(name)
+
     mocker.patch.object(tenable, "get_tenable_session")
-    mocker.patch.object(tenable.assets, "sync")
-    mocker.patch.object(tenable.findings, "sync")
+    mocker.patch.object(tenable.assets, "sync", side_effect=record("assets"))
     mocker.patch.object(
-        tenable.was_findings, "sync", side_effect=lambda *a, **k: calls.append("was")
+        tenable.was_findings,
+        "keep_cves_named_by_was_plugins",
+        side_effect=record("keep_was_cves"),
     )
+    mocker.patch.object(tenable.findings, "sync", side_effect=record("findings"))
     mocker.patch.object(
-        tenable,
-        "merge_module_sync_metadata",
-        side_effect=lambda *a, **k: calls.append("metadata"),
+        tenable, "merge_module_sync_metadata", side_effect=record("metadata")
     )
+    mocker.patch.object(tenable.was_findings, "sync", side_effect=record("was"))
 
     # Act
     tenable.start_tenable_ingestion(MagicMock(), _config())
 
-    # Assert
-    assert calls == ["metadata", "was"]
+    # Assert: WAS CVEs are protected before the VM cleanup runs inside findings.sync, and
+    # WAS runs last, after the vulnerability sync is recorded.
+    assert calls == ["assets", "keep_was_cves", "findings", "metadata", "was"]
 
 
 def test_start_tenable_ingestion_does_not_run_was_when_findings_fail(mocker):
@@ -193,6 +218,7 @@ def test_start_tenable_ingestion_does_not_run_was_when_findings_fail(mocker):
     mocker.patch.object(tenable, "get_tenable_session")
     mocker.patch.object(tenable.assets, "sync")
     mocker.patch.object(tenable.findings, "sync", side_effect=RuntimeError("boom"))
+    mocker.patch.object(tenable.was_findings, "keep_cves_named_by_was_plugins")
     mock_was_sync = mocker.patch.object(tenable.was_findings, "sync")
     mock_metadata = mocker.patch.object(tenable, "merge_module_sync_metadata")
 

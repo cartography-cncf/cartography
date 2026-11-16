@@ -25,8 +25,8 @@ Web App Scanning findings use the separate
 needs the Basic [16] role or a custom role with the `WAS.SCAN_WAS.MANAGE` privilege,
 plus Can View access to the assets being exported (Administrator users do not need
 it). Without that access Tenable answers 403 and the WAS part of the sync is skipped
-with a warning. A request that duplicates an export still running is refused with 409
-and logged as a failure of the WAS sync.
+with a warning. A request that duplicates an export still running is refused with 409,
+which fails the WAS sync; the next run retries.
 
 ## Configure Cartography
 

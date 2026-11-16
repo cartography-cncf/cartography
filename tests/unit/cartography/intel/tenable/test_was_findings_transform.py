@@ -87,49 +87,36 @@ def test_transform_missing_asset_fqdn_is_none():
     assert transform(raw)[0]["asset_fqdn"] is None
 
 
-def test_transform_logs_one_warning_for_skipped_findings(caplog):
-    raw = [
-        {"finding_id": "bad-1", "asset": {}, "plugin": {"id": 1}},
-        {"finding_id": "bad-2", "asset": {"uuid": "a"}, "plugin": {}},
-        {"finding_id": "ok", "asset": {"uuid": "a"}, "plugin": {"id": 2}},
-    ]
-    with caplog.at_level("WARNING"):
-        result = transform(raw)
-    assert [r["id"] for r in result] == ["ok"]
-    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert len(warnings) == 1
-    assert "2 of 3" in warnings[0].getMessage()
-    assert "bad-1" in warnings[0].getMessage()
+@pytest.mark.parametrize(
+    "raw",
+    [
+        {"finding_id": "", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}},
+        {"finding_id": None, "asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}},
+        {"finding_id": "f1", "asset": {"uuid": ""}, "plugin": {"id": 1}},
+        {"finding_id": "f1", "asset": {"uuid": None}, "plugin": {"id": 1}},
+        {"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {"id": None}},
+    ],
+)
+def test_transform_raises_on_empty_required_fields(raw):
+    # Skipping would let cleanup delete the stored node of a finding Tenable still reports.
+    ok = {"finding_id": "ok", "asset": {"uuid": "a"}, "plugin": {"id": 2}}
+    with pytest.raises(ValueError, match="finding_id"):
+        transform([ok, raw])
 
 
-def test_transform_skips_missing_finding_id():
-    raw = [
+@pytest.mark.parametrize(
+    "raw",
+    [
         {"asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}},
-        {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 2}},
-    ]
-    result = transform(raw)
-    assert len(result) == 1
-    assert result[0]["id"] == "f2"
-
-
-def test_transform_skips_missing_asset_uuid():
-    raw = [
+        {"finding_id": "f1", "plugin": {"id": 1}},
         {"finding_id": "f1", "asset": {}, "plugin": {"id": 1}},
-        {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 2}},
-    ]
-    result = transform(raw)
-    assert len(result) == 1
-    assert result[0]["id"] == "f2"
-
-
-def test_transform_skips_missing_plugin_id():
-    raw = [
+        {"finding_id": "f1", "asset": {"uuid": "a-uuid"}},
         {"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {}},
-        {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 99}},
-    ]
-    result = transform(raw)
-    assert len(result) == 1
-    assert result[0]["id"] == "f2"
+    ],
+)
+def test_transform_raises_on_missing_required_keys(raw):
+    with pytest.raises(KeyError):
+        transform([raw])
 
 
 def test_transform_null_scan_uuid_allowed():

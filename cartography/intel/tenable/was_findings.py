@@ -6,6 +6,7 @@ import requests
 from requests.exceptions import HTTPError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
 from cartography.intel.tenable.findings import transform_cves
@@ -73,18 +74,20 @@ def _cve_ids(plugin: dict[str, Any]) -> list[str]:
 
 def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
-    skipped: list[str] = []
     for finding in raw_findings:
-        asset = finding.get("asset") or {}
-        plugin = finding.get("plugin") or {}
+        asset = finding["asset"]
+        plugin = finding["plugin"]
 
-        finding_id = finding.get("finding_id")
-        asset_uuid = asset.get("uuid")
-        plugin_id = plugin.get("id")
-
-        if not finding_id or not asset_uuid or plugin_id is None:
-            skipped.append(str(finding_id))
-            continue
+        asset_uuid = asset["uuid"]
+        finding_id = finding["finding_id"]
+        plugin_id = plugin["id"]
+        if not asset_uuid or not finding_id or plugin_id is None:
+            # Raise rather than skip: cleanup would otherwise delete the stored node
+            # of a finding that Tenable still reports.
+            raise ValueError(
+                "Tenable WAS finding requires non-empty asset.uuid and finding_id, "
+                "and a non-null plugin.id"
+            )
 
         result.append(
             {
@@ -108,14 +111,6 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "input_name": finding.get("input_name"),
                 "http_method": finding.get("http_method"),
             }
-        )
-    if skipped:
-        logger.warning(
-            "Skipped %d of %d WAS findings that lack finding_id, asset.uuid or plugin.id "
-            "(finding_ids: %s)",
-            len(skipped),
-            len(raw_findings),
-            ", ".join(skipped[:5]),
         )
     return result
 
@@ -193,6 +188,35 @@ def load_was_findings(
         findings,
         lastupdated=update_tag,
         TENABLE_TENANT_ID=tenant_id,
+    )
+
+
+@timeit
+def keep_cves_named_by_was_plugins(
+    neo4j_session: neo4j.Session,
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Carry forward the CVEs that WAS plugins from an earlier sync still name.
+
+    `TenableCve` is shared with the vulnerability management sync, whose cleanup runs
+    before the WAS sync and deletes every tenant CVE it did not load in this run. That
+    would delete a CVE only WAS plugins name, with its `HAS_CVE` edges, and it would
+    stay gone if the WAS sync is then skipped or fails. Call this before the
+    vulnerability management sync so those CVEs survive its cleanup. A CVE that no
+    WAS plugin names any more is not carried and is removed by the next run's cleanup.
+    """
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (tenant:TenableTenant {id: $TENABLE_TENANT_ID})
+              -[:RESOURCE]->(:TenableWASPlugin)-[:HAS_CVE]->(cve:TenableCve)
+              <-[:RESOURCE]-(tenant)
+        SET cve.lastupdated = $UPDATE_TAG
+        """,
+        TENABLE_TENANT_ID=tenant_id,
+        UPDATE_TAG=update_tag,
     )
 
 

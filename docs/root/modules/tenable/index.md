@@ -98,11 +98,16 @@ assets by default, so the asset sync asks for `host` and `webapp` assets; the `w
 ones are the targets of web application scans. Findings whose asset is not in the asset
 sync still load, without the edge, and remain reachable through `asset_fqdn`.
 
-The WAS sync runs after everything else and on its own. If the key lacks WAS
-permission (HTTP 403) the sync is skipped with a warning, and any other failure is
-logged. Neither stops the vulnerability data or the modules that run after Tenable, and
-neither deletes WAS data from an earlier run. Like plugins, `TenableWASPlugin` IDs are
-not tenant-qualified.
+The WAS sync runs last, after the vulnerability data is loaded and recorded as synced.
+If the key lacks WAS permission (HTTP 403) the sync is skipped with a warning. Any other
+failure, including a finding that lacks its ID, asset UUID or plugin ID, fails the sync
+like it would elsewhere in the module. Neither case deletes WAS data from an earlier
+run, because cleanup only runs after a successful load.
+
+`TenableCve` is shared with the vulnerability management sync, whose cleanup runs first.
+Before it runs, the module refreshes the CVEs that WAS plugins still name, so a CVE only
+WAS names is not deleted while WAS is skipped or failing. Like plugins, `TenableWASPlugin`
+IDs are not tenant-qualified.
 
 ## Upgrading from an earlier version
 

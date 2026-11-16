@@ -507,8 +507,9 @@ def test_was_non_403_http_error_propagates_and_keeps_data(neo4j_session, mocker)
 
 def test_repeated_vm_then_was_runs_keep_was_only_cves(neo4j_session, mocker):
     """
-    The VM sync's TenableCve cleanup runs before the WAS sync in every run, so it may
-    remove a CVE that only WAS plugins name. The WAS sync must restore it, with its edge.
+    The VM sync's TenableCve cleanup runs before the WAS sync in every run. The keep-alive
+    stops it removing a CVE that only WAS plugins name, so the CVE and its edge are never
+    absent, not even between the two syncs.
     """
     _load_assets(neo4j_session, mocker)
     mocker.patch(
@@ -518,6 +519,9 @@ def test_repeated_vm_then_was_runs_keep_was_only_cves(neo4j_session, mocker):
 
     def run_both(update_tag):
         params = {"UPDATE_TAG": update_tag, "TENABLE_TENANT_ID": TENABLE_TENANT_ID}
+        cartography.intel.tenable.was_findings.keep_cves_named_by_was_plugins(
+            neo4j_session, TENABLE_TENANT_ID, update_tag
+        )
         cartography.intel.tenable.findings.sync(
             neo4j_session,
             mocker.MagicMock(),
@@ -549,3 +553,107 @@ def test_repeated_vm_then_was_runs_keep_was_only_cves(neo4j_session, mocker):
         )
         > 0
     )
+
+
+def _run_vm_findings_sync(neo4j_session, mocker, update_tag, data=None):
+    mocker.patch(
+        "cartography.intel.tenable.findings.export_and_download",
+        return_value=FINDINGS_DATA if data is None else data,
+    )
+    cartography.intel.tenable.findings.sync(
+        neo4j_session,
+        mocker.MagicMock(),
+        TEST_BASE_URL,
+        TENABLE_TENANT_ID,
+        update_tag,
+        {"UPDATE_TAG": update_tag, "TENABLE_TENANT_ID": TENABLE_TENANT_ID},
+    )
+
+
+def test_was_only_cve_survives_vm_cleanup_when_was_sync_is_skipped(
+    neo4j_session, mocker
+):
+    """
+    A 403 on the WAS export skips the WAS sync. The CVE that only WAS plugins name, and
+    its HAS_CVE edge, must still be there after the VM sync's cleanup.
+    """
+    _load_assets(neo4j_session, mocker)
+    _sync_was_findings(neo4j_session, mocker)
+
+    second_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.tenable.was_findings.keep_cves_named_by_was_plugins(
+        neo4j_session, TENABLE_TENANT_ID, second_tag
+    )
+    _run_vm_findings_sync(neo4j_session, mocker, second_tag)
+    mocker.patch(
+        "cartography.intel.tenable.was_findings.export_and_download",
+        side_effect=_forbidden_response(),
+    )
+    cartography.intel.tenable.was_findings.sync(
+        neo4j_session,
+        mocker.MagicMock(),
+        TEST_BASE_URL,
+        TENABLE_TENANT_ID,
+        second_tag,
+        {"UPDATE_TAG": second_tag, "TENABLE_TENANT_ID": TENABLE_TENANT_ID},
+    )
+
+    assert check_nodes(neo4j_session, "TenableCve", ["id"]) >= {(WAS_CVE_NODE_ID,)}
+    assert check_rels(
+        neo4j_session,
+        "TenableWASPlugin",
+        "id",
+        "TenableCve",
+        "id",
+        "HAS_CVE",
+        rel_direction_right=True,
+    ) == {(WAS_PLUGIN_ID_1, WAS_CVE_NODE_ID)}
+
+
+def test_vm_cleanup_still_removes_cves_no_plugin_names(neo4j_session, mocker):
+    """The keep-alive only protects CVEs named by a WAS plugin."""
+    _load_assets(neo4j_session, mocker)
+    _sync_was_findings(neo4j_session, mocker)
+    stale_cve_id = f"TNB|{TENABLE_TENANT_ID}|CVE-1999-0001"
+    neo4j_session.run(
+        """
+        MATCH (t:TenableTenant {id: $tenant_id})
+        CREATE (c:TenableCve:CVE {id: $cve_id, cve_id: 'CVE-1999-0001',
+                                   lastupdated: $old_tag})
+        CREATE (t)-[:RESOURCE {lastupdated: $old_tag}]->(c)
+        """,
+        tenant_id=TENABLE_TENANT_ID,
+        cve_id=stale_cve_id,
+        old_tag=TEST_UPDATE_TAG,
+    )
+
+    second_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.tenable.was_findings.keep_cves_named_by_was_plugins(
+        neo4j_session, TENABLE_TENANT_ID, second_tag
+    )
+    _run_vm_findings_sync(neo4j_session, mocker, second_tag)
+
+    remaining = {row[0] for row in check_nodes(neo4j_session, "TenableCve", ["id"])}
+    assert stale_cve_id not in remaining
+    assert WAS_CVE_NODE_ID in remaining
+
+
+def test_keep_cves_named_by_was_plugins_without_was_data_is_a_noop(neo4j_session):
+    """Tenants that never ran WAS have no WAS plugins; nothing is touched."""
+    neo4j_session.run(
+        """
+        CREATE (t:TenableTenant {id: $tenant_id, lastupdated: 1})
+        CREATE (c:TenableCve {id: 'TNB|x|CVE-1', cve_id: 'CVE-1', lastupdated: 1})
+        CREATE (t)-[:RESOURCE]->(c)
+        """,
+        tenant_id=TENABLE_TENANT_ID,
+    )
+
+    cartography.intel.tenable.was_findings.keep_cves_named_by_was_plugins(
+        neo4j_session, TENABLE_TENANT_ID, TEST_UPDATE_TAG
+    )
+
+    record = neo4j_session.run(
+        "MATCH (c:TenableCve {id: 'TNB|x|CVE-1'}) RETURN c.lastupdated AS lu"
+    ).single()
+    assert record["lu"] == 1
