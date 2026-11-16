@@ -98,7 +98,7 @@ class SentraAlertNodeProperties(CartographyNodeProperties):
     )
     connector_account_id: PropertyRef = PropertyRef(
         "connector_account_id",
-        description="Cloud or SaaS account ID of the connector the alert belongs to.",
+        description="Cloud or SaaS account ID of the connector that the alert belongs to.",
     )
     connector_account_type: PropertyRef = PropertyRef(
         "connector_account_type",
@@ -159,7 +159,7 @@ class SentraAlertToEntityRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SentraAlertToDataStoreRel(CartographyRelSchema):
-    """The data store the alert was raised on."""
+    """The data store that Sentra raised the alert on."""
 
     target_node_label: str = "SentraDataStore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -172,7 +172,7 @@ class SentraAlertToDataStoreRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SentraAlertToAWSRoleRel(CartographyRelSchema):
-    """The IAM role the alert was raised on, matched on the role ARN."""
+    """The IAM role that Sentra raised the alert on, matched on the role ARN."""
 
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

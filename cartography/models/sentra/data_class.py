@@ -38,7 +38,7 @@ class SentraDataClassNodeProperties(CartographyNodeProperties):
     )
     source: PropertyRef = PropertyRef(
         "source",
-        description="Class origin: `SENTRA` for predefined classes, `MANUAL` for custom classes.",
+        description="Class origin: `SENTRA` for predefined classes or `MANUAL` for custom classes.",
     )
     enabled: PropertyRef = PropertyRef(
         "enabled",
@@ -54,11 +54,11 @@ class SentraDataClassNodeProperties(CartographyNodeProperties):
     )
     sensitivity_weight: PropertyRef = PropertyRef(
         "sensitivity_weight",
-        description="Sensitivity weight of the data class. Higher means more sensitive.",
+        description="Sensitivity weight of the data class. Higher values mean more sensitive data.",
     )
     findings_count: PropertyRef = PropertyRef(
         "findings_count",
-        description="Number of findings Sentra detected for this data class.",
+        description="Number of findings that Sentra detected for this data class.",
     )
     created_at: PropertyRef = PropertyRef(
         "created_at",

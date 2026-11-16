@@ -82,7 +82,7 @@ class SentraDataStoreNodeProperties(CartographyNodeProperties):
     sensitivity_level: PropertyRef = PropertyRef(
         "sensitivity_level",
         extra_index=True,
-        description="Sentra sensitivity level. 0 means no sensitive data; higher means more sensitive.",
+        description="Sentra sensitivity level. `0` means that the store holds no sensitive data, and higher values mean more sensitive data.",
     )
     sensitivity_score: PropertyRef = PropertyRef(
         "sensitivity_score",
@@ -211,7 +211,7 @@ class SentraDataStoreToCloudResourceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SentraDataStoreToS3BucketRel(CartographyRelSchema):
-    """The S3 bucket the data store is, matched on the bucket name."""
+    """The S3 bucket that the data store represents, matched on the bucket name from an S3 ARN or from the name of an `s3` store in an AWS account."""
 
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -226,7 +226,7 @@ class SentraDataStoreToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SentraDataStoreToRDSInstanceRel(CartographyRelSchema):
-    """The RDS DB instance the data store is, matched on the instance ARN."""
+    """The RDS DB instance that the data store represents, matched on the instance ARN."""
 
     target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -241,7 +241,7 @@ class SentraDataStoreToRDSInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SentraDataStoreToRDSClusterRel(CartographyRelSchema):
-    """The RDS DB cluster the data store is, matched on the cluster ARN."""
+    """The RDS DB cluster that the data store represents, matched on the cluster ARN."""
 
     target_node_label: str = "AWSRDSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -256,7 +256,7 @@ class SentraDataStoreToRDSClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SentraDataStoreToDynamoDBTableRel(CartographyRelSchema):
-    """The DynamoDB table the data store is, matched on the table ARN."""
+    """The DynamoDB table that the data store represents, matched on the table ARN."""
 
     target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -271,7 +271,7 @@ class SentraDataStoreToDynamoDBTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SentraDataStoreToRedshiftClusterRel(CartographyRelSchema):
-    """The Redshift cluster the data store is, matched on the cluster ARN."""
+    """The Redshift cluster that the data store represents, matched on the cluster ARN."""
 
     target_node_label: str = "AWSRedshiftCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -291,7 +291,8 @@ class SentraDataStoreSchema(CartographyNodeSchema):
 
     The node is Sentra's view of the store: its sensitivity, the data classes found in it,
     and its security posture. Where Sentra's identifier proves which AWS resource the store
-    is, the node links to that resource with `MONITORS`.
+    is, the node links to that resource with `MONITORS`. Data stores in other clouds and in
+    SaaS applications have no `MONITORS` link.
     """
 
     label: str = "SentraDataStore"

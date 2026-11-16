@@ -31,7 +31,7 @@ class SentraTenantNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class SentraTenantSchema(CartographyNodeSchema):
-    """A Sentra organization whose data security posture is ingested by Cartography."""
+    """A Sentra organization whose data security posture Cartography ingests."""
 
     label: str = "SentraTenant"
     properties: SentraTenantNodeProperties = SentraTenantNodeProperties()
