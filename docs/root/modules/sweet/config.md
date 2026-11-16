@@ -4,18 +4,18 @@ Configure a Sweet API token and a stable tenant identifier.
 
 ## Authentication
 
-1. In the [Sweet app](https://app.sweet.security), open your name, then
-   **Settings**.
-2. Select **API Tokens** and create a token with a read-only role and an
+1. In the [Sweet app](https://app.sweet.security), click your name, and then
+   click **Settings**.
+2. Click **API Tokens**, and then create a token with a read-only role and an
    expiration date.
 3. Store the API key and its secret in environment variables.
 
-Cartography exchanges the key and secret for a JWT at `POST /v1/auth/token`.
-The JWT is valid for one day.
+Cartography exchanges the key and secret for a JSON Web Token (JWT) at
+`POST /v1/auth/token`. The JWT is valid for one day.
 
 ## Required Permissions
 
-The token's role must allow these read operations:
+The token's role must allow the following read operations:
 
 | Operation | Used for |
 |-----------|----------|
@@ -33,7 +33,7 @@ cleanup. Use a different value for each tenant you sync into the same graph.
 
 | Option | Default | Required | Description |
 |--------|---------|----------|-------------|
-| `--sweet-tenant-id` |  | Yes | Stable identifier for the Sweet tenant. The module is skipped when it is not set. |
+| `--sweet-tenant-id` |  | Yes | Stable identifier for the Sweet tenant. Cartography skips the module if this option isn't set. |
 | `--sweet-api-key-env-var` | `SWEET_API_KEY` | No | Name of the environment variable that contains the API key. The variable itself must be set. |
 | `--sweet-api-secret-env-var` | `SWEET_API_SECRET` | No | Name of the environment variable that contains the API secret. The variable itself must be set. |
 | `--sweet-api-url` | `https://eapi.sweet.security` | No | Sweet API origin, an HTTPS URL without a path. |
@@ -55,12 +55,13 @@ cartography \
 
 ## Troubleshooting
 
-- HTTP `401` from `/v1/auth/token`: check that the API key and secret are
-  correct and the token has not expired.
-- HTTP `403`: check that the token's role can read the endpoints listed above.
+- HTTP `401` from `/v1/auth/token`: Check that the API key and secret are
+  correct and that the token hasn't expired.
+- HTTP `403`: Check that the token's role can read the endpoints in
+  [Required Permissions](#required-permissions).
 - HTTP `429`: Cartography retries with backoff and honors `Retry-After`. If
   rate limiting persists, the run fails. The feed that failed, and the feeds
-  after it, keep their existing data because their cleanup does not run. Feeds
+  after it, keep their existing data because their cleanup doesn't run. Feeds
   that finished earlier in the run (AWS connections sync first, then
   vulnerabilities, then attack chains) are already updated.
 

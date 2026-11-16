@@ -125,7 +125,7 @@ class SweetAttackChainToDNSRecordRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SweetAttackChainSchema(CartographyNodeSchema):
-    """An attack chain that Sweet validated against an application's endpoints."""
+    """An attack chain that Sweet validated against an application's endpoints, excluding resolved and closed chains."""
 
     label: str = "SweetAttackChain"
     properties: SweetAttackChainNodeProperties = SweetAttackChainNodeProperties()
