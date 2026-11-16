@@ -39,8 +39,8 @@ cartography --selected-modules sentra
 
 Replace `API_KEY` with your Sentra API key.
 
-A data store links to the AWS resource that it is only when that resource is
-already in the graph. To create these links, sync AWS before Sentra, either in
+A data store links with `MONITORS` to its AWS resource only when that resource
+is already in the graph. To create these links, sync AWS before Sentra, either in
 an earlier run or earlier in the same run:
 
 ```bash
