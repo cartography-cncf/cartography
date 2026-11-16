@@ -11,7 +11,6 @@ from typing import TypeVar
 import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.helpers import batch
 
@@ -269,16 +268,16 @@ def _present_next_pairs(
     MATCH (right:{shape.layer_label} {{{shape.layer_id_property}: pair[1]}})
     WITH pair, left, right
     WHERE EXISTS {{ (left)-[:NEXT]->(right) }}
-    RETURN pair
+    RETURN pair[0] AS left_id, pair[1] AS right_id
     """
     present: set[tuple[str, str]] = set()
     for pair_batch in batch(sorted(pairs), size=_NEXT_PAIR_BATCH_SIZE):
-        values = neo4j_session.execute_read(
-            read_list_of_values_tx,
+        rows = neo4j_session.execute_read(
+            read_list_of_dicts_tx,
             query,
             pairs=[list(pair) for pair in pair_batch],
         )
-        present.update((left, right) for left, right in values)
+        present.update((row["left_id"], row["right_id"]) for row in rows)
     return present
 
 
