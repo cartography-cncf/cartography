@@ -11,6 +11,7 @@ from typing import TypeVar
 import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.helpers import batch
 
@@ -183,11 +184,6 @@ def get_complete_layer_digests(
         )
     relationship_predicate = "\n".join(relationship_predicates)
 
-    digest_predicate = (
-        f"img.{shape.image_digest_property} IN $digests"
-        if unique_digests is not None
-        else "true"
-    )
     label_provenance_predicate = ""
     if min_label_provenance_version is not None:
         label_provenance_predicate = (
@@ -195,25 +191,36 @@ def get_complete_layer_digests(
             ">= $min_label_provenance_version OR img.source_uri IS NOT NULL)"
         )
         parameters["min_label_provenance_version"] = min_label_provenance_version
-    query = f"""
-    MATCH (img:{shape.image_label})
-    WHERE {digest_predicate}
+    predicates = f"""
       AND img.{shape.image_layer_ids_property} IS NOT NULL
       {label_provenance_predicate}
       {image_scope_predicate}
       {layer_scope_predicate}
       {relationship_predicate}
+    """
+    if unique_digests is None:
+        values = neo4j_session.execute_read(
+            read_list_of_values_tx,
+            f"""
+            MATCH (img:{shape.image_label})
+            WHERE true {predicates}
+            RETURN img.{shape.image_digest_property}
+            """,
+            **parameters,
+        )
+        scope_digests = {str(value) for value in values if value}
+        if not shape.has_next:
+            return scope_digests
+        # A scope can hold far more images than one batch, so their layer lists
+        # are read and their NEXT pairs checked one batch at a time below.
+        unique_digests = sorted(scope_digests)
+
+    query = f"""
+    MATCH (img:{shape.image_label})
+    WHERE img.{shape.image_digest_property} IN $digests {predicates}
     RETURN img.{shape.image_digest_property} AS digest,
            img.{shape.image_layer_ids_property} AS layer_ids
     """
-    if unique_digests is None:
-        rows = neo4j_session.execute_read(
-            read_list_of_dicts_tx,
-            query,
-            **parameters,
-        )
-        return _digests_with_complete_next(neo4j_session, shape, rows)
-
     # Large IN lists can exhaust Neo4j's heap even when no layers are cached.
     complete_digests: set[str] = set()
     for digest_batch in batch(unique_digests, size=batch_size):

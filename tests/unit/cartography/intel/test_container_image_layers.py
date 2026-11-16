@@ -173,20 +173,26 @@ def test_get_complete_layer_digests_bounds_queries_and_combines_results(count):
 def test_get_complete_layer_digests_preserves_whole_scope_lookup():
     # Arrange
     neo4j_session = MagicMock()
-    neo4j_session.execute_read.return_value = [
-        {"digest": "sha256:cached", "layer_ids": []},
+    neo4j_session.execute_read.side_effect = [
+        ["sha256:a", "sha256:b"],
+        [{"digest": "sha256:a", "layer_ids": []}],
+        [{"digest": "sha256:b", "layer_ids": []}],
     ]
 
     # Act
     result = get_complete_layer_digests(
-        neo4j_session, TEST_SHAPE, None, {"id": "tenant-1"}
+        neo4j_session, TEST_SHAPE, None, {"id": "tenant-1"}, batch_size=1
     )
 
-    # Assert
-    assert result == {"sha256:cached"}
-    neo4j_session.execute_read.assert_called_once()
-    assert neo4j_session.execute_read.call_args.kwargs == {"scope_id": "tenant-1"}
-    assert "$digests" not in neo4j_session.execute_read.call_args.args[1]
+    # Assert: one scope-wide lookup, then layer lists read in bounded batches.
+    assert result == {"sha256:a", "sha256:b"}
+    scope_call, *batch_calls = neo4j_session.execute_read.call_args_list
+    assert scope_call.kwargs == {"scope_id": "tenant-1"}
+    assert "$digests" not in scope_call.args[1]
+    assert [call.kwargs["digests"] for call in batch_calls] == [
+        ["sha256:a"],
+        ["sha256:b"],
+    ]
 
 
 def test_get_complete_layer_digests_propagates_later_batch_failure():
