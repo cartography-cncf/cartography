@@ -141,6 +141,10 @@ Put module content where readers look for it, not in `index.md`:
 - Cypher walkthroughs: `queries.md` or `examples.md`, added to the toctree.
 - Post-ingestion analysis behavior: `analysis.md`, added to the toctree.
 
+The one exception is a deprecated module. Its `index.md` keeps the
+deprecation notice and the link to the replacement module above the toctree,
+as in `docs/root/modules/gsuite/index.md`.
+
 Some older modules still have prose in `index.md`. Don't copy that pattern.
 Move the prose out when you next edit one of those modules.
 

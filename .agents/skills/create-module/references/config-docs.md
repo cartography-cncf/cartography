@@ -86,7 +86,9 @@ omit optional sections that do not apply. Never add empty sections.
 
 Keep `config.md` focused on making the module run:
 
-- Keep `index.md` to the H1 title and a toctree. Don't add prose to it.
+- Keep `index.md` to the H1 title and a toctree. Don't add prose to it. The
+  one exception is a deprecated module: its `index.md` keeps the deprecation
+  notice and the link to the replacement module above the toctree.
 - Put what each node and relationship represents, which records are ingested
   or excluded, and ontology integration in schema docstrings and
   `PropertyRef.description`.
