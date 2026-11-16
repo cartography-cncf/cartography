@@ -154,6 +154,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "sentinelone": _LazyStage(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
         ),
+        "sentra": _LazyStage("cartography.intel.sentra", "start_sentra_ingestion"),
         "tenable": _LazyStage("cartography.intel.tenable", "start_tenable_ingestion"),
         "wiz": _LazyStage("cartography.intel.wiz", "start_wiz_ingestion"),
         "orca": _LazyStage("cartography.intel.orca", "start_orca_ingestion"),
