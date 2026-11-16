@@ -8,16 +8,21 @@ from requests.exceptions import HTTPError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
+from cartography.intel.tenable.findings import transform_cves
 from cartography.models.tenable.tenant import TenableTenantSchema
+from cartography.models.tenable.was_cve import TenableWASCveSchema
 from cartography.models.tenable.was_findings import TenableWASFindingSchema
 from cartography.models.tenable.was_plugins import TenableWASPluginSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-_WAS_EXPORT_PATH = "was/v2/findings/export"
-_WAS_RESULT_BASE = "was/v2/findings/export"
-_WAS_EXPORT_PARAMS: dict[str, Any] = {"num_findings": 500}
+# Web App Scanning has its own export API, separate from the vulnerability management
+# one. https://developer.tenable.com/reference/was-export-findings
+_WAS_EXPORT_PATH = "was/v1/export/vulns"
+_WAS_RESULT_BASE = "was/v1/export/vulns"
+# The WAS export chunks by asset, not by finding. Tenable's minimum is 50.
+_WAS_EXPORT_PARAMS: dict[str, Any] = {"num_assets": 50}
 _WAS_EXPORT_STATES = ["OPEN", "REOPENED", "FIXED"]
 
 
@@ -32,14 +37,15 @@ def get(
 
     All states (OPEN, REOPENED, FIXED) are requested so that the graph reflects
     the full picture for the configured window and the cleanup job can remove
-    findings that have fallen outside it.
+    findings that have fallen outside it. Tenable requires ``state`` whenever
+    ``last_found`` is given.
     """
     params: dict[str, Any] = dict(_WAS_EXPORT_PARAMS)
     params["filters"] = {
         "last_found": since_epoch,
         "state": _WAS_EXPORT_STATES,
     }
-    logger.info(
+    logger.debug(
         "WAS findings export from %s (last_found >= %d)",
         base_url,
         since_epoch,
@@ -53,8 +59,21 @@ def get(
     )
 
 
+def _normalize_fqdn(fqdn: str | None) -> str | None:
+    # DNS names compare case-insensitively and may carry a trailing root dot.
+    if not fqdn:
+        return None
+    return fqdn.strip().lower().rstrip(".") or None
+
+
+def _cve_ids(plugin: dict[str, Any]) -> list[str]:
+    # Blank entries name no CVE, and Neo4j cannot store a null inside a list.
+    return list(dict.fromkeys(cve_id for cve_id in plugin.get("cve") or [] if cve_id))
+
+
 def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
+    skipped: list[str] = []
     for finding in raw_findings:
         asset = finding.get("asset") or {}
         plugin = finding.get("plugin") or {}
@@ -64,17 +83,14 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         plugin_id = plugin.get("id")
 
         if not finding_id or not asset_uuid or plugin_id is None:
-            logger.warning(
-                "Skipping WAS finding with missing finding_id, asset_uuid, or plugin_id"
-            )
+            skipped.append(str(finding_id))
             continue
-
-        cve_ids: list[str] = plugin.get("cve") or []
 
         result.append(
             {
                 "id": finding_id,
                 "asset_uuid": asset_uuid,
+                "asset_fqdn": _normalize_fqdn(asset.get("fqdn")),
                 "plugin_id": plugin_id,
                 "scan_uuid": (finding.get("scan") or {}).get("uuid"),
                 "url": finding.get("url"),
@@ -87,10 +103,19 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "first_found": finding.get("first_found"),
                 "last_found": finding.get("last_found"),
                 "indexed_at": finding.get("indexed_at"),
-                "cve_id": cve_ids[0] if cve_ids else None,
-                "cve_list": cve_ids,
-                "has_cve": "true" if cve_ids else "false",
+                "last_observed": finding.get("last_observed"),
+                "last_fixed": finding.get("last_fixed"),
+                "input_name": finding.get("input_name"),
+                "http_method": finding.get("http_method"),
             }
+        )
+    if skipped:
+        logger.warning(
+            "Skipped %d of %d WAS findings that lack finding_id, asset.uuid or plugin.id "
+            "(finding_ids: %s)",
+            len(skipped),
+            len(raw_findings),
+            ", ".join(skipped[:5]),
         )
     return result
 
@@ -105,7 +130,6 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
             continue
         seen.add(plugin_id)
         vpr = plugin.get("vpr") or {}
-        vpr_v2 = plugin.get("vpr_v2") or {}
         result.append(
             {
                 "id": plugin_id,
@@ -125,9 +149,8 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
                 "cvss3_base_score": plugin.get("cvss3_base_score"),
                 "cvss4_base_score": plugin.get("cvss4_base_score"),
                 "vpr_score": vpr.get("score"),
-                "vpr_v2_score": vpr_v2.get("score"),
                 "epss_score": plugin.get("epss_score"),
-                "cve_ids": plugin.get("cve") or [],
+                "cve_list": _cve_ids(plugin),
                 "cwe_ids": plugin.get("cwe") or [],
             }
         )
@@ -139,6 +162,7 @@ def load_was_findings(
     neo4j_session: neo4j.Session,
     findings: list[dict[str, Any]],
     plugins: list[dict[str, Any]],
+    cves: list[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -148,11 +172,18 @@ def load_was_findings(
         [{"id": tenant_id}],
         lastupdated=update_tag,
     )
-    # Plugins must exist before findings so the DETECTED_BY target is present.
+    # Plugins must exist before the CVEs and findings that link to them.
     load(
         neo4j_session,
         TenableWASPluginSchema(),
         plugins,
+        lastupdated=update_tag,
+        TENABLE_TENANT_ID=tenant_id,
+    )
+    load(
+        neo4j_session,
+        TenableWASCveSchema(),
+        cves,
         lastupdated=update_tag,
         TENABLE_TENANT_ID=tenant_id,
     )
@@ -174,6 +205,9 @@ def cleanup(
         neo4j_session
     )
     GraphJob.from_node_schema(TenableWASPluginSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(TenableWASCveSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -198,8 +232,10 @@ def sync(
         raw_findings = get(session, base_url, since_epoch)
     except HTTPError as e:
         if e.response is not None and e.response.status_code == 403:
+            # Return before cleanup: a missing permission must not wipe WAS data that
+            # an earlier run, made with a more privileged key, already loaded.
             logger.warning(
-                "Tenable WAS findings export returned 403 Forbidden — "
+                "Tenable WAS findings export returned 403 Forbidden - "
                 "skipping WAS sync. Ensure the API key has Web Application "
                 "Scanning permissions."
             )
@@ -207,5 +243,7 @@ def sync(
         raise
     findings = transform(raw_findings)
     plugins = transform_plugins(raw_findings)
-    load_was_findings(neo4j_session, findings, plugins, tenant_id, update_tag)
+    cves = transform_cves(plugins, tenant_id)
+    load_was_findings(neo4j_session, findings, plugins, cves, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    logger.info("Completed Tenable WAS finding sync for tenant %s", tenant_id)

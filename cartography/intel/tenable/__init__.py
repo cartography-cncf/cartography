@@ -70,16 +70,6 @@ def start_tenable_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         lookback_days=config.tenable_findings_lookback_days,
     )
 
-    cartography.intel.tenable.was_findings.sync(
-        neo4j_session,
-        session,
-        base_url,
-        tenant_id,
-        config.update_tag,
-        common_job_parameters,
-        lookback_days=config.tenable_findings_lookback_days,
-    )
-
     merge_module_sync_metadata(
         neo4j_session,
         group_type="TenableTenant",
@@ -88,3 +78,24 @@ def start_tenable_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         update_tag=config.update_tag,
         stat_handler=stat_handler,
     )
+
+    # Web App Scanning runs last and on its own: it needs a separate Tenable license and
+    # API permission, so a failure here must not stop the vulnerability data above from
+    # being recorded as synced, nor abort the modules that run after Tenable. Its cleanup
+    # only runs after a successful load, so a failure leaves the previous WAS data intact.
+    try:
+        cartography.intel.tenable.was_findings.sync(
+            neo4j_session,
+            session,
+            base_url,
+            tenant_id,
+            config.update_tag,
+            common_job_parameters,
+            lookback_days=config.tenable_findings_lookback_days,
+        )
+    except Exception:
+        logger.exception(
+            "Tenable Web App Scanning sync failed for tenant %s; "
+            "keeping the existing WAS data and continuing.",
+            tenant_id,
+        )

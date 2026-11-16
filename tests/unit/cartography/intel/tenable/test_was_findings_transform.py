@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.intel.tenable.was_findings import transform
 from cartography.intel.tenable.was_findings import transform_plugins
 from tests.data.tenable.assets import ASSET_ID_1
@@ -9,7 +11,6 @@ from tests.data.tenable.was_findings import WAS_PLUGIN_ID_1
 from tests.data.tenable.was_findings import WAS_PLUGIN_ID_2
 from tests.data.tenable.was_findings import WAS_SCAN_UUID_1
 from tests.data.tenable.was_findings import WAS_SCAN_UUID_2
-
 
 # ---------------------------------------------------------------------------
 # transform()
@@ -35,19 +36,70 @@ def test_transform_maps_all_fields():
     assert f1["first_found"] == "2024-02-01T16:08:41Z"
     assert f1["last_found"] == "2024-02-01T16:08:41Z"
     assert f1["indexed_at"] == "2024-02-01T16:08:41Z"
-    assert f1["cve_id"] == "CVE-2015-9251"
-    assert f1["cve_list"] == ["CVE-2015-9251"]
-    assert f1["has_cve"] == "true"
+    assert f1["asset_fqdn"] == "www.unixtimestamp.com"
+    assert f1["last_observed"] == "2024-02-01T16:08:41Z"
+    assert f1["last_fixed"] is None
+    assert f1["input_name"] == "q"
+    assert f1["http_method"] == "GET"
 
 
-def test_transform_cve_fields_no_cves():
+def test_transform_has_no_cve_fields_on_findings():
+    # CVEs hang off the plugin, as for vulnerability management findings.
+    result = transform(WAS_FINDINGS_DATA)
+    for finding in result:
+        assert "cve_id" not in finding
+        assert "cve_list" not in finding
+        assert "has_cve" not in finding
+
+
+def test_transform_second_finding():
     result = transform(WAS_FINDINGS_DATA)
     f2 = next(r for r in result if r["id"] == WAS_FINDING_ID_2)
     assert f2["asset_uuid"] == ASSET_ID_2
     assert f2["scan_uuid"] == WAS_SCAN_UUID_2
-    assert f2["cve_id"] is None
-    assert f2["cve_list"] == []
-    assert f2["has_cve"] == "false"
+    assert f2["asset_fqdn"] == "example.com"
+
+
+@pytest.mark.parametrize(
+    "raw_fqdn,expected",
+    [
+        ("API.Example.COM", "api.example.com"),
+        ("api.example.com.", "api.example.com"),
+        ("  api.example.com ", "api.example.com"),
+        ("", None),
+        (".", None),
+        (None, None),
+    ],
+)
+def test_transform_normalizes_asset_fqdn(raw_fqdn, expected):
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a-uuid", "fqdn": raw_fqdn},
+            "plugin": {"id": 1},
+        }
+    ]
+    assert transform(raw)[0]["asset_fqdn"] == expected
+
+
+def test_transform_missing_asset_fqdn_is_none():
+    raw = [{"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}}]
+    assert transform(raw)[0]["asset_fqdn"] is None
+
+
+def test_transform_logs_one_warning_for_skipped_findings(caplog):
+    raw = [
+        {"finding_id": "bad-1", "asset": {}, "plugin": {"id": 1}},
+        {"finding_id": "bad-2", "asset": {"uuid": "a"}, "plugin": {}},
+        {"finding_id": "ok", "asset": {"uuid": "a"}, "plugin": {"id": 2}},
+    ]
+    with caplog.at_level("WARNING"):
+        result = transform(raw)
+    assert [r["id"] for r in result] == ["ok"]
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "2 of 3" in warnings[0].getMessage()
+    assert "bad-1" in warnings[0].getMessage()
 
 
 def test_transform_skips_missing_finding_id():
@@ -108,9 +160,9 @@ def test_transform_plugins_basic():
     assert p1["cvss3_base_score"] == 6.1
     assert p1["cvss4_base_score"] == 6.9
     assert p1["vpr_score"] == 3
-    assert p1["vpr_v2_score"] == 4.9
+    assert "vpr_v2_score" not in p1
     assert p1["epss_score"] == 10.647
-    assert p1["cve_ids"] == ["CVE-2015-9251"]
+    assert p1["cve_list"] == ["CVE-2015-9251"]
     assert p1["cwe_ids"] == ["79"]
     assert p1["in_the_news"] is False
     assert p1["exploited_by_malware"] is False
@@ -120,9 +172,8 @@ def test_transform_plugins_vpr_none_when_missing():
     result = transform_plugins(WAS_FINDINGS_DATA)
     p2 = next(r for r in result if r["id"] == WAS_PLUGIN_ID_2)
     assert p2["vpr_score"] is None
-    assert p2["vpr_v2_score"] is None
     assert p2["cvss3_base_score"] is None
-    assert p2["cve_ids"] == []
+    assert p2["cve_list"] == []
     assert p2["cwe_ids"] == []
 
 
@@ -147,6 +198,17 @@ def test_transform_plugins_deduplicates():
     result = transform_plugins(raw)
     assert len(result) == 2
     assert {r["id"] for r in result} == {42, 99}
+
+
+def test_transform_plugins_cve_list_drops_blanks_and_duplicates():
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {"id": 1, "cve": ["CVE-2021-1111", "", None, "CVE-2021-1111"]},
+        }
+    ]
+    assert transform_plugins(raw)[0]["cve_list"] == ["CVE-2021-1111"]
 
 
 def test_transform_plugins_skips_missing_id():
