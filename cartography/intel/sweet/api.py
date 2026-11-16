@@ -24,6 +24,10 @@ def normalize_api_url(api_url: str) -> str:
         raise ValueError("Sweet API URL must be an absolute HTTPS origin")
     if parsed.username is not None or parsed.password is not None:
         raise ValueError("Sweet API URL must not contain user information")
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError("Sweet API URL contains an invalid port") from exc
     if parsed.path.rstrip("/") or parsed.params or parsed.query or parsed.fragment:
         raise ValueError(
             "Sweet API URL must be an origin without a path, query, or fragment",

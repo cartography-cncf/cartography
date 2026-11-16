@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class SweetAWSAccountNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="AWS account ID that is connected to Sweet.",
+        description="Sweet tenant ID and AWS account ID joined with `:`.",
     )
     lastupdated: PropertyRef = PropertyRef(
         "lastupdated",
@@ -46,7 +46,7 @@ class SweetAWSAccountNodeProperties(CartographyNodeProperties):
 class SweetAWSOrganizationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="AWS account ID of the organization's management account.",
+        description="Sweet tenant ID and management account ID joined with `:`.",
     )
     lastupdated: PropertyRef = PropertyRef(
         "lastupdated",

@@ -86,6 +86,8 @@ def test_normalize_api_url_strips_trailing_slash():
         "http://eapi.sweet.security",
         "https://eapi.sweet.security/v1",
         "https://user:pass@eapi.sweet.security",
+        "https://eapi.sweet.security:abc",
+        "https://eapi.sweet.security:99999",
         "eapi.sweet.security",
     ],
 )

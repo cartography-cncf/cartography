@@ -35,24 +35,34 @@ def load_tenant(
 @timeit
 def start_sweet_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """Ingest Sweet Security AWS connections, runtime vulnerabilities, and attack chains."""
-    if (
-        not config.sweet_api_key
-        or not config.sweet_api_secret
-        or not config.sweet_tenant_id
-    ):
+    api_key = config.sweet_api_key
+    api_secret = config.sweet_api_secret
+    tenant_id = config.sweet_tenant_id
+    if not (api_key or api_secret or tenant_id):
         logger.info(
             "Sweet import is not configured - skipping this module. "
             "Set sweet_api_key, sweet_api_secret, and sweet_tenant_id to enable.",
         )
         return
+    if not (api_key and api_secret and tenant_id):
+        missing = [
+            name
+            for name, value in (
+                ("sweet_api_key", api_key),
+                ("sweet_api_secret", api_secret),
+                ("sweet_tenant_id", tenant_id),
+            )
+            if not value
+        ]
+        raise ValueError(
+            "Sweet import is partially configured; missing "
+            f"{', '.join(missing)}. Check --sweet-tenant-id and that the "
+            "--sweet-api-key-env-var and --sweet-api-secret-env-var variables "
+            "are set.",
+        )
 
-    try:
-        api_url = api.normalize_api_url(config.sweet_api_url or api.DEFAULT_API_URL)
-    except ValueError as exc:
-        logger.warning("Invalid Sweet API URL - skipping this module: %s", exc)
-        return
+    api_url = api.normalize_api_url(config.sweet_api_url or api.DEFAULT_API_URL)
 
-    tenant_id = config.sweet_tenant_id
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "SWEET_TENANT_ID": tenant_id,
@@ -60,12 +70,7 @@ def start_sweet_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     session = api.create_session()
     try:
-        api.authenticate(
-            session,
-            api_url,
-            config.sweet_api_key,
-            config.sweet_api_secret,
-        )
+        api.authenticate(session, api_url, api_key, api_secret)
         load_tenant(neo4j_session, tenant_id, api_url, config.update_tag)
         cartography.intel.sweet.aws.sync(
             neo4j_session,

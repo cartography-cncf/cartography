@@ -34,9 +34,13 @@ cleanup. Use a different value for each tenant you sync into the same graph.
 | Option | Default | Required | Description |
 |--------|---------|----------|-------------|
 | `--sweet-tenant-id` |  | Yes | Stable identifier for the Sweet tenant. The module is skipped when it is not set. |
-| `--sweet-api-key-env-var` | `SWEET_API_KEY` | No | Environment variable that contains the API key. |
-| `--sweet-api-secret-env-var` | `SWEET_API_SECRET` | No | Environment variable that contains the API secret. |
-| `--sweet-api-url` | `https://eapi.sweet.security` | No | Sweet API origin. |
+| `--sweet-api-key-env-var` | `SWEET_API_KEY` | No | Name of the environment variable that contains the API key. The variable itself must be set. |
+| `--sweet-api-secret-env-var` | `SWEET_API_SECRET` | No | Name of the environment variable that contains the API secret. The variable itself must be set. |
+| `--sweet-api-url` | `https://eapi.sweet.security` | No | Sweet API origin, an HTTPS URL without a path. |
+
+When `--sweet-tenant-id` is set, the run fails if either credential variable is
+empty or unset, or if `--sweet-api-url` is not a valid HTTPS origin. This keeps
+a misconfigured run from looking like a successful sync.
 
 ## Run Cartography
 
@@ -54,9 +58,11 @@ cartography \
 - HTTP `401` from `/v1/auth/token`: check that the API key and secret are
   correct and the token has not expired.
 - HTTP `403`: check that the token's role can read the endpoints listed above.
-- HTTP `429`: Cartography retries with backoff and honors `Retry-After`.
-  Persistent rate limiting fails the sync before cleanup, so existing data is
-  kept.
+- HTTP `429`: Cartography retries with backoff and honors `Retry-After`. If
+  rate limiting persists, the run fails. The feed that failed, and the feeds
+  after it, keep their existing data because their cleanup does not run. Feeds
+  that finished earlier in the run (AWS connections sync first, then
+  vulnerabilities, then attack chains) are already updated.
 
 ## References
 

@@ -30,12 +30,21 @@ def get_organizations(
     return api.get_list(session, api_url, "/v1/aws/organization")
 
 
-def transform_accounts(raw_accounts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _connection_id(tenant_id: str, account_id: str) -> str:
+    # One AWS account can be connected to more than one Sweet tenant, and each
+    # connection has its own role, regions, and enabled state.
+    return f"{tenant_id}:{account_id}"
+
+
+def transform_accounts(
+    raw_accounts: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
     # The external ID guards the cross-account role against confused-deputy use,
     # so it is deliberately not stored in the graph.
     return [
         {
-            "id": account["accountId"],
+            "id": _connection_id(tenant_id, account["accountId"]),
             "account_id": account["accountId"],
             "role_arn": account.get("roleArn"),
             "regions": account.get("regions"),
@@ -47,10 +56,11 @@ def transform_accounts(raw_accounts: list[dict[str, Any]]) -> list[dict[str, Any
 
 def transform_organizations(
     raw_organizations: list[dict[str, Any]],
+    tenant_id: str,
 ) -> list[dict[str, Any]]:
     return [
         {
-            "id": organization["accountId"],
+            "id": _connection_id(tenant_id, organization["accountId"]),
             "management_account_id": organization["accountId"],
             "role_arn": organization.get("roleArn"),
             "regions": organization.get("regions"),
@@ -116,8 +126,8 @@ def sync(
     )
     load_accounts(
         neo4j_session,
-        transform_accounts(raw_accounts),
-        transform_organizations(raw_organizations),
+        transform_accounts(raw_accounts, tenant_id),
+        transform_organizations(raw_organizations, tenant_id),
         tenant_id,
         update_tag,
     )

@@ -26,6 +26,7 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
+OTHER_TENANT_ID = "other-example-tenant"
 DNS_RECORD_ID = f"Z1+{ATTACK_CHAIN_DOMAIN}+A"
 
 
@@ -50,8 +51,11 @@ def _delete_test_data(neo4j_session) -> None:
         cve_id=CVE_ID,
     )
     neo4j_session.run(
-        "MATCH (n:ModuleSyncMetadata {id: $id}) DETACH DELETE n",
-        id=f"SweetTenant_{TENANT_ID}_SweetData",
+        "MATCH (n:ModuleSyncMetadata) WHERE n.id IN $ids DETACH DELETE n",
+        ids=[
+            f"SweetTenant_{TENANT_ID}_SweetData",
+            f"SweetTenant_{OTHER_TENANT_ID}_SweetData",
+        ],
     )
 
 
@@ -164,21 +168,26 @@ def test_sync_links_aws_connections_to_monitored_accounts(neo4j_session, mocker)
     assert check_nodes(
         neo4j_session,
         "SweetAWSAccount",
-        ["id", "role_arn", "enabled"],
+        ["id", "account_id", "role_arn", "enabled"],
     ) == {
-        (ACCOUNT_ID, f"arn:aws:iam::{ACCOUNT_ID}:role/SweetSecurityRole", True),
+        (
+            f"{TENANT_ID}:{ACCOUNT_ID}",
+            ACCOUNT_ID,
+            f"arn:aws:iam::{ACCOUNT_ID}:role/SweetSecurityRole",
+            True,
+        ),
     }
     assert check_nodes(
         neo4j_session,
         "SweetAWSOrganization",
         ["id", "management_account_id"],
     ) == {
-        (ORG_MANAGEMENT_ACCOUNT_ID, ORG_MANAGEMENT_ACCOUNT_ID),
+        (f"{TENANT_ID}:{ORG_MANAGEMENT_ACCOUNT_ID}", ORG_MANAGEMENT_ACCOUNT_ID),
     }
     assert check_rels(
         neo4j_session,
         "SweetAWSAccount",
-        "id",
+        "account_id",
         "AWSAccount",
         "id",
         "MONITORS",
@@ -186,7 +195,7 @@ def test_sync_links_aws_connections_to_monitored_accounts(neo4j_session, mocker)
     assert check_rels(
         neo4j_session,
         "SweetAWSOrganization",
-        "id",
+        "management_account_id",
         "AWSAccount",
         "id",
         "MONITORS",
@@ -196,9 +205,49 @@ def test_sync_links_aws_connections_to_monitored_accounts(neo4j_session, mocker)
         "SweetTenant",
         "id",
         "SweetAWSAccount",
-        "id",
+        "account_id",
         "RESOURCE",
     ) == {(TENANT_ID, ACCOUNT_ID)}
+
+
+def test_sync_keeps_one_connection_per_tenant_for_a_shared_account(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    _seed_aws_accounts(neo4j_session)
+    _patch_sweet_api(mocker)
+
+    # Act
+    cartography.intel.sweet.start_sweet_ingestion(neo4j_session, _config())
+    cartography.intel.sweet.start_sweet_ingestion(
+        neo4j_session,
+        _config(tenant_id=OTHER_TENANT_ID),
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "SweetTenant",
+        "id",
+        "SweetAWSAccount",
+        "id",
+        "RESOURCE",
+    ) == {
+        (TENANT_ID, f"{TENANT_ID}:{ACCOUNT_ID}"),
+        (OTHER_TENANT_ID, f"{OTHER_TENANT_ID}:{ACCOUNT_ID}"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SweetAWSAccount",
+        "id",
+        "AWSAccount",
+        "id",
+        "MONITORS",
+    ) == {
+        (f"{TENANT_ID}:{ACCOUNT_ID}", ACCOUNT_ID),
+        (f"{OTHER_TENANT_ID}:{ACCOUNT_ID}", ACCOUNT_ID),
+    }
 
 
 def test_sync_does_not_store_aws_external_id(neo4j_session, mocker):
@@ -212,12 +261,17 @@ def test_sync_does_not_store_aws_external_id(neo4j_session, mocker):
     result = neo4j_session.run(
         """
         MATCH (n)
-        WHERE (n:SweetAWSAccount OR n:SweetAWSOrganization)
-          AND any(key IN keys(n) WHERE toLower(key) CONTAINS 'external')
-        RETURN count(n) AS count
+        WHERE n:SweetAWSAccount OR n:SweetAWSOrganization
+        RETURN
+            count(n) AS connections,
+            sum(
+                CASE WHEN any(key IN keys(n) WHERE toLower(key) CONTAINS 'external')
+                THEN 1 ELSE 0 END
+            ) AS connections_with_external_id
         """,
     ).single()
-    assert result["count"] == 0
+    assert result["connections"] == 2
+    assert result["connections_with_external_id"] == 0
 
 
 def test_sync_links_vulnerabilities_to_cve_and_image(neo4j_session, mocker):
@@ -336,15 +390,13 @@ def test_sync_removes_findings_missing_from_a_later_sync(neo4j_session, mocker):
     assert check_nodes(neo4j_session, "SweetAttackChain", ["id"]) == set()
 
 
-def test_sync_skips_when_tenant_id_is_not_configured(neo4j_session, mocker):
+def test_sync_skips_when_sweet_is_not_configured(neo4j_session, mocker):
     # Arrange
     _patch_sweet_api(mocker)
+    config = Config(neo4j_uri="bolt://localhost:7687", update_tag=TEST_UPDATE_TAG)
 
     # Act
-    cartography.intel.sweet.start_sweet_ingestion(
-        neo4j_session,
-        _config(tenant_id=None),
-    )
+    cartography.intel.sweet.start_sweet_ingestion(neo4j_session, config)
 
     # Assert
     assert check_nodes(neo4j_session, "SweetTenant", ["id"]) == set()
