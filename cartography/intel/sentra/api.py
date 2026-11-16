@@ -33,7 +33,9 @@ def build_session(api_key: str) -> requests.Session:
         respect_retry_after_header=True,
     )
     session = requests.Session()
-    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    adapter = HTTPAdapter(max_retries=retry_policy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
     session.headers.update(
         {
             "X-Sentra-API-Key": api_key,

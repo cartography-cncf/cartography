@@ -156,10 +156,6 @@ class SentraDataStoreNodeProperties(CartographyNodeProperties):
         "alerts_count",
         description="Number of Sentra alerts on the data store.",
     )
-    data_class_ids: PropertyRef = PropertyRef(
-        "data_class_ids",
-        description="IDs of the Sentra data classes found in the data store.",
-    )
 
 
 @dataclass(frozen=True)
