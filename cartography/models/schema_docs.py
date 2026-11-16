@@ -899,6 +899,7 @@ def _module_title(module: str) -> str:
         "onepassword": "1Password",
         "sentinelone": "SentinelOne",
         "socketdev": "Socket.dev",
+        "sweet": "Sweet Security",
     }
     return title_overrides.get(module, module.replace("_", " ").title())
 

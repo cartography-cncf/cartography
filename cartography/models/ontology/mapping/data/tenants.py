@@ -557,6 +557,15 @@ crowdstrike_mapping = OntologyMapping(
     ],
 )
 
+# Sweet: the API returns no tenant name or domain, so SweetTenant has no mappable
+# Tenant fields; the entry exists only so _ont_source is written on the node.
+sweet_mapping = OntologyMapping(
+    module_name="sweet",
+    nodes=[
+        OntologyNodeMapping(node_label="SweetTenant", fields=[]),
+    ],
+)
+
 # Huntress account status
 _HUNTRESS_ACCOUNT_STATUS = {
     "enabled": "active",
@@ -914,6 +923,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "azure": azure_mapping,
     "cloudflare": cloudflare_mapping,
     "crowdstrike": crowdstrike_mapping,
+    "sweet": sweet_mapping,
     "huntress": huntress_mapping,
     "digitalocean": digitalocean_mapping,
     "netlify": netlify_mapping,

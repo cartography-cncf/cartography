@@ -1,0 +1,63 @@
+# Sweet Security Configuration
+
+Configure a Sweet API token and a stable tenant identifier.
+
+## Authentication
+
+1. In the [Sweet app](https://app.sweet.security), open your name, then
+   **Settings**.
+2. Select **API Tokens** and create a token with a read-only role and an
+   expiration date.
+3. Store the API key and its secret in environment variables.
+
+Cartography exchanges the key and secret for a JWT at `POST /v1/auth/token`.
+The JWT is valid for one day.
+
+## Required Permissions
+
+The token's role must allow these read operations:
+
+| Operation | Used for |
+|-----------|----------|
+| `GET /v1/aws/account` | AWS account connections |
+| `GET /v1/aws/organization` | AWS organization connections |
+| `GET /v1/vulnerability` | Runtime vulnerabilities |
+| `GET /v1/attack` | Attack chains |
+
+## Configure Cartography
+
+The Sweet API has no endpoint that returns the tenant's own ID, so you set one
+with `--sweet-tenant-id`. Pick a value that stays the same across runs, such
+as your Sweet tenant name. It becomes the `SweetTenant` node ID that scopes
+cleanup. Use a different value for each tenant you sync into the same graph.
+
+| Option | Default | Required | Description |
+|--------|---------|----------|-------------|
+| `--sweet-tenant-id` |  | Yes | Stable identifier for the Sweet tenant. The module is skipped when it is not set. |
+| `--sweet-api-key-env-var` | `SWEET_API_KEY` | No | Environment variable that contains the API key. |
+| `--sweet-api-secret-env-var` | `SWEET_API_SECRET` | No | Environment variable that contains the API secret. |
+| `--sweet-api-url` | `https://eapi.sweet.security` | No | Sweet API origin. |
+
+## Run Cartography
+
+```bash
+export SWEET_API_KEY="..."
+export SWEET_API_SECRET="..."
+
+cartography \
+  --selected-modules sweet \
+  --sweet-tenant-id my-sweet-tenant
+```
+
+## Troubleshooting
+
+- HTTP `401` from `/v1/auth/token`: check that the API key and secret are
+  correct and the token has not expired.
+- HTTP `403`: check that the token's role can read the endpoints listed above.
+- HTTP `429`: Cartography retries with backoff and honors `Retry-After`.
+  Persistent rate limiting fails the sync before cleanup, so existing data is
+  kept.
+
+## References
+
+- [Sweet Security API reference](https://eapi.sweet.security/docs)

@@ -133,6 +133,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Socket.dev](https://docs.cartography.dev/modules/socketdev/index.html) - Organizations, Repositories, Dependencies, Security Alerts (CVE, malware, supply chain risks), Fixes
 - [Spacelift](https://docs.cartography.dev/modules/spacelift/index.html) - Accounts, Spaces,Users, Stacks, WorkerPools, Workers, Runs, GitCommits
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework
+- [Sweet Security](https://docs.cartography.dev/modules/sweet/index.html) - AWS account and organization connections, runtime vulnerabilities (loaded/executed in memory), attack chains
 - [Tailscale](https://docs.cartography.dev/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations, DevicePostures, DevicePostureConditions, device posture compliance relationships
 - [Trivy Scanner](https://docs.cartography.dev/modules/trivy/index.html) - AWS ECR Images
 - [Zoom](https://docs.cartography.dev/modules/zoom/index.html) - Accounts, users, plan types, groups, roles, security settings, Marketplace apps, meetings, recordings, and client versions

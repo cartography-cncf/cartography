@@ -84,6 +84,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Spacelift](../modules/spacelift/schema.md)
 - [Subimage](../modules/subimage/schema.md)
 - [Supabase](../modules/supabase/schema.md)
+- [Sweet Security](../modules/sweet/schema.md)
 - [Syft](../modules/syft/schema.md)
 - [Tailscale](../modules/tailscale/schema.md)
 - [Tenable](../modules/tenable/schema.md)

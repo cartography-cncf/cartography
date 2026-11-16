@@ -62,6 +62,7 @@ modules/socketdev/index
 modules/spacelift/index
 modules/subimage/index
 modules/supabase/index
+modules/sweet/index
 modules/syft/index
 modules/tailscale/index
 modules/tenable/index
