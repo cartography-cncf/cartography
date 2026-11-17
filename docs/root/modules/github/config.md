@@ -88,7 +88,7 @@ data while continuing ingestion.
 | Organization secret metadata | Organization **Secrets: Read** | Included in `read:org` |
 | Organization variables | Organization **Variables: Read** | Included in `read:org` |
 | GHCR packages, image manifests, layers, and tags | Not available: GitHub Packages and `ghcr.io` refuse App installation tokens and fine-grained PATs, so GHCR is skipped for such organizations | `read:packages` |
-| SLSA attestations | Repository **Attestations: Read** | `read:packages` |
+| SLSA attestations | Repository **Attestations: Read** | Included in `repo` |
 | Fine-grained PAT inventory | GitHub App with organization **Personal access tokens: Read**; PAT authentication is not supported | Not available |
 | Classic PAT inventory | Not available | SAML SSO credential authorizations on SAML-enabled organizations, organization owner access, and `read:org` |
 | Two-factor authentication status | Organization owner access | Organization owner access |
