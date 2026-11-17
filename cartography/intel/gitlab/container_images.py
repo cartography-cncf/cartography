@@ -451,7 +451,7 @@ def transform_container_images(
         head_layer_diff_id = None
         tail_layer_diff_id = None
         if not is_manifest_list:
-            rootfs = config.get("rootfs", {})
+            rootfs = config.get("rootfs") or {}
             diff_ids = rootfs.get("diff_ids")
             if isinstance(diff_ids, list):
                 layer_diff_ids = diff_ids
@@ -519,7 +519,7 @@ def transform_container_image_layers(
         image_digest = manifest.get("_digest")
         layers = manifest.get("layers", [])
         config = manifest.get("_config", {})
-        diff_ids_raw = config.get("rootfs", {}).get("diff_ids", [])
+        diff_ids_raw = (config.get("rootfs") or {}).get("diff_ids", [])
         history_raw = config.get("history", [])
 
         # Ensure diff_ids is a list for type checking

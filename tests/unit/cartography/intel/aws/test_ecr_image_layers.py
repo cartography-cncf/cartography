@@ -1526,3 +1526,29 @@ def test_sync_does_not_retry_non_credential_client_error(mocker):
     assert excinfo.value.response["Error"]["Code"] == "AccessDeniedException"
     assert fetch_mock.call_count == 1
     factory.assert_not_called()
+
+
+def test_diff_ids_for_manifest_reads_null_history_entry_as_unknown(monkeypatch):
+    monkeypatch.setattr(
+        ecr_layers,
+        "get_blob_json_via_presigned",
+        AsyncMock(
+            return_value={
+                "rootfs": {"diff_ids": ["sha256:base", "sha256:app"]},
+                "history": [None, {"created_by": "COPY app /app"}],
+            },
+        ),
+    )
+
+    diff_ids, history_by_diff_id, _ = asyncio.run(
+        ecr_layers._diff_ids_for_manifest(
+            MagicMock(),
+            "repo",
+            {"config": {"digest": "sha256:config"}},
+            MagicMock(),
+            "linux/amd64",
+        ),
+    )
+
+    assert diff_ids == {"linux/amd64": ["sha256:base", "sha256:app"]}
+    assert history_by_diff_id == {"sha256:app": "COPY app /app"}

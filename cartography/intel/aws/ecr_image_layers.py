@@ -621,6 +621,7 @@ async def _diff_ids_for_manifest(
 
     diff_id_index = 0
     for hist_entry in history_list:
+        hist_entry = hist_entry or {}
         is_empty_layer = hist_entry.get("empty_layer", False)
         if not is_empty_layer and diff_id_index < len(diff_ids):
             created_by = hist_entry.get("created_by", "")
