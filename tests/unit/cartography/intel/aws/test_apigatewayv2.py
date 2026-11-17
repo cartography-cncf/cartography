@@ -1,3 +1,4 @@
+import inspect
 from unittest.mock import MagicMock
 
 import pytest
@@ -108,11 +109,27 @@ def test_transform_apigatewayv2_stages_constructs_the_stage_arn():
     }
 
 
+def test_transform_apigatewayv2_stages_uses_the_region_partition():
+    # GovCloud and China ARNs must use their own partition so they match the
+    # ARNs WAFv2 ListResourcesForWebACL returns in those partitions.
+    stages = [test_data.STAGE_API_001_PROD]
+
+    gov = apigatewayv2.transform_apigatewayv2_stages(stages, "us-gov-west-1", "api-001")
+    assert (
+        gov[0]["arn"]
+        == "arn:aws-us-gov:apigateway:us-gov-west-1::/apis/api-001/stages/prod"
+    )
+
+    cn = apigatewayv2.transform_apigatewayv2_stages(stages, "cn-north-1", "api-001")
+    assert cn[0]["arn"] == "arn:aws-cn:apigateway:cn-north-1::/apis/api-001/stages/prod"
+
+
 def test_get_apigatewayv2_stages_returns_stages_keyed_by_api_id():
     # Arrange
     boto3_session = MagicMock()
     client = boto3_session.client.return_value
-    client.get_stages.return_value = test_data.GET_STAGES_RESPONSE_API_001
+    paginator = client.get_paginator.return_value
+    paginator.paginate.return_value = [test_data.GET_STAGES_RESPONSE_API_001]
 
     # Act
     result = apigatewayv2.get_apigatewayv2_stages(
@@ -125,40 +142,65 @@ def test_get_apigatewayv2_stages_returns_stages_keyed_by_api_id():
     assert result == {
         "api-001": [test_data.STAGE_API_001_PROD, test_data.STAGE_API_001_DEV],
     }
-    client.get_stages.assert_called_once_with(ApiId="api-001")
+    client.get_paginator.assert_called_once_with("get_stages")
+    paginator.paginate.assert_called_once_with(ApiId="api-001")
 
 
-def test_get_apigatewayv2_stages_skips_an_api_on_a_non_retryable_error():
+def test_get_apigatewayv2_stages_merges_all_pages():
     # Arrange
     boto3_session = MagicMock()
     client = boto3_session.client.return_value
-    client.get_stages.side_effect = [
-        ClientError(
-            {"Error": {"Code": "NotFoundException", "Message": "API not found"}},
-            "GetStages",
-        ),
-        test_data.GET_STAGES_RESPONSE_API_001,
+    paginator = client.get_paginator.return_value
+    paginator.paginate.return_value = [
+        {"Items": [test_data.STAGE_API_001_PROD]},
+        {"Items": [test_data.STAGE_API_001_DEV]},
     ]
 
     # Act
     result = apigatewayv2.get_apigatewayv2_stages(
         boto3_session,
         "us-east-1",
-        ["api-gone", "api-001"],
+        ["api-001"],
     )
 
     # Assert
     assert result == {
-        "api-gone": [],
         "api-001": [test_data.STAGE_API_001_PROD, test_data.STAGE_API_001_DEV],
     }
+
+
+def test_get_apigatewayv2_stages_raises_on_a_non_retryable_error():
+    # A failed GetStages must not look like an empty success: cleanup would
+    # otherwise delete the API's last-known-good stage nodes. Unwrap the
+    # aws_handle_regions decorator (as in test_cloudtrail): region-skippable
+    # errors such as AccessDenied are degraded to a regional skip by that
+    # shared decorator, like every other AWS connector.
+    # Arrange
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    paginator = client.get_paginator.return_value
+    paginator.paginate.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "invalid request",
+            }
+        },
+        "GetStages",
+    )
+
+    # Act and assert
+    get_stages_unwrapped = inspect.unwrap(apigatewayv2.get_apigatewayv2_stages)
+    with pytest.raises(ClientError):
+        get_stages_unwrapped(boto3_session, "us-east-1", ["api-001"])
 
 
 def test_get_apigatewayv2_stages_raises_transient_region_failure_on_throttling():
     # Arrange
     boto3_session = MagicMock()
     client = boto3_session.client.return_value
-    client.get_stages.side_effect = ClientError(
+    paginator = client.get_paginator.return_value
+    paginator.paginate.side_effect = ClientError(
         {
             "Error": {"Code": "TooManyRequestsException", "Message": "Slow down"},
             "ResponseMetadata": {"HTTPStatusCode": 429},
@@ -201,9 +243,12 @@ def test_load_apigatewayv2_stages_loads_the_stage_schema(mocker):
 
 def test_cleanup_runs_api_and_stage_cleanup_jobs(mocker):
     # Arrange
+    api_job = MagicMock()
+    stage_job = MagicMock()
     from_node_schema_mock = mocker.patch.object(
         apigatewayv2.GraphJob,
         "from_node_schema",
+        side_effect=[api_job, stage_job],
     )
 
     # Act
@@ -215,4 +260,5 @@ def test_cleanup_runs_api_and_stage_cleanup_jobs(mocker):
         for call_args in from_node_schema_mock.call_args_list
     ]
     assert schema_names == ["APIGatewayV2APISchema", "APIGatewayV2StageSchema"]
-    assert from_node_schema_mock.return_value.run.call_count == 2
+    api_job.run.assert_called_once()
+    stage_job.run.assert_called_once()

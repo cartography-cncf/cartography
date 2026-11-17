@@ -11,6 +11,7 @@ from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.apigatewayv2.apigatewayv2 import APIGatewayV2APISchema
 from cartography.models.aws.apigatewayv2.apigatewayv2 import APIGatewayV2StageSchema
@@ -117,15 +118,19 @@ def get_apigatewayv2_stages(
     stages_by_api: dict[str, list[dict[str, Any]]] = {}
     for api_id in api_ids:
         try:
-            response = client.get_stages(ApiId=api_id)
+            paginator = client.get_paginator("get_stages")
+            stages: list[dict[str, Any]] = []
+            for page in paginator.paginate(ApiId=api_id):
+                stages.extend(page.get("Items", []))
         except ClientError as error:
             if _is_retryable_apigatewayv2_error(error):
                 raise APIGatewayV2TransientRegionFailure(
                     "AWS SDK retries were exhausted for transient GetStages failure"
                 ) from error
+            # A failed GetStages must not look like an empty success: cleanup
+            # would otherwise delete the API's last-known-good stage nodes.
             logger.warning(f"Failed to retrieve Stages for Api Id - {api_id} - {error}")
-            stages_by_api[api_id] = []
-            continue
+            raise
         except (
             ConnectionClosedError,
             ConnectTimeoutError,
@@ -135,7 +140,7 @@ def get_apigatewayv2_stages(
             raise APIGatewayV2TransientRegionFailure(
                 "Encountered a transient regional API Gateway v2 endpoint failure while calling GetStages"
             ) from error
-        stages_by_api[api_id] = response.get("Items", [])
+        stages_by_api[api_id] = stages
     return stages_by_api
 
 
@@ -149,8 +154,10 @@ def transform_apigatewayv2_stages(
         # The apigatewayv2 GetStages response has no ARN member, so the stage
         # ARN must be constructed. This is the exact ARN format that WAFv2
         # ListResourcesForWebACL returns for API_GATEWAY associations, which is
-        # what makes the WAFv2 PROTECTS matching on stage ids work.
-        arn = f"arn:aws:apigateway:{region}::/apis/{api_id}/stages/{stage['StageName']}"
+        # what makes the WAFv2 PROTECTS matching on stage ids work. The
+        # partition is resolved from the region so GovCloud and China ARNs
+        # match what AWS returns there.
+        arn = f"arn:{get_partition(region)}:apigateway:{region}::/apis/{api_id}/stages/{stage['StageName']}"
         transformed.append(
             {
                 "arn": arn,
