@@ -72,9 +72,29 @@ from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
             "https://gitlab.example.com/foo/sub/bar/-/tree/main/services/api",
             "https://gitlab.example.com/foo/sub/bar",
         ),
+        (
+            "https://github.com/foo/bar/blob/main/services/api/Dockerfile",
+            "https://github.com/foo/bar",
+        ),
+        (
+            "https://gitlab.example.com/foo/bar/-/blob/main/Dockerfile",
+            "https://gitlab.example.com/foo/bar",
+        ),
+        (
+            "https://github.com/foo/bar/tree/main/examples/-/tree/x",
+            "https://github.com/foo/bar",
+        ),
         ("https://github.com/tree/bar", "https://github.com/tree/bar"),
     ],
-    ids=["dot-git", "github-folder", "gitlab-folder", "owner-named-tree"],
+    ids=[
+        "dot-git",
+        "github-folder",
+        "gitlab-folder",
+        "github-file",
+        "gitlab-file",
+        "github-folder-named-dash",
+        "owner-named-tree",
+    ],
 )
 def test_extract_provenance_from_oci_config_reads_labels(
     source_label, expected_source_uri

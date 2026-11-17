@@ -30,7 +30,6 @@ from cartography.models.github.packaged_matchlink import (
 from cartography.models.github.packaged_matchlink import (
     ImagePackagedByWorkflowMatchLink,
 )
-from cartography.util import run_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
@@ -474,14 +473,6 @@ def sync(
             _sub_resource_label="GitHubOrganization",
             _sub_resource_id=organization,
         )
-
-    # DEPRECATED: trim monorepo folder URLs stored by earlier versions so the
-    # provenance match below sees the repository URL. Remove in v1.0.0.
-    run_analysis_job(
-        "supply_chain_source_folder_url_migration.json",
-        neo4j_session,
-        common_job_parameters,
-    )
 
     # 2. PACKAGED_FROM matchlinks (SLSA provenance — no pre-query needed)
     repo_urls = [repo["url"] for repo in repos if repo.get("url")]
