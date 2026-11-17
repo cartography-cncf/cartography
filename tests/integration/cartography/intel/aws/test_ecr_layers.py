@@ -1613,7 +1613,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # A graph from before the version stamp: the list re-reads its attestation for
     # the enriched AMD64 child, which also gets a config-only label backfill, while
-    # the ARM64 child lost its layers and fails to enrich again.
+    # the ARM64 child lost its layers and yields none again, as when its manifest
+    # was deleted. That is a completed fetch, not a transient failure, so only the
+    # child gate keeps the list from being stamped.
     neo4j_session.run(
         "MATCH (img:AWSECRImage) REMOVE img.label_provenance_version"
     ).consume()
