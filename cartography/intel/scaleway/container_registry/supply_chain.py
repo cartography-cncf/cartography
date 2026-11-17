@@ -443,23 +443,21 @@ def transform(
             continue
 
         # Align each non-empty history command to its diff_id (empty layers such
-        # as ENV/WORKDIR carry no diff_id). Standard OCI: the count of non-empty
-        # history entries equals len(diff_ids).
-        project_layers = layers_by_project.setdefault(project_id, [])
-        idx = 0
-        for record in layer_history:
-            if record.get("empty_layer"):
-                continue
-            if idx >= len(diff_ids):
-                break
-            project_layers.append(
-                {
-                    "diff_id": diff_ids[idx],
-                    "history": record.get("created_by", ""),
-                    "is_empty": False,
-                }
-            )
-            idx += 1
+        # as ENV/WORKDIR carry no diff_id). Every diff_id gets a layer even when
+        # the config has no history, or HAS_LAYER cannot resolve.
+        commands = [
+            record.get("created_by", "")
+            for record in layer_history
+            if not record.get("empty_layer")
+        ]
+        layers_by_project.setdefault(project_id, []).extend(
+            {
+                "diff_id": diff_id,
+                "history": commands[idx] if idx < len(commands) else "",
+                "is_empty": False,
+            }
+            for idx, diff_id in enumerate(diff_ids)
+        )
 
     return images_by_project, layers_by_project
 

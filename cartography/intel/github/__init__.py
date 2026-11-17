@@ -23,6 +23,7 @@ import cartography.intel.github.supply_chain
 import cartography.intel.github.teams
 import cartography.intel.github.users
 import cartography.intel.github.webhooks
+import cartography.intel.supply_chain
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.intel.github.app_auth import make_credential
@@ -184,6 +185,10 @@ def start_github_ingestion(
         "UPDATE_TAG": config.update_tag,
     }
     processed_any_org = False
+    cartography.intel.supply_chain.migrate_source_folder_urls(
+        neo4j_session,
+        common_job_parameters,
+    )
 
     # run sync for the provided github organizations
     for auth_data in auth_tokens["organization"]:

@@ -22,6 +22,7 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 from cartography.intel.gcp.artifact_registry.supply_chain import _process_single_image
 from cartography.intel.gcp.artifact_registry.supply_chain import _TokenManager
 from cartography.intel.gcp.artifact_registry.supply_chain import GAR_PROVENANCE_VERSION
+from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
 from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_ARTIFACT
 from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_DIGEST
@@ -61,11 +62,49 @@ from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
 # ---------------------------------------------------------------------------
 
 
-def test_extract_provenance_from_oci_config_reads_labels():
+@pytest.mark.parametrize(
+    "source_label, expected_source_uri",
+    [
+        ("https://github.com/foo/bar.git", "https://github.com/foo/bar"),
+        (
+            "https://github.com/foo/bar/tree/main/services/api",
+            "https://github.com/foo/bar",
+        ),
+        (
+            "https://gitlab.example.com/foo/sub/bar/-/tree/main/services/api",
+            "https://gitlab.example.com/foo/sub/bar",
+        ),
+        (
+            "https://github.com/foo/bar/blob/main/services/api/Dockerfile",
+            "https://github.com/foo/bar",
+        ),
+        (
+            "https://gitlab.example.com/foo/bar/-/blob/main/Dockerfile",
+            "https://gitlab.example.com/foo/bar",
+        ),
+        (
+            "https://github.com/foo/bar/tree/main/examples/-/tree/x",
+            "https://github.com/foo/bar",
+        ),
+        ("https://github.com/tree/bar", "https://github.com/tree/bar"),
+    ],
+    ids=[
+        "dot-git",
+        "github-folder",
+        "gitlab-folder",
+        "github-file",
+        "gitlab-file",
+        "github-folder-named-dash",
+        "owner-named-tree",
+    ],
+)
+def test_extract_provenance_from_oci_config_reads_labels(
+    source_label, expected_source_uri
+):
     config = {
         "config": {
             "Labels": {
-                "org.opencontainers.image.source": "https://github.com/foo/bar.git",
+                "org.opencontainers.image.source": source_label,
                 "org.opencontainers.image.revision": "deadbeef",
             },
         },
@@ -73,7 +112,7 @@ def test_extract_provenance_from_oci_config_reads_labels():
 
     provenance = extract_provenance_from_oci_config(config)
 
-    assert provenance["source_uri"] == "https://github.com/foo/bar"
+    assert provenance["source_uri"] == expected_source_uri
     assert provenance["source_revision"] == "deadbeef"
 
 
@@ -84,6 +123,31 @@ def test_extract_provenance_from_oci_config_reads_labels():
 )
 def test_extract_provenance_from_oci_config_no_labels_returns_empty(config):
     assert extract_provenance_from_oci_config(config) == {}
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"rootfs": {"diff_ids": None}, "history": None},
+        {"rootfs": None},
+        {},
+    ],
+    ids=["null-diff-ids-and-history", "null-rootfs", "missing"],
+)
+def test_extract_layers_from_oci_config_without_layers_returns_empty(config):
+    assert extract_layers_from_oci_config(config) == ([], [])
+
+
+def test_extract_layers_from_oci_config_reads_null_history_entry_as_unknown():
+    config = {
+        "rootfs": {"diff_ids": ["sha256:layer"]},
+        "history": [None],
+    }
+
+    assert extract_layers_from_oci_config(config) == (
+        ["sha256:layer"],
+        [{"created_by": "", "empty_layer": False}],
+    )
 
 
 # ---------------------------------------------------------------------------
