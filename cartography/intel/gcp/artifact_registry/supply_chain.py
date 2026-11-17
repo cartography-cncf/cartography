@@ -1592,6 +1592,7 @@ def sync(
         candidate_digests,
         {"id": project_id},
         min_label_provenance_version=LABEL_PROVENANCE_VERSION,
+        source_satisfies_label_provenance=False,
     )
     if complete_digests:
         logger.info(

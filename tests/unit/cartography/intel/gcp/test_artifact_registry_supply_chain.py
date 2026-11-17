@@ -919,12 +919,9 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
     )
 
     # Assert
-    assert (
-        supply_chain.get_complete_layer_digests.call_args.kwargs[
-            "min_label_provenance_version"
-        ]
-        == LABEL_PROVENANCE_VERSION
-    )
+    complete_kwargs = supply_chain.get_complete_layer_digests.call_args.kwargs
+    assert complete_kwargs["min_label_provenance_version"] == LABEL_PROVENANCE_VERSION
+    assert complete_kwargs["source_satisfies_label_provenance"] is False
     assert fetch.await_args.kwargs["complete_digests"] == {digest}
     supply_chain.refresh_layer_closures.assert_called_once()
 

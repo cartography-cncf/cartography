@@ -14,16 +14,23 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
     ids=["listed", "whole_scope"],
 )
 @pytest.mark.parametrize(
-    ("min_label_provenance_version", "expected"),
+    ("min_label_provenance_version", "source_satisfies", "expected"),
     [
-        (None, {"sha256:0", "sha256:2", "sha256:5", "sha256:7", "sha256:8"}),
+        (None, True, {"sha256:0", "sha256:2", "sha256:5", "sha256:7", "sha256:8"}),
         # sha256:5 was enriched before label provenance existed: read it again.
         # sha256:7 already has a source, which its labels could not outrank.
-        (1, {"sha256:0", "sha256:2", "sha256:7", "sha256:8"}),
+        (1, True, {"sha256:0", "sha256:2", "sha256:7", "sha256:8"}),
+        # Without the stamp, sha256:7's attestation lookups may not have run.
+        (1, False, {"sha256:0", "sha256:2", "sha256:8"}),
     ],
 )
 def test_get_complete_layer_digests_preserves_completeness_and_scope(
-    neo4j_session, batch_size, digests, min_label_provenance_version, expected
+    neo4j_session,
+    batch_size,
+    digests,
+    min_label_provenance_version,
+    source_satisfies,
+    expected,
 ):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
@@ -90,6 +97,7 @@ def test_get_complete_layer_digests_preserves_completeness_and_scope(
         {"id": "project-1"},
         batch_size=batch_size,
         min_label_provenance_version=min_label_provenance_version,
+        source_satisfies_label_provenance=source_satisfies,
     )
 
     # Assert
