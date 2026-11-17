@@ -1535,7 +1535,7 @@ def cleanup_image_layers(
     cleanup_params = common_job_parameters.copy()
     cleanup_params["PROJECT_ID"] = project_id
     run_scoped_analysis_job(
-        "gcp_artifact_registry_orphan_image_layer_cleanup.json",
+        "gcp_artifact_registry_image_layer_link_cleanup.json",
         neo4j_session,
         cleanup_params,
     )

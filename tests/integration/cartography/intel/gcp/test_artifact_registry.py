@@ -1821,7 +1821,7 @@ def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
     assert result["firstseen"] == 111
 
 
-def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
+def test_orphan_cleanup_deletes_orphan_images_across_commit_batches(
     neo4j_session,
 ):
     project_id = "test-gar-orphan-image-cleanup-project"
