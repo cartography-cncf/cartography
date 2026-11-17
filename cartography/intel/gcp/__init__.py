@@ -1062,6 +1062,13 @@ def start_gcp_ingestion(
     # exclusion means the org was never inventoried this run, so its existing
     # data is preserved; callers that want deletion can remove it explicitly.
 
+    if requested_syncs is None or "artifact_registry" in requested_syncs:
+        run_analysis_job(
+            "gcp_artifact_registry_orphan_cleanup.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
     if requested_syncs is None or "compute" in requested_syncs:
         run_analysis_job(
             "gcp_ip_node_label_migration.json",

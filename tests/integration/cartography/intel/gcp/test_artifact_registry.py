@@ -45,6 +45,7 @@ from cartography.models.gcp.artifact_registry.image import (
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
 )
+from cartography.util import run_analysis_job
 from cartography.util import run_scoped_analysis_job
 from tests.data.gcp.artifact_registry import MOCK_APT_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
@@ -734,13 +735,10 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
         lastupdated=TEST_UPDATE_TAG + 1,
     )
 
-    run_scoped_analysis_job(
-        "gcp_artifact_registry_orphan_image_cleanup.json",
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
         neo4j_session,
-        {
-            "PROJECT_ID": project_id,
-            "UPDATE_TAG": TEST_UPDATE_TAG + 1,
-        },
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
     )
 
     result = neo4j_session.run(
@@ -757,13 +755,10 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
     assert result["old_count"] == 0
     assert result["current_count"] == 1
 
-    run_scoped_analysis_job(
-        "gcp_artifact_registry_orphan_image_cleanup.json",
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
         neo4j_session,
-        {
-            "PROJECT_ID": project_id,
-            "UPDATE_TAG": TEST_UPDATE_TAG + 2,
-        },
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 2},
     )
     assert (
         neo4j_session.run(
@@ -1082,6 +1077,11 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     cleanup_image_layers(
         neo4j_session,
         project_id,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
+        neo4j_session,
         {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
     )
 
@@ -1833,7 +1833,7 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
         SET parent.digest = 'sha256:orphan-parent',
             parent.type = 'manifest_list',
             parent.lastupdated = $old_tag
-        WITH parent
+        WITH p, parent
         UNWIND range(0, 1004) AS idx
         MERGE (child:GCPArtifactRegistryImage:Image {id: 'sha256:orphan-child-' + toString(idx)})
         SET child.digest = 'sha256:orphan-child-' + toString(idx),
@@ -1843,10 +1843,12 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
         SET contains.lastupdated = $old_tag,
             contains._sub_resource_label = 'GCPProject',
             contains._sub_resource_id = $project_id
-        WITH child
-        // A layer still used by a live image must not keep orphans alive.
+        WITH p, child
+        // A layer a project still links to outlives the orphans that used it,
+        // and does not keep them alive.
         MERGE (layer:GCPArtifactRegistryImageLayer {id: 'sha256:orphan-shared-layer'})
         SET layer.diff_id = 'sha256:orphan-shared-layer'
+        MERGE (p)-[:RESOURCE]->(layer)
         MERGE (child)-[:HAS_LAYER]->(layer)
         MERGE (child)-[:HEAD]->(layer)
         MERGE (child)-[:TAIL]->(layer)
@@ -1862,13 +1864,10 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
             "UPDATE_TAG": TEST_UPDATE_TAG + 1,
         },
     )
-    run_scoped_analysis_job(
-        "gcp_artifact_registry_orphan_image_cleanup.json",
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
         neo4j_session,
-        {
-            "PROJECT_ID": project_id,
-            "UPDATE_TAG": TEST_UPDATE_TAG + 1,
-        },
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
     )
 
     assert (
