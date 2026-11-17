@@ -1,0 +1,15 @@
+{
+  "name": "Image source_uri folder URL migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions stored a monorepo folder URL from an image's OCI source label (https://github.com/owner/repo/tree/main/services/api) as its source_uri, which matches no repository. Images already enriched are not read again, so trim the stored value to the repository URL that normalize_vcs_url now produces, including its .git trim. The ontology copy is trimmed with it. GitHub-style URLs go first, as in normalize_vcs_url. Idempotent. Remove in v1.0.0.",
+      "query": "MATCH (i:Image) WHERE i.source_uri =~ '^https?://[^/]+/[^/]+/[^/]+/(tree|blob)/.*' WITH i, i.source_uri AS folder_url, split(i.source_uri, '/') AS parts WITH i, folder_url, parts[0] + '//' + parts[2] + '/' + parts[3] + '/' + parts[4] AS repo_url WITH i, folder_url, CASE WHEN repo_url ENDS WITH '.git' THEN left(repo_url, size(repo_url) - 4) ELSE repo_url END AS repo_url SET i.source_uri = repo_url, i._ont_source_uri = CASE WHEN i._ont_source_uri = folder_url THEN repo_url ELSE i._ont_source_uri END",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: same migration for GitLab folder URLs (https://gitlab.example.com/group/project/-/tree/main/services/api). Remove in v1.0.0.",
+      "query": "MATCH (i:Image) WHERE i.source_uri =~ '^https?://[^/]+/.+?/-/(tree|blob)/.*' WITH i, i.source_uri AS folder_url, split(i.source_uri, '/-/')[0] AS repo_url WITH i, folder_url, CASE WHEN repo_url ENDS WITH '.git' THEN left(repo_url, size(repo_url) - 4) ELSE repo_url END AS repo_url SET i.source_uri = repo_url, i._ont_source_uri = CASE WHEN i._ont_source_uri = folder_url THEN repo_url ELSE i._ont_source_uri END",
+      "iterative": false
+    }
+  ]
+}
