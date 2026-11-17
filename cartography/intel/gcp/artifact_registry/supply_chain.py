@@ -1538,13 +1538,23 @@ def load_image_provenance(
         lastupdated=update_tag,
         PROJECT_ID=project_id,
     )
+    _load_built_from(neo4j_session, merged_updates, project_id, update_tag)
+    return merged_updates
+
+
+def _load_built_from(
+    neo4j_session: neo4j.Session,
+    updates: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+) -> None:
     parent_updates = [
         {
             **update,
             "from_sbom": True,
             "confidence": "explicit",
         }
-        for update in merged_updates
+        for update in updates
         if update.get("parent_image_digest")
         and update.get("parent_image_uri")
         and update.get("parent_image_digest") != update.get("digest")
@@ -1562,7 +1572,41 @@ def load_image_provenance(
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
-    return merged_updates
+
+
+@timeit
+def load_missing_built_from(
+    neo4j_session: neo4j.Session,
+    project_id: str,
+    update_tag: int,
+) -> None:
+    """Link this project's images to parents that were missing when they were read.
+
+    A parent can live in another project that syncs later, so its BUILT_FROM link
+    is created from the stored parent fields once the parent exists, without
+    reading the image from the registry again.
+    """
+    unlinked = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        MATCH (:GCPProject {id: $project_id})-[:RESOURCE]->
+              (:GCPArtifactRegistryRepositoryImage)-[:IMAGE]->
+              (:GCPArtifactRegistryImage)-[:CONTAINS_IMAGE*0..1]->
+              (img:GCPArtifactRegistryImage)
+        WHERE img.parent_image_digest IS NOT NULL
+          AND img.parent_image_uri IS NOT NULL
+          AND NOT exists {
+              MATCH (img)-[:BUILT_FROM]->
+                    (:GCPArtifactRegistryImage {digest: img.parent_image_digest})
+          }
+        RETURN DISTINCT
+            img.digest AS digest,
+            img.parent_image_uri AS parent_image_uri,
+            img.parent_image_digest AS parent_image_digest
+        """,
+        project_id=project_id,
+    )
+    _load_built_from(neo4j_session, unlinked, project_id, update_tag)
 
 
 @timeit
@@ -1720,13 +1764,6 @@ def sync(
             digests_with_source_file=digests_with_source_file,
         ),
     )
-    load_repository_image_provenance(
-        neo4j_session,
-        docker_artifacts_raw,
-        provenance_versions,
-        project_id,
-        update_tag,
-    )
 
     if enrichments:
         provenance_updates = [
@@ -1758,6 +1795,16 @@ def sync(
         GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
         complete_digests,
         {"id": project_id},
+        update_tag,
+    )
+    load_missing_built_from(neo4j_session, project_id, update_tag)
+    # Written last: a stamp lets later syncs skip the artifact, so it must not land
+    # before what this pass read for it is saved.
+    load_repository_image_provenance(
+        neo4j_session,
+        docker_artifacts_raw,
+        provenance_versions,
+        project_id,
         update_tag,
     )
 

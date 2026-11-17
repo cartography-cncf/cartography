@@ -632,6 +632,7 @@ def patched_sync(monkeypatch):
         MagicMock(return_value=set()),
     )
     monkeypatch.setattr(supply_chain, "load_repository_image_provenance", MagicMock())
+    monkeypatch.setattr(supply_chain, "load_missing_built_from", MagicMock())
 
     def _set_enrichments(enrichments, fetch_failures=0):
         async def _fake_fetch(*_args, **_kwargs):
@@ -980,6 +981,15 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
     supply_chain._get_provenance_complete_names.return_value = {name}
     monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", fetch)
     neo4j_session = MagicMock()
+    writes = []
+    for step in (
+        "load_image_layer_relationships",
+        "load_missing_built_from",
+        "load_repository_image_provenance",
+    ):
+        getattr(supply_chain, step).side_effect = (
+            lambda *_args, step=step, **_kwargs: writes.append(step)
+        )
 
     # Act
     supply_chain.sync(
@@ -1005,6 +1015,12 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
         1,
     )
     supply_chain.refresh_layer_closures.assert_called_once()
+    # A stamp lets later syncs skip the artifact, so it is written last.
+    assert writes == [
+        "load_image_layer_relationships",
+        "load_missing_built_from",
+        "load_repository_image_provenance",
+    ]
 
 
 @pytest.mark.asyncio

@@ -30,6 +30,7 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
+from cartography.intel.gcp.artifact_registry.supply_chain import load_missing_built_from
 from cartography.intel.gcp.artifact_registry.supply_chain import (
     load_repository_image_provenance,
 )
@@ -1440,7 +1441,7 @@ def test_load_image_provenance_creates_parent_image_lineage(neo4j_session):
     assert result["sub_resource_id"] == project_id
 
 
-def test_load_image_provenance_stores_parent_without_missing_parent_edge(
+def test_missing_parent_is_stored_then_linked_once_it_exists(
     neo4j_session,
 ):
     project_id = "test-gar-parent-lineage-missing-parent-project"
@@ -1484,6 +1485,27 @@ def test_load_image_provenance_stores_parent_without_missing_parent_edge(
     assert result["parent_image_uri"] == f"pkg:oci/base@{parent_digest}"
     assert result["parent_image_digest"] == parent_digest
     assert result["has_edge"] is False
+
+    # The parent arrives later, from another project's sync. The child is not read
+    # from the registry again, so the link comes from its stored parent fields.
+    neo4j_session.run(
+        "MERGE (:GCPArtifactRegistryImage {id: $digest, digest: $digest})",
+        digest=parent_digest,
+    ).consume()
+    load_missing_built_from(neo4j_session, project_id, TEST_UPDATE_TAG + 1)
+
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (:GCPArtifactRegistryImage {id: $child_digest})
+              -[:BUILT_FROM]->(:GCPArtifactRegistryImage {digest: $parent_digest})
+        RETURN count(*) AS count
+        """,
+            child_digest=child["digest"],
+            parent_digest=parent_digest,
+        ).single()["count"]
+        == 1
+    )
 
 
 def test_gcp_artifact_registry_built_from_cleanup_removes_stale_edges(
