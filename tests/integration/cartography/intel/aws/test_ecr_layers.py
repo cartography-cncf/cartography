@@ -583,6 +583,84 @@ def test_layer_cleanup_does_not_delete_stale_inventory_images(neo4j_session):
     assert relationship_count == 0
 
 
+def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(neo4j_session):
+    # Arrange: an image in the first account is built on a layer that the second
+    # account also linked to in the last run. The first account has not been
+    # synced yet in this run, so its edges still carry the last run's tag.
+    image_account = "shared-layer-image-account"
+    cleaned_account = "shared-layer-cleaned-account"
+    image_digest = "sha256:shared-layer-image"
+    base_layer = "sha256:shared-layer-base"
+    app_layer = "sha256:shared-layer-app"
+    unused_layer = "sha256:shared-layer-unused"
+    neo4j_session.run(
+        """
+        MERGE (image_account:AWSAccount {id: $image_account})
+        MERGE (cleaned_account:AWSAccount {id: $cleaned_account})
+        MERGE (image:AWSECRImage {id: $image_digest})
+        SET image.digest = $image_digest, image.type = 'image',
+            image.layer_diff_ids = [$base_layer, $app_layer], image.lastupdated = 1
+        MERGE (image_account)-[image_resource:RESOURCE]->(image)
+        SET image_resource.lastupdated = 1
+        WITH image, image_account, cleaned_account
+        UNWIND [$base_layer, $app_layer, $unused_layer] AS diff_id
+        MERGE (layer:AWSECRImageLayer {id: diff_id})
+        SET layer.diff_id = diff_id, layer.lastupdated = 1
+        WITH image, image_account, cleaned_account, layer
+        FOREACH (_ IN CASE WHEN layer.diff_id <> $unused_layer THEN [1] ELSE [] END |
+            MERGE (image_account)-[r:RESOURCE]->(layer) SET r.lastupdated = 1
+            MERGE (image)-[h:HAS_LAYER]->(layer) SET h.lastupdated = 1
+        )
+        FOREACH (_ IN CASE WHEN layer.diff_id <> $app_layer THEN [1] ELSE [] END |
+            MERGE (cleaned_account)-[r:RESOURCE]->(layer) SET r.lastupdated = 1
+        )
+        WITH DISTINCT image
+        MATCH (base:AWSECRImageLayer {id: $base_layer})
+        MATCH (app:AWSECRImageLayer {id: $app_layer})
+        MERGE (image)-[head:HEAD]->(base) SET head.lastupdated = 1
+        MERGE (image)-[tail:TAIL]->(app) SET tail.lastupdated = 1
+        MERGE (base)-[next:NEXT]->(app) SET next.lastupdated = 1
+        """,
+        image_account=image_account,
+        cleaned_account=cleaned_account,
+        image_digest=image_digest,
+        base_layer=base_layer,
+        app_layer=app_layer,
+        unused_layer=unused_layer,
+    ).consume()
+
+    # Act: the second account no longer uses either layer.
+    ecr_layers.cleanup(
+        neo4j_session,
+        {"AWS_ID": cleaned_account, "UPDATE_TAG": 2},
+    )
+
+    # Assert
+    assert ecr_layers.get_complete_layer_digests(
+        neo4j_session,
+        ecr_layers.ECR_LAYER_GRAPH,
+        [image_digest],
+        {"id": image_account},
+    ) == {image_digest}
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSECRImageLayer",
+        "id",
+        "RESOURCE",
+    ) >= {(image_account, base_layer), (image_account, app_layer)}
+    assert (cleaned_account, base_layer) not in check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSECRImageLayer",
+        "id",
+        "RESOURCE",
+    )
+    assert (unused_layer,) not in check_nodes(neo4j_session, "AWSECRImageLayer", ["id"])
+
+
 def test_transform_marks_empty_layer():
     layers, _ = ecr_layers.transform_ecr_image_layers(
         {

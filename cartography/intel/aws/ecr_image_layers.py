@@ -20,8 +20,6 @@ from botocore.exceptions import ClientError
 from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
-from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image_layers import build_next_layer_rows
@@ -39,8 +37,8 @@ from cartography.models.aws.ecr.image import ECRImageLayerEnrichmentSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerHeadRelSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerNextRelSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerNodeSchema
-from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerTailRelSchema
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -1387,19 +1385,10 @@ def cleanup(
             "were incomplete.",
         )
         return
-    run_write_query(
+    run_scoped_analysis_job(
+        "aws_ecr_image_layer_cleanup.json",
         neo4j_session,
-        """
-        MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->
-              (:AWSECRImage)-[relationship:HAS_LAYER|BUILT_FROM]->()
-        WHERE relationship.lastupdated <> $UPDATE_TAG
-        DELETE relationship
-        """,
-        AWS_ID=common_job_parameters["AWS_ID"],
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-    )
-    GraphJob.from_node_schema(ECRImageLayerSchema(), common_job_parameters).run(
-        neo4j_session
+        common_job_parameters,
     )
 
 

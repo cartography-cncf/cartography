@@ -1,0 +1,24 @@
+{
+  "name": "AWS ECR image layer cleanup",
+  "__comment__": "ECR image layers are keyed by diff_id and shared by every account whose images contain them, and an account's images own their HAS_LAYER, BUILT_FROM, HEAD and TAIL edges. Clean only what the syncing account owns: the stale edges of its own images, its stale links to layers, and layers no account links to any more. A node-schema cleanup scoped to the account would delete shared layers, and the HEAD, TAIL and NEXT edges on them, for accounts not yet synced in this run, so their images look incomplete and are fetched again.",
+  "statements": [
+    {
+      "__comment__": "Delete stale layer edges of this account's images.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(:AWSECRImage)-[r:HAS_LAYER|BUILT_FROM|HEAD|TAIL]->() WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Delete layers this account no longer uses and no other account links to, with their NEXT edges.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[r:RESOURCE]->(layer:AWSECRImageLayer) WHERE r.lastupdated <> $UPDATE_TAG AND NOT EXISTS { MATCH (other:AWSAccount)-[:RESOURCE]->(layer) WHERE other.id <> $AWS_ID } WITH layer LIMIT $LIMIT_SIZE DETACH DELETE layer RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Delete this account's remaining stale links to layers that other accounts still use.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[r:RESOURCE]->(:AWSECRImageLayer) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}
