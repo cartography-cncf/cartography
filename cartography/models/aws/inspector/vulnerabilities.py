@@ -75,7 +75,7 @@ class InspectorVulnerabilityToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorVulnerabilityToAWSAccountRel(CartographyRelSchema):
-    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorVulnerability)"""
+    """Scopes each vulnerability to the AWS account that synced it."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
