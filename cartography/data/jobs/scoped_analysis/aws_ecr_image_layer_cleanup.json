@@ -9,14 +9,8 @@
       "iterationsize": 1000
     },
     {
-      "__comment__": "Delete layers this account no longer uses and no other account links to, with their NEXT edges.",
-      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[r:RESOURCE]->(layer:AWSECRImageLayer) WHERE r.lastupdated <> $UPDATE_TAG AND NOT EXISTS { MATCH (other:AWSAccount)-[:RESOURCE]->(layer) WHERE other.id <> $AWS_ID } WITH layer LIMIT $LIMIT_SIZE DETACH DELETE layer RETURN COUNT(*) AS TotalCompleted",
-      "iterative": true,
-      "iterationsize": 1000
-    },
-    {
-      "__comment__": "Delete this account's remaining stale links to layers that other accounts still use.",
-      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[r:RESOURCE]->(:AWSECRImageLayer) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "__comment__": "Delete this account's stale links to layers, then any of those layers that no account links to any more, with their NEXT edges. Each batch removes the links it reads, so links to layers other accounts still use are read once rather than on every batch.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[r:RESOURCE]->(layer:AWSECRImageLayer) WHERE r.lastupdated <> $UPDATE_TAG WITH r, layer LIMIT $LIMIT_SIZE DELETE r WITH DISTINCT layer WHERE NOT EXISTS { MATCH (:AWSAccount)-[:RESOURCE]->(layer) } DETACH DELETE layer RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     }

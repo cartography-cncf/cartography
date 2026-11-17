@@ -583,10 +583,18 @@ def test_layer_cleanup_does_not_delete_stale_inventory_images(neo4j_session):
     assert relationship_count == 0
 
 
-def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(neo4j_session):
+@pytest.mark.parametrize(
+    "cleaned_account_tag",
+    [1, 2],
+    ids=["cleaned-account-dropped-base-layer", "cleaned-account-still-uses-it"],
+)
+def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(
+    neo4j_session, cleaned_account_tag
+):
     # Arrange: an image in the first account is built on a layer that the second
-    # account also linked to in the last run. The first account has not been
-    # synced yet in this run, so its edges still carry the last run's tag.
+    # account also links to. The first account has not been synced yet in this
+    # run, so its edges still carry the last run's tag. The second account either
+    # stopped using the layer, or refreshed the layer and its link in this run.
     image_account = "shared-layer-image-account"
     cleaned_account = "shared-layer-cleaned-account"
     image_digest = "sha256:shared-layer-image"
@@ -614,6 +622,13 @@ def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(neo4j_session):
         FOREACH (_ IN CASE WHEN layer.diff_id <> $app_layer THEN [1] ELSE [] END |
             MERGE (cleaned_account)-[r:RESOURCE]->(layer) SET r.lastupdated = 1
         )
+        FOREACH (_ IN CASE WHEN layer.diff_id = $base_layer THEN [1] ELSE [] END |
+            SET layer.lastupdated = $cleaned_account_tag
+        )
+        WITH image, image_account, cleaned_account, layer
+        OPTIONAL MATCH (cleaned_account)-[cleaned_link:RESOURCE]->(layer)
+        WHERE layer.diff_id = $base_layer
+        SET cleaned_link.lastupdated = $cleaned_account_tag
         WITH DISTINCT image
         MATCH (base:AWSECRImageLayer {id: $base_layer})
         MATCH (app:AWSECRImageLayer {id: $app_layer})
@@ -627,9 +642,10 @@ def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(neo4j_session):
         base_layer=base_layer,
         app_layer=app_layer,
         unused_layer=unused_layer,
+        cleaned_account_tag=cleaned_account_tag,
     ).consume()
 
-    # Act: the second account no longer uses either layer.
+    # Act
     ecr_layers.cleanup(
         neo4j_session,
         {"AWS_ID": cleaned_account, "UPDATE_TAG": 2},
@@ -650,14 +666,17 @@ def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(neo4j_session):
         "id",
         "RESOURCE",
     ) >= {(image_account, base_layer), (image_account, app_layer)}
-    assert (cleaned_account, base_layer) not in check_rels(
-        neo4j_session,
-        "AWSAccount",
-        "id",
-        "AWSECRImageLayer",
-        "id",
-        "RESOURCE",
-    )
+    assert (
+        (cleaned_account, base_layer)
+        in check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "AWSECRImageLayer",
+            "id",
+            "RESOURCE",
+        )
+    ) == (cleaned_account_tag == 2)
     assert (unused_layer,) not in check_nodes(neo4j_session, "AWSECRImageLayer", ["id"])
 
 
