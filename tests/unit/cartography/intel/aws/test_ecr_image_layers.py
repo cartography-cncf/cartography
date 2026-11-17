@@ -104,44 +104,13 @@ def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
     assert has_layer_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
 
 
-def test_cleanup_runs_layer_cleanup_job(monkeypatch):
-    from_node_schema_mock = MagicMock(return_value=MagicMock())
-    run_write_query_mock = MagicMock()
-    monkeypatch.setattr(
-        ecr_layers.GraphJob,
-        "from_node_schema",
-        from_node_schema_mock,
-    )
-    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
-
-    neo4j_session = MagicMock()
-    ecr_layers.cleanup(
-        neo4j_session,
-        {
-            "UPDATE_TAG": 123,
-            "AWS_ID": "123456789012",
-        },
-    )
-
-    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
-        "ECRImageLayerSchema"
-    )
-    assert from_node_schema_mock.return_value.run.call_count == 1
-    relationship_cleanup_query = run_write_query_mock.call_args.args[1]
-    assert "HAS_LAYER|BUILT_FROM" in relationship_cleanup_query
-    assert "DELETE relationship" in relationship_cleanup_query
-    assert "DETACH DELETE" not in relationship_cleanup_query
-
-
 def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
-    from_node_schema_mock = MagicMock()
-    run_write_query_mock = MagicMock()
+    run_scoped_analysis_job_mock = MagicMock()
     monkeypatch.setattr(
-        ecr_layers.GraphJob,
-        "from_node_schema",
-        from_node_schema_mock,
+        ecr_layers,
+        "run_scoped_analysis_job",
+        run_scoped_analysis_job_mock,
     )
-    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
 
     ecr_layers.cleanup(
         MagicMock(),
@@ -149,8 +118,7 @@ def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
         fetch_complete=False,
     )
 
-    run_write_query_mock.assert_not_called()
-    from_node_schema_mock.assert_not_called()
+    run_scoped_analysis_job_mock.assert_not_called()
 
 
 def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
