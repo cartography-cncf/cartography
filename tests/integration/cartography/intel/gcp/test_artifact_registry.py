@@ -33,6 +33,7 @@ from cartography.intel.gcp.artifact_registry.util import (
     load_nodes_without_relationships,
 )
 from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
+from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageBuiltFromMatchLink,
 )
@@ -1148,6 +1149,7 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
                 "parent_image_uri": "pkg:oci/base@sha256:1111",
                 "parent_image_digest": "sha256:1111",
                 "layer_diff_ids": ["sha256:layer-1"],
+                "label_provenance_version": LABEL_PROVENANCE_VERSION,
             },
         ],
         project_id,
@@ -1171,6 +1173,7 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
                 "parent_image_uri": "pkg:oci/other-base@sha256:2222",
                 "parent_image_digest": "sha256:2222",
                 "layer_diff_ids": ["sha256:layer-2"],
+                "label_provenance_version": None,
             },
         ],
         project_id,
@@ -1193,6 +1196,7 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
             image._ont_architecture AS ont_architecture,
             image._ont_os AS ont_os,
             image._ont_variant AS ont_variant,
+            image.label_provenance_version AS label_provenance_version,
             image.lastupdated AS lastupdated
         """,
         image_id=docker_image["digest"],
@@ -1210,6 +1214,7 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["ont_architecture"] == "arm64"
     assert result["ont_os"] == "linux"
     assert result["ont_variant"] == "v9"
+    assert result["label_provenance_version"] == LABEL_PROVENANCE_VERSION
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
 
 

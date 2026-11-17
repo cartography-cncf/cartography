@@ -33,6 +33,7 @@ from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
+from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageBuiltFromMatchLink,
@@ -1081,6 +1082,10 @@ async def _process_single_image(
             result["variant"] = config["variant"]
         if diff_ids:
             result["layer_history"] = layer_history
+        # The stamp marks the whole provenance pass done, so a later sync can skip
+        # this digest. A failed lookup leaves it off, and the digest is retried.
+        if not fetch_failed:
+            result["label_provenance_version"] = LABEL_PROVENANCE_VERSION
     for field in PROVENANCE_SOURCE_FIELDS:
         if provenance.get(field):
             result[field] = provenance[field]
@@ -1095,7 +1100,7 @@ async def _fetch_all_image_provenance(
     docker_artifacts_raw: list[dict[str, Any]],
     project_id: str,
     max_concurrent: int = 50,
-    cached_layer_digests: set[str] | None = None,
+    complete_digests: set[str] | None = None,
     digests_with_source_file: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Run enrichment for all single-image artifacts.
@@ -1110,7 +1115,7 @@ async def _fetch_all_image_provenance(
     token_manager = _TokenManager(resolved)
     sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
-    cached_layer_digests = cached_layer_digests or set()
+    complete_digests = complete_digests or set()
     attestation_digests = _embedded_attestation_digests(docker_artifacts_raw)
     single_images = [
         a
@@ -1157,7 +1162,7 @@ async def _fetch_all_image_provenance(
                 return None
 
     async def bounded_process(
-        artifact: dict[str, Any], client: httpx.AsyncClient
+        artifact: dict[str, Any], fetch_config: bool, client: httpx.AsyncClient
     ) -> tuple[dict[str, Any] | None, bool]:
         parsed = parse_docker_image_uri(artifact.get("uri", ""))
         repository = _repository_path(parsed[0], parsed[1]) if parsed else ""
@@ -1171,7 +1176,7 @@ async def _fetch_all_image_provenance(
                     token_manager,
                     artifact,
                     sbom_artifacts_by_digest,
-                    fetch_config=_artifact_digest(artifact) not in cached_layer_digests,
+                    fetch_config=fetch_config,
                     embedded_provenance=embedded_provenance,
                 )
             except httpx.HTTPStatusError as e:
@@ -1197,18 +1202,18 @@ async def _fetch_all_image_provenance(
                     continue
                 embedded_provenance.update(provenance_by_subject)
 
-        # An enriched digest's config cannot change, and its referrers and SBOMs were
-        # read when it was enriched, so it needs no registry calls. It is processed
-        # again only to apply embedded provenance read in this run.
-        images_to_process = [
-            a
-            for a in single_images
-            if (digest := _artifact_digest(a)) not in cached_layer_digests
-            or digest in embedded_provenance
-        ]
-        tasks = [
-            asyncio.create_task(bounded_process(a, client)) for a in images_to_process
-        ]
+        # A complete digest's config cannot change, and the pass that stamped it
+        # read its referrers and SBOMs, so it is skipped. It is processed again,
+        # without a config fetch, only to apply embedded provenance read this run.
+        tasks = []
+        for artifact in single_images:
+            digest = _artifact_digest(artifact)
+            complete = digest in complete_digests
+            if complete and digest not in embedded_provenance:
+                continue
+            tasks.append(
+                asyncio.create_task(bounded_process(artifact, not complete, client))
+            )
         total = len(tasks)
 
         logger.info("Fetching OCI configs for %d single-image artifacts...", total)
@@ -1316,6 +1321,7 @@ PROVENANCE_UPDATE_FIELDS = (
     "os_features",
     "variant",
     "layer_diff_ids",
+    "label_provenance_version",
 )
 
 PROVENANCE_SOURCE_FIELDS = (
@@ -1363,7 +1369,8 @@ def _get_existing_image_provenance(
             img.source_file AS source_file,
             img.parent_image_uri AS parent_image_uri,
             img.parent_image_digest AS parent_image_digest,
-            img.layer_diff_ids AS layer_diff_ids
+            img.layer_diff_ids AS layer_diff_ids,
+            img.label_provenance_version AS label_provenance_version
         """,
         digests=sorted(digests),
     )
@@ -1584,10 +1591,11 @@ def sync(
         GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
         candidate_digests,
         {"id": project_id},
+        min_label_provenance_version=LABEL_PROVENANCE_VERSION,
     )
     if complete_digests:
         logger.info(
-            "Skipping registry fetches for %d already-enriched GAR digests",
+            "Skipping OCI config fetches for %d already-enriched GAR digests",
             len(complete_digests),
         )
 
@@ -1611,7 +1619,7 @@ def sync(
             credentials,
             docker_artifacts_raw,
             project_id,
-            cached_layer_digests=complete_digests,
+            complete_digests=complete_digests,
             digests_with_source_file=digests_with_source_file,
         ),
     )
@@ -1634,6 +1642,7 @@ def sync(
                 "os_features": e.get("os_features"),
                 "variant": e.get("variant"),
                 "provenance_from_slsa": e.get("provenance_from_slsa", False),
+                "label_provenance_version": e.get("label_provenance_version"),
             }
             for e in enrichments
         ]
