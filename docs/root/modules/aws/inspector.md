@@ -23,10 +23,10 @@ With finding sets, the data that is the same for many instances is stored once:
 (:AWSAccount)-[:MEMBER]->(:AWSInspectorInstanceFindings)
 (:AWSInspectorInstanceFindings)-[:AFFECTS]->(:AWSEC2Instance)
 (:AWSInspectorInstanceFindings)-[:HAS_FINDINGS]->(:AWSInspectorFindingSet)
-(:AWSInspectorFindingSet)-[:CONTAINS]->(:AWSInspectorFindingContent:CVE)
+(:AWSInspectorFindingSet)-[:CONTAINS]->(:AWSInspectorFindingContent)
 (:AWSInspectorFindingContent)-[:HAS]->(:AWSInspectorPackage)
-(:AWSInspectorFindingContent)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)
-(:CVEMetadata)-[:ENRICHES]->(:AWSInspectorFindingContent:CVE)
+(:AWSInspectorFindingContent)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability:CVE)
+(:CVEMetadata)-[:ENRICHES]->(:AWSInspectorVulnerability:CVE)
 ```
 
 - An `AWSInspectorFindingContent` is everything in a finding that does not depend on the
@@ -111,9 +111,11 @@ instances must change. Queries on any other finding do not. Apply these rules in
 7. **Count findings as (instance, content) rows.** A content node can stand for many
    instances, so count `fi` and `f` pairs, not content nodes.
 
-8. **Enrich through the content.** `CVEMetadata` now enriches each content node through
-   the `:CVE` label, so `(m:CVEMetadata)-[:ENRICHES]->(f)` works with `f` bound to the
-   content.
+8. **Enrich and count CVEs through the vulnerability.** The `:CVE` label is on the
+   `AWSInspectorVulnerability`, not on the content, so a query on `:CVE` nodes returns
+   one node per vulnerability instead of one per finding. Reach `CVEMetadata` with
+   `(f)-[:HAS_VULNERABILITY]->(v)<-[:ENRICHES]-(m:CVEMetadata)`. The Inspector score
+   depends on the instance, so read it from `f.cvssscore` and `f.severity`.
 
 ### Example: a remediation SLA report
 

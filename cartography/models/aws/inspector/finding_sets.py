@@ -22,7 +22,6 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RISK
-from cartography.models.ontology.labels import CVE
 
 
 @dataclass(frozen=True)
@@ -143,7 +142,7 @@ class AWSInspectorFindingContentSchema(CartographyNodeSchema):
     properties: AWSInspectorFindingContentNodeProperties = (
         AWSInspectorFindingContentNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK, CVE])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK])
     sub_resource_relationship: InspectorFindingContentToAWSAccountRel = (
         InspectorFindingContentToAWSAccountRel()
     )

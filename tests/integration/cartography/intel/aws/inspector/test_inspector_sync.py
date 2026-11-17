@@ -352,8 +352,9 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
     rows = neo4j_session.run(
         """
         MATCH (i:AWSInspectorInstanceFindings)-[:HAS_FINDINGS]->(:AWSInspectorFindingSet)
-              -[:CONTAINS]->(c:AWSInspectorFindingContent:CVE)
-              -[:HAS_VULNERABILITY]->(v:AWSInspectorVulnerability)
+              -[:CONTAINS]->(c:AWSInspectorFindingContent)
+              -[:HAS_VULNERABILITY]->(v:AWSInspectorVulnerability:CVE)
+        WHERE NOT c:CVE
         MATCH (c)-[h:HAS]->(p:AWSInspectorPackage)
         RETURN i.id AS instance, v.id AS vulnerability, c.cvssscore AS score,
                c.vendorseverity AS vendor_severity, p.id AS package,
