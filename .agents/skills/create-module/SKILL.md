@@ -132,11 +132,9 @@ In `tests/integration/cartography/intel/your_service/test_users.py`, patch only 
 ### Step 8 — Module documentation
 
 Create `docs/root/modules/your_service/index.md` and
-`docs/root/modules/your_service/config.md`. `index.md` contains only the H1
-title and a toctree with `config` and `schema`; it has no prose. Follow
-`references/config-docs.md` exactly for the canonical `config.md` structure
-and content-placement rules. Write every page, docstring, and description in
-the [Google developer documentation style](https://developers.google.com/style).
+`docs/root/modules/your_service/config.md`, then add `config` and `schema` to
+the module's toctree. Follow `references/config-docs.md` exactly for the
+canonical `config.md` structure and content-placement rules.
 
 Do not create or hand-edit `schema.md`. Sphinx generates it from the
 declarative data model. Write human-readable schema documentation in the model
@@ -172,8 +170,7 @@ Sign every commit: `git commit -s -m "..."`. Update the PR description to match 
 - [ ] Required fields use `data["x"]`, optional use `data.get("x")` with `None` default
 - [ ] `extra_index=True` set on frequently queried fields
 - [ ] Integration test exercises `sync()`, asserts nodes + rels with `check_nodes` / `check_rels`
-- [ ] `index.md` contains only the title and a `config` / `schema` toctree, and canonical `config.md` added
-- [ ] Docs, docstrings, and descriptions follow the Google developer documentation style
+- [ ] `index.md` and canonical `config.md` added with a `config` / `schema` toctree
 - [ ] Schema classes have docstrings and displayed `PropertyRef` values have descriptions
 - [ ] No hand-written `schema.md` was added
 - [ ] `make lint` clean, `git commit -s` used

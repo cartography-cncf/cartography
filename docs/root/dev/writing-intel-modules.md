@@ -93,17 +93,12 @@ indirection. Prefer tables for permissions or when documenting three or more
 configuration options. Distinguish required permissions from optional
 permissions and explain any graceful degradation.
 
-A module's `index.md` contains only the H1 title and a toctree that lists
-`config`, `schema`, and any other pages. Put what each node and relationship
-represents, which records are ingested or excluded, and ontology integration
-in model docstrings and `PropertyRef.description`, which Sphinx uses to
-generate `schema.md`. Put Cypher investigations in `queries.md` or
-`examples.md`, and put post-ingestion analysis behavior in `analysis.md`.
-A deprecated module is the one exception: its `index.md` keeps the
-deprecation notice and the link to the replacement module above the toctree.
-
-Write module docs in the
-[Google developer documentation style](https://developers.google.com/style).
+Put module purpose, feature inventories, architecture, broad ingestion
+behavior, and ontology integration in `index.md`. Put Cypher investigations in
+`queries.md` or `examples.md`, and put post-ingestion analysis behavior in
+`analysis.md`. Node, relationship, and property documentation belongs in model
+docstrings and `PropertyRef.description`, which Sphinx uses to generate
+`schema.md`.
 
 ## Sync = Get, Transform, Load, Cleanup
 

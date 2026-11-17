@@ -64,8 +64,6 @@ omit optional sections that do not apply. Never add empty sections.
 
 ## Conventions
 
-- Follow the
-  [Google developer documentation style guide](https://developers.google.com/style).
 - Use exactly one H1 page title: `# <Provider> Configuration`.
 - Start sections at H2 and authentication methods at H3.
 - Order setup as prerequisites, authentication, permissions, Cartography
@@ -86,12 +84,9 @@ omit optional sections that do not apply. Never add empty sections.
 
 Keep `config.md` focused on making the module run:
 
-- Keep `index.md` to the H1 title and a toctree. Don't add prose to it. The
-  one exception is a deprecated module: its `index.md` keeps the deprecation
-  notice and the link to the replacement module above the toctree.
-- Put what each node and relationship represents, which records are ingested
-  or excluded, and ontology integration in schema docstrings and
-  `PropertyRef.description`.
+- Put module purpose, feature inventories, architecture, graph-model
+  narratives, broad ingestion behavior, and ontology integration in
+  `index.md`.
 - Put Cypher investigations and query walkthroughs in `queries.md` or
   `examples.md`.
 - Put post-ingestion logic, risk derivation, and materialized relationship

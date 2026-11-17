@@ -9,9 +9,8 @@ This guide teaches you how to write intel modules for Cartography using the mode
 1. [Procedure Skills](#procedure-skills) - Auto-loaded skills under `.agents/skills/`
 2. [AI Assistant Quick Reference](#ai-assistant-quick-reference) - Key concepts and imports
 3. [Git and Pull Request Guidelines](#git-and-pull-request-guidelines) - Commit signing and PR templates
-4. [Documentation Guidelines](#documentation-guidelines) - Writing style and module page layout
-5. [Quick Start](#quick-start-copy-an-existing-module) - Copy an existing module
-6. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet) - Copy-paste templates
+4. [Quick Start](#quick-start-copy-an-existing-module) - Copy an existing module
+5. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet) - Copy-paste templates
 
 ## Procedure Skills
 
@@ -109,44 +108,6 @@ git commit -s -m "feat(module): add new feature"
 ```
 
 **Pull Request Descriptions**: All pull requests must follow the template at `.github/pull_request_template.md`. Update the PR description to match the template sections if they are missing or incomplete.
-
-## Documentation Guidelines
-
-**Writing style**: Follow the
-[Google developer documentation style guide](https://developers.google.com/style)
-for docs pages, schema docstrings, `PropertyRef` descriptions, CLI help text,
-and PR descriptions. For example, use second person, active voice, present
-tense, sentence-case headings, and code font for labels, properties, options,
-and file names.
-
-**Module `index.md` is only a table of contents**: A module's
-`docs/root/modules/<module>/index.md` contains the H1 title and a toctree, and
-nothing else:
-
-````markdown
-# Your Service
-
-```{toctree}
-config
-schema
-```
-````
-
-Put module content where readers look for it, not in `index.md`:
-
-- What each node and relationship represents, including which records are
-  ingested or excluded: schema docstrings and `PropertyRef` descriptions.
-  Sphinx renders them into the generated `schema.md`.
-- Setup, credentials, permissions, and failure behavior: `config.md`.
-- Cypher walkthroughs: `queries.md` or `examples.md`, added to the toctree.
-- Post-ingestion analysis behavior: `analysis.md`, added to the toctree.
-
-The one exception is a deprecated module. Its `index.md` keeps the
-deprecation notice and the link to the replacement module above the toctree,
-as in `docs/root/modules/gsuite/index.md`.
-
-Some older modules still have prose in `index.md`. Don't copy that pattern.
-Move the prose out when you next edit one of those modules.
 
 ## Quick Start: Copy an Existing Module
 
