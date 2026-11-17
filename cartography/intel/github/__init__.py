@@ -81,11 +81,82 @@ def cleanup_unscoped_github_resources(
 
 
 @timeit
+@timeit
+def sync_ghcr(
+    neo4j_session: neo4j.Session,
+    token: Any,
+    api_url: str,
+    organization: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> bool:
+    """
+    Sync one organization's GitHub Container Registry: container packages,
+    image manifests and layers, tags, and SLSA attestations. Returns whether
+    GitHub listed the organization's packages; False means it refused the
+    token or the endpoint, nothing was synced, and nothing was cleaned up.
+
+    :param token: A classic PAT with ``read:packages``. GitHub Packages and
+        ghcr.io refuse GitHub App installation tokens and fine-grained PATs,
+        so an orchestrator that authenticates the organization with either
+        runs this with a separate token, or skips it with ``skip_ghcr``.
+
+    Everything after the package list is gated on ``cleanup_safe``, not on the
+    list being non-empty, so an organization that legitimately has zero
+    packages still gets its stale images, tags, and attestations reaped, while
+    an endpoint outage or a refused token disables both the fetches and the
+    downstream cleanups and leaves previously synced nodes alone.
+    """
+    ghcr_result = cartography.intel.github.packages.sync_packages(
+        neo4j_session,
+        token,
+        api_url,
+        organization,
+        update_tag,
+        common_job_parameters,
+    )
+    if not ghcr_result.cleanup_safe:
+        return False
+    (
+        ghcr_manifests,
+        _ghcr_manifest_lists,
+        ghcr_tag_rows,
+        ghcr_observed_and_skipped,
+    ) = cartography.intel.github.container_images.sync_container_images(
+        neo4j_session,
+        token,
+        api_url,
+        organization,
+        ghcr_result.packages,
+        update_tag,
+        common_job_parameters,
+    )
+    cartography.intel.github.container_image_tags.sync_container_image_tags(
+        neo4j_session,
+        organization,
+        ghcr_tag_rows,
+        update_tag,
+        common_job_parameters,
+    )
+    cartography.intel.github.container_image_attestations.sync_container_image_attestations(
+        neo4j_session,
+        token,
+        api_url,
+        organization,
+        ghcr_manifests,
+        update_tag,
+        common_job_parameters,
+        additional_observed_digests=ghcr_observed_and_skipped,
+    )
+    return True
+
+
 def start_github_ingestion(
     neo4j_session: neo4j.Session,
     config: Config,
     *,
     skip_unscoped_cleanup: bool = False,
+    skip_ghcr: bool = False,
 ) -> None:
     """
     If this module is configured, perform ingestion of Github  data. Otherwise warn and exit
@@ -95,6 +166,11 @@ def start_github_ingestion(
         scoped to a single organization. External orchestrators that set this
         to True should call cleanup_unscoped_github_resources() once after all
         organizations have been refreshed with the same update tag.
+    :param skip_ghcr: Skip the GitHub Container Registry for every
+        organization. GitHub Packages accepts only classic PATs with
+        ``read:packages``, so an orchestrator that authenticates organizations
+        with a GitHub App or a fine-grained PAT sets this and runs sync_ghcr()
+        itself with a classic PAT; previously synced GHCR nodes are left alone.
     :return: None
     """
     if not config.github_config:
@@ -232,52 +308,15 @@ def start_github_ingestion(
         # Filter out None entries
         valid_repos = [r for r in repos_json if r is not None]
 
-        # Sync GHCR (container packages, image manifests, tags, attestations).
         # Runs before supply_chain.sync so the latter can correlate digests.
-        # Gate on cleanup_safe — not on the packages list — so an org that
-        # legitimately has zero packages still gets its stale GHCR images,
-        # tags, and attestations reaped. An endpoint outage or missing-scope
-        # condition flips cleanup_safe to False, which disables both the
-        # fetches and the downstream cleanups.
-        ghcr_result = cartography.intel.github.packages.sync_packages(
-            neo4j_session,
-            token,
-            api_url,
-            org_name,
-            common_job_parameters["UPDATE_TAG"],
-            common_job_parameters,
-        )
-        if ghcr_result.cleanup_safe:
-            (
-                ghcr_manifests,
-                _ghcr_manifest_lists,
-                ghcr_tag_rows,
-                ghcr_observed_and_skipped,
-            ) = cartography.intel.github.container_images.sync_container_images(
+        if not skip_ghcr:
+            sync_ghcr(
                 neo4j_session,
                 token,
                 api_url,
                 org_name,
-                ghcr_result.packages,
                 common_job_parameters["UPDATE_TAG"],
                 common_job_parameters,
-            )
-            cartography.intel.github.container_image_tags.sync_container_image_tags(
-                neo4j_session,
-                org_name,
-                ghcr_tag_rows,
-                common_job_parameters["UPDATE_TAG"],
-                common_job_parameters,
-            )
-            cartography.intel.github.container_image_attestations.sync_container_image_attestations(
-                neo4j_session,
-                token,
-                api_url,
-                org_name,
-                ghcr_manifests,
-                common_job_parameters["UPDATE_TAG"],
-                common_job_parameters,
-                additional_observed_digests=ghcr_observed_and_skipped,
             )
 
         if valid_repos:
