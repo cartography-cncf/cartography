@@ -64,7 +64,8 @@ class FakeInspector2Client:
     criteria it receives, returns one finding per page and records the ARN of each
     finding it serves, signalling once it has served every finding. Either
     operation can be made to fail, ListFindings can fail differently per finding
-    ID prefix, and it can fail the first request for each page with a given error.
+    ID prefix or page, and it can fail the first request for each page with a given
+    error.
     """
 
     def __init__(
@@ -75,6 +76,7 @@ class FakeInspector2Client:
         list_findings_errors_by_prefix=None,
         list_members_error=None,
         fail_each_page_once=None,
+        list_findings_errors_by_page=None,
     ):
         self.meta = SimpleNamespace(partition="aws", region_name=TEST_REGION)
         self._findings = findings
@@ -83,6 +85,7 @@ class FakeInspector2Client:
         self._list_findings_errors_by_prefix = list_findings_errors_by_prefix or {}
         self._list_members_error = list_members_error
         self._fail_each_page_once = fail_each_page_once
+        self._list_findings_errors_by_page = list_findings_errors_by_page or {}
         self._failed_pages = set()
         self.served_finding_arns = []
         self.all_findings_served = threading.Event()
@@ -116,6 +119,8 @@ class FakeInspector2Client:
         if finding_id_prefix in self._list_findings_errors_by_prefix:
             raise self._list_findings_errors_by_prefix[finding_id_prefix]
         page_key = (finding_id_prefix, nextToken)
+        if page_key in self._list_findings_errors_by_page:
+            raise self._list_findings_errors_by_page[page_key]
         if self._fail_each_page_once and page_key not in self._failed_pages:
             self._failed_pages.add(page_key)
             raise self._fail_each_page_once
@@ -388,8 +393,7 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
         """
         MATCH (i:AWSInspectorInstanceFindings)
         UNWIND i.finding_ids AS finding_id
-        RETURN 'arn:aws:inspector2:' + i.region + ':' + i.awsaccount + ':finding/'
-               + finding_id AS arn
+        RETURN i.finding_arn_prefix + finding_id AS arn
         """,
     ).value()
     assert sorted(arns) == sorted([KERNEL_FINDING_ARN, OPENSSL_FINDING_ARN])
@@ -565,6 +569,45 @@ def test_sync_inspector_migrates_only_the_synced_accounts_cve_findings(
         ("CVE-2023-1234",),
         ("arn:other-admin",),
     }
+
+
+def test_sync_inspector_keeps_an_instance_whose_findings_were_read_partially(
+    neo4j_session,
+):
+    # Arrange: a previous sync stored i-kept with two findings.
+    kernel, openssl = LIST_FINDINGS_EC2_PACKAGE
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run("MERGE (:AWSAccount{id: $acc})", acc=TEST_ACC_ID_1)
+    findings = [
+        _ec2_package_finding(kernel, "i-kept", "1" + "a" * 31),
+        _ec2_package_finding(openssl, "i-kept", "1" + "b" * 31),
+    ]
+    _sync_package_findings(neo4j_session, findings, update_tag=TEST_UPDATE_TAG - 1)
+
+    # Act: Inspector serves the first finding, then rejects the next page.
+    sync(
+        neo4j_session,
+        FakeAioboto3Session(
+            FakeInspector2Client(
+                findings=findings,
+                list_findings_errors_by_page={("1", "1"): INSPECTOR_NOT_ENABLED},
+            ),
+        ),
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACC_ID_1,
+            "experimental_aws_inspector_batch": 1,
+        },
+    )
+
+    # Assert: the instance keeps both findings from the previous sync.
+    finding_ids = neo4j_session.run(
+        "MATCH (i:AWSInspectorInstanceFindings{id: 'i-kept'}) RETURN i.finding_ids",
+    ).single()[0]
+    assert sorted(finding_ids) == ["1" + "a" * 31, "1" + "b" * 31]
 
 
 def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(

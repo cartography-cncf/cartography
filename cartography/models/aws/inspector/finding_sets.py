@@ -96,8 +96,9 @@ class InspectorFindingContentToAWSAccountRelProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:RESOURCE]->(:AWSInspectorFindingContent)
 class InspectorFindingContentToAWSAccountRel(CartographyRelSchema):
+    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorFindingContent)"""
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -115,8 +116,9 @@ class InspectorFindingContentToVulnerabilityRelProperties(CartographyRelProperti
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorFindingContent)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)
 class InspectorFindingContentToVulnerabilityRel(CartographyRelSchema):
+    """(:AWSInspectorFindingContent)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)"""
+
     target_node_label: str = "AWSInspectorVulnerability"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vulnerabilityid")},
@@ -177,8 +179,9 @@ class InspectorFindingContentToPackageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorFindingContent)-[:HAS]->(:AWSInspectorPackage)
 class InspectorFindingContentToPackageMatchLink(CartographyRelSchema):
+    """(:AWSInspectorFindingContent)-[:HAS]->(:AWSInspectorPackage)"""
+
     target_node_label: str = "AWSInspectorPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("packageid")},
@@ -215,8 +218,9 @@ class InspectorFindingSetToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:RESOURCE]->(:AWSInspectorFindingSet)
 class InspectorFindingSetToAWSAccountRel(CartographyRelSchema):
+    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorFindingSet)"""
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -234,8 +238,9 @@ class InspectorFindingSetToContentRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorFindingSet)-[:CONTAINS]->(:AWSInspectorFindingContent)
 class InspectorFindingSetToContentRel(CartographyRelSchema):
+    """(:AWSInspectorFindingSet)-[:CONTAINS]->(:AWSInspectorFindingContent)"""
+
     target_node_label: str = "AWSInspectorFindingContent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("content_ids", one_to_many=True)},
@@ -283,12 +288,17 @@ class AWSInspectorInstanceFindingsNodeProperties(CartographyNodeProperties):
         "finding_set_id",
         description="ID of the instance's `AWSInspectorFindingSet`.",
     )
+    finding_arn_prefix: PropertyRef = PropertyRef(
+        "finding_arn_prefix",
+        description=(
+            "ARN of the instance's findings up to the finding ID, such as "
+            "`arn:aws:inspector2:<region>:<account>:finding/`. Appending an entry of "
+            "`finding_ids` gives that finding's ARN."
+        ),
+    )
     finding_ids: PropertyRef = PropertyRef(
         "finding_ids",
-        description=(
-            "Inspector finding IDs, in the order of the set's `content_ids`. The "
-            "finding ARN is `arn:aws:inspector2:<region>:<awsaccount>:finding/<id>`."
-        ),
+        description="Inspector finding IDs, in the order of the set's `content_ids`.",
     )
     first_observed_at: PropertyRef = PropertyRef(
         "first_observed_at",
@@ -324,8 +334,9 @@ class InspectorInstanceFindingsToAWSAccountRelProperties(CartographyRelPropertie
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:RESOURCE]->(:AWSInspectorInstanceFindings)
 class InspectorInstanceFindingsToAWSAccountRel(CartographyRelSchema):
+    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorInstanceFindings)"""
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -343,8 +354,9 @@ class InspectorInstanceFindingsToMemberAccountRelProperties(CartographyRelProper
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:MEMBER]->(:AWSInspectorInstanceFindings)
 class InspectorInstanceFindingsToMemberAccountRel(CartographyRelSchema):
+    """(:AWSAccount)-[:MEMBER]->(:AWSInspectorInstanceFindings)"""
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("awsaccount")},
@@ -362,8 +374,9 @@ class InspectorInstanceFindingsToEC2InstanceRelProperties(CartographyRelProperti
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorInstanceFindings)-[:AFFECTS]->(:AWSEC2Instance)
 class InspectorInstanceFindingsToEC2InstanceRel(CartographyRelSchema):
+    """(:AWSInspectorInstanceFindings)-[:AFFECTS]->(:AWSEC2Instance)"""
+
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("instanceid")},
@@ -381,8 +394,9 @@ class InspectorInstanceFindingsToSetRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorInstanceFindings)-[:HAS_FINDINGS]->(:AWSInspectorFindingSet)
 class InspectorInstanceFindingsToSetRel(CartographyRelSchema):
+    """(:AWSInspectorInstanceFindings)-[:HAS_FINDINGS]->(:AWSInspectorFindingSet)"""
+
     target_node_label: str = "AWSInspectorFindingSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("finding_set_id")},

@@ -817,8 +817,9 @@ async def _sync_findings_for_account(
     skipped due to a ClientError such as AccessDenied or "Inspector not enabled",
     which are expected and safe to treat as "no findings"). Returns False if the
     region was skipped due to a transient connection-level failure to the regional
-    inspector2 endpoint, in which case the caller must not run cleanup for this
-    account so that last-known-good findings are preserved.
+    inspector2 endpoint, or due to a skippable ClientError after some of the
+    account's EC2 findings had loaded. The caller must then not run cleanup for this
+    account, so that last-known-good findings are preserved.
     """
     region = client.meta.region_name
     logger.info(
@@ -835,6 +836,7 @@ async def _sync_findings_for_account(
             state,
         )
     except _INSPECTOR_TRANSIENT_CONNECTION_ERRORS:
+        state.finding_sets.discard_account(account_id)
         logger.warning(
             "Transient connection failure to Inspector endpoint for account %s "
             "in region %s. Skipping region.",
@@ -845,12 +847,15 @@ async def _sync_findings_for_account(
     except botocore.exceptions.ClientError as e:
         if not _is_skippable_findings_error(e):
             raise
+        # A skippable error after some findings loaded leaves the read incomplete.
+        partial = state.finding_sets.discard_account(account_id)
         logger.warning(
             "Skipping Inspector findings for account %s in region %s: %s",
             account_id,
             region,
             e,
         )
+        return not partial
     return True
 
 

@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Any
+from typing import cast
 
 import pytest
 
@@ -259,6 +261,11 @@ def test_transform_inspector_findings_merges_reference_urls_per_vulnerability():
     ]
 
 
+_KERNEL_DETAILS = cast(
+    dict[str, Any], LIST_FINDINGS_EC2_PACKAGE[0]["packageVulnerabilityDetails"]
+)
+
+
 @pytest.mark.parametrize(
     ("vulnerability_id", "cve_id", "has_cve"),
     [
@@ -295,6 +302,30 @@ def test_transform_inspector_findings_names_only_cves_as_cves(
     [
         ({}, True),
         ({"firstObservedAt": datetime(2023, 1, 1)}, True),
+        (
+            {
+                "packageVulnerabilityDetails": {
+                    **_KERNEL_DETAILS,
+                    "vulnerablePackages": _KERNEL_DETAILS["vulnerablePackages"][::-1],
+                },
+            },
+            True,
+        ),
+        (
+            {
+                "packageVulnerabilityDetails": {
+                    **_KERNEL_DETAILS,
+                    "vulnerablePackages": [
+                        {
+                            **_KERNEL_DETAILS["vulnerablePackages"][0],
+                            "fixedInVersion": "9.9",
+                        },
+                        *_KERNEL_DETAILS["vulnerablePackages"][1:],
+                    ],
+                },
+            },
+            False,
+        ),
         (
             {
                 "inspectorScoreDetails": {

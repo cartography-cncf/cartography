@@ -98,7 +98,7 @@ instances must change. Queries on any other finding do not. Apply these rules in
 
    ```cypher
    WITH fi, f, s, [k IN range(0, size(s.content_ids) - 1) WHERE s.content_ids[k] = f.id][0] AS position
-   RETURN 'arn:aws:inspector2:' + fi.region + ':' + fi.awsaccount + ':finding/' + fi.finding_ids[position] AS arn
+   RETURN fi.finding_arn_prefix + fi.finding_ids[position] AS arn
    ```
 
    To find the instance that has a given finding ARN, take the finding ID after
@@ -136,8 +136,7 @@ WITH fi, f, s, v, h,
      [k IN range(0, size(fi.late_content_ids) - 1) WHERE fi.late_content_ids[k] = f.id] AS late,
      [k IN range(0, size(s.content_ids) - 1) WHERE s.content_ids[k] = f.id][0] AS position
 RETURN f.vulnerabilityid AS cve_id, f.severity AS severity, v.description AS description,
-       'arn:aws:inspector2:' + fi.region + ':' + fi.awsaccount + ':finding/' + fi.finding_ids[position]
-           AS finding_arn,
+       fi.finding_arn_prefix + fi.finding_ids[position] AS finding_arn,
        h.fixedinversion AS fixed_version,
        CASE WHEN size(late) > 0 THEN fi.late_first_observed_at[late[0]] ELSE fi.first_observed_at END
            .epochSeconds AS first_seen,

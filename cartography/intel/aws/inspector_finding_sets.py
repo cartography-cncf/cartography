@@ -47,7 +47,7 @@ def transform_finding_content(
         "vulnerabilityid": details["vulnerabilityId"],
         "cve_id": details["vulnerabilityId"],
         "vendorseverity": details.get("vendorSeverity"),
-        "vulnerablepackageids": package_ids,
+        "vulnerablepackageids": sorted(package_ids),
         "fixavailable": finding.get("fixAvailable"),
         "exploitavailable": finding.get("exploitAvailable"),
         "lastknownexploitat": (finding.get("exploitabilityDetails") or {}).get(
@@ -65,8 +65,10 @@ def transform_finding_content(
     return content
 
 
-def finding_id(finding: Dict[str, Any]) -> str:
-    return finding["findingArn"].rsplit("/", 1)[1]
+def split_finding_arn(finding: Dict[str, Any]) -> Tuple[str, str]:
+    """Split a finding ARN into its prefix, which carries the partition, and its ID."""
+    prefix, finding_id = finding["findingArn"].rsplit("/", 1)
+    return f"{prefix}/", finding_id
 
 
 def _epoch_seconds(value: datetime) -> int:
@@ -83,6 +85,7 @@ def _from_epoch_seconds(value: int) -> datetime:
 class _InstanceFindings:
     awsaccount: str
     imageid: str | None
+    finding_arn_prefix: str
     # Parallel columns keep a large fleet's findings compact while a region syncs.
     content_indexes: array = field(default_factory=lambda: array("I"))
     finding_ids: bytearray = field(default_factory=bytearray)
@@ -105,12 +108,14 @@ class InstanceFindingSets:
 
     def add(self, finding: Dict[str, Any], content_id: str) -> None:
         resource = finding["resources"][0]
+        arn_prefix, raw_finding_id = split_finding_arn(finding)
         instance = self._instances.get(resource["id"])
         if instance is None:
             details = (resource.get("details") or {}).get("awsEc2Instance") or {}
             instance = _InstanceFindings(
                 awsaccount=finding["awsAccountId"],
                 imageid=details.get("imageId"),
+                finding_arn_prefix=arn_prefix,
             )
             self._instances[resource["id"]] = instance
         index = self._content_indexes.get(content_id)
@@ -119,12 +124,22 @@ class InstanceFindingSets:
             self._content_ids.append(content_id)
             self._content_indexes[content_id] = index
         instance.content_indexes.append(index)
-        instance.finding_ids.extend(bytes.fromhex(finding_id(finding)))
+        instance.finding_ids.extend(bytes.fromhex(raw_finding_id))
         instance.first_observed.append(_epoch_seconds(finding["firstObservedAt"]))
         instance.last_observed = max(
             instance.last_observed,
             _epoch_seconds(finding["updatedAt"]),
         )
+
+    def discard_account(self, awsaccount: str) -> bool:
+        """Drop an account's instances after an incomplete read; return whether any were held.
+
+        A partial set would replace the instance's complete set from the last sync.
+        """
+        dropped = [i for i, f in self._instances.items() if f.awsaccount == awsaccount]
+        for instance_id in dropped:
+            del self._instances[instance_id]
+        return bool(dropped)
 
     def build(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Return the region's finding sets and instance findings, and start over."""
@@ -155,6 +170,7 @@ class InstanceFindingSets:
                     "instanceid": instance_id,
                     "awsaccount": instance.awsaccount,
                     "imageid": instance.imageid,
+                    "finding_arn_prefix": instance.finding_arn_prefix,
                     "finding_set_id": set_id,
                     "finding_ids": [findings[c][0] for c in content_ids],
                     "first_observed_at": _from_epoch_seconds(first_observed),
