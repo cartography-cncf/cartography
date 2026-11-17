@@ -662,6 +662,58 @@ def _apply_provenance_to_membership(
         membership["confidence"] = "explicit"
 
 
+def _read_manifest_lists(existing_properties: dict[str, dict[str, Any]]) -> set[str]:
+    """
+    A manifest list never gets a layer closure, so the completeness check cannot skip
+    it. Its digest is immutable, and the provenance its attestations carry is already
+    stored on its children once it has been read at the current version.
+    """
+    return {
+        digest
+        for digest, properties in existing_properties.items()
+        if properties.get("type") == "manifest_list"
+        and (properties.get("label_provenance_version") or 0)
+        >= LABEL_PROVENANCE_VERSION
+    }
+
+
+def load_manifest_list_read_stamps(
+    neo4j_session: neo4j.Session,
+    read_digests: set[str],
+    enriched_digests: set[str],
+    existing_properties: dict[str, dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Stamp manifest lists read in this sync whose child images all have layers. A list
+    whose child failed to enrich stays unstamped so the next sync reads it again.
+    """
+    stamps = [
+        {
+            **existing_properties[digest],
+            "imageDigest": digest,
+            "label_provenance_version": LABEL_PROVENANCE_VERSION,
+        }
+        for digest in read_digests
+        if existing_properties[digest].get("type") == "manifest_list"
+        and set(existing_properties[digest].get("child_image_digests") or [])
+        <= enriched_digests
+    ]
+    if not stamps:
+        return
+    load(
+        neo4j_session,
+        ECRImageLayerEnrichmentSchema(),
+        stamps,
+        batch_size=ECR_LAYER_BATCH_SIZE,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
 def _label_provenance_backfill_candidates(
     skipped_images: list[dict[str, Any]],
     existing_properties: dict[str, dict[str, Any]],
@@ -1079,6 +1131,7 @@ async def fetch_image_layers_async(
     dict[str, str],
     dict[str, dict[str, Any]],
     bool,
+    set[str],
 ]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
@@ -1088,12 +1141,15 @@ async def fetch_image_layers_async(
         - image_digest_map: Map of image URI to image digest
         - history_by_diff_id: Map of diff_id to history command (created_by)
         - image_attestation_map: Map of image URI to provenance data
+        - fetch_complete: False when a transient failure dropped an image
+        - read_digests: Digests whose manifest was read and fully processed
     """
     image_layers_data: dict[str, dict[str, list[str]]] = {}
     image_digest_map: dict[str, str] = {}
     all_history_by_diff_id: dict[str, str] = {}
     image_attestation_map: dict[str, dict[str, Any]] = {}
     fetch_complete = True
+    read_digests: set[str] = set()
     semaphore = asyncio.Semaphore(max_concurrent)
     skip_digests = skip_digests or set()
 
@@ -1340,6 +1396,7 @@ async def fetch_image_layers_async(
             for child_digest, provenance_info in provenance_by_child_digest.items():
                 provenance_by_image_uri[f"{repo_uri}@{child_digest}"] = provenance_info
 
+        read_digests.add(digest)
         # Return if we found layers or provenance data.
         # Manifest lists may have provenance data without platform_layers.
         if platform_layers or provenance_by_image_uri:
@@ -1405,6 +1462,7 @@ async def fetch_image_layers_async(
                 all_history_by_diff_id,
                 image_attestation_map,
                 fetch_complete,
+                read_digests,
             )
 
         progress_interval = max(1, min(100, total // 10 or 1))
@@ -1484,6 +1542,7 @@ async def fetch_image_layers_async(
         all_history_by_diff_id,
         image_attestation_map,
         fetch_complete,
+        read_digests,
     )
 
 
@@ -1649,6 +1708,7 @@ def sync(
             (image["imageDigest"] for image in repo_images_list),
             {"id": current_aws_account_id},
         )
+        complete_digests |= _read_manifest_lists(existing_properties)
         repo_images_list, skipped_images = partition_layer_fetches(
             repo_images_list,
             complete_digests,
@@ -1703,6 +1763,7 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, Any]],
                 bool,
+                set[str],
                 dict[str, dict[str, str]],
             ]:
                 async with create_aioboto3_client(
@@ -1735,6 +1796,7 @@ def sync(
                         history_by_diff_id,
                         image_attestation_map,
                         region_fetch_complete,
+                        read_digests,
                         label_provenance_by_digest,
                     ) = loop.run_until_complete(
                         _fetch_with_async_client(aioboto3_session)
@@ -1778,6 +1840,16 @@ def sync(
             load_ecr_image_layer_memberships(
                 neo4j_session,
                 memberships,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
+            load_manifest_list_read_stamps(
+                neo4j_session,
+                read_digests,
+                complete_digests
+                | {membership["imageDigest"] for membership in memberships},
+                existing_properties,
                 region,
                 current_aws_account_id,
                 update_tag,

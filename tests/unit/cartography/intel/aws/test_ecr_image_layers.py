@@ -601,6 +601,7 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
         history_by_diff_id,
         image_attestation_map,
         fetch_complete,
+        _,
     ) = asyncio.run(
         fetch_image_layers_async(
             AsyncMock(),
@@ -699,7 +700,7 @@ async def test_fetch_image_layers_async_downloads_blobs_on_one_connection_per_sl
 
     # Act
     async with server:
-        image_layers_data, _, _, _, fetch_complete = await fetch_image_layers_async(
+        image_layers_data, _, _, _, fetch_complete, _ = await fetch_image_layers_async(
             ecr_client,
             repo_images_list,
             max_concurrent=max_concurrent,
@@ -808,6 +809,7 @@ def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_tr
         history_by_diff_id,
         image_attestation_map,
         fetch_complete,
+        read_digests,
     ) = asyncio.run(
         fetch_image_layers_async(
             AsyncMock(),
@@ -821,6 +823,7 @@ def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_tr
     assert history_by_diff_id == {}
     assert image_attestation_map == {}
     assert fetch_complete is False
+    assert read_digests == set()
 
 
 def test_fetch_image_layers_async_raises_unexpected_child_failure_over_transient(
@@ -1457,7 +1460,7 @@ def test_sync_retries_with_fresh_session_on_credential_error(mocker, error_code)
         "fetch_image_layers_async",
         side_effect=[
             _credential_error(error_code),
-            ({}, {}, {}, {}, True),
+            ({}, {}, {}, {}, True, set()),
         ],
     )
     factory = MagicMock(return_value="session-refreshed")

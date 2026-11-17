@@ -692,6 +692,7 @@ def test_sync_built_from_relationship(
             }
         },
         True,
+        set(),
     )
 
     sync_ecr_layers(
@@ -1199,12 +1200,17 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
-        await ecr_layers.fetch_image_layers_async(
-            MagicMock(),
-            [repo_image],
-            max_concurrent=1,
-        )
+    (
+        image_layers_data,
+        digest_map,
+        history_map,
+        attestation_map,
+        fetch_complete,
+        read_digests,
+    ) = await ecr_layers.fetch_image_layers_async(
+        MagicMock(),
+        [repo_image],
+        max_concurrent=1,
     )
 
     # Verify platform layers are extracted
@@ -1235,6 +1241,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     # Verify child digest is in digest_map too
     assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
     assert fetch_complete is True
+    assert read_digests == {repo_image["imageDigest"]}
 
 
 @pytest.mark.asyncio
@@ -1306,7 +1313,7 @@ async def test_fetch_image_layers_async_maps_manifest_child_label_provenance(
     mock_batch_get_manifest.side_effect = fake_batch_get_manifest
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, _, provenance_map, fetch_complete = (
+    image_layers_data, digest_map, _, provenance_map, fetch_complete, _ = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1367,7 +1374,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
+    image_layers_data, digest_map, history_map, attestation_map, fetch_complete, _ = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1514,6 +1521,8 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         # image_attestation_map (empty)
         {},
         True,
+        # read_digests
+        {test_data.MANIFEST_LIST_DIGEST},
     )
 
     sync_ecr_layers(
@@ -1589,3 +1598,14 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
         test_data.MANIFEST_LIST_AMD64_DIGEST,
     ) in attests_rels
+
+    # A manifest list read once, whose children all have layers, is not read again.
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    assert mock_fetch_layers.call_count == 1
