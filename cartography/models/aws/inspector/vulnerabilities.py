@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CVE
 
 
 @dataclass(frozen=True)
@@ -94,12 +96,14 @@ class AWSInspectorVulnerabilitySchema(CartographyNodeSchema):
 
     Holds the advisory data that is the same for every finding of the vulnerability, so
     each `AWSInspectorFinding` stores only what is specific to one affected resource.
+    Labeled [`CVE`](#ontology-cve), so `CVEMetadata` enriches one node per vulnerability.
     """
 
     label: str = "AWSInspectorVulnerability"
     properties: AWSInspectorVulnerabilityNodeProperties = (
         AWSInspectorVulnerabilityNodeProperties()
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE])
     sub_resource_relationship: InspectorVulnerabilityToAWSAccountRel = (
         InspectorVulnerabilityToAWSAccountRel()
     )

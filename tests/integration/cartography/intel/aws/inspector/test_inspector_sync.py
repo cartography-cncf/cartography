@@ -420,6 +420,24 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
             [7.5],
         ),
     }
+    # Each vulnerability is one :CVE node, so CVEMetadata enriches it once and the
+    # ontology reads its description from it.
+    assert (
+        {
+            (row["id"], row["cve_id"], row["has_description"])
+            for row in neo4j_session.run(
+                """
+            MATCH (v:AWSInspectorVulnerability:CVE)
+            RETURN v.id AS id, v._ont_cve_id AS cve_id,
+                   v._ont_description = v.description AS has_description
+            """,
+            )
+        }
+        == {
+            ("CVE-2017-9059", "CVE-2017-9059", True),
+            ("CVE-2023-1234", "CVE-2023-1234", True),
+        }
+    )
     # Advisory data lives on the vulnerability, not on each of its findings, and
     # the sync clears it from findings stored before it moved.
     assert (

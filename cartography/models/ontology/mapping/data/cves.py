@@ -482,9 +482,8 @@ aws_inspector_mapping = OntologyMapping(
             node_label="AWSInspectorFinding",
             fields=[
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
-                # Package vulnerability findings leave description unset, so the
-                # ontology has no description or references for them. Read both from
-                # the finding's AWSInspectorVulnerability.
+                # Package vulnerability findings leave description unset; their
+                # AWSInspectorVulnerability carries the CVE description and references.
                 OntologyFieldMapping(
                     ontology_field="description",
                     node_field="description",
@@ -507,6 +506,22 @@ aws_inspector_mapping = OntologyMapping(
                     node_field="severity",
                     special_handling="mapping",
                     extra={"map": _INSPECTOR_SEVERITY},
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="AWSInspectorVulnerability",
+            fields=[
+                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="references",
+                    node_field="referenceurls",
+                    indexed=False,
                 ),
             ],
         ),
