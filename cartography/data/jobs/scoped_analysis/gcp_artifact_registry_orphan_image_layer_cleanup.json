@@ -1,6 +1,6 @@
 {
   "name": "GCP Artifact Registry image layer cleanup",
-  "__comment__": "GAR image layers are keyed by digest and shared across projects, so this removes only the syncing project's stale links to layers. A layer no project links to any more is deleted once per sync, after every project, by cleanup_orphans in cartography.intel.gcp.artifact_registry.orphans.",
+  "__comment__": "GAR image layers are keyed by digest and shared across projects, so this removes only the syncing project's stale links to layers. A layer no project links to any more is deleted once per sync, after every project, by the gcp_artifact_registry_orphan_cleanup.json analysis job.",
   "statements": [
     {
       "__comment__": "Delete this project's stale RESOURCE links to layers. Matched by project endpoint rather than MatchLink properties, so links written before layers were loaded through MatchLinks are removed too.",

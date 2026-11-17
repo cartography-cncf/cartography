@@ -16,7 +16,6 @@ from cartography.intel.gcp.artifact_registry.artifact import transform_maven_art
 from cartography.intel.gcp.artifact_registry.artifact import transform_yum_artifacts
 from cartography.intel.gcp.artifact_registry.manifest import cleanup_manifests
 from cartography.intel.gcp.artifact_registry.manifest import load_manifests
-from cartography.intel.gcp.artifact_registry.orphans import cleanup_orphans
 from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
 )
@@ -46,6 +45,7 @@ from cartography.models.gcp.artifact_registry.image import (
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
 )
+from cartography.util import run_analysis_job
 from cartography.util import run_scoped_analysis_job
 from tests.data.gcp.artifact_registry import MOCK_APT_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
@@ -735,7 +735,11 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
         lastupdated=TEST_UPDATE_TAG + 1,
     )
 
-    cleanup_orphans(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG + 1})
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
 
     result = neo4j_session.run(
         """
@@ -751,7 +755,11 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
     assert result["old_count"] == 0
     assert result["current_count"] == 1
 
-    cleanup_orphans(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG + 2})
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 2},
+    )
     assert (
         neo4j_session.run(
             """
@@ -1071,7 +1079,11 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         project_id,
         {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
     )
-    cleanup_orphans(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG + 1})
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
 
     # Assert
     assert (
@@ -1852,7 +1864,11 @@ def test_image_migration_cleanup_iteratively_deletes_orphan_canonical_images(
             "UPDATE_TAG": TEST_UPDATE_TAG + 1,
         },
     )
-    cleanup_orphans(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG + 1})
+    run_analysis_job(
+        "gcp_artifact_registry_orphan_cleanup.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
 
     assert (
         neo4j_session.run(

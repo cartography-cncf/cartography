@@ -1529,7 +1529,8 @@ def cleanup_image_layers(
     Layer nodes are keyed by digest and shared by every project whose images
     contain them, so a project-scoped node cleanup would delete a layer that a
     project not synced in this run still links to. A layer no project links to
-    any more is deleted by `orphans.cleanup_orphans`, once after every project.
+    any more is deleted by the `gcp_artifact_registry_orphan_cleanup.json`
+    analysis job, once after every project.
     """
     cleanup_params = common_job_parameters.copy()
     cleanup_params["PROJECT_ID"] = project_id
