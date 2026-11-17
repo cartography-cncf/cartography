@@ -283,6 +283,10 @@ class GCPArtifactRegistryRepositoryImageProvenanceNodeProperties(
         "provenance_version",
         description="Version of the provenance pass (config labels, referrers and SBOMs) that last completed for this repository's copy of the image without a fetch failure. Unset after a failed pass, so the image is read again.",
     )
+    provenance_digest: PropertyRef = PropertyRef(
+        "provenance_digest",
+        description="Digest the provenance_version stamp was written for. A tag can move to another digest, so the stamp only counts while this matches the node's digest.",
+    )
 
 
 @dataclass(frozen=True)

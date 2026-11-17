@@ -1260,6 +1260,24 @@ def test_repository_image_provenance_is_tracked_per_repository(neo4j_session):
         {image_a["name"], image_b["name"]},
     ) == {image_a["name"]}
 
+    # The v1 tag moves to a new digest in repo-a. Its node keeps the stamp written
+    # for the old digest, which must not vouch for the new one.
+    moved_digest = f"sha256:{8:064x}"
+    moved = {
+        "name": f"{repo_a}/dockerImages/app@{moved_digest}",
+        "uri": f"us-central1-docker.pkg.dev/{project_id}/repo-a/app@{moved_digest}",
+        "tags": ["v1"],
+        "mediaType": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+    }
+    load_docker_images(
+        neo4j_session,
+        transform_docker_images([moved], repo_a, project_id),
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert _get_provenance_complete_names(neo4j_session, {moved["name"]}) == set()
+
     # A later failed pass in repo-a clears its stamp.
     load_repository_image_provenance(
         neo4j_session,

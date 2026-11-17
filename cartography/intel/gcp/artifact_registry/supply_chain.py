@@ -1429,6 +1429,7 @@ def _get_provenance_complete_names(
                 UNWIND $resource_names AS resource_name
                 MATCH (ri:GCPArtifactRegistryRepositoryImage {resource_name: resource_name})
                 WHERE ri.provenance_version >= $version
+                  AND ri.provenance_digest = ri.digest
                 RETURN DISTINCT ri.resource_name
                 """,
                 resource_names=name_batch,
@@ -1446,8 +1447,14 @@ def load_repository_image_provenance(
     project_id: str,
     update_tag: int,
 ) -> None:
+    # Repository image nodes are keyed by tag, and a tag can move to another digest,
+    # so the stamp also records the digest it was written for.
     rows = [
-        {"id": node_id, "provenance_version": provenance_versions[artifact["name"]]}
+        {
+            "id": node_id,
+            "provenance_version": provenance_versions[artifact["name"]],
+            "provenance_digest": _artifact_digest(artifact),
+        }
         for artifact in docker_artifacts_raw
         if artifact.get("name") in provenance_versions
         for _, node_id in repository_image_refs(artifact)
