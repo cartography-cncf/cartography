@@ -592,9 +592,10 @@ def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(
     neo4j_session, cleaned_account_tag
 ):
     # Arrange: an image in the first account is built on a layer that the second
-    # account also links to. The first account has not been synced yet in this
-    # run, so its edges still carry the last run's tag. The second account either
-    # stopped using the layer, or refreshed the layer and its link in this run.
+    # account also links to, and the second account held the image itself in the
+    # last run. The first account has not been synced yet in this run, so its
+    # edges still carry the last run's tag. The second account either stopped
+    # using the layer, or refreshed the layer and its link in this run.
     image_account = "shared-layer-image-account"
     cleaned_account = "shared-layer-cleaned-account"
     image_digest = "sha256:shared-layer-image"
@@ -610,6 +611,8 @@ def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(
             image.layer_diff_ids = [$base_layer, $app_layer], image.lastupdated = 1
         MERGE (image_account)-[image_resource:RESOURCE]->(image)
         SET image_resource.lastupdated = 1
+        MERGE (cleaned_account)-[dropped_image:RESOURCE]->(image)
+        SET dropped_image.lastupdated = 1
         WITH image, image_account, cleaned_account
         UNWIND [$base_layer, $app_layer, $unused_layer] AS diff_id
         MERGE (layer:AWSECRImageLayer {id: diff_id})
