@@ -101,16 +101,12 @@ def get_complete_layer_digests(
     *,
     batch_size: int = 500,
     min_label_provenance_version: int | None = None,
-    source_satisfies_label_provenance: bool = True,
 ) -> set[str]:
     """
     Return digests whose layer closure is complete for the current scope. With
     min_label_provenance_version, an image whose config labels were read at an older
     version counts as incomplete so its config is read once more, unless it already
     has a source: labels rank below attestations, so re-reading them cannot help.
-    A registry whose stamp also covers its attestation lookups passes
-    source_satisfies_label_provenance=False, since a source read from labels does
-    not show that those lookups ran.
     """
 
     if batch_size <= 0:
@@ -190,14 +186,9 @@ def get_complete_layer_digests(
 
     label_provenance_predicate = ""
     if min_label_provenance_version is not None:
-        source_predicate = (
-            " OR img.source_uri IS NOT NULL"
-            if source_satisfies_label_provenance
-            else ""
-        )
         label_provenance_predicate = (
             "AND (coalesce(img.label_provenance_version, 0) "
-            f">= $min_label_provenance_version{source_predicate})"
+            ">= $min_label_provenance_version OR img.source_uri IS NOT NULL)"
         )
         parameters["min_label_provenance_version"] = min_label_provenance_version
     predicates = f"""

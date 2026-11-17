@@ -12,7 +12,9 @@ from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image_layers import build_next_layer_rows
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
@@ -33,7 +35,6 @@ from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
-from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageBuiltFromMatchLink,
@@ -62,6 +63,11 @@ SINGLE_IMAGE_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.v2+json",
     "application/vnd.oci.image.manifest.v1+json",
 }
+
+# Stamped on an image when its provenance pass (config labels, referrers and SBOMs)
+# completes. Bump it when that pass learns a source images enriched before should be
+# checked for, so each is read once more.
+GAR_PROVENANCE_VERSION = 1
 
 GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
     image_label="GCPArtifactRegistryImage",
@@ -1082,10 +1088,11 @@ async def _process_single_image(
             result["variant"] = config["variant"]
         if diff_ids:
             result["layer_history"] = layer_history
-        # The stamp marks the whole provenance pass done, so a later sync can skip
-        # this digest. A failed lookup leaves it off, and the digest is retried.
-        if not fetch_failed:
-            result["label_provenance_version"] = LABEL_PROVENANCE_VERSION
+    # The stamp lets a later sync skip this digest, so a failed lookup leaves it off
+    # and the digest is retried. An artifact whose config fetch found no config is
+    # never layer-complete, so it is never skipped and needs no stamp.
+    if not fetch_failed and (config is not None or not fetch_config):
+        result["provenance_version"] = GAR_PROVENANCE_VERSION
     for field in PROVENANCE_SOURCE_FIELDS:
         if provenance.get(field):
             result[field] = provenance[field]
@@ -1102,8 +1109,9 @@ async def _fetch_all_image_provenance(
     max_concurrent: int = 50,
     complete_digests: set[str] | None = None,
     digests_with_source_file: set[str] | None = None,
+    provenance_complete_digests: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
-    """Run enrichment for all single-image artifacts.
+    """Run enrichment for single-image artifacts whose provenance pass is not done.
 
     Returns (results, fetch_failures). `fetch_failures` is the count of images
     that hit a transient fetch error; callers use it to suppress stale-layer
@@ -1116,6 +1124,7 @@ async def _fetch_all_image_provenance(
     sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
     complete_digests = complete_digests or set()
+    provenance_complete_digests = provenance_complete_digests or set()
     attestation_digests = _embedded_attestation_digests(docker_artifacts_raw)
     single_images = [
         a
@@ -1202,17 +1211,26 @@ async def _fetch_all_image_provenance(
                     continue
                 embedded_provenance.update(provenance_by_subject)
 
-        # A complete digest's config cannot change, and the pass that stamped it
-        # read its referrers and SBOMs, so it is skipped. It is processed again,
-        # without a config fetch, only to apply embedded provenance read this run.
+        # A digest whose provenance pass completed is skipped: its config cannot
+        # change, and that pass read its referrers and SBOMs. It is processed again
+        # only to apply embedded provenance read this run, which can rerun its SBOM
+        # fallbacks. A digest with a complete layer closure never refetches its config.
         tasks = []
         for artifact in single_images:
             digest = _artifact_digest(artifact)
-            complete = digest in complete_digests
-            if complete and digest not in embedded_provenance:
+            if (
+                digest in provenance_complete_digests
+                and digest not in embedded_provenance
+            ):
                 continue
             tasks.append(
-                asyncio.create_task(bounded_process(artifact, not complete, client))
+                asyncio.create_task(
+                    bounded_process(
+                        artifact,
+                        fetch_config=digest not in complete_digests,
+                        client=client,
+                    )
+                )
             )
         total = len(tasks)
 
@@ -1321,7 +1339,7 @@ PROVENANCE_UPDATE_FIELDS = (
     "os_features",
     "variant",
     "layer_diff_ids",
-    "label_provenance_version",
+    "provenance_version",
 )
 
 PROVENANCE_SOURCE_FIELDS = (
@@ -1370,7 +1388,7 @@ def _get_existing_image_provenance(
             img.parent_image_uri AS parent_image_uri,
             img.parent_image_digest AS parent_image_digest,
             img.layer_diff_ids AS layer_diff_ids,
-            img.label_provenance_version AS label_provenance_version
+            img.provenance_version AS provenance_version
         """,
         digests=sorted(digests),
     )
@@ -1381,6 +1399,29 @@ def _get_existing_image_provenance(
         }
         for row in existing_rows
     }
+
+
+def _get_provenance_complete_digests(
+    neo4j_session: neo4j.Session,
+    digests: set[str],
+    batch_size: int = 1000,
+) -> set[str]:
+    provenance_complete: set[str] = set()
+    for digest_batch in batch(sorted(digests), size=batch_size):
+        provenance_complete.update(
+            neo4j_session.execute_read(
+                read_list_of_values_tx,
+                """
+                UNWIND $digests AS digest
+                MATCH (img:GCPArtifactRegistryImage {digest: digest})
+                WHERE img.provenance_version >= $version
+                RETURN img.digest
+                """,
+                digests=digest_batch,
+                version=GAR_PROVENANCE_VERSION,
+            ),
+        )
+    return provenance_complete
 
 
 def _merge_existing_image_provenance(
@@ -1591,8 +1632,6 @@ def sync(
         GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
         candidate_digests,
         {"id": project_id},
-        min_label_provenance_version=LABEL_PROVENANCE_VERSION,
-        source_satisfies_label_provenance=False,
     )
     if complete_digests:
         logger.info(
@@ -1621,6 +1660,10 @@ def sync(
             docker_artifacts_raw,
             project_id,
             complete_digests=complete_digests,
+            provenance_complete_digests=_get_provenance_complete_digests(
+                neo4j_session,
+                complete_digests,
+            ),
             digests_with_source_file=digests_with_source_file,
         ),
     )
@@ -1629,21 +1672,9 @@ def sync(
         provenance_updates = [
             {
                 "digest": e["digest"],
+                **{field: e.get(field) for field in PROVENANCE_FIELDS},
                 "type": e.get("type", "image"),
-                "media_type": e.get("media_type"),
-                "source_uri": e.get("source_uri"),
-                "source_revision": e.get("source_revision"),
-                "source_file": e.get("source_file"),
-                "parent_image_uri": e.get("parent_image_uri"),
-                "parent_image_digest": e.get("parent_image_digest"),
-                "layer_diff_ids": e.get("layer_diff_ids"),
-                "architecture": e.get("architecture"),
-                "os": e.get("os"),
-                "os_version": e.get("os_version"),
-                "os_features": e.get("os_features"),
-                "variant": e.get("variant"),
                 "provenance_from_slsa": e.get("provenance_from_slsa", False),
-                "label_provenance_version": e.get("label_provenance_version"),
             }
             for e in enrichments
         ]

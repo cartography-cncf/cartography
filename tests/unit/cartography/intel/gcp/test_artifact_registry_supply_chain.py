@@ -21,8 +21,8 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _process_single_image
 from cartography.intel.gcp.artifact_registry.supply_chain import _TokenManager
+from cartography.intel.gcp.artifact_registry.supply_chain import GAR_PROVENANCE_VERSION
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
-from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_ARTIFACT
 from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_DIGEST
 from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_MANIFEST
@@ -587,7 +587,7 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
                 {"created_by": "FROM scratch", "empty_layer": False},
                 {"created_by": "RUN build", "empty_layer": False},
             ],
-            "label_provenance_version": LABEL_PROVENANCE_VERSION,
+            "provenance_version": GAR_PROVENANCE_VERSION,
         },
         {
             "digest": "sha256:img-2",
@@ -628,7 +628,7 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
                 "os_features": None,
                 "variant": None,
                 "provenance_from_slsa": False,
-                "label_provenance_version": LABEL_PROVENANCE_VERSION,
+                "provenance_version": GAR_PROVENANCE_VERSION,
             },
             {
                 "digest": "sha256:img-2",
@@ -646,7 +646,7 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
                 "os_features": None,
                 "variant": None,
                 "provenance_from_slsa": False,
-                "label_provenance_version": None,
+                "provenance_version": None,
             },
         ],
         "proj",
@@ -697,7 +697,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
             "parent_image_uri": "pkg:oci/base@sha256:parent",
             "parent_image_digest": "sha256:parent",
             "layer_diff_ids": ["sha256:a"],
-            "label_provenance_version": LABEL_PROVENANCE_VERSION,
+            "provenance_version": GAR_PROVENANCE_VERSION,
         },
     ]
     updates = [
@@ -716,7 +716,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
             "parent_image_uri": None,
             "parent_image_digest": None,
             "layer_diff_ids": None,
-            "label_provenance_version": None,
+            "provenance_version": None,
         },
     ]
 
@@ -743,7 +743,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
             "parent_image_uri": "pkg:oci/base@sha256:parent",
             "parent_image_digest": "sha256:parent",
             "layer_diff_ids": ["sha256:a"],
-            "label_provenance_version": LABEL_PROVENANCE_VERSION,
+            "provenance_version": GAR_PROVENANCE_VERSION,
         },
     ]
     load_matchlinks_with_progress.assert_called_once()
@@ -900,6 +900,11 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
     fetch = AsyncMock(return_value=([], 0))
     supply_chain.get_complete_layer_digests.return_value = {digest}
     monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", fetch)
+    monkeypatch.setattr(
+        supply_chain,
+        "_get_provenance_complete_digests",
+        MagicMock(return_value={digest}),
+    )
 
     # Act
     supply_chain.sync(
@@ -919,19 +924,50 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
     )
 
     # Assert
-    complete_kwargs = supply_chain.get_complete_layer_digests.call_args.kwargs
-    assert complete_kwargs["min_label_provenance_version"] == LABEL_PROVENANCE_VERSION
-    assert complete_kwargs["source_satisfies_label_provenance"] is False
     assert fetch.await_args.kwargs["complete_digests"] == {digest}
+    assert fetch.await_args.kwargs["provenance_complete_digests"] == {digest}
     supply_chain.refresh_layer_closures.assert_called_once()
 
 
+EXPECTED_BUILDKIT_PROVENANCE = {
+    "source_uri": "https://github.com/example-org/widgets",
+    "source_revision": "1111111111111111111111111111111111111111",
+    "source_file": "services/api/Dockerfile",
+}
+
+
 @pytest.mark.asyncio
-async def test_process_single_image_applies_embedded_provenance_without_fetches(
-    monkeypatch,
+@pytest.mark.parametrize(
+    ("embedded_provenance", "expected_referrer_lookups", "expected_result"),
+    [
+        (
+            {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE},
+            0,
+            {
+                "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+                "source_uri": "https://github.com/example-org/widgets",
+                "source_revision": "1111111111111111111111111111111111111111",
+                "source_file": "services/api/Dockerfile",
+                "provenance_from_slsa": True,
+                "provenance_version": GAR_PROVENANCE_VERSION,
+            },
+        ),
+        (
+            None,
+            1,
+            {
+                "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+                "provenance_version": GAR_PROVENANCE_VERSION,
+            },
+        ),
+    ],
+    ids=["embedded_provenance", "referrer_lookup"],
+)
+async def test_process_single_image_without_config_fetch_stamps_provenance_pass(
+    monkeypatch, embedded_provenance, expected_referrer_lookups, expected_result
 ):
     config_fetch = AsyncMock()
-    provenance_fetch = AsyncMock()
+    provenance_fetch = AsyncMock(return_value={})
     monkeypatch.setattr(supply_chain, "_fetch_image_config", config_fetch)
     monkeypatch.setattr(
         supply_chain,
@@ -948,21 +984,13 @@ async def test_process_single_image_applies_embedded_provenance_without_fetches(
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         fetch_config=False,
-        embedded_provenance={
-            MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE,
-        },
+        embedded_provenance=embedded_provenance,
     )
 
     config_fetch.assert_not_awaited()
-    provenance_fetch.assert_not_awaited()
+    assert provenance_fetch.await_count == expected_referrer_lookups
     assert fetch_failed is False
-    assert result == {
-        "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
-        "source_uri": "https://github.com/example-org/widgets",
-        "source_revision": "1111111111111111111111111111111111111111",
-        "source_file": "services/api/Dockerfile",
-        "provenance_from_slsa": True,
-    }
+    assert result == expected_result
 
 
 def test_gcp_layer_graph_uses_indexed_layer_id():
@@ -974,88 +1002,67 @@ def test_gcp_layer_graph_uses_indexed_layer_id():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_process_single_image_extracts_platform_from_oci_config():
-    client = _FakeClient(
-        {
-            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
-                200,
-                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
-                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
-            ),
-            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
-                200,
-                json_body=MOCK_SINGLE_IMAGE_CONFIG,
-            ),
-        },
-    )
-
-    result, fetch_failed = await _process_single_image(
-        client,
-        _fake_token_manager(),
-        {
-            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
-            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
-            "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        },
-    )
-
-    assert fetch_failed is False
-    assert result == {
-        "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
-        "type": "image",
-        "media_type": "application/vnd.oci.image.manifest.v1+json",
-        "architecture": "arm64",
-        "os": "linux",
-        "variant": "v8",
-        "source_uri": "https://github.com/example/widgets",
-        "source_revision": "0123456789abcdef",
-        "layer_diff_ids": [
-            "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-        ],
-        "layer_history": [
-            {
-                "created_by": "COPY app /app",
-                "empty_layer": False,
-            },
-        ],
-        "label_provenance_version": LABEL_PROVENANCE_VERSION,
-    }
-
-
-@pytest.mark.asyncio
-async def test_process_single_image_without_stamp_when_provenance_lookup_fails():
-    client = _FakeClient(
-        {
-            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
-                200,
-                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
-                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
-            ),
-            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
-                200,
-                json_body=MOCK_SINGLE_IMAGE_CONFIG,
-            ),
-            MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL: _FakeResponse(500),
-        },
-    )
-
-    result, fetch_failed = await _process_single_image(
-        client,
-        _fake_token_manager(),
-        {
-            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
-            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
-            "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        },
-    )
-
-    # Layers still load, but without the stamp the next sync tries again.
-    assert fetch_failed is True
-    assert result["layer_diff_ids"] == [
+EXPECTED_PLATFORM_IMAGE_RESULT = {
+    "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+    "type": "image",
+    "media_type": "application/vnd.oci.image.manifest.v1+json",
+    "architecture": "arm64",
+    "os": "linux",
+    "variant": "v8",
+    "source_uri": "https://github.com/example/widgets",
+    "source_revision": "0123456789abcdef",
+    "layer_diff_ids": [
         "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-    ]
-    assert "label_provenance_version" not in result
+    ],
+    "layer_history": [
+        {
+            "created_by": "COPY app /app",
+            "empty_layer": False,
+        },
+    ],
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("referrers_status", "expected_fetch_failed", "expected_stamp"),
+    [
+        (404, False, {"provenance_version": GAR_PROVENANCE_VERSION}),
+        # Layers still load, but without the stamp the next sync tries again.
+        (500, True, {}),
+    ],
+    ids=["no_referrers", "referrer_lookup_failed"],
+)
+async def test_process_single_image_extracts_platform_from_oci_config(
+    referrers_status, expected_fetch_failed, expected_stamp
+):
+    client = _FakeClient(
+        {
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
+            ),
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_CONFIG,
+            ),
+            MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL: _FakeResponse(referrers_status),
+        },
+    )
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+    )
+
+    assert fetch_failed is expected_fetch_failed
+    assert result == {**EXPECTED_PLATFORM_IMAGE_RESULT, **expected_stamp}
 
 
 @pytest.mark.asyncio
@@ -1226,7 +1233,7 @@ async def test_process_single_image_returns_parent_only_spdx_provenance():
         "layer_diff_ids": [],
         "parent_image_uri": MOCK_SUPPLY_CHAIN_PARENT_IMAGE_URI,
         "parent_image_digest": MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST,
-        "label_provenance_version": LABEL_PROVENANCE_VERSION,
+        "provenance_version": GAR_PROVENANCE_VERSION,
     }
 
 
@@ -1659,13 +1666,6 @@ async def test_fetch_json_applies_quota_project_header():
 # ---------------------------------------------------------------------------
 
 
-EXPECTED_BUILDKIT_PROVENANCE = {
-    "source_uri": "https://github.com/example-org/widgets",
-    "source_revision": "1111111111111111111111111111111111111111",
-    "source_file": "services/api/Dockerfile",
-}
-
-
 def test_embedded_attestation_refs_reads_unknown_platform_entries():
     refs = supply_chain._embedded_attestation_refs(
         [MOCK_BUILDKIT_INDEX_ARTIFACT],
@@ -1794,9 +1794,15 @@ async def test_process_single_image_prefers_slsa_over_inherited_labels():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("complete_digests", "embedded_provenance", "expected_processed"),
+    (
+        "complete_digests",
+        "provenance_complete_digests",
+        "embedded_provenance",
+        "expected_processed",
+    ),
     [
         (
+            set(),
             set(),
             {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE},
             [
@@ -1807,9 +1813,18 @@ async def test_process_single_image_prefers_slsa_over_inherited_labels():
                 ),
             ],
         ),
-        (set(), {}, [(MOCK_SUPPLY_CHAIN_IMAGE_URI, True, {})]),
-        ({MOCK_SUPPLY_CHAIN_IMAGE_DIGEST}, {}, []),
+        (set(), set(), {}, [(MOCK_SUPPLY_CHAIN_IMAGE_URI, True, {})]),
+        # Layers are complete but no provenance pass was stamped: rerun the
+        # referrer and SBOM lookups without refetching the config.
         (
+            {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
+            set(),
+            {},
+            [(MOCK_SUPPLY_CHAIN_IMAGE_URI, False, {})],
+        ),
+        ({MOCK_SUPPLY_CHAIN_IMAGE_DIGEST}, {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST}, {}, []),
+        (
+            {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
             {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
             {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE},
             [
@@ -1824,12 +1839,17 @@ async def test_process_single_image_prefers_slsa_over_inherited_labels():
     ids=[
         "new_digest_with_embedded_provenance",
         "new_digest",
-        "complete_digest",
-        "complete_digest_with_embedded_provenance",
+        "complete_layers_without_stamp",
+        "provenance_complete",
+        "provenance_complete_with_embedded_provenance",
     ],
 )
 async def test_fetch_all_image_provenance_uses_embedded_attestations(
-    monkeypatch, complete_digests, embedded_provenance, expected_processed
+    monkeypatch,
+    complete_digests,
+    provenance_complete_digests,
+    embedded_provenance,
+    expected_processed,
 ):
     credentials = MagicMock()
     credentials.valid = True
@@ -1863,6 +1883,7 @@ async def test_fetch_all_image_provenance_uses_embedded_attestations(
         ],
         "test-project",
         complete_digests=complete_digests,
+        provenance_complete_digests=provenance_complete_digests,
     )
 
     embedded_fetch.assert_awaited_once()
@@ -1872,7 +1893,8 @@ async def test_fetch_all_image_provenance_uses_embedded_attestations(
         MOCK_BUILDKIT_ATTESTATION_DIGEST,
     )
     # The attestation manifest is never enriched as if it were a runnable image, and
-    # a complete digest is skipped unless embedded provenance needs applying.
+    # a digest whose provenance pass completed is skipped unless embedded provenance
+    # needs applying.
     assert processed == expected_processed
 
 
