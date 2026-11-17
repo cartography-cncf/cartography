@@ -1524,12 +1524,12 @@ def cleanup_image_layers(
     project_id: str,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """Remove this project's stale layer links, then layers no project uses.
+    """Remove this project's stale links to layers.
 
     Layer nodes are keyed by digest and shared by every project whose images
     contain them, so a project-scoped node cleanup would delete a layer that a
-    project not synced in this run still links to. Only the project's own
-    RESOURCE links are scoped; a layer node goes once no project links to it.
+    project not synced in this run still links to. A layer no project links to
+    any more is deleted by `orphans.cleanup_orphans`, once after every project.
     """
     cleanup_params = common_job_parameters.copy()
     cleanup_params["PROJECT_ID"] = project_id

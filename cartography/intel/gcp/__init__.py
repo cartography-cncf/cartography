@@ -48,6 +48,7 @@ from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
 from cartography.intel.gcp import workload_identity
+from cartography.intel.gcp.artifact_registry.orphans import cleanup_orphans
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
@@ -1061,6 +1062,9 @@ def start_gcp_ingestion(
     # Note: excluded organizations are deliberately NOT pruned here. An
     # exclusion means the org was never inventoried this run, so its existing
     # data is preserved; callers that want deletion can remove it explicitly.
+
+    if requested_syncs is None or "artifact_registry" in requested_syncs:
+        cleanup_orphans(neo4j_session, common_job_parameters)
 
     if requested_syncs is None or "compute" in requested_syncs:
         run_analysis_job(
