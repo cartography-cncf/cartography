@@ -817,6 +817,13 @@ def convert_layer_history_records(
     ]
 
 
+# A GitLab folder URL has a /-/ separator after the project path, which can be
+# nested in subgroups; a GitHub one follows the owner/repo pair directly.
+_FORGE_FOLDER_URL = re.compile(
+    r"^(?P<repo>https?://[^/]+/(?:.+?(?=/-/(?:tree|blob)/)|[^/]+/[^/]+(?=/(?:tree|blob)/)))",
+)
+
+
 def normalize_vcs_url(url: str) -> str:
     """
     Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
@@ -825,6 +832,7 @@ def normalize_vcs_url(url: str) -> str:
     - https://github.com/org/repo.git
     - git@github.com:org/repo.git
     - https://github.com/org/repo
+    - https://github.com/org/repo/tree/main/services/api (a monorepo folder)
 
     Downstream matching compares source_uri against GitHubRepository.id / GitLabProject.id,
     which use the canonical HTTPS URL without .git suffix (e.g., https://github.com/org/repo).
@@ -839,6 +847,12 @@ def normalize_vcs_url(url: str) -> str:
         host, path = ssh_match.groups()
         normalized = f"https://{host}/{path}"
 
+    # Monorepo builds often label an image with the component's folder URL.
+    folder_match = _FORGE_FOLDER_URL.match(normalized)
+    if folder_match:
+        normalized = folder_match.group("repo")
+
+    normalized = normalized.rstrip("/")
     if normalized.endswith(".git"):
         normalized = normalized[:-4]
 

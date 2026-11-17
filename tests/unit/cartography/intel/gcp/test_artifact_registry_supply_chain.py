@@ -60,11 +60,29 @@ from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
 # ---------------------------------------------------------------------------
 
 
-def test_extract_provenance_from_oci_config_reads_labels():
+@pytest.mark.parametrize(
+    "source_label, expected_source_uri",
+    [
+        ("https://github.com/foo/bar.git", "https://github.com/foo/bar"),
+        (
+            "https://github.com/foo/bar/tree/main/services/api",
+            "https://github.com/foo/bar",
+        ),
+        (
+            "https://gitlab.example.com/foo/sub/bar/-/tree/main/services/api",
+            "https://gitlab.example.com/foo/sub/bar",
+        ),
+        ("https://github.com/tree/bar", "https://github.com/tree/bar"),
+    ],
+    ids=["dot-git", "github-folder", "gitlab-folder", "owner-named-tree"],
+)
+def test_extract_provenance_from_oci_config_reads_labels(
+    source_label, expected_source_uri
+):
     config = {
         "config": {
             "Labels": {
-                "org.opencontainers.image.source": "https://github.com/foo/bar.git",
+                "org.opencontainers.image.source": source_label,
                 "org.opencontainers.image.revision": "deadbeef",
             },
         },
@@ -72,7 +90,7 @@ def test_extract_provenance_from_oci_config_reads_labels():
 
     provenance = extract_provenance_from_oci_config(config)
 
-    assert provenance["source_uri"] == "https://github.com/foo/bar"
+    assert provenance["source_uri"] == expected_source_uri
     assert provenance["source_revision"] == "deadbeef"
 
 
