@@ -714,7 +714,14 @@ async def test_fetch_image_layers_async_downloads_blobs_on_one_connection_per_sl
 
 
 @pytest.mark.asyncio
-async def test_fetch_image_layers_async_cancels_siblings_on_unexpected_failure(mocker):
+@pytest.mark.parametrize(
+    "fetch",
+    [
+        fetch_image_layers_async,
+        ecr_layers.fetch_config_label_provenance_async,
+    ],
+)
+async def test_fetch_cancels_siblings_on_unexpected_failure(mocker, fetch):
     repo_uri = "111122223333.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
         {
@@ -756,7 +763,7 @@ async def test_fetch_image_layers_async_cancels_siblings_on_unexpected_failure(m
     )
 
     with pytest.raises(ClientError):
-        await fetch_image_layers_async(
+        await fetch(
             AsyncMock(),
             repo_images_list,
             max_concurrent=2,

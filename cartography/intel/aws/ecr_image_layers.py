@@ -787,24 +787,45 @@ async def fetch_config_label_provenance_async(
                 return None
             return digest, _extract_config_label_provenance(config_json)
 
-        results = await asyncio.gather(*(_read(image) for image in repo_images))
+        tasks = [asyncio.create_task(_read(image)) for image in repo_images]
+        try:
+            results = await asyncio.gather(*tasks)
+        except BaseException:
+            # Drain sibling reads before the clients close and the retry reuses this loop.
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
     return dict(result for result in results if result is not None)
 
 
 def load_label_provenance_backfill(
     neo4j_session: neo4j.Session,
     label_provenance_by_digest: dict[str, dict[str, str]],
+    loaded_memberships: list[dict[str, Any]],
     existing_properties: dict[str, dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
+    """
+    Apply config label provenance to already-enriched images. An image that received
+    attestation provenance earlier in this sync starts from that membership, and an
+    attested source is kept whole: labels rank below attestations.
+    """
     if not label_provenance_by_digest:
         return
+    loaded_by_digest = {
+        membership["imageDigest"]: membership for membership in loaded_memberships
+    }
     memberships = []
     for digest, provenance in label_provenance_by_digest.items():
-        membership = {**existing_properties[digest], "imageDigest": digest}
-        _apply_provenance_to_membership(membership, provenance)
+        membership = {
+            **loaded_by_digest.get(digest, existing_properties[digest]),
+            "imageDigest": digest,
+        }
+        if not membership.get("source_uri"):
+            _apply_provenance_to_membership(membership, provenance)
         membership["label_provenance_version"] = LABEL_PROVENANCE_VERSION
         memberships.append(membership)
     logger.info(
@@ -1857,6 +1878,7 @@ def sync(
             load_label_provenance_backfill(
                 neo4j_session,
                 label_provenance_by_digest,
+                memberships,
                 existing_properties,
                 region,
                 current_aws_account_id,

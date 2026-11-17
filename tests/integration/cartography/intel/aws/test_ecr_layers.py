@@ -1443,6 +1443,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     mock_fetch_layers,
     mock_get_repos,
     neo4j_session,
+    mocker,
 ):
     """
     Regression test for bug where ecr_image_layers sync would overwrite AWSECRImage properties to NULL.
@@ -1609,3 +1610,66 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
     assert mock_fetch_layers.call_count == 1
+
+    # A graph from before the version stamp: the list re-reads its attestation for
+    # the enriched AMD64 child, which also gets a config-only label backfill, while
+    # the ARM64 child lost its layers and fails to enrich again.
+    neo4j_session.run(
+        "MATCH (img:AWSECRImage) REMOVE img.label_provenance_version"
+    ).consume()
+    neo4j_session.run(
+        "MATCH (img:AWSECRImage {digest: $digest}) REMOVE img.layer_diff_ids",
+        digest=test_data.MANIFEST_LIST_ARM64_DIGEST,
+    ).consume()
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository"
+    amd64_uri = f"{repo_uri}@{test_data.MANIFEST_LIST_AMD64_DIGEST}"
+    attested_source = "https://github.com/exampleorg/multi-arch"
+    mock_fetch_layers.return_value = (
+        {},
+        {amd64_uri: test_data.MANIFEST_LIST_AMD64_DIGEST},
+        {},
+        {
+            amd64_uri: {
+                "source_uri": attested_source,
+                ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+            },
+        },
+        True,
+        {test_data.MANIFEST_LIST_DIGEST},
+    )
+    mocker.patch.object(
+        ecr_layers,
+        "fetch_config_label_provenance_async",
+        return_value={
+            test_data.MANIFEST_LIST_AMD64_DIGEST: {
+                "source_uri": "https://github.com/exampleorg/from-labels",
+            },
+        },
+    )
+    later_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID}
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        later_parameters,
+    )
+    assert (
+        test_data.MANIFEST_LIST_AMD64_DIGEST,
+        attested_source,
+    ) in check_nodes(neo4j_session, "AWSECRImage", ["digest", "source_uri"])
+
+    # The list stays unstamped while a child lacks layers, so it is read again.
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        later_parameters,
+    )
+    assert {image["imageDigest"] for image in mock_fetch_layers.call_args.args[1]} == {
+        test_data.MANIFEST_LIST_DIGEST,
+        test_data.MANIFEST_LIST_ARM64_DIGEST,
+    }
