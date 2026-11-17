@@ -1507,6 +1507,28 @@ def test_missing_parent_is_stored_then_linked_once_it_exists(
         == 1
     )
 
+    # The image is shared with another project that last wrote the link and will
+    # drop it in its cleanup; this project takes the link over.
+    neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {id: $child_digest})-[link:BUILT_FROM]->()
+        SET link._sub_resource_id = 'other-project'
+        """,
+        child_digest=child["digest"],
+    ).consume()
+    load_missing_built_from(neo4j_session, project_id, TEST_UPDATE_TAG + 2)
+
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (:GCPArtifactRegistryImage {id: $child_digest})-[link:BUILT_FROM]->()
+        RETURN collect(link._sub_resource_id) AS owners
+        """,
+            child_digest=child["digest"],
+        ).single()["owners"]
+        == [project_id]
+    )
+
 
 def test_gcp_artifact_registry_built_from_cleanup_removes_stale_edges(
     neo4j_session,

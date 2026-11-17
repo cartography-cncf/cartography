@@ -1580,11 +1580,12 @@ def load_missing_built_from(
     project_id: str,
     update_tag: int,
 ) -> None:
-    """Link this project's images to parents that were missing when they were read.
+    """Link this project's images to their parents from stored parent fields.
 
-    A parent can live in another project that syncs later, so its BUILT_FROM link
-    is created from the stored parent fields once the parent exists, without
-    reading the image from the registry again.
+    A skipped image is not read from the registry again, so its BUILT_FROM link is
+    loaded here when this project does not own one: the parent can live in a
+    project that syncs later, and an image shared with another project can carry
+    that project's link, which its cleanup removes once it drops the image.
     """
     unlinked = neo4j_session.execute_read(
         read_list_of_dicts_tx,
@@ -1596,8 +1597,9 @@ def load_missing_built_from(
         WHERE img.parent_image_digest IS NOT NULL
           AND img.parent_image_uri IS NOT NULL
           AND NOT exists {
-              MATCH (img)-[:BUILT_FROM]->
+              MATCH (img)-[link:BUILT_FROM]->
                     (:GCPArtifactRegistryImage {digest: img.parent_image_digest})
+              WHERE link._sub_resource_id = $project_id
           }
         RETURN DISTINCT
             img.digest AS digest,
