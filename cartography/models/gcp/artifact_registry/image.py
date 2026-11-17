@@ -99,10 +99,6 @@ class GCPArtifactRegistryImageProvenanceNodeProperties(CartographyNodeProperties
         "media_type",
         description="OCI media type describing the manifest or artifact payload.",
     )
-    provenance_version: PropertyRef = PropertyRef(
-        "provenance_version",
-        description="Version of the provenance pass (config labels, referrers and SBOMs) that last completed for this image without a fetch failure. Images below the current version are read again.",
-    )
     architecture: PropertyRef = PropertyRef(
         "architecture",
         description="CPU architecture declared by the OCI image configuration.",

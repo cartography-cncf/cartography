@@ -20,6 +20,7 @@ from cartography.intel.container_image_layers import build_next_layer_rows
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
 from cartography.intel.container_image_layers import get_complete_layer_digests
 from cartography.intel.container_image_layers import refresh_layer_closures
+from cartography.intel.gcp.artifact_registry.artifact import repository_image_refs
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
@@ -54,6 +55,9 @@ from cartography.models.gcp.artifact_registry.image_layer import (
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryProjectToImageLayerRel,
 )
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageProvenanceSchema,
+)
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
@@ -64,9 +68,10 @@ SINGLE_IMAGE_MEDIA_TYPES = {
     "application/vnd.oci.image.manifest.v1+json",
 }
 
-# Stamped on an image when its provenance pass (config labels, referrers and SBOMs)
-# completes. Bump it when that pass learns a source images enriched before should be
-# checked for, so each is read once more.
+# Stamped on a repository image when its provenance pass (config labels, referrers and
+# SBOMs) completes. Referrers and SBOM tags are read per repository, so a digest copied
+# to another repository is read there too. Bump it when the pass learns a source that
+# images enriched before should be checked for, so each is read once more.
 GAR_PROVENANCE_VERSION = 1
 
 GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
@@ -1088,11 +1093,6 @@ async def _process_single_image(
             result["variant"] = config["variant"]
         if diff_ids:
             result["layer_history"] = layer_history
-    # The stamp lets a later sync skip this digest, so a failed lookup leaves it off
-    # and the digest is retried. An artifact whose config fetch found no config is
-    # never layer-complete, so it is never skipped and needs no stamp.
-    if not fetch_failed and (config is not None or not fetch_config):
-        result["provenance_version"] = GAR_PROVENANCE_VERSION
     for field in PROVENANCE_SOURCE_FIELDS:
         if provenance.get(field):
             result[field] = provenance[field]
@@ -1109,13 +1109,16 @@ async def _fetch_all_image_provenance(
     max_concurrent: int = 50,
     complete_digests: set[str] | None = None,
     digests_with_source_file: set[str] | None = None,
-    provenance_complete_digests: set[str] | None = None,
-) -> tuple[list[dict[str, Any]], int]:
+    provenance_complete_names: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], int, dict[str, int | None]]:
     """Run enrichment for single-image artifacts whose provenance pass is not done.
 
-    Returns (results, fetch_failures). `fetch_failures` is the count of images
-    that hit a transient fetch error; callers use it to suppress stale-layer
-    cleanup when the enrichment pass was incomplete.
+    Returns (results, fetch_failures, provenance_versions). `fetch_failures` is
+    the count of images that hit a transient fetch error; callers use it to
+    suppress stale-layer cleanup when the enrichment pass was incomplete.
+    `provenance_versions` maps each processed artifact's resource name to the
+    stamp its repository images get: GAR_PROVENANCE_VERSION, or None when a fetch
+    failed, which clears an earlier stamp so the artifact is read again.
     """
     resolved = _resolve_credentials(credentials)
     if not resolved.valid:
@@ -1124,7 +1127,7 @@ async def _fetch_all_image_provenance(
     sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
     complete_digests = complete_digests or set()
-    provenance_complete_digests = provenance_complete_digests or set()
+    provenance_complete_names = provenance_complete_names or set()
     attestation_digests = _embedded_attestation_digests(docker_artifacts_raw)
     single_images = [
         a
@@ -1133,11 +1136,12 @@ async def _fetch_all_image_provenance(
         and _artifact_digest(a) not in attestation_digests
     ]
     if not single_images:
-        return [], 0
+        return [], 0, {}
 
     semaphore = asyncio.Semaphore(max_concurrent)
     results: list[dict[str, Any]] = []
     fetch_failures = 0
+    provenance_versions: dict[str, int | None] = {}
     embedded_provenance: dict[str, dict[str, str]] = {}
     # Read access is granted per repository, so once a repository answers 403
     # the rest of its fetches are skipped and reported once, with a count.
@@ -1171,6 +1175,16 @@ async def _fetch_all_image_provenance(
                 return None
 
     async def bounded_process(
+        artifact: dict[str, Any], fetch_config: bool, client: httpx.AsyncClient
+    ) -> tuple[dict[str, Any] | None, bool]:
+        result, failed = await _bounded_process(artifact, fetch_config, client)
+        if artifact.get("name"):
+            provenance_versions[artifact["name"]] = (
+                None if failed else GAR_PROVENANCE_VERSION
+            )
+        return result, failed
+
+    async def _bounded_process(
         artifact: dict[str, Any], fetch_config: bool, client: httpx.AsyncClient
     ) -> tuple[dict[str, Any] | None, bool]:
         parsed = parse_docker_image_uri(artifact.get("uri", ""))
@@ -1211,15 +1225,17 @@ async def _fetch_all_image_provenance(
                     continue
                 embedded_provenance.update(provenance_by_subject)
 
-        # A digest whose provenance pass completed is skipped: its config cannot
-        # change, and that pass read its referrers and SBOMs. It is processed again
-        # only to apply embedded provenance read this run, which can rerun its SBOM
-        # fallbacks. A digest with a complete layer closure never refetches its config.
+        # An artifact whose layers are complete and whose repository image is stamped
+        # is skipped: its config cannot change, and the stamped pass read this
+        # repository's referrers and SBOMs. It is processed again only to apply
+        # embedded provenance read this run, which can rerun its SBOM fallbacks. A
+        # digest with a complete layer closure never refetches its config.
         tasks = []
         for artifact in single_images:
             digest = _artifact_digest(artifact)
             if (
-                digest in provenance_complete_digests
+                digest in complete_digests
+                and artifact.get("name") in provenance_complete_names
                 and digest not in embedded_provenance
             ):
                 continue
@@ -1266,7 +1282,7 @@ async def _fetch_all_image_provenance(
         total,
         fetch_failures,
     )
-    return results, fetch_failures
+    return results, fetch_failures, provenance_versions
 
 
 def _build_layer_dicts(
@@ -1339,7 +1355,6 @@ PROVENANCE_UPDATE_FIELDS = (
     "os_features",
     "variant",
     "layer_diff_ids",
-    "provenance_version",
 )
 
 PROVENANCE_SOURCE_FIELDS = (
@@ -1387,8 +1402,7 @@ def _get_existing_image_provenance(
             img.source_file AS source_file,
             img.parent_image_uri AS parent_image_uri,
             img.parent_image_digest AS parent_image_digest,
-            img.layer_diff_ids AS layer_diff_ids,
-            img.provenance_version AS provenance_version
+            img.layer_diff_ids AS layer_diff_ids
         """,
         digests=sorted(digests),
     )
@@ -1401,27 +1415,53 @@ def _get_existing_image_provenance(
     }
 
 
-def _get_provenance_complete_digests(
+def _get_provenance_complete_names(
     neo4j_session: neo4j.Session,
-    digests: set[str],
+    resource_names: set[str],
     batch_size: int = 1000,
 ) -> set[str]:
     provenance_complete: set[str] = set()
-    for digest_batch in batch(sorted(digests), size=batch_size):
+    for name_batch in batch(sorted(resource_names), size=batch_size):
         provenance_complete.update(
             neo4j_session.execute_read(
                 read_list_of_values_tx,
                 """
-                UNWIND $digests AS digest
-                MATCH (img:GCPArtifactRegistryImage {digest: digest})
-                WHERE img.provenance_version >= $version
-                RETURN img.digest
+                UNWIND $resource_names AS resource_name
+                MATCH (ri:GCPArtifactRegistryRepositoryImage {resource_name: resource_name})
+                WHERE ri.provenance_version >= $version
+                RETURN DISTINCT ri.resource_name
                 """,
-                digests=digest_batch,
+                resource_names=name_batch,
                 version=GAR_PROVENANCE_VERSION,
             ),
         )
     return provenance_complete
+
+
+@timeit
+def load_repository_image_provenance(
+    neo4j_session: neo4j.Session,
+    docker_artifacts_raw: list[dict[str, Any]],
+    provenance_versions: dict[str, int | None],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    rows = [
+        {"id": node_id, "provenance_version": provenance_versions[artifact["name"]]}
+        for artifact in docker_artifacts_raw
+        if artifact.get("name") in provenance_versions
+        for _, node_id in repository_image_refs(artifact)
+    ]
+    load_nodes_without_relationships(
+        neo4j_session,
+        GCPArtifactRegistryRepositoryImageProvenanceSchema(),
+        rows,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        progress_description=(
+            f"Artifact Registry repository image provenance state for project {project_id}"
+        ),
+        lastupdated=update_tag,
+    )
 
 
 def _merge_existing_image_provenance(
@@ -1655,18 +1695,30 @@ def sync(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-    enrichments, fetch_failures = loop.run_until_complete(
+    enrichments, fetch_failures, provenance_versions = loop.run_until_complete(
         _fetch_all_image_provenance(
             credentials,
             docker_artifacts_raw,
             project_id,
             complete_digests=complete_digests,
-            provenance_complete_digests=_get_provenance_complete_digests(
+            provenance_complete_names=_get_provenance_complete_names(
                 neo4j_session,
-                complete_digests,
+                {
+                    artifact["name"]
+                    for artifact in docker_artifacts_raw
+                    if artifact.get("name")
+                    and _artifact_digest(artifact) in complete_digests
+                },
             ),
             digests_with_source_file=digests_with_source_file,
         ),
+    )
+    load_repository_image_provenance(
+        neo4j_session,
+        docker_artifacts_raw,
+        provenance_versions,
+        project_id,
+        update_tag,
     )
 
     if enrichments:

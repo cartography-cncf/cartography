@@ -353,6 +353,20 @@ def get_yum_artifacts(
         return None
 
 
+def repository_image_refs(image: dict) -> list[tuple[str | None, str]]:
+    """Return (tag, node id) for each repository image node of a DockerImage record.
+
+    A tagged record has one node per tag, keyed by its tagged pull URI. An untagged
+    record has one node keyed by its digest-pinned URI.
+    """
+    digest_uri = image.get("uri", "")
+    base_uri = digest_uri.rsplit("@", 1)[0] if "@" in digest_uri else digest_uri
+    tags = image.get("tags") or []
+    if not tags:
+        return [(None, digest_uri)]
+    return [(tag, f"{base_uri}:{tag}") for tag in tags]
+
+
 def transform_docker_images(
     images_data: list[dict],
     repository_id: str,
@@ -366,12 +380,9 @@ def transform_docker_images(
         name = image.get("name", "")
         digest_uri = image.get("uri", "")
         digest = digest_uri.split("@")[-1] if "@" in digest_uri else None
-        base_uri = digest_uri.rsplit("@", 1)[0] if "@" in digest_uri else digest_uri
         tags = image.get("tags") or []
-        refs = tags or [None]
 
-        for tag in refs:
-            uri = f"{base_uri}:{tag}" if tag else digest_uri
+        for tag, uri in repository_image_refs(image):
             transformed.append(
                 {
                     "id": uri,

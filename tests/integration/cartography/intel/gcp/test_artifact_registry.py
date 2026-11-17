@@ -21,7 +21,7 @@ from cartography.intel.gcp.artifact_registry.repository import (
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
 from cartography.intel.gcp.artifact_registry.supply_chain import (
-    _get_provenance_complete_digests,
+    _get_provenance_complete_names,
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import cleanup_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import GAR_PROVENANCE_VERSION
@@ -30,6 +30,9 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
+from cartography.intel.gcp.artifact_registry.supply_chain import (
+    load_repository_image_provenance,
+)
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -1132,13 +1135,7 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
 
     docker_image = _make_docker_image(repo_id, 9001)
-    unstamped_image = _make_docker_image(repo_id, 9002)
-    load_docker_images(
-        neo4j_session,
-        [docker_image, unstamped_image],
-        project_id,
-        TEST_UPDATE_TAG,
-    )
+    load_docker_images(neo4j_session, [docker_image], project_id, TEST_UPDATE_TAG)
 
     load_image_provenance(
         neo4j_session,
@@ -1158,7 +1155,6 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
                 "parent_image_uri": "pkg:oci/base@sha256:1111",
                 "parent_image_digest": "sha256:1111",
                 "layer_diff_ids": ["sha256:layer-1"],
-                "provenance_version": GAR_PROVENANCE_VERSION,
             },
         ],
         project_id,
@@ -1182,7 +1178,6 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
                 "parent_image_uri": "pkg:oci/other-base@sha256:2222",
                 "parent_image_digest": "sha256:2222",
                 "layer_diff_ids": ["sha256:layer-2"],
-                "provenance_version": None,
             },
         ],
         project_id,
@@ -1205,7 +1200,6 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
             image._ont_architecture AS ont_architecture,
             image._ont_os AS ont_os,
             image._ont_variant AS ont_variant,
-            image.provenance_version AS provenance_version,
             image.lastupdated AS lastupdated
         """,
         image_id=docker_image["digest"],
@@ -1223,12 +1217,65 @@ def test_load_image_provenance_preserves_source_and_updates_metadata(
     assert result["ont_architecture"] == "arm64"
     assert result["ont_os"] == "linux"
     assert result["ont_variant"] == "v9"
-    assert result["provenance_version"] == GAR_PROVENANCE_VERSION
-    assert _get_provenance_complete_digests(
-        neo4j_session,
-        {docker_image["digest"], unstamped_image["digest"]},
-    ) == {docker_image["digest"]}
     assert result["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
+def test_repository_image_provenance_is_tracked_per_repository(neo4j_session):
+    project_id = "test-gar-provenance-stamp-project"
+    repo_a = f"projects/{project_id}/locations/us-central1/repositories/repo-a"
+    repo_b = f"projects/{project_id}/locations/us-central1/repositories/repo-b"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_a, repo_b])
+    digest = f"sha256:{7:064x}"
+    image_a = {
+        "name": f"{repo_a}/dockerImages/app@{digest}",
+        "uri": f"us-central1-docker.pkg.dev/{project_id}/repo-a/app@{digest}",
+        "tags": ["v1", "v2"],
+        "mediaType": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+    }
+    image_b = {
+        "name": f"{repo_b}/dockerImages/app@{digest}",
+        "uri": f"us-central1-docker.pkg.dev/{project_id}/repo-b/app@{digest}",
+        "tags": [],
+        "mediaType": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+    }
+    listing = transform_docker_images(
+        [image_a], repo_a, project_id
+    ) + transform_docker_images([image_b], repo_b, project_id)
+    load_docker_images(neo4j_session, listing, project_id, TEST_UPDATE_TAG)
+
+    # The same digest's pass succeeded in repo-a and failed in repo-b.
+    load_repository_image_provenance(
+        neo4j_session,
+        [image_a, image_b],
+        {image_a["name"]: GAR_PROVENANCE_VERSION, image_b["name"]: None},
+        project_id,
+        TEST_UPDATE_TAG,
+    )
+    # The next listing load does not touch the stamps.
+    load_docker_images(neo4j_session, listing, project_id, TEST_UPDATE_TAG + 1)
+
+    assert _get_provenance_complete_names(
+        neo4j_session,
+        {image_a["name"], image_b["name"]},
+    ) == {image_a["name"]}
+
+    # A later failed pass in repo-a clears its stamp.
+    load_repository_image_provenance(
+        neo4j_session,
+        [image_a],
+        {image_a["name"]: None},
+        project_id,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert (
+        _get_provenance_complete_names(
+            neo4j_session,
+            {image_a["name"], image_b["name"]},
+        )
+        == set()
+    )
 
 
 def test_load_image_provenance_slsa_replaces_label_source(neo4j_session):
