@@ -294,9 +294,15 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     from cartography.intel.github import start_github_ingestion
 
     neo4j_session = Mock()
-    start_github_ingestion(neo4j_session, config, skip_unscoped_cleanup=True)
+    start_github_ingestion(
+        neo4j_session, config, skip_unscoped_cleanup=True, skip_ghcr=True
+    )
 
     mock_make_credential.assert_called_once_with(github_config["organization"][0])
+    mock_packages_sync.assert_not_called()
+    mock_container_images_sync.assert_not_called()
+    mock_container_tags_sync.assert_not_called()
+    mock_attestations_sync.assert_not_called()
     mock_external_identities_sync.assert_called_once_with(
         neo4j_session,
         {"UPDATE_TAG": config.update_tag},
@@ -869,3 +875,51 @@ def test_parse_github_timestamp_missing_is_none_but_malformed_raises():
         parse_github_timestamp("2024-01-02T03:04:05")  # no UTC offset
     with pytest.raises(TypeError):
         parse_github_timestamp(0)
+
+
+@pytest.mark.parametrize("cleanup_safe", [True, False], ids=["listed", "refused"])
+@patch(
+    "cartography.intel.github.container_image_attestations.sync_container_image_attestations"
+)
+@patch("cartography.intel.github.container_image_tags.sync_container_image_tags")
+@patch(
+    "cartography.intel.github.container_images.sync_container_images",
+    return_value=([{"digest": "sha256:1"}], [], [{"tag": "v1"}], {"sha256:2"}),
+)
+@patch("cartography.intel.github.packages.sync_packages")
+@typing.no_type_check
+def test_sync_ghcr_gates_images_tags_and_attestations_on_the_package_list(
+    mock_packages_sync: Mock,
+    mock_container_images_sync: Mock,
+    mock_container_tags_sync: Mock,
+    mock_attestations_sync: Mock,
+    cleanup_safe: bool,
+) -> None:
+    mock_packages_sync.return_value = (
+        cartography.intel.github.packages.ContainerPackagesFetchResult(
+            packages=[{"name": "api"}],
+            cleanup_safe=cleanup_safe,
+        )
+    )
+    from cartography.intel.github import sync_ghcr
+
+    neo4j_session = Mock()
+    listed = sync_ghcr(
+        neo4j_session, "token-1", "https://api.github.com/graphql", "org-1", 123, {}
+    )
+
+    assert listed is cleanup_safe
+    mock_packages_sync.assert_called_once_with(
+        neo4j_session, "token-1", "https://api.github.com/graphql", "org-1", 123, {}
+    )
+    if not cleanup_safe:
+        mock_container_images_sync.assert_not_called()
+        mock_container_tags_sync.assert_not_called()
+        mock_attestations_sync.assert_not_called()
+        return
+    assert mock_container_images_sync.call_args.args[4] == [{"name": "api"}]
+    assert mock_container_tags_sync.call_args.args[2] == [{"tag": "v1"}]
+    assert mock_attestations_sync.call_args.args[4] == [{"digest": "sha256:1"}]
+    assert mock_attestations_sync.call_args.kwargs["additional_observed_digests"] == {
+        "sha256:2"
+    }
