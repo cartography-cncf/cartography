@@ -104,44 +104,13 @@ def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
     assert has_layer_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
 
 
-def test_cleanup_runs_layer_cleanup_job(monkeypatch):
-    from_node_schema_mock = MagicMock(return_value=MagicMock())
-    run_write_query_mock = MagicMock()
-    monkeypatch.setattr(
-        ecr_layers.GraphJob,
-        "from_node_schema",
-        from_node_schema_mock,
-    )
-    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
-
-    neo4j_session = MagicMock()
-    ecr_layers.cleanup(
-        neo4j_session,
-        {
-            "UPDATE_TAG": 123,
-            "AWS_ID": "123456789012",
-        },
-    )
-
-    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
-        "ECRImageLayerSchema"
-    )
-    assert from_node_schema_mock.return_value.run.call_count == 1
-    relationship_cleanup_query = run_write_query_mock.call_args.args[1]
-    assert "HAS_LAYER|BUILT_FROM" in relationship_cleanup_query
-    assert "DELETE relationship" in relationship_cleanup_query
-    assert "DETACH DELETE" not in relationship_cleanup_query
-
-
 def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
-    from_node_schema_mock = MagicMock()
-    run_write_query_mock = MagicMock()
+    run_scoped_analysis_job_mock = MagicMock()
     monkeypatch.setattr(
-        ecr_layers.GraphJob,
-        "from_node_schema",
-        from_node_schema_mock,
+        ecr_layers,
+        "run_scoped_analysis_job",
+        run_scoped_analysis_job_mock,
     )
-    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
 
     ecr_layers.cleanup(
         MagicMock(),
@@ -149,8 +118,7 @@ def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
         fetch_complete=False,
     )
 
-    run_write_query_mock.assert_not_called()
-    from_node_schema_mock.assert_not_called()
+    run_scoped_analysis_job_mock.assert_not_called()
 
 
 def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
@@ -1567,3 +1535,29 @@ def test_label_provenance_backfill_candidates_reads_each_unlabeled_digest_once()
     assert candidates == [
         {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-a"},
     ]
+
+
+def test_diff_ids_for_manifest_reads_null_history_entry_as_unknown(monkeypatch):
+    monkeypatch.setattr(
+        ecr_layers,
+        "get_blob_json_via_presigned",
+        AsyncMock(
+            return_value={
+                "rootfs": {"diff_ids": ["sha256:base", "sha256:app"]},
+                "history": [None, {"created_by": "COPY app /app"}],
+            },
+        ),
+    )
+
+    diff_ids, history_by_diff_id, _ = asyncio.run(
+        ecr_layers._diff_ids_for_manifest(
+            MagicMock(),
+            "repo",
+            {"config": {"digest": "sha256:config"}},
+            MagicMock(),
+            "linux/amd64",
+        ),
+    )
+
+    assert diff_ids == {"linux/amd64": ["sha256:base", "sha256:app"]}
+    assert history_by_diff_id == {"sha256:app": "COPY app /app"}

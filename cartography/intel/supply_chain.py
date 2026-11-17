@@ -13,6 +13,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.util import run_analysis_job
 
 logger = logging.getLogger(__name__)
 
@@ -817,6 +818,16 @@ def convert_layer_history_records(
     ]
 
 
+# A GitHub folder URL follows the owner/repo pair directly. A GitLab one has a
+# /-/ separator after the project path, which can be nested in subgroups. The
+# GitHub form is tried first so a folder named "-" inside a GitHub repository
+# is not mistaken for the GitLab separator.
+_FORGE_FOLDER_URLS = (
+    re.compile(r"^(?P<repo>https?://[^/]+/[^/]+/[^/]+)/(?:tree|blob)/"),
+    re.compile(r"^(?P<repo>https?://[^/]+/.+?)/-/(?:tree|blob)/"),
+)
+
+
 def normalize_vcs_url(url: str) -> str:
     """
     Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
@@ -825,6 +836,7 @@ def normalize_vcs_url(url: str) -> str:
     - https://github.com/org/repo.git
     - git@github.com:org/repo.git
     - https://github.com/org/repo
+    - https://github.com/org/repo/tree/main/services/api (a monorepo folder)
 
     Downstream matching compares source_uri against GitHubRepository.id / GitLabProject.id,
     which use the canonical HTTPS URL without .git suffix (e.g., https://github.com/org/repo).
@@ -839,10 +851,35 @@ def normalize_vcs_url(url: str) -> str:
         host, path = ssh_match.groups()
         normalized = f"https://{host}/{path}"
 
+    # Monorepo builds often label an image with the component's folder URL.
+    for folder_url in _FORGE_FOLDER_URLS:
+        folder_match = folder_url.match(normalized)
+        if folder_match:
+            normalized = folder_match.group("repo")
+            break
+
+    normalized = normalized.rstrip("/")
     if normalized.endswith(".git"):
         normalized = normalized[:-4]
 
     return normalized
+
+
+def migrate_source_folder_urls(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    DEPRECATED: trim monorepo folder URLs that earlier versions stored as an
+    image's source_uri, so provenance matching sees the repository URL. Images
+    already enriched are not read again, so their stored value never changes on
+    its own. Run once per ingestion, before provenance matching. Remove in v1.0.0.
+    """
+    run_analysis_job(
+        "supply_chain_source_folder_url_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 def unwrap_attestation_predicate(predicate: Any) -> dict[str, Any] | None:
@@ -1105,13 +1142,14 @@ def extract_layers_from_oci_config(
     :return: Tuple of (layer_diff_ids, layer_history) where layer_history
              entries have 'created_by' and 'empty_layer' keys.
     """
-    diff_ids: list[str] = config.get("rootfs", {}).get("diff_ids", [])
+    # Some builders write explicit nulls for rootfs.diff_ids and history.
+    diff_ids: list[str] = (config.get("rootfs") or {}).get("diff_ids") or []
 
-    raw_history: list[dict[str, Any]] = config.get("history", [])
+    raw_history: list[dict[str, Any] | None] = config.get("history") or []
     layer_history: list[dict[str, Any]] = [
         {
-            "created_by": entry.get("created_by", ""),
-            "empty_layer": entry.get("empty_layer", False),
+            "created_by": (entry or {}).get("created_by", ""),
+            "empty_layer": (entry or {}).get("empty_layer", False),
         }
         for entry in raw_history
     ]
