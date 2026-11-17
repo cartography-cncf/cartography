@@ -310,6 +310,11 @@ def _format_platform(
     return "/".join(components)
 
 
+TRANSIENT_BATCH_GET_IMAGE_FAILURE_CODES = frozenset(
+    {"UpstreamTooManyRequests", "UpstreamUnavailable"},
+)
+
+
 async def batch_get_manifest(
     ecr_client: ECRClient, repo: str, image_ref: str, accepted_media_types: list[str]
 ) -> tuple[dict, str]:
@@ -364,6 +369,17 @@ async def batch_get_manifest(
         raise
 
     if not resp.get("images"):
+        failure_codes = {
+            failure.get("failureCode") for failure in resp.get("failures") or []
+        }
+        # BatchGetImage reports per-image failures in a successful response. A
+        # pull-through cache's upstream throttling or outage is worth a retry; an
+        # empty read would otherwise let the parent manifest list count as read.
+        if failure_codes & TRANSIENT_BATCH_GET_IMAGE_FAILURE_CODES:
+            raise ECRLayerFetchTransientError(
+                f"Transient manifest fetch failure for {repo}:{image_ref}: "
+                f"{sorted(code for code in failure_codes if code)}"
+            )
         logger.warning(f"No image found for {repo}:{image_ref}")
         return {}, ""
 
@@ -661,11 +677,17 @@ def _apply_provenance_to_membership(
         membership["confidence"] = "explicit"
 
 
-def _read_manifest_lists(existing_properties: dict[str, dict[str, Any]]) -> set[str]:
+def _read_manifest_lists(
+    existing_properties: dict[str, dict[str, Any]],
+    complete_digests: set[str],
+) -> set[str]:
     """
     A manifest list never gets a layer closure, so the completeness check cannot skip
     it. Its digest is immutable, and the provenance its attestations carry is already
-    stored on its children once it has been read at the current version.
+    stored on its children once it has been read at the current version. The stamp is
+    on the shared image node, so a list is skipped only while every child is complete
+    for this account too; a child fetched again needs its list's attestation
+    provenance, which outranks the child's config labels.
     """
     return {
         digest
@@ -673,6 +695,7 @@ def _read_manifest_lists(existing_properties: dict[str, dict[str, Any]]) -> set[
         if properties.get("type") == "manifest_list"
         and (properties.get("label_provenance_version") or 0)
         >= LABEL_PROVENANCE_VERSION
+        and set(properties.get("child_image_digests") or []) <= complete_digests
     }
 
 
@@ -1719,7 +1742,7 @@ def sync(
             (image["imageDigest"] for image in repo_images_list),
             {"id": current_aws_account_id},
         )
-        complete_digests |= _read_manifest_lists(existing_properties)
+        complete_digests |= _read_manifest_lists(existing_properties, complete_digests)
         repo_images_list, skipped_images = partition_layer_fetches(
             repo_images_list,
             complete_digests,

@@ -405,6 +405,59 @@ def test_batch_get_manifest_access_denied_returns_empty_result(error_code):
     assert media_type == ""
 
 
+@pytest.mark.parametrize(
+    "failure_code",
+    ["UpstreamTooManyRequests", "UpstreamUnavailable"],
+)
+def test_batch_get_manifest_transient_image_failure_raises_skip_signal(failure_code):
+    mock_ecr_client = AsyncMock()
+    mock_ecr_client.batch_get_image.return_value = {
+        "images": [],
+        "failures": [
+            {
+                "imageId": {"imageDigest": "sha256:12345"},
+                "failureCode": failure_code,
+                "failureReason": "Upstream registry is unavailable",
+            },
+        ],
+    }
+
+    with pytest.raises(ECRLayerFetchTransientError):
+        asyncio.run(
+            batch_get_manifest(
+                mock_ecr_client,
+                "example/repository",
+                "sha256:12345",
+                ["application/vnd.oci.image.manifest.v1+json"],
+            )
+        )
+
+
+def test_read_manifest_lists_skips_only_lists_whose_children_are_complete_here():
+    stamped = {"label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION}
+    existing_properties = {
+        "sha256:complete-list": {
+            "type": "manifest_list",
+            "child_image_digests": ["sha256:amd64", "sha256:arm64"],
+            **stamped,
+        },
+        "sha256:list-with-child-new-to-account": {
+            "type": "manifest_list",
+            "child_image_digests": ["sha256:amd64", "sha256:other"],
+            **stamped,
+        },
+        "sha256:unstamped-list": {
+            "type": "manifest_list",
+            "child_image_digests": ["sha256:amd64"],
+        },
+    }
+
+    assert ecr_layers._read_manifest_lists(
+        existing_properties,
+        {"sha256:amd64", "sha256:arm64"},
+    ) == {"sha256:complete-list"}
+
+
 def test_batch_get_manifest_transient_aws_error_raises_skip_signal():
     mock_ecr_client = AsyncMock()
     mock_ecr_client.batch_get_image.side_effect = ClientError(
