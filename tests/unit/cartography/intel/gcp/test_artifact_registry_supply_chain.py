@@ -844,7 +844,7 @@ def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
         cleanup_safe=True,
     )
 
-    assert "gcp_artifact_registry_orphan_image_layer_cleanup.json" in cleanup_runs
+    assert "gcp_artifact_registry_image_layer_link_cleanup.json" in cleanup_runs
     assert len(cleanup_runs) == 2
 
 

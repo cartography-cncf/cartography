@@ -1,12 +1,12 @@
 {
-  "name": "GCP Artifact Registry image layer cleanup",
+  "name": "GCP Artifact Registry image layer link cleanup",
   "__comment__": "GAR image layers are keyed by digest and shared across projects, so this removes only the syncing project's stale links to layers. A layer no project links to any more is deleted once per sync, after every project, by the gcp_artifact_registry_orphan_cleanup.json analysis job.",
   "statements": [
     {
       "__comment__": "Delete this project's stale RESOURCE links to layers. Matched by project endpoint rather than MatchLink properties, so links written before layers were loaded through MatchLinks are removed too.",
-      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[r:RESOURCE]->(:GCPArtifactRegistryImageLayer) WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
-      "iterative": true,
-      "iterationsize": 1000
+      "query": "MATCH (:GCPProject {id: $PROJECT_ID})-[r:RESOURCE]->(:GCPArtifactRegistryImageLayer) WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG WITH r LIMIT $SCAN_LIMIT_SIZE CALL (r) { DELETE r } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 1000,
+      "batched_transactions": true
     }
   ]
 }
