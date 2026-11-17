@@ -220,8 +220,9 @@ class InspectorFindingToVulnerabilityRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorFinding)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)
 class InspectorFindingToVulnerabilityRel(CartographyRelSchema):
+    """(:AWSInspectorFinding)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)"""
+
     target_node_label: str = "AWSInspectorVulnerability"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vulnerabilityid")},
@@ -319,8 +320,9 @@ class InspectorFindingToPackageRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorFinding)-[:HAS]->(:AWSInspectorPackage)
 class InspectorFindingToPackageMatchLink(CartographyRelSchema):
+    """(:AWSInspectorFinding)-[:HAS]->(:AWSInspectorPackage)"""
+
     target_node_label: str = "AWSInspectorPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("packageid")},

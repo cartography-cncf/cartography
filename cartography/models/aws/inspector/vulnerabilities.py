@@ -74,8 +74,9 @@ class InspectorVulnerabilityToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:RESOURCE]->(:AWSInspectorVulnerability)
 class InspectorVulnerabilityToAWSAccountRel(CartographyRelSchema):
+    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorVulnerability)"""
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
