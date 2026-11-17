@@ -97,7 +97,7 @@ class InspectorFindingContentToAWSAccountRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class InspectorFindingContentToAWSAccountRel(CartographyRelSchema):
-    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorFindingContent)"""
+    """Scopes each finding content to the AWS account that synced it."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -117,7 +117,7 @@ class InspectorFindingContentToVulnerabilityRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class InspectorFindingContentToVulnerabilityRel(CartographyRelSchema):
-    """(:AWSInspectorFindingContent)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)"""
+    """Links a finding content to the vulnerability it reports."""
 
     target_node_label: str = "AWSInspectorVulnerability"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -180,7 +180,7 @@ class InspectorFindingContentToPackageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingContentToPackageMatchLink(CartographyRelSchema):
-    """(:AWSInspectorFindingContent)-[:HAS]->(:AWSInspectorPackage)"""
+    """Links a finding content to the vulnerable packages it reports."""
 
     target_node_label: str = "AWSInspectorPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -219,7 +219,7 @@ class InspectorFindingSetToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingSetToAWSAccountRel(CartographyRelSchema):
-    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorFindingSet)"""
+    """Scopes each finding set to the AWS account that synced it."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -239,7 +239,7 @@ class InspectorFindingSetToContentRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorFindingSetToContentRel(CartographyRelSchema):
-    """(:AWSInspectorFindingSet)-[:CONTAINS]->(:AWSInspectorFindingContent)"""
+    """Links a finding set to each finding content in it."""
 
     target_node_label: str = "AWSInspectorFindingContent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -335,7 +335,7 @@ class InspectorInstanceFindingsToAWSAccountRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class InspectorInstanceFindingsToAWSAccountRel(CartographyRelSchema):
-    """(:AWSAccount)-[:RESOURCE]->(:AWSInspectorInstanceFindings)"""
+    """Scopes each instance's findings to the AWS account that synced them."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -355,7 +355,7 @@ class InspectorInstanceFindingsToMemberAccountRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class InspectorInstanceFindingsToMemberAccountRel(CartographyRelSchema):
-    """(:AWSAccount)-[:MEMBER]->(:AWSInspectorInstanceFindings)"""
+    """Links an instance's findings to the AWS account that owns the instance."""
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -375,7 +375,7 @@ class InspectorInstanceFindingsToEC2InstanceRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class InspectorInstanceFindingsToEC2InstanceRel(CartographyRelSchema):
-    """(:AWSInspectorInstanceFindings)-[:AFFECTS]->(:AWSEC2Instance)"""
+    """Links an instance's findings to the EC2 instance they affect."""
 
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -395,7 +395,7 @@ class InspectorInstanceFindingsToSetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class InspectorInstanceFindingsToSetRel(CartographyRelSchema):
-    """(:AWSInspectorInstanceFindings)-[:HAS_FINDINGS]->(:AWSInspectorFindingSet)"""
+    """Links an instance's findings to the finding set they share with other instances."""
 
     target_node_label: str = "AWSInspectorFindingSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
