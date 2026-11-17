@@ -1105,9 +1105,10 @@ def extract_layers_from_oci_config(
     :return: Tuple of (layer_diff_ids, layer_history) where layer_history
              entries have 'created_by' and 'empty_layer' keys.
     """
-    diff_ids: list[str] = config.get("rootfs", {}).get("diff_ids", [])
+    # Some builders write explicit nulls for rootfs.diff_ids and history.
+    diff_ids: list[str] = (config.get("rootfs") or {}).get("diff_ids") or []
 
-    raw_history: list[dict[str, Any]] = config.get("history", [])
+    raw_history: list[dict[str, Any]] = config.get("history") or []
     layer_history: list[dict[str, Any]] = [
         {
             "created_by": entry.get("created_by", ""),

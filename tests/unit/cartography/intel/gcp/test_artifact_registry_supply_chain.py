@@ -21,6 +21,7 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _process_single_image
 from cartography.intel.gcp.artifact_registry.supply_chain import _TokenManager
+from cartography.intel.supply_chain import extract_layers_from_oci_config
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
 from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_ARTIFACT
 from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_DIGEST
@@ -83,6 +84,19 @@ def test_extract_provenance_from_oci_config_reads_labels():
 )
 def test_extract_provenance_from_oci_config_no_labels_returns_empty(config):
     assert extract_provenance_from_oci_config(config) == {}
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"rootfs": {"diff_ids": None}, "history": None},
+        {"rootfs": None},
+        {},
+    ],
+    ids=["null-diff-ids-and-history", "null-rootfs", "missing"],
+)
+def test_extract_layers_from_oci_config_without_layers_returns_empty(config):
+    assert extract_layers_from_oci_config(config) == ([], [])
 
 
 # ---------------------------------------------------------------------------
