@@ -1064,7 +1064,7 @@ def start_gcp_ingestion(
 
     # Runs once here, after every project and the org cleanup, because whether a
     # digest-keyed GAR image or layer is orphaned depends on every project's links.
-    # Run per project, it scanned the whole graph once per project.
+    # Running it per project would scan the whole graph once per project.
     if requested_syncs is None or "artifact_registry" in requested_syncs:
         run_analysis_job(
             "gcp_artifact_registry_orphan_cleanup.json",

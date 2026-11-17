@@ -1534,10 +1534,9 @@ def cleanup_image_layers(
     """
     cleanup_params = common_job_parameters.copy()
     cleanup_params["PROJECT_ID"] = project_id
-    # DEPRECATED: the job matches the project endpoint only so that links written
-    # before layers were loaded as MatchLinks (no _sub_resource properties) are
-    # removed too. Remove in v1.0.0 and run
+    # DEPRECATED: remove in v1.0.0 and run
     # GraphJob.from_matchlink(GCPArtifactRegistryProjectToImageLayerRel(), ...).
+    # The job's comment says why it matches the project endpoint instead.
     run_scoped_analysis_job(
         "gcp_artifact_registry_orphan_image_layer_cleanup.json",
         neo4j_session,
