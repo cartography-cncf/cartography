@@ -906,6 +906,7 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
     mock_async_http_client.return_value = _FakeAsyncHttpClient(
         test_data.SAMPLE_CONFIG_BLOB_WITH_OCI_LABELS,
     )
+    layer_writes = mocker.spy(ecr_layers, "load_ecr_image_layers")
 
     # Act
     sync_ecr_layers(
@@ -916,6 +917,7 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
         TEST_UPDATE_TAG,
         job_parameters,
     )
+    backfill_layer_writes = layer_writes.call_args.args[1]
     fetches_after_backfill = ecr_client.batch_get_image.await_count
     sync_ecr_layers(
         neo4j_session,
@@ -941,6 +943,7 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
             },
         ]
     )
+    assert backfill_layer_writes == []
     assert ecr_client.batch_get_image.await_count == fetches_after_backfill
 
 

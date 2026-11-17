@@ -662,6 +662,119 @@ def _apply_provenance_to_membership(
         membership["confidence"] = "explicit"
 
 
+def _label_provenance_backfill_candidates(
+    skipped_images: list[dict[str, Any]],
+    existing_properties: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Pick one repository reference per already-enriched platform image whose config
+    labels have not been read at the current version. Images that already carry a
+    source_uri gain nothing from labels, which rank below attestations and CI labels.
+    """
+    candidates: dict[str, dict[str, Any]] = {}
+    for image in skipped_images:
+        digest = image["imageDigest"]
+        properties = existing_properties[digest]
+        if (
+            digest not in candidates
+            and properties.get("type") == "image"
+            and not properties.get("source_uri")
+            and (properties.get("label_provenance_version") or 0)
+            < LABEL_PROVENANCE_VERSION
+        ):
+            candidates[digest] = image
+    return list(candidates.values())
+
+
+async def fetch_config_label_provenance_async(
+    ecr_client: ECRClient,
+    repo_images: list[dict[str, Any]],
+    max_concurrent: int = 200,
+) -> dict[str, dict[str, str]]:
+    """
+    Read only the manifest and config blob of each image and return label provenance
+    by digest. A digest maps to an empty dict when its config has no source labels;
+    digests that could not be read are left out so a later sync retries them.
+    """
+    if not repo_images:
+        return {}
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async with httpx.AsyncClient(
+        limits=httpx.Limits(
+            max_connections=max_concurrent,
+            max_keepalive_connections=max_concurrent,
+        ),
+    ) as http_client:
+
+        async def _read(image: dict[str, Any]) -> tuple[str, dict[str, str]] | None:
+            digest = image["imageDigest"]
+            repo_name = image["repo_uri"].split("/", 1)[1]
+            async with semaphore:
+                try:
+                    manifest, _ = await batch_get_manifest(
+                        ecr_client, repo_name, digest, ALL_ACCEPTED
+                    )
+                    config_digest = (manifest.get("config") or {}).get("digest")
+                    if not config_digest:
+                        return None
+                    config_json = await get_blob_json_via_presigned(
+                        ecr_client,
+                        repo_name,
+                        config_digest,
+                        http_client,
+                    )
+                except ECRLayerFetchTransientError as error:
+                    logger.warning(
+                        "Deferring label provenance for %s to a later sync: %s",
+                        digest,
+                        error,
+                    )
+                    return None
+            if not config_json:
+                return None
+            return digest, _extract_config_label_provenance(config_json)
+
+        results = await asyncio.gather(*(_read(image) for image in repo_images))
+    return dict(result for result in results if result is not None)
+
+
+def load_label_provenance_backfill(
+    neo4j_session: neo4j.Session,
+    label_provenance_by_digest: dict[str, dict[str, str]],
+    existing_properties: dict[str, dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    if not label_provenance_by_digest:
+        return
+    memberships = []
+    for digest, provenance in label_provenance_by_digest.items():
+        membership = {**existing_properties[digest], "imageDigest": digest}
+        _apply_provenance_to_membership(membership, provenance)
+        membership["label_provenance_version"] = LABEL_PROVENANCE_VERSION
+        memberships.append(membership)
+    logger.info(
+        "Backfilled image config label provenance for %d ECR images (%d with a source_uri).",
+        len(memberships),
+        sum(
+            1
+            for provenance in label_provenance_by_digest.values()
+            if provenance.get("source_uri")
+        ),
+    )
+    load(
+        neo4j_session,
+        ECRImageLayerEnrichmentSchema(),
+        memberships,
+        batch_size=ECR_LAYER_BATCH_SIZE,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
 def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
@@ -1536,12 +1649,6 @@ def sync(
             (image["imageDigest"] for image in repo_images_list),
             {"id": current_aws_account_id},
         )
-        complete_digests = {
-            digest
-            for digest in complete_digests
-            if (existing_properties[digest].get("label_provenance_version") or 0)
-            >= LABEL_PROVENANCE_VERSION
-        }
         repo_images_list, skipped_images = partition_layer_fetches(
             repo_images_list,
             complete_digests,
@@ -1564,7 +1671,18 @@ def sync(
                 update_tag,
             )
 
-        if not repo_images_list:
+        backfill_images = _label_provenance_backfill_candidates(
+            skipped_images,
+            existing_properties,
+        )
+        if backfill_images:
+            logger.info(
+                "Reading image config labels for %d already-enriched ECR digests in %s",
+                len(backfill_images),
+                region,
+            )
+
+        if not repo_images_list and not backfill_images:
             logger.debug(
                 "No ECR image digests need layer fetching in region %s.",
                 region,
@@ -1572,7 +1690,7 @@ def sync(
             continue
 
         # Fetch and load image layers using async ECR client
-        if repo_images_list:
+        if repo_images_list or backfill_images:
             logger.info(
                 f"Starting to fetch layers for {len(repo_images_list)} images..."
             )
@@ -1585,15 +1703,21 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, Any]],
                 bool,
+                dict[str, dict[str, str]],
             ]:
                 async with create_aioboto3_client(
                     aioboto3_session, "ecr", region_name=region
                 ) as ecr_client:
-                    return await fetch_image_layers_async(
+                    layer_results = await fetch_image_layers_async(
                         ecr_client,
                         repo_images_list,
                         skip_digests=complete_digests,
                     )
+                    label_provenance = await fetch_config_label_provenance_async(
+                        ecr_client,
+                        backfill_images,
+                    )
+                    return (*layer_results, label_provenance)
 
             # Use get_event_loop() + run_until_complete() to avoid tearing down loop
             try:
@@ -1611,6 +1735,7 @@ def sync(
                         history_by_diff_id,
                         image_attestation_map,
                         region_fetch_complete,
+                        label_provenance_by_digest,
                     ) = loop.run_until_complete(
                         _fetch_with_async_client(aioboto3_session)
                     )
@@ -1653,6 +1778,14 @@ def sync(
             load_ecr_image_layer_memberships(
                 neo4j_session,
                 memberships,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
+            load_label_provenance_backfill(
+                neo4j_session,
+                label_provenance_by_digest,
+                existing_properties,
                 region,
                 current_aws_account_id,
                 update_tag,

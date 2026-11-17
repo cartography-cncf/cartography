@@ -1526,3 +1526,34 @@ def test_sync_does_not_retry_non_credential_client_error(mocker):
     assert excinfo.value.response["Error"]["Code"] == "AccessDeniedException"
     assert fetch_mock.call_count == 1
     factory.assert_not_called()
+
+
+def test_label_provenance_backfill_candidates_reads_each_unlabeled_digest_once():
+    skipped_images = [
+        {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-a"},
+        {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-b"},
+        {"imageDigest": "sha256:has-source", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:already-read", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:index", "repo_uri": "r.example/app"},
+    ]
+    existing_properties = {
+        "sha256:unread": {"type": "image"},
+        "sha256:has-source": {
+            "type": "image",
+            "source_uri": "https://github.com/exampleorg/app",
+        },
+        "sha256:already-read": {
+            "type": "image",
+            "label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION,
+        },
+        "sha256:index": {"type": "manifest_list"},
+    }
+
+    candidates = ecr_layers._label_provenance_backfill_candidates(
+        skipped_images,
+        existing_properties,
+    )
+
+    assert candidates == [
+        {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-a"},
+    ]
