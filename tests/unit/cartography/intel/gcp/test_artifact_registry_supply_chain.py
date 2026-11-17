@@ -917,7 +917,7 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_cached_digest_rechecks_provenance_without_fetching_config(monkeypatch):
+async def test_process_single_image_without_config_fetch_reads_provenance(monkeypatch):
     config_fetch = AsyncMock()
     provenance_fetch = AsyncMock(
         return_value={"source_uri": "https://github.com/example/repository"},
@@ -1788,6 +1788,60 @@ async def test_fetch_all_image_provenance_uses_embedded_attestations(monkeypatch
             {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE},
         ),
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("enriched", "embedded", "expected_fetch_config"),
+    [
+        (False, False, [True]),
+        (True, False, []),
+        (True, True, [False]),
+    ],
+    ids=["new_digest", "enriched_digest", "enriched_digest_with_embedded_provenance"],
+)
+async def test_fetch_all_image_provenance_skips_enriched_digests(
+    monkeypatch, enriched, embedded, expected_fetch_config
+):
+    # Arrange
+    credentials = MagicMock()
+    credentials.valid = True
+    monkeypatch.setattr(supply_chain, "_resolve_credentials", lambda _: credentials)
+    monkeypatch.setattr(
+        supply_chain,
+        "_fetch_embedded_attestation_provenance",
+        AsyncMock(
+            return_value={MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE},
+        ),
+    )
+    fetch_config_by_call = []
+
+    async def _fake_process(_client, _token_manager, _artifact, *_args, **kwargs):
+        fetch_config_by_call.append(kwargs["fetch_config"])
+        return None, False
+
+    monkeypatch.setattr(supply_chain, "_process_single_image", _fake_process)
+    image = {
+        "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+        "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    }
+    artifacts = (
+        [MOCK_BUILDKIT_INDEX_ARTIFACT, MOCK_BUILDKIT_ATTESTATION_ARTIFACT, image]
+        if embedded
+        else [image]
+    )
+
+    # Act
+    await supply_chain._fetch_all_image_provenance(
+        None,
+        artifacts,
+        "test-project",
+        cached_layer_digests={MOCK_SUPPLY_CHAIN_IMAGE_DIGEST} if enriched else set(),
+    )
+
+    # Assert
+    assert fetch_config_by_call == expected_fetch_config
 
 
 def test_load_image_provenance_slsa_replaces_label_source(monkeypatch):

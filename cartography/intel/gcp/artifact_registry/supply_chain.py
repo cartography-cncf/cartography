@@ -1197,7 +1197,18 @@ async def _fetch_all_image_provenance(
                     continue
                 embedded_provenance.update(provenance_by_subject)
 
-        tasks = [asyncio.create_task(bounded_process(a, client)) for a in single_images]
+        # An enriched digest's config cannot change, and its referrers and SBOMs were
+        # read when it was enriched, so it needs no registry calls. It is processed
+        # again only to apply embedded provenance read in this run.
+        images_to_process = [
+            a
+            for a in single_images
+            if (digest := _artifact_digest(a)) not in cached_layer_digests
+            or digest in embedded_provenance
+        ]
+        tasks = [
+            asyncio.create_task(bounded_process(a, client)) for a in images_to_process
+        ]
         total = len(tasks)
 
         logger.info("Fetching OCI configs for %d single-image artifacts...", total)
@@ -1576,7 +1587,7 @@ def sync(
     )
     if complete_digests:
         logger.info(
-            "Skipping OCI config fetches for %d already-enriched GAR digests",
+            "Skipping registry fetches for %d already-enriched GAR digests",
             len(complete_digests),
         )
 
