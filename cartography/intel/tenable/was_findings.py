@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 _WAS_EXPORT_PATH = "was/v1/export/vulns"
 _WAS_RESULT_BASE = "was/v1/export/vulns"
 # The WAS export chunks by asset, not by finding. Tenable's minimum is 50.
-_WAS_EXPORT_PARAMS: dict[str, Any] = {"num_assets": 50}
+# `include_unlicensed` (a JSON boolean, default false) adds the findings of assets that
+# have no WAS license. Without it those findings vanish from the export when a license
+# lapses and cleanup then deletes them, although Tenable still reports them. Such assets
+# are not rescanned, so check `last_found` before trusting a finding's state.
+_WAS_EXPORT_PARAMS: dict[str, Any] = {"num_assets": 50, "include_unlicensed": True}
 _WAS_EXPORT_STATES = ["OPEN", "REOPENED", "FIXED"]
 
 
@@ -206,14 +210,18 @@ def keep_cves_named_by_was_plugins(
     stay gone if the WAS sync is then skipped or fails. Call this before the
     vulnerability management sync so those CVEs survive its cleanup. A CVE that no
     WAS plugin names any more is not carried and is removed by the next run's cleanup.
+
+    The tenant `RESOURCE` edge is refreshed together with the node. That cleanup also
+    deletes stale `RESOURCE` edges, and a CVE left without one falls outside the
+    tenant-scoped cleanup, so it would never be removed.
     """
     run_write_query(
         neo4j_session,
         """
         MATCH (tenant:TenableTenant {id: $TENABLE_TENANT_ID})
               -[:RESOURCE]->(:TenableWASPlugin)-[:HAS_CVE]->(cve:TenableCve)
-              <-[:RESOURCE]-(tenant)
-        SET cve.lastupdated = $UPDATE_TAG
+              <-[edge:RESOURCE]-(tenant)
+        SET cve.lastupdated = $UPDATE_TAG, edge.lastupdated = $UPDATE_TAG
         """,
         TENABLE_TENANT_ID=tenant_id,
         UPDATE_TAG=update_tag,

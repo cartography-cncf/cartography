@@ -92,6 +92,10 @@ high findings per application:
     RETURN f.asset_fqdn AS application, f.severity, count(f) AS findings
     ORDER BY application
 
+The export includes findings of assets that have no WAS license (`include_unlicensed`),
+so they are not deleted when a license lapses. Such assets are not rescanned, so check a
+finding's `last_found` before trusting its `state`.
+
 The `AFFECTS` edge exists only when the WAS asset UUID is also the ID of a
 `TenableAsset` that the asset sync loaded. Tenable's asset export returns only `host`
 assets by default, so the asset sync asks for `host` and `webapp` assets; the `webapp`

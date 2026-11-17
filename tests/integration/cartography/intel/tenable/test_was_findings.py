@@ -366,6 +366,8 @@ def test_sync_was_findings_export_filter(neo4j_session, mocker):
         lookback_days * 86400
     )
     assert export_params["filters"]["state"] == ["OPEN", "REOPENED", "FIXED"]
+    # A JSON boolean: Tenable documents include_unlicensed as a boolean.
+    assert export_params["include_unlicensed"] is True
 
 
 def test_sync_was_findings_unresolved_critical_high_query(neo4j_session, mocker):
@@ -608,6 +610,53 @@ def test_was_only_cve_survives_vm_cleanup_when_was_sync_is_skipped(
         "HAS_CVE",
         rel_direction_right=True,
     ) == {(WAS_PLUGIN_ID_1, WAS_CVE_NODE_ID)}
+    # The tenant edge matters too: without it the CVE falls outside the tenant-scoped
+    # cleanup and would never be removed.
+    assert check_rels(
+        neo4j_session,
+        "TenableTenant",
+        "id",
+        "TenableCve",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) >= {(TENABLE_TENANT_ID, WAS_CVE_NODE_ID)}
+
+
+def test_cve_kept_while_was_is_skipped_is_removed_once_no_plugin_names_it(
+    neo4j_session, mocker
+):
+    """The keep-alive must not make a CVE immortal: once nothing names it, it goes."""
+    _load_assets(neo4j_session, mocker)
+    _sync_was_findings(neo4j_session, mocker)
+
+    # Run 2: WAS skipped. The CVE is kept, with its tenant edge.
+    tag2 = TEST_UPDATE_TAG + 1
+    cartography.intel.tenable.was_findings.keep_cves_named_by_was_plugins(
+        neo4j_session, TENABLE_TENANT_ID, tag2
+    )
+    _run_vm_findings_sync(neo4j_session, mocker, tag2)
+    assert (WAS_CVE_NODE_ID,) in check_nodes(neo4j_session, "TenableCve", ["id"])
+
+    # Run 3: WAS succeeds and no longer names the CVE.
+    tag3 = TEST_UPDATE_TAG + 2
+    cartography.intel.tenable.was_findings.keep_cves_named_by_was_plugins(
+        neo4j_session, TENABLE_TENANT_ID, tag3
+    )
+    _run_vm_findings_sync(neo4j_session, mocker, tag3)
+    without_cve = copy.deepcopy(WAS_FINDINGS_DATA)
+    for finding in without_cve:
+        finding["plugin"]["cve"] = []
+    _sync_was_findings(neo4j_session, mocker, data=without_cve, update_tag=tag3)
+
+    # Run 4: nothing names it, so neither the keep-alive nor any sync touches it.
+    tag4 = TEST_UPDATE_TAG + 3
+    cartography.intel.tenable.was_findings.keep_cves_named_by_was_plugins(
+        neo4j_session, TENABLE_TENANT_ID, tag4
+    )
+    _run_vm_findings_sync(neo4j_session, mocker, tag4)
+
+    assert (WAS_CVE_NODE_ID,) not in check_nodes(neo4j_session, "TenableCve", ["id"])
 
 
 def test_vm_cleanup_still_removes_cves_no_plugin_names(neo4j_session, mocker):
