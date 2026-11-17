@@ -3,9 +3,9 @@ from unittest.mock import patch
 
 import cartography.intel.aws.apigatewayv2
 from tests.data.aws.apigatewayv2 import GET_APIS
-from tests.data.aws.apigatewayv2 import STAGES_BY_API_ID
 from tests.data.aws.apigatewayv2 import STAGE_API_001_DEV_ARN
 from tests.data.aws.apigatewayv2 import STAGE_API_001_PROD_ARN
+from tests.data.aws.apigatewayv2 import STAGES_BY_API_ID
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -14,7 +14,7 @@ TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
-NO_STAGES = {"api-001": [], "api-002": []}
+NO_STAGES: dict[str, list] = {"api-001": [], "api-002": []}
 
 
 @patch.object(

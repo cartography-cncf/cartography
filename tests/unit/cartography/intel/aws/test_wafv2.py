@@ -46,7 +46,7 @@ def test_wafv2_syncs_after_the_modules_it_links_to() -> None:
 
 def test_get_web_acls_follows_next_marker_until_a_page_is_empty() -> None:
     # Arrange
-    pages_by_marker = {
+    pages_by_marker: dict = {
         None: test_data.LIST_WEB_ACLS_FIRST_PAGE,
         "alb-acl": test_data.LIST_WEB_ACLS_LAST_PAGE,
         "test-cli": test_data.LIST_WEB_ACLS_EMPTY_PAGE_WITH_MARKER,
