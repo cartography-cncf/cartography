@@ -1799,7 +1799,15 @@ def sync(
     )
     load_missing_built_from(neo4j_session, project_id, update_tag)
     # Written last: a stamp lets later syncs skip the artifact, so it must not land
-    # before what this pass read for it is saved.
+    # before what this pass read for it is saved. When discovery was incomplete,
+    # SBOM tags in repositories that were not listed went unseen, so the pass only
+    # clears stamps.
+    if not cleanup_safe:
+        provenance_versions = {
+            name: version
+            for name, version in provenance_versions.items()
+            if version is None
+        }
     load_repository_image_provenance(
         neo4j_session,
         docker_artifacts_raw,

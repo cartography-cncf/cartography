@@ -959,7 +959,19 @@ def test_sync_skips_cleanup_when_discovery_unsafe(patched_sync):
     assert cleanup_runs == []
 
 
-def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
+@pytest.mark.parametrize(
+    ("cleanup_safe", "expected_stamps"),
+    [
+        (True, {"new": GAR_PROVENANCE_VERSION, "failed": None}),
+        # Discovery was incomplete, so SBOM tags in unlisted repositories went
+        # unseen: the pass only clears stamps.
+        (False, {"failed": None}),
+    ],
+    ids=["complete_discovery", "incomplete_discovery"],
+)
+def test_sync_skips_config_fetch_for_complete_digest(
+    patched_sync, monkeypatch, cleanup_safe, expected_stamps
+):
     # Arrange
     digest = "sha256:" + ("a" * 64)
     name = f"projects/p/locations/l/repositories/r/dockerImages/i@{digest}"
@@ -976,7 +988,9 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
     ]
-    fetch = AsyncMock(return_value=([], 0, {new_name: GAR_PROVENANCE_VERSION}))
+    fetch = AsyncMock(
+        return_value=([], 0, {"new": GAR_PROVENANCE_VERSION, "failed": None}),
+    )
     supply_chain.get_complete_layer_digests.return_value = {digest}
     supply_chain._get_provenance_complete_names.return_value = {name}
     monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", fetch)
@@ -999,7 +1013,7 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
         project_id="proj",
         update_tag=1,
         common_job_parameters={},
-        cleanup_safe=True,
+        cleanup_safe=cleanup_safe,
     )
 
     # Assert: stamps are read only for layer-complete artifacts, and this pass's
@@ -1010,7 +1024,7 @@ def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
     supply_chain.load_repository_image_provenance.assert_called_once_with(
         neo4j_session,
         artifacts,
-        {new_name: GAR_PROVENANCE_VERSION},
+        expected_stamps,
         "proj",
         1,
     )
