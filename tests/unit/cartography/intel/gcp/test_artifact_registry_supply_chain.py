@@ -99,6 +99,18 @@ def test_extract_layers_from_oci_config_without_layers_returns_empty(config):
     assert extract_layers_from_oci_config(config) == ([], [])
 
 
+def test_extract_layers_from_oci_config_reads_null_history_entry_as_unknown():
+    config = {
+        "rootfs": {"diff_ids": ["sha256:layer"]},
+        "history": [None],
+    }
+
+    assert extract_layers_from_oci_config(config) == (
+        ["sha256:layer"],
+        [{"created_by": "", "empty_layer": False}],
+    )
+
+
 # ---------------------------------------------------------------------------
 # SPDX SBOM provenance
 # ---------------------------------------------------------------------------

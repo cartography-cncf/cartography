@@ -1108,11 +1108,11 @@ def extract_layers_from_oci_config(
     # Some builders write explicit nulls for rootfs.diff_ids and history.
     diff_ids: list[str] = (config.get("rootfs") or {}).get("diff_ids") or []
 
-    raw_history: list[dict[str, Any]] = config.get("history") or []
+    raw_history: list[dict[str, Any] | None] = config.get("history") or []
     layer_history: list[dict[str, Any]] = [
         {
-            "created_by": entry.get("created_by", ""),
-            "empty_layer": entry.get("empty_layer", False),
+            "created_by": (entry or {}).get("created_by", ""),
+            "empty_layer": (entry or {}).get("empty_layer", False),
         }
         for entry in raw_history
     ]
