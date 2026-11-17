@@ -83,7 +83,9 @@ omit optional sections that do not apply. Never add empty sections.
 ## Content placement
 
 A module's `index.md` contains only the page title and a toctree. Don't add
-prose to it:
+prose to it. The one exception is a deprecated module: its `index.md` keeps the
+deprecation notice and the link to the replacement module above the toctree.
+A current module's `index.md` looks like this:
 
 ````markdown
 # <Module>

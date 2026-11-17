@@ -100,7 +100,8 @@ narratives and ingestion behavior, belongs in model docstrings and
 `PropertyRef.description`, which Sphinx uses to generate `schema.md`. Put Cypher
 investigations in `queries.md` or `examples.md`, put post-ingestion analysis
 behavior in `analysis.md`, and put any other topic on its own page in the
-toctree.
+toctree. A deprecated module is the one exception: its `index.md` keeps the
+deprecation notice and the link to the replacement module above the toctree.
 
 Write documentation in the
 [Google developer documentation style](https://developers.google.com/style).

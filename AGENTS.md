@@ -132,6 +132,8 @@ Put the content on the page where it belongs instead:
 - Cypher walkthroughs go in `queries.md` or `examples.md`, and post-ingestion analysis behavior goes in `analysis.md`.
 - Any other topic goes on its own page, listed in the toctree.
 
+The one exception is a deprecated module. Its `index.md` keeps the deprecation notice and the link to the replacement module above the toctree, as in `docs/root/modules/gsuite/index.md`.
+
 Many existing pages predate these rules. Bring a page in line when you edit it.
 
 ## Quick Start: Copy an Existing Module
