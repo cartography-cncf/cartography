@@ -4,6 +4,7 @@ from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from dataclasses import field
+from functools import lru_cache
 from typing import Any
 from typing import Dict
 from typing import Iterator
@@ -414,49 +415,71 @@ def _advisory_order(vulnerability: Dict[str, Any]) -> Tuple[str, ...]:
 
 def transform_inspector_packages(
     package_details: Dict[str, Any],
-    platform: str | None = None,
+    platform: str | None,
 ) -> Dict[str, Any]:
     packages: Dict[str, Any] = {}
     for package in package_details["vulnerablePackages"]:
-        # Following RPM package naming convention for consistency
-        name = package["name"]  # Mandatory field
-        epoch = str(package.get("epoch", ""))
-        if epoch:
-            epoch = f"{epoch}:"
-        version = package["version"]  # Mandatory field
-        release = package.get("release", "")
-        if release:
-            release = f"-{release}"
-        arch = package.get("arch", "")
-        if arch:
-            arch = f".{arch}"
-        # pip and npm can both have a requests 2.28.0, and Debian and Ubuntu the same
-        # curl build, so the manager and an operating system's distribution are part
-        # of the ID.
-        manager = package.get("packageManager")
-        prefix = f"{manager}|" if manager else ""
-        if manager == "OS":
-            distribution = os_distribution(platform)
-            # An unrecognized platform gets its own key, so a package without a
-            # package URL never shares a node with one that has it.
-            prefix += (
-                f"{distribution[1]}|"
-                if distribution
-                else f"platform:{platform or 'unknown'}|"
-            )
-        id = f"{prefix}{name}|{epoch}{version}{release}{arch}"
-        purl = package_url(package, platform)
-        parsed = parse_purl(purl) or {}
-        packages[id] = {
-            **package,
-            "id": id,
-            "purl": purl,
-            "type": parsed.get("type"),
-            "purl_version": parsed.get("version"),
-            "normalized_id": make_normalized_package_id(purl=purl),
-        }
-
+        derived = _package_identity(
+            platform,
+            package.get("packageManager"),
+            package["name"],
+            package.get("epoch"),
+            package["version"],
+            package.get("release"),
+            package.get("arch"),
+        )
+        packages[derived["id"]] = {**package, **derived}
     return packages
+
+
+# Instances launched from one image report the same packages, so a fleet repeats each
+# package thousands of times; its ID and package URL are computed once.
+@lru_cache(maxsize=65536)
+def _package_identity(
+    platform: str | None,
+    manager: str | None,
+    name: str,
+    epoch: Any,
+    version: str,
+    release: str | None,
+    arch: str | None,
+) -> Dict[str, Any]:
+    # Following RPM package naming convention for consistency
+    evra = f"{f'{epoch}:' if epoch not in (None, '') else ''}{version}"
+    evra += f"-{release}" if release else ""
+    evra += f".{arch}" if arch else ""
+    # pip and npm can both have a requests 2.28.0, and Debian and Ubuntu the same
+    # curl build, so the manager and an operating system's distribution are part of
+    # the ID.
+    prefix = f"{manager}|" if manager else ""
+    if manager == "OS":
+        distribution = os_distribution(platform)
+        # An unrecognized platform gets its own key, so a package without a package
+        # URL never shares a node with one that has it.
+        prefix += (
+            f"{distribution[1]}|"
+            if distribution
+            else f"platform:{platform or 'unknown'}|"
+        )
+    purl = package_url(
+        {
+            "packageManager": manager,
+            "name": name,
+            "epoch": epoch,
+            "version": version,
+            "release": release,
+            "arch": arch,
+        },
+        platform,
+    )
+    parsed = parse_purl(purl) or {}
+    return {
+        "id": f"{prefix}{name}|{evra}",
+        "purl": purl,
+        "type": parsed.get("type"),
+        "purl_version": parsed.get("version"),
+        "normalized_id": make_normalized_package_id(purl=purl),
+    }
 
 
 def _package_link_fields(package: Dict[str, Any]) -> Dict[str, Any]:
