@@ -650,7 +650,7 @@ def load_aws_auth_mappings(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    logger.debug("Running cleanup job for EKS AWS Role and User relationships")
+    logger.debug("Running cleanup job for EKS identity providers")
 
     cleanup_job = GraphJob.from_node_schema(
         KubernetesUserSchema(), common_job_parameters
@@ -659,6 +659,11 @@ def cleanup(
 
     cleanup_job = GraphJob.from_node_schema(
         KubernetesGroupSchema(), common_job_parameters
+    )
+    cleanup_job.run(neo4j_session)
+
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesOIDCProviderSchema(), common_job_parameters
     )
     cleanup_job.run(neo4j_session)
 

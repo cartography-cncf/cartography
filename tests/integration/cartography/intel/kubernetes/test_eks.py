@@ -9,6 +9,7 @@ from cartography.intel.aws.iam import load_users
 from cartography.intel.aws.iam import transform_role_trust_policies
 from cartography.intel.aws.iam import transform_users
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
+from cartography.intel.kubernetes.eks import load_oidc_provider
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_WITH_ACCOUNTS_DATA
@@ -73,6 +74,26 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
 
     # Arrange: Create cluster (required for OIDC provider relationships)
     load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+
+    # Arrange: A provider from a previous sync that the cluster no longer has
+    stale_oidc_provider_id = f"{TEST_CLUSTER_NAME}/oidc/removed-provider"
+    load_oidc_provider(
+        neo4j_session,
+        [
+            {
+                "id": stale_oidc_provider_id,
+                "issuer_url": "https://removed.example.com/",
+                "cluster_name": TEST_CLUSTER_NAME,
+                "k8s_platform": "eks",
+                "client_id": "removed",
+                "status": "ACTIVE",
+                "name": "removed-provider",
+            },
+        ],
+        TEST_UPDATE_TAG - 1,
+        TEST_CLUSTER_ID,
+        TEST_CLUSTER_NAME,
+    )
 
     # Arrange: Set up prerequisite AWS Roles in the graph
     transformed_role_data = transform_role_trust_policies(
@@ -215,6 +236,9 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         ["id", "issuer_url", "name", "k8s_platform"],
     )
     assert expected_oidc_providers.issubset(actual_oidc_providers)
+    assert stale_oidc_provider_id not in {
+        provider_id for provider_id, *_ in actual_oidc_providers
+    }
 
     # Assert: Verify Cluster TRUSTS OIDC Provider relationships
     expected_cluster_relationships = {
