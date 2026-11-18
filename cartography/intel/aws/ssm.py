@@ -258,24 +258,37 @@ def get_public_ssm_parameters_by_path(
 
 
 @_retry_on_ssm_throttling  # type: ignore[misc]
-def _describe_document_permission(client: Any, name: str) -> Dict[str, Any]:
-    return client.describe_document_permission(
-        Name=name,
-        PermissionType="Share",
-    )
+def _describe_document_permission(
+    client: Any,
+    name: str,
+    next_token: str | None = None,
+) -> Dict[str, Any]:
+    params: Dict[str, Any] = {
+        "Name": name,
+        "PermissionType": "Share",
+    }
+    if next_token:
+        params["NextToken"] = next_token
+    return client.describe_document_permission(**params)
 
 
-def _shared_account_ids(client: Any, name: str) -> List[str]:
+def _shared_account_ids(client: Any, name: str) -> List[str] | None:
     try:
-        permission = _describe_document_permission(client, name)
+        account_ids: List[str] = []
+        next_token: str | None = None
+        while True:
+            permission = _describe_document_permission(client, name, next_token)
+            account_ids.extend(permission.get("AccountIds") or [])
+            next_token = permission.get("NextToken")
+            if not next_token:
+                return account_ids
     except ClientError as error:
         logger.warning(
             "Failed to retrieve sharing permissions for SSM document '%s': %s",
             name,
             error,
         )
-        return []
-    return list(permission.get("AccountIds") or [])
+        return None
 
 
 @timeit
@@ -313,12 +326,6 @@ def transform_ssm_documents(
             partition=get_partition(region),
         )
         document["CreatedDate"] = dict_date_to_epoch(document, "CreatedDate")
-        document["PlatformTypes"] = list(document.get("PlatformTypes") or [])
-        document["Tags"] = [
-            f"{tag.get('Key')}={tag.get('Value') or ''}"
-            for tag in document.get("Tags") or []
-            if tag.get("Key") is not None
-        ]
         transformed.append(document)
     return transformed
 

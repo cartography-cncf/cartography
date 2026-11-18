@@ -46,27 +46,13 @@ class SSMDocumentNodeProperties(CartographyNodeProperties):
     )
     version: PropertyRef = PropertyRef(
         "DocumentVersion",
-        description=(
-            "Document version returned by ListDocuments. That call returns each "
-            "self-owned document's default version."
-        ),
-    )
-    default_version: PropertyRef = PropertyRef(
-        "DocumentVersion",
-        description=(
-            "Default version of the document. ListDocuments returns the default "
-            "version, so this matches version."
-        ),
-    )
-    tags: PropertyRef = PropertyRef(
-        "Tags",
-        description="Tags applied to the document, stored as key=value strings.",
+        description="Document version returned by ListDocuments.",
     )
     shared_account_ids: PropertyRef = PropertyRef(
         "SharedAccountIds",
         description=(
             "Account IDs the document is shared with. The value `all` means the "
-            "document is shared publicly."
+            "document is shared publicly. `null` means sharing could not be retrieved."
         ),
     )
     region: PropertyRef = PropertyRef(
@@ -97,7 +83,7 @@ class SSMDocumentToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMDocumentSchema(CartographyNodeSchema):
-    """Self-owned AWS Systems Manager document from [`list_documents`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/list_documents.html) filtered to `Owner=Self`. Sharing accounts come from [`describe_document_permission`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_document_permission.html) when that call succeeds."""
+    """Self-owned AWS Systems Manager document from [`list_documents`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/list_documents.html) filtered to `Owner=Self`."""
 
     label: str = "AWSSSMDocument"
     properties: SSMDocumentNodeProperties = SSMDocumentNodeProperties()
