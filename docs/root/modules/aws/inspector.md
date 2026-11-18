@@ -2,8 +2,8 @@
 
 Cartography stores Amazon Inspector findings in two shapes:
 
-- Package vulnerability findings on EC2 instances are grouped into finding sets. One
-  `AWSInspectorInstanceFindings` node per instance points at one `AWSInspectorFindingSet`,
+- Cartography groups package vulnerability findings on EC2 instances into finding sets.
+  One `AWSInspectorInstanceFindings` node per instance points at one `AWSInspectorFindingSet`,
   which contains the `AWSInspectorFindingContent` nodes the instance shares with other
   instances.
 - Every other finding, including network reachability findings on EC2 instances and
@@ -19,15 +19,15 @@ Each package vulnerability that Inspector reports is one `AWSInspectorVulnerabil
 node. It holds the advisory data that is the same for every finding of the vulnerability:
 the description, reference URLs, and the vendor and NVD CVSS entries.
 
-```
+```cypher
 (:AWSInspectorFinding)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)
 (:AWSInspectorFindingContent)-[:HAS_VULNERABILITY]->(:AWSInspectorVulnerability)
 (:CVEMetadata)-[:ENRICHES]->(:AWSInspectorVulnerability:CVE)
 ```
 
-A vulnerability is labeled `:CVE` only when its identifier is a CVE. Inspector also
-reports GHSA and ALAS advisories; those vulnerabilities have no `cve_id` and no `:CVE`
-label. Findings are not labeled `:CVE`, so a query on `:CVE` returns each Inspector CVE
+Cartography labels a vulnerability `:CVE` only when its identifier is a CVE. Inspector
+also reports GHSA and ALAS advisories; those vulnerabilities have no `cve_id` and no
+`:CVE` label. Findings don't carry `:CVE`, so a query on `:CVE` returns each Inspector CVE
 once rather than once per affected resource. The first sync after upgrading removes the
 `:CVE` label and its `_ont_*` fields from findings that earlier versions labeled.
 
@@ -46,7 +46,7 @@ ECR image, such as `AMAZON_LINUX_2023` or `DEBIAN_12`, to name its distribution.
 ontology packages sync maps each package with a package URL to a `PackageVersion`, the
 same node that Trivy, Syft, and other scanners report the package as:
 
-```
+```cypher
 (:PackageVersion)-[:DETECTED_AS]->(:AWSInspectorPackage)
 ```
 
@@ -65,9 +65,9 @@ the same AMI report almost the same findings, so a fleet of thousands of instanc
 the same data thousands of times. Autoscaled fleets also replace instances daily, so the
 sync writes and deletes millions of findings a day.
 
-With finding sets, the data that is the same for many instances is stored once:
+With finding sets, Cartography stores the data that many instances share once:
 
-```
+```cypher
 (:AWSAccount)-[:MEMBER]->(:AWSInspectorInstanceFindings)
 (:AWSInspectorInstanceFindings)-[:AFFECTS]->(:AWSEC2Instance)
 (:AWSInspectorInstanceFindings)-[:HAS_FINDING_SET]->(:AWSInspectorFindingSet)
@@ -87,11 +87,11 @@ With finding sets, the data that is the same for many instances is stored once:
   exists even when Cartography has not synced the `AWSEC2Instance`, and links to it when
   it has.
 - The `HAS_FINDING_SET` relationship holds the instance's own findings as lists that line
-  up with the set's slots. Entry k of `finding_ids`, `first_observed_at_ms`,
-  `last_observed_at_ms`, and `updated_at_ms` belongs to slot k. The times are Inspector's
-  own, in epoch milliseconds.
+  up with the set's slots. Entry `k` of `finding_ids`, `first_observed_at_ms`,
+  `last_observed_at_ms`, and `updated_at_ms` belongs to slot `k`. The times are
+  Inspector's own, in epoch milliseconds.
 
-When an instance is replaced, the sync adds one `AWSInspectorInstanceFindings` node and
+When a fleet replaces an instance, the sync adds one `AWSInspectorInstanceFindings` node and
 links it to a set that usually exists already, and cleanup deletes the old instance's
 node. Sets and contents change only when the findings themselves change.
 
