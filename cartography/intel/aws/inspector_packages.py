@@ -24,6 +24,10 @@ _OS_PACKAGE_TYPES = (
     ("ALPINE", "apk", "alpine"),
 )
 
+# Debian names architectures differently from rpm and apk, and its package URLs use
+# the Debian names.
+_DEB_ARCHITECTURES = {"x86_64": "amd64", "aarch64": "arm64"}
+
 _LANGUAGE_PACKAGE_TYPES = {
     "PIP": "pypi",
     "PIPENV": "pypi",
@@ -100,7 +104,10 @@ def package_url(package: Dict[str, Any], platform: str | None) -> str | None:
         if package.get("release"):
             version = f"{version}-{package['release']}"
         if package.get("arch"):
-            qualifiers["arch"] = str(package["arch"]).lower()
+            arch = str(package["arch"]).lower()
+            if purl_type == "deb":
+                arch = _DEB_ARCHITECTURES.get(arch, arch)
+            qualifiers["arch"] = arch
         if package.get("epoch"):
             qualifiers["epoch"] = str(package["epoch"])
     else:

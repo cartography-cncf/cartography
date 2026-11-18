@@ -397,10 +397,11 @@ def test_transform_ec2_package_findings_shares_content_across_instances(
                 "name": "curl",
                 "version": "7.88.1",
                 "release": "10+deb12u5",
+                "arch": "X86_64",
                 "packageManager": "OS",
             },
             "DEBIAN_12",
-            "pkg:deb/debian/curl@7.88.1-10%2Bdeb12u5",
+            "pkg:deb/debian/curl@7.88.1-10%2Bdeb12u5?arch=amd64",
         ),
         (
             {

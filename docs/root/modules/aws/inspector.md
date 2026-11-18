@@ -37,7 +37,8 @@ Each vulnerable package that Inspector reports is one `AWSInspectorPackage` node
 ID starts with Inspector's package manager and, for an operating system package, the
 distribution, such as `OS|amazon|openssl|1:1.0.2k-24.amzn2.X86_64` or
 `PIP|requests|2.28.0`. Packages from different ecosystems or distributions never share a
-node.
+node. The same build on two releases of one distribution, such as Debian 11 and 12,
+shares one, as it shares one `PackageVersion`.
 
 When Cartography recognizes the package manager, the package also gets a package URL in
 `purl`. An operating system package needs the platform of the affected EC2 instance or

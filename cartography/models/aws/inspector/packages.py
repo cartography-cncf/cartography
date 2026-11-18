@@ -16,8 +16,9 @@ class AWSInspectorPackageNodeProperties(CartographyNodeProperties):
         "id",
         description=(
             "Uses the format `packageManager|name|epoch:version-release.arch` to uniquely "
-            "identify packages. The manager and its separator are left out when Inspector "
-            "reports none."
+            "identify packages, with the distribution after the manager for operating "
+            "system packages, such as `OS|amazon|openssl|...`. The manager and its "
+            "separator are left out when Inspector reports none."
         ),
     )
     name: PropertyRef = PropertyRef(
