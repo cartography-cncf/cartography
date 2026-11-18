@@ -18,6 +18,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@timeit
 def get_workspace_members(
     credential: BitbucketCredential,
     workspace_slug: str,

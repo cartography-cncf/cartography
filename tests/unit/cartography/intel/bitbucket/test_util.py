@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+import pytest
 import requests
 
 from cartography.intel.bitbucket.auth import BearerTokenCredential
@@ -49,3 +50,14 @@ def test_get_paginated_stops_when_no_next(monkeypatch):
     result = get_paginated(credential, "/workspaces")
 
     assert result == [{"id": 1}]
+
+
+def test_get_paginated_rejects_empty_next(monkeypatch):
+    page = _make_response({"values": [{"id": 1}], "next": ""})
+    monkeypatch.setattr(
+        "cartography.intel.bitbucket.util.requests.request",
+        lambda *args, **kwargs: page,
+    )
+
+    with pytest.raises(ValueError, match="Malformed"):
+        get_paginated(BearerTokenCredential("fake-token"), "/workspaces")

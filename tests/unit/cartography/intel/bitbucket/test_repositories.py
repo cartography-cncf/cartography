@@ -25,3 +25,11 @@ def test_transform_repositories_without_project_omits_project_fields():
     # so the CONTAINS relationship is skipped for this record.
     assert "project_key" not in without_project
     assert "project_id" not in without_project
+
+
+def test_transform_repositories_handles_null_mainbranch():
+    repo = {**MOCK_REPOSITORIES["values"][0], "mainbranch": None}
+
+    result = transform_repositories([repo])
+
+    assert result[0]["mainbranch_name"] is None

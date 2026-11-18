@@ -1,6 +1,6 @@
 # Bitbucket Cloud
 
-The Bitbucket Cloud module ingests workspaces, the projects and repositories within them, and current workspace members - the core inventory of who has access to which repositories, in which projects, in which workspaces.
+The Bitbucket Cloud module ingests workspaces, the projects and repositories within them, and current workspace members. It does not yet map which users can access which repositories.
 
 Repositories always belong to a workspace and a project (except legacy repositories created before projects concept existed).
 

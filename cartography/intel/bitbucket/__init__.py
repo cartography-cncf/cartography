@@ -82,8 +82,7 @@ def start_bitbucket_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         all_workspaces,
     )
 
-    # Cleanup in reverse order (leaf to root) so a workspace's children are
-    # gone before the workspace node itself is considered for removal.
+    # Workspaces are top-level tenants, so only their children are cleaned up.
     logger.info("Starting Bitbucket cleanup phase")
     for workspace in all_workspaces:
         cartography.intel.bitbucket.repositories.cleanup_repositories(
@@ -96,9 +95,5 @@ def start_bitbucket_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         cartography.intel.bitbucket.projects.cleanup_projects(
             neo4j_session, common_job_parameters, workspace["id"]
         )
-
-    cartography.intel.bitbucket.workspaces.cleanup_workspaces(
-        neo4j_session, common_job_parameters
-    )
 
     logger.info("Completed Bitbucket Cloud sync")

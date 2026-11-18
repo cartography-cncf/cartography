@@ -155,7 +155,10 @@ def get_paginated(
         response.raise_for_status()
         page = response.json()
         results.extend(page.get("values", []))
-        url = page.get("next")
+        next_url = page.get("next")
+        if next_url is not None and (not isinstance(next_url, str) or not next_url):
+            raise ValueError(f"Malformed Bitbucket pagination link: {next_url!r}")
+        url = next_url
         params = None  # `next` already encodes cursor state
 
     return results

@@ -733,12 +733,6 @@ class Config:
         gitlab_token=None,
         gitlab_organization_id=None,
         gitlab_commits_since_days=90,
-        bitbucket_workspaces=None,
-        bitbucket_auth_method=None,
-        bitbucket_token=None,
-        bitbucket_oauth_client_id=None,
-        bitbucket_oauth_client_secret=None,
-        bitbucket_oauth_refresh_token=None,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
         semgrep_oss_source=None,
@@ -923,6 +917,12 @@ class Config:
         anthropic_service_account_id: str | None = None,
         anthropic_workspace_id: str | None = None,
         onepassword_source: str | None = None,
+        bitbucket_workspaces=None,
+        bitbucket_auth_method=None,
+        bitbucket_token=None,
+        bitbucket_oauth_client_id=None,
+        bitbucket_oauth_client_secret=None,
+        bitbucket_oauth_refresh_token=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

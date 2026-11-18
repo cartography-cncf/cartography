@@ -76,8 +76,6 @@ For an API token, grant these read-only scopes:
 | `read:project:bitbucket`      | Listing projects within a workspace.          |
 | `read:repository:bitbucket`   | Listing repositories within a workspace.      |
 
-`read:account` is not needed - despite being commonly suggested alongside the others, Cartography never calls an endpoint that requires it.
-
 ### Access Token
 
 For an Access token, create a **workspace-level** token and grant **Projects: Read** and **Repositories: Read**.
@@ -88,7 +86,7 @@ For an OAuth client, grant these scopes:
 
 | Scope                        | Used for                                      |
 | ---------------------------- | --------------------------------------------- |
-| Workspace membership: Read   | Reading workspaces and workspace membership.  |
+| Account: Read                | Listing workspace members.                    |
 | Projects: Read               | Listing projects within a workspace.          |
 | Repositories: Read           | Listing repositories within a workspace.      |
 
@@ -122,7 +120,7 @@ cartography \
 | ------------------------------------------- | --------------------------------------------------------------------- |
 | `401 Unauthorized`                          | Token or refresh token is invalid or expired.                        |
 | `404 Not Found` on a configured workspace   | The slug is misspelled, or the credential does not belong to that workspace. |
-| `403 Forbidden` listing workspace members   | Credential is missing workspace-read access. Cartography logs a warning and skips cleanup for that workspace's users, rather than deleting them. |
+| `403 Forbidden` listing workspace members   | An OAuth client is missing **Account: Read**, or an API token is missing `read:workspace:bitbucket`. Cartography logs a warning and skips cleanup for that workspace's users, rather than deleting them. |
 | `429 Too Many Requests`                     | Bitbucket Cloud rate limit hit. Cartography retries with backoff automatically. |
 
 ## References

@@ -75,6 +75,8 @@ class OAuth2RefreshCredential(BitbucketCredential):
         response.raise_for_status()
         data = response.json()
         self._token = data["access_token"]
+        # Bitbucket may return a new refresh token; use it for later refreshes.
+        self._refresh_token = data.get("refresh_token", self._refresh_token)
         self._token_expires_at = time.time() + data.get("expires_in", 7200)
 
 
@@ -86,6 +88,10 @@ def make_credential(
     oauth_refresh_token: str | None,
 ) -> BitbucketCredential:
     """Build the configured Bitbucket credential."""
+    if auth_method not in ("token", "oauth"):
+        raise ValueError(
+            f"Unsupported bitbucket_auth_method {auth_method!r}; use 'token' or 'oauth'.",
+        )
     if auth_method == "oauth":
         if not all([oauth_client_id, oauth_client_secret, oauth_refresh_token]):
             raise ValueError(

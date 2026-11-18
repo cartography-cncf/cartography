@@ -33,6 +33,8 @@ def test_sync_users(mock_get, neo4j_session):
         [{"id": TEST_WORKSPACE_ID, "slug": TEST_WORKSPACE_SLUG}],
     )
 
+    mock_get.assert_called_once()
+    assert mock_get.call_args.args[1] == TEST_WORKSPACE_SLUG
     assert skipped == set()
     assert check_nodes(neo4j_session, "BitbucketUser", ["id"]) == {
         (TEST_USER_ACCOUNT_ID,),

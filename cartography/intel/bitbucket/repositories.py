@@ -18,6 +18,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@timeit
 def get_repositories(
     credential: BitbucketCredential,
     workspace_slug: str,
@@ -45,7 +46,7 @@ def transform_repositories(raw_repos: list[dict[str, Any]]) -> list[dict[str, An
             "description": repo.get("description"),
             "is_private": repo.get("is_private"),
             "scm": repo.get("scm"),
-            "mainbranch_name": repo.get("mainbranch", {}).get("name"),
+            "mainbranch_name": (repo.get("mainbranch") or {}).get("name"),
             "created_on": repo.get("created_on"),
             "updated_on": repo.get("updated_on"),
             "size": repo.get("size"),

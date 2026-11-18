@@ -72,3 +72,31 @@ def test_oauth_credential_refreshes_after_expiry(monkeypatch):
     # Force the cached token to look expired.
     credential._token_expires_at = 0
     assert credential.get_token() == "token-2"
+
+
+def test_make_credential_unknown_method_raises():
+    with pytest.raises(ValueError, match="Unsupported"):
+        make_credential("tokn", "my-token", None, None, None)
+
+
+def test_oauth_credential_uses_rotated_refresh_token(monkeypatch):
+    sent_refresh_tokens = []
+    responses = iter(
+        [
+            {"access_token": "token-1", "expires_in": 7200, "refresh_token": "rt-2"},
+            {"access_token": "token-2", "expires_in": 7200},
+        ]
+    )
+
+    def _post(url, data=None, auth=None, timeout=None):
+        sent_refresh_tokens.append(data["refresh_token"])
+        return _make_response(next(responses))
+
+    monkeypatch.setattr("cartography.intel.bitbucket.auth.requests.post", _post)
+
+    credential = OAuth2RefreshCredential("client-id", "client-secret", "rt-1")
+    credential.get_token()
+    credential._token_expires_at = 0
+    credential.get_token()
+
+    assert sent_refresh_tokens == ["rt-1", "rt-2"]

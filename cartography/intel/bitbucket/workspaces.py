@@ -8,7 +8,6 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.intel.bitbucket.auth import BitbucketCredential
 from cartography.intel.bitbucket.util import get_single
 from cartography.intel.bitbucket.util import strip_uuid
@@ -18,6 +17,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@timeit
 def get_workspace(credential: BitbucketCredential, slug: str) -> dict[str, Any]:
     """
     Fetch a single named workspace.
@@ -57,16 +57,6 @@ def load_workspaces(
         BitbucketWorkspaceSchema(),
         data,
         lastupdated=update_tag,
-    )
-
-
-@timeit
-def cleanup_workspaces(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    GraphJob.from_node_schema(BitbucketWorkspaceSchema(), common_job_parameters).run(
-        neo4j_session
     )
 
 

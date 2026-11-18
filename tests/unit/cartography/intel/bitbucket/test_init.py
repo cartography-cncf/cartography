@@ -61,7 +61,6 @@ def test_start_bitbucket_ingestion_runs_when_token_configured():
         patch("cartography.intel.bitbucket.projects.cleanup_projects"),
         patch("cartography.intel.bitbucket.repositories.cleanup_repositories"),
         patch("cartography.intel.bitbucket.users.cleanup_users"),
-        patch("cartography.intel.bitbucket.workspaces.cleanup_workspaces"),
     ):
         start_bitbucket_ingestion(neo4j_session=object(), config=config)
 

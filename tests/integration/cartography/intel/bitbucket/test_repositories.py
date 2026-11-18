@@ -51,6 +51,10 @@ def test_sync_repositories(mock_get, neo4j_session):
         (TEST_REPO_WITH_PROJECT_ID,),
         (TEST_REPO_WITHOUT_PROJECT_ID,),
     }
+    assert check_nodes(neo4j_session, "CodeRepository", ["id"]) == {
+        (TEST_REPO_WITH_PROJECT_ID,),
+        (TEST_REPO_WITHOUT_PROJECT_ID,),
+    }
 
     assert check_rels(
         neo4j_session,
