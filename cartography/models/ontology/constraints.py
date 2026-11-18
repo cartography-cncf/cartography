@@ -102,6 +102,7 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # canonical label cannot be enforced here yet.
     # A specific version of a software package is deployed inside a container image.
     RelConstraint(src="PackageVersion", dst="Image", label="DEPLOYED"),
+    RelConstraint(src="PackageVersion", dst="Device", label="DEPLOYED"),
     # A package groups the concrete versions of itself found across the estate.
     RelConstraint(src="Package", dst="PackageVersion", label="HAS_VERSION"),
     # An internet-facing frontend exposes the asset it puts at risk. The direction

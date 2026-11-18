@@ -1,4 +1,5 @@
 import copy
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -24,13 +25,19 @@ TEST_UPDATE_TAG = 123456789
     "get_secret_versions",
     return_value=copy.deepcopy(tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS),
 )
-def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session):
+def test_sync_secretsmanager(
+    mock_get_versions,
+    mock_get_secrets,
+    neo4j_session,
+    caplog,
+):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     neo4j_session.run("MATCH (n:AWSSecretsManagerSecret) DETACH DELETE n")
     neo4j_session.run("MATCH (n:AWSSecretsManagerSecretVersion) DETACH DELETE n")
 
+    caplog.set_level(logging.INFO, logger="cartography.intel.aws.secretsmanager")
     sync(
         neo4j_session,
         boto3_session,
@@ -125,6 +132,17 @@ def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session)
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
         ),
     }
+
+    # Per-secret lines are DEBUG; INFO gets one summary per region.
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "cartography.intel.aws.secretsmanager"
+        and record.levelno == logging.INFO
+    ] == [
+        "Syncing Secrets Manager for region 'us-east-1' in account '000000000000'.",
+        "Found 4 versions for 2 secrets in region 'us-east-1'.",
+    ]
 
 
 @patch.object(

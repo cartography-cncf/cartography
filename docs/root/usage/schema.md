@@ -76,6 +76,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Scaleway](../modules/scaleway/schema.md)
 - [Semgrep](../modules/semgrep/schema.md)
 - [SentinelOne](../modules/sentinelone/schema.md)
+- [Sentra](../modules/sentra/schema.md)
 - [Sentry](../modules/sentry/schema.md)
 - [Slack](../modules/slack/schema.md)
 - [Snipeit](../modules/snipeit/schema.md)

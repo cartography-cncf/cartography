@@ -29,7 +29,7 @@ canonical structure. Omit optional sections that do not apply instead of
 leaving empty headings.
 
 ```markdown
-# <Module> Configuration
+# <Module> configuration
 
 <!-- Briefly state what must be configured before this module can run. -->
 
@@ -45,11 +45,11 @@ leaving empty headings.
 
 <!-- Optional. Use subsections only when the module supports multiple methods. -->
 
-## Required Permissions
+## Required permissions
 
 <!-- Optional. Prefer a table for permissions. -->
 
-## Optional Permissions
+## Optional permissions
 
 <!-- Optional. State which feature each permission enables. -->
 
@@ -61,19 +61,19 @@ leaving empty headings.
 
 <!-- Required. Include at least one directly runnable command. -->
 
-## Input Artifacts
+## Input artifacts
 
 <!-- Optional for report- or file-backed modules. -->
 
-### Generate Input Artifacts
+### Generate input artifacts
 
 <!-- Optional. Explain how to create the artifacts Cartography consumes. -->
 
-### Input Format
+### Input format
 
 <!-- Optional. Document only setup-relevant format requirements. -->
 
-## Advanced Configuration
+## Advanced configuration
 
 <!-- Optional. Cover multi-account, multi-tenant, filtering, or alternate modes. -->
 
@@ -93,12 +93,18 @@ indirection. Prefer tables for permissions or when documenting three or more
 configuration options. Distinguish required permissions from optional
 permissions and explain any graceful degradation.
 
-Put module purpose, feature inventories, architecture, broad ingestion
-behavior, and ontology integration in `index.md`. Put Cypher investigations in
-`queries.md` or `examples.md`, and put post-ingestion analysis behavior in
-`analysis.md`. Node, relationship, and property documentation belongs in model
-docstrings and `PropertyRef.description`, which Sphinx uses to generate
-`schema.md`.
+A module's `index.md` contains only the page title and a toctree that lists
+`config`, `schema`, and any other pages of the module. Don't add prose to it.
+Node, relationship, and property documentation, including graph-model
+narratives and ingestion behavior, belongs in model docstrings and
+`PropertyRef.description`, which Sphinx uses to generate `schema.md`. Put Cypher
+investigations in `queries.md` or `examples.md`, put post-ingestion analysis
+behavior in `analysis.md`, and put any other topic on its own page in the
+toctree. A deprecated module is the one exception: its `index.md` keeps the
+deprecation notice and the link to the replacement module above the toctree.
+
+Write documentation in the
+[Google developer documentation style](https://developers.google.com/style).
 
 ## Sync = Get, Transform, Load, Cleanup
 

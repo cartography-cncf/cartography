@@ -515,6 +515,10 @@ class Config:
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     :type sentinelone_site_ids: list[str]
     :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
+    :type sentra_api_key: str
+    :param sentra_api_key: Sentra API key. Optional.
+    :type sentra_api_url: str
+    :param sentra_api_url: Sentra API base URL. Optional.
     :type wiz_graphql_url: str
     :param wiz_graphql_url: Wiz GraphQL API endpoint. Optional.
     :type wiz_auth_url: str
@@ -914,6 +918,8 @@ class Config:
         anthropic_service_account_id: str | None = None,
         anthropic_workspace_id: str | None = None,
         onepassword_source: str | None = None,
+        sentra_api_key: str | None = None,
+        sentra_api_url: str | None = None,
         sweet_api_key: str | None = None,
         sweet_api_secret: str | None = None,
         sweet_tenant_id: str | None = None,
@@ -1176,6 +1182,8 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.sentra_api_key = sentra_api_key
+        self.sentra_api_url = sentra_api_url
         self.wiz_graphql_url = wiz_graphql_url
         self.wiz_auth_url = wiz_auth_url
         self.wiz_client_id = wiz_client_id

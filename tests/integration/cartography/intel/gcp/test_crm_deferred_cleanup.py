@@ -86,8 +86,17 @@ def test_deferred_cleanup_order(
     2. Projects (deferred, but before folders)
     3. Folders (deferred, but before orgs)
     4. Organizations (last)
+    Then GAR images and layers that nothing references are deleted once, even
+    though no project resource sync ran.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:GCPArtifactRegistryImage {id: 'sha256:orphan-image', lastupdated: $old_tag})
+        CREATE (:GCPArtifactRegistryImageLayer {id: 'sha256:orphan-layer', lastupdated: $old_tag})
+        """,
+        old_tag=TEST_UPDATE_TAG - 1,
+    )
 
     # Track the order of cleanup job executions
     cleanup_order = []
@@ -137,6 +146,8 @@ def test_deferred_cleanup_order(
     assert (
         folder_idx < org_idx
     ), f"Folders should be cleaned before orgs: {cleanup_order}"
+    assert check_nodes(neo4j_session, "GCPArtifactRegistryImage", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GCPArtifactRegistryImageLayer", ["id"]) == set()
 
 
 @patch.object(

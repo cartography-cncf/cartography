@@ -583,6 +583,106 @@ def test_layer_cleanup_does_not_delete_stale_inventory_images(neo4j_session):
     assert relationship_count == 0
 
 
+@pytest.mark.parametrize(
+    "cleaned_account_tag",
+    [1, 2],
+    ids=["cleaned-account-dropped-base-layer", "cleaned-account-still-uses-it"],
+)
+def test_layer_cleanup_keeps_layers_and_edges_other_accounts_use(
+    neo4j_session, cleaned_account_tag
+):
+    # Arrange: an image in the first account is built on a layer that the second
+    # account also links to, and the second account held the image itself in the
+    # last run. The first account has not been synced yet in this run, so its
+    # edges still carry the last run's tag. The second account either stopped
+    # using the layer, or refreshed the layer and its link in this run.
+    image_account = "shared-layer-image-account"
+    cleaned_account = "shared-layer-cleaned-account"
+    image_digest = "sha256:shared-layer-image"
+    base_layer = "sha256:shared-layer-base"
+    app_layer = "sha256:shared-layer-app"
+    unused_layer = "sha256:shared-layer-unused"
+    neo4j_session.run(
+        """
+        MERGE (image_account:AWSAccount {id: $image_account})
+        MERGE (cleaned_account:AWSAccount {id: $cleaned_account})
+        MERGE (image:AWSECRImage {id: $image_digest})
+        SET image.digest = $image_digest, image.type = 'image',
+            image.layer_diff_ids = [$base_layer, $app_layer], image.lastupdated = 1
+        MERGE (image_account)-[image_resource:RESOURCE]->(image)
+        SET image_resource.lastupdated = 1
+        MERGE (cleaned_account)-[dropped_image:RESOURCE]->(image)
+        SET dropped_image.lastupdated = 1
+        WITH image, image_account, cleaned_account
+        UNWIND [$base_layer, $app_layer, $unused_layer] AS diff_id
+        MERGE (layer:AWSECRImageLayer {id: diff_id})
+        SET layer.diff_id = diff_id, layer.lastupdated = 1
+        WITH image, image_account, cleaned_account, layer
+        FOREACH (_ IN CASE WHEN layer.diff_id <> $unused_layer THEN [1] ELSE [] END |
+            MERGE (image_account)-[r:RESOURCE]->(layer) SET r.lastupdated = 1
+            MERGE (image)-[h:HAS_LAYER]->(layer) SET h.lastupdated = 1
+        )
+        FOREACH (_ IN CASE WHEN layer.diff_id <> $app_layer THEN [1] ELSE [] END |
+            MERGE (cleaned_account)-[r:RESOURCE]->(layer) SET r.lastupdated = 1
+        )
+        FOREACH (_ IN CASE WHEN layer.diff_id = $base_layer THEN [1] ELSE [] END |
+            SET layer.lastupdated = $cleaned_account_tag
+        )
+        WITH image, image_account, cleaned_account, layer
+        OPTIONAL MATCH (cleaned_account)-[cleaned_link:RESOURCE]->(layer)
+        WHERE layer.diff_id = $base_layer
+        SET cleaned_link.lastupdated = $cleaned_account_tag
+        WITH DISTINCT image
+        MATCH (base:AWSECRImageLayer {id: $base_layer})
+        MATCH (app:AWSECRImageLayer {id: $app_layer})
+        MERGE (image)-[head:HEAD]->(base) SET head.lastupdated = 1
+        MERGE (image)-[tail:TAIL]->(app) SET tail.lastupdated = 1
+        MERGE (base)-[next:NEXT]->(app) SET next.lastupdated = 1
+        """,
+        image_account=image_account,
+        cleaned_account=cleaned_account,
+        image_digest=image_digest,
+        base_layer=base_layer,
+        app_layer=app_layer,
+        unused_layer=unused_layer,
+        cleaned_account_tag=cleaned_account_tag,
+    ).consume()
+
+    # Act
+    ecr_layers.cleanup(
+        neo4j_session,
+        {"AWS_ID": cleaned_account, "UPDATE_TAG": 2},
+    )
+
+    # Assert
+    assert ecr_layers.get_complete_layer_digests(
+        neo4j_session,
+        ecr_layers.ECR_LAYER_GRAPH,
+        [image_digest],
+        {"id": image_account},
+    ) == {image_digest}
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSECRImageLayer",
+        "id",
+        "RESOURCE",
+    ) >= {(image_account, base_layer), (image_account, app_layer)}
+    assert (
+        (cleaned_account, base_layer)
+        in check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "AWSECRImageLayer",
+            "id",
+            "RESOURCE",
+        )
+    ) == (cleaned_account_tag == 2)
+    assert (unused_layer,) not in check_nodes(neo4j_session, "AWSECRImageLayer", ["id"])
+
+
 def test_transform_marks_empty_layer():
     layers, _ = ecr_layers.transform_ecr_image_layers(
         {
@@ -692,6 +792,7 @@ def test_sync_built_from_relationship(
             }
         },
         True,
+        set(),
     )
 
     sync_ecr_layers(
@@ -906,6 +1007,7 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
     mock_async_http_client.return_value = _FakeAsyncHttpClient(
         test_data.SAMPLE_CONFIG_BLOB_WITH_OCI_LABELS,
     )
+    layer_writes = mocker.spy(ecr_layers, "load_ecr_image_layers")
 
     # Act
     sync_ecr_layers(
@@ -916,6 +1018,7 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
         TEST_UPDATE_TAG,
         job_parameters,
     )
+    backfill_layer_writes = layer_writes.call_args.args[1]
     fetches_after_backfill = ecr_client.batch_get_image.await_count
     sync_ecr_layers(
         neo4j_session,
@@ -941,6 +1044,7 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
             },
         ]
     )
+    assert backfill_layer_writes == []
     assert ecr_client.batch_get_image.await_count == fetches_after_backfill
 
 
@@ -1196,12 +1300,17 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
-        await ecr_layers.fetch_image_layers_async(
-            MagicMock(),
-            [repo_image],
-            max_concurrent=1,
-        )
+    (
+        image_layers_data,
+        digest_map,
+        history_map,
+        attestation_map,
+        fetch_complete,
+        read_digests,
+    ) = await ecr_layers.fetch_image_layers_async(
+        MagicMock(),
+        [repo_image],
+        max_concurrent=1,
     )
 
     # Verify platform layers are extracted
@@ -1232,6 +1341,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     # Verify child digest is in digest_map too
     assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
     assert fetch_complete is True
+    assert read_digests == {repo_image["imageDigest"]}
 
 
 @pytest.mark.asyncio
@@ -1303,7 +1413,7 @@ async def test_fetch_image_layers_async_maps_manifest_child_label_provenance(
     mock_batch_get_manifest.side_effect = fake_batch_get_manifest
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, _, provenance_map, fetch_complete = (
+    image_layers_data, digest_map, _, provenance_map, fetch_complete, _ = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1364,7 +1474,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
+    image_layers_data, digest_map, history_map, attestation_map, fetch_complete, _ = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1433,6 +1543,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     mock_fetch_layers,
     mock_get_repos,
     neo4j_session,
+    mocker,
 ):
     """
     Regression test for bug where ecr_image_layers sync would overwrite AWSECRImage properties to NULL.
@@ -1511,6 +1622,8 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         # image_attestation_map (empty)
         {},
         True,
+        # read_digests
+        {test_data.MANIFEST_LIST_DIGEST},
     )
 
     sync_ecr_layers(
@@ -1586,3 +1699,79 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
         test_data.MANIFEST_LIST_AMD64_DIGEST,
     ) in attests_rels
+
+    # A manifest list read once, whose children all have layers, is not read again.
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    assert mock_fetch_layers.call_count == 1
+
+    # A graph from before the version stamp: the list re-reads its attestation for
+    # the enriched AMD64 child, which also gets a config-only label backfill, while
+    # the ARM64 child lost its layers and yields none again, as when its manifest
+    # was deleted. That is a completed fetch, not a transient failure, so only the
+    # child gate keeps the list from being stamped.
+    neo4j_session.run(
+        "MATCH (img:AWSECRImage) REMOVE img.label_provenance_version"
+    ).consume()
+    neo4j_session.run(
+        "MATCH (img:AWSECRImage {digest: $digest}) REMOVE img.layer_diff_ids",
+        digest=test_data.MANIFEST_LIST_ARM64_DIGEST,
+    ).consume()
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository"
+    amd64_uri = f"{repo_uri}@{test_data.MANIFEST_LIST_AMD64_DIGEST}"
+    attested_source = "https://github.com/exampleorg/multi-arch"
+    mock_fetch_layers.return_value = (
+        {},
+        {amd64_uri: test_data.MANIFEST_LIST_AMD64_DIGEST},
+        {},
+        {
+            amd64_uri: {
+                "source_uri": attested_source,
+                ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+            },
+        },
+        True,
+        {test_data.MANIFEST_LIST_DIGEST},
+    )
+    mocker.patch.object(
+        ecr_layers,
+        "fetch_config_label_provenance_async",
+        return_value={
+            test_data.MANIFEST_LIST_AMD64_DIGEST: {
+                "source_uri": "https://github.com/exampleorg/from-labels",
+            },
+        },
+    )
+    later_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID}
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        later_parameters,
+    )
+    assert (
+        test_data.MANIFEST_LIST_AMD64_DIGEST,
+        attested_source,
+    ) in check_nodes(neo4j_session, "AWSECRImage", ["digest", "source_uri"])
+
+    # The list stays unstamped while a child lacks layers, so it is read again.
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        later_parameters,
+    )
+    assert {image["imageDigest"] for image in mock_fetch_layers.call_args.args[1]} == {
+        test_data.MANIFEST_LIST_DIGEST,
+        test_data.MANIFEST_LIST_ARM64_DIGEST,
+    }

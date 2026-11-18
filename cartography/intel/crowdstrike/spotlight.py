@@ -9,12 +9,15 @@ from typing import TypeVar
 import neo4j
 from falconpy.oauth2 import OAuth2
 from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
+from packageurl import PackageURL
 
 from cartography.client.core.tx import load
 from cartography.intel.crowdstrike.util import call_with_retries
 from cartography.intel.crowdstrike.util import CrowdstrikeAPIError
 from cartography.intel.crowdstrike.util import CrowdstrikeForbiddenError
 from cartography.intel.crowdstrike.util import REQUEST_TIMEOUT_SECONDS
+from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.models.crowdstrike.applications import CrowdstrikeApplicationSchema
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
 from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
@@ -55,6 +58,11 @@ def sync_vulnerabilities(
             vulns, cves = transform(vulnerability_data)
             load_vulnerability_data(neo4j_session, vulns, update_tag)
             load_cve_data(neo4j_session, cves, update_tag)
+            load_application_data(
+                neo4j_session,
+                transform_applications(vulnerability_data),
+                update_tag,
+            )
     except CrowdstrikeForbiddenError as e:
         logger.warning(
             "Skipping CrowdStrike Spotlight vulnerabilities: %s. Grant the API "
@@ -107,6 +115,73 @@ def transform(data: list[dict]) -> tuple[list[dict[str, Any]], list[dict[str, An
         vuln["host_info_local_ip"] = item.get("host_info", {}).get("local_ip")
         vulns.append(vuln)
     return vulns, cves
+
+
+def transform_applications(data: list[dict]) -> list[dict[str, Any]]:
+    """
+    Group a page of Spotlight vulnerabilities by the application they affect.
+
+    A host and CVE pair repeats across every vulnerable host, but the application
+    behind it does not: one application node with its hosts and CVEs replaces the
+    per-host fan-out when walking from a CVE to the devices it affects.
+    """
+    applications: dict[str, dict[str, Any]] = {}
+    for item in data:
+        app = _app(item)
+        product_name_version = app.get("product_name_version")
+        cid = item.get("cid")
+        if not product_name_version or not cid:
+            continue
+        name = app.get("product_name_normalized") or product_name_version
+        vendor = app.get("vendor_normalized")
+        version = _application_version(name, product_name_version)
+        purl = PackageURL(
+            type="generic",
+            namespace=vendor.lower() if vendor and vendor != "Unknown" else None,
+            name=name,
+            version=version,
+        ).to_string()
+        # Keyed on what Spotlight reports, so two versions of a product stay apart
+        # even when no version can be parsed out of the name.
+        node_id = f"{cid}|{vendor}|{product_name_version}"
+        application = applications.setdefault(
+            node_id,
+            {
+                "id": node_id,
+                "cid": cid,
+                "normalized_id": make_normalized_package_id(purl=purl),
+                "name": name,
+                "vendor": vendor,
+                "version": version,
+                "product_name_version": product_name_version,
+                "type": "generic",
+                "purl": purl,
+                "host_ids": set(),
+                "cve_ids": set(),
+            },
+        )
+        if item.get("aid"):
+            application["host_ids"].add(item["aid"])
+        cve_id = (item.get("cve") or {}).get("id")
+        if cve_id:
+            application["cve_ids"].add(cve_id)
+    return [
+        application
+        | {
+            "host_ids": sorted(application["host_ids"]),
+            "cve_ids": sorted(application["cve_ids"]),
+        }
+        for application in applications.values()
+    ]
+
+
+def _application_version(name: str, product_name_version: str) -> str | None:
+    # Spotlight reports the version only inside `product_name_version`, after the
+    # normalized product name: ".Net Framework 4.8" for ".Net Framework".
+    if not product_name_version.startswith(name):
+        return None
+    remainder = product_name_version[len(name) :].strip()
+    return remainder if remainder[:1].isdigit() else None
 
 
 def _remediation_ids(item: dict[str, Any]) -> list[str]:
@@ -163,6 +238,24 @@ def load_vulnerability_data(
             neo4j_session,
             SpotlightVulnerabilitySchema(),
             vulns,
+            lastupdated=update_tag,
+            CID=cid,
+        )
+
+
+def load_application_data(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    applications_by_cid: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for application in data:
+        applications_by_cid[application["cid"]].append(application)
+    for cid, applications in applications_by_cid.items():
+        load(
+            neo4j_session,
+            CrowdstrikeApplicationSchema(),
+            applications,
             lastupdated=update_tag,
             CID=cid,
         )

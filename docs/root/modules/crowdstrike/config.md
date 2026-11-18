@@ -18,7 +18,7 @@ Grant the API client these read-only scopes:
 | Scope | Used for |
 | --- | --- |
 | **Hosts: Read** | `CrowdstrikeHost` nodes (`QueryDevicesByFilterScroll`, `GetDeviceDetails`). Hosts also feed the `Device` ontology, and vulnerabilities attach to them through `HAS_VULNERABILITY`. A host on EC2 links to its `AWSEC2Instance` through `IS_INSTANCE`. |
-| **Vulnerabilities: Read** | `CrowdstrikeSpotlightVulnerability` and `CrowdstrikeFinding` nodes (`combinedQueryVulnerabilities`). Optional: only tenants licensed for Falcon Spotlight can grant it. |
+| **Vulnerabilities: Read** | `CrowdstrikeSpotlightVulnerability`, `CrowdstrikeFinding`, and `CrowdstrikeApplication` nodes (`combinedQueryVulnerabilities`). Optional: only tenants licensed for Falcon Spotlight can grant it. |
 
 A missing **Hosts: Read** scope makes the sync fail with HTTP 403; the error
 names the refused operation. Without **Vulnerabilities: Read**, the sync logs a

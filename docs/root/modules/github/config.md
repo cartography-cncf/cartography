@@ -87,7 +87,8 @@ data while continuing ingestion.
 | Repository variables | Repository **Variables: Read** | Included in `repo` |
 | Organization secret metadata | Organization **Secrets: Read** | Included in `read:org` |
 | Organization variables | Organization **Variables: Read** | Included in `read:org` |
-| GHCR packages, image manifests, layers, tags, and SLSA attestations | GitHub App permissions; fine-grained PATs cannot access GitHub Packages | `read:packages` |
+| GHCR packages, image manifests, layers, and tags | Not available: GitHub Packages and `ghcr.io` refuse App installation tokens and fine-grained PATs, so GHCR is skipped for such organizations | `read:packages` |
+| SLSA attestations | Repository **Attestations: Read** | Included in `repo` |
 | Fine-grained PAT inventory | GitHub App with organization **Personal access tokens: Read**; PAT authentication is not supported | Not available |
 | Classic PAT inventory | Not available | SAML SSO credential authorizations on SAML-enabled organizations, organization owner access, and `read:org` |
 | Two-factor authentication status | Organization owner access | Organization owner access |
@@ -300,7 +301,7 @@ optional permissions above for full coverage. See
 | Issue | Solution |
 |-------|----------|
 | `FORBIDDEN` warnings for collaborators or branch protection rules | Ensure a fine-grained PAT includes repository **Administration: Read** and the token owner has organization owner or repository administrator rights. |
-| `403 Forbidden` for `/orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires `read:packages` on a classic PAT or a GitHub App. Fine-grained PATs cannot access GitHub Packages. |
+| `403 Forbidden` or `400 Bad Request` for `/orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires a classic PAT with `read:packages`. Fine-grained PATs (403) and GitHub App installation tokens (400) cannot access GitHub Packages. Use a classic PAT for that organization, or run `cartography.intel.github.sync_ghcr()` with one. |
 | No `GitHubPersonalAccessToken` nodes | Fine-grained PAT inventory requires GitHub App authentication with **Personal access tokens: Read**. Classic PAT metadata is limited to SAML SSO credential authorizations on SAML-enabled organizations. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled. |
 | Missing two-factor authentication status | This status is visible only to organization owners. |

@@ -90,6 +90,7 @@ PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
+PANEL_SENTRA = "Sentra Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_WIZ = "Wiz Options"
 PANEL_ORCA = "Orca Security Options"
@@ -169,6 +170,7 @@ MODULE_PANELS = {
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
+    "sentra": PANEL_SENTRA,
     "tenable": PANEL_TENABLE,
     "wiz": PANEL_WIZ,
     "orca": PANEL_ORCA,
@@ -2639,6 +2641,27 @@ class CLI:
                 ),
             ] = "SENTINELONE_API_TOKEN",
             # =================================================================
+            # Sentra Options
+            # =================================================================
+            sentra_api_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--sentra-api-url",
+                    help="Sentra API base URL. Defaults to https://app.sentra.io.",
+                    rich_help_panel=PANEL_SENTRA,
+                    hidden=PANEL_SENTRA not in visible_panels,
+                ),
+            ] = None,
+            sentra_api_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--sentra-api-key-env-var",
+                    help="Environment variable name containing the Sentra API key.",
+                    rich_help_panel=PANEL_SENTRA,
+                    hidden=PANEL_SENTRA not in visible_panels,
+                ),
+            ] = "SENTRA_API_KEY",
+            # =================================================================
             # Tenable Options
             # =================================================================
             tenable_url: Annotated[
@@ -4082,6 +4105,15 @@ class CLI:
                 )
                 sentinelone_api_token = os.environ.get(sentinelone_api_token_env_var)
 
+            # Read Sentra API key
+            sentra_api_key = None
+            if sentra_api_key_env_var:
+                logger.debug(
+                    "Reading Sentra API key from environment variable %s",
+                    sentra_api_key_env_var,
+                )
+                sentra_api_key = os.environ.get(sentra_api_key_env_var)
+
             # Read Tenable API keys
             tenable_access_key = None
             if tenable_access_key_env_var:
@@ -4479,6 +4511,8 @@ class CLI:
                 sentinelone_api_token=sentinelone_api_token,
                 sentinelone_account_ids=sentinelone_account_ids_list,
                 sentinelone_site_ids=sentinelone_site_ids_list,
+                sentra_api_key=sentra_api_key,
+                sentra_api_url=sentra_api_url,
                 tenable_url=tenable_url,
                 tenable_tenant_id=tenable_tenant_id,
                 tenable_access_key=tenable_access_key,
