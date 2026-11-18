@@ -422,8 +422,9 @@ def get_oidc_provider(
     Get external OIDC identity provider configurations for an EKS cluster.
 
     Returns raw AWS API responses for configured external identity providers, or
-    None when AWS denied or failed the read, so the caller keeps the stored
-    providers instead of cleaning them up.
+    None when aws_handle_regions skipped the read, for example on access denied,
+    an auth failure, a timeout, or the operation being unavailable in the region,
+    so the caller keeps the stored providers instead of cleaning them up.
     """
     results = _get_oidc_provider_results(boto3_session, region, cluster_name)
     return results[0] if results else None
