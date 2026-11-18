@@ -163,8 +163,9 @@ def _sync_one_account(
             "ec2:load_balancer_v2",
         ],
         "dynamodb": ["kms"],
-        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges by
-        # matching existing AWSKMSKey nodes on their ARN, so kms must sync first.
+        # backup/s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey)
+        # edges by matching existing AWSKMSKey nodes on their ARN, so kms must sync first.
+        "backup": ["kms"],
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],
