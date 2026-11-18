@@ -717,7 +717,8 @@ def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(
     neo4j_session, ubuntu_first
 ):
     # Arrange: two findings of one vulnerability, each listing a different
-    # distribution's advisory, loaded in separate batches in either order.
+    # distribution's advisory, on one finding ID shard so that Inspector returns
+    # them in list order, and loaded in separate batches in either order.
     details = LIST_FINDINGS_EC2_PACKAGE[1]["packageVulnerabilityDetails"]
     advisories = [
         ("1", "NVD", "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html"),
@@ -726,7 +727,7 @@ def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(
     findings = [
         {
             **LIST_FINDINGS_EC2_PACKAGE[1],
-            "findingArn": f"arn:aws:inspector2:us-west-2:123456789011:finding/{digit}{'0' * 31}",
+            "findingArn": f"arn:aws:inspector2:us-west-2:123456789011:finding/1{digit}{'0' * 30}",
             "packageVulnerabilityDetails": {
                 **details,
                 "source": source,

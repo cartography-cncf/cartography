@@ -159,10 +159,9 @@ instances must change. Queries on any other finding do not. Apply these rules in
 // Before
 MATCH (i:AWSEC2Instance {id: $instance_id})
 MATCH (f:AWSInspectorFinding {type: 'PACKAGE_VULNERABILITY', status: 'ACTIVE'})-[a:AFFECTS]->(i)
-OPTIONAL MATCH (f)-[:HAS_VULNERABILITY]->(v:AWSInspectorVulnerability)
 OPTIONAL MATCH (f)-[h:HAS]->(:AWSInspectorPackage)
 RETURN f.vulnerabilityid AS vulnerability, f.severity AS severity,
-       v.description AS description, f.arn AS finding_arn,
+       f.description AS description, f.arn AS finding_arn,
        collect(h.fixedinversion) AS fixed_versions, a.firstseen AS first_seen_ms
 
 // After
