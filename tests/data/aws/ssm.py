@@ -200,3 +200,31 @@ PUBLIC_SSM_PARAMETERS_DATA = [
         "DataType": "text",
     },
 ]
+
+
+SSM_DOCUMENTS_DATA = [
+    {
+        "Name": "RunSecurityBaseline",
+        "Owner": "000000000000",
+        "PlatformTypes": ["Linux", "Windows"],
+        "DocumentVersion": "3",
+        "DocumentType": "Command",
+        "SchemaVersion": "2.2",
+        "DocumentFormat": "JSON",
+        "CreatedDate": datetime.datetime(2024, 6, 1, tzinfo=tz.utc),
+        "Tags": [{"Key": "Environment", "Value": "prod"}],
+        "SharedAccountIds": ["all"],
+    },
+    {
+        "Name": "PrivateAutomation",
+        "Owner": "000000000000",
+        "PlatformTypes": ["Linux"],
+        "DocumentVersion": "1",
+        "DocumentType": "Automation",
+        "SchemaVersion": "0.3",
+        "DocumentFormat": "YAML",
+        "CreatedDate": datetime.datetime(2024, 6, 1, tzinfo=tz.utc),
+        "Tags": [],
+        "SharedAccountIds": ["111122223333"],
+    },
+]
