@@ -217,6 +217,20 @@ class OrcaVulnerabilityFindingToPackageVersionRel(CartographyRelSchema):
     properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
 
 
+# (:PackageVersion)-[:DETECTED_AS]->(:AWSInspectorPackage)
+@dataclass(frozen=True)
+class PackageVersionToAWSInspectorPackageRel(CartographyRelSchema):
+    """A canonical package version was detected as an AWS Inspector package."""
+
+    target_node_label: str = "AWSInspectorPackage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
 # (:PackageVersion)-[:DETECTED_AS]->(:CrowdstrikeApplication)
 @dataclass(frozen=True)
 class PackageVersionToCrowdstrikeApplicationRel(CartographyRelSchema):
@@ -284,6 +298,7 @@ class PackageVersionSchema(CartographyNodeSchema):
             OrcaVulnerabilityFindingToPackageVersionRel(),
             PackageVersionToCrowdstrikeApplicationRel(),
             CrowdstrikeFindingToPackageVersionRel(),
+            PackageVersionToAWSInspectorPackageRel(),
             PackageVersionToDeviceRel(),
         ],
     )

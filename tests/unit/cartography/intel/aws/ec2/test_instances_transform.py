@@ -195,7 +195,22 @@ def test_transform_ec2_instances_builds_arn():
     )
 
 
-def test_transform_ec2_instances_extracts_eks_cluster_tag():
+@pytest.mark.parametrize(
+    "region,expected_cluster_arn",
+    [
+        pytest.param(
+            "us-east-1",
+            "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+            id="commercial",
+        ),
+        pytest.param(
+            "fips-us-gov-west-1",
+            "arn:aws-us-gov:eks:us-gov-west-1:123456789012:cluster/prod-cluster",
+            id="fips-pseudo-region",
+        ),
+    ],
+)
+def test_transform_ec2_instances_extracts_eks_cluster_tag(region, expected_cluster_arn):
     reservations = [
         {
             "ReservationId": "r-1",
@@ -213,9 +228,10 @@ def test_transform_ec2_instances_extracts_eks_cluster_tag():
         },
     ]
 
-    data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
+    data = transform_ec2_instances(reservations, region, FAKE_ACCOUNT_ID)
 
     assert data.instance_list[0]["EksClusterName"] == "prod-cluster"
+    assert data.instance_list[0]["EksClusterArn"] == expected_cluster_arn
 
 
 # --- IPv6 extraction tests ---
