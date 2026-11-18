@@ -13,7 +13,6 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RISK
-from cartography.models.ontology.labels import CVE
 from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
@@ -99,12 +98,10 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
         "vulnerabilityid",
         description="Identifier of the `AWSInspectorVulnerability` this finding reports.",
     )
-    # Normalized CVE ID for package vulnerability findings. This feeds the CVE
-    # ontology label and the CVEMetadata ENRICHES relationship.
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
-        description="Normalized CVE identifier for package vulnerability findings.",
+        description="CVE identifier of the finding's vulnerability. Unset when the identifier is not a CVE.",
     )
     status: PropertyRef = PropertyRef(
         "status", description="Current status of this `AWSInspectorFinding` node."
@@ -342,20 +339,18 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
 class AWSInspectorFindingSchema(CartographyNodeSchema):
     """Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
-    Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled [`CVE`](#ontology-cve), and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+    `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`. A `PACKAGE_VULNERABILITY` finding is not itself labeled [`CVE`](#ontology-cve): the `AWSInspectorVulnerability` it links to carries that label, so each CVE is one node.
     """
 
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
-    # Inspector findings are mixed: package vulnerabilities are CVE-backed while
-    # network-reachability findings are configuration security issues. Label them
-    # by type so each shows up in the right ontology finding family.
+    # Network-reachability findings are configuration security issues. Package
+    # vulnerabilities reach the :CVE family through their AWSInspectorVulnerability.
     # CODE_VULNERABILITY is intentionally left unlabeled for now; give it its own
     # distinct label if/when it needs one.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             RISK,
-            CVE.when(type="PACKAGE_VULNERABILITY"),
             SECURITY_ISSUE.when(type="NETWORK_REACHABILITY"),
         ],
     )

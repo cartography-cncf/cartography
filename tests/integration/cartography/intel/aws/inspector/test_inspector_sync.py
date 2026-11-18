@@ -254,14 +254,16 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
         MERGE (:AWSEC2Instance{id: 'i-88503981029833101', instanceid: 'i-88503981029833101'})
         """,
     )
-    # A finding synced before advisory data moved to AWSInspectorVulnerability.
+    # A finding synced before advisory data and the :CVE label moved to
+    # AWSInspectorVulnerability.
     neo4j_session.run(
         """
-        MERGE (f:AWSInspectorFinding {id: $arn})
+        MERGE (f:AWSInspectorFinding:CVE {id: $arn})
         SET f.description = 'old description', f.source = 'NVD',
             f.referenceurls = ['https://example.com/advisory'],
             f._ont_description = 'old description',
-            f._ont_references = ['https://example.com/advisory']
+            f._ont_references = ['https://example.com/advisory'],
+            f._ont_cve_id = 'CVE-2017-9059', f._ont_base_severity = 'medium'
         """,
         arn=KERNEL_FINDING_ARN,
     )
@@ -347,16 +349,19 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
         ("123456789012", "openssl|0:1.0.2k-1.amzn2.X86_64"),
     }
 
-    # Package-vulnerability findings are CVE-backed and labeled as such.
+    # The vulnerability, not each of its findings, is the :CVE node, and the sync
+    # removes the label from findings stored before it moved.
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
+        ("CVE-2017-9059",),
+        ("CVE-2023-1234",),
+    }
     labels = neo4j_session.run(
         "MATCH (f:AWSInspectorFinding {id: $arn}) RETURN labels(f) AS labels",
         arn=KERNEL_FINDING_ARN,
     ).single()["labels"]
-    assert "CVE" in labels
     assert "SecurityIssue" not in labels
 
-    # Package-vulnerability findings expose the CVE id via the normalized cve_id
-    # property so they participate in the :CVE ontology and CVEMetadata enrichment.
+    # Findings still name their CVE.
     assert check_nodes(
         neo4j_session,
         "AWSInspectorFinding",
@@ -446,8 +451,7 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
         MATCH (f:AWSInspectorFinding)
         RETURN f.id AS id, f.description AS description, f.source AS source,
                f.referenceurls AS referenceurls,
-               f._ont_description AS ont_description,
-               f._ont_references AS ont_references
+               [k IN keys(f) WHERE k STARTS WITH '_ont_'] AS ont_fields
         ORDER BY id
         """,
         ).data()
@@ -457,16 +461,14 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
                 "description": None,
                 "source": None,
                 "referenceurls": None,
-                "ont_description": None,
-                "ont_references": None,
+                "ont_fields": [],
             },
             {
                 "id": KERNEL_FINDING_ARN,
                 "description": None,
                 "source": None,
                 "referenceurls": None,
-                "ont_description": None,
-                "ont_references": None,
+                "ont_fields": [],
             },
         ]
     )

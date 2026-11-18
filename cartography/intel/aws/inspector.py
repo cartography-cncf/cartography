@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -15,6 +16,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
@@ -28,6 +30,7 @@ from cartography.models.aws.inspector.vulnerabilities import (
 from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
 from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import is_throttling_exception
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -63,6 +66,8 @@ AWS_INSPECTOR_REGIONS = {
 }
 
 BATCH_SIZE = 1000
+
+_CVE_ID = re.compile(r"CVE-\d{4}-\d{4,}")
 
 # ListFindings returns at most 100 findings per page, so one paginator spends most
 # of a large account's sync waiting on round trips. The API pins finding IDs to 32
@@ -224,10 +229,7 @@ def transform_inspector_findings(
         if details:
             vulnerability_id = details["vulnerabilityId"]
             finding["vulnerabilityid"] = vulnerability_id
-            # Package-vulnerability findings are CVE-backed; expose the id under a
-            # normalized cve_id so it feeds the :CVE ontology label's _ont_cve_id.
-            # Network/code findings never enter this block, so their cve_id stays null.
-            finding["cve_id"] = vulnerability_id
+            finding["cve_id"] = _cve_id(vulnerability_id)
             finding["vendorseverity"] = details.get("vendorSeverity")
             _add_vulnerability(vulnerabilities, f, details)
 
@@ -260,6 +262,11 @@ def transform_inspector_findings(
     )
 
 
+def _cve_id(vulnerability_id: str) -> str | None:
+    """Return the identifier when it is a CVE; Inspector also reports GHSA and ALAS IDs."""
+    return vulnerability_id if _CVE_ID.fullmatch(vulnerability_id) else None
+
+
 def _add_vulnerability(
     vulnerabilities: Dict[str, Dict[str, Any]],
     finding: Dict[str, Any],
@@ -268,10 +275,12 @@ def _add_vulnerability(
     vulnerability_id = details["vulnerabilityId"]
     vulnerability = vulnerabilities.get(vulnerability_id)
     if vulnerability is None:
+        cve_id = _cve_id(vulnerability_id)
         vulnerabilities[vulnerability_id] = {
             "id": vulnerability_id,
             "vulnerabilityid": vulnerability_id,
-            "cve_id": vulnerability_id,
+            "cve_id": cve_id,
+            "has_cve": "true" if cve_id else "false",
             "description": finding["description"],
             "referenceurls": sorted(set(details.get("referenceUrls") or [])),
             "relatedvulnerabilities": details.get("relatedVulnerabilities"),
@@ -385,6 +394,27 @@ def load_inspector_finding_to_package_match_links(
         lastupdated=aws_update_tag,
         _sub_resource_label="AWSAccount",
         _sub_resource_id=current_aws_account_id,
+    )
+
+
+# DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
+@timeit
+def migrate_legacy_cve_labels(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    has_legacy_labels = neo4j_session.execute_read(
+        read_single_value_tx,
+        "RETURN EXISTS { MATCH (:AWSInspectorFinding:CVE) }",
+    )
+    if not has_legacy_labels:
+        return
+    logger.info(
+        "Removing the :CVE label that an earlier version of Cartography put on "
+        "AWS Inspector findings. This is a one-time migration for this graph."
+    )
+    run_analysis_job(
+        "aws_inspector_cve_migration.json", neo4j_session, common_job_parameters
     )
 
 
@@ -716,3 +746,5 @@ def sync(
             "were transiently skipped. Preserving last-known-good data.",
             current_aws_account_id,
         )
+    # After cleanup, so findings it just deleted are not migrated first.
+    migrate_legacy_cve_labels(neo4j_session, common_job_parameters)

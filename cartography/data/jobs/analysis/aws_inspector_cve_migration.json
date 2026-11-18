@@ -1,0 +1,11 @@
+{
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. Earlier releases put the :CVE ontology label, with its _ont_* fields, on every PACKAGE_VULNERABILITY AWSInspectorFinding. The CVE is now the AWSInspectorVulnerability the finding links to, and nothing updates these any more, so strip them: left stale, :CVE queries count each Inspector CVE once per affected resource. Idempotent: once stripped, no AWSInspectorFinding carries :CVE.",
+      "query": "MATCH (f:AWSInspectorFinding:CVE) WITH f LIMIT $LIMIT_SIZE REMOVE f:CVE, f._ont_source, f._ont_cve_id, f._ont_base_score, f._ont_base_severity, f._ont_description, f._ont_references RETURN count(f) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ],
+  "name": "AWS Inspector - migrate CVE labels written by earlier versions"
+}

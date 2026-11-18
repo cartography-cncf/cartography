@@ -25,7 +25,11 @@ class AWSInspectorVulnerabilityNodeProperties(CartographyNodeProperties):
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
-        description="CVE identifier of the vulnerability.",
+        description="CVE identifier of the vulnerability. Unset when the identifier is not a CVE, such as a GHSA or ALAS advisory.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="`true` when the identifier is a CVE, so the node is labeled `:CVE`.",
     )
     description: PropertyRef = PropertyRef(
         "description",
@@ -96,14 +100,14 @@ class AWSInspectorVulnerabilitySchema(CartographyNodeSchema):
 
     Holds the advisory data that is the same for every finding of the vulnerability, so
     each `AWSInspectorFinding` stores only what is specific to one affected resource.
-    Labeled [`CVE`](#ontology-cve), so `CVEMetadata` enriches one node per vulnerability.
+    Labeled [`CVE`](#ontology-cve) when its identifier is a CVE, so `CVEMetadata` enriches one node per CVE.
     """
 
     label: str = "AWSInspectorVulnerability"
     properties: AWSInspectorVulnerabilityNodeProperties = (
         AWSInspectorVulnerabilityNodeProperties()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE.when(has_cve="true")])
     sub_resource_relationship: InspectorVulnerabilityToAWSAccountRel = (
         InspectorVulnerabilityToAWSAccountRel()
     )

@@ -23,13 +23,6 @@ _CVSS_SEVERITY = {
     "CRITICAL": "critical",
 }
 
-# AWS Inspector severity: CVSS bands plus INFORMATIONAL. UNTRIAGED is left
-# unmapped so unscored findings keep a null base_severity instead of a fake band.
-_INSPECTOR_SEVERITY = {
-    **_CVSS_SEVERITY,
-    "INFORMATIONAL": "info",
-}
-
 # Orca's VulnerabilityV2 query emits uppercase CVSS severity names. Include
 # lowercase variants so normalized results remain stable across API casing.
 _ORCA_CVSS_SEVERITY = {
@@ -397,12 +390,13 @@ sentinelone_mapping = OntologyMapping(
 # and state describe a detection rather than a CVE and stay on :TenableFinding,
 # reachable from the CVE through the plugin that names it.
 #
-# Note the shape differs from most scanners. Trivy, Inspector, SentinelOne, Orca and
-# Wiz put :CVE on the finding; of those, only Trivy maps _ont_vuln_status, as a
-# detection status. Tenable puts :CVE on the vulnerability record, like the NVD
-# (`cve`), Ubuntu and CrowdStrike mappings. Those feeds score each CVE; Tenable's
-# does not, so it contributes no _ont_base_severity or _ont_vuln_status. Queries
-# filtering :CVE on those fields will not return Tenable data.
+# Note the shape differs from most scanners. Trivy, SentinelOne, Orca and Wiz put
+# :CVE on the finding; of those, only Trivy maps _ont_vuln_status, as a detection
+# status. Tenable puts :CVE on the vulnerability record, like the NVD (`cve`),
+# Ubuntu, CrowdStrike and AWS Inspector mappings. Those feeds score each CVE except
+# Tenable's and Inspector's, which score each detection instead, so neither
+# contributes _ont_base_severity or _ont_vuln_status. Queries filtering :CVE on
+# those fields will not return Tenable or Inspector data.
 tenable_mapping = OntologyMapping(
     module_name="tenable",
     nodes=[
@@ -478,37 +472,6 @@ semgrep_mapping = OntologyMapping(
 aws_inspector_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
-        OntologyNodeMapping(
-            node_label="AWSInspectorFinding",
-            fields=[
-                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
-                # Package vulnerability findings leave description unset; their
-                # AWSInspectorVulnerability carries the CVE description and references.
-                OntologyFieldMapping(
-                    ontology_field="description",
-                    node_field="description",
-                    indexed=False,
-                ),
-                # DEPRECATED: referenceurls is always unset on findings; mapping it
-                # clears the _ont_references that findings synced before the move
-                # still carry. Will be removed in v1.0.0.
-                OntologyFieldMapping(
-                    ontology_field="references",
-                    node_field="referenceurls",
-                    indexed=False,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_score",
-                    node_field="cvssscore",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_severity",
-                    node_field="severity",
-                    special_handling="mapping",
-                    extra={"map": _INSPECTOR_SEVERITY},
-                ),
-            ],
-        ),
         OntologyNodeMapping(
             node_label="AWSInspectorVulnerability",
             fields=[

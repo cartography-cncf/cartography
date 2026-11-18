@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from cartography.intel.aws.inspector import transform_inspector_findings
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
@@ -98,6 +100,7 @@ def test_transform_inspector_findings_package():
             "id": "CVE-2017-9059",
             "vulnerabilityid": "CVE-2017-9059",
             "cve_id": "CVE-2017-9059",
+            "has_cve": "true",
             "description": "The NFSv4 implementation in the Linux kernel through "
             "4.11.1 allows local users to cause a denial of service "
             "(resource consumption) by leveraging improper channel "
@@ -120,6 +123,7 @@ def test_transform_inspector_findings_package():
             "id": "CVE-2023-1234",
             "vulnerabilityid": "CVE-2023-1234",
             "cve_id": "CVE-2023-1234",
+            "has_cve": "true",
             "description": "A buffer overflow vulnerability in OpenSSL allows remote attackers "
             "to execute arbitrary code or cause a denial of service via crafted "
             "SSL/TLS handshake messages.",
@@ -252,3 +256,34 @@ def test_transform_inspector_findings_merges_reference_urls_per_vulnerability():
             ],
         ),
     ]
+
+
+@pytest.mark.parametrize(
+    ("vulnerability_id", "cve_id", "has_cve"),
+    [
+        ("CVE-2023-1234", "CVE-2023-1234", "true"),
+        ("GHSA-jfh8-c2jp-5v3q", None, "false"),
+        ("ALAS2023-2023-001", None, "false"),
+    ],
+)
+def test_transform_inspector_findings_names_only_cves_as_cves(
+    vulnerability_id, cve_id, has_cve
+):
+    finding = LIST_FINDINGS_EC2_PACKAGE[1]
+    details = {
+        **finding["packageVulnerabilityDetails"],
+        "vulnerabilityId": vulnerability_id,
+    }
+
+    findings, _packages, _finding_to_package_map, vulnerabilities = (
+        transform_inspector_findings(
+            [{**finding, "packageVulnerabilityDetails": details}]
+        )
+    )
+
+    assert findings[0]["vulnerabilityid"] == vulnerability_id
+    assert findings[0]["cve_id"] == cve_id
+    assert (vulnerabilities[0]["cve_id"], vulnerabilities[0]["has_cve"]) == (
+        cve_id,
+        has_cve,
+    )
