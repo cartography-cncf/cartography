@@ -76,8 +76,10 @@ def test_build_cleanup_detach_query_unscoped_has_no_exclusion():
         MATCH (n:UnscopedNode)
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """
     assert remove_leading_whitespace_and_empty_lines(
         actual_query
@@ -97,8 +99,10 @@ def test_build_cleanup_queries_unscoped():
         MATCH (n:UnscopedNode)
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
     """
 
     actual_delete_node = remove_leading_whitespace_and_empty_lines(queries[1])

@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.client.core.tx import load_graph_data
 from cartography.graph.job import GraphJob
 from cartography.graph.querybuilder import build_ingestion_query
@@ -326,4 +328,216 @@ def test_cleanup_runs_until_every_stale_node_is_gone(neo4j_session):
     # Assert
     assert check_nodes(neo4j_session, "InterestingAsset", ["id", "lastupdated"]) == {
         ("interesting-node-id", 11),
+    }
+
+
+def _count(neo4j_session, query: str, **params) -> int:
+    return neo4j_session.run(query, **params).single()["c"]
+
+
+def _seed_hub_graph(neo4j_session) -> None:
+    """
+    Seed two scopes, each with a sub resource, so cleanup for 'scope-a' at UPDATE_TAG=2 sees:
+      - stale-hub (lastupdated=1) in scope-a: many relationships of several types, including
+        same-type RELATIONSHIP_LABEL edges to children and an edge to another stale node
+      - stale-peer (lastupdated=1) in scope-a: linked to stale-hub, so one relationship is
+        reachable from two stale nodes
+      - fresh (lastupdated=2) in scope-a: must keep everything
+      - other-scope-stale (lastupdated=1) in scope-b: must keep everything
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        UNWIND [{sub: 'scope-a', lu: 1}, {sub: 'scope-b', lu: 1}] AS scope
+        MERGE (s:SubResource{id: scope.sub}) SET s.lastupdated = scope.lu
+        """,
+    )
+    neo4j_session.run(
+        """
+        UNWIND [
+            {id: 'stale-hub', sub: 'scope-a', lu: 1},
+            {id: 'stale-peer', sub: 'scope-a', lu: 1},
+            {id: 'fresh', sub: 'scope-a', lu: 2},
+            {id: 'other-scope-stale', sub: 'scope-b', lu: 1}
+        ] AS a
+        MERGE (n:InterestingAsset{id: a.id}) SET n.lastupdated = a.lu
+        WITH n, a
+        MATCH (s:SubResource{id: a.sub})
+        MERGE (s)-[r:RELATIONSHIP_LABEL]->(n) SET r.lastupdated = a.lu
+        """,
+    )
+    neo4j_session.run(
+        """
+        UNWIND ['stale-hub', 'stale-peer', 'fresh', 'other-scope-stale'] AS asset_id
+        MATCH (n:InterestingAsset{id: asset_id})
+        UNWIND range(1, 5) AS i
+        MERGE (h:HelloAsset{id: asset_id + '-hello-' + toString(i)}) SET h.lastupdated = n.lastupdated
+        MERGE (n)-[r:ASSOCIATED_WITH]->(h) SET r.lastupdated = n.lastupdated
+        """,
+    )
+    # Children hang off the assets by the same type as the sub resource relationship, in the
+    # opposite direction: (:InterestingAsset)-[:RELATIONSHIP_LABEL]->(:ChildNode).
+    neo4j_session.run(
+        """
+        UNWIND ['stale-hub', 'fresh', 'other-scope-stale'] AS asset_id
+        MATCH (n:InterestingAsset{id: asset_id})
+        UNWIND range(1, 5) AS i
+        MERGE (c:ChildNode{id: asset_id + '-child-' + toString(i)}) SET c.lastupdated = n.lastupdated
+        MERGE (n)-[r:RELATIONSHIP_LABEL]->(c) SET r.lastupdated = n.lastupdated
+        """,
+    )
+    neo4j_session.run(
+        """
+        MATCH (a:InterestingAsset{id: 'stale-hub'}), (b:InterestingAsset{id: 'stale-peer'})
+        MERGE (a)-[r:LINKS_TO]->(b) SET r.lastupdated = 1
+        """,
+    )
+
+
+def _assert_only_untouched_assets_remain(neo4j_session) -> None:
+    assert check_nodes(neo4j_session, "InterestingAsset", ["id"]) == {
+        ("fresh",),
+        ("other-scope-stale",),
+    }
+    # The fresh and the out-of-scope asset keep their sub resource link and relationships.
+    for asset_id in ("fresh", "other-scope-stale"):
+        assert (
+            _count(
+                neo4j_session,
+                """
+                MATCH (:InterestingAsset{id: $id})-[r:ASSOCIATED_WITH]->(:HelloAsset)
+                RETURN count(r) AS c
+                """,
+                id=asset_id,
+            )
+            == 5
+        )
+        assert (
+            _count(
+                neo4j_session,
+                """
+                MATCH (:InterestingAsset{id: $id})-[r:RELATIONSHIP_LABEL]->(:ChildNode)
+                RETURN count(r) AS c
+                """,
+                id=asset_id,
+            )
+            == 5
+        )
+        assert (
+            _count(
+                neo4j_session,
+                """
+                MATCH (:SubResource)-[r:RELATIONSHIP_LABEL]->(:InterestingAsset{id: $id})
+                RETURN count(r) AS c
+                """,
+                id=asset_id,
+            )
+            == 1
+        )
+
+
+@pytest.mark.parametrize("iterationsize", [1, 2])
+def test_cleanup_removes_stale_node_and_every_relationship_in_small_batches(
+    neo4j_session,
+    iterationsize,
+):
+    """
+    A stale node with more relationships than the batch size is deleted together with all of
+    its relationships, while fresh nodes and stale nodes in another scope are untouched.
+    """
+    _seed_hub_graph(neo4j_session)
+
+    GraphJob.from_node_schema(
+        InterestingAssetSchema(),
+        {"UPDATE_TAG": 2, "sub_resource_id": "scope-a"},
+        iterationsize=iterationsize,
+    ).run(neo4j_session)
+
+    _assert_only_untouched_assets_remain(neo4j_session)
+    # The children are not owned by the stale asset (no cascade_delete), so they stay.
+    assert _count(neo4j_session, "MATCH (c:ChildNode) RETURN count(c) AS c") == 15
+    # Nothing is left pointing at the deleted assets.
+    assert (
+        _count(
+            neo4j_session,
+            "MATCH ()-[r:LINKS_TO]-() RETURN count(r) AS c",
+        )
+        == 0
+    )
+
+
+def test_cleanup_detach_pass_leaves_only_the_parent_link(neo4j_session):
+    """
+    The detach pass runs on its own: it removes the relationships of stale nodes, including
+    same-type edges to children, but leaves the nodes and the link the node delete needs.
+    """
+    _seed_hub_graph(neo4j_session)
+    job = GraphJob.from_node_schema(
+        InterestingAssetSchema(),
+        {"UPDATE_TAG": 2, "sub_resource_id": "scope-a"},
+        iterationsize=2,
+    )
+
+    job.statements[0].run(neo4j_session)
+
+    assert check_nodes(neo4j_session, "InterestingAsset", ["id"]) == {
+        ("stale-hub",),
+        ("stale-peer",),
+        ("fresh",),
+        ("other-scope-stale",),
+    }
+    for asset_id in ("stale-hub", "stale-peer"):
+        remaining = neo4j_session.run(
+            """
+            MATCH (:InterestingAsset{id: $id})-[r]-()
+            RETURN type(r) AS type, count(r) AS c
+            """,
+            id=asset_id,
+        ).data()
+        assert remaining == [{"type": "RELATIONSHIP_LABEL", "c": 1}]
+    # The out-of-scope stale node is not in this cleanup's scope, so it is not detached.
+    assert (
+        _count(
+            neo4j_session,
+            "MATCH (:InterestingAsset{id: 'other-scope-stale'})-[r]-() RETURN count(r) AS c",
+        )
+        == 11
+    )
+
+
+def test_cleanup_with_cascade_delete_removes_stale_node_children_and_relationships(
+    neo4j_session,
+):
+    """
+    cascade_delete still reaches the children through same-type relationships: the detach
+    pass must leave those in place.
+    """
+    _seed_hub_graph(neo4j_session)
+    job = GraphJob.from_node_schema(
+        InterestingAssetSchema(),
+        {"UPDATE_TAG": 2, "sub_resource_id": "scope-a"},
+        iterationsize=2,
+        cascade_delete=True,
+    )
+
+    job.statements[0].run(neo4j_session)
+    assert (
+        _count(
+            neo4j_session,
+            """
+            MATCH (:InterestingAsset{id: 'stale-hub'})-[r:RELATIONSHIP_LABEL]->(:ChildNode)
+            RETURN count(r) AS c
+            """,
+        )
+        == 5
+    )
+
+    job.run(neo4j_session)
+
+    _assert_only_untouched_assets_remain(neo4j_session)
+    # stale-hub's children are gone; the other assets' children remain.
+    assert check_nodes(neo4j_session, "ChildNode", ["id"]) == {
+        (f"{asset_id}-child-{i}",)
+        for asset_id in ("fresh", "other-scope-stale")
+        for i in range(1, 6)
     }
