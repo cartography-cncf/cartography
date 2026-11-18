@@ -26,6 +26,7 @@ from . import elasticache
 from . import elasticsearch
 from . import emr
 from . import eventbridge
+from . import eventbridge_schemas
 from . import glue
 from . import guardduty
 from . import iam
@@ -161,6 +162,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "codebuild": codebuild.sync,
         "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
+        "eventbridge:schema_registry": eventbridge_schemas.sync,
         "glue": glue.sync,
         # `wafv2` must run after `ec2:load_balancer_v2`, `apigateway`, and
         # `cloudfront` so that web ACL PROTECTS edges can match those nodes.
