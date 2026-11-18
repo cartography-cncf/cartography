@@ -28,7 +28,14 @@ _OS_PACKAGE_TYPES = (
 # the Debian names.
 _DEB_ARCHITECTURES = {"x86_64": "amd64", "aarch64": "arm64"}
 
+# Findings name language package managers both by ecosystem (NODE, PYTHON, JAVA, GO,
+# C_SHARP) and by tool (NPM, PIP, JAR, GOBINARY).
 _LANGUAGE_PACKAGE_TYPES = {
+    "NODE": "npm",
+    "PYTHON": "pypi",
+    "JAVA": "maven",
+    "GO": "golang",
+    "C_SHARP": "nuget",
     "PIP": "pypi",
     "PIPENV": "pypi",
     "POETRY": "pypi",

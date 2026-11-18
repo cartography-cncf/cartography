@@ -447,6 +447,34 @@ def test_transform_ec2_package_findings_shares_content_across_instances(
             "pkg:golang/golang.org/x/net@v0.17.0",
         ),
         (
+            {"name": "hono", "version": "4.12.14", "packageManager": "NODE"},
+            None,
+            "pkg:npm/hono@4.12.14",
+        ),
+        (
+            {"name": "django", "version": "5.1", "packageManager": "PYTHON"},
+            None,
+            "pkg:pypi/django@5.1",
+        ),
+        (
+            {
+                "name": "io.netty:netty-codec-http",
+                "version": "4.1.130.Final",
+                "packageManager": "JAVA",
+            },
+            None,
+            "pkg:maven/io.netty/netty-codec-http@4.1.130.Final",
+        ),
+        (
+            {
+                "name": "github.com/go-chi/chi/v5",
+                "version": "v5.2.2",
+                "packageManager": "GO",
+            },
+            None,
+            "pkg:golang/github.com/go-chi/chi/v5@v5.2.2",
+        ),
+        (
             {"name": "log4j-core", "version": "2.14.1", "packageManager": "JAR"},
             None,
             None,
