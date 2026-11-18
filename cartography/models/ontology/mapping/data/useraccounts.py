@@ -31,6 +31,27 @@ entra_mapping = OntologyMapping(
         ),
     ],
 )
+onepassword_mapping = OntologyMapping(
+    module_name="onepassword",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OnePasswordUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="state",
+                    extra={"values": ["SUSPENDED", "PROVISION_SUSPENDED", "DELETED"]},
+                    special_handling="equal_boolean",
+                ),
+                # has_mfa, lastactivity: Not available in collector snapshots
+            ],
+        ),
+    ],
+)
 lastpass_mapping = OntologyMapping(
     module_name="lastpass",
     nodes=[
@@ -216,9 +237,9 @@ github_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="fullname"),
-                OntologyFieldMapping(
-                    ontology_field="has_mfa", node_field="has_2fa_enabled"
-                ),
+                # has_mfa: GitHub reports 2FA per organization, so the GitHub user
+                # organization facts analysis jobs project `_ont_has_mfa` together
+                # with `has_2fa_enabled` from all of the user's organizations.
             ],
         ),
     ],
@@ -939,6 +960,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
     "lastpass": lastpass_mapping,
+    "onepassword": onepassword_mapping,
     "gsuite": gsuite_mapping,
     "anthropic": anthropic_mapping,
     "airbyte": airbyte_mapping,

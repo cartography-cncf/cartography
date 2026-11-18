@@ -57,6 +57,7 @@ class _Request:
     url: str
     headers: dict[str, str]
     form: dict[str, str]
+    timeout_seconds: float | None
 
 
 class _FakeOktaApi:
@@ -79,7 +80,12 @@ class _FakeOktaApi:
     ) -> tuple[None, _Response, str, None]:
         headers = {**http_client._default_headers, **request["headers"]}
         self.requests.append(
-            _Request(request["url"], headers, request.get("form") or {}),
+            _Request(
+                request["url"],
+                headers,
+                request.get("form") or {},
+                http_client._timeout.total,
+            ),
         )
         if request["url"] != TOKEN_URL:
             response = _Response(200, {})
@@ -147,6 +153,24 @@ def test_api_token_authenticates_with_ssws(okta_api: _FakeOktaApi) -> None:
     (request,) = okta_api.requests
     assert request.url == ORG_URL
     assert request.headers["Authorization"] == "SSWS 00token"
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "config",
+    [_config(okta_api_key="00token"), _oauth_config()],
+    ids=["api-token", "oauth"],
+)
+def test_every_request_is_bounded_by_a_timeout(
+    okta_api: _FakeOktaApi,
+    config: Config,
+) -> None:
+    # Act
+    _fetch_org(config)
+
+    # Assert
+    assert [r.timeout_seconds for r in okta_api.requests] == [300] * len(
+        okta_api.requests
+    )
 
 
 def test_oauth_token_request_is_signed_with_the_service_app_key(

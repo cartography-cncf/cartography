@@ -85,10 +85,12 @@ PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
 PANEL_ZIZMOR = "Zizmor Options"
+PANEL_ONEPASSWORD = "1Password Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
+PANEL_SENTRA = "Sentra Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_WIZ = "Wiz Options"
 PANEL_ORCA = "Orca Security Options"
@@ -162,11 +164,13 @@ MODULE_PANELS = {
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
     "zizmor": PANEL_ZIZMOR,
+    "onepassword": PANEL_ONEPASSWORD,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
+    "sentra": PANEL_SENTRA,
     "tenable": PANEL_TENABLE,
     "wiz": PANEL_WIZ,
     "orca": PANEL_ORCA,
@@ -1861,7 +1865,10 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--tailscale-org",
-                    help="Tailscale organization name to sync.",
+                    help=(
+                        "Tailnet ID to sync, such as T1234CNTRL. Tailnets created "
+                        "before Oct 2025 also accept their legacy ID, such as example.com."
+                    ),
                     rich_help_panel=PANEL_TAILSCALE,
                     hidden=PANEL_TAILSCALE not in visible_panels,
                 ),
@@ -1930,6 +1937,51 @@ class CLI:
                 typer.Option(
                     "--anthropic-apikey-env-var",
                     help="Environment variable name containing Anthropic API key.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_identity_token_file: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-identity-token-file",
+                    help="Path to an OIDC token file to exchange for an Anthropic access token through workload identity federation. Use instead of an Admin API key.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_federation_rule_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-federation-rule-id",
+                    help="Anthropic federation rule ID (fdrl_...) for workload identity federation.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_organization_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-organization-id",
+                    help="Anthropic organization UUID for workload identity federation.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_service_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-service-account-id",
+                    help="Anthropic service account ID (svac_...) for workload identity federation.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_workspace_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-workspace-id",
+                    help="Anthropic workspace ID, required when the federation rule covers several workspaces.",
                     rich_help_panel=PANEL_ANTHROPIC,
                     hidden=PANEL_ANTHROPIC not in visible_panels,
                 ),
@@ -2466,6 +2518,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # 1Password Options
+            # =================================================================
+            onepassword_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--onepassword-source",
+                    help="1Password collector snapshot source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_ONEPASSWORD,
+                    hidden=PANEL_ONEPASSWORD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Ubuntu Security Options
             # =================================================================
             ubuntu_security_enabled: Annotated[
@@ -2576,6 +2640,27 @@ class CLI:
                     hidden=PANEL_SENTINELONE not in visible_panels,
                 ),
             ] = "SENTINELONE_API_TOKEN",
+            # =================================================================
+            # Sentra Options
+            # =================================================================
+            sentra_api_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--sentra-api-url",
+                    help="Sentra API base URL. Defaults to https://app.sentra.io.",
+                    rich_help_panel=PANEL_SENTRA,
+                    hidden=PANEL_SENTRA not in visible_panels,
+                ),
+            ] = None,
+            sentra_api_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--sentra-api-key-env-var",
+                    help="Environment variable name containing the Sentra API key.",
+                    rich_help_panel=PANEL_SENTRA,
+                    hidden=PANEL_SENTRA not in visible_panels,
+                ),
+            ] = "SENTRA_API_KEY",
             # =================================================================
             # Tenable Options
             # =================================================================
@@ -4018,6 +4103,15 @@ class CLI:
                 )
                 sentinelone_api_token = os.environ.get(sentinelone_api_token_env_var)
 
+            # Read Sentra API key
+            sentra_api_key = None
+            if sentra_api_key_env_var:
+                logger.debug(
+                    "Reading Sentra API key from environment variable %s",
+                    sentra_api_key_env_var,
+                )
+                sentra_api_key = os.environ.get(sentra_api_key_env_var)
+
             # Read Tenable API keys
             tenable_access_key = None
             if tenable_access_key_env_var:
@@ -4326,6 +4420,11 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
+                anthropic_identity_token_file=anthropic_identity_token_file,
+                anthropic_federation_rule_id=anthropic_federation_rule_id,
+                anthropic_organization_id=anthropic_organization_id,
+                anthropic_service_account_id=anthropic_service_account_id,
+                anthropic_workspace_id=anthropic_workspace_id,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,
@@ -4384,6 +4483,7 @@ class CLI:
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
                 zizmor_source=zizmor_source,
+                onepassword_source=onepassword_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,
@@ -4393,6 +4493,8 @@ class CLI:
                 sentinelone_api_token=sentinelone_api_token,
                 sentinelone_account_ids=sentinelone_account_ids_list,
                 sentinelone_site_ids=sentinelone_site_ids_list,
+                sentra_api_key=sentra_api_key,
+                sentra_api_url=sentra_api_url,
                 tenable_url=tenable_url,
                 tenable_tenant_id=tenable_tenant_id,
                 tenable_access_key=tenable_access_key,

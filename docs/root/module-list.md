@@ -44,6 +44,7 @@ modules/netlify/index
 modules/notion/index
 modules/oci/index
 modules/okta/index
+modules/onepassword/index
 modules/ontology/index
 modules/openai/index
 modules/orca/index
@@ -54,6 +55,7 @@ modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index
 modules/sentinelone/index
+modules/sentra/index
 modules/sentry/index
 modules/slack/index
 modules/snipeit/index

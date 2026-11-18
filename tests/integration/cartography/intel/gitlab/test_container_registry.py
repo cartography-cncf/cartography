@@ -7,10 +7,13 @@ from unittest.mock import patch
 from cartography.intel.gitlab.container_image_attestations import (
     AttestationDiscoverySummary,
 )
+from cartography.intel.gitlab.container_image_attestations import load_image_provenance
 from cartography.intel.gitlab.container_image_attestations import (
     sync_container_image_attestations,
 )
+from cartography.intel.gitlab.container_images import load_container_images
 from cartography.intel.gitlab.container_images import sync_container_images
+from cartography.intel.gitlab.container_images import transform_container_images
 from cartography.intel.gitlab.container_repositories import sync_container_repositories
 from cartography.intel.gitlab.container_repository_tags import (
     sync_container_repository_tags,
@@ -782,3 +785,77 @@ def test_sync_container_images_skips_manifest_fetch_on_second_run(
         "RESOURCE",
         rel_direction_right=True,
     ) == {(TEST_ORG_ID, DEDUP_IMAGE_DIGEST)}
+
+
+def test_parent_only_attestation_keeps_label_source(neo4j_session):
+    # Arrange: the image config names its source through OCI labels, and the only
+    # attestation names a parent image but no source.
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    _create_test_org(neo4j_session)
+    _create_test_parent_image(neo4j_session)
+    manifest = {
+        **GET_CONTAINER_IMAGES_RESPONSE[0],
+        "_config": {
+            **GET_CONTAINER_IMAGES_RESPONSE[0]["_config"],
+            "config": {
+                "Labels": {
+                    "org.opencontainers.image.source": "https://gitlab.example.com/myorg/awesome-project.git",
+                    "org.opencontainers.image.revision": "3333333333333333333333333333333333333333",
+                },
+            },
+        },
+    }
+    digest = manifest["_digest"]
+    parent_digest = (
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    )
+
+    # Act
+    load_container_images(
+        neo4j_session,
+        transform_container_images([manifest]),
+        TEST_ORG_ID,
+        TEST_GITLAB_URL,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": digest,
+                "parent_image_uri": "registry.gitlab.example.com/myorg/base:1",
+                "parent_image_digest": parent_digest,
+                "from_attestation": True,
+                "confidence": 1.0,
+            },
+        ],
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (img:GitLabContainerImage {digest: $digest})
+        RETURN img.source_uri AS source_uri,
+               img.source_revision AS source_revision,
+               img._ont_source_uri AS ont_source_uri
+        """,
+            digest=digest,
+        ).data()
+        == [
+            {
+                "source_uri": "https://gitlab.example.com/myorg/awesome-project",
+                "source_revision": "3333333333333333333333333333333333333333",
+                "ont_source_uri": "https://gitlab.example.com/myorg/awesome-project",
+            },
+        ]
+    )
+    assert check_rels(
+        neo4j_session,
+        "GitLabContainerImage",
+        "digest",
+        "GitLabContainerImage",
+        "digest",
+        "BUILT_FROM",
+    ) == {(digest, parent_digest)}

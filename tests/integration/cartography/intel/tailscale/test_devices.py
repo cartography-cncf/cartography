@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -163,6 +164,44 @@ def test_load_tailscale_devices(mock_attrs, mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+
+def test_sync_skips_devices_that_left_the_tailnet(neo4j_session):
+    departed_node_id = "p892kg92CNTRL"
+
+    def _get_attributes(url, **kwargs):
+        response = requests.Response()
+        response.url = url
+        response.status_code = 404 if departed_node_id in url else 200
+        response._content = b'{"attributes": {}}'
+        return response
+
+    api_session = Mock(spec=requests.Session)
+    api_session.get.side_effect = _get_attributes
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+        "BASE_URL": "https://fake.tailscale.com",
+        "org": TEST_ORG,
+    }
+    _ensure_local_neo4j_has_test_tailnets(neo4j_session)
+
+    with patch.object(
+        cartography.intel.tailscale.devices,
+        "get",
+        return_value=copy.deepcopy(tests.data.tailscale.devices.TAILSCALE_DEVICES),
+    ):
+        cartography.intel.tailscale.devices.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+            TEST_ORG,
+        )
+
+    assert check_nodes(neo4j_session, "TailscaleDevice", ["id"]) == {
+        ("n292kg92CNTRL",),
+        ("n2fskgfgCNT89",),
+        ("abcskgfgCN789",),
+    }
 
 
 def test_get_device_posture_attributes_handles_scalar_and_object_values():

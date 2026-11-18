@@ -35,9 +35,34 @@ for the canonical scope list.
 
 ## Configure Cartography
 
-Pass `--tailscale-org <tailnet-name>` for either authentication method. Find
-the tailnet name under [Settings >
+Pass `--tailscale-org <tailnet-id>` for either authentication method. Copy the
+**Tailnet ID**, such as `T1234CNTRL`, from [Settings >
 General](https://login.tailscale.com/admin/settings/general).
+
+Tailnets created before October 2025 also have a **Legacy ID**, such as
+`example.com`, and the Tailscale API still accepts it. If you already sync
+with the legacy ID, keep it.
+
+````{warning}
+Cartography uses this value as the `TailscaleTailnet` node ID, and Tailscale
+gives no way to tell that two IDs name the same tailnet. Switching an existing
+sync from the legacy ID to the Tailnet ID creates a second tailnet node. The old
+node stays in the graph, still linked to its devices, users, and other nodes,
+and nodes that exist only under it are never cleaned up.
+
+After the first sync with the new ID, delete the old tailnet and the nodes that
+only it owns:
+
+```cypher
+MATCH (old:TailscaleTailnet {id: "example.com"})
+OPTIONAL MATCH (old)-[:RESOURCE]->(n)
+WHERE NOT EXISTS {
+    MATCH (n)<-[:RESOURCE]-(owner:TailscaleTailnet)
+    WHERE owner <> old
+}
+DETACH DELETE n, old
+```
+````
 
 For OAuth, pass the environment variable names with
 `--tailscale-oauth-client-id-env-var` and
@@ -56,7 +81,7 @@ cartography \
   --selected-modules tailscale \
   --tailscale-oauth-client-id-env-var TS_OAUTH_CLIENT_ID \
   --tailscale-oauth-client-secret-env-var TS_OAUTH_CLIENT_SECRET \
-  --tailscale-org example.com
+  --tailscale-org T1234CNTRL
 ```
 
 With an API access token:
@@ -67,7 +92,7 @@ export TAILSCALE_TOKEN="<token>"
 cartography \
   --selected-modules tailscale \
   --tailscale-token-env-var TAILSCALE_TOKEN \
-  --tailscale-org example.com
+  --tailscale-org T1234CNTRL
 ```
 
 ## Advanced Configuration

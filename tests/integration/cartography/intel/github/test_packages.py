@@ -500,6 +500,14 @@ def test_sync_ghcr_idempotent_across_runs(
         "GitHubContainerImageAttestation",
         ["attests_digest"],
     ) == {(DIGEST_API_LATEST,)}
+    assert check_rels(
+        neo4j_session,
+        "GitHubContainerImageAttestation",
+        "attests_digest",
+        "GitHubContainerImage",
+        "digest",
+        "ATTESTS",
+    ) == {(DIGEST_API_LATEST, DIGEST_API_LATEST)}
 
     # Every surviving image's lastupdated must reflect the second run, not
     # the first — that is the bump the cross-run dedup must perform.
@@ -535,3 +543,183 @@ def test_sync_ghcr_idempotent_across_runs(
     assert (
         not stale_package_images
     ), f"stale lastupdated on HAS_IMAGE rels: {stale_package_images}"
+
+
+def _with_oci_labels(config, source, revision):
+    return {
+        **config,
+        "config": {
+            "Labels": {
+                "org.opencontainers.image.source": source,
+                "org.opencontainers.image.revision": revision,
+            },
+        },
+    }
+
+
+@patch.object(
+    cartography.intel.github.supply_chain,
+    "get_dockerfiles_for_repos",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.github.container_image_attestations,
+    "fetch_all_rest_api_pages",
+    side_effect=_attestations_paginated_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_blob",
+    side_effect=_blob_side_effect,
+)
+@patch.object(
+    cartography.intel.github.container_images,
+    "fetch_ghcr_manifest",
+    side_effect=_manifest_side_effect,
+)
+@patch(
+    "cartography.intel.github.packages.fetch_all_rest_api_pages",
+    side_effect=_packages_pagination_side_effect,
+)
+def test_sync_ghcr_links_image_by_oci_source_label(
+    mock_pages,
+    mock_manifest,
+    mock_blob,
+    mock_attestations,
+    mock_dockerfiles,
+    neo4j_session,
+):
+    """
+    ``worker`` has no attestation and no package-owning repository, so only its
+    OCI source label can link it. The ``api`` config labels name a base-image
+    repository; the SLSA attestation on ``DIGEST_API_LATEST`` must win over them.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    _seed_org_and_repo(neo4j_session)
+    labeled_configs = {
+        "sha256:cfg-worker": _with_oci_labels(
+            CONFIG_BLOBS_BY_DIGEST["sha256:cfg-worker"],
+            f"{REPO_URL}.git",
+            "1111111111111111111111111111111111111111",
+        ),
+        "sha256:cfg-api-amd64": _with_oci_labels(
+            CONFIG_BLOBS_BY_DIGEST["sha256:cfg-api-amd64"],
+            "https://github.com/simpsoncorp/base-images",
+            "2222222222222222222222222222222222222222",
+        ),
+    }
+    base_images = "https://github.com/simpsoncorp/base-images"
+    expected_images = {
+        (
+            DIGEST_API_LATEST,
+            REPO_URL,
+            REPO_URL,
+            "abc123def456abc123def456abc123def4567890",
+        ),
+        (DIGEST_API_INDEX, None, None, None),
+        (
+            DIGEST_API_AMD64,
+            base_images,
+            base_images,
+            "2222222222222222222222222222222222222222",
+        ),
+        (DIGEST_API_ARM64, None, None, None),
+        (
+            DIGEST_WORKER,
+            REPO_URL,
+            REPO_URL,
+            "1111111111111111111111111111111111111111",
+        ),
+    }
+    expected_packaged_from = {
+        (DIGEST_API_LATEST, REPO_URL, "provenance"),
+        (DIGEST_API_AMD64, REPO_URL, "package_owner_repo"),
+        (DIGEST_API_ARM64, REPO_URL, "package_owner_repo"),
+        (DIGEST_WORKER, REPO_URL, "provenance"),
+    }
+
+    def run_sync(update_tag):
+        job_params = {**TEST_JOB_PARAMS, "UPDATE_TAG": update_tag}
+        with patch.dict(CONFIG_BLOBS_BY_DIGEST, labeled_configs):
+            fetch_result = cartography.intel.github.packages.sync_packages(
+                neo4j_session,
+                FAKE_TOKEN,
+                TEST_GITHUB_URL,
+                TEST_ORG,
+                update_tag,
+                job_params,
+            )
+            raw_manifests, _, tag_rows, observed_skipped = (
+                cartography.intel.github.container_images.sync_container_images(
+                    neo4j_session,
+                    FAKE_TOKEN,
+                    TEST_GITHUB_URL,
+                    TEST_ORG,
+                    fetch_result.packages,
+                    update_tag,
+                    job_params,
+                )
+            )
+        cartography.intel.github.container_image_tags.sync_container_image_tags(
+            neo4j_session,
+            TEST_ORG,
+            tag_rows,
+            update_tag,
+            job_params,
+        )
+        cartography.intel.github.container_image_attestations.sync_container_image_attestations(
+            neo4j_session,
+            FAKE_TOKEN,
+            TEST_GITHUB_URL,
+            TEST_ORG,
+            raw_manifests,
+            update_tag,
+            job_params,
+            additional_observed_digests=observed_skipped,
+        )
+        cartography.intel.github.supply_chain.sync(
+            neo4j_session,
+            FAKE_TOKEN,
+            TEST_GITHUB_URL,
+            TEST_ORG,
+            update_tag,
+            job_params,
+            [{"url": REPO_URL}],
+            workflows=None,
+        )
+
+    def image_sources():
+        return check_nodes(
+            neo4j_session,
+            "GitHubContainerImage",
+            ["digest", "source_uri", "_ont_source_uri", "_ont_source_revision"],
+        )
+
+    def packaged_from():
+        return {
+            (row["digest"], row["repo"], row["method"])
+            for row in neo4j_session.run(
+                """
+                MATCH (img:GitHubContainerImage)-[r:PACKAGED_FROM]->(repo:GitHubRepository)
+                RETURN img.digest AS digest, repo.id AS repo, r.match_method AS method
+                """
+            )
+        }
+
+    # Act: first sync
+    run_sync(TEST_UPDATE_TAG)
+
+    # Assert
+    assert image_sources() == expected_images
+    assert packaged_from() == expected_packaged_from
+
+    # Act: images enriched before label provenance existed are refetched once,
+    # and the refetch must not lose a source that came from an attestation.
+    neo4j_session.run(
+        "MATCH (img:GitHubContainerImage) REMOVE img.label_provenance_version"
+    ).consume()
+    run_sync(TEST_UPDATE_TAG + 1)
+
+    # Assert
+    assert image_sources() == expected_images
+    assert packaged_from() == expected_packaged_from

@@ -75,6 +75,17 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # canonical PackageVersion.
     RelConstraint(src="CVE", dst="PackageVersion", label="AFFECTS"),
     RelConstraint(src="SecurityIssue", dst="PackageVersion", label="AFFECTS"),
+    # A security finding names the asset that it affects. Every finding source
+    # already uses AFFECTS for these pairs. No constraint covers UserAccount: a
+    # finding can also be assigned to or dismissed by an account, which are
+    # different relationships.
+    RelConstraint(src="SecurityIssue", dst="ComputeInstance", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Function", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Image", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Database", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="ObjectStorage", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Device", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="PermissionRole", label="AFFECTS"),
     # A container/function resolves to the concrete single-platform image it
     # runs. Materialized by the RESOLVED_IMAGE_JOBS analysis jobs from the raw
     # HAS_IMAGE references, which constraints_whitelist.py exempts as a distinct
@@ -85,6 +96,10 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="Container", dst="FilesystemSnapshot", label="SCANNED_AS"),
     RelConstraint(src="ComputeInstance", dst="FilesystemSnapshot", label="SCANNED_AS"),
     RelConstraint(src="CVE", dst="FilesystemSnapshot", label="AFFECTS"),
+    # A finding without package data names the asset it affects directly.
+    RelConstraint(src="CVE", dst="Image", label="AFFECTS"),
+    RelConstraint(src="CVE", dst="ComputeInstance", label="AFFECTS"),
+    RelConstraint(src="CVE", dst="Function", label="AFFECTS"),
     RelConstraint(src="PackageVersion", dst="FilesystemSnapshot", label="DEPLOYED"),
     # A source snapshot identifies the repository whose exact revision it represents.
     RelConstraint(src="FilesystemSnapshot", dst="CodeRepository", label="SNAPSHOT_OF"),
@@ -98,6 +113,7 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # canonical label cannot be enforced here yet.
     # A specific version of a software package is deployed inside a container image.
     RelConstraint(src="PackageVersion", dst="Image", label="DEPLOYED"),
+    RelConstraint(src="PackageVersion", dst="Device", label="DEPLOYED"),
     # A package groups the concrete versions of itself found across the estate.
     RelConstraint(src="Package", dst="PackageVersion", label="HAS_VERSION"),
     # An internet-facing frontend exposes the asset it puts at risk. The direction

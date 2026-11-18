@@ -40,11 +40,39 @@ GITHUB_USER_DATA = (
                 "isSiteAdmin": False,
                 "email": "mbsimpson@simpson.corp",
                 "company": "Simpson Residence",
+                "organizationVerifiedDomainEmails": ["mbsimpson@burns.corp"],
             },
             "role": "ADMIN",
         },
     ],
     GITHUB_ORG_DATA,
+)
+
+# Marge also belongs to a second organization. Its token is not an owner there, so
+# GitHub withholds her 2FA status. That organization verifies none of her emails and
+# is not part of an enterprise.
+GITHUB_SECOND_ORG_DATA = {
+    "url": "https://github.com/burnscorp",
+    "login": "BurnsCorp",
+}
+
+GITHUB_SECOND_ORG_USER_DATA = (
+    [
+        {
+            "hasTwoFactorEnabled": None,
+            "node": {
+                "url": "https://github.com/mbsimpson",
+                "login": "mbsimpson",
+                "name": "Marge Simpson",
+                "isSiteAdmin": False,
+                "email": "mbsimpson@simpson.corp",
+                "company": "Simpson Residence",
+                "organizationVerifiedDomainEmails": [],
+            },
+            "role": "MEMBER",
+        },
+    ],
+    GITHUB_SECOND_ORG_DATA,
 )
 
 GITHUB_USER_DATA_AT_TIMESTAMP_2 = (

@@ -1,5 +1,7 @@
 import logging
-from time import monotonic
+import re
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -7,6 +9,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.wiz.api import get_paginated
 from cartography.intel.wiz.util import epoch_days_ago_iso
 from cartography.intel.wiz.util import extract_cve_id
@@ -160,9 +163,9 @@ def get(
     token: str,
     since_iso: str | None = None,
     project_id_filter: list[str] | None = None,
-) -> list[dict[str, Any]]:
-    findings: list[dict[str, Any]] = []
-    vulnerability_filter: dict[str, Any] = {}
+    active_only: bool = False,
+) -> Iterator[list[dict[str, Any]]]:
+    vulnerability_filter: dict[str, Any] = {"status": ["OPEN"]} if active_only else {}
     if since_iso:
         vulnerability_filter["updatedAt"] = {"after": since_iso}
 
@@ -170,9 +173,9 @@ def get(
         "result": ["FAIL"],
         "severity": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
         "status": (
-            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
-            if since_iso
-            else ["OPEN", "IN_PROGRESS"]
+            ["OPEN", "IN_PROGRESS"]
+            if active_only
+            else ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
         ),
     }
     if since_iso:
@@ -212,8 +215,7 @@ def get(
             FINDING_TYPE_DETECTION,
         ),
     ):
-        start_time = monotonic()
-        raw_findings = get_paginated(
+        for raw_findings in get_paginated(
             session,
             graphql_url,
             token,
@@ -221,20 +223,11 @@ def get(
             connection_name,
             filter_by=filter_by,
             progress_label=f"{finding_type.lower()} findings",
-        )
-        logger.info(
-            "Fetched %d Wiz %s findings in %.2fs",
-            len(raw_findings),
-            finding_type.lower(),
-            monotonic() - start_time,
-        )
-        findings.extend(
-            _with_finding_type(
+        ):
+            yield _with_finding_type(
                 filter_by_project_ids(raw_findings, project_id_filter),
                 finding_type,
-            ),
-        )
-    return findings
+            )
 
 
 def _with_finding_type(
@@ -272,18 +265,69 @@ def transform(
     for finding in raw_findings:
         finding_type = finding.get(_FINDING_TYPE_KEY)
         if finding_type == FINDING_TYPE_VULNERABILITY:
-            result.append(_transform_vulnerability_finding(finding, tenant_id))
+            record = _transform_vulnerability_finding(finding, tenant_id)
         elif finding_type == FINDING_TYPE_CONFIGURATION:
-            result.append(_transform_configuration_finding(finding, tenant_id))
+            record = _transform_configuration_finding(finding, tenant_id)
         elif finding_type == FINDING_TYPE_DETECTION:
-            result.append(_transform_detection(finding, tenant_id))
+            record = _transform_detection(finding, tenant_id)
         else:
             logger.warning(
                 "Skipping Wiz finding %s with unknown finding type %s",
                 finding.get("id"),
                 finding_type,
             )
+            continue
+        result.append(record | _affected_asset_ids(record))
     return result
+
+
+_EC2_INSTANCE_ARN = re.compile(r"^arn:aws[a-z-]*:ec2:[^:]*:\d*:instance/i-[0-9a-f]+$")
+_LAMBDA_ARN = re.compile(r"^arn:aws[a-z-]*:lambda:[^:]*:\d*:function:[^:]+$")
+_AMI_ID = re.compile(r"^ami-[0-9a-f]+$")
+
+
+def _affected_asset_ids(record: dict[str, Any]) -> dict[str, str | None]:
+    resource_type = record.get("resource_type")
+    external_id = record.get("resource_external_id") or ""
+    region = record.get("resource_region")
+    # Detections carry no cloud platform, so a GCP instance is recognized by its
+    # Compute self link.
+    is_gcp_instance = (
+        resource_type == "VIRTUAL_MACHINE"
+        and external_id.startswith("https://www.googleapis.com/compute/")
+        and "/instances/" in external_id
+    )
+    return {
+        "affected_ec2_instance_arn": (
+            external_id
+            if resource_type == "VIRTUAL_MACHINE"
+            and _EC2_INSTANCE_ARN.match(external_id)
+            else None
+        ),
+        # AWSEC2Image IDs are regional: "<ami id>|<region>".
+        "affected_ami_id": (
+            f"{external_id}|{region}"
+            if resource_type == "VIRTUAL_MACHINE_IMAGE"
+            and _AMI_ID.match(external_id)
+            and region
+            else None
+        ),
+        "affected_lambda_arn": (
+            external_id
+            if resource_type == "SERVERLESS" and _LAMBDA_ARN.match(external_id)
+            else None
+        ),
+        "affected_gcp_instance_id": (
+            parse_compute_full_uri_to_partial_uri(external_id)
+            if is_gcp_instance
+            else None
+        ),
+        "affected_image_digest": (
+            external_id
+            if resource_type == "CONTAINER_IMAGE" and external_id.startswith("sha256:")
+            else None
+        ),
+    }
 
 
 def _transform_vulnerability_finding(
@@ -589,7 +633,7 @@ def _names(records: list[dict[str, Any]]) -> list[str]:
 @timeit
 def load_findings(
     neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
+    data: Iterable[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -624,6 +668,7 @@ def sync(
     lookback_days: int | None,
     project_id_filter: list[str] | None = None,
     *,
+    active_only: bool = False,
     do_cleanup: bool = True,
 ) -> None:
     logger.info("Syncing Wiz findings for tenant %s", tenant_id)
@@ -632,8 +677,15 @@ def sync(
         if lookback_days is not None
         else None
     )
-    raw_findings = get(session, graphql_url, token, since_iso, project_id_filter)
-    findings = transform(raw_findings, tenant_id)
+    pages = get(
+        session,
+        graphql_url,
+        token,
+        since_iso,
+        project_id_filter,
+        active_only=active_only,
+    )
+    findings = (finding for page in pages for finding in transform(page, tenant_id))
     load_findings(neo4j_session, findings, tenant_id, update_tag)
     if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)

@@ -1,7 +1,6 @@
 import logging
 from typing import Dict
 from typing import List
-from typing import Tuple
 
 import neo4j
 from googleapiclient.discovery import HttpError
@@ -14,8 +13,8 @@ from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
-from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
 from cartography.models.gcp.storage.bucket import GCPBucketSchema
+from cartography.models.gcp.storage.bucket import LegacyGCPBucketLabelCleanupSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -79,16 +78,15 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
 
 
 @timeit
-def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List[Dict]]:
+def transform_gcp_buckets(bucket_res: Dict) -> List[Dict]:
     """
     Transform the GCP Storage Bucket response object for Neo4j ingestion.
 
     :param bucket_res: The raw GCP bucket response.
-    :return: A tuple of (buckets, bucket_labels) ready for ingestion to Neo4j.
+    :return: A list of buckets ready for ingestion to Neo4j.
     """
 
     buckets: List[Dict] = []
-    labels: List[Dict] = []
     public_entities = {"allUsers", "allAuthenticatedUsers"}
     for b in bucket_res.get("items", []):
         # Legacy bucket / default-object ACLs can expose a bucket publicly without any
@@ -128,16 +126,7 @@ def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List
             "acl_public": acl_public,
         }
         buckets.append(bucket)
-        for key, val in b.get("labels", {}).items():
-            labels.append(
-                {
-                    "id": f"GCPBucket_{key}",
-                    "key": key,
-                    "value": val,
-                    "bucket_id": b["id"],
-                }
-            )
-    return buckets, labels
+    return buckets
 
 
 @timeit
@@ -158,33 +147,17 @@ def load_gcp_buckets(
 
 
 @timeit
-def load_gcp_bucket_labels(
-    neo4j_session: neo4j.Session,
-    bucket_labels: List[Dict],
-    project_id: str,
-    gcp_update_tag: int,
-) -> None:
-    """Ingest GCP Storage Bucket labels and attach them to buckets."""
-    load(
-        neo4j_session,
-        GCPBucketLabelSchema(),
-        bucket_labels,
-        lastupdated=gcp_update_tag,
-        PROJECT_ID=project_id,
-    )
-
-
-@timeit
 def cleanup_gcp_buckets(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
     """Delete out-of-date GCP Storage Bucket nodes and relationships."""
-    # Bucket labels depend on buckets, so we must remove labels first to avoid
-    # dangling references before deleting the buckets themselves.
-    GraphJob.from_node_schema(GCPBucketLabelSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    # DEPRECATED: cleanup of bucket label nodes keyed only by label key will be removed in v1.0.0.
+    # Buckets and projects that used the same label key shared one of these nodes.
+    GraphJob.from_node_schema(
+        LegacyGCPBucketLabelCleanupSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
     GraphJob.from_node_schema(GCPBucketSchema(), common_job_parameters).run(
         neo4j_session,
     )
@@ -222,9 +195,8 @@ def sync_gcp_buckets(
     logger.info("Syncing Storage objects for project %s.", project_id)
     storage_res = get_gcp_buckets(storage, project_id)
     raw_buckets = storage_res.get("items", [])  # for labels
-    buckets, bucket_labels = transform_gcp_buckets_and_labels(storage_res)
+    buckets = transform_gcp_buckets(storage_res)
     load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
-    load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
     sync_labels(
         neo4j_session,
         raw_buckets,

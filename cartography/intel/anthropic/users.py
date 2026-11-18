@@ -7,12 +7,10 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.anthropic.util import paginated_get
+from cartography.intel.anthropic.util import TIMEOUT
 from cartography.models.anthropic.organization import AnthropicOrganizationSchema
 from cartography.models.anthropic.user import AnthropicUserSchema
 from cartography.util import timeit
-
-# Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
-_TIMEOUT = (60, 60)
 
 
 @timeit
@@ -37,7 +35,7 @@ def get(
     base_url: str,
 ) -> Tuple[str, list[dict[str, Any]]]:
     return paginated_get(
-        api_session, f"{base_url}/organizations/users", timeout=_TIMEOUT
+        api_session, f"{base_url}/organizations/users", timeout=TIMEOUT
     )
 
 

@@ -181,8 +181,13 @@ def test_collect_paginated_raises_on_unusable_next_cursor() -> None:
 
 
 class _FakeRequestExecutor:
-    def __init__(self, pages: dict[str, tuple[Any, str | None]]) -> None:
+    def __init__(
+        self,
+        pages: dict[str, tuple[Any, str | None]],
+        transient_errors: list[Exception] | None = None,
+    ) -> None:
         self.pages = pages
+        self.transient_errors = list(transient_errors or [])
         self.urls: list[str] = []
 
     async def create_request(self, method, url, body, headers):
@@ -190,6 +195,8 @@ class _FakeRequestExecutor:
 
     async def execute(self, request):
         self.urls.append(request["url"])
+        if self.transient_errors:
+            return None, None, self.transient_errors.pop(0)
         body, error = self.pages[request["url"]]
         next_url = {
             "/api/v1/policies?type=PASSWORD": "https://example.okta.com/api/v1/policies?type=PASSWORD&after=p2",
@@ -221,6 +228,29 @@ def test_collect_raw_paginated_follows_next_links() -> None:
     # Assert
     assert items == [{"id": "p1"}, {"id": "p2"}]
     assert len(executor.urls) == 2
+
+
+def test_collect_raw_paginated_retries_a_timed_out_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    async def no_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("cartography.intel.okta.common.asyncio.sleep", no_sleep)
+    executor = _FakeRequestExecutor(
+        {"/api/v1/zones": ([{"id": "z1"}], None)},
+        transient_errors=[TimeoutError()],
+    )
+    okta_client = MagicMock()
+    okta_client.get_request_executor.return_value = executor
+
+    # Act
+    items = asyncio.run(collect_raw_paginated(okta_client, "/api/v1/zones"))
+
+    # Assert
+    assert items == [{"id": "z1"}]
+    assert executor.urls == ["/api/v1/zones", "/api/v1/zones"]
 
 
 def test_collect_raw_paginated_raises_okta_api_error() -> None:
@@ -256,12 +286,18 @@ def _okta_api_error(status: int) -> OktaAPIError:
     ("errors", "expected_calls", "raises"),
     [
         ([_http_error(502), _okta_api_error(500)], 3, False),
+        ([TimeoutError()], 2, False),
         ([_http_error(502)] * 4, 4, True),
         ([_okta_api_error(404)], 1, True),
     ],
-    ids=["recovers-after-5xx", "gives-up-after-retries", "no-retry-on-4xx"],
+    ids=[
+        "recovers-after-5xx",
+        "recovers-after-timeout",
+        "gives-up-after-retries",
+        "no-retry-on-4xx",
+    ],
 )
-def test_collect_paginated_retries_server_errors(
+def test_collect_paginated_retries_transient_errors(
     monkeypatch: pytest.MonkeyPatch,
     errors: list[Any],
     expected_calls: int,

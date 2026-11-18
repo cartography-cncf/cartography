@@ -12,6 +12,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
+from cartography.intel.supply_chain import DOCKERFILE_MATCH_ELIGIBILITY
 from cartography.intel.supply_chain import get_unmatched_gcp_images_with_history
 from cartography.intel.supply_chain import get_unmatched_scaleway_images_with_history
 from cartography.intel.supply_chain import match_images_to_dockerfiles
@@ -99,6 +100,7 @@ def get_unmatched_container_images_with_history(
     - Already have a PACKAGED_FROM created in this sync iteration (by provenance matching)
     - Already claimed by a different GitHub organization (prevents cross-org duplication
       and cleanup issues when orgs don't run at the same time)
+    - Have a provenance PACKAGED_FROM, or a source_uri naming a known repository
 
     :param neo4j_session: Neo4j session
     :param organization: The GitHub organization name, used for cross-org scoping
@@ -106,11 +108,15 @@ def get_unmatched_container_images_with_history(
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
-    query = """
+    query = (
+        """
         MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+"""
+        + DOCKERFILE_MATCH_ELIGIBILITY
+        + """
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitHubOrganization'}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $organization}]->())
@@ -124,6 +130,7 @@ def get_unmatched_container_images_with_history(
         ]) AS selected
         WITH repo, selected[3] AS img, selected[4] AS repo_img
     """
+    )
 
     if limit is not None:
         query += f"        ORDER BY coalesce(repo.uri, img.digest)\n        LIMIT {int(limit)}\n"

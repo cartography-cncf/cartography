@@ -1,4 +1,5 @@
 import copy
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -37,7 +38,7 @@ TEST_UPDATE_TAG = 123456789
     "get_tags",
     return_value=copy.deepcopy(GET_RESOURCES_RESPONSE),
 )
-def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session):
+def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session, caplog):
     """
     Verify that sync() creates AWSTag nodes and (Resource)-[:TAGGED]->(AWSTag) relationships.
     """
@@ -53,6 +54,11 @@ def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    caplog.set_level(
+        logging.INFO,
+        logger="cartography.intel.aws.resourcegroupstaggingapi",
     )
 
     # Act - sync tags using the sync() function
@@ -96,6 +102,17 @@ def test_sync_tags(mock_get_tags, mock_get_instances, neo4j_session):
         "MATCH (n:AWSTag) RETURN keys(n) AS props",
     ).single()["props"]
     assert "region" not in region_props
+
+    # Per-resource-type lines are DEBUG; INFO gets one summary per region.
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "cartography.intel.aws.resourcegroupstaggingapi"
+        and record.levelno == logging.INFO
+    ] == [
+        "Syncing AWS tags for account 1234 and region us-east-1",
+        "Loaded 1 tags on 1 resources (region=us-east-1)",
+    ]
 
 
 def test_sync_tags_scopes_to_correct_region(neo4j_session):

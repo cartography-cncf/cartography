@@ -136,10 +136,10 @@ aws_mapping = OntologyMapping(
                     ontology_field="name", node_field="accesskeyid", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="created_at", node_field="createdate"
+                    ontology_field="created_at", node_field="createdate_dt"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="last_used_at", node_field="lastuseddate"
+                    ontology_field="last_used_at", node_field="lastuseddate_dt"
                 ),
             ],
         ),

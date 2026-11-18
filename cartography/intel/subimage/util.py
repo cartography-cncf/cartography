@@ -33,7 +33,10 @@ def create_api_session(access_token: str) -> requests.Session:
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["GET"],
     )
-    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    adapter = HTTPAdapter(max_retries=retry_policy)
+    session.mount("https://", adapter)
+    # A deployment can reach its own API over plain HTTP inside its cluster.
+    session.mount("http://", adapter)
     session.headers.update(
         {"Authorization": f"Bearer {access_token}"},
     )

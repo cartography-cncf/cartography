@@ -78,6 +78,31 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="location", node_field="region"),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="AWSRedshiftCluster",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="cluster_identifier",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "redshift"},
+                ),
+                # _ont_db_version: Not stored on the AWSRedshiftCluster node.
+                OntologyFieldMapping(
+                    ontology_field="endpoint", node_field="endpoint_address"
+                ),
+                OntologyFieldMapping(ontology_field="port", node_field="endpoint_port"),
+                OntologyFieldMapping(
+                    ontology_field="encrypted", node_field="encrypted"
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+            ],
+        ),
     ],
 )
 

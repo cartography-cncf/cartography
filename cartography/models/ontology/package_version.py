@@ -190,6 +190,87 @@ class TrivyImageFindingToPackageVersionRel(CartographyRelSchema):
     properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
 
 
+# (:PackageVersion)-[:DETECTED_AS]->(:OrcaPackage)
+@dataclass(frozen=True)
+class PackageVersionToOrcaPackageRel(CartographyRelSchema):
+    """A canonical package version was detected as an Orca package."""
+
+    target_node_label: str = "OrcaPackage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
+@dataclass(frozen=True)
+class OrcaVulnerabilityFindingToPackageVersionRel(CartographyRelSchema):
+    """An Orca vulnerability finding affects a canonical package version."""
+
+    target_node_label: str = "OrcaVulnerabilityFinding"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "AFFECTS"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
+# (:PackageVersion)-[:DETECTED_AS]->(:AWSInspectorPackage)
+@dataclass(frozen=True)
+class PackageVersionToAWSInspectorPackageRel(CartographyRelSchema):
+    """A canonical package version was detected as an AWS Inspector package."""
+
+    target_node_label: str = "AWSInspectorPackage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
+# (:PackageVersion)-[:DETECTED_AS]->(:CrowdstrikeApplication)
+@dataclass(frozen=True)
+class PackageVersionToCrowdstrikeApplicationRel(CartographyRelSchema):
+    """A canonical package version was detected as a CrowdStrike application."""
+
+    target_node_label: str = "CrowdstrikeApplication"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"normalized_id": PropertyRef("normalized_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_AS"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
+@dataclass(frozen=True)
+class CrowdstrikeFindingToPackageVersionRel(CartographyRelSchema):
+    """A CrowdStrike CVE affects a canonical package version."""
+
+    target_node_label: str = "CrowdstrikeFinding"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_unused_cleanup_matcher")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "AFFECTS"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
+@dataclass(frozen=True)
+class PackageVersionToDeviceRel(CartographyRelSchema):
+    """A canonical package version is deployed on a device."""
+
+    target_node_label: str = "Device"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_unused_cleanup_matcher")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class PackageVersionSchema(CartographyNodeSchema):
     """A canonical versioned software package aggregated across inventory sources."""
@@ -213,5 +294,11 @@ class PackageVersionSchema(CartographyNodeSchema):
             PackageVersionToTrivyFixRel(),
             PackageVersionToPackageVersionDependsOnRel(),
             TrivyImageFindingToPackageVersionRel(),
+            PackageVersionToOrcaPackageRel(),
+            OrcaVulnerabilityFindingToPackageVersionRel(),
+            PackageVersionToCrowdstrikeApplicationRel(),
+            CrowdstrikeFindingToPackageVersionRel(),
+            PackageVersionToAWSInspectorPackageRel(),
+            PackageVersionToDeviceRel(),
         ],
     )

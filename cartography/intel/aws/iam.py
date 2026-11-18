@@ -753,7 +753,11 @@ def transform_access_keys(
                     "createdate": str(access_key["CreateDate"]),
                     "createdate_dt": access_key["CreateDate"],
                     "status": access_key["Status"],
-                    "lastuseddate": str(access_key.get("LastUsedDate", "")),
+                    "lastuseddate": (
+                        str(access_key["LastUsedDate"])
+                        if access_key.get("LastUsedDate") is not None
+                        else None
+                    ),
                     "lastuseddate_dt": access_key.get("LastUsedDate"),
                     "lastusedservice": access_key.get("LastUsedService", ""),
                     "lastusedregion": access_key.get("LastUsedRegion", ""),

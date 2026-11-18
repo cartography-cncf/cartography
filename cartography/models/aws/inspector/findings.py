@@ -13,7 +13,6 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RISK
-from cartography.models.ontology.labels import CVE
 from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
@@ -48,6 +47,7 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     )
     severity: PropertyRef = PropertyRef(
         "severity",
+        extra_index=True,
         description="Inspector severity assigned to the finding.",
     )
     firstobservedat: PropertyRef = PropertyRef(
@@ -59,7 +59,12 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
         description="Timestamp when Inspector last updated the finding.",
     )
     description: PropertyRef = PropertyRef(
-        "description", description="Description of this `AWSInspectorFinding` node."
+        "description",
+        description=(
+            "Description of a network reachability or code vulnerability finding. "
+            "A package vulnerability finding leaves it unset; its "
+            "`AWSInspectorVulnerability` holds the description."
+        ),
     )
     type: PropertyRef = PropertyRef(
         "type", description="Type of this `AWSInspectorFinding` node."
@@ -91,52 +96,21 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     )
     vulnerabilityid: PropertyRef = PropertyRef(
         "vulnerabilityid",
-        description="Identifier of the vulnerabilityid linked to this `AWSInspectorFinding` node.",
+        description="Identifier of the `AWSInspectorVulnerability` this finding reports.",
     )
-    # Normalized CVE ID for package vulnerability findings. This feeds the CVE
-    # ontology label and the CVEMetadata ENRICHES relationship.
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
-        description="Normalized CVE identifier for package vulnerability findings.",
-    )
-    referenceurls: PropertyRef = PropertyRef(
-        "referenceurls",
-        description="Reference URLs describing the vulnerability.",
-    )
-    relatedvulnerabilities: PropertyRef = PropertyRef(
-        "relatedvulnerabilities",
-        description="Identifiers of vulnerabilities related to this finding.",
-    )
-    vendorcvssvectors: PropertyRef = PropertyRef(
-        "vendorcvssvectors",
-        description="CVSS scoring vectors reported by the vendor/NVD sources for the vulnerability.",
-    )
-    vendorcvssscores: PropertyRef = PropertyRef(
-        "vendorcvssscores",
-        description="CVSS base scores reported by the vendor/NVD sources for the vulnerability.",
-    )
-    source: PropertyRef = PropertyRef(
-        "source", description="Advisory source that reported the vulnerability."
-    )
-    sourceurl: PropertyRef = PropertyRef(
-        "sourceurl",
-        description="URL of the source advisory for the vulnerability.",
+        description="CVE identifier of the finding's vulnerability. Unset when the identifier is not a CVE.",
     )
     status: PropertyRef = PropertyRef(
         "status", description="Current status of this `AWSInspectorFinding` node."
     )
-    vendorcreatedat: PropertyRef = PropertyRef(
-        "vendorcreatedat",
-        description="Timestamp when the package vendor created the advisory.",
-    )
+    # The vendor advisory differs by distribution, so the same vulnerability can carry
+    # a different vendor severity on each finding.
     vendorseverity: PropertyRef = PropertyRef(
         "vendorseverity",
-        description="Severity assigned by the package vendor.",
-    )
-    vendorupdatedat: PropertyRef = PropertyRef(
-        "vendorupdatedat",
-        description="Timestamp when the package vendor last updated the advisory.",
+        description="Severity that the affected package's vendor assigned to the vulnerability.",
     )
     vulnerablepackageids: PropertyRef = PropertyRef(
         "vulnerablepackageids",
@@ -157,6 +131,41 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
     epss_score_inspector: PropertyRef = PropertyRef(
         "epss_score_inspector",
         description="Exploit Prediction Scoring System (EPSS) score for the finding, as reported by Inspector.",
+    )
+    # DEPRECATED: these properties moved to AWSInspectorVulnerability. The transform
+    # never sets them, so each load writes null and removes the value that findings
+    # synced before the move still carry. Will be removed in v1.0.0.
+    referenceurls: PropertyRef = PropertyRef(
+        "referenceurls",
+        description="Deprecated and always unset. Read `referenceurls` on the finding's `AWSInspectorVulnerability`.",
+    )
+    relatedvulnerabilities: PropertyRef = PropertyRef(
+        "relatedvulnerabilities",
+        description="Deprecated and always unset. Read `relatedvulnerabilities` on the finding's `AWSInspectorVulnerability`.",
+    )
+    vendorcvssvectors: PropertyRef = PropertyRef(
+        "vendorcvssvectors",
+        description="Deprecated and always unset. Read `vendorcvssvectors` on the finding's `AWSInspectorVulnerability`.",
+    )
+    vendorcvssscores: PropertyRef = PropertyRef(
+        "vendorcvssscores",
+        description="Deprecated and always unset. Read `vendorcvssscores` on the finding's `AWSInspectorVulnerability`.",
+    )
+    source: PropertyRef = PropertyRef(
+        "source",
+        description="Deprecated and always unset. Read `source` on the finding's `AWSInspectorVulnerability`.",
+    )
+    sourceurl: PropertyRef = PropertyRef(
+        "sourceurl",
+        description="Deprecated and always unset. Read `sourceurl` on the finding's `AWSInspectorVulnerability`.",
+    )
+    vendorcreatedat: PropertyRef = PropertyRef(
+        "vendorcreatedat",
+        description="Deprecated and always unset. Read `vendorcreatedat` on the finding's `AWSInspectorVulnerability`.",
+    )
+    vendorupdatedat: PropertyRef = PropertyRef(
+        "vendorupdatedat",
+        description="Deprecated and always unset. Read `vendorupdatedat` on the finding's `AWSInspectorVulnerability`.",
     )
     region: PropertyRef = PropertyRef(
         "Region",
@@ -199,6 +208,26 @@ class InspectorFindingToAWSAccountRelDelegateRel(CartographyRelSchema):
     rel_label: str = "MEMBER"
     properties: InspectorFindingToAWSAccountRelDelegateRelRelProperties = (
         InspectorFindingToAWSAccountRelDelegateRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class InspectorFindingToVulnerabilityRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class InspectorFindingToVulnerabilityRel(CartographyRelSchema):
+    """Links a finding to the vulnerability it reports."""
+
+    target_node_label: str = "AWSInspectorVulnerability"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("vulnerabilityid")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_VULNERABILITY"
+    properties: InspectorFindingToVulnerabilityRelProperties = (
+        InspectorFindingToVulnerabilityRelProperties()
     )
 
 
@@ -288,8 +317,9 @@ class InspectorFindingToPackageRelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSInspectorFinding)-[:HAS]->(:AWSInspectorPackage)
 class InspectorFindingToPackageMatchLink(CartographyRelSchema):
+    """Links a finding to the vulnerable packages it reports."""
+
     target_node_label: str = "AWSInspectorPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("packageid")},
@@ -309,20 +339,18 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
 class AWSInspectorFindingSchema(CartographyNodeSchema):
     """Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
 
-    Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled [`CVE`](#ontology-cve), and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+    `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`. A `PACKAGE_VULNERABILITY` finding is not itself labeled [`CVE`](#ontology-cve): the `AWSInspectorVulnerability` it links to carries that label, so each CVE is one node.
     """
 
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
-    # Inspector findings are mixed: package vulnerabilities are CVE-backed while
-    # network-reachability findings are configuration security issues. Label them
-    # by type so each shows up in the right ontology finding family.
+    # Network-reachability findings are configuration security issues. Package
+    # vulnerabilities reach the :CVE family through their AWSInspectorVulnerability.
     # CODE_VULNERABILITY is intentionally left unlabeled for now; give it its own
     # distinct label if/when it needs one.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             RISK,
-            CVE.when(type="PACKAGE_VULNERABILITY"),
             SECURITY_ISSUE.when(type="NETWORK_REACHABILITY"),
         ],
     )
@@ -336,5 +364,6 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
             InspectorFindingToECRRepositoryRel(),
             InspectorFindingToECRImageRel(),
             InspectorFindingToAWSAccountRelDelegateRel(),
+            InspectorFindingToVulnerabilityRel(),
         ],
     )

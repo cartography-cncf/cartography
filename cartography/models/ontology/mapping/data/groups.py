@@ -326,6 +326,21 @@ slack_mapping = OntologyMapping(
 )
 
 # Tailscale
+onepassword_mapping = OntologyMapping(
+    module_name="onepassword",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OnePasswordGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description, email: Not available
+            ],
+        ),
+    ],
+)
+
 tailscale_mapping = OntologyMapping(
     module_name="tailscale",
     nodes=[
@@ -444,6 +459,7 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentry": sentry_mapping,
     "slack": slack_mapping,
     "tailscale": tailscale_mapping,
+    "onepassword": onepassword_mapping,
     "kubernetes": kubernetes_mapping,
     "vercel": vercel_mapping,
     "databricks": OntologyMapping(

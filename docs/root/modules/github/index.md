@@ -34,6 +34,17 @@ Collaborator relationships encode both affiliation and effective permission:
 enterprise without appearing in an organization's member list. Such users use
 the `UNAFFILIATED` relationship when Cartography can retrieve them.
 
+GitHub scopes a user's two-factor authentication status, enterprise ownership,
+and verified-domain emails to the organization being synced. Cartography stores
+each organization's values on the user's `MEMBER_OF` or `UNAFFILIATED`
+relationship and combines them on the `GitHubUser` node, so a user in several
+organizations keeps what any one of them reports. GitHub returns the two-factor
+status only to organization owners: `has_2fa_enabled` is true when any
+organization reports it enabled, false when none does and one reports it
+disabled, and unset otherwise. A user with no `MEMBER_OF` or `UNAFFILIATED`
+relationship to a synced organization, such as a repository collaborator, has
+none of these properties.
+
 ## Dependency behavior
 
 When GitHub's dependency graph provides only a version range, Cartography can
@@ -52,10 +63,27 @@ relationships from those identifiers until identity can be normalized safely.
 
 GHCR images are keyed by digest. Layers are keyed by uncompressed `diff_id`,
 which enables deduplication even when registries use different compressed
-digests. SLSA provenance and Dockerfile analysis can link ontology `Image` nodes
-to the GitHub repositories and workflows that produced them. Workloads from
+digests. SLSA provenance, the OCI `org.opencontainers.image.source` and
+`org.opencontainers.image.revision` labels (or BuildKit's `vcs.source` and
+`vcs.revision`), and Dockerfile analysis can link ontology `Image` nodes to
+the GitHub repositories and workflows that produced them. When an attestation
+names a repository, all of the image's source fields come from that attestation,
+including any it leaves empty; label values are not mixed in. The source is projected to the ontology `Image`
+fields `_ont_source_uri` and `_ont_source_revision`. Workloads from
 other providers match GitHub container images by digest when their declarative
 schemas expose compatible matcher fields.
+
+## Image to repository matching
+
+An image whose provenance (SLSA attestation or an `org.opencontainers.image.source`
+label) names a synced repository is linked with `match_method` `provenance`.
+Dockerfile analysis is a fallback for images without known provenance. It compares
+the image's layer history with each Dockerfile's final stage and needs at least two
+similar commands, so a final stage with a single `COPY` does not match on its own.
+When the best match ties across repositories, Dockerfile analysis creates no link;
+a GHCR image can still be linked to the single repository that owns its package.
+Set the OCI source and revision labels on every build, especially for images built
+from short Dockerfiles.
 
 ## Compatibility model
 

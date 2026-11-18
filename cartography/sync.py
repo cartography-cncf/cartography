@@ -148,9 +148,13 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         # that findings attach to already exist.
         "zizmor": _LazyStage("cartography.intel.zizmor", "start_zizmor_ingestion"),
         "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
+        "onepassword": _LazyStage(
+            "cartography.intel.onepassword", "start_onepassword_ingestion"
+        ),
         "sentinelone": _LazyStage(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
         ),
+        "sentra": _LazyStage("cartography.intel.sentra", "start_sentra_ingestion"),
         "tenable": _LazyStage("cartography.intel.tenable", "start_tenable_ingestion"),
         "wiz": _LazyStage("cartography.intel.wiz", "start_wiz_ingestion"),
         "orca": _LazyStage("cartography.intel.orca", "start_orca_ingestion"),

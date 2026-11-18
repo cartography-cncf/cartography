@@ -134,3 +134,27 @@ def test_transform_supports_attestation_only_update():
         ],
     }
     assert layers_by_project == {}
+
+
+def test_transform_creates_layers_when_config_has_no_history():
+    _, layers_by_project = supply_chain.transform(
+        [
+            {
+                "digest": "sha256:image",
+                "project_id": "project-1",
+                "config": {
+                    "rootfs": {"diff_ids": ["sha256:base", "sha256:app"]},
+                    "history": None,
+                },
+                "annotations": {},
+                "attestation_predicate": None,
+            },
+        ],
+    )
+
+    assert layers_by_project == {
+        "project-1": [
+            {"diff_id": "sha256:base", "history": "", "is_empty": False},
+            {"diff_id": "sha256:app", "history": "", "is_empty": False},
+        ],
+    }

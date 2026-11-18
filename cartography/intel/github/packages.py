@@ -56,9 +56,11 @@ def get_container_packages(
     The ``/orgs/{org}/packages`` endpoint returns 404 on older GHES versions,
     403 when the token is missing the ``read:packages`` scope (the most
     common misconfiguration in the wild: fine-grained PATs always 403 here),
-    and 400 when the account is not actually an organization or has packages
-    disabled. All three cases set ``cleanup_safe=False`` so previously-synced
-    packages are not purged by a missing-scope or endpoint-outage condition.
+    and 400 for a GitHub App installation token, which GitHub Packages does
+    not accept, as well as when the account is not actually an organization
+    or has packages disabled. All three cases set ``cleanup_safe=False`` so
+    previously-synced packages are not purged by a missing-scope or
+    endpoint-outage condition.
     """
     base_url = rest_api_base_url(api_url)
     endpoint = (
@@ -96,7 +98,9 @@ def get_container_packages(
         if status == 400:
             logger.warning(
                 "GitHub Packages endpoint rejected request for org %s (400). "
-                "The account is most likely not an organization (user accounts "
+                "GitHub Packages does not accept GitHub App installation "
+                "tokens; sync GHCR with a classic PAT carrying read:packages. "
+                "Otherwise the account is not an organization (user accounts "
                 "are not supported by /orgs/{org}/packages) or has packages "
                 "disabled. GHCR sync will be skipped and cleanup deferred to "
                 "preserve previously synced packages.",

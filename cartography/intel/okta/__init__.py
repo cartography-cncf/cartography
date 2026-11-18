@@ -55,6 +55,13 @@ def cleanup_okta_groups(
     run_cleanup_job("okta_groups_cleanup.json", neo4j_session, common_job_parameters)
 
 
+# The SDK's default requestTimeout of 0 replaces aiohttp's own five-minute default
+# with no timeout at all, so one stalled connection would hang the sync forever.
+# The budget covers a whole SDK call, including the SDK's waits on 429 rate
+# limits, so it stays well above Okta's one-minute rate-limit window.
+_OKTA_REQUEST_TIMEOUT_SECONDS = 300
+
+
 def _has_oauth_credentials(config: Config) -> bool:
     return bool(config.okta_client_id and config.okta_private_key)
 
@@ -66,6 +73,7 @@ def create_okta_client(config: Config) -> OktaClient:
     """
     client_config: dict[str, Any] = {
         "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
+        "requestTimeout": _OKTA_REQUEST_TIMEOUT_SECONDS,
     }
     if not _has_oauth_credentials(config):
         client_config["token"] = config.okta_api_key

@@ -896,6 +896,7 @@ def _module_title(module: str) -> str:
         "aws": "AWS",
         "gcp": "GCP",
         "oci": "OCI",
+        "onepassword": "1Password",
         "sentinelone": "SentinelOne",
         "socketdev": "Socket.dev",
     }

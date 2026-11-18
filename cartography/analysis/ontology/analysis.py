@@ -546,6 +546,63 @@ PACKAGE_AFFECTS_SEMGREP_SCA_LINKING = AnalysisJob(
         ),
     ),
 )
+PACKAGE_AFFECTS_ORCA_LINKING = AnalysisJob(
+    name="Ontology - OrcaVulnerabilityFinding AFFECTS PackageVersion linking",
+    short_name="ontology_packages_orca_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (f:OrcaVulnerabilityFinding)-[:AFFECTS]->(:OrcaPackage)<-[:DETECTED_AS]-(p:PackageVersion)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "p",
+                    source_label="OrcaVulnerabilityFinding",
+                    target_label="PackageVersion",
+                ),
+            ),
+        ),
+    ),
+)
+PACKAGE_AFFECTS_CROWDSTRIKE_LINKING = AnalysisJob(
+    name="Ontology - CrowdstrikeFinding AFFECTS PackageVersion linking",
+    short_name="ontology_packages_crowdstrike_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (f:CrowdstrikeFinding)-[:AFFECTS]->(:CrowdstrikeApplication)<-[:DETECTED_AS]-(p:PackageVersion)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "p",
+                    source_label="CrowdstrikeFinding",
+                    target_label="PackageVersion",
+                ),
+            ),
+        ),
+    ),
+)
+PACKAGE_DEPLOYED_DEVICE_CROWDSTRIKE = AnalysisJob(
+    name="Ontology - PackageVersion DEPLOYED Device linking via CrowdStrike",
+    short_name="ontology_packages_crowdstrike_deployed_device",
+    statements=(
+        AnalysisStatement(
+            match=(
+                "MATCH (p:PackageVersion)-[:DETECTED_AS]->(:CrowdstrikeApplication)"
+                "-[:DEPLOYED]->(:CrowdstrikeHost)<-[:OBSERVED_AS]-(d:Device)"
+            ),
+            effects=(
+                AddRelationship(
+                    "p",
+                    "DEPLOYED",
+                    "d",
+                    source_label="PackageVersion",
+                    target_label="Device",
+                ),
+            ),
+        ),
+    ),
+)
 PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
     name="Ontology - PackageVersion SHOULD_UPDATE_TO TrivyFix linking",
     short_name="ontology_packages_should_update_to",
@@ -587,6 +644,9 @@ PACKAGE_LINKING_JOBS = (
     PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT,
     PACKAGE_AFFECTS_LINKING,
     PACKAGE_AFFECTS_SEMGREP_SCA_LINKING,
+    PACKAGE_AFFECTS_ORCA_LINKING,
+    PACKAGE_AFFECTS_CROWDSTRIKE_LINKING,
+    PACKAGE_DEPLOYED_DEVICE_CROWDSTRIKE,
     PACKAGE_SHOULD_UPDATE_TO_LINKING,
     PACKAGE_DEPENDS_ON_LINKING,
 )

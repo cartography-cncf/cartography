@@ -39,12 +39,6 @@ BIGQUERY_HANDLER_CASES: list[
         None,
     ),
     (bigquery_table, get_bigquery_tables, ("test-project", "dataset-1"), None),
-    (
-        bigquery_table,
-        get_bigquery_table_detail,
-        ("test-project", "dataset-1", "table-1"),
-        None,
-    ),
     (bigquery_routine, get_bigquery_routines, ("test-project", "dataset-1"), None),
     (bigquery_connection, get_bigquery_connections, ("test-project",), []),
 ]
@@ -76,6 +70,68 @@ def test_bigquery_handlers_skip_legacy_403_errors(
     )
 
     assert func(client, *args) == expected
+
+
+DATASET_SKIPPED = "Skipping details for its 3 remaining tables."
+
+
+@pytest.mark.parametrize(
+    "reason,expected_detail_requests,expected_warning_endings",
+    [
+        # Access denials cover the whole dataset: stop after the first table.
+        ("accessDenied", 1, [DATASET_SKIPPED]),
+        ("BILLING_DISABLED", 1, [DATASET_SKIPPED]),
+        # Quota exhaustion is per request: skip only the table it hit.
+        ("rateLimitExceeded", 3, ["Skipping."] * 3),
+    ],
+)
+def test_sync_bigquery_tables_stops_table_details_at_first_access_denied(
+    monkeypatch,
+    caplog,
+    reason,
+    expected_detail_requests,
+    expected_warning_endings,
+):
+    # Arrange
+    client = MagicMock()
+    tables_api = client.tables.return_value
+    tables_api.list_next.return_value = None
+    listed_tables = [{"tableReference": {"tableId": f"table-{i}"}} for i in range(3)]
+    detail_requests = []
+
+    def _execute(request):
+        if request is tables_api.list.return_value:
+            return {"tables": listed_tables}
+        detail_requests.append(request)
+        raise _make_http_error(403, reason)
+
+    monkeypatch.setattr(bigquery_table, "gcp_api_execute_with_retry", _execute)
+    load_tables = MagicMock()
+    monkeypatch.setattr(bigquery_table, "load_bigquery_tables", load_tables)
+    monkeypatch.setattr(bigquery_table, "cleanup_bigquery_tables", MagicMock())
+
+    # Act
+    bigquery_table.sync_bigquery_tables(
+        MagicMock(),
+        client,
+        [{"datasetReference": {"datasetId": "dataset-1"}}],
+        "test-project",
+        1,
+        {},
+    )
+
+    # Assert
+    assert len(detail_requests) == expected_detail_requests
+    assert [table["table_id"] for table in load_tables.call_args.args[1]] == [
+        "table-0",
+        "table-1",
+        "table-2",
+    ]
+    assert [
+        r.getMessage().rsplit(". ", 1)[-1]
+        for r in caplog.records
+        if r.levelname == "WARNING"
+    ] == expected_warning_endings
 
 
 # These three return the parent object regardless of the detail/list call's own

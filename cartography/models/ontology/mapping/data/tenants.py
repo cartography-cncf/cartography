@@ -323,6 +323,8 @@ keycloak_mapping = OntologyMapping(
 
 # LastPass: No field to map in LastpassTenant (minimal properties)
 
+# 1Password: No field to map in OnePasswordAccount (snapshots carry no account name or domain)
+
 
 # Okta
 okta_mapping = OntologyMapping(
@@ -503,6 +505,24 @@ jumpcloud_mapping = OntologyMapping(
 
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
+
+
+# Sentra
+sentra_mapping = OntologyMapping(
+    module_name="sentra",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentraTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Sentra exposes no organization lifecycle state.
+                # domain: Not available
+            ],
+        ),
+    ],
+)
 
 
 # Tenable
@@ -965,6 +985,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,
     "socketdev": socketdev_mapping,
+    "sentra": sentra_mapping,
     "tenable": tenable_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,

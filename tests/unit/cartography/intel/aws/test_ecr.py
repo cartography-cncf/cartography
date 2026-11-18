@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import boto3
+import pytest
 from botocore.stub import Stubber
 
 import tests.data.aws.ecr as test_data
@@ -173,3 +174,41 @@ def test_get_ecr_repository_images_requests_at_most_100_manifest_lists_per_call(
 
     stubber.assert_no_pending_responses()
     assert len(images) == 101
+
+
+@pytest.mark.parametrize("deleted_before", ["describe_images", "batch_get_image"])
+def test_get_ecr_repository_images_skips_repository_deleted_mid_sync(deleted_before):
+    client = _ecr_client()
+    stubber = Stubber(client)
+    describe_params = {"repositoryName": TEST_REPOSITORY, "maxResults": 1000}
+    if deleted_before == "describe_images":
+        stubber.add_client_error(
+            "describe_images",
+            service_error_code="RepositoryNotFoundException",
+            expected_params=describe_params,
+        )
+    else:
+        stubber.add_response(
+            "describe_images",
+            {
+                "imageDetails": [
+                    {
+                        **_untagged_image_details(test_data.MANIFEST_LIST_DIGEST),
+                        "imageManifestMediaType": "application/vnd.oci.image.index.v1+json",
+                    }
+                ]
+            },
+            describe_params,
+        )
+        stubber.add_client_error(
+            "batch_get_image",
+            service_error_code="RepositoryNotFoundException",
+        )
+
+    with stubber:
+        images = get_ecr_repository_images(
+            _stubbed_session(client), TEST_REGION, TEST_REPOSITORY
+        )
+
+    stubber.assert_no_pending_responses()
+    assert images == []

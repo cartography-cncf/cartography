@@ -7,6 +7,8 @@ from typing import Tuple
 
 import neo4j
 
+from cartography.analysis.github.analysis import GITHUB_ORGANIZATION_USER_FACTS
+from cartography.analysis.github.analysis import GITHUB_USER_ORGANIZATION_FACTS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.helpers import normalize_email_for_matching
@@ -15,6 +17,7 @@ from cartography.models.github.users import GitHubOrganizationUserSchema
 from cartography.models.github.users import GitHubUnaffiliatedUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -233,6 +236,11 @@ def cleanup(
         GitHubUnaffiliatedUserSchema(),
         common_job_parameters,
     ).run(neo4j_session)
+    run_typed_analysis_job(
+        GITHUB_USER_ORGANIZATION_FACTS,
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
@@ -283,6 +291,11 @@ def sync(
         processed_unaffiliated_user_data,
         org_data,
         common_job_parameters["UPDATE_TAG"],
+    )
+    run_typed_analysis_job(
+        GITHUB_ORGANIZATION_USER_FACTS,
+        neo4j_session,
+        {**common_job_parameters, "ORG_URL": org_data["url"]},
     )
 
     merge_module_sync_metadata(

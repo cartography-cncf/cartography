@@ -8,11 +8,9 @@ import requests
 
 from cartography.intel.github import external_identities
 from cartography.intel.github.organizations import load_organization
-from cartography.intel.github.users import load_users
-from cartography.intel.github.users import transform_users as transform_github_users
+from cartography.intel.github.users import sync as sync_github_users
 from cartography.intel.okta.users import _load_okta_users
 from cartography.intel.ontology.users import sync as sync_ontology_users
-from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.github.external_identities import API_URL
 from tests.data.github.external_identities import FORBIDDEN
 from tests.data.github.external_identities import IDENTITIES
@@ -52,8 +50,7 @@ def _seed_org(session, org_url=ORG_URL, alice_fields=None):
         }
         for name in ("alice", "bob", "carol")
     ]
-    members, _ = transform_github_users(edges, [], org)
-    load_users(session, GitHubOrganizationUserSchema(), members, org, 100)
+    sync_github_users(session, {"UPDATE_TAG": 100}, edges, [], org)
 
 
 @pytest.fixture(autouse=True)

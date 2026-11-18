@@ -5,10 +5,19 @@ from cartography.intel.gitlab.container_images import GITLAB_CONTAINER_IMAGE_BAT
 from cartography.intel.gitlab.container_images import (
     GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE,
 )
+from cartography.intel.gitlab.container_images import (
+    GITLAB_CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE,
+)
 from cartography.intel.gitlab.container_images import load_container_image_layers
 from cartography.intel.gitlab.container_images import load_container_images
 from cartography.intel.gitlab.container_images import sync_container_images
 from cartography.intel.gitlab.container_images import transform_container_image_layers
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerNextRelSchema,
+)
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerNodeSchema,
+)
 
 
 def _patch_sync_container_images_dependencies(
@@ -94,7 +103,7 @@ def test_load_container_images_uses_conservative_batch_size(monkeypatch):
     assert load_mock.call_args.kwargs["batch_size"] == GITLAB_CONTAINER_IMAGE_BATCH_SIZE
 
 
-def test_load_container_image_layers_uses_conservative_batch_size(monkeypatch):
+def test_load_container_image_layers_sends_one_next_pair_per_row(monkeypatch):
     load_mock = Mock()
     monkeypatch.setattr(
         "cartography.intel.gitlab.container_images.load",
@@ -103,16 +112,21 @@ def test_load_container_image_layers_uses_conservative_batch_size(monkeypatch):
 
     load_container_image_layers(
         neo4j_session=Mock(),
-        layers=[{"diff_id": "sha256:layer"}],
+        layers=[{"diff_id": "sha256:a", "next_diff_ids": ["sha256:b", "sha256:c"]}],
         org_id=123,
         gitlab_url="https://gitlab.example.com",
         update_tag=123,
     )
 
-    assert (
-        load_mock.call_args.kwargs["batch_size"]
-        == GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE
-    )
+    node_load, next_load = load_mock.call_args_list
+    assert isinstance(node_load.args[1], GitLabContainerImageLayerNodeSchema)
+    assert node_load.kwargs["batch_size"] == GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE
+    assert isinstance(next_load.args[1], GitLabContainerImageLayerNextRelSchema)
+    assert next_load.kwargs["batch_size"] == GITLAB_CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE
+    assert next_load.args[2] == [
+        {"diff_id": "sha256:a", "next_diff_ids": ["sha256:b"]},
+        {"diff_id": "sha256:a", "next_diff_ids": ["sha256:c"]},
+    ]
 
 
 def test_sync_container_images_processes_repositories_in_batches(monkeypatch):
