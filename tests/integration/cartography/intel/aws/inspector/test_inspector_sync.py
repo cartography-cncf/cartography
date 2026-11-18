@@ -35,6 +35,12 @@ THROTTLED = botocore.exceptions.ClientError(
     error_response={"Error": {"Code": "ThrottlingException", "Message": ""}},
     operation_name="ListFindings",
 )
+INSPECTOR_NOT_ENABLED = botocore.exceptions.ClientError(
+    error_response={"Error": {"Code": "ValidationException", "Message": ""}},
+    operation_name="ListFindings",
+)
+
+
 SIGNATURE_EXPIRED = botocore.exceptions.ClientError(
     error_response={
         "Error": {
@@ -253,7 +259,6 @@ def _sync_package_findings(neo4j_session, findings, update_tag=TEST_UPDATE_TAG):
         {
             "UPDATE_TAG": update_tag,
             "AWS_ID": TEST_ACC_ID_1,
-            "aws_inspector_ec2_finding_sets": True,
         },
     )
 
@@ -275,6 +280,7 @@ _FINDING_ROWS = """
     MATCH (s)-[c:CONTAINS]->(f:AWSInspectorFindingContent)
     UNWIND c.slots AS k
     RETURN i.id AS instance, f.vulnerabilityid AS vulnerability,
+           f.severity AS severity,
            o.finding_arn_prefix + o.finding_ids[k] AS arn,
            o.first_observed_at_ms[k] AS first_observed,
            o.last_observed_at_ms[k] AS last_observed,
@@ -285,257 +291,6 @@ _FINDING_ROWS = """
 
 def _epoch_ms(value):
     return round(value.replace(tzinfo=timezone.utc).timestamp() * 1000)
-
-
-def test_sync_inspector_stores_one_node_per_ec2_package_finding_by_default(
-    neo4j_session,
-):
-    # Arrange: account 123456789011 delegates its findings to 123456789012, the
-    # account being synced.
-    aioboto3_session = FakeAioboto3Session(
-        FakeInspector2Client(
-            findings=LIST_FINDINGS_EC2_PACKAGE,
-            member_account_ids=[TEST_ACC_ID_1],
-        ),
-    )
-    # Remove everything previously put in the test graph since the fixture scope is set to module and not function.
-    neo4j_session.run(
-        """
-        MATCH (n) DETACH DELETE n;
-        """,
-    )
-    # Add some fake accounts
-    neo4j_session.run(
-        """
-        MERGE (:AWSAccount{id: '123456789012'})
-        MERGE (:AWSAccount{id: '123456789011'})
-        """,
-    )
-    # Add some fake instances
-    neo4j_session.run(
-        """
-        MERGE (:AWSEC2Instance{id: 'i-88503981029833100', instanceid: 'i-88503981029833100'})
-        MERGE (:AWSEC2Instance{id: 'i-88503981029833101', instanceid: 'i-88503981029833101'})
-        """,
-    )
-    # A finding synced before advisory data and the :CVE label moved to
-    # AWSInspectorVulnerability.
-    neo4j_session.run(
-        """
-        MERGE (f:AWSInspectorFinding:CVE {id: $arn})
-        SET f.description = 'old description', f.source = 'NVD',
-            f.referenceurls = ['https://example.com/advisory'],
-            f._ont_description = 'old description',
-            f._ont_references = ['https://example.com/advisory'],
-            f._ont_cve_id = 'CVE-2017-9059', f._ont_base_severity = 'medium'
-        """,
-        arn=KERNEL_FINDING_ARN,
-    )
-
-    # Act
-    sync(
-        neo4j_session,
-        aioboto3_session,
-        [TEST_REGION],
-        TEST_ACC_ID_2,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_2},
-    )
-
-    # Assert
-    assert check_rels(
-        neo4j_session,
-        "AWSInspectorFinding",
-        "id",
-        "AWSEC2Instance",
-        "id",
-        "AFFECTS",
-        rel_direction_right=True,
-    ) == {
-        (KERNEL_FINDING_ARN, "i-88503981029833100"),
-        (OPENSSL_FINDING_ARN, "i-88503981029833101"),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AWSInspectorFinding",
-        "id",
-        "AWSInspectorPackage",
-        "id",
-        "HAS",
-        rel_direction_right=True,
-    ) == {
-        (KERNEL_FINDING_ARN, "kernel-tools|0:4.9.17-6.29.amzn1.X86_64"),
-        (KERNEL_FINDING_ARN, "kernel|0:4.9.17-6.29.amzn1.X86_64"),
-        (OPENSSL_FINDING_ARN, "openssl|0:1.0.2k-1.amzn2.X86_64"),
-    }
-
-    # Assert AWSAccount RESOURCE to Finding exists
-    assert check_rels(
-        neo4j_session,
-        "AWSAccount",
-        "id",
-        "AWSInspectorFinding",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {
-        ("123456789012", KERNEL_FINDING_ARN),
-        ("123456789012", OPENSSL_FINDING_ARN),
-    }
-
-    # Assert AWSAccount MEMBER to Finding exists
-    assert check_rels(
-        neo4j_session,
-        "AWSAccount",
-        "id",
-        "AWSInspectorFinding",
-        "id",
-        "MEMBER",
-        rel_direction_right=True,
-    ) == {
-        ("123456789011", OPENSSL_FINDING_ARN),
-        ("123456789012", KERNEL_FINDING_ARN),
-    }
-
-    # Assert AWSAccount RESOURCE to Package exists
-    assert check_rels(
-        neo4j_session,
-        "AWSAccount",
-        "id",
-        "AWSInspectorPackage",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {
-        ("123456789012", "kernel-tools|0:4.9.17-6.29.amzn1.X86_64"),
-        ("123456789012", "kernel|0:4.9.17-6.29.amzn1.X86_64"),
-        ("123456789012", "openssl|0:1.0.2k-1.amzn2.X86_64"),
-    }
-
-    # The vulnerability, not each of its findings, is the :CVE node, and the sync
-    # removes the label from findings stored before it moved.
-    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
-        ("CVE-2017-9059",),
-        ("CVE-2023-1234",),
-    }
-    labels = neo4j_session.run(
-        "MATCH (f:AWSInspectorFinding {id: $arn}) RETURN labels(f) AS labels",
-        arn=KERNEL_FINDING_ARN,
-    ).single()["labels"]
-    assert "SecurityIssue" not in labels
-
-    # Findings still name their CVE.
-    assert check_nodes(
-        neo4j_session,
-        "AWSInspectorFinding",
-        ["id", "cve_id"],
-    ) == {
-        (KERNEL_FINDING_ARN, "CVE-2017-9059"),
-        (OPENSSL_FINDING_ARN, "CVE-2023-1234"),
-    }
-
-    # Inspector's adjusted CVSS vector (inspectorScoreDetails.adjustedCvss.scoringVector)
-    # is stored as a single scalar property.
-    assert check_nodes(
-        neo4j_session,
-        "AWSInspectorFinding",
-        ["id", "cvssvector"],
-    ) == {
-        (KERNEL_FINDING_ARN, "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"),
-        (OPENSSL_FINDING_ARN, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"),
-    }
-
-    # Each finding links to the vulnerability it reports, which holds the advisory
-    # data once, including the vendor/NVD CVSS entries from
-    # packageVulnerabilityDetails.cvss[].
-    assert check_rels(
-        neo4j_session,
-        "AWSInspectorFinding",
-        "id",
-        "AWSInspectorVulnerability",
-        "id",
-        "HAS_VULNERABILITY",
-        rel_direction_right=True,
-    ) == {
-        (KERNEL_FINDING_ARN, "CVE-2017-9059"),
-        (OPENSSL_FINDING_ARN, "CVE-2023-1234"),
-    }
-    vulnerabilities = {
-        row["id"]: (row["source"], row["vendorcvssvectors"], row["vendorcvssscores"])
-        for row in neo4j_session.run(
-            """
-            MATCH (:AWSAccount {id: $acc})-[:RESOURCE]->(v:AWSInspectorVulnerability)
-            RETURN v.id AS id, v.source AS source,
-                   v.vendorcvssvectors AS vendorcvssvectors,
-                   v.vendorcvssscores AS vendorcvssscores
-            """,
-            acc=TEST_ACC_ID_2,
-        )
-    }
-    assert vulnerabilities == {
-        "CVE-2017-9059": (
-            "REDHAT_CVE",
-            [
-                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-                "AV:L/AC:L/Au:N/C:N/I:N/A:C",
-                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-            ],
-            [5.5, 4.9, 5.5],
-        ),
-        "CVE-2023-1234": (
-            "NVD",
-            ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
-            [7.5],
-        ),
-    }
-    # Each vulnerability is one :CVE node, so CVEMetadata enriches it once and the
-    # ontology reads its description from it.
-    assert (
-        {
-            (row["id"], row["cve_id"], row["has_description"])
-            for row in neo4j_session.run(
-                """
-            MATCH (v:AWSInspectorVulnerability:CVE)
-            RETURN v.id AS id, v._ont_cve_id AS cve_id,
-                   v._ont_description = v.description AS has_description
-            """,
-            )
-        }
-        == {
-            ("CVE-2017-9059", "CVE-2017-9059", True),
-            ("CVE-2023-1234", "CVE-2023-1234", True),
-        }
-    )
-    # Advisory data lives on the vulnerability, not on each of its findings, and
-    # the sync clears it from findings stored before it moved.
-    assert (
-        neo4j_session.run(
-            """
-        MATCH (f:AWSInspectorFinding)
-        RETURN f.id AS id, f.description AS description, f.source AS source,
-               f.referenceurls AS referenceurls,
-               [k IN keys(f) WHERE k STARTS WITH '_ont_'] AS ont_fields
-        ORDER BY id
-        """,
-        ).data()
-        == [
-            {
-                "id": OPENSSL_FINDING_ARN,
-                "description": None,
-                "source": None,
-                "referenceurls": None,
-                "ont_fields": [],
-            },
-            {
-                "id": KERNEL_FINDING_ARN,
-                "description": None,
-                "source": None,
-                "referenceurls": None,
-                "ont_fields": [],
-            },
-        ]
-    )
 
 
 def test_sync_inspector_ec2_package_findings_as_finding_sets(neo4j_session):
@@ -579,7 +334,6 @@ def test_sync_inspector_ec2_package_findings_as_finding_sets(neo4j_session):
         {
             "UPDATE_TAG": TEST_UPDATE_TAG,
             "AWS_ID": TEST_ACC_ID_2,
-            "aws_inspector_ec2_finding_sets": True,
         },
     )
 
@@ -773,15 +527,20 @@ def test_sync_inspector_keeps_each_findings_own_times(neo4j_session):
     ]
 
 
-def test_sync_inspector_keeps_every_finding_arn(neo4j_session):
-    # Arrange: two findings on i-dup report identical content, and Inspector returns
-    # one of them twice, the second time updated.
+@pytest.mark.parametrize("newer_first", [True, False])
+def test_sync_inspector_keeps_every_finding_arn(neo4j_session, newer_first):
+    # Arrange: two findings on i-dup report identical content. Inspector returns one
+    # of them twice: as it was, and as updated less than a millisecond later with a
+    # higher severity.
     kernel, _openssl = LIST_FINDINGS_EC2_PACKAGE
-    updated = kernel["updatedAt"] + timedelta(hours=1)
+    updated = kernel["updatedAt"] + timedelta(microseconds=300)
+    older = _ec2_package_finding(kernel, "i-dup", "2" + "a" * 31)
+    newer = _ec2_package_finding(
+        kernel, "i-dup", "2" + "a" * 31, updatedAt=updated, severity="HIGH"
+    )
     findings = [
         _ec2_package_finding(kernel, "i-dup", "1" + "a" * 31),
-        _ec2_package_finding(kernel, "i-dup", "2" + "a" * 31),
-        _ec2_package_finding(kernel, "i-dup", "2" + "a" * 31, updatedAt=updated),
+        *([newer, older] if newer_first else [older, newer]),
     ]
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run("MERGE (:AWSAccount{id: $acc})", acc=TEST_ACC_ID_1)
@@ -789,13 +548,22 @@ def test_sync_inspector_keeps_every_finding_arn(neo4j_session):
     # Act
     _sync_package_findings(neo4j_session, findings)
 
-    # Assert: one content in two slots, one row per ARN, and the latest version of
-    # the finding returned twice.
+    # Assert: one row per ARN, and the finding returned twice is its later version.
     prefix = f"arn:aws:inspector2:us-west-2:{TEST_ACC_ID_1}:finding/"
-    assert [(r["arn"], r["updated"]) for r in neo4j_session.run(_FINDING_ROWS)] == [
-        (prefix + "1" + "a" * 31, _epoch_ms(kernel["updatedAt"])),
-        (prefix + "2" + "a" * 31, _epoch_ms(updated)),
+    assert [(r["arn"], r["severity"]) for r in neo4j_session.run(_FINDING_ROWS)] == [
+        (prefix + "1" + "a" * 31, kernel["severity"]),
+        (prefix + "2" + "a" * 31, "HIGH"),
     ]
+
+    # Two findings with the same content fill two slots of one set.
+    _sync_package_findings(
+        neo4j_session,
+        [
+            _ec2_package_finding(kernel, "i-dup", "1" + "a" * 31),
+            _ec2_package_finding(kernel, "i-dup", "2" + "a" * 31),
+        ],
+        update_tag=TEST_UPDATE_TAG + 1,
+    )
     assert neo4j_session.run(
         "MATCH (:AWSInspectorFindingSet)-[c:CONTAINS]->() RETURN c.slots",
     ).value() == [[0, 1]]
@@ -891,7 +659,6 @@ def test_sync_inspector_keeps_an_instance_whose_findings_were_read_partially(
             "UPDATE_TAG": TEST_UPDATE_TAG,
             "AWS_ID": TEST_ACC_ID_1,
             "experimental_aws_inspector_batch": 1,
-            "aws_inspector_ec2_finding_sets": True,
         },
     )
 
@@ -900,13 +667,26 @@ def test_sync_inspector_keeps_an_instance_whose_findings_were_read_partially(
     assert [arn.rsplit("/", 1)[1] for arn in arns] == ["1" + "a" * 31, "1" + "b" * 31]
 
 
+@pytest.mark.parametrize(
+    "rejection",
+    [
+        # Inspector serves one page of a shard, then rejects the next page.
+        {"list_findings_errors_by_page": {("1", "1"): INSPECTOR_NOT_ENABLED}},
+        # Inspector rejects one shard while another returns findings, and the
+        # rejection cancels the sync before it loads them.
+        {"list_findings_errors_by_prefix": {"0": INSPECTOR_NOT_ENABLED}},
+    ],
+)
 def test_sync_inspector_preserves_data_when_a_read_fails_after_some_findings(
-    neo4j_session,
+    neo4j_session, rejection
 ):
     # Arrange: a finding from a previous run, and an account whose network findings
-    # Inspector serves one page of before it rejects the next.
+    # Inspector rejects part of the way through.
     findings = [
-        {**LIST_FINDINGS_NETWORK[0], "findingArn": f"{NETWORK_FINDING_ARN[:-1]}{digit}"}
+        {
+            **LIST_FINDINGS_NETWORK[0],
+            "findingArn": f"{NETWORK_FINDING_ARN.rsplit('/', 1)[0]}/1{'0' * 30}{digit}",
+        }
         for digit in "12"
     ]
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -915,12 +695,7 @@ def test_sync_inspector_preserves_data_when_a_read_fails_after_some_findings(
     # Act
     sync(
         neo4j_session,
-        FakeAioboto3Session(
-            FakeInspector2Client(
-                findings=findings,
-                list_findings_errors_by_page={("0", "1"): INSPECTOR_NOT_ENABLED},
-            ),
-        ),
+        FakeAioboto3Session(FakeInspector2Client(findings=findings, **rejection)),
         [TEST_REGION],
         TEST_ACC_ID_1,
         TEST_UPDATE_TAG,
@@ -937,22 +712,28 @@ def test_sync_inspector_preserves_data_when_a_read_fails_after_some_findings(
     )
 
 
+@pytest.mark.parametrize("ubuntu_first", [True, False])
 def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(
-    neo4j_session,
+    neo4j_session, ubuntu_first
 ):
     # Arrange: two findings of one vulnerability, each listing a different
-    # distribution's advisory, loaded in separate batches.
+    # distribution's advisory, loaded in separate batches in either order.
     details = LIST_FINDINGS_EC2_PACKAGE[1]["packageVulnerabilityDetails"]
+    advisories = [
+        ("1", "NVD", "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html"),
+        ("2", "UBUNTU_CVE", "https://ubuntu.com/security/CVE-2023-1234"),
+    ]
     findings = [
         {
             **LIST_FINDINGS_EC2_PACKAGE[1],
             "findingArn": f"arn:aws:inspector2:us-west-2:123456789011:finding/{digit}{'0' * 31}",
-            "packageVulnerabilityDetails": {**details, "referenceUrls": [url]},
+            "packageVulnerabilityDetails": {
+                **details,
+                "source": source,
+                "referenceUrls": [url],
+            },
         }
-        for digit, url in [
-            ("1", "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html"),
-            ("2", "https://ubuntu.com/security/CVE-2023-1234"),
-        ]
+        for digit, source, url in (reversed(advisories) if ubuntu_first else advisories)
     ]
     aioboto3_session = FakeAioboto3Session(FakeInspector2Client(findings=findings))
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -973,12 +754,17 @@ def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(
     )
 
     # Assert
+    # The vulnerability keeps one advisory's fields whatever order they arrive in.
     vulnerabilities = neo4j_session.run(
-        "MATCH (v:AWSInspectorVulnerability) RETURN v.id AS id, v.referenceurls AS urls",
+        """
+        MATCH (v:AWSInspectorVulnerability)
+        RETURN v.id AS id, v.source AS source, v.referenceurls AS urls
+        """,
     ).data()
     assert vulnerabilities == [
         {
             "id": "CVE-2023-1234",
+            "source": "NVD",
             "urls": [
                 "https://alas.aws.amazon.com/AL2023/ALAS2023-2023-001.html",
                 "https://ubuntu.com/security/CVE-2023-1234",
@@ -1196,12 +982,6 @@ def test_sync_inspector_preserves_data_on_member_listing_timeout(neo4j_session):
     assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == {
         ("arn:aws:stale-member",),
     }
-
-
-INSPECTOR_NOT_ENABLED = botocore.exceptions.ClientError(
-    error_response={"Error": {"Code": "ValidationException", "Message": ""}},
-    operation_name="ListFindings",
-)
 
 
 def test_sync_inspector_preserves_data_when_one_shard_times_out(neo4j_session):

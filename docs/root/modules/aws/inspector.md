@@ -2,16 +2,16 @@
 
 Cartography stores Amazon Inspector findings in two shapes:
 
-- By default, every finding is one `AWSInspectorFinding` node per finding ARN.
-- With `--aws-inspector-ec2-finding-sets`, package vulnerability findings on EC2
-  instances are grouped into finding sets instead. One `AWSInspectorInstanceFindings`
-  node per instance points at one `AWSInspectorFindingSet`, which contains the
-  `AWSInspectorFindingContent` nodes the instance shares with other instances. Every other
-  finding, including network reachability findings on EC2 instances and findings on ECR
-  images, repositories, and Lambda functions, stays one `AWSInspectorFinding` per ARN.
+- Package vulnerability findings on EC2 instances are grouped into finding sets. One
+  `AWSInspectorInstanceFindings` node per instance points at one `AWSInspectorFindingSet`,
+  which contains the `AWSInspectorFindingContent` nodes the instance shares with other
+  instances.
+- Every other finding, including network reachability findings on EC2 instances and
+  findings on ECR images, repositories, and Lambda functions, is one `AWSInspectorFinding`
+  node per finding ARN.
 
-Finding sets are opt-in for one release so that you can migrate your queries first. A
-later release makes them the default.
+Earlier versions stored every finding as an `AWSInspectorFinding`. To update queries
+written for that shape, see [Migrate queries on EC2 package findings](#migrate-queries-on-ec2-package-findings).
 
 ## Vulnerabilities and CVEs
 
@@ -88,9 +88,8 @@ moves to another set. Until cleanup runs, the instance also keeps its previous
 
 ## Migrate queries on EC2 package findings
 
-Turning on `--aws-inspector-ec2-finding-sets` changes queries that read
-`AWSInspectorFinding` nodes for package vulnerabilities on EC2 instances. Queries on any
-other finding do not change. Apply these rules in order.
+Queries that read `AWSInspectorFinding` nodes for package vulnerabilities on EC2
+instances must change. Queries on any other finding do not. Apply these rules in order.
 
 1. **Reach the findings through the instance's set.** Replace the finding match:
 
@@ -133,9 +132,14 @@ other finding do not change. Apply these rules in order.
    Cartography time it replaces, so compare both on a test graph before you switch an
    SLA report.
 
-5. **Find a finding by ARN.** Take the finding ID after `finding/` and match
-   `(fi)-[o:HAS_FINDING_SET]->()` where `$finding_id IN o.finding_ids`. Add the account
-   or region from the ARN to narrow the scan.
+5. **Find a finding by ARN.** Take the finding ID after `finding/` and match it on the
+   current set's relationship. Add the account or region from the ARN to narrow the scan.
+
+   ```cypher
+   MATCH (fi:AWSInspectorInstanceFindings)-[o:HAS_FINDING_SET]->(s:AWSInspectorFindingSet)
+   WHERE s.id = fi.finding_set_id AND $finding_id IN o.finding_ids
+   RETURN fi
+   ```
 
 6. **Use the instance's sync time for the scan time.** `AFFECTS.lastupdated` becomes
    `fi.lastupdated`.
@@ -194,16 +198,16 @@ MATCH (s)-[:CONTAINS]->(f:AWSInspectorFindingContent {status: 'ACTIVE'})
 WITH eks, s, v, nodes, pods,
      max(CASE f.severity WHEN 'CRITICAL' THEN 4 WHEN 'HIGH' THEN 3
                          WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END) AS severity
-RETURN eks.name AS cluster, v.cve_id AS cve, max(severity) AS severity,
-       sum(nodes) AS affected_nodes, sum(pods) AS running_pods
+RETURN eks.arn AS cluster, eks.name AS cluster_name, v.cve_id AS cve,
+       max(severity) AS severity, sum(nodes) AS affected_nodes,
+       sum(pods) AS running_pods
 ORDER BY cluster, severity DESC, running_pods DESC
 ```
 
-## Turn on finding sets
+## Upgrade an existing graph
 
-Run the sync with `--aws-inspector-ec2-finding-sets`. Its cleanup deletes the
-`AWSInspectorFinding` nodes that held EC2 package findings before. On a large fleet, that
-first cleanup deletes as many nodes as the fleet had findings, so it takes about as long
-as a cleanup after a day of full churn did before. Later syncs only delete the nodes of
-replaced instances. Turning the option off again deletes the finding sets and loads the
-findings as `AWSInspectorFinding` nodes.
+The first sync after upgrading loads EC2 package findings as finding sets, and its
+cleanup deletes the `AWSInspectorFinding` nodes that held them before. On a large fleet,
+that first cleanup deletes as many nodes as the fleet had findings, so it takes about as
+long as a cleanup after a day of full churn did before. Later syncs only delete the nodes
+of replaced instances.

@@ -970,7 +970,6 @@ def test_start_aws_ingestion(
             "aws_guardduty_severity_threshold": None,
             "aws_cloudtrail_management_events_lookback_hours": test_config.aws_cloudtrail_management_events_lookback_hours,
             "experimental_aws_inspector_batch": test_config.experimental_aws_inspector_batch,
-            "aws_inspector_ec2_finding_sets": False,
             "aws_tagging_api_cleanup_batch": test_config.aws_tagging_api_cleanup_batch,
             "aws_ssm_public_parameter_prefix_allowlist": "",
         },

@@ -7,6 +7,7 @@ from array import array
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 from typing import Any
 from typing import Dict
@@ -15,6 +16,7 @@ from typing import Set
 from typing import Tuple
 
 _ID_LENGTH = 32
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _CVE_ID = re.compile(r"CVE-\d{4}-\d{4,}")
 
 
@@ -75,10 +77,16 @@ def split_finding_arn(finding: Dict[str, Any]) -> Tuple[str, str]:
     return f"{prefix}/", finding_id
 
 
-def _epoch_ms(value: datetime) -> int:
+# Times are held to the microsecond, so the latest of two deliveries of a finding
+# is found even within one millisecond, and written in milliseconds.
+def _epoch_us(value: datetime) -> int:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
-    return round(value.timestamp() * 1000)
+    return (value - _EPOCH) // timedelta(microseconds=1)
+
+
+def _ms(microseconds: int) -> int:
+    return round(microseconds / 1000)
 
 
 @dataclass
@@ -89,9 +97,9 @@ class _InstanceFindings:
     # Parallel columns keep a large fleet's findings compact while a region syncs.
     content_indexes: array = field(default_factory=lambda: array("I"))
     finding_ids: bytearray = field(default_factory=bytearray)
-    first_observed_ms: array = field(default_factory=lambda: array("q"))
-    last_observed_ms: array = field(default_factory=lambda: array("q"))
-    updated_ms: array = field(default_factory=lambda: array("q"))
+    first_observed_us: array = field(default_factory=lambda: array("q"))
+    last_observed_us: array = field(default_factory=lambda: array("q"))
+    updated_us: array = field(default_factory=lambda: array("q"))
 
 
 @dataclass
@@ -126,9 +134,9 @@ class InstanceFindingSets:
             self._content_indexes[content_id] = index
         instance.content_indexes.append(index)
         instance.finding_ids.extend(bytes.fromhex(raw_finding_id))
-        instance.first_observed_ms.append(_epoch_ms(finding["firstObservedAt"]))
-        instance.last_observed_ms.append(_epoch_ms(finding["lastObservedAt"]))
-        instance.updated_ms.append(_epoch_ms(finding["updatedAt"]))
+        instance.first_observed_us.append(_epoch_us(finding["firstObservedAt"]))
+        instance.last_observed_us.append(_epoch_us(finding["lastObservedAt"]))
+        instance.updated_us.append(_epoch_us(finding["updatedAt"]))
 
     def discard_account(self, awsaccount: str) -> bool:
         """Drop an account's instances after an incomplete read; return whether any were held.
@@ -161,7 +169,7 @@ class InstanceFindingSets:
                 known = positions.get(raw_id)
                 if (
                     known is None
-                    or instance.updated_ms[position] > instance.updated_ms[known]
+                    or instance.updated_us[position] > instance.updated_us[known]
                 ):
                     positions[raw_id] = position
             occurrences = sorted(
@@ -185,13 +193,13 @@ class InstanceFindingSets:
                     "finding_arn_prefix": instance.finding_arn_prefix,
                     "finding_ids": [raw_id.hex() for _, raw_id, _ in occurrences],
                     "first_observed_at_ms": [
-                        instance.first_observed_ms[p] for _, _, p in occurrences
+                        _ms(instance.first_observed_us[p]) for _, _, p in occurrences
                     ],
                     "last_observed_at_ms": [
-                        instance.last_observed_ms[p] for _, _, p in occurrences
+                        _ms(instance.last_observed_us[p]) for _, _, p in occurrences
                     ],
                     "updated_at_ms": [
-                        instance.updated_ms[p] for _, _, p in occurrences
+                        _ms(instance.updated_us[p]) for _, _, p in occurrences
                     ],
                 },
             )

@@ -84,6 +84,7 @@ AWS_INSPECTOR_REGIONS = {
 }
 
 BATCH_SIZE = 1000
+FINDINGS_PER_WRITE = 100_000
 
 
 # ListFindings returns at most 100 findings per page, so one paginator spends most
@@ -140,6 +141,7 @@ async def _get_inspector_findings_shard(
     account_id: str,
     shard: str,
     pages: asyncio.Queue[List[Dict[str, Any]] | None],
+    state: "_SyncState",
 ) -> None:
     finding_arn_prefix = (
         f"arn:{client.meta.partition}:inspector2:{client.meta.region_name}:"
@@ -156,6 +158,9 @@ async def _get_inspector_findings_shard(
     }
     while True:
         page = await _list_findings_page(client, params)
+        # Counted here rather than when the page loads: a failing shard cancels the
+        # loader, which could otherwise miss a page another shard already returned.
+        state.responses_received += 1
         await pages.put(page["findings"])
         next_token = page.get("nextToken")
         if not next_token:
@@ -198,12 +203,13 @@ class _SyncState:
     # earlier in the sync makes the last write hold all of them.
     reference_urls: Dict[str, Set[str]] = field(default_factory=dict)
     finding_sets: InstanceFindingSets = field(default_factory=InstanceFindingSets)
-    # Off by default for one release: EC2 package findings are then stored as before,
-    # one AWSInspectorFinding per finding.
-    ec2_finding_sets: bool = False
-    # Findings received for the account being read, so a read that fails after some
-    # of them loaded is not mistaken for an account without findings.
-    findings_received: int = 0
+    # ListFindings responses for the account being read, so a read that fails after
+    # some of them is not mistaken for an account where Inspector is not enabled.
+    responses_received: int = 0
+    # Inspector reports one vulnerability's advisory from each finding's distribution.
+    # Keeping the same one whatever order the findings arrive in keeps the
+    # vulnerability's fields stable from sync to sync.
+    advisories: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
 
 def transform_inspector_findings(
@@ -342,37 +348,62 @@ def transform_ec2_package_findings(
     )
 
 
+def _vulnerability_record(
+    finding: Dict[str, Any],
+    details: Dict[str, Any],
+) -> Dict[str, Any]:
+    vulnerability_id = details["vulnerabilityId"]
+    cve_id = cve_id_of(vulnerability_id)
+    return {
+        "id": vulnerability_id,
+        "vulnerabilityid": vulnerability_id,
+        "cve_id": cve_id,
+        "has_cve": "true" if cve_id else "false",
+        "description": finding["description"],
+        "referenceurls": sorted(set(details.get("referenceUrls") or [])),
+        "relatedvulnerabilities": details.get("relatedVulnerabilities"),
+        # packageVulnerabilityDetails.cvss is a list of per-source (vendor/NVD)
+        # CVSS entries.
+        "vendorcvssvectors": [c["scoringVector"] for c in details.get("cvss", [])],
+        "vendorcvssscores": [c["baseScore"] for c in details.get("cvss", [])],
+        "source": details.get("source"),
+        "sourceurl": details.get("sourceUrl"),
+        "vendorcreatedat": details.get("vendorCreatedAt"),
+        "vendorupdatedat": details.get("vendorUpdatedAt"),
+    }
+
+
 def _add_vulnerability(
     vulnerabilities: Dict[str, Dict[str, Any]],
     finding: Dict[str, Any],
     details: Dict[str, Any],
 ) -> None:
-    vulnerability_id = details["vulnerabilityId"]
-    vulnerability = vulnerabilities.get(vulnerability_id)
+    candidate = _vulnerability_record(finding, details)
+    vulnerability = vulnerabilities.get(candidate["id"])
     if vulnerability is None:
-        cve_id = canonical_cve_id(vulnerability_id)
-        vulnerabilities[vulnerability_id] = {
-            "id": vulnerability_id,
-            "vulnerabilityid": vulnerability_id,
-            "cve_id": cve_id,
-            "has_cve": "true" if cve_id else "false",
-            "description": finding["description"],
-            "referenceurls": sorted(set(details.get("referenceUrls") or [])),
-            "relatedvulnerabilities": details.get("relatedVulnerabilities"),
-            # packageVulnerabilityDetails.cvss is a list of per-source (vendor/NVD)
-            # CVSS entries.
-            "vendorcvssvectors": [c["scoringVector"] for c in details.get("cvss", [])],
-            "vendorcvssscores": [c["baseScore"] for c in details.get("cvss", [])],
-            "source": details.get("source"),
-            "sourceurl": details.get("sourceUrl"),
-            "vendorcreatedat": details.get("vendorCreatedAt"),
-            "vendorupdatedat": details.get("vendorUpdatedAt"),
-        }
+        vulnerabilities[candidate["id"]] = candidate
         return
     # Each finding lists the advisories of its own distribution, so the
     # vulnerability gets every reference URL that any of its findings report.
-    vulnerability["referenceurls"] = sorted(
-        set(vulnerability["referenceurls"]) | set(details.get("referenceUrls") or []),
+    urls = set(vulnerability["referenceurls"]) | set(candidate["referenceurls"])
+    if _advisory_order(candidate) < _advisory_order(vulnerability):
+        vulnerability.update(candidate)
+    vulnerability["referenceurls"] = sorted(urls)
+
+
+def _advisory_order(vulnerability: Dict[str, Any]) -> Tuple[str, ...]:
+    return tuple(
+        str(vulnerability[key])
+        for key in (
+            "source",
+            "sourceurl",
+            "description",
+            "vendorcvssvectors",
+            "vendorcvssscores",
+            "vendorcreatedat",
+            "vendorupdatedat",
+            "relatedvulnerabilities",
+        )
     )
 
 
@@ -646,14 +677,8 @@ def _load_inspector_findings_batch(
     current_aws_account_id: str,
     state: _SyncState,
 ) -> None:
-    ec2_package_findings = [
-        f for f in findings if state.ec2_finding_sets and is_ec2_package_finding(f)
-    ]
-    other_findings = [
-        f
-        for f in findings
-        if not (state.ec2_finding_sets and is_ec2_package_finding(f))
-    ]
+    ec2_package_findings = [f for f in findings if is_ec2_package_finding(f)]
+    other_findings = [f for f in findings if not is_ec2_package_finding(f)]
     finding_data, package_data, finding_to_package_map, vulnerability_data = (
         transform_inspector_findings(other_findings)
     )
@@ -669,8 +694,14 @@ def _load_inspector_findings_batch(
     for vulnerability in vulnerability_data + content_vulnerability_data:
         seen = state.reference_urls.setdefault(vulnerability["id"], set())
         seen.update(vulnerability["referenceurls"])
+        advisory = state.advisories.get(vulnerability["id"])
+        if advisory is None or _advisory_order(vulnerability) < _advisory_order(
+            advisory
+        ):
+            advisory = vulnerability
+            state.advisories[vulnerability["id"]] = advisory
         vulnerabilities[vulnerability["id"]] = {
-            **vulnerability,
+            **advisory,
             "referenceurls": sorted(seen),
         }
     packages = {p["id"]: p for p in package_data + content_package_data}
@@ -755,13 +786,23 @@ def _load_inspector_finding_sets(
         update_tag,
         current_aws_account_id,
     )
-    load_inspector_instance_findings(
-        neo4j_session,
-        instance_findings,
-        region,
-        update_tag,
-        current_aws_account_id,
-    )
+    # Each instance carries its findings' IDs and times, so a write is bounded by
+    # findings, not instances: a fleet of large instances would otherwise send
+    # millions of findings in one transaction.
+    batch: List[Dict[str, Any]] = []
+    batch_findings = 0
+    for instance in instance_findings:
+        if batch and batch_findings + len(instance["finding_ids"]) > FINDINGS_PER_WRITE:
+            load_inspector_instance_findings(
+                neo4j_session, batch, region, update_tag, current_aws_account_id
+            )
+            batch, batch_findings = [], 0
+        batch.append(instance)
+        batch_findings += len(instance["finding_ids"])
+    if batch:
+        load_inspector_instance_findings(
+            neo4j_session, batch, region, update_tag, current_aws_account_id
+        )
 
 
 async def _load_inspector_findings(
@@ -788,7 +829,9 @@ async def _load_inspector_findings(
             async with asyncio.TaskGroup() as shards:
                 for shard in FINDING_ID_SHARDS:
                     shards.create_task(
-                        _get_inspector_findings_shard(client, account_id, shard, pages),
+                        _get_inspector_findings_shard(
+                            client, account_id, shard, pages, state
+                        ),
                     )
 
                 async def load(batch: List[Dict[str, Any]]) -> None:
@@ -812,7 +855,6 @@ async def _load_inspector_findings(
                     if page is None:
                         unfinished_shards -= 1
                         continue
-                    state.findings_received += len(page)
                     findings.extend(page)
                     while len(findings) >= batch_size:
                         await load(findings[:batch_size])
@@ -871,7 +913,7 @@ async def _sync_findings_for_account(
     account, so that last-known-good findings are preserved.
     """
     region = client.meta.region_name
-    state.findings_received = 0
+    state.responses_received = 0
     logger.info(
         f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
     )
@@ -899,7 +941,7 @@ async def _sync_findings_for_account(
             raise
         # A skippable error after some findings loaded leaves the read incomplete.
         partial = state.finding_sets.discard_account(account_id) or bool(
-            state.findings_received
+            state.responses_received
         )
         logger.warning(
             "Skipping Inspector findings for account %s in region %s: %s",
@@ -918,7 +960,6 @@ async def _sync_findings(
     current_aws_account_id: str,
     update_tag: int,
     batch_size: int,
-    ec2_finding_sets: bool = False,
 ) -> bool:
     """
     Syncs the findings delegated to the current account in every region.
@@ -926,7 +967,7 @@ async def _sync_findings(
     Returns whether every regional endpoint was reached, which makes cleanup safe.
     """
     cleanup_safe = True
-    state = _SyncState(ec2_finding_sets=ec2_finding_sets)
+    state = _SyncState()
     for region in regions:
         logger.info(
             f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
@@ -1010,7 +1051,6 @@ def sync(
             current_aws_account_id,
             update_tag,
             batch_size,
-            common_job_parameters.get("aws_inspector_ec2_finding_sets", False),
         ),
     )
 
