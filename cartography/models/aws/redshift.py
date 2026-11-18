@@ -11,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DATABASE
 
 
 @dataclass(frozen=True)
@@ -161,7 +162,9 @@ class RedshiftClusterSchema(CartographyNodeSchema):
 
     label: str = "AWSRedshiftCluster"
     # DEPRECATED: legacy RedshiftCluster node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_REDSHIFT_CLUSTER])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_REDSHIFT_CLUSTER, DATABASE],
+    )
     properties: RedshiftClusterNodeProperties = RedshiftClusterNodeProperties()
     sub_resource_relationship: RedshiftClusterToAWSAccountRel = (
         RedshiftClusterToAWSAccountRel()
