@@ -55,6 +55,7 @@ modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index
 modules/sentinelone/index
+modules/sentra/index
 modules/sentry/index
 modules/slack/index
 modules/snipeit/index

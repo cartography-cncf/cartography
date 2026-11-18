@@ -12,6 +12,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_base_region
 from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -234,6 +235,13 @@ def transform_ec2_instances(
                     ),
                     **metadata_options,
                     "EksClusterName": eks_cluster_name,
+                    # A cluster name is unique only within one account and region,
+                    # so the link to the cluster matches on its ARN.
+                    "EksClusterArn": (
+                        f"arn:{partition}:eks:{get_base_region(region)}:{current_aws_account_id}:cluster/{eks_cluster_name}"
+                        if eks_cluster_name
+                        else None
+                    ),
                     "IPv6Address": primary_ipv6,
                 },
             )

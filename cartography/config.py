@@ -528,6 +528,10 @@ class Config:
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     :type sentinelone_site_ids: list[str]
     :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
+    :type sentra_api_key: str
+    :param sentra_api_key: Sentra API key. Optional.
+    :type sentra_api_url: str
+    :param sentra_api_url: Sentra API base URL. Optional.
     :type wiz_graphql_url: str
     :param wiz_graphql_url: Wiz GraphQL API endpoint. Optional.
     :type wiz_auth_url: str
@@ -917,12 +921,14 @@ class Config:
         anthropic_service_account_id: str | None = None,
         anthropic_workspace_id: str | None = None,
         onepassword_source: str | None = None,
-        bitbucket_workspaces=None,
-        bitbucket_auth_method=None,
-        bitbucket_token=None,
-        bitbucket_oauth_client_id=None,
-        bitbucket_oauth_client_secret=None,
-        bitbucket_oauth_refresh_token=None,
+        sentra_api_key: str | None = None,
+        sentra_api_url: str | None = None,
+        bitbucket_workspaces: str | None = None,
+        bitbucket_auth_method: str | None = None,
+        bitbucket_token: str | None = None,
+        bitbucket_oauth_client_id: str | None = None,
+        bitbucket_oauth_client_secret: str | None = None,
+        bitbucket_oauth_refresh_token: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1187,6 +1193,8 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.sentra_api_key = sentra_api_key
+        self.sentra_api_url = sentra_api_url
         self.wiz_graphql_url = wiz_graphql_url
         self.wiz_auth_url = wiz_auth_url
         self.wiz_client_id = wiz_client_id

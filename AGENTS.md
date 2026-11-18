@@ -9,8 +9,9 @@ This guide teaches you how to write intel modules for Cartography using the mode
 1. [Procedure Skills](#procedure-skills) - Auto-loaded skills under `.agents/skills/`
 2. [AI Assistant Quick Reference](#ai-assistant-quick-reference) - Key concepts and imports
 3. [Git and Pull Request Guidelines](#git-and-pull-request-guidelines) - Commit signing and PR templates
-4. [Quick Start](#quick-start-copy-an-existing-module) - Copy an existing module
-5. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet) - Copy-paste templates
+4. [Documentation Guidelines](#documentation-guidelines) - Writing style and module page layout
+5. [Quick Start](#quick-start-copy-an-existing-module) - Copy an existing module
+6. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet) - Copy-paste templates
 
 ## Procedure Skills
 
@@ -108,6 +109,32 @@ git commit -s -m "feat(module): add new feature"
 ```
 
 **Pull Request Descriptions**: All pull requests must follow the template at `.github/pull_request_template.md`. Update the PR description to match the template sections if they are missing or incomplete.
+
+## Documentation Guidelines
+
+**Writing style**: Write documentation, schema docstrings, and `PropertyRef.description` values in the [Google developer documentation style](https://developers.google.com/style). For example, use sentence-case headings, active voice, present tense, second person, serial commas, and code font for labels, properties, and other code.
+
+**Module index pages**: `docs/root/modules/<module>/index.md` contains only the page title and a toctree. Don't add prose to it.
+
+````markdown
+# <Module>
+
+```{toctree}
+config
+schema
+```
+````
+
+Put the content on the page where it belongs instead:
+
+- Graph-model narratives, ingestion scope, and cleanup behavior go in schema docstrings and `PropertyRef.description`, which Sphinx renders into the generated `schema.md`.
+- Setup, credentials, and run order go in `config.md`. Follow the canonical template in the `create-module` skill's `references/config-docs.md`.
+- Cypher walkthroughs go in `queries.md` or `examples.md`, and post-ingestion analysis behavior goes in `analysis.md`.
+- Any other topic goes on its own page, listed in the toctree.
+
+The one exception is a deprecated module. Its `index.md` keeps the deprecation notice and the link to the replacement module above the toctree, as in `docs/root/modules/gsuite/index.md`.
+
+Many existing pages predate these rules. Bring a page in line when you edit it.
 
 ## Quick Start: Copy an Existing Module
 
