@@ -61,6 +61,26 @@ _NETWORK_EXCEPTIONS: tuple[type[BaseException], ...] = (
 )
 
 
+def _is_retryable_network_error(exc: Exception) -> bool:
+    """
+    Determine if an error means the database was briefly unreachable.
+
+    Besides connection failures, this covers a DatabaseError naming
+    FileIsNotMappedException. A cluster member raises it for a query that was reading
+    the store when the member stopped its copy of the database, as in a rolling restart
+    or a role change. The driver does not retry DatabaseErrors, but the same query
+    succeeds once a member serves the database again.
+
+    :param exc: The exception to check
+    :return: True if the operation should be retried with the network error budget
+    """
+    if isinstance(exc, _NETWORK_EXCEPTIONS):
+        return True
+    return isinstance(exc, neo4j.exceptions.DatabaseError) and (
+        "FileIsNotMappedException" in exc.message
+    )
+
+
 def _is_retryable_client_error(exc: Exception) -> bool:
     """
     Determine if a ClientError should be retried.
@@ -221,7 +241,9 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                     f"{'retry' if buffer_attempts == 1 else 'retries'}. Function: {target}"
                 )
             return result
-        except _NETWORK_EXCEPTIONS as exc:
+        except (*_NETWORK_EXCEPTIONS, neo4j.exceptions.DatabaseError) as exc:
+            if not _is_retryable_network_error(exc):
+                raise
             if network_attempts >= _MAX_NETWORK_RETRIES - 1:
                 raise
             network_attempts += 1
@@ -356,6 +378,7 @@ def run_write_query(
     - Network errors (ConnectionResetError)
     - Service unavailability (ServiceUnavailable, SessionExpired)
     - Transient database errors (TransientError)
+    - A cluster member stopping the database under the query (FileIsNotMappedException)
     - EntityNotFound errors during concurrent operations (specific ClientError)
     - BufferError with "cannot be re-sized" during concurrent multi-threaded operations
 

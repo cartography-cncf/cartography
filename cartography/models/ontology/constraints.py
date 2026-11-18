@@ -75,6 +75,17 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # canonical PackageVersion.
     RelConstraint(src="CVE", dst="PackageVersion", label="AFFECTS"),
     RelConstraint(src="SecurityIssue", dst="PackageVersion", label="AFFECTS"),
+    # A security finding names the asset that it affects. Every finding source
+    # already uses AFFECTS for these pairs. No constraint covers UserAccount: a
+    # finding can also be assigned to or dismissed by an account, which are
+    # different relationships.
+    RelConstraint(src="SecurityIssue", dst="ComputeInstance", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Function", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Image", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Database", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="ObjectStorage", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="Device", label="AFFECTS"),
+    RelConstraint(src="SecurityIssue", dst="PermissionRole", label="AFFECTS"),
     # A container/function resolves to the concrete single-platform image it
     # runs. Materialized by the RESOLVED_IMAGE_JOBS analysis jobs from the raw
     # HAS_IMAGE references, which constraints_whitelist.py exempts as a distinct

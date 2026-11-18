@@ -73,7 +73,7 @@ def start_sentra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         config.update_tag,
         common_job_parameters,
     )
-    cartography.intel.sentra.data_stores.sync(
+    aws_ids_by_store = cartography.intel.sentra.data_stores.sync(
         neo4j_session,
         session,
         api_url,
@@ -97,6 +97,7 @@ def start_sentra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         tenant_id,
         config.update_tag,
         common_job_parameters,
+        aws_ids_by_store,
     )
 
     merge_module_sync_metadata(
