@@ -93,6 +93,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "openai": _LazyStage("cartography.intel.openai", "start_openai_ingestion"),
         "github": _LazyStage("cartography.intel.github", "start_github_ingestion"),
         "gitlab": _LazyStage("cartography.intel.gitlab", "start_gitlab_ingestion"),
+        "bitbucket": _LazyStage(
+            "cartography.intel.bitbucket", "start_bitbucket_ingestion"
+        ),
         "digitalocean": _LazyStage(
             "cartography.intel.digitalocean", "start_digitalocean_ingestion"
         ),
