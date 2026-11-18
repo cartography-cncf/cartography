@@ -11,8 +11,8 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
-AWS_EVENTS_ARN = GET_EVENT_SCHEMA_REGISTRIES[0]["RegistryArn"]
-CUSTOM_REGISTRY_ARN = GET_EVENT_SCHEMA_REGISTRIES[1]["RegistryArn"]
+CUSTOM_REGISTRY_ARN = GET_EVENT_SCHEMA_REGISTRIES[0]["RegistryArn"]
+OTHER_REGISTRY_ARN = GET_EVENT_SCHEMA_REGISTRIES[1]["RegistryArn"]
 
 
 @patch.object(
@@ -38,8 +38,8 @@ def test_sync_eventbridge_schema_registries(mock_get_registries, neo4j_session):
         "AWSEventSchemasRegistry",
         ["arn", "name", "region"],
     ) == {
-        (AWS_EVENTS_ARN, "aws.events", TEST_REGION),
         (CUSTOM_REGISTRY_ARN, "custom-registry", TEST_REGION),
+        (OTHER_REGISTRY_ARN, "other-registry", TEST_REGION),
     }
 
     assert check_rels(
@@ -51,8 +51,8 @@ def test_sync_eventbridge_schema_registries(mock_get_registries, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, AWS_EVENTS_ARN),
         (TEST_ACCOUNT_ID, CUSTOM_REGISTRY_ARN),
+        (TEST_ACCOUNT_ID, OTHER_REGISTRY_ARN),
     }
 
     mock_get_registries.return_value = [GET_EVENT_SCHEMA_REGISTRIES[0]]
@@ -66,5 +66,5 @@ def test_sync_eventbridge_schema_registries(mock_get_registries, neo4j_session):
     )
 
     assert check_nodes(neo4j_session, "AWSEventSchemasRegistry", ["arn"]) == {
-        (AWS_EVENTS_ARN,),
+        (CUSTOM_REGISTRY_ARN,),
     }

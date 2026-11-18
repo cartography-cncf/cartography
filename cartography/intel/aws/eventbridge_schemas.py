@@ -27,10 +27,10 @@ def get_event_schema_registries(
         "schemas",
         region_name=region,
     )
-    # Omit Scope so both account and AWS-managed registries are returned.
+    # AWS-managed registries like aws.events have no RegistryArn.
     paginator = client.get_paginator("list_registries")
     registries: list[dict[str, Any]] = []
-    for page in paginator.paginate():
+    for page in paginator.paginate(Scope="LOCAL"):
         registries.extend(page.get("Registries", []))
     return registries
 
