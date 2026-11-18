@@ -21,22 +21,14 @@ class EventSchemasRegistryNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="The Amazon Resource Name (ARN) of the schema registry",
     )
-    registry_name: PropertyRef = PropertyRef(
+    name: PropertyRef = PropertyRef(
         "RegistryName",
         description="The name of the schema registry",
-    )
-    description: PropertyRef = PropertyRef(
-        "Description",
-        description="The description of the schema registry",
-    )
-    tags: PropertyRef = PropertyRef(
-        "Tags",
-        description="A JSON string of tags associated with the schema registry",
     )
     region: PropertyRef = PropertyRef(
         "Region",
         set_in_kwargs=True,
-        description="The AWS region where the schema registry exists",
+        description="The AWS region of the schema registry",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

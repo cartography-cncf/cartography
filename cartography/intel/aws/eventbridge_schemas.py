@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Any
 
@@ -8,7 +7,6 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
-from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.eventbridge.schema_registry import (
     EventSchemasRegistrySchema,
 )
@@ -28,35 +26,13 @@ def get_event_schema_registries(
         boto3_session,
         "schemas",
         region_name=region,
-        config=get_botocore_config(),
     )
-    # Scope is omitted so both account registries and AWS-managed registries are returned.
+    # Omit Scope so both account and AWS-managed registries are returned.
     paginator = client.get_paginator("list_registries")
     registries: list[dict[str, Any]] = []
     for page in paginator.paginate():
-        for summary in page.get("Registries", []):
-            # ListRegistries does not return Description.
-            registries.append(
-                client.describe_registry(RegistryName=summary["RegistryName"]),
-            )
+        registries.extend(page.get("Registries", []))
     return registries
-
-
-def transform_event_schema_registries(
-    registries: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    transformed: list[dict[str, Any]] = []
-    for registry in registries:
-        tags = registry.get("Tags")
-        transformed.append(
-            {
-                "RegistryArn": registry["RegistryArn"],
-                "RegistryName": registry["RegistryName"],
-                "Description": registry.get("Description"),
-                "Tags": json.dumps(tags) if tags is not None else None,
-            },
-        )
-    return transformed
 
 
 @timeit
@@ -112,7 +88,7 @@ def sync(
         registries = get_event_schema_registries(boto3_session, region)
         load_event_schema_registries(
             neo4j_session,
-            transform_event_schema_registries(registries),
+            registries,
             region,
             current_aws_account_id,
             update_tag,
