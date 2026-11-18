@@ -693,6 +693,19 @@ class CLI:
                     hidden=PANEL_AWS not in visible_panels,
                 ),
             ] = 1000,
+            aws_inspector_ec2_finding_sets: Annotated[
+                bool,
+                typer.Option(
+                    "--aws-inspector-ec2-finding-sets",
+                    help=(
+                        "Store AWS Inspector package findings on EC2 instances as shared "
+                        "finding sets instead of one AWSInspectorFinding per finding. "
+                        "Changes the graph shape of those findings."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = False,
             aws_tagging_api_cleanup_batch: Annotated[
                 int,
                 typer.Option(
@@ -4189,6 +4202,7 @@ class CLI:
                 aws_best_effort_mode=aws_best_effort_mode,
                 aws_cloudtrail_management_events_lookback_hours=aws_cloudtrail_management_events_lookback_hours,
                 experimental_aws_inspector_batch=experimental_aws_inspector_batch,
+                aws_inspector_ec2_finding_sets=aws_inspector_ec2_finding_sets,
                 aws_tagging_api_cleanup_batch=aws_tagging_api_cleanup_batch,
                 aws_ssm_public_parameter_prefix_allowlist=aws_ssm_public_parameter_prefix_allowlist,
                 azure_sync_all_subscriptions=azure_sync_all_subscriptions,

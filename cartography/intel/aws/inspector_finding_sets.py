@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from array import array
 from dataclasses import dataclass
 from dataclasses import field
@@ -13,10 +14,13 @@ from typing import List
 from typing import Set
 from typing import Tuple
 
-# Inspector records an instance's findings over the minutes its scan takes, so findings
-# first observed within this window of the instance's earliest one share its timestamp.
-LATE_FINDING_THRESHOLD_SECONDS = 3600
 _ID_LENGTH = 32
+_CVE_ID = re.compile(r"CVE-\d{4}-\d{4,}")
+
+
+def cve_id_of(vulnerability_id: str) -> str | None:
+    """Return the identifier when it is a CVE; Inspector also reports GHSA and ALAS IDs."""
+    return vulnerability_id if _CVE_ID.fullmatch(vulnerability_id) else None
 
 
 def is_ec2_package_finding(finding: Dict[str, Any]) -> bool:
@@ -45,7 +49,7 @@ def transform_finding_content(
         "cvssscore": adjusted.get("score"),
         "cvssvector": adjusted.get("scoringVector"),
         "vulnerabilityid": details["vulnerabilityId"],
-        "cve_id": details["vulnerabilityId"],
+        "cve_id": cve_id_of(details["vulnerabilityId"]),
         "vendorseverity": details.get("vendorSeverity"),
         "vulnerablepackageids": sorted(package_ids),
         "fixavailable": finding.get("fixAvailable"),
@@ -71,14 +75,10 @@ def split_finding_arn(finding: Dict[str, Any]) -> Tuple[str, str]:
     return f"{prefix}/", finding_id
 
 
-def _epoch_seconds(value: datetime) -> int:
+def _epoch_ms(value: datetime) -> int:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
-    return int(value.timestamp())
-
-
-def _from_epoch_seconds(value: int) -> datetime:
-    return datetime.fromtimestamp(value, tz=timezone.utc)
+    return round(value.timestamp() * 1000)
 
 
 @dataclass
@@ -89,8 +89,9 @@ class _InstanceFindings:
     # Parallel columns keep a large fleet's findings compact while a region syncs.
     content_indexes: array = field(default_factory=lambda: array("I"))
     finding_ids: bytearray = field(default_factory=bytearray)
-    first_observed: array = field(default_factory=lambda: array("q"))
-    last_observed: int = 0
+    first_observed_ms: array = field(default_factory=lambda: array("q"))
+    last_observed_ms: array = field(default_factory=lambda: array("q"))
+    updated_ms: array = field(default_factory=lambda: array("q"))
 
 
 @dataclass
@@ -125,11 +126,9 @@ class InstanceFindingSets:
             self._content_indexes[content_id] = index
         instance.content_indexes.append(index)
         instance.finding_ids.extend(bytes.fromhex(raw_finding_id))
-        instance.first_observed.append(_epoch_seconds(finding["firstObservedAt"]))
-        instance.last_observed = max(
-            instance.last_observed,
-            _epoch_seconds(finding["updatedAt"]),
-        )
+        instance.first_observed_ms.append(_epoch_ms(finding["firstObservedAt"]))
+        instance.last_observed_ms.append(_epoch_ms(finding["lastObservedAt"]))
+        instance.updated_ms.append(_epoch_ms(finding["updatedAt"]))
 
     def discard_account(self, awsaccount: str) -> bool:
         """Drop an account's instances after an incomplete read; return whether any were held.
@@ -141,50 +140,75 @@ class InstanceFindingSets:
             del self._instances[instance_id]
         return bool(dropped)
 
-    def build(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Return the region's finding sets and instance findings, and start over."""
+    def build(
+        self,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Return the region's finding sets, their content slots and instance findings, and start over.
+
+        A set lists its contents in a fixed order, repeating a content once per finding
+        that reports it, and every instance on the set lists its findings in that order.
+        Position k of an instance's columns is the finding in slot k of its set.
+        """
         sets: Dict[str, List[str]] = {}
         instances: List[Dict[str, Any]] = []
         for instance_id, instance in self._instances.items():
-            findings: Dict[str, Tuple[str, int]] = {}
-            for position, index in enumerate(instance.content_indexes):
-                content_id = self._content_ids[index]
-                first_observed = instance.first_observed[position]
-                known = findings.get(content_id)
-                if known is None or first_observed < known[1]:
-                    raw_id = instance.finding_ids[position * 16 : (position + 1) * 16]
-                    findings[content_id] = (raw_id.hex(), first_observed)
-            content_ids = sorted(findings)
+            # Inspector can return a finding twice while it pages; keep its latest version.
+            positions: Dict[bytes, int] = {}
+            for position in range(len(instance.content_indexes)):
+                raw_id = bytes(
+                    instance.finding_ids[position * 16 : (position + 1) * 16]
+                )
+                known = positions.get(raw_id)
+                if (
+                    known is None
+                    or instance.updated_ms[position] > instance.updated_ms[known]
+                ):
+                    positions[raw_id] = position
+            occurrences = sorted(
+                (
+                    self._content_ids[instance.content_indexes[position]],
+                    raw_id,
+                    position,
+                )
+                for raw_id, position in positions.items()
+            )
+            content_ids = [content_id for content_id, _, _ in occurrences]
             set_id = _hash("\n".join(content_ids))
             sets[set_id] = content_ids
-            first_observed = min(observed for _, observed in findings.values())
-            late = [
-                (content_id, findings[content_id][1])
-                for content_id in content_ids
-                if findings[content_id][1] - first_observed
-                > LATE_FINDING_THRESHOLD_SECONDS
-            ]
             instances.append(
                 {
                     "id": instance_id,
                     "instanceid": instance_id,
                     "awsaccount": instance.awsaccount,
                     "imageid": instance.imageid,
-                    "finding_arn_prefix": instance.finding_arn_prefix,
                     "finding_set_id": set_id,
-                    "finding_ids": [findings[c][0] for c in content_ids],
-                    "first_observed_at": _from_epoch_seconds(first_observed),
-                    "late_content_ids": [content_id for content_id, _ in late],
-                    "late_first_observed_at": [
-                        _from_epoch_seconds(observed) for _, observed in late
+                    "finding_arn_prefix": instance.finding_arn_prefix,
+                    "finding_ids": [raw_id.hex() for _, raw_id, _ in occurrences],
+                    "first_observed_at_ms": [
+                        instance.first_observed_ms[p] for _, _, p in occurrences
                     ],
-                    "last_observed_at": _from_epoch_seconds(instance.last_observed),
+                    "last_observed_at_ms": [
+                        instance.last_observed_ms[p] for _, _, p in occurrences
+                    ],
+                    "updated_at_ms": [
+                        instance.updated_ms[p] for _, _, p in occurrences
+                    ],
                 },
             )
         self._content_ids.clear()
         self._content_indexes.clear()
         self._instances.clear()
+        slots: List[Dict[str, Any]] = []
+        for set_id, content_ids in sets.items():
+            content_slots: Dict[str, List[int]] = {}
+            for slot, content_id in enumerate(content_ids):
+                content_slots.setdefault(content_id, []).append(slot)
+            slots.extend(
+                {"setid": set_id, "contentid": content_id, "slots": content_slot_list}
+                for content_id, content_slot_list in content_slots.items()
+            )
         return (
             [{"id": set_id, "content_ids": ids} for set_id, ids in sets.items()],
+            slots,
             instances,
         )

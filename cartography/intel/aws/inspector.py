@@ -19,6 +19,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
+from cartography.intel.aws.inspector_finding_sets import cve_id_of
 from cartography.intel.aws.inspector_finding_sets import InstanceFindingSets
 from cartography.intel.aws.inspector_finding_sets import is_ec2_package_finding
 from cartography.intel.aws.inspector_finding_sets import transform_finding_content
@@ -34,6 +35,9 @@ from cartography.models.aws.inspector.finding_sets import (
 )
 from cartography.models.aws.inspector.finding_sets import (
     InspectorFindingContentToPackageMatchLink,
+)
+from cartography.models.aws.inspector.finding_sets import (
+    InspectorFindingSetToContentMatchLink,
 )
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.findings import InspectorFindingToPackageMatchLink
@@ -194,6 +198,12 @@ class _SyncState:
     # earlier in the sync makes the last write hold all of them.
     reference_urls: Dict[str, Set[str]] = field(default_factory=dict)
     finding_sets: InstanceFindingSets = field(default_factory=InstanceFindingSets)
+    # Off by default for one release: EC2 package findings are then stored as before,
+    # one AWSInspectorFinding per finding.
+    ec2_finding_sets: bool = False
+    # Findings received for the account being read, so a read that fails after some
+    # of them loaded is not mistaken for an account without findings.
+    findings_received: int = 0
 
 
 def transform_inspector_findings(
@@ -479,6 +489,23 @@ def load_inspector_finding_sets(
 
 
 @timeit
+def load_inspector_finding_set_contents(
+    neo4j_session: neo4j.Session,
+    finding_set_slots: List[Dict[str, Any]],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load_matchlinks(
+        neo4j_session,
+        InspectorFindingSetToContentMatchLink(),
+        finding_set_slots,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
+    )
+
+
+@timeit
 def load_inspector_instance_findings(
     neo4j_session: neo4j.Session,
     instance_findings: List[Dict[str, Any]],
@@ -579,6 +606,15 @@ def cleanup(
             neo4j_session,
         )
     GraphJob.from_matchlink(
+        InspectorFindingSetToContentMatchLink(),
+        "AWSAccount",
+        common_job_parameters["ACCOUNT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+        iterationsize=batch_size,
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_matchlink(
         InspectorFindingContentToPackageMatchLink(),
         "AWSAccount",
         common_job_parameters["ACCOUNT_ID"],
@@ -610,8 +646,14 @@ def _load_inspector_findings_batch(
     current_aws_account_id: str,
     state: _SyncState,
 ) -> None:
-    ec2_package_findings = [f for f in findings if is_ec2_package_finding(f)]
-    other_findings = [f for f in findings if not is_ec2_package_finding(f)]
+    ec2_package_findings = [
+        f for f in findings if state.ec2_finding_sets and is_ec2_package_finding(f)
+    ]
+    other_findings = [
+        f
+        for f in findings
+        if not (state.ec2_finding_sets and is_ec2_package_finding(f))
+    ]
     finding_data, package_data, finding_to_package_map, vulnerability_data = (
         transform_inspector_findings(other_findings)
     )
@@ -696,7 +738,7 @@ def _load_inspector_finding_sets(
     current_aws_account_id: str,
     state: _SyncState,
 ) -> None:
-    finding_sets, instance_findings = state.finding_sets.build()
+    finding_sets, finding_set_slots, instance_findings = state.finding_sets.build()
     logger.info(
         f"Loading {len(finding_sets)} finding sets for {len(instance_findings)} "
         f"EC2 instances in region {region}"
@@ -704,6 +746,12 @@ def _load_inspector_finding_sets(
     load_inspector_finding_sets(
         neo4j_session,
         finding_sets,
+        update_tag,
+        current_aws_account_id,
+    )
+    load_inspector_finding_set_contents(
+        neo4j_session,
+        finding_set_slots,
         update_tag,
         current_aws_account_id,
     )
@@ -764,6 +812,7 @@ async def _load_inspector_findings(
                     if page is None:
                         unfinished_shards -= 1
                         continue
+                    state.findings_received += len(page)
                     findings.extend(page)
                     while len(findings) >= batch_size:
                         await load(findings[:batch_size])
@@ -818,10 +867,11 @@ async def _sync_findings_for_account(
     which are expected and safe to treat as "no findings"). Returns False if the
     region was skipped due to a transient connection-level failure to the regional
     inspector2 endpoint, or due to a skippable ClientError after some of the
-    account's EC2 findings had loaded. The caller must then not run cleanup for this
+    account's findings had loaded. The caller must then not run cleanup for this
     account, so that last-known-good findings are preserved.
     """
     region = client.meta.region_name
+    state.findings_received = 0
     logger.info(
         f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
     )
@@ -848,7 +898,9 @@ async def _sync_findings_for_account(
         if not _is_skippable_findings_error(e):
             raise
         # A skippable error after some findings loaded leaves the read incomplete.
-        partial = state.finding_sets.discard_account(account_id)
+        partial = state.finding_sets.discard_account(account_id) or bool(
+            state.findings_received
+        )
         logger.warning(
             "Skipping Inspector findings for account %s in region %s: %s",
             account_id,
@@ -866,6 +918,7 @@ async def _sync_findings(
     current_aws_account_id: str,
     update_tag: int,
     batch_size: int,
+    ec2_finding_sets: bool = False,
 ) -> bool:
     """
     Syncs the findings delegated to the current account in every region.
@@ -873,7 +926,7 @@ async def _sync_findings(
     Returns whether every regional endpoint was reached, which makes cleanup safe.
     """
     cleanup_safe = True
-    state = _SyncState()
+    state = _SyncState(ec2_finding_sets=ec2_finding_sets)
     for region in regions:
         logger.info(
             f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
@@ -957,6 +1010,7 @@ def sync(
             current_aws_account_id,
             update_tag,
             batch_size,
+            common_job_parameters.get("aws_inspector_ec2_finding_sets", False),
         ),
     )
 

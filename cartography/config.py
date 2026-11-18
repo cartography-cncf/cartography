@@ -174,6 +174,10 @@ class Config:
     :type experimental_aws_inspector_batch: int
     :param experimental_aws_inspector_batch: EXPERIMENTAL: Batch size for AWS Inspector findings sync. Controls how
         many findings are fetched, processed and cleaned up at a time. Default is 1000. Optional.
+    :type aws_inspector_ec2_finding_sets: bool
+    :param aws_inspector_ec2_finding_sets: Store AWS Inspector package vulnerability findings on EC2 instances as
+        shared finding sets instead of one AWSInspectorFinding per finding. Changes the graph shape of those
+        findings; see the AWS Inspector module docs. Default is False. Optional.
     :type aws_tagging_api_cleanup_batch: int
     :param aws_tagging_api_cleanup_batch: Batch size for Resource Groups Tagging API cleanup. Controls how many
         AWSTag nodes and TAGGED relationships are deleted per batch. Default is 1000. Optional.
@@ -904,6 +908,7 @@ class Config:
         anthropic_service_account_id: str | None = None,
         anthropic_workspace_id: str | None = None,
         onepassword_source: str | None = None,
+        aws_inspector_ec2_finding_sets: bool = False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -926,6 +931,7 @@ class Config:
             aws_cloudtrail_management_events_lookback_hours
         )
         self.experimental_aws_inspector_batch = experimental_aws_inspector_batch
+        self.aws_inspector_ec2_finding_sets = aws_inspector_ec2_finding_sets
         self.aws_tagging_api_cleanup_batch = aws_tagging_api_cleanup_batch
         self.aws_ssm_public_parameter_prefix_allowlist = (
             aws_ssm_public_parameter_prefix_allowlist

@@ -3,8 +3,9 @@
 Instances launched from the same image report nearly the same findings, so storing one
 node per (instance, vulnerability) repeats the same data for every instance of a fleet.
 Here each distinct finding is an `AWSInspectorFindingContent`, each distinct group of
-contents that some instance has is an `AWSInspectorFindingSet`, and each instance's own
-data, including the IDs of its findings, is on its `AWSInspectorInstanceFindings`.
+contents that some instance has is an `AWSInspectorFindingSet`, and each instance has an
+`AWSInspectorInstanceFindings` whose `HAS_FINDING_SET` relationship holds the IDs and
+times of its own findings.
 """
 
 from dataclasses import dataclass
@@ -60,7 +61,7 @@ class AWSInspectorFindingContentNodeProperties(CartographyNodeProperties):
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
-        description="Normalized CVE identifier of the finding's vulnerability.",
+        description="CVE identifier of the finding's vulnerability. Unset when the identifier is not a CVE.",
     )
     vendorseverity: PropertyRef = PropertyRef(
         "vendorseverity",
@@ -198,14 +199,13 @@ class InspectorFindingContentToPackageMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInspectorFindingSetNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef(
-        "id", description="Hash of the set's sorted `content_ids`."
-    )
+    id: PropertyRef = PropertyRef("id", description="Hash of the set's `content_ids`.")
     content_ids: PropertyRef = PropertyRef(
         "content_ids",
         description=(
-            "Sorted IDs of the `AWSInspectorFindingContent` nodes in the set. An "
-            "instance's `finding_ids` list its findings in the same order."
+            "Sorted IDs of the `AWSInspectorFindingContent` nodes in the set, one entry "
+            "per finding, so a content that two of an instance's findings report is "
+            "listed twice. Entry k is the content of slot k."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -234,15 +234,30 @@ class InspectorFindingSetToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class InspectorFindingSetToContentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    slots: PropertyRef = PropertyRef(
+        "slots",
+        description=(
+            "Positions of this content in the set. For an instance on the set, entry k "
+            "of each list on its `HAS_FINDING_SET` relationship belongs to slot k."
+        ),
+    )
 
 
 @dataclass(frozen=True)
-class InspectorFindingSetToContentRel(CartographyRelSchema):
-    """Links a finding set to each finding content in it."""
+class InspectorFindingSetToContentMatchLink(CartographyRelSchema):
+    """Links a finding set to each finding content in it, at the content's slots."""
 
     target_node_label: str = "AWSInspectorFindingContent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("content_ids", one_to_many=True)},
+        {"id": PropertyRef("contentid")},
+    )
+    source_node_label: str = "AWSInspectorFindingSet"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("setid")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONTAINS"
@@ -266,9 +281,6 @@ class AWSInspectorFindingSetSchema(CartographyNodeSchema):
     sub_resource_relationship: InspectorFindingSetToAWSAccountRel = (
         InspectorFindingSetToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [InspectorFindingSetToContentRel()],
-    )
 
 
 @dataclass(frozen=True)
@@ -285,41 +297,11 @@ class AWSInspectorInstanceFindingsNodeProperties(CartographyNodeProperties):
     )
     finding_set_id: PropertyRef = PropertyRef(
         "finding_set_id",
-        description="ID of the instance's `AWSInspectorFindingSet`.",
-    )
-    finding_arn_prefix: PropertyRef = PropertyRef(
-        "finding_arn_prefix",
         description=(
-            "ARN of the instance's findings up to the finding ID, such as "
-            "`arn:aws:inspector2:<region>:<account>:finding/`. Appending an entry of "
-            "`finding_ids` gives that finding's ARN."
+            "ID of the instance's current `AWSInspectorFindingSet`. Match it on the set "
+            "when reading `HAS_FINDING_SET`: until cleanup runs, an instance whose "
+            "findings changed also keeps its previous set."
         ),
-    )
-    finding_ids: PropertyRef = PropertyRef(
-        "finding_ids",
-        description="Inspector finding IDs, in the order of the set's `content_ids`.",
-    )
-    first_observed_at: PropertyRef = PropertyRef(
-        "first_observed_at",
-        description=(
-            "When Inspector first observed the instance's findings. A finding first "
-            "observed more than an hour later is listed in `late_content_ids`."
-        ),
-    )
-    late_content_ids: PropertyRef = PropertyRef(
-        "late_content_ids",
-        description=(
-            "IDs of contents that Inspector first observed on the instance more than "
-            "an hour after `first_observed_at`."
-        ),
-    )
-    late_first_observed_at: PropertyRef = PropertyRef(
-        "late_first_observed_at",
-        description="When Inspector first observed each content in `late_content_ids`.",
-    )
-    last_observed_at: PropertyRef = PropertyRef(
-        "last_observed_at",
-        description="Latest time Inspector updated any of the instance's findings.",
     )
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="AWS Region of the instance."
@@ -390,18 +372,46 @@ class InspectorInstanceFindingsToEC2InstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class InspectorInstanceFindingsToSetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    finding_arn_prefix: PropertyRef = PropertyRef(
+        "finding_arn_prefix",
+        description=(
+            "ARN of the instance's findings up to the finding ID, such as "
+            "`arn:aws:inspector2:<region>:<account>:finding/`. Appending an entry of "
+            "`finding_ids` gives that finding's ARN."
+        ),
+    )
+    finding_ids: PropertyRef = PropertyRef(
+        "finding_ids",
+        description="Inspector finding IDs. Entry k is the finding in slot k of the set.",
+    )
+    first_observed_at_ms: PropertyRef = PropertyRef(
+        "first_observed_at_ms",
+        description="When Inspector first observed each finding, in epoch milliseconds.",
+    )
+    last_observed_at_ms: PropertyRef = PropertyRef(
+        "last_observed_at_ms",
+        description="When Inspector last observed each finding, in epoch milliseconds.",
+    )
+    updated_at_ms: PropertyRef = PropertyRef(
+        "updated_at_ms",
+        description="When Inspector last updated each finding, in epoch milliseconds.",
+    )
 
 
 @dataclass(frozen=True)
 class InspectorInstanceFindingsToSetRel(CartographyRelSchema):
-    """Links an instance's findings to the finding set they share with other instances."""
+    """Links an instance's findings to the finding set they share with other instances.
+
+    Holds the instance's own finding IDs and times, so a previous set that cleanup has not
+    removed yet still reads with the findings it had.
+    """
 
     target_node_label: str = "AWSInspectorFindingSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("finding_set_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_FINDINGS"
+    rel_label: str = "HAS_FINDING_SET"
     properties: InspectorInstanceFindingsToSetRelProperties = (
         InspectorInstanceFindingsToSetRelProperties()
     )
