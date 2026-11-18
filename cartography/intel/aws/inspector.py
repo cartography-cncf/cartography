@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import re
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -16,11 +15,11 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.intel.trivy.util import canonical_cve_id
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.findings import InspectorFindingToPackageMatchLink
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
@@ -30,7 +29,7 @@ from cartography.models.aws.inspector.vulnerabilities import (
 from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
 from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import is_throttling_exception
-from cartography.util import run_analysis_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -67,7 +66,6 @@ AWS_INSPECTOR_REGIONS = {
 
 BATCH_SIZE = 1000
 
-_CVE_ID = re.compile(r"CVE-\d{4}-\d{4,}")
 
 # ListFindings returns at most 100 findings per page, so one paginator spends most
 # of a large account's sync waiting on round trips. The API pins finding IDs to 32
@@ -229,7 +227,7 @@ def transform_inspector_findings(
         if details:
             vulnerability_id = details["vulnerabilityId"]
             finding["vulnerabilityid"] = vulnerability_id
-            finding["cve_id"] = _cve_id(vulnerability_id)
+            finding["cve_id"] = canonical_cve_id(vulnerability_id)
             finding["vendorseverity"] = details.get("vendorSeverity")
             _add_vulnerability(vulnerabilities, f, details)
 
@@ -262,11 +260,6 @@ def transform_inspector_findings(
     )
 
 
-def _cve_id(vulnerability_id: str) -> str | None:
-    """Return the identifier when it is a CVE; Inspector also reports GHSA and ALAS IDs."""
-    return vulnerability_id if _CVE_ID.fullmatch(vulnerability_id) else None
-
-
 def _add_vulnerability(
     vulnerabilities: Dict[str, Dict[str, Any]],
     finding: Dict[str, Any],
@@ -275,7 +268,7 @@ def _add_vulnerability(
     vulnerability_id = details["vulnerabilityId"]
     vulnerability = vulnerabilities.get(vulnerability_id)
     if vulnerability is None:
-        cve_id = _cve_id(vulnerability_id)
+        cve_id = canonical_cve_id(vulnerability_id)
         vulnerabilities[vulnerability_id] = {
             "id": vulnerability_id,
             "vulnerabilityid": vulnerability_id,
@@ -404,25 +397,7 @@ def migrate_legacy_cve_labels(
     current_aws_account_id: str,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    has_legacy_labels = neo4j_session.execute_read(
-        read_single_value_tx,
-        """
-        MATCH (a:AWSAccount {id: $account_id})
-        RETURN EXISTS { (a)-[:RESOURCE]->(:AWSInspectorFinding:CVE) }
-            OR EXISTS {
-                MATCH (a)-[:RESOURCE]->(f:AWSInspectorFinding)
-                WHERE f.type <> 'PACKAGE_VULNERABILITY' AND f._ont_source IS NOT NULL
-            }
-        """,
-        account_id=current_aws_account_id,
-    )
-    if not has_legacy_labels:
-        return
-    logger.info(
-        "Removing the :CVE label that an earlier version of Cartography put on "
-        "AWS Inspector findings. This is a one-time migration for this graph."
-    )
-    run_analysis_job(
+    run_scoped_analysis_job(
         "aws_inspector_cve_migration.json",
         neo4j_session,
         {**common_job_parameters, "AWS_ID": current_aws_account_id},
