@@ -3,6 +3,9 @@ from cartography.rules.data.rules.object_storage_public import (
     _cloudflare_r2_bucket_public,
 )
 from cartography.rules.data.rules.object_storage_public import (
+    _neon_storage_bucket_public,
+)
+from cartography.rules.data.rules.object_storage_public import (
     _supabase_storage_bucket_public,
 )
 
@@ -63,3 +66,33 @@ def test_supabase_storage_public_bucket(neo4j_session) -> None:
     assert [(f["id"], f["name"], f["public_access"]) for f in findings] == [
         ("ref-1/avatars", "avatars", True)
     ]
+
+
+def test_neon_storage_public_bucket(neo4j_session) -> None:
+    _reset_graph(neo4j_session)
+    neo4j_session.run(
+        """
+        CREATE (prj:NeonProject {id: 'flat-sea-1'})
+        CREATE (br:NeonBranch {id: 'br-main'})
+        CREATE (pub:NeonStorageBucket {id: 'br-main/press-kit', name: 'press-kit',
+            region: 'us-east-2', public: true})
+        CREATE (priv:NeonStorageBucket {id: 'br-main/uploads', name: 'uploads',
+            region: 'us-east-2', public: false})
+        MERGE (prj)-[:RESOURCE]->(br)
+        MERGE (br)-[:CONTAINS]->(pub)
+        MERGE (br)-[:CONTAINS]->(priv)
+        """
+    )
+
+    findings = neo4j_session.execute_read(
+        read_list_of_dicts_tx, _neon_storage_bucket_public.cypher_query
+    )
+
+    assert [
+        (f["id"], f["name"], f["region"], f["public_access"]) for f in findings
+    ] == [("br-main/press-kit", "press-kit", "us-east-2", True)]
+
+    visual = neo4j_session.execute_read(
+        read_list_of_dicts_tx, _neon_storage_bucket_public.cypher_visual_query
+    )
+    assert len(visual) == 1

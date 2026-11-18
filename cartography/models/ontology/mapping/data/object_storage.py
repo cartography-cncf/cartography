@@ -210,6 +210,24 @@ cloudflare_mapping = OntologyMapping(
     ],
 )
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonStorageBucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="public", node_field="public"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # encrypted / versioning: Not exposed by the API.
+            ],
+        ),
+    ],
+)
+
+
 OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -217,6 +235,7 @@ OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "databricks": databricks_mapping,
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "cloudflare": cloudflare_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",

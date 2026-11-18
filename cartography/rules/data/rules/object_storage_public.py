@@ -240,6 +240,42 @@ _supabase_storage_bucket_public = Fact(
 )
 
 
+# Neon Facts
+_neon_storage_bucket_public = Fact(
+    id="neon_storage_bucket_public",
+    name="Internet-Accessible Neon Object Storage Attack Surface",
+    description=(
+        "Neon Object Storage buckets with the public_read access level. Every "
+        "object is readable over the branch's S3 endpoint without credentials. "
+        "Buckets branch with the database, so a public bucket on a production "
+        "branch stays public on every branch created from it."
+    ),
+    cypher_query="""
+    MATCH (b:NeonStorageBucket)
+    WHERE b.public = true
+    RETURN
+        b.id AS id,
+        b.name AS name,
+        b.region AS region,
+        b.public AS public_access
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:NeonStorageBucket)<-[:CONTAINS]-(br:NeonBranch)<-[:RESOURCE]-(prj:NeonProject)
+    WHERE b.public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:NeonStorageBucket)
+    RETURN COUNT(b) AS count
+    """,
+    asset_id_field="id",
+    asset_label="NeonStorageBucket",
+    identity_fields=("id",),
+    module=Module.NEON,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class ObjectStoragePublic(Finding):
     name: str | None = None
@@ -256,7 +292,8 @@ object_storage_public = Rule(
     description=(
         "Publicly accessible object storage services such as AWS S3 buckets, "
         "Azure Storage Blob Containers, GCS buckets, Scaleway Object Storage "
-        "buckets, Cloudflare R2 buckets, and Supabase Storage buckets"
+        "buckets, Cloudflare R2 buckets, Supabase Storage buckets, and Neon Object "
+        "Storage buckets"
     ),
     output_model=ObjectStoragePublic,
     facts=(
@@ -266,13 +303,14 @@ object_storage_public = Rule(
         _scaleway_bucket_public,
         _cloudflare_r2_bucket_public,
         _supabase_storage_bucket_public,
+        _neon_storage_bucket_public,
     ),
     tags=(
         "infrastructure",
         "attack_surface",
         "stride:information_disclosure",
     ),
-    version="0.1.0",
+    version="0.2.0",
     frameworks=(
         iso27001_annex_a("8.3"),
         soc2_tsc("CC6.1"),
