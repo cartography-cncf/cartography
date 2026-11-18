@@ -149,6 +149,25 @@ def cleanup(
     )
 
 
+def _record_aws_ids(
+    stores: Iterable[dict[str, Any]],
+    aws_ids_by_store: dict[str, dict[str, str]],
+) -> Iterator[dict[str, Any]]:
+    """
+    Yield each transformed store unchanged, and record its AWS resource IDs.
+
+    Recording the IDs while the loader streams the stores keeps only the small ID
+    map in memory, not every store.
+    """
+    for store in stores:
+        aws_ids = {
+            field: store[field] for field in AWS_RESOURCE_ID_FIELDS if store[field]
+        }
+        if aws_ids:
+            aws_ids_by_store[store["id"]] = aws_ids
+        yield store
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -165,14 +184,11 @@ def sync(
     represents no AWS resource is left out.
     """
     logger.info("Syncing Sentra data stores for organization %s", tenant_id)
-    data_stores = [store for page in get(session, api_url) for store in transform(page)]
+    aws_ids_by_store: dict[str, dict[str, str]] = {}
+    data_stores = _record_aws_ids(
+        (store for page in get(session, api_url) for store in transform(page)),
+        aws_ids_by_store,
+    )
     load_data_stores(neo4j_session, data_stores, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-    aws_ids_by_store: dict[str, dict[str, str]] = {}
-    for store in data_stores:
-        aws_ids = {
-            field: store[field] for field in AWS_RESOURCE_ID_FIELDS if store[field]
-        }
-        if aws_ids:
-            aws_ids_by_store[store["id"]] = aws_ids
     return aws_ids_by_store

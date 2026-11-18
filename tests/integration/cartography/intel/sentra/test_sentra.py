@@ -370,3 +370,73 @@ def test_sync_removes_resolved_alerts_and_deleted_stores(neo4j_session, mocker):
         "id",
         "INVOLVES",
     ) == {(STORE_ALERT_ID, DATA_CLASS_AWS_KEY_ID)}
+
+
+def test_sync_links_alert_to_aws_resources_of_violated_object_stores(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    _seed_aws_resources(neo4j_session)
+    rds_object = {
+        "id": "object-orders-export",
+        "asset_id": "asset-orders-exports",
+        "asset_name": "orders_export",
+        "asset_type": "TABLE",
+        "store_id": RDS_STORE_ID,
+        "store_name": "orders",
+        "data_classes": [
+            {
+                "id": DATA_CLASS_EMAIL_ID,
+                "name": "Email Address",
+                "category": "Personal",
+            },
+        ],
+    }
+    _patch_sentra_api(
+        mocker,
+        violated_objects={
+            STORE_ALERT_ID: [*VIOLATED_OBJECTS[STORE_ALERT_ID], rds_object],
+        },
+    )
+    cartography.intel.sentra.start_sentra_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    assert check_rels(
+        neo4j_session,
+        "SentraAlert",
+        "id",
+        "AWSRDSInstance",
+        "id",
+        "AFFECTS",
+    ) == {(STORE_ALERT_ID, RDS_INSTANCE_ARN)}
+    # The object in the RDS store no longer violates the policy.
+    _patch_sentra_api(mocker)
+
+    # Act
+    cartography.intel.sentra.start_sentra_ingestion(
+        neo4j_session,
+        _config(SECOND_UPDATE_TAG),
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "SentraAlert",
+            "id",
+            "AWSRDSInstance",
+            "id",
+            "AFFECTS",
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "SentraAlert",
+        "id",
+        "AWSS3Bucket",
+        "id",
+        "AFFECTS",
+    ) == {(STORE_ALERT_ID, S3_BUCKET_NAME)}
