@@ -42,14 +42,29 @@ def get_violated_objects(
     alert_id: str,
 ) -> Iterator[dict[str, Any]]:
     """
-    Yield the objects that violate an alert's policy.
+    Yield the data store and data classes of each object that violates an alert's policy.
+
+    The fetch is all or nothing: every page is read before the first object is
+    yielded, so an alert never loads with links from only some pages. Objects with
+    the same store and data classes collapse into one, which keeps memory small
+    when an alert has many violating objects.
 
     A 404 or 422 concerns only this alert, for example an alert that Sentra resolved
     during the sync, so the alert loads without violated-object links. Other errors
     mean that the sync can't read Sentra, so they propagate.
     """
+    distinct: set[tuple[str, frozenset[str]]] = set()
     try:
-        yield from api.iter_violated_objects(session, api_url, alert_id)
+        for violated_object in api.iter_violated_objects(session, api_url, alert_id):
+            distinct.add(
+                (
+                    violated_object["store_id"],
+                    frozenset(
+                        data_class["id"]
+                        for data_class in violated_object.get("data_classes") or []
+                    ),
+                ),
+            )
     except requests.HTTPError as e:
         status = e.response.status_code if e.response is not None else None
         if status not in _ALERT_SPECIFIC_ERROR_STATUSES:
@@ -60,6 +75,12 @@ def get_violated_objects(
             status,
             alert_id,
         )
+        return
+    for store_id, data_class_ids in distinct:
+        yield {
+            "store_id": store_id,
+            "data_classes": [{"id": data_class_id} for data_class_id in data_class_ids],
+        }
 
 
 def transform(
@@ -179,8 +200,8 @@ def sync(
         for page in get(session, api_url)
         for alert in transform(
             page,
-            # Only store alerts have violated objects. The generators are consumed
-            # one alert at a time, so the objects never all sit in memory.
+            # Only store alerts have violated objects. Each generator fetches its
+            # alert's objects when the transform reaches that alert.
             {
                 raw["id"]: get_violated_objects(session, api_url, raw["id"])
                 for raw in page

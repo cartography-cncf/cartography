@@ -45,7 +45,7 @@ def load_tenant(
 
 @timeit
 def start_sentra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    """Ingest Sentra data stores, data classes, and active alerts."""
+    """Ingest Sentra data classes, data stores, policies, and active alerts."""
     if not config.sentra_api_key:
         logger.info(
             "Sentra import is not configured - skipping this module. "
