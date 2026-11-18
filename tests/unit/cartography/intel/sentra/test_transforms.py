@@ -1,8 +1,10 @@
 import pytest
 
 from cartography.intel.sentra import alerts
+from cartography.intel.sentra import policies
 from cartography.intel.sentra.data_stores import aws_resource_ids
 from tests.data.sentra import ALERTS
+from tests.data.sentra import POLICIES
 
 NO_IDS = {
     "aws_s3_bucket_name": None,
@@ -169,3 +171,21 @@ def test_alert_transform_links_aws_role_only_for_iam_role_arn(
     # Assert
     assert transformed["affected_aws_role_arn"] == expected
     assert transformed["affected_data_store_ids"] == []
+
+
+def test_policy_transform_flattens_affected_data_classes():
+    # Arrange
+    by_names, no_rules, by_categories = POLICIES
+
+    # Act
+    transformed = policies.transform([by_names, no_rules, by_categories])
+
+    # Assert
+    assert [
+        (p["affected_data_classes"], p["affected_data_class_categories"])
+        for p in transformed
+    ] == [
+        (["AWS Access Key"], []),
+        ([], []),
+        ([], ["Personal"]),
+    ]

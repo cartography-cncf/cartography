@@ -184,6 +184,19 @@ class SentraAlertToDataClassRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SentraAlertToPolicyRel(CartographyRelSchema):
+    """The policy that raised the alert."""
+
+    target_node_label: str = "SentraPolicy"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("policy_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RAISED_BY"
+    properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
+
+
+@dataclass(frozen=True)
 class SentraAlertToAWSRoleRel(CartographyRelSchema):
     """The IAM role that Sentra raised the alert on, matched on the role ARN."""
 
@@ -218,6 +231,7 @@ class SentraAlertSchema(CartographyNodeSchema):
         [
             SentraAlertToDataStoreRel(),
             SentraAlertToDataClassRel(),
+            SentraAlertToPolicyRel(),
             SentraAlertToAWSRoleRel(),
         ],
     )

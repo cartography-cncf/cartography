@@ -163,6 +163,79 @@ DATA_STORES = [
     ),
 ]
 
+STORE_POLICY_ID = "policy-public-creds"
+ROLE_POLICY_ID = "policy-unused-access"
+DISABLED_POLICY_ID = "policy-shadow-data"
+
+
+def _policy(**overrides):
+    policy = {
+        "affected_data_classes": None,
+        "alert_type": "store",
+        "auto_approval": False,
+        "controls": [],
+        "created_at": "2026-10-01T00:00:00Z",
+        "created_by": None,
+        "customized_predefined_policy_fields": [],
+        "description": "",
+        "entity_type": "store",
+        "frameworks": [],
+        "opened_alerts": 0,
+        "opened_threats": 0,
+        "opened_threats_alerts_aggregated": 0,
+        "organization_id": ORGANIZATION_ID,
+        "predefined": True,
+        "recommendation": None,
+        "remediation_actions": [],
+        "revision": "1",
+        "risk_type": None,
+        "rules": [],
+        "status": "enabled",
+        "tags": [],
+        "triggering_type": "automatic",
+        "type": "rule_based",
+        "user_id": None,
+    }
+    policy.update(overrides)
+    return policy
+
+
+POLICIES = [
+    _policy(
+        id=STORE_POLICY_ID,
+        canonical="credentials-in-public-store",
+        name="Credentials in a store that can be public",
+        description="Credentials in a public store let anyone access other systems.",
+        severity="critical",
+        risk_type="exposed_data",
+        frameworks=["SOC2", "PCI"],
+        recommendation="Block public access to the bucket.",
+        affected_data_classes={"categories": None, "data_classes": ["AWS Access Key"]},
+        opened_alerts=1,
+    ),
+    _policy(
+        id=ROLE_POLICY_ID,
+        canonical="unused-sensitive-access",
+        name="Role with access to sensitive data it never uses",
+        severity="high",
+        risk_type="excessive_access",
+        alert_type="iam_role",
+        entity_type=None,
+        frameworks=["GDPR"],
+        opened_alerts=1,
+    ),
+    _policy(
+        id=DISABLED_POLICY_ID,
+        canonical="shadow-data-copy",
+        name="Copy of production data outside production",
+        severity="medium",
+        status="disabled",
+        risk_type="shadow_data",
+        predefined=False,
+        affected_data_classes={"categories": ["Personal"], "data_classes": None},
+    ),
+]
+
 STORE_ALERT_ID = "alert-public-credentials"
 ROLE_ALERT_ID = "alert-role-excessive-access"
 ROLE_ARN = f"arn:aws:iam::{AWS_ACCOUNT_ID}:role/data-pipeline"
@@ -207,7 +280,7 @@ ALERTS = [
         severity="critical",
         type="VIOLATED_STORE",
         risk_type="exposed_data",
-        policy_id="policy-public-creds",
+        policy_id=STORE_POLICY_ID,
         frameworks=["SOC2"],
         entity_type="STORE",
         entity_id=S3_STORE_ID,
@@ -230,7 +303,7 @@ ALERTS = [
         status="in_progress",
         type="VIOLATED_IAM_ROLE",
         risk_type="excessive_access",
-        policy_id="policy-unused-access",
+        policy_id=ROLE_POLICY_ID,
         content={"type": "VIOLATED_IAM_ROLE"},
         entity_type="IAM_ROLE",
         entity_id="identity-role-data-pipeline",

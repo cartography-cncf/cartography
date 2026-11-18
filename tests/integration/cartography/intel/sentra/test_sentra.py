@@ -14,14 +14,18 @@ from tests.data.sentra import DATA_CLASS_AWS_KEY_ID
 from tests.data.sentra import DATA_CLASS_EMAIL_ID
 from tests.data.sentra import DATA_CLASSES
 from tests.data.sentra import DATA_STORES
+from tests.data.sentra import DISABLED_POLICY_ID
+from tests.data.sentra import POLICIES
 from tests.data.sentra import RDS_INSTANCE_ARN
 from tests.data.sentra import RDS_STORE_ID
 from tests.data.sentra import ROLE_ALERT_ID
 from tests.data.sentra import ROLE_ARN
+from tests.data.sentra import ROLE_POLICY_ID
 from tests.data.sentra import S3_BUCKET_NAME
 from tests.data.sentra import S3_STORE_ID
 from tests.data.sentra import SNOWFLAKE_STORE_ID
 from tests.data.sentra import STORE_ALERT_ID
+from tests.data.sentra import STORE_POLICY_ID
 from tests.data.sentra import TENANT_ID
 from tests.data.sentra import VIOLATED_OBJECTS
 from tests.integration.util import check_nodes
@@ -38,7 +42,7 @@ def reset_graph(neo4j_session):
             """
             MATCH (n)
             WHERE n:SentraTenant OR n:SentraDataClass OR n:SentraDataStore
-               OR n:SentraAlert
+               OR n:SentraPolicy OR n:SentraAlert
             DETACH DELETE n
             """,
         )
@@ -74,12 +78,14 @@ def _patch_sentra_api(
     mocker,
     *,
     data_stores: list[dict[str, Any]] = DATA_STORES,
+    policies: list[dict[str, Any]] = POLICIES,
     alerts: list[dict[str, Any]] = ALERTS,
     violated_objects: dict[str, list[dict[str, Any]]] = VIOLATED_OBJECTS,
 ) -> None:
     rows_by_path = {
         api.DATA_CLASSES_SEARCH_PATH: DATA_CLASSES,
         api.DATA_STORES_SEARCH_PATH: data_stores,
+        api.POLICIES_SEARCH_PATH: policies,
         api.ALERTS_SEARCH_PATH: alerts,
     }
 
@@ -146,6 +152,19 @@ def test_sync_loads_sentra_data_and_links_aws_resources(neo4j_session, mocker):
     }
     assert check_nodes(
         neo4j_session,
+        "SentraPolicy",
+        ["id", "status", "risk_type"],
+    ) == {
+        (STORE_POLICY_ID, "enabled", "exposed_data"),
+        (ROLE_POLICY_ID, "enabled", "excessive_access"),
+        (DISABLED_POLICY_ID, "disabled", "shadow_data"),
+    }
+    assert neo4j_session.run(
+        "MATCH (p:SentraPolicy {id: $id}) RETURN p.frameworks AS frameworks",
+        id=STORE_POLICY_ID,
+    ).single()["frameworks"] == ["SOC2", "PCI"]
+    assert check_nodes(
+        neo4j_session,
         "SentraAlert",
         ["id", "severity", "status", "entity_type"],
     ) == {
@@ -154,7 +173,7 @@ def test_sync_loads_sentra_data_and_links_aws_resources(neo4j_session, mocker):
     }
 
     tenant_resources = set()
-    for label in ("SentraDataClass", "SentraDataStore", "SentraAlert"):
+    for label in ("SentraDataClass", "SentraDataStore", "SentraPolicy", "SentraAlert"):
         tenant_resources |= check_rels(
             neo4j_session,
             "SentraTenant",
@@ -169,6 +188,9 @@ def test_sync_loads_sentra_data_and_links_aws_resources(neo4j_session, mocker):
         (TENANT_ID, S3_STORE_ID),
         (TENANT_ID, RDS_STORE_ID),
         (TENANT_ID, SNOWFLAKE_STORE_ID),
+        (TENANT_ID, STORE_POLICY_ID),
+        (TENANT_ID, ROLE_POLICY_ID),
+        (TENANT_ID, DISABLED_POLICY_ID),
         (TENANT_ID, STORE_ALERT_ID),
         (TENANT_ID, ROLE_ALERT_ID),
     }
@@ -226,6 +248,17 @@ def test_sync_loads_sentra_data_and_links_aws_resources(neo4j_session, mocker):
         neo4j_session,
         "SentraAlert",
         "id",
+        "SentraPolicy",
+        "id",
+        "RAISED_BY",
+    ) == {
+        (STORE_ALERT_ID, STORE_POLICY_ID),
+        (ROLE_ALERT_ID, ROLE_POLICY_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SentraAlert",
+        "id",
         "AWSRole",
         "arn",
         "AFFECTS",
@@ -270,11 +303,13 @@ def test_sync_removes_resolved_alerts_and_deleted_stores(neo4j_session, mocker):
         neo4j_session,
         _config(TEST_UPDATE_TAG),
     )
-    # Sentra resolved the role alert, the Snowflake store was deleted, and the
-    # object that held email addresses no longer violates the store alert's policy.
+    # Sentra resolved the role alert, the Snowflake store and the disabled policy
+    # were deleted, and the object that held email addresses no longer violates
+    # the store alert's policy.
     _patch_sentra_api(
         mocker,
         data_stores=[s for s in DATA_STORES if s["id"] != SNOWFLAKE_STORE_ID],
+        policies=[p for p in POLICIES if p["id"] != DISABLED_POLICY_ID],
         alerts=[a for a in ALERTS if a["id"] != ROLE_ALERT_ID],
         violated_objects={STORE_ALERT_ID: VIOLATED_OBJECTS[STORE_ALERT_ID][:1]},
     )
@@ -290,6 +325,10 @@ def test_sync_removes_resolved_alerts_and_deleted_stores(neo4j_session, mocker):
     assert check_nodes(neo4j_session, "SentraDataStore", ["id"]) == {
         (S3_STORE_ID,),
         (RDS_STORE_ID,),
+    }
+    assert check_nodes(neo4j_session, "SentraPolicy", ["id"]) == {
+        (STORE_POLICY_ID,),
+        (ROLE_POLICY_ID,),
     }
     assert check_nodes(neo4j_session, "SentraTenant", ["id"]) == {(TENANT_ID,)}
     assert check_rels(

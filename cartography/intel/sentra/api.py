@@ -23,6 +23,7 @@ CURRENT_USER_PATH = "/api/core/users/current"
 DATA_CLASSES_SEARCH_PATH = "/api/core/classes/search"
 DATA_STORES_SEARCH_PATH = "/api/core/data-stores/search"
 ALERTS_SEARCH_PATH = "/api/core/alerts/search"
+POLICIES_SEARCH_PATH = "/api/core/policies/search"
 ALERT_VIOLATED_OBJECTS_PATH = "/api/core/alerts/{alert_id}/violated_objects"
 
 
