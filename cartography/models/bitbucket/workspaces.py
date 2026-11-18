@@ -49,7 +49,14 @@ class BitbucketWorkspaceNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class BitbucketWorkspaceSchema(CartographyNodeSchema):
-    """A Bitbucket Cloud workspace, the tenant boundary for projects/repos/users."""
+    """
+    A Bitbucket Cloud workspace, the tenant boundary for projects, repositories,
+    and members.
+
+    Cartography syncs only the workspaces listed in `--bitbucket-workspaces`.
+    If you remove a workspace from that list, its node and children stay in
+    the graph.
+    """
 
     label: str = "BitbucketWorkspace"
     properties: BitbucketWorkspaceNodeProperties = BitbucketWorkspaceNodeProperties()

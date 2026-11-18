@@ -80,9 +80,9 @@ def sync_bitbucket_users(
     Sync members for every given workspace.
 
     Returns the set of workspace IDs whose members could not be listed (e.g. a
-    403 from a token/OAuth scope that lacks account:read) so the caller can
-    skip cleanup for those workspaces and avoid deleting previously-ingested
-    users on a transient permission gap.
+    403 from a token/OAuth scope that lacks account:read). When it is not
+    empty, the caller skips user cleanup for every workspace, because a user
+    shared with an unreadable workspace would otherwise be deleted.
     """
     skipped_workspace_ids: set[str] = set()
     for workspace in workspaces:
@@ -93,8 +93,8 @@ def sync_bitbucket_users(
             if e.response is None or e.response.status_code != 403:
                 raise
             logger.warning(
-                "Token/OAuth scope lacks permission to list members for Bitbucket "
-                "workspace %s - skipping cleanup for this workspace's users this run.",
+                "Credential lacks permission to list members for Bitbucket "
+                "workspace %s; skipping its members this run.",
                 workspace["slug"],
             )
             skipped_workspace_ids.add(workspace["id"])

@@ -151,7 +151,14 @@ class BitbucketRepositoryToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class BitbucketRepositorySchema(CartographyNodeSchema):
-    """A Bitbucket Cloud repository."""
+    """
+    A Bitbucket Cloud repository.
+
+    Every repository belongs to a workspace. Repositories also belong to a
+    project, except legacy repositories created before Bitbucket introduced
+    projects. Per-repository permissions, pull requests, and branch
+    restrictions aren't ingested.
+    """
 
     label: str = "BitbucketRepository"
     properties: BitbucketRepositoryNodeProperties = BitbucketRepositoryNodeProperties()

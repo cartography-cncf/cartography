@@ -78,7 +78,13 @@ For an API token, grant these read-only scopes:
 
 ### Access Token
 
-For an Access token, create a **workspace-level** token and grant **Projects: Read** and **Repositories: Read**.
+For an Access token, create a **workspace-level** token and grant these scopes:
+
+| Scope              | Used for                                  |
+| ------------------ | ----------------------------------------- |
+| Account: Read      | Listing workspace members.                |
+| Projects: Read     | Listing projects within a workspace.      |
+| Repositories: Read | Listing repositories within a workspace.  |
 
 ### OAuth Client
 
@@ -114,13 +120,15 @@ cartography \
     --bitbucket-token-env-var BITBUCKET_TOKEN
 ```
 
+List every workspace in one run, for example `--bitbucket-workspaces team-a,team-b`. A user who belongs to several workspaces is a single node, so syncing workspaces in separate runs can remove that user's other workspace memberships until those workspaces sync again.
+
 ## Troubleshooting
 
 | Symptom                                    | Likely cause                                                        |
 | ------------------------------------------- | --------------------------------------------------------------------- |
 | `401 Unauthorized`                          | Token or refresh token is invalid or expired.                        |
 | `404 Not Found` on a configured workspace   | The slug is misspelled, or the credential does not belong to that workspace. |
-| `403 Forbidden` listing workspace members   | An OAuth client is missing **Account: Read**, or an API token is missing `read:workspace:bitbucket`. Cartography logs a warning and skips cleanup for that workspace's users, rather than deleting them. |
+| `403 Forbidden` listing workspace members   | An OAuth client or Access token is missing **Account: Read**, or an API token is missing `read:workspace:bitbucket`. Cartography logs a warning and skips user cleanup for every workspace in that run, rather than deleting users it could not read. |
 | `429 Too Many Requests`                     | Bitbucket Cloud rate limit hit. Cartography retries with backoff automatically. |
 
 ## References

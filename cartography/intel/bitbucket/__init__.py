@@ -48,7 +48,11 @@ def start_bitbucket_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         config.bitbucket_oauth_refresh_token,
     )
 
-    configured_slugs = [slug.strip() for slug in config.bitbucket_workspaces.split(",")]
+    configured_slugs = [
+        slug.strip()
+        for slug in (config.bitbucket_workspaces or "").split(",")
+        if slug.strip()
+    ]
 
     common_job_parameters: dict[str, Any] = {"UPDATE_TAG": config.update_tag}
 
@@ -84,11 +88,22 @@ def start_bitbucket_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 
     # Workspaces are top-level tenants, so only their children are cleaned up.
     logger.info("Starting Bitbucket cleanup phase")
+    # A BitbucketUser is keyed by its Atlassian account ID, so one node can
+    # belong to several workspaces. If any workspace's members could not be
+    # listed, its users were not refreshed this run, and cleaning up another
+    # workspace could delete a user who is still a member of the unreadable one.
+    # Skip user cleanup for every workspace in that case.
+    if users_skipped:
+        logger.warning(
+            "Could not list members for %d Bitbucket workspace(s); skipping "
+            "BitbucketUser cleanup for all workspaces this run.",
+            len(users_skipped),
+        )
     for workspace in all_workspaces:
         cartography.intel.bitbucket.repositories.cleanup_repositories(
             neo4j_session, common_job_parameters, workspace["id"]
         )
-        if workspace["id"] not in users_skipped:
+        if not users_skipped:
             cartography.intel.bitbucket.users.cleanup_users(
                 neo4j_session, common_job_parameters, workspace["id"]
             )

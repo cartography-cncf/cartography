@@ -77,7 +77,19 @@ class BitbucketUserToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class BitbucketUserSchema(CartographyNodeSchema):
-    """A Bitbucket Cloud workspace member."""
+    """
+    A current member of a Bitbucket Cloud workspace.
+
+    `id` is the Atlassian account ID, so a user who belongs to several synced
+    workspaces is one node with a `RESOURCE` relationship from each workspace.
+    Cartography doesn't map which users can access which repositories.
+
+    If Cartography can't list the members of any workspace in a run, it skips
+    `BitbucketUser` cleanup for every workspace in that run. Sync all of your
+    workspaces in a single run: when workspaces sync in separate runs, removing
+    a user from one workspace also removes the node and its other workspace
+    memberships until those workspaces sync again.
+    """
 
     label: str = "BitbucketUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
