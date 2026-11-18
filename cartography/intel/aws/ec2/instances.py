@@ -234,6 +234,13 @@ def transform_ec2_instances(
                     ),
                     **metadata_options,
                     "EksClusterName": eks_cluster_name,
+                    # A cluster name is unique only within one account and region,
+                    # so the link to the cluster matches on its ARN.
+                    "EksClusterArn": (
+                        f"arn:{partition}:eks:{region}:{current_aws_account_id}:cluster/{eks_cluster_name}"
+                        if eks_cluster_name
+                        else None
+                    ),
                     "IPv6Address": primary_ipv6,
                 },
             )
