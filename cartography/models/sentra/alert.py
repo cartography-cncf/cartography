@@ -159,14 +159,27 @@ class SentraAlertToEntityRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SentraAlertToDataStoreRel(CartographyRelSchema):
-    """The data store that Sentra raised the alert on."""
+    """A data store that the alert affects: the store that Sentra raised the alert on, or a store that holds an object that violates the policy."""
 
     target_node_label: str = "SentraDataStore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("affected_data_store_id")},
+        {"id": PropertyRef("affected_data_store_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
+    properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
+
+
+@dataclass(frozen=True)
+class SentraAlertToDataClassRel(CartographyRelSchema):
+    """A data class that Sentra found in an object that violates the policy."""
+
+    target_node_label: str = "SentraDataClass"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("violated_data_class_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INVOLVES"
     properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
 
 
@@ -191,6 +204,11 @@ class SentraAlertSchema(CartographyNodeSchema):
     The Sentra UI calls these issues. Cartography imports alerts whose status is
     `pending`, `opened`, or `in_progress`; cleanup removes alerts that Sentra
     resolved or ignored since the last sync.
+
+    For an alert on a data store, Cartography also reads the objects that violate
+    the policy, such as files in a bucket. The alert links with `INVOLVES` to the
+    data classes found in those objects, and with `AFFECTS` to the stores that hold
+    them. Cartography doesn't create nodes for the objects themselves.
     """
 
     label: str = "SentraAlert"
@@ -199,6 +217,7 @@ class SentraAlertSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SentraAlertToDataStoreRel(),
+            SentraAlertToDataClassRel(),
             SentraAlertToAWSRoleRel(),
         ],
     )

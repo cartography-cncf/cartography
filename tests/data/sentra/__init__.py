@@ -237,3 +237,45 @@ ALERTS = [
         entity={"name": "data-pipeline", "owners": [], "cloud_unique_id": ROLE_ARN},
     ),
 ]
+
+
+# Objects that violate the store alert's policy, keyed by alert ID.
+VIOLATED_OBJECTS = {
+    STORE_ALERT_ID: [
+        {
+            "id": "object-deploy-env",
+            "asset_id": "asset-config-files",
+            "asset_name": "config/*.env",
+            "asset_type": "OBJECT_GROUP",
+            "store_id": S3_STORE_ID,
+            "store_name": S3_BUCKET_NAME,
+            "data_classes": [
+                {
+                    "id": DATA_CLASS_AWS_KEY_ID,
+                    "name": "AWS Access Key",
+                    "category": "Credentials",
+                },
+            ],
+        },
+        {
+            "id": "object-contacts-export",
+            "asset_id": "asset-exports",
+            "asset_name": "exports/*.csv",
+            "asset_type": "OBJECT_GROUP",
+            "store_id": S3_STORE_ID,
+            "store_name": S3_BUCKET_NAME,
+            "data_classes": [
+                {
+                    "id": DATA_CLASS_AWS_KEY_ID,
+                    "name": "AWS Access Key",
+                    "category": "Credentials",
+                },
+                {
+                    "id": DATA_CLASS_EMAIL_ID,
+                    "name": "Email Address",
+                    "category": "Personal",
+                },
+            ],
+        },
+    ],
+}

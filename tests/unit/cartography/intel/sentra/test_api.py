@@ -72,3 +72,56 @@ def test_iter_search_pages_raises_on_repeated_cursor(mocker):
     # Act and assert
     with pytest.raises(RuntimeError, match="repeated pagination cursor b"):
         list(api.iter_search_pages(None, "https://app.sentra.io", PATH, page_size=2))
+
+
+def test_iter_violated_objects_follows_offset_until_short_page(mocker):
+    # Arrange
+    objects = [{"id": f"object-{i}"} for i in range(5)]
+    offsets_seen = []
+
+    def get_page(_session, _api_url, alert_id, offset, limit):
+        assert alert_id == "alert-1"
+        offsets_seen.append(offset)
+        return {"items": objects[offset : offset + limit]}
+
+    mocker.patch.object(api, "get_violated_objects_page", side_effect=get_page)
+
+    # Act
+    result = list(
+        api.iter_violated_objects(
+            None,
+            "https://app.sentra.io",
+            "alert-1",
+            page_size=2,
+        ),
+    )
+
+    # Assert
+    assert result == objects
+    assert offsets_seen == [0, 2, 4]
+
+
+def test_iter_violated_objects_stops_after_exactly_full_last_page(mocker):
+    # Arrange
+    objects = [{"id": "a"}, {"id": "b"}]
+    offsets_seen = []
+
+    def get_page(_session, _api_url, _alert_id, offset, limit):
+        offsets_seen.append(offset)
+        return {"items": objects[offset : offset + limit]}
+
+    mocker.patch.object(api, "get_violated_objects_page", side_effect=get_page)
+
+    # Act
+    result = list(
+        api.iter_violated_objects(
+            None,
+            "https://app.sentra.io",
+            "alert-1",
+            page_size=2,
+        ),
+    )
+
+    # Assert
+    assert result == objects
+    assert offsets_seen == [0, 2]

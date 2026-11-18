@@ -21,6 +21,7 @@ The API key must be able to read the following endpoints:
 | `POST /api/core/classes/search` | Reads data classes. |
 | `POST /api/core/data-stores/search` | Reads data stores. |
 | `POST /api/core/alerts/search` | Reads alerts. |
+| `GET /api/core/alerts/{alert_id}/violated_objects` | Reads the objects that violate the policy behind each data store alert. |
 
 ## Configure Cartography
 

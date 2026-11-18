@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Iterator
 from typing import Any
+from urllib.parse import quote
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -14,12 +15,15 @@ SENTRA_DEFAULT_API_URL = "https://app.sentra.io"
 _TIMEOUT = (60, 60)
 # Sentra recommends 100 rows per page and allows at most 500.
 _PAGE_SIZE = 100
+# The violated objects endpoint allows at most 1000 rows per page.
+_VIOLATED_OBJECTS_PAGE_SIZE = 1000
 _RETRY_STATUSES = (429, 500, 502, 503, 504)
 
 CURRENT_USER_PATH = "/api/core/users/current"
 DATA_CLASSES_SEARCH_PATH = "/api/core/classes/search"
 DATA_STORES_SEARCH_PATH = "/api/core/data-stores/search"
 ALERTS_SEARCH_PATH = "/api/core/alerts/search"
+ALERT_VIOLATED_OBJECTS_PATH = "/api/core/alerts/{alert_id}/violated_objects"
 
 
 def build_session(api_key: str) -> requests.Session:
@@ -100,3 +104,47 @@ def iter_search_pages(
         cursor = next_cursor
 
     logger.debug("Fetched %d rows from Sentra %s", fetched, path)
+
+
+def get_violated_objects_page(
+    session: requests.Session,
+    api_url: str,
+    alert_id: str,
+    offset: int,
+    limit: int,
+) -> dict[str, Any]:
+    path = ALERT_VIOLATED_OBJECTS_PATH.format(alert_id=quote(alert_id, safe=""))
+    response = session.get(
+        f"{api_url}{path}",
+        params={"offset": offset, "limit": limit},
+        timeout=_TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def iter_violated_objects(
+    session: requests.Session,
+    api_url: str,
+    alert_id: str,
+    page_size: int = _VIOLATED_OBJECTS_PAGE_SIZE,
+) -> Iterator[dict[str, Any]]:
+    """
+    Yield every object that violates the policy behind an alert.
+
+    Each object names the data store that holds it and the data classes found in it.
+    Unlike the search endpoints, this endpoint pages by offset.
+    """
+    offset = 0
+    while True:
+        items = get_violated_objects_page(
+            session,
+            api_url,
+            alert_id,
+            offset,
+            page_size,
+        )["items"]
+        yield from items
+        if len(items) < page_size:
+            return
+        offset += len(items)

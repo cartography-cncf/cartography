@@ -2,6 +2,7 @@ import logging
 import re
 from collections.abc import Iterable
 from collections.abc import Iterator
+from collections.abc import Mapping
 from typing import Any
 
 import neo4j
@@ -32,12 +33,43 @@ def get(session: requests.Session, api_url: str) -> Iterator[list[dict[str, Any]
     )
 
 
-def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def get_violated_objects(
+    session: requests.Session,
+    api_url: str,
+    alert_id: str,
+) -> Iterator[dict[str, Any]]:
+    yield from api.iter_violated_objects(session, api_url, alert_id)
+
+
+def transform(
+    raw_alerts: list[dict[str, Any]],
+    violated_objects: Mapping[str, Iterable[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Shape alerts for ingestion.
+
+    `violated_objects` maps an alert ID to the objects that violate the alert's
+    policy. The stores and data classes of those objects become `AFFECTS` and
+    `INVOLVES` links.
+    """
+    violated_objects = violated_objects or {}
     result: list[dict[str, Any]] = []
     for alert in raw_alerts:
         entity_type = alert["entity_type"]
         entity = alert.get("entity") or {}
         cloud_unique_id = entity.get("cloud_unique_id")
+
+        affected_data_store_ids: set[str] = set()
+        if entity_type == "STORE":
+            affected_data_store_ids.add(alert["entity_id"])
+        violated_data_class_ids: set[str] = set()
+        for violated_object in violated_objects.get(alert["id"], ()):
+            affected_data_store_ids.add(violated_object["store_id"])
+            violated_data_class_ids.update(
+                data_class["id"]
+                for data_class in violated_object.get("data_classes") or []
+            )
+
         result.append(
             {
                 "id": alert["id"],
@@ -71,9 +103,8 @@ def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "created_at": alert.get("created_at"),
                 "opened_at": alert.get("opened_at"),
                 "last_modified": alert.get("last_modified"),
-                "affected_data_store_id": (
-                    alert["entity_id"] if entity_type == "STORE" else None
-                ),
+                "affected_data_store_ids": sorted(affected_data_store_ids),
+                "violated_data_class_ids": sorted(violated_data_class_ids),
                 "affected_aws_role_arn": (
                     cloud_unique_id
                     if entity_type == "IAM_ROLE"
@@ -122,6 +153,19 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info("Syncing Sentra alerts for organization %s", tenant_id)
-    alerts = (alert for page in get(session, api_url) for alert in transform(page))
+    alerts = (
+        alert
+        for page in get(session, api_url)
+        for alert in transform(
+            page,
+            # Only store alerts have violated objects. The generators are consumed
+            # one alert at a time, so the objects never all sit in memory.
+            {
+                raw["id"]: get_violated_objects(session, api_url, raw["id"])
+                for raw in page
+                if raw["entity_type"] == "STORE"
+            },
+        )
+    )
     load_alerts(neo4j_session, alerts, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)

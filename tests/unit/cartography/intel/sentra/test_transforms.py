@@ -105,8 +105,36 @@ def test_alert_transform_links_store_alert_to_store_only():
     [transformed] = alerts.transform([store_alert])
 
     # Assert
-    assert transformed["affected_data_store_id"] == store_alert["entity_id"]
+    assert transformed["affected_data_store_ids"] == [store_alert["entity_id"]]
     assert transformed["affected_aws_role_arn"] is None
+    assert transformed["violated_data_class_ids"] == []
+
+
+def test_alert_transform_collects_stores_and_data_classes_of_violated_objects():
+    # Arrange
+    store_alert = {**ALERTS[0], "entity_id": "store-a"}
+    violated_objects = {
+        store_alert["id"]: [
+            {
+                "id": "object-1",
+                "store_id": "store-a",
+                "data_classes": [{"id": "class-2"}, {"id": "class-1"}],
+            },
+            {
+                "id": "object-2",
+                "store_id": "store-b",
+                "data_classes": [{"id": "class-1"}],
+            },
+            {"id": "object-3", "store_id": "store-a", "data_classes": None},
+        ],
+    }
+
+    # Act
+    [transformed] = alerts.transform([store_alert], violated_objects)
+
+    # Assert
+    assert transformed["affected_data_store_ids"] == ["store-a", "store-b"]
+    assert transformed["violated_data_class_ids"] == ["class-1", "class-2"]
 
 
 @pytest.mark.parametrize(
@@ -140,4 +168,4 @@ def test_alert_transform_links_aws_role_only_for_iam_role_arn(
 
     # Assert
     assert transformed["affected_aws_role_arn"] == expected
-    assert transformed["affected_data_store_id"] is None
+    assert transformed["affected_data_store_ids"] == []
