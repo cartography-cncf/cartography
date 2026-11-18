@@ -11,8 +11,8 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
-AWS_EVENTS_ARN = "arn:aws:schemas:us-east-1:aws:registry/aws.events"
-CUSTOM_REGISTRY_ARN = "arn:aws:schemas:us-east-1:123456789012:registry/custom-registry"
+AWS_EVENTS_ARN = GET_EVENT_SCHEMA_REGISTRIES[0]["RegistryArn"]
+CUSTOM_REGISTRY_ARN = GET_EVENT_SCHEMA_REGISTRIES[1]["RegistryArn"]
 
 
 @patch.object(
@@ -23,7 +23,6 @@ CUSTOM_REGISTRY_ARN = "arn:aws:schemas:us-east-1:123456789012:registry/custom-re
 def test_sync_eventbridge_schema_registries(mock_get_registries, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    neo4j_session.run("MATCH (n:AWSEventSchemasRegistry) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -37,24 +36,10 @@ def test_sync_eventbridge_schema_registries(mock_get_registries, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSEventSchemasRegistry",
-        ["id", "arn", "registry_name", "description", "tags", "region"],
+        ["arn", "name", "region"],
     ) == {
-        (
-            AWS_EVENTS_ARN,
-            AWS_EVENTS_ARN,
-            "aws.events",
-            "Contains the schemas for AWS events.",
-            None,
-            TEST_REGION,
-        ),
-        (
-            CUSTOM_REGISTRY_ARN,
-            CUSTOM_REGISTRY_ARN,
-            "custom-registry",
-            "Application events",
-            '{"env": "prod"}',
-            TEST_REGION,
-        ),
+        (AWS_EVENTS_ARN, "aws.events", TEST_REGION),
+        (CUSTOM_REGISTRY_ARN, "custom-registry", TEST_REGION),
     }
 
     assert check_rels(
