@@ -171,6 +171,71 @@ class SentraAlertToDataStoreRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SentraAlertToS3BucketRel(CartographyRelSchema):
+    """The S3 bucket that a data store affected by the alert represents, matched on the bucket name."""
+
+    target_node_label: str = "AWSS3Bucket"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_aws_s3_bucket_names", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
+
+
+@dataclass(frozen=True)
+class SentraAlertToRDSInstanceRel(CartographyRelSchema):
+    """The RDS DB instance that a data store affected by the alert represents, matched on the instance ARN."""
+
+    target_node_label: str = "AWSRDSInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_aws_rds_instance_arns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
+
+
+@dataclass(frozen=True)
+class SentraAlertToRDSClusterRel(CartographyRelSchema):
+    """The RDS DB cluster that a data store affected by the alert represents, matched on the cluster ARN."""
+
+    target_node_label: str = "AWSRDSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_aws_rds_cluster_arns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
+
+
+@dataclass(frozen=True)
+class SentraAlertToDynamoDBTableRel(CartographyRelSchema):
+    """The DynamoDB table that a data store affected by the alert represents, matched on the table ARN."""
+
+    target_node_label: str = "AWSDynamoDBTable"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_aws_dynamodb_table_arns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
+
+
+@dataclass(frozen=True)
+class SentraAlertToRedshiftClusterRel(CartographyRelSchema):
+    """The Redshift cluster that a data store affected by the alert represents, matched on the cluster ARN."""
+
+    target_node_label: str = "AWSRedshiftCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("affected_aws_redshift_cluster_arns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
+
+
+@dataclass(frozen=True)
 class SentraAlertToDataClassRel(CartographyRelSchema):
     """A data class that Sentra found in an object that violates the policy."""
 
@@ -222,6 +287,14 @@ class SentraAlertSchema(CartographyNodeSchema):
     the policy, such as files in a bucket. The alert links with `INVOLVES` to the
     data classes found in those objects, and with `AFFECTS` to the stores that hold
     them. Cartography doesn't create nodes for the objects themselves.
+
+    When an affected data store represents an AWS resource, the alert also links
+    with `AFFECTS` directly to that resource, as findings from other security
+    tools do. Queries that match `(:SecurityIssue)-[:AFFECTS]->(:ObjectStorage)`
+    then include alerts on S3 buckets, and queries that match
+    `(:SecurityIssue)-[:AFFECTS]->(:Database)` include alerts on RDS instances,
+    DynamoDB tables, and Redshift clusters. An RDS cluster has no `Database`
+    label, because its member instances carry it.
     """
 
     label: str = "SentraAlert"
@@ -230,6 +303,11 @@ class SentraAlertSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SentraAlertToDataStoreRel(),
+            SentraAlertToS3BucketRel(),
+            SentraAlertToRDSInstanceRel(),
+            SentraAlertToRDSClusterRel(),
+            SentraAlertToDynamoDBTableRel(),
+            SentraAlertToRedshiftClusterRel(),
             SentraAlertToDataClassRel(),
             SentraAlertToPolicyRel(),
             SentraAlertToAWSRoleRel(),

@@ -54,6 +54,36 @@ def test_sync_redshift_clusters(mock_get_data, neo4j_session):
         ("arn:aws:redshift:us-east-1:1111:cluster:my-cluster",),
     }
 
+    # Verify the Database semantic label and its normalized _ont_* fields
+    assert check_nodes(
+        neo4j_session,
+        "AWSRedshiftCluster",
+        [
+            "id",
+            "_ont_name",
+            "_ont_type",
+            "_ont_endpoint",
+            "_ont_port",
+            "_ont_encrypted",
+            "_ont_location",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            "arn:aws:redshift:us-east-1:1111:cluster:my-cluster",
+            "my-cluster",
+            "redshift",
+            "my-cluster.abc.us-east-1.redshift.amazonaws.example.com",
+            5439,
+            True,
+            TEST_REGION,
+            "aws",
+        ),
+    }
+    assert check_nodes(neo4j_session, "Database", ["id"]) >= {
+        ("arn:aws:redshift:us-east-1:1111:cluster:my-cluster",),
+    }
+
     # Verify AWSAccount -[:RESOURCE]-> AWSRedshiftCluster
     assert check_rels(
         neo4j_session,
