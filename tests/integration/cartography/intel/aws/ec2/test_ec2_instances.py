@@ -10,6 +10,7 @@ import cartography.intel.aws.iam
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_INSTANCE
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from cartography.intel.aws.ec2.security_groups import sync_ec2_security_groupinfo
+from cartography.intel.aws.eks import load_eks_clusters
 from cartography.util import run_typed_analysis_job
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -525,6 +526,111 @@ def test_sync_ec2_filesystem_snapshots_refresh_and_scoped_cleanup(
         (TEST_ACCOUNT_ID, "aws:ec2:i-03:rootfs"),
         (TEST_ACCOUNT_ID, "aws:ec2:i-04:rootfs"),
         (other_account_id, "aws:ec2:i-other:rootfs"),
+    }
+
+
+def _eks_worker_reservations(account_id, instance_id, cluster_name):
+    return [
+        {
+            "ReservationId": f"r-{instance_id}",
+            "OwnerId": account_id,
+            "Instances": [
+                {
+                    "InstanceId": instance_id,
+                    "NetworkInterfaces": [],
+                    "BlockDeviceMappings": [],
+                    "Tags": [{"Key": "eks:cluster-name", "Value": cluster_name}],
+                },
+            ],
+        },
+    ]
+
+
+def test_sync_ec2_instances_links_eks_cluster_in_own_account_and_region(
+    neo4j_session, mocker
+):
+    # Arrange: three EKS clusters share one name across two accounts and two regions.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    other_account_id = "111111111111"
+    other_region = "us-west-2"
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    create_test_account(neo4j_session, other_account_id, TEST_UPDATE_TAG)
+    load_eks_clusters(
+        neo4j_session,
+        [
+            {
+                "arn": "arn:aws:eks:us-east-1:000000000000:cluster/shared",
+                "name": "shared",
+            }
+        ],
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    load_eks_clusters(
+        neo4j_session,
+        [
+            {
+                "arn": "arn:aws:eks:us-west-2:000000000000:cluster/shared",
+                "name": "shared",
+            }
+        ],
+        other_region,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    load_eks_clusters(
+        neo4j_session,
+        [
+            {
+                "arn": "arn:aws:eks:us-east-1:111111111111:cluster/shared",
+                "name": "shared",
+            }
+        ],
+        TEST_REGION,
+        other_account_id,
+        TEST_UPDATE_TAG,
+    )
+    get_instances = mocker.patch.object(
+        cartography.intel.aws.ec2.instances, "get_ec2_instances"
+    )
+
+    # Act
+    get_instances.return_value = _eks_worker_reservations(
+        TEST_ACCOUNT_ID, "i-worker", "shared"
+    )
+    sync_ec2_instances(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    get_instances.return_value = _eks_worker_reservations(
+        other_account_id, "i-other-worker", "shared"
+    )
+    sync_ec2_instances(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        other_account_id,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": other_account_id},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSEC2Instance",
+        "id",
+        "AWSEKSCluster",
+        "id",
+        "MEMBER_OF_EKS_CLUSTER",
+        rel_direction_right=True,
+    ) == {
+        ("i-worker", "arn:aws:eks:us-east-1:000000000000:cluster/shared"),
+        ("i-other-worker", "arn:aws:eks:us-east-1:111111111111:cluster/shared"),
     }
 
 

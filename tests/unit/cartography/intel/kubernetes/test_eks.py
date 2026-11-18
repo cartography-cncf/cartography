@@ -133,6 +133,7 @@ def test_list_access_entry_principal_arns_raises_unexpected_invalid_request():
         )
 
 
+@patch("cartography.intel.kubernetes.eks.cleanup_oidc_providers")
 @patch("cartography.intel.kubernetes.eks.cleanup")
 @patch("cartography.intel.kubernetes.eks.get_oidc_provider", return_value=[])
 @patch("cartography.intel.kubernetes.eks.get_access_entries", return_value=[])
@@ -140,6 +141,7 @@ def test_sync_continues_to_oidc_when_access_entries_are_unavailable(
     mock_get_access_entries,
     mock_get_oidc_provider,
     mock_cleanup,
+    mock_cleanup_oidc_providers,
 ):
     mock_k8s_client = MagicMock()
     mock_k8s_client.name = EXAMPLE_CLUSTER_NAME
@@ -169,3 +171,4 @@ def test_sync_continues_to_oidc_when_access_entries_are_unavailable(
         EXAMPLE_CLUSTER_NAME,
     )
     mock_cleanup.assert_called_once()
+    mock_cleanup_oidc_providers.assert_called_once()

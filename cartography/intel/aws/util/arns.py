@@ -5,6 +5,15 @@ import botocore.session
 from botocore.exceptions import UnknownRegionError
 
 
+def get_base_region(region: str) -> str:
+    """
+    Return the region that a FIPS pseudo-region such as "fips-us-gov-west-1" or
+    "us-gov-west-1-fips" resolves to. botocore calls that region's FIPS endpoints,
+    and the ARNs AWS returns there name the base region.
+    """
+    return region.replace("fips-", "").replace("-fips", "")
+
+
 @lru_cache(maxsize=None)
 def get_partition(region: str) -> str:
     """
@@ -18,9 +27,10 @@ def get_partition(region: str) -> str:
     resolves it. A region that botocore does not know resolves to "aws", which
     is also the partition botocore uses for its endpoints.
     """
-    region = region.replace("fips-", "").replace("-fips", "")
     try:
-        return botocore.session.get_session().get_partition_for_region(region)
+        return botocore.session.get_session().get_partition_for_region(
+            get_base_region(region)
+        )
     except UnknownRegionError:
         return "aws"
 

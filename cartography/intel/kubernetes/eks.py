@@ -413,17 +413,31 @@ def transform_aws_auth_mappings(
 
 
 @timeit
-@aws_handle_regions
 def get_oidc_provider(
     boto3_session: boto3.session.Session,
     region: str,
     cluster_name: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
     Get external OIDC identity provider configurations for an EKS cluster.
 
-    Returns raw AWS API responses for configured external identity providers.
+    Returns raw AWS API responses for configured external identity providers, or
+    None when aws_handle_regions skipped the read, for example on access denied,
+    an auth failure, a timeout, or the operation being unavailable in the region,
+    so the caller keeps the stored providers instead of cleaning them up.
     """
+    results = _get_oidc_provider_results(boto3_session, region, cluster_name)
+    return results[0] if results else None
+
+
+@aws_handle_regions
+def _get_oidc_provider_results(
+    boto3_session: boto3.session.Session,
+    region: str,
+    cluster_name: str,
+) -> list[list[dict[str, Any]]]:
+    # aws_handle_regions returns [] when it skips the read, so a completed read
+    # wraps its providers in a one-element list to tell the two apart.
     client = boto3_session.client("eks", region_name=region)
     oidc_providers = []
 
@@ -445,7 +459,7 @@ def get_oidc_provider(
 
             oidc_providers.append(detail_response["identityProviderConfig"]["oidc"])
 
-    return oidc_providers
+    return [oidc_providers]
 
 
 @timeit
@@ -663,6 +677,14 @@ def cleanup(
     cleanup_job.run(neo4j_session)
 
 
+def cleanup_oidc_providers(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(
+        KubernetesOIDCProviderSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
 def sync(
     neo4j_session: neo4j.Session,
     k8s_client: K8sClient,
@@ -787,6 +809,12 @@ def sync(
             cluster_id,
             kubernetes_cluster_name,
         )
+    elif oidc_provider is None:
+        logger.warning(
+            "Could not read external OIDC providers for cluster %s; keeping the "
+            "stored providers.",
+            kubernetes_cluster_name,
+        )
     else:
         logger.info("No external OIDC provider found for cluster")
 
@@ -796,6 +824,8 @@ def sync(
         "CLUSTER_ID": cluster_id,
     }
     cleanup(neo4j_session, common_job_parameters)
+    if oidc_provider is not None:
+        cleanup_oidc_providers(neo4j_session, common_job_parameters)
 
     logger.info(
         "Successfully completed EKS identity provider sync for cluster %s",
