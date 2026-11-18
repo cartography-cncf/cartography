@@ -9,8 +9,10 @@ from types import SimpleNamespace
 import botocore.exceptions
 import pytest
 
+import cartography.intel.ontology.packages
 from cartography.intel.aws import inspector
 from cartography.intel.aws.inspector import sync
+from cartography.intel.trivy.util import make_normalized_package_id
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
 from tests.integration.util import check_nodes
@@ -402,7 +404,7 @@ def test_sync_inspector_ec2_package_findings_as_finding_sets(neo4j_session):
             "vulnerability": "CVE-2017-9059",
             "score": 5.5,
             "vendor_severity": "Moderate",
-            "package": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+            "package": "OS|amazon|kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
             "fixed_in": "0:4.9.18-6.30.amzn1.X86_64",
         },
         {
@@ -410,7 +412,7 @@ def test_sync_inspector_ec2_package_findings_as_finding_sets(neo4j_session):
             "vulnerability": "CVE-2017-9059",
             "score": 5.5,
             "vendor_severity": "Moderate",
-            "package": "kernel|0:4.9.17-6.29.amzn1.X86_64",
+            "package": "OS|amazon|kernel|0:4.9.17-6.29.amzn1.X86_64",
             "fixed_in": "0:4.9.18-6.30.amzn1.X86_64",
         },
         {
@@ -418,7 +420,7 @@ def test_sync_inspector_ec2_package_findings_as_finding_sets(neo4j_session):
             "vulnerability": "CVE-2023-1234",
             "score": 7.5,
             "vendor_severity": "High",
-            "package": "openssl|0:1.0.2k-1.amzn2.X86_64",
+            "package": "OS|amazon|openssl|0:1.0.2k-1.amzn2.X86_64",
             "fixed_in": None,
         },
     ]
@@ -733,6 +735,69 @@ def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(
             ],
         },
     ]
+
+
+def test_sync_inspector_packages_reach_package_version(neo4j_session):
+    # Arrange: the same openssl build on a Debian instance and an Ubuntu instance.
+    _kernel, openssl = LIST_FINDINGS_EC2_PACKAGE
+    resource = openssl["resources"][0]
+    findings = [
+        {
+            **_ec2_package_finding(openssl, instance_id, finding_id),
+            "resources": [
+                {
+                    **resource,
+                    "id": instance_id,
+                    "details": {
+                        "awsEc2Instance": {
+                            **resource["details"]["awsEc2Instance"],
+                            "platform": platform,
+                        },
+                    },
+                },
+            ],
+        }
+        for instance_id, finding_id, platform in [
+            ("i-debian", "1" + "a" * 31, "DEBIAN_12"),
+            ("i-ubuntu", "2" + "a" * 31, "UBUNTU_22_04"),
+        ]
+    ]
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run("MERGE (:AWSAccount{id: $acc})", acc=TEST_ACC_ID_1)
+
+    # Act
+    _sync_package_findings(neo4j_session, findings)
+    cartography.intel.ontology.packages.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert: each distribution's package reaches the PackageVersion that Trivy's
+    # package URL for it names.
+    debian = make_normalized_package_id(
+        purl="pkg:deb/debian/openssl@1.0.2k-1.amzn2?arch=amd64&distro=debian-12.8",
+    )
+    ubuntu = make_normalized_package_id(
+        purl="pkg:deb/ubuntu/openssl@1.0.2k-1.amzn2?arch=amd64&distro=ubuntu-22.04",
+    )
+    assert check_rels(
+        neo4j_session,
+        "PackageVersion",
+        "id",
+        "AWSInspectorPackage",
+        "id",
+        "DETECTED_AS",
+    ) == {
+        (debian, "OS|debian|openssl|0:1.0.2k-1.amzn2.X86_64"),
+        (ubuntu, "OS|ubuntu|openssl|0:1.0.2k-1.amzn2.X86_64"),
+    }
+    assert check_nodes(
+        neo4j_session, "PackageVersion", ["id", "name", "version", "type"]
+    ) == {
+        (debian, "openssl", "1.0.2k-1.amzn2", "deb"),
+        (ubuntu, "openssl", "1.0.2k-1.amzn2", "deb"),
+    }
 
 
 def test_sync_inspector_loads_findings_from_every_finding_id_prefix(neo4j_session):
