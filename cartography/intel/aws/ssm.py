@@ -18,7 +18,11 @@ from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.label_migrations import (
     migrate_legacy_public_ssm_parameter_label,
 )
+from cartography.intel.aws.util.arns import build_arn
+from cartography.intel.aws.util.arns import get_base_region
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.models.aws.ssm.document import SSMDocumentSchema
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
 from cartography.models.aws.ssm.parameters import PublicSSMParameterSchema
@@ -253,6 +257,72 @@ def get_public_ssm_parameters_by_path(
     return ssm_parameters_data
 
 
+@_retry_on_ssm_throttling  # type: ignore[misc]
+def _describe_document_permission(client: Any, name: str) -> Dict[str, Any]:
+    return client.describe_document_permission(
+        Name=name,
+        PermissionType="Share",
+    )
+
+
+def _shared_account_ids(client: Any, name: str) -> List[str]:
+    try:
+        permission = _describe_document_permission(client, name)
+    except ClientError as error:
+        logger.warning(
+            "Failed to retrieve sharing permissions for SSM document '%s': %s",
+            name,
+            error,
+        )
+        return []
+    return list(permission.get("AccountIds") or [])
+
+
+@timeit
+@aws_handle_regions
+def get_ssm_documents(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict[str, Any]]:
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    paginator = client.get_paginator("list_documents")
+    documents: List[Dict[str, Any]] = []
+    for page in paginator.paginate(
+        Filters=[{"Key": "Owner", "Values": ["Self"]}],
+    ):
+        documents.extend(page.get("DocumentIdentifiers", []))
+    for document in documents:
+        document["SharedAccountIds"] = _shared_account_ids(client, document["Name"])
+    return documents
+
+
+def transform_ssm_documents(
+    data_list: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+) -> List[Dict[str, Any]]:
+    transformed: List[Dict[str, Any]] = []
+    for raw_document in data_list:
+        document = dict(raw_document)
+        document["Arn"] = build_arn(
+            "ssm",
+            current_aws_account_id,
+            "document",
+            document["Name"],
+            region=get_base_region(region),
+            partition=get_partition(region),
+        )
+        document["CreatedDate"] = dict_date_to_epoch(document, "CreatedDate")
+        document["PlatformTypes"] = list(document.get("PlatformTypes") or [])
+        document["Tags"] = [
+            f"{tag.get('Key')}={tag.get('Value') or ''}"
+            for tag in document.get("Tags") or []
+            if tag.get("Key") is not None
+        ]
+        transformed.append(document)
+    return transformed
+
+
 def transform_ssm_parameters(
     raw_parameters_data: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
@@ -312,6 +382,24 @@ def load_instance_patches(
 
 
 @timeit
+def load_ssm_documents(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        SSMDocumentSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def load_ssm_parameters(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -359,6 +447,9 @@ def cleanup_ssm(
         neo4j_session,
     )
     GraphJob.from_node_schema(SSMParameterSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(SSMDocumentSchema(), common_job_parameters).run(
         neo4j_session,
     )
 
@@ -421,6 +512,16 @@ def sync(
         data = get_ssm_parameters(boto3_session, region)
         data = transform_ssm_parameters(data)
         load_ssm_parameters(
+            neo4j_session,
+            data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        data = get_ssm_documents(boto3_session, region)
+        data = transform_ssm_documents(data, region, current_aws_account_id)
+        load_ssm_documents(
             neo4j_session,
             data,
             region,

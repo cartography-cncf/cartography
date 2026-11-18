@@ -190,6 +190,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
 @patch.object(cartography.intel.aws.ssm, "get_instance_ids", return_value=[])
 @patch.object(cartography.intel.aws.ssm, "get_instance_information", return_value=[])
 @patch.object(cartography.intel.aws.ssm, "get_instance_patches", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_ssm_documents", return_value=[])
 @patch.object(
     cartography.intel.aws.ssm,
     "get_ssm_parameters",
@@ -197,6 +198,7 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
 )
 def test_load_ssm_parameters(
     mock_get_ssm_parameters,
+    mock_get_ssm_documents,
     mock_get_instance_patches,
     mock_get_instance_information,
     mock_get_instance_ids,
@@ -330,8 +332,123 @@ def test_load_ssm_parameters(
 @patch.object(cartography.intel.aws.ssm, "get_instance_information", return_value=[])
 @patch.object(cartography.intel.aws.ssm, "get_instance_patches", return_value=[])
 @patch.object(cartography.intel.aws.ssm, "get_ssm_parameters", return_value=[])
+@patch.object(
+    cartography.intel.aws.ssm,
+    "get_ssm_documents",
+    return_value=tests.data.aws.ssm.SSM_DOCUMENTS_DATA,
+)
+def test_load_ssm_documents(
+    mock_get_ssm_documents,
+    mock_get_ssm_parameters,
+    mock_get_instance_patches,
+    mock_get_instance_information,
+    mock_get_instance_ids,
+    neo4j_session,
+):
+    # Arrange
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    cartography.intel.aws.ssm.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    expected_nodes = {
+        (
+            "arn:aws:ssm:us-east-1:000000000000:document/RunSecurityBaseline",
+            "RunSecurityBaseline",
+            "Command",
+            "JSON",
+            "000000000000",
+            ("Linux", "Windows"),
+            1717200000,
+            "2.2",
+            "3",
+            "3",
+            ("Environment=prod",),
+            ("all",),
+            TEST_REGION,
+            TEST_UPDATE_TAG,
+        ),
+        (
+            "arn:aws:ssm:us-east-1:000000000000:document/PrivateAutomation",
+            "PrivateAutomation",
+            "Automation",
+            "YAML",
+            "000000000000",
+            ("Linux",),
+            1717200000,
+            "0.3",
+            "1",
+            "1",
+            (),
+            ("111122223333",),
+            TEST_REGION,
+            TEST_UPDATE_TAG,
+        ),
+    }
+    actual_nodes = {
+        (
+            record["n.id"],
+            record["n.name"],
+            record["n.document_type"],
+            record["n.document_format"],
+            record["n.owner"],
+            tuple(record["n.platform_types"]),
+            record["n.created_date"],
+            record["n.schema_version"],
+            record["n.version"],
+            record["n.default_version"],
+            tuple(record["n.tags"]),
+            tuple(record["n.shared_account_ids"]),
+            record["n.region"],
+            record["n.lastupdated"],
+        )
+        for record in neo4j_session.run(
+            """
+            MATCH (n:AWSSSMDocument)
+            RETURN n.id, n.name, n.document_type, n.document_format, n.owner,
+                   n.platform_types, n.created_date, n.schema_version, n.version,
+                   n.default_version, n.tags, n.shared_account_ids, n.region,
+                   n.lastupdated
+            """,
+        )
+    }
+    assert actual_nodes == expected_nodes
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSSSMDocument",
+        "id",
+        "RESOURCE",
+        True,
+    ) == {
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:ssm:us-east-1:000000000000:document/RunSecurityBaseline",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:ssm:us-east-1:000000000000:document/PrivateAutomation",
+        ),
+    }
+
+
+@patch.object(cartography.intel.aws.ssm, "get_instance_ids", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_instance_information", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_instance_patches", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_ssm_documents", return_value=[])
+@patch.object(cartography.intel.aws.ssm, "get_ssm_parameters", return_value=[])
 def test_private_ssm_sync_does_not_load_public_parameters(
     mock_get_ssm_parameters,
+    mock_get_ssm_documents,
     mock_get_instance_patches,
     mock_get_instance_information,
     mock_get_instance_ids,
