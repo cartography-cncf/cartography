@@ -2,6 +2,7 @@ import copy
 from unittest.mock import MagicMock
 
 import botocore.exceptions
+import pytest
 
 import tests.data.aws.wafv2 as test_data
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
@@ -199,3 +200,38 @@ def test_get_rule_group_arns_reads_a_rule_group_reference() -> None:
         test_data.ALB_WEB_ACL_SUMMARY,
         "REGIONAL",
     ) == [test_data.RULE_GROUP_ARN]
+
+
+def test_get_rule_group_arns_skips_a_web_acl_deleted_while_fetching_rules() -> None:
+    client = MagicMock()
+    client.get_web_acl.side_effect = botocore.exceptions.ClientError(
+        error_response={"Error": {"Code": "WAFNonexistentItemException"}},
+        operation_name="GetWebACL",
+    )
+
+    assert (
+        _get_rule_group_arns_for_web_acl(
+            client,
+            test_data.ALB_WEB_ACL_SUMMARY,
+            "REGIONAL",
+        )
+        == []
+    )
+
+
+def test_get_rule_group_arns_raises_other_client_errors() -> None:
+    client = MagicMock()
+    error = botocore.exceptions.ClientError(
+        error_response={"Error": {"Code": "WAFInvalidParameterException"}},
+        operation_name="GetWebACL",
+    )
+    client.get_web_acl.side_effect = error
+
+    with pytest.raises(botocore.exceptions.ClientError) as exc_info:
+        _get_rule_group_arns_for_web_acl(
+            client,
+            test_data.ALB_WEB_ACL_SUMMARY,
+            "REGIONAL",
+        )
+
+    assert exc_info.value is error
