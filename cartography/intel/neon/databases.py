@@ -32,7 +32,8 @@ def sync(
     Roles are loaded before databases so the OWNS edge from the owner role
     resolves. Both cleanups are project-scoped and run once every branch has been
     read, so a database dropped from one branch is removed while the same-named
-    database on its siblings is kept.
+    database on its siblings is kept. A 402, 403, or 404 on any branch's role or
+    database listing skips that listing's cleanup for the whole project.
     """
     base_url = common_job_parameters["BASE_URL"]
     project_id = common_job_parameters["PROJECT_ID"]

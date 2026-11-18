@@ -136,7 +136,16 @@ class NeonEndpointToBranchRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class NeonEndpointSchema(CartographyNodeSchema):
-    """Represents a Neon compute endpoint: the Postgres server that serves one branch and the hostname clients connect to."""
+    """
+    Represents a Neon compute endpoint: the Postgres server that serves one
+    branch and the hostname clients connect to.
+
+    `exposed_internet` is `True` when any internet address may connect to the
+    compute. The project's IP allowlist, `block_public_connections`, and the
+    compute's `disabled` flag all feed the verdict. An allowlist with
+    `protected_branches_only` applies to protected branches only, so a preview
+    branch's compute stays exposed even when the project looks locked down.
+    """
 
     label: str = "NeonEndpoint"
     properties: NeonEndpointNodeProperties = NeonEndpointNodeProperties()

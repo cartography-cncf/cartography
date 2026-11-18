@@ -369,9 +369,14 @@ def test_neon_unreadable_listings_keep_existing_nodes(neo4j_session):
     buckets = check_nodes(neo4j_session, "NeonStorageBucket", ["id", "lastupdated"])
     assert (f"{api.PLANT_PREVIEW}/press-kit", TEST_UPDATE_TAG) in buckets
     assert (f"{api.PLANT_MAIN}/press-kit", TEST_UPDATE_TAG + 1) in buckets
-    # Hotfix's buckets were listed, but without its storage settings they are
-    # left as they were.
-    assert (f"{api.PLANT_HOTFIX}/press-kit", TEST_UPDATE_TAG) in buckets
+    # Hotfix's buckets were listed but its storage settings were not, so they
+    # are refreshed without endpoint fields.
+    assert (f"{api.PLANT_HOTFIX}/press-kit", TEST_UPDATE_TAG + 1) in buckets
+    assert (f"{api.PLANT_HOTFIX}/press-kit", None) in check_nodes(
+        neo4j_session,
+        "NeonStorageBucket",
+        ["id", "s3_endpoint"],
+    )
     assert len(buckets) == 6
     # Preview's roles and databases were unreadable, so they are kept too.
     roles = check_nodes(neo4j_session, "NeonRole", ["id", "lastupdated"])

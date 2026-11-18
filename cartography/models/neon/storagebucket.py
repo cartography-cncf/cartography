@@ -103,7 +103,14 @@ class NeonStorageBucketToBranchRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class NeonStorageBucketSchema(CartographyNodeSchema):
-    """Represents a Neon Object Storage bucket as served by one branch."""
+    """
+    Represents a Neon Object Storage bucket as served by one branch.
+
+    Buckets branch with the database: a child branch serves its own copy of its
+    parent's buckets from its own S3 endpoint, so Cartography records one node
+    per branch. `exposed_internet` is `True` for `public_read` buckets, which the
+    `object_storage_public` rule reports.
+    """
 
     label: str = "NeonStorageBucket"
     properties: NeonStorageBucketNodeProperties = NeonStorageBucketNodeProperties()

@@ -18,7 +18,7 @@ An organization API key belongs to one organization, not to a user. Pass that or
 
 | Access | Used for |
 | --- | --- |
-| Read projects, branches, compute endpoints, roles and databases | Core inventory. Failures here stop the sync |
+| Read projects, branches, and compute endpoints | Core inventory. Failures here stop the sync |
 
 ## Optional Permissions
 
@@ -31,6 +31,17 @@ An organization API key belongs to one organization, not to a user. Pass that or
 | Branch credentials (Beta) | `NeonCredential` nodes |
 
 These listings answer `402`, `403` or `404` when the key or plan cannot read them. Cartography then logs a warning, keeps whatever nodes an earlier sync stored, and skips their cleanup. A read failure is not proof that the resources were deleted.
+
+If a branch's object storage settings are unreadable, Cartography still loads that branch's buckets without their endpoint fields, and skips bucket cleanup for the project.
+
+## Secret handling
+
+The module issues `GET` requests only and stores no secret material:
+
+- The role listing can include a role's password. Each role record is built from an explicit field list, so the password never reaches the graph. Cartography never calls the `reveal_password` endpoint.
+- Organization API keys are listed by ID, name, and usage. The API never returns the token itself.
+- Branch credentials are listed by token ID, scopes, and usage. The listing never returns the API token or the S3 secret access key, and Cartography never calls the `reveal` endpoint.
+- Cartography never calls the connection URI endpoint.
 
 ## Configure Cartography
 

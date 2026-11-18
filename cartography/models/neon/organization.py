@@ -47,7 +47,11 @@ class NeonOrganizationNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class NeonOrganizationSchema(CartographyNodeSchema):
-    """Represents a Neon organization: the billing and membership boundary that owns projects and organization API keys."""
+    """
+    Represents a Neon organization: the billing and membership boundary that
+    owns projects, organization members, and organization API keys. Every other
+    Neon resource belongs to a project.
+    """
 
     label: str = "NeonOrganization"
     properties: NeonOrganizationNodeProperties = NeonOrganizationNodeProperties()

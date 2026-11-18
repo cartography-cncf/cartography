@@ -30,7 +30,9 @@ def sync(
 
     Both endpoints are in Beta. When either listing is unreadable on any branch,
     its project-scoped cleanup is skipped: the cleanup would otherwise treat that
-    branch's buckets or credentials as deleted.
+    branch's buckets or credentials as deleted. Bucket cleanup is also skipped
+    when a branch's storage settings are unreadable. Its buckets are still
+    loaded, without endpoint fields, so a public bucket stays visible.
     """
     base_url = common_job_parameters["BASE_URL"]
     project_id = common_job_parameters["PROJECT_ID"]
@@ -49,11 +51,14 @@ def sync(
         elif branch_buckets:
             storage = get_storage(api_session, base_url, project_id, branch_id)
             if storage is None:
-                # Without the branch's storage settings the bucket records would
-                # carry no endpoint, so leave the existing ones as they are.
+                # Exposure comes from the bucket's access level, not its storage
+                # settings, so load the buckets without endpoint fields rather
+                # than hide a new public bucket. Skip cleanup, because this
+                # branch's inventory is only partly read.
                 buckets_complete = False
-            else:
-                buckets.extend(transform_buckets(branch_buckets, branch_id, storage))
+            buckets.extend(
+                transform_buckets(branch_buckets, branch_id, storage or {}),
+            )
 
         branch_credentials = get_credentials(
             api_session,
@@ -82,7 +87,7 @@ def sync(
             common_job_parameters,
         ).run(neo4j_session)
     else:
-        warn_unavailable("object storage buckets", project_id)
+        warn_unavailable("object storage buckets or storage settings", project_id)
 
     load(
         neo4j_session,
