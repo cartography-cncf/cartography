@@ -23,9 +23,14 @@ from cartography.helpers import backoff_handler
 from cartography.intel.aws.inspector_finding_sets import InstanceFindingSets
 from cartography.intel.aws.inspector_finding_sets import is_ec2_package_finding
 from cartography.intel.aws.inspector_finding_sets import transform_finding_content
+from cartography.intel.aws.inspector_packages import os_distribution
+from cartography.intel.aws.inspector_packages import package_url
+from cartography.intel.aws.inspector_packages import resource_platform
 from cartography.intel.aws.util.botocore_config import create_aioboto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.trivy.util import canonical_cve_id
+from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.intel.trivy.util import parse_purl
 from cartography.models.aws.inspector.finding_sets import (
     AWSInspectorFindingContentSchema,
 )
@@ -272,7 +277,7 @@ def transform_inspector_findings(
             finding["vendorseverity"] = details.get("vendorSeverity")
             _add_vulnerability(vulnerabilities, f, details)
 
-            packages = transform_inspector_packages(details)
+            packages = transform_inspector_packages(details, resource_platform(f))
             finding["vulnerablepackageids"] = list(packages.keys())
             packages_by_id.update(packages)
             for package_id, package in packages.items():
@@ -317,7 +322,7 @@ def transform_ec2_package_findings(
     finding_contents: List[Tuple[Dict[str, Any], str]] = []
     for f in results:
         details = f["packageVulnerabilityDetails"]
-        packages = transform_inspector_packages(details)
+        packages = transform_inspector_packages(details, resource_platform(f))
         content = transform_finding_content(f, list(packages.keys()))
         contents[content["id"]] = content
         _add_vulnerability(vulnerabilities, f, details)
@@ -409,6 +414,7 @@ def _advisory_order(vulnerability: Dict[str, Any]) -> Tuple[str, ...]:
 
 def transform_inspector_packages(
     package_details: Dict[str, Any],
+    platform: str | None = None,
 ) -> Dict[str, Any]:
     packages: Dict[str, Any] = {}
     for package in package_details["vulnerablePackages"]:
@@ -424,8 +430,31 @@ def transform_inspector_packages(
         arch = package.get("arch", "")
         if arch:
             arch = f".{arch}"
-        id = f"{name}|{epoch}{version}{release}{arch}"
-        packages[id] = {**package, "id": id}
+        # pip and npm can both have a requests 2.28.0, and Debian and Ubuntu the same
+        # curl build, so the manager and an operating system's distribution are part
+        # of the ID.
+        manager = package.get("packageManager")
+        prefix = f"{manager}|" if manager else ""
+        if manager == "OS":
+            distribution = os_distribution(platform)
+            # An unrecognized platform gets its own key, so a package without a
+            # package URL never shares a node with one that has it.
+            prefix += (
+                f"{distribution[1]}|"
+                if distribution
+                else f"platform:{platform or 'unknown'}|"
+            )
+        id = f"{prefix}{name}|{epoch}{version}{release}{arch}"
+        purl = package_url(package, platform)
+        parsed = parse_purl(purl) or {}
+        packages[id] = {
+            **package,
+            "id": id,
+            "purl": purl,
+            "type": parsed.get("type"),
+            "purl_version": parsed.get("version"),
+            "normalized_id": make_normalized_package_id(purl=purl),
+        }
 
     return packages
 

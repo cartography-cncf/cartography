@@ -31,6 +31,32 @@ label. Findings are not labeled `:CVE`, so a query on `:CVE` returns each Inspec
 once rather than once per affected resource. The first sync after upgrading removes the
 `:CVE` label and its `_ont_*` fields from findings that earlier versions labeled.
 
+## Packages
+
+Each vulnerable package that Inspector reports is one `AWSInspectorPackage` node. Its
+ID starts with Inspector's package manager and, for an operating system package, the
+distribution, such as `OS|amazon|openssl|1:1.0.2k-24.amzn2.X86_64` or
+`PIP|requests|2.28.0`. Packages from different ecosystems or distributions never share a
+node.
+
+When Cartography recognizes the package manager, the package also gets a package URL in
+`purl`. An operating system package needs the platform of the affected EC2 instance or
+ECR image, such as `AMAZON_LINUX_2023` or `DEBIAN_12`, to name its distribution. The
+ontology packages sync maps each package with a package URL to a `PackageVersion`, the
+same node that Trivy, Syft, and other scanners report the package as:
+
+```
+(:PackageVersion)-[:DETECTED_AS]->(:AWSInspectorPackage)
+```
+
+To find the package versions a finding affects, follow its packages:
+
+```cypher
+MATCH (f:AWSInspectorFindingContent)-[:HAS]->(:AWSInspectorPackage)
+      <-[:DETECTED_AS]-(pv:PackageVersion)
+RETURN f.vulnerabilityid, pv.id
+```
+
 ## Why EC2 package findings use finding sets
 
 Inspector reports one finding per instance and vulnerability. Instances launched from

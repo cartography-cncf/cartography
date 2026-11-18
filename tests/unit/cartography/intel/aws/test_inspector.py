@@ -6,6 +6,8 @@ import pytest
 
 from cartography.intel.aws.inspector import transform_ec2_package_findings
 from cartography.intel.aws.inspector import transform_inspector_findings
+from cartography.intel.aws.inspector import transform_inspector_packages
+from cartography.intel.aws.inspector_packages import package_url
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
 
@@ -67,8 +69,8 @@ def test_transform_inspector_findings_package():
             "vendorseverity": "Moderate",
             "status": "ACTIVE",
             "vulnerablepackageids": [
-                "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
-                "kernel|0:4.9.17-6.29.amzn1.X86_64",
+                "OS|amazon|kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+                "OS|amazon|kernel|0:4.9.17-6.29.amzn1.X86_64",
             ],
             "fixavailable": "PARTIAL",
             "exploitavailable": "YES",
@@ -92,7 +94,7 @@ def test_transform_inspector_findings_package():
             "vendorseverity": "High",
             "status": "ACTIVE",
             "vulnerablepackageids": [
-                "openssl|0:1.0.2k-1.amzn2.X86_64",
+                "OS|amazon|openssl|0:1.0.2k-1.amzn2.X86_64",
             ],
             "fixavailable": None,
             "exploitavailable": None,
@@ -148,10 +150,14 @@ def test_transform_inspector_findings_package():
             "arch": "X86_64",
             "epoch": 0,
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
-            "id": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+            "id": "OS|amazon|kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
             "packageManager": "OS",
             "name": "kernel-tools",
             "release": "6.29.amzn1",
+            "purl": "pkg:rpm/amazon/kernel-tools@4.9.17-6.29.amzn1?arch=x86_64",
+            "type": "rpm",
+            "purl_version": "4.9.17-6.29.amzn1",
+            "normalized_id": "rpm|amazon/kernel-tools|4.9.17-6.29.amzn1",
             "version": "4.9.17",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
         },
@@ -159,20 +165,28 @@ def test_transform_inspector_findings_package():
             "arch": "X86_64",
             "epoch": 0,
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
-            "id": "kernel|0:4.9.17-6.29.amzn1.X86_64",
+            "id": "OS|amazon|kernel|0:4.9.17-6.29.amzn1.X86_64",
             "packageManager": "OS",
             "name": "kernel",
             "release": "6.29.amzn1",
+            "purl": "pkg:rpm/amazon/kernel@4.9.17-6.29.amzn1?arch=x86_64",
+            "type": "rpm",
+            "purl_version": "4.9.17-6.29.amzn1",
+            "normalized_id": "rpm|amazon/kernel|4.9.17-6.29.amzn1",
             "version": "4.9.17",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
         },
         {
             "arch": "X86_64",
             "epoch": 0,
-            "id": "openssl|0:1.0.2k-1.amzn2.X86_64",
+            "id": "OS|amazon|openssl|0:1.0.2k-1.amzn2.X86_64",
             "packageManager": "OS",
             "name": "openssl",
             "release": "1.amzn2",
+            "purl": "pkg:rpm/amazon/openssl@1.0.2k-1.amzn2?arch=x86_64",
+            "type": "rpm",
+            "purl_version": "1.0.2k-1.amzn2",
+            "normalized_id": "rpm|amazon/openssl|1.0.2k-1.amzn2",
             "version": "1.0.2k",
         },
     ]
@@ -185,7 +199,7 @@ def test_transform_inspector_findings_package():
         {
             "filePath": None,
             "findingarn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
-            "packageid": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+            "packageid": "OS|amazon|kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
             "sourceLambdaLayerArn": None,
@@ -194,7 +208,7 @@ def test_transform_inspector_findings_package():
         {
             "filePath": None,
             "findingarn": "arn:aws:inspector2:us-west-2:123456789012:finding/7123456789abcdef0123456789abc456",
-            "packageid": "kernel|0:4.9.17-6.29.amzn1.X86_64",
+            "packageid": "OS|amazon|kernel|0:4.9.17-6.29.amzn1.X86_64",
             "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
             "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
             "sourceLambdaLayerArn": None,
@@ -203,7 +217,7 @@ def test_transform_inspector_findings_package():
         {
             "filePath": None,
             "findingarn": "arn:aws:inspector2:us-west-2:123456789011:finding/f123456789abcdef0123456789abc789",
-            "packageid": "openssl|0:1.0.2k-1.amzn2.X86_64",
+            "packageid": "OS|amazon|openssl|0:1.0.2k-1.amzn2.X86_64",
             "remediation": None,
             "fixedInVersion": None,
             "sourceLambdaLayerArn": None,
@@ -361,3 +375,117 @@ def test_transform_ec2_package_findings_shares_content_across_instances(
     # Assert
     assert (finding_contents[0][1] == finding_contents[1][1]) is shares_content
     assert len(contents) == (1 if shares_content else 2)
+
+
+@pytest.mark.parametrize(
+    ("package", "platform", "purl"),
+    [
+        (
+            {
+                "name": "openssl",
+                "version": "1.0.2k",
+                "release": "24.amzn2.0.4",
+                "epoch": 1,
+                "arch": "X86_64",
+                "packageManager": "OS",
+            },
+            "AMAZON_LINUX_2",
+            "pkg:rpm/amazon/openssl@1.0.2k-24.amzn2.0.4?arch=x86_64&epoch=1",
+        ),
+        (
+            {
+                "name": "curl",
+                "version": "7.88.1",
+                "release": "10+deb12u5",
+                "packageManager": "OS",
+            },
+            "DEBIAN_12",
+            "pkg:deb/debian/curl@7.88.1-10%2Bdeb12u5",
+        ),
+        (
+            {
+                "name": "busybox",
+                "version": "1.36.1",
+                "release": "r15",
+                "packageManager": "OS",
+            },
+            "ALPINE_LINUX_3_19",
+            "pkg:apk/alpine/busybox@1.36.1-r15",
+        ),
+        (
+            {"name": "openssl", "version": "3.0.2", "packageManager": "OS"},
+            "WINDOWS_SERVER_2022",
+            None,
+        ),
+        (
+            {"name": "requests", "version": "2.28.0", "packageManager": "PIP"},
+            None,
+            "pkg:pypi/requests@2.28.0",
+        ),
+        (
+            {"name": "@babel/core", "version": "7.22.0", "packageManager": "NPM"},
+            None,
+            "pkg:npm/%40babel/core@7.22.0",
+        ),
+        (
+            {
+                "name": "org.apache.logging.log4j:log4j-core",
+                "version": "2.14.1",
+                "packageManager": "JAR",
+            },
+            None,
+            "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+        ),
+        (
+            {
+                "name": "golang.org/x/net",
+                "version": "v0.17.0",
+                "packageManager": "GOBINARY",
+            },
+            None,
+            "pkg:golang/golang.org/x/net@v0.17.0",
+        ),
+        (
+            {"name": "log4j-core", "version": "2.14.1", "packageManager": "JAR"},
+            None,
+            None,
+        ),
+        (
+            {"name": ":log4j-core", "version": "2.14.1", "packageManager": "JAR"},
+            None,
+            None,
+        ),
+        (
+            {"name": "org.apache:", "version": "2.14.1", "packageManager": "JAR"},
+            None,
+            None,
+        ),
+        ({"name": "thing", "version": "1.0", "packageManager": "GENERIC"}, None, None),
+    ],
+)
+def test_package_url(package, platform, purl):
+    assert package_url(package, platform) == purl
+
+
+@pytest.mark.parametrize(
+    ("platform", "package_id"),
+    [
+        ("DEBIAN_12", "OS|debian|curl|7.88.1-10.X86_64"),
+        ("debian", "OS|platform:debian|curl|7.88.1-10.X86_64"),
+        (None, "OS|platform:unknown|curl|7.88.1-10.X86_64"),
+    ],
+)
+def test_transform_inspector_packages_keys_os_packages_by_distribution(
+    platform, package_id
+):
+    package = {
+        "name": "curl",
+        "version": "7.88.1",
+        "release": "10",
+        "arch": "X86_64",
+        "packageManager": "OS",
+    }
+
+    packages = transform_inspector_packages({"vulnerablePackages": [package]}, platform)
+
+    assert list(packages) == [package_id]
