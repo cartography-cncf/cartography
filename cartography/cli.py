@@ -52,6 +52,7 @@ PANEL_OCI = "OCI Options"
 PANEL_OKTA = "Okta Options"
 PANEL_GITHUB = "GitHub Options"
 PANEL_GITLAB = "GitLab Options"
+PANEL_BITBUCKET = "Bitbucket Cloud Options"
 PANEL_GSUITE = "GSuite Options"
 PANEL_GOOGLE_WORKSPACE = "Google Workspace Options"
 PANEL_DIGITALOCEAN = "DigitalOcean Options"
@@ -128,6 +129,7 @@ MODULE_PANELS = {
     "okta": PANEL_OKTA,
     "github": PANEL_GITHUB,
     "gitlab": PANEL_GITLAB,
+    "bitbucket": PANEL_BITBUCKET,
     "gsuite": PANEL_GSUITE,
     "googleworkspace": PANEL_GOOGLE_WORKSPACE,
     "digitalocean": PANEL_DIGITALOCEAN,
@@ -1172,6 +1174,66 @@ class CLI:
                     hidden=PANEL_GITLAB not in visible_panels,
                 ),
             ] = 90,
+            # =================================================================
+            # Bitbucket Cloud Options
+            # =================================================================
+            bitbucket_workspaces: Annotated[
+                str | None,
+                typer.Option(
+                    "--bitbucket-workspaces",
+                    help="Comma-separated Bitbucket workspace slugs to sync. Required.",
+                    rich_help_panel=PANEL_BITBUCKET,
+                    hidden=PANEL_BITBUCKET not in visible_panels,
+                ),
+            ] = None,
+            bitbucket_auth_method: Annotated[
+                str,
+                typer.Option(
+                    "--bitbucket-auth-method",
+                    help="Either 'token' or 'oauth'. Defaults to 'token'.",
+                    rich_help_panel=PANEL_BITBUCKET,
+                    hidden=PANEL_BITBUCKET not in visible_panels,
+                ),
+            ] = "token",
+            bitbucket_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--bitbucket-token-env-var",
+                    help="Environment variable name containing a Bitbucket API "
+                    "token or Access token.",
+                    rich_help_panel=PANEL_BITBUCKET,
+                    hidden=PANEL_BITBUCKET not in visible_panels,
+                ),
+            ] = None,
+            bitbucket_oauth_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--bitbucket-oauth-client-id",
+                    help="Bitbucket OAuth consumer key.",
+                    rich_help_panel=PANEL_BITBUCKET,
+                    hidden=PANEL_BITBUCKET not in visible_panels,
+                ),
+            ] = None,
+            bitbucket_oauth_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--bitbucket-oauth-client-secret-env-var",
+                    help="Environment variable name containing the Bitbucket "
+                    "OAuth consumer secret.",
+                    rich_help_panel=PANEL_BITBUCKET,
+                    hidden=PANEL_BITBUCKET not in visible_panels,
+                ),
+            ] = None,
+            bitbucket_oauth_refresh_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--bitbucket-oauth-refresh-token-env-var",
+                    help="Environment variable name containing a Bitbucket "
+                    "OAuth refresh token obtained out-of-band.",
+                    rich_help_panel=PANEL_BITBUCKET,
+                    hidden=PANEL_BITBUCKET not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # DigitalOcean Options
             # =================================================================
@@ -3712,6 +3774,25 @@ class CLI:
                 )
                 gitlab_token = os.environ.get(gitlab_token_env_var)
 
+            # Read Bitbucket credentials
+            bitbucket_token = None
+            if bitbucket_token_env_var:
+                logger.debug(
+                    "Reading Bitbucket token from environment variable %s",
+                    bitbucket_token_env_var,
+                )
+                bitbucket_token = os.environ.get(bitbucket_token_env_var)
+            bitbucket_oauth_client_secret = None
+            if bitbucket_oauth_client_secret_env_var:
+                bitbucket_oauth_client_secret = os.environ.get(
+                    bitbucket_oauth_client_secret_env_var
+                )
+            bitbucket_oauth_refresh_token = None
+            if bitbucket_oauth_refresh_token_env_var:
+                bitbucket_oauth_refresh_token = os.environ.get(
+                    bitbucket_oauth_refresh_token_env_var
+                )
+
             # Read Workday password
             workday_api_password = None
             if workday_api_url and workday_api_login and workday_api_password_env_var:
@@ -4384,6 +4465,12 @@ class CLI:
                 gitlab_token=gitlab_token,
                 gitlab_organization_id=gitlab_organization_id,
                 gitlab_commits_since_days=gitlab_commits_since_days,
+                bitbucket_workspaces=bitbucket_workspaces,
+                bitbucket_auth_method=bitbucket_auth_method,
+                bitbucket_token=bitbucket_token,
+                bitbucket_oauth_client_id=bitbucket_oauth_client_id,
+                bitbucket_oauth_client_secret=bitbucket_oauth_client_secret,
+                bitbucket_oauth_refresh_token=bitbucket_oauth_refresh_token,
                 semgrep_app_token=semgrep_app_token,
                 semgrep_dependency_ecosystems=semgrep_dependency_ecosystems,
                 semgrep_oss_source=semgrep_oss_source,
