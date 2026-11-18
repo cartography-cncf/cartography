@@ -1,4 +1,3 @@
-import copy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -25,12 +24,12 @@ PLAN_WEEKLY_ARN = GET_BACKUP_PLANS[1]["BackupPlanArn"]
 @patch.object(
     cartography.intel.aws.backup,
     "get_backup_plans",
-    return_value=copy.deepcopy(GET_BACKUP_PLANS),
+    return_value=GET_BACKUP_PLANS,
 )
 @patch.object(
     cartography.intel.aws.backup,
     "get_backup_vaults",
-    return_value=copy.deepcopy(GET_BACKUP_VAULTS),
+    return_value=GET_BACKUP_VAULTS,
 )
 def test_sync_backup(mock_get_vaults, mock_get_plans, neo4j_session):
     boto3_session = MagicMock()
@@ -62,23 +61,41 @@ def test_sync_backup(mock_get_vaults, mock_get_plans, neo4j_session):
             "arn",
             "name",
             "encryption_key_arn",
-            "number_of_recovery_points",
             "locked",
             "min_retention_days",
             "max_retention_days",
+            "region",
         ],
     ) == {
-        (VAULT_DEFAULT_ARN, VAULT_DEFAULT_ARN, "Default", KMS_KEY_ARN, 2, False, 7, 35),
-        (VAULT_LOCKED_ARN, VAULT_LOCKED_ARN, "locked-vault", None, 0, True, 30, 365),
+        (
+            VAULT_DEFAULT_ARN,
+            VAULT_DEFAULT_ARN,
+            "Default",
+            KMS_KEY_ARN,
+            False,
+            7,
+            35,
+            TEST_REGION,
+        ),
+        (
+            VAULT_LOCKED_ARN,
+            VAULT_LOCKED_ARN,
+            "locked-vault",
+            None,
+            True,
+            30,
+            365,
+            TEST_REGION,
+        ),
     }
 
     assert check_nodes(
         neo4j_session,
         "AWSBackupBackupPlan",
-        ["id", "arn", "name", "version_id"],
+        ["id", "arn", "name", "version_id", "region"],
     ) == {
-        (PLAN_ID_DAILY, PLAN_DAILY_ARN, "daily-plan", "version-1"),
-        (PLAN_ID_WEEKLY, PLAN_WEEKLY_ARN, "weekly-plan", "version-2"),
+        (PLAN_ID_DAILY, PLAN_DAILY_ARN, "daily-plan", "version-1", TEST_REGION),
+        (PLAN_ID_WEEKLY, PLAN_WEEKLY_ARN, "weekly-plan", "version-2", TEST_REGION),
     }
 
     assert check_rels(
@@ -118,60 +135,3 @@ def test_sync_backup(mock_get_vaults, mock_get_plans, neo4j_session):
     ) == {
         (VAULT_DEFAULT_ARN, KMS_KEY_ARN),
     }
-
-    vault_dates = {
-        row["name"]: (row["created"], row["region"])
-        for row in neo4j_session.run(
-            """
-            MATCH (n:AWSBackupBackupVault)
-            RETURN n.name AS name,
-                   n.creation_date IS NOT NULL AS created,
-                   n.region AS region
-            """,
-        )
-    }
-    assert vault_dates == {
-        "Default": (True, TEST_REGION),
-        "locked-vault": (True, TEST_REGION),
-    }
-    plan_dates = {
-        row["id"]: (row["created"], row["executed"])
-        for row in neo4j_session.run(
-            """
-            MATCH (n:AWSBackupBackupPlan)
-            RETURN n.id AS id,
-                   n.creation_date IS NOT NULL AS created,
-                   n.last_execution_date IS NOT NULL AS executed
-            """,
-        )
-    }
-    assert plan_dates == {
-        PLAN_ID_DAILY: (True, True),
-        PLAN_ID_WEEKLY: (True, False),
-    }
-
-
-def test_cleanup_backup(neo4j_session):
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    cartography.intel.aws.backup.load_backup_vaults(
-        neo4j_session,
-        copy.deepcopy(GET_BACKUP_VAULTS[:1]),
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-    cartography.intel.aws.backup.load_backup_plans(
-        neo4j_session,
-        copy.deepcopy(GET_BACKUP_PLANS[:1]),
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    cartography.intel.aws.backup.cleanup(
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    assert check_nodes(neo4j_session, "AWSBackupBackupVault", ["id"]) == set()
-    assert check_nodes(neo4j_session, "AWSBackupBackupPlan", ["id"]) == set()

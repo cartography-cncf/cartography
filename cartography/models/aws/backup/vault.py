@@ -23,37 +23,34 @@ class AWSBackupBackupVaultNodeProperties(CartographyNodeProperties):
         description="The Amazon Resource Name (ARN) of the backup vault",
     )
     name: PropertyRef = PropertyRef(
-        "BackupVaultName",
-        description="The name of the logical container where backups are stored",
+        "BackupVaultName", description="The name of the backup vault"
     )
     encryption_key_arn: PropertyRef = PropertyRef(
         "EncryptionKeyArn",
-        description="The ARN of the server-side encryption key that encrypts the backup vault",
+        description="The ARN of the KMS key that encrypts the backup vault",
     )
     creation_date: PropertyRef = PropertyRef(
-        "CreationDate",
-        description="The date and time the backup vault was created",
+        "CreationDate", description="The time the backup vault was created"
     )
     number_of_recovery_points: PropertyRef = PropertyRef(
         "NumberOfRecoveryPoints",
         description="The number of recovery points stored in the backup vault",
     )
     locked: PropertyRef = PropertyRef(
-        "Locked",
-        description="Whether AWS Backup Vault Lock is enabled on the backup vault",
+        "Locked", description="Whether AWS Backup Vault Lock is enabled on the vault"
     )
     min_retention_days: PropertyRef = PropertyRef(
         "MinRetentionDays",
-        description="The backup vault lock setting that specifies the minimum retention period, in days",
+        description="The vault lock minimum retention period, in days",
     )
     max_retention_days: PropertyRef = PropertyRef(
         "MaxRetentionDays",
-        description="The backup vault lock setting that specifies the maximum retention period, in days",
+        description="The vault lock maximum retention period, in days",
     )
     region: PropertyRef = PropertyRef(
         "Region",
         set_in_kwargs=True,
-        description="The AWS region where the backup vault exists",
+        description="The AWS region of the backup vault",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -82,7 +79,6 @@ class AWSBackupBackupVaultToKMSKeyRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSBackupBackupVault)-[:ENCRYPTED_BY]->(:AWSKMSKey) when EncryptionKeyArn is set.
 class AWSBackupBackupVaultToKMSKeyRel(CartographyRelSchema):
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

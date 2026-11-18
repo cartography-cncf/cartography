@@ -13,8 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSBackupBackupPlanNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "BackupPlanId",
-        description="The ID of the backup plan",
+        "BackupPlanId", description="The ID of the backup plan"
     )
     arn: PropertyRef = PropertyRef(
         "BackupPlanArn",
@@ -22,16 +21,13 @@ class AWSBackupBackupPlanNodeProperties(CartographyNodeProperties):
         description="The Amazon Resource Name (ARN) of the backup plan",
     )
     name: PropertyRef = PropertyRef(
-        "BackupPlanName",
-        description="The display name of the backup plan",
+        "BackupPlanName", description="The display name of the backup plan"
     )
     version_id: PropertyRef = PropertyRef(
-        "VersionId",
-        description="A unique, randomly generated string that identifies the version of the backup plan",
+        "VersionId", description="The version ID of the backup plan"
     )
     creation_date: PropertyRef = PropertyRef(
-        "CreationDate",
-        description="The date and time the backup plan was created",
+        "CreationDate", description="The time the backup plan was created"
     )
     last_execution_date: PropertyRef = PropertyRef(
         "LastExecutionDate",
@@ -40,7 +36,7 @@ class AWSBackupBackupPlanNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef(
         "Region",
         set_in_kwargs=True,
-        description="The AWS region where the backup plan exists",
+        description="The AWS region of the backup plan",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

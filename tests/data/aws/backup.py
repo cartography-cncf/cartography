@@ -41,7 +41,8 @@ GET_BACKUP_PLANS = [
     {
         "BackupPlanId": PLAN_ID_DAILY,
         "BackupPlanArn": (
-            f"arn:aws:backup:{TEST_REGION}:{TEST_ACCOUNT_ID}:backup-plan:{PLAN_ID_DAILY}"
+            f"arn:aws:backup:{TEST_REGION}:{TEST_ACCOUNT_ID}"
+            f":backup-plan:{PLAN_ID_DAILY}"
         ),
         "BackupPlanName": "daily-plan",
         "VersionId": "version-1",
