@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -128,6 +129,26 @@ class SentraPolicyToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SentraPolicyToDataClassRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SentraPolicyToDataClassRel(CartographyRelSchema):
+    """A data class that the policy rules check for, matched on the class name or on its category."""
+
+    target_node_label: str = "SentraDataClass"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("classification_data_class_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CLASSIFICATION"
+    properties: SentraPolicyToDataClassRelProperties = (
+        SentraPolicyToDataClassRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SentraPolicySchema(CartographyNodeSchema):
     """
     A Sentra policy: a rule that raises an alert when a data store or identity violates it.
@@ -135,9 +156,13 @@ class SentraPolicySchema(CartographyNodeSchema):
     The node holds the context of a violation: the compliance frameworks that the
     policy maps to, the risk that it detects, and how to remediate it. Cartography
     imports both enabled and disabled policies. Each alert links to the policy that
-    raised it with `RAISED_BY`.
+    raised it with `GOVERNED_BY`, and the policy links with `CLASSIFICATION` to the
+    data classes that its rules check for.
     """
 
     label: str = "SentraPolicy"
     properties: SentraPolicyNodeProperties = SentraPolicyNodeProperties()
     sub_resource_relationship: SentraPolicyToTenantRel = SentraPolicyToTenantRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [SentraPolicyToDataClassRel()],
+    )

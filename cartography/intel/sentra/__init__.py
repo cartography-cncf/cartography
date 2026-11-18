@@ -65,7 +65,7 @@ def start_sentra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Data classes, data stores, and policies load before alerts, so each
     # relationship finds the node it points to.
-    cartography.intel.sentra.data_classes.sync(
+    data_classes = cartography.intel.sentra.data_classes.sync(
         neo4j_session,
         session,
         api_url,
@@ -88,6 +88,7 @@ def start_sentra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         tenant_id,
         config.update_tag,
         common_job_parameters,
+        data_classes,
     )
     cartography.intel.sentra.alerts.sync(
         neo4j_session,

@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 # statuses that still need attention.
 ACTIVE_ALERT_STATUSES = ["pending", "opened", "in_progress"]
 
+# Statuses from the violated objects endpoint that concern a single alert.
+_ALERT_SPECIFIC_ERROR_STATUSES = (404, 422)
+
 _AWS_ROLE_ARN_RE = re.compile(r"^arn:aws(?:-[a-z]+)*:iam::\d{12}:role/.+$")
 
 
@@ -38,7 +41,25 @@ def get_violated_objects(
     api_url: str,
     alert_id: str,
 ) -> Iterator[dict[str, Any]]:
-    yield from api.iter_violated_objects(session, api_url, alert_id)
+    """
+    Yield the objects that violate an alert's policy.
+
+    A 404 or 422 concerns only this alert, for example an alert that Sentra resolved
+    during the sync, so the alert loads without violated-object links. Other errors
+    mean that the sync can't read Sentra, so they propagate.
+    """
+    try:
+        yield from api.iter_violated_objects(session, api_url, alert_id)
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else None
+        if status not in _ALERT_SPECIFIC_ERROR_STATUSES:
+            raise
+        logger.warning(
+            "Sentra returned HTTP %s for the violated objects of alert %s; "
+            "loading the alert without them.",
+            status,
+            alert_id,
+        )
 
 
 def transform(

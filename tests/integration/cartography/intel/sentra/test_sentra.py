@@ -250,10 +250,21 @@ def test_sync_loads_sentra_data_and_links_aws_resources(neo4j_session, mocker):
         "id",
         "SentraPolicy",
         "id",
-        "RAISED_BY",
+        "GOVERNED_BY",
     ) == {
         (STORE_ALERT_ID, STORE_POLICY_ID),
         (ROLE_ALERT_ID, ROLE_POLICY_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SentraPolicy",
+        "id",
+        "SentraDataClass",
+        "id",
+        "CLASSIFICATION",
+    ) == {
+        (STORE_POLICY_ID, DATA_CLASS_AWS_KEY_ID),
+        (DISABLED_POLICY_ID, DATA_CLASS_EMAIL_ID),
     }
     assert check_rels(
         neo4j_session,

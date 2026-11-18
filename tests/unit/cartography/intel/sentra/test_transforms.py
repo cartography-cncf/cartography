@@ -1,9 +1,13 @@
 import pytest
 
 from cartography.intel.sentra import alerts
+from cartography.intel.sentra import data_classes
 from cartography.intel.sentra import policies
 from cartography.intel.sentra.data_stores import aws_resource_ids
 from tests.data.sentra import ALERTS
+from tests.data.sentra import DATA_CLASS_AWS_KEY_ID
+from tests.data.sentra import DATA_CLASS_EMAIL_ID
+from tests.data.sentra import DATA_CLASSES
 from tests.data.sentra import POLICIES
 
 NO_IDS = {
@@ -188,4 +192,28 @@ def test_policy_transform_flattens_affected_data_classes():
         (["AWS Access Key"], []),
         ([], []),
         ([], ["Personal"]),
+    ]
+
+
+def test_policy_transform_resolves_data_class_names_and_categories_to_ids():
+    # Arrange
+    classes = data_classes.transform(DATA_CLASSES)
+    by_names, no_rules, by_categories = POLICIES
+    unknown_name = {
+        **by_names,
+        "affected_data_classes": {"categories": None, "data_classes": ["Passport"]},
+    }
+
+    # Act
+    transformed = policies.transform(
+        [by_names, no_rules, by_categories, unknown_name],
+        classes,
+    )
+
+    # Assert
+    assert [p["classification_data_class_ids"] for p in transformed] == [
+        [DATA_CLASS_AWS_KEY_ID],
+        [],
+        [DATA_CLASS_EMAIL_ID],
+        [],
     ]

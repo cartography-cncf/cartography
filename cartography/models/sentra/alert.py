@@ -192,7 +192,7 @@ class SentraAlertToPolicyRel(CartographyRelSchema):
         {"id": PropertyRef("policy_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "RAISED_BY"
+    rel_label: str = "GOVERNED_BY"
     properties: SentraAlertToEntityRelProperties = SentraAlertToEntityRelProperties()
 
 

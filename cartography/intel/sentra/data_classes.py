@@ -74,10 +74,12 @@ def sync(
     tenant_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
+    """Sync data classes and return them, so policies can link to them by name."""
     logger.info("Syncing Sentra data classes for organization %s", tenant_id)
-    data_classes = (
+    data_classes = [
         data_class for page in get(session, api_url) for data_class in transform(page)
-    )
+    ]
     load_data_classes(neo4j_session, data_classes, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    return data_classes
