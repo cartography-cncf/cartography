@@ -401,11 +401,20 @@ def load_inspector_finding_to_package_match_links(
 @timeit
 def migrate_legacy_cve_labels(
     neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
     common_job_parameters: Dict[str, Any],
 ) -> None:
     has_legacy_labels = neo4j_session.execute_read(
         read_single_value_tx,
-        "RETURN EXISTS { MATCH (:AWSInspectorFinding:CVE) }",
+        """
+        MATCH (a:AWSAccount {id: $account_id})
+        RETURN EXISTS { (a)-[:RESOURCE]->(:AWSInspectorFinding:CVE) }
+            OR EXISTS {
+                MATCH (a)-[:RESOURCE]->(f:AWSInspectorFinding)
+                WHERE f.type <> 'PACKAGE_VULNERABILITY' AND f._ont_source IS NOT NULL
+            }
+        """,
+        account_id=current_aws_account_id,
     )
     if not has_legacy_labels:
         return
@@ -414,7 +423,9 @@ def migrate_legacy_cve_labels(
         "AWS Inspector findings. This is a one-time migration for this graph."
     )
     run_analysis_job(
-        "aws_inspector_cve_migration.json", neo4j_session, common_job_parameters
+        "aws_inspector_cve_migration.json",
+        neo4j_session,
+        {**common_job_parameters, "AWS_ID": current_aws_account_id},
     )
 
 
@@ -740,11 +751,15 @@ def sync(
         common_job_parameters["ACCOUNT_ID"] = current_aws_account_id
         common_job_parameters["UPDATE_TAG"] = update_tag
         cleanup(neo4j_session, common_job_parameters, batch_size)
+        # Only after a complete read, so every surviving finding already links to
+        # the vulnerability that now carries :CVE, and only after cleanup, so the
+        # findings it deletes are not migrated first.
+        migrate_legacy_cve_labels(
+            neo4j_session, current_aws_account_id, common_job_parameters
+        )
     else:
         logger.warning(
             "Skipping AWS Inspector cleanup for account %s because one or more regions "
             "were transiently skipped. Preserving last-known-good data.",
             current_aws_account_id,
         )
-    # After cleanup, so findings it just deleted are not migrated first.
-    migrate_legacy_cve_labels(neo4j_session, common_job_parameters)

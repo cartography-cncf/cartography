@@ -264,6 +264,7 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
             f._ont_description = 'old description',
             f._ont_references = ['https://example.com/advisory'],
             f._ont_cve_id = 'CVE-2017-9059', f._ont_base_severity = 'medium'
+        MERGE (:CVEMetadata {id: 'CVE-2017-9059'})-[:ENRICHES]->(f)
         """,
         arn=KERNEL_FINDING_ARN,
     )
@@ -360,6 +361,19 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
         arn=KERNEL_FINDING_ARN,
     ).single()["labels"]
     assert "SecurityIssue" not in labels
+    # CVEMetadata cleanup only reaches :CVE nodes, so the sync also removes the
+    # enrichment edge the old label brought.
+    assert (
+        check_rels(
+            neo4j_session,
+            "CVEMetadata",
+            "id",
+            "AWSInspectorFinding",
+            "id",
+            "ENRICHES",
+        )
+        == set()
+    )
 
     # Findings still name their CVE.
     assert check_nodes(
@@ -472,6 +486,41 @@ def test_sync_inspector_ec2_package_findings(neo4j_session):
             },
         ]
     )
+
+
+def test_sync_inspector_migrates_only_the_synced_accounts_cve_findings(
+    neo4j_session,
+):
+    # Arrange: two admin accounts each hold a finding that an earlier version
+    # labeled :CVE. Only one of them syncs.
+    _kernel, openssl = LIST_FINDINGS_EC2_PACKAGE
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (:AWSAccount {id: $acc})-[:RESOURCE]->(:AWSInspectorFinding:CVE {id: $arn})
+        MERGE (:AWSAccount {id: '999999999999'})
+              -[:RESOURCE]->(:AWSInspectorFinding:CVE {id: 'arn:other-admin'})
+        """,
+        acc=TEST_ACC_ID_1,
+        arn=OPENSSL_FINDING_ARN,
+    )
+
+    # Act
+    sync(
+        neo4j_session,
+        FakeAioboto3Session(FakeInspector2Client(findings=[openssl])),
+        [TEST_REGION],
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
+    )
+
+    # Assert: the other account's finding keeps :CVE until that account syncs and
+    # its findings link to their vulnerability.
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
+        ("CVE-2023-1234",),
+        ("arn:other-admin",),
+    }
 
 
 def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(

@@ -1,10 +1,21 @@
 {
   "statements": [
     {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. CVEMetadata enriched every :CVE AWSInspectorFinding. The next statement removes that label, after which CVEMetadata cleanup, which matches :CVE targets, can no longer reach these edges, so delete them first. Scoped to the findings of the account that just completed its sync, whose findings all link to their AWSInspectorVulnerability. Idempotent: findings no longer get ENRICHES edges.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(f:AWSInspectorFinding:CVE)<-[r:ENRICHES]-(:CVEMetadata) WITH r LIMIT $LIMIT_SIZE DELETE r RETURN count(r) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 10000
+    },
+    {
       "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. Earlier releases put the :CVE ontology label, with its _ont_* fields, on every PACKAGE_VULNERABILITY AWSInspectorFinding. The CVE is now the AWSInspectorVulnerability the finding links to, and nothing updates these any more, so strip them: left stale, :CVE queries count each Inspector CVE once per affected resource. Idempotent: once stripped, no AWSInspectorFinding carries :CVE.",
-      "query": "MATCH (f:AWSInspectorFinding:CVE) WITH f LIMIT $LIMIT_SIZE REMOVE f:CVE, f._ont_source, f._ont_cve_id, f._ont_base_score, f._ont_base_severity, f._ont_description, f._ont_references RETURN count(f) AS TotalCompleted",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(f:AWSInspectorFinding:CVE) WITH f LIMIT $LIMIT_SIZE REMOVE f:CVE, f._ont_source, f._ont_cve_id, f._ont_base_score, f._ont_base_severity, f._ont_description, f._ont_references RETURN count(f) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. Earlier releases also wrote the CVE _ont_* fields on network reachability and code findings, which never carried :CVE. Those are few, so one pass removes them.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(f:AWSInspectorFinding) WHERE f.type <> 'PACKAGE_VULNERABILITY' AND f._ont_source IS NOT NULL REMOVE f._ont_source, f._ont_cve_id, f._ont_base_score, f._ont_base_severity, f._ont_description, f._ont_references",
+      "iterative": false
     }
   ],
   "name": "AWS Inspector - migrate CVE labels written by earlier versions"
