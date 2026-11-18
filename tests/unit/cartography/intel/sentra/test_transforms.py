@@ -221,20 +221,29 @@ def test_policy_transform_resolves_data_class_names_and_categories_to_ids():
 
 def test_alert_transform_lists_aws_resources_of_affected_stores():
     # Arrange
+    rds_instance_arn = "arn:aws:rds:us-east-1:123456789012:db:orders-primary"
+    rds_cluster_arn = "arn:aws:rds:us-east-1:123456789012:cluster:orders"
+    dynamodb_table_arn = "arn:aws:dynamodb:us-east-1:123456789012:table/orders"
+    redshift_cluster_arn = "arn:aws:redshift:us-east-1:123456789012:cluster:analytics"
     store_alert = {**ALERTS[0], "entity_id": "store-bucket"}
     violated_objects = {
         store_alert["id"]: [
-            {"id": "object-1", "store_id": "store-table", "data_classes": []},
-            {"id": "object-2", "store_id": "store-saas", "data_classes": []},
+            {"id": f"object-{store}", "store_id": store, "data_classes": []}
+            for store in (
+                "store-rds-instance",
+                "store-rds-cluster",
+                "store-table",
+                "store-warehouse",
+                "store-saas",
+            )
         ],
     }
     aws_ids_by_store = {
         "store-bucket": {"aws_s3_bucket_name": "example-bucket"},
-        "store-table": {
-            "aws_dynamodb_table_arn": (
-                "arn:aws:dynamodb:us-east-1:123456789012:table/orders"
-            ),
-        },
+        "store-rds-instance": {"aws_rds_instance_arn": rds_instance_arn},
+        "store-rds-cluster": {"aws_rds_cluster_arn": rds_cluster_arn},
+        "store-table": {"aws_dynamodb_table_arn": dynamodb_table_arn},
+        "store-warehouse": {"aws_redshift_cluster_arn": redshift_cluster_arn},
     }
 
     # Act
@@ -246,9 +255,24 @@ def test_alert_transform_lists_aws_resources_of_affected_stores():
 
     # Assert
     assert transformed["affected_aws_s3_bucket_names"] == ["example-bucket"]
-    assert transformed["affected_aws_dynamodb_table_arns"] == [
-        "arn:aws:dynamodb:us-east-1:123456789012:table/orders",
+    assert transformed["affected_aws_rds_instance_arns"] == [rds_instance_arn]
+    assert transformed["affected_aws_rds_cluster_arns"] == [rds_cluster_arn]
+    assert transformed["affected_aws_dynamodb_table_arns"] == [dynamodb_table_arn]
+    assert transformed["affected_aws_redshift_cluster_arns"] == [
+        redshift_cluster_arn,
     ]
+
+
+def test_alert_transform_lists_no_aws_resources_for_stores_outside_aws():
+    # Arrange
+    store_alert = {**ALERTS[0], "entity_id": "store-saas"}
+
+    # Act
+    [transformed] = alerts.transform([store_alert], {}, {})
+
+    # Assert
+    assert transformed["affected_aws_s3_bucket_names"] == []
     assert transformed["affected_aws_rds_instance_arns"] == []
     assert transformed["affected_aws_rds_cluster_arns"] == []
+    assert transformed["affected_aws_dynamodb_table_arns"] == []
     assert transformed["affected_aws_redshift_cluster_arns"] == []

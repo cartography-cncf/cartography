@@ -291,7 +291,10 @@ class SentraAlertSchema(CartographyNodeSchema):
     When an affected data store represents an AWS resource, the alert also links
     with `AFFECTS` directly to that resource, as findings from other security
     tools do. Queries that match `(:SecurityIssue)-[:AFFECTS]->(:ObjectStorage)`
-    or `(:SecurityIssue)-[:AFFECTS]->(:Database)` then include Sentra alerts.
+    then include alerts on S3 buckets, and queries that match
+    `(:SecurityIssue)-[:AFFECTS]->(:Database)` include alerts on RDS instances,
+    DynamoDB tables, and Redshift clusters. An RDS cluster has no `Database`
+    label, because its member instances carry it.
     """
 
     label: str = "SentraAlert"

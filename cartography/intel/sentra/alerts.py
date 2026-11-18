@@ -11,6 +11,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.sentra import api
+from cartography.intel.sentra.data_stores import AWS_RESOURCE_ID_FIELDS
 from cartography.models.sentra.alert import SentraAlertSchema
 from cartography.util import timeit
 
@@ -21,13 +22,10 @@ logger = logging.getLogger(__name__)
 ACTIVE_ALERT_STATUSES = ["pending", "opened", "in_progress"]
 
 # Maps each AWS ID field of a data store to the alert field that lists the AWS
-# resources of that type that the alert affects.
+# resources of that type that the alert affects, for example `aws_s3_bucket_name`
+# to `affected_aws_s3_bucket_names`.
 _AFFECTED_AWS_RESOURCE_FIELDS = {
-    "aws_s3_bucket_name": "affected_aws_s3_bucket_names",
-    "aws_rds_instance_arn": "affected_aws_rds_instance_arns",
-    "aws_rds_cluster_arn": "affected_aws_rds_cluster_arns",
-    "aws_dynamodb_table_arn": "affected_aws_dynamodb_table_arns",
-    "aws_redshift_cluster_arn": "affected_aws_redshift_cluster_arns",
+    field: f"affected_{field}s" for field in AWS_RESOURCE_ID_FIELDS
 }
 
 # Statuses from the violated objects endpoint that concern a single alert.
