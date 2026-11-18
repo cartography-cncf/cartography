@@ -249,17 +249,19 @@ def _ec2_package_finding(template, instance_id, finding_id, **overrides):
     }
 
 
-def _sync_package_findings(neo4j_session, findings, update_tag=TEST_UPDATE_TAG):
+def _sync_package_findings(
+    neo4j_session, findings, update_tag=TEST_UPDATE_TAG, batch_size=None, **client
+):
+    parameters = {"UPDATE_TAG": update_tag, "AWS_ID": TEST_ACC_ID_1}
+    if batch_size:
+        parameters["experimental_aws_inspector_batch"] = batch_size
     sync(
         neo4j_session,
-        FakeAioboto3Session(FakeInspector2Client(findings=findings)),
+        FakeAioboto3Session(FakeInspector2Client(findings=findings, **client)),
         [TEST_REGION],
         TEST_ACC_ID_1,
         update_tag,
-        {
-            "UPDATE_TAG": update_tag,
-            "AWS_ID": TEST_ACC_ID_1,
-        },
+        parameters,
     )
 
 
@@ -613,14 +615,7 @@ def test_sync_inspector_migrates_only_the_synced_accounts_cve_findings(
     )
 
     # Act
-    sync(
-        neo4j_session,
-        FakeAioboto3Session(FakeInspector2Client(findings=[openssl])),
-        [TEST_REGION],
-        TEST_ACC_ID_1,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACC_ID_1},
-    )
+    _sync_package_findings(neo4j_session, [openssl])
 
     # Assert: the other account's finding keeps :CVE until that account syncs and
     # its findings link to their vulnerability.
@@ -644,22 +639,11 @@ def test_sync_inspector_keeps_an_instance_whose_findings_were_read_partially(
     _sync_package_findings(neo4j_session, findings, update_tag=TEST_UPDATE_TAG - 1)
 
     # Act: Inspector serves the first finding, then rejects the next page.
-    sync(
+    _sync_package_findings(
         neo4j_session,
-        FakeAioboto3Session(
-            FakeInspector2Client(
-                findings=findings,
-                list_findings_errors_by_page={("1", "1"): INSPECTOR_NOT_ENABLED},
-            ),
-        ),
-        [TEST_REGION],
-        TEST_ACC_ID_1,
-        TEST_UPDATE_TAG,
-        {
-            "UPDATE_TAG": TEST_UPDATE_TAG,
-            "AWS_ID": TEST_ACC_ID_1,
-            "experimental_aws_inspector_batch": 1,
-        },
+        findings,
+        batch_size=1,
+        list_findings_errors_by_page={("1", "1"): INSPECTOR_NOT_ENABLED},
     )
 
     # Assert: the instance keeps both findings from the previous sync.
@@ -693,18 +677,7 @@ def test_sync_inspector_preserves_data_when_a_read_fails_after_some_findings(
     _add_stale_finding(neo4j_session, "arn:aws:stale")
 
     # Act
-    sync(
-        neo4j_session,
-        FakeAioboto3Session(FakeInspector2Client(findings=findings, **rejection)),
-        [TEST_REGION],
-        TEST_ACC_ID_1,
-        TEST_UPDATE_TAG,
-        {
-            "UPDATE_TAG": TEST_UPDATE_TAG,
-            "AWS_ID": TEST_ACC_ID_1,
-            "experimental_aws_inspector_batch": 1,
-        },
-    )
+    _sync_package_findings(neo4j_session, findings, batch_size=1, **rejection)
 
     # Assert: the read was incomplete, so cleanup kept the previous run's finding.
     assert ("arn:aws:stale",) in check_nodes(
@@ -736,23 +709,11 @@ def test_sync_inspector_vulnerability_keeps_reference_urls_from_every_batch(
         }
         for digit, source, url in (reversed(advisories) if ubuntu_first else advisories)
     ]
-    aioboto3_session = FakeAioboto3Session(FakeInspector2Client(findings=findings))
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run("MERGE (:AWSAccount{id: $acc})", acc=TEST_ACC_ID_1)
 
     # Act
-    sync(
-        neo4j_session,
-        aioboto3_session,
-        [TEST_REGION],
-        TEST_ACC_ID_1,
-        TEST_UPDATE_TAG,
-        {
-            "UPDATE_TAG": TEST_UPDATE_TAG,
-            "AWS_ID": TEST_ACC_ID_1,
-            "experimental_aws_inspector_batch": 1,
-        },
-    )
+    _sync_package_findings(neo4j_session, findings, batch_size=1)
 
     # Assert
     # The vulnerability keeps one advisory's fields whatever order they arrive in.

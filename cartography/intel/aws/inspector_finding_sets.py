@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import re
 from array import array
 from dataclasses import dataclass
 from dataclasses import field
@@ -12,17 +11,12 @@ from datetime import timezone
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Set
 from typing import Tuple
+
+from cartography.intel.trivy.util import canonical_cve_id
 
 _ID_LENGTH = 32
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
-_CVE_ID = re.compile(r"CVE-\d{4}-\d{4,}")
-
-
-def cve_id_of(vulnerability_id: str) -> str | None:
-    """Return the identifier when it is a CVE; Inspector also reports GHSA and ALAS IDs."""
-    return vulnerability_id if _CVE_ID.fullmatch(vulnerability_id) else None
 
 
 def is_ec2_package_finding(finding: Dict[str, Any]) -> bool:
@@ -51,7 +45,7 @@ def transform_finding_content(
         "cvssscore": adjusted.get("score"),
         "cvssvector": adjusted.get("scoringVector"),
         "vulnerabilityid": details["vulnerabilityId"],
-        "cve_id": cve_id_of(details["vulnerabilityId"]),
+        "cve_id": canonical_cve_id(details["vulnerabilityId"]),
         "vendorseverity": details.get("vendorSeverity"),
         "vulnerablepackageids": sorted(package_ids),
         "fixavailable": finding.get("fixAvailable"),
@@ -113,7 +107,6 @@ class InstanceFindingSets:
     _content_ids: List[str] = field(default_factory=list)
     _content_indexes: Dict[str, int] = field(default_factory=dict)
     _instances: Dict[str, _InstanceFindings] = field(default_factory=dict)
-    loaded_content_ids: Set[str] = field(default_factory=set)
 
     def add(self, finding: Dict[str, Any], content_id: str) -> None:
         resource = finding["resources"][0]
@@ -138,15 +131,14 @@ class InstanceFindingSets:
         instance.last_observed_us.append(_epoch_us(finding["lastObservedAt"]))
         instance.updated_us.append(_epoch_us(finding["updatedAt"]))
 
-    def discard_account(self, awsaccount: str) -> bool:
-        """Drop an account's instances after an incomplete read; return whether any were held.
+    def discard_account(self, awsaccount: str) -> None:
+        """Drop an account's instances after an incomplete read.
 
         A partial set would replace the instance's complete set from the last sync.
         """
         dropped = [i for i, f in self._instances.items() if f.awsaccount == awsaccount]
         for instance_id in dropped:
             del self._instances[instance_id]
-        return bool(dropped)
 
     def build(
         self,

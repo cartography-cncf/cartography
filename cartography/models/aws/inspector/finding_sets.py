@@ -10,6 +10,9 @@ times of its own findings.
 
 from dataclasses import dataclass
 
+from cartography.models.aws.inspector.findings import (
+    InspectorFindingToPackageRelRelProperties,
+)
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -153,32 +156,6 @@ class AWSInspectorFindingContentSchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
-class InspectorFindingContentToPackageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
-    )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    remediation: PropertyRef = PropertyRef(
-        "remediation", description="Remediation guidance for the vulnerable package."
-    )
-    fixedinversion: PropertyRef = PropertyRef(
-        "fixedInVersion", description="Package version that fixes the vulnerability."
-    )
-    filepath: PropertyRef = PropertyRef(
-        "filePath", description="Path of the vulnerable package on the instance."
-    )
-    sourcelayerhash: PropertyRef = PropertyRef(
-        "sourceLayerHash",
-        description="Content hash of the layer from which this relationship originated.",
-    )
-    sourcelambdalayerarn: PropertyRef = PropertyRef(
-        "sourceLambdaLayerArn",
-        description="ARN of the Lambda layer from which this relationship originated.",
-    )
-
-
-@dataclass(frozen=True)
 class InspectorFindingContentToPackageMatchLink(CartographyRelSchema):
     """Links a finding content to the vulnerable packages it reports."""
 
@@ -190,8 +167,8 @@ class InspectorFindingContentToPackageMatchLink(CartographyRelSchema):
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("contentid")},
     )
-    properties: InspectorFindingContentToPackageRelProperties = (
-        InspectorFindingContentToPackageRelProperties()
+    properties: InspectorFindingToPackageRelRelProperties = (
+        InspectorFindingToPackageRelRelProperties()
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS"

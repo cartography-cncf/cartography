@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Set
 from typing import Tuple
@@ -19,7 +20,6 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
-from cartography.intel.aws.inspector_finding_sets import cve_id_of
 from cartography.intel.aws.inspector_finding_sets import InstanceFindingSets
 from cartography.intel.aws.inspector_finding_sets import is_ec2_package_finding
 from cartography.intel.aws.inspector_finding_sets import transform_finding_content
@@ -199,17 +199,16 @@ class _SyncState:
     """Data that spans the batches, member accounts, and regions of one sync."""
 
     # A vulnerability's findings arrive across many batches, regions, and member
-    # accounts, and each load overwrites its reference URLs. Carrying the URLs seen
-    # earlier in the sync makes the last write hold all of them.
-    reference_urls: Dict[str, Set[str]] = field(default_factory=dict)
+    # accounts. Merging them all here means each load writes every reference URL and
+    # the same advisory, whatever order the findings arrive in, and a vulnerability
+    # is written again only when that merge changes it.
+    vulnerabilities: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    loaded_package_ids: Set[str] = field(default_factory=set)
+    loaded_content_ids: Set[str] = field(default_factory=set)
     finding_sets: InstanceFindingSets = field(default_factory=InstanceFindingSets)
     # ListFindings responses for the account being read, so a read that fails after
     # some of them is not mistaken for an account where Inspector is not enabled.
     responses_received: int = 0
-    # Inspector reports one vulnerability's advisory from each finding's distribution.
-    # Keeping the same one whatever order the findings arrive in keeps the
-    # vulnerability's fields stable from sync to sync.
-    advisories: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
 
 def transform_inspector_findings(
@@ -221,7 +220,7 @@ def transform_inspector_findings(
     List[Dict[str, Any]],
 ]:
     findings_list: List[Dict] = []
-    packages_set: Set[frozenset] = set()
+    packages_by_id: Dict[str, Dict[str, Any]] = {}
     finding_to_package_map: List[Dict[str, str]] = []
     vulnerabilities: Dict[str, Dict[str, Any]] = {}
 
@@ -275,28 +274,23 @@ def transform_inspector_findings(
 
             packages = transform_inspector_packages(details)
             finding["vulnerablepackageids"] = list(packages.keys())
+            packages_by_id.update(packages)
             for package_id, package in packages.items():
                 finding_to_package_map.append(
                     {
                         "findingarn": finding["id"],
                         "packageid": package_id,
-                        "remediation": package.get("remediation"),
-                        "fixedInVersion": package.get("fixedInVersion"),
-                        "filePath": package.get("filePath"),
-                        "sourceLayerHash": package.get("sourceLayerHash"),
-                        "sourceLambdaLayerArn": package.get("sourceLambdaLayerArn"),
+                        **_package_link_fields(package),
                     }
                 )
-                packages_set.add(frozenset(package.items()))
         else:
             # Only package vulnerability findings share a description across
             # resources; a network or code finding describes its own resource.
             finding["description"] = f["description"]
         findings_list.append(finding)
-    packages_list = [dict(p) for p in packages_set]
     return (
         findings_list,
-        packages_list,
+        list(packages_by_id.values()),
         finding_to_package_map,
         list(vulnerabilities.values()),
     )
@@ -317,7 +311,7 @@ def transform_ec2_package_findings(
     each finding paired with its content ID for grouping into finding sets.
     """
     contents: Dict[str, Dict[str, Any]] = {}
-    packages_set: Set[frozenset] = set()
+    packages_by_id: Dict[str, Dict[str, Any]] = {}
     content_to_package_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
     vulnerabilities: Dict[str, Dict[str, Any]] = {}
     finding_contents: List[Tuple[Dict[str, Any], str]] = []
@@ -327,21 +321,17 @@ def transform_ec2_package_findings(
         content = transform_finding_content(f, list(packages.keys()))
         contents[content["id"]] = content
         _add_vulnerability(vulnerabilities, f, details)
+        packages_by_id.update(packages)
         for package_id, package in packages.items():
             content_to_package_map[(content["id"], package_id)] = {
                 "contentid": content["id"],
                 "packageid": package_id,
-                "remediation": package.get("remediation"),
-                "fixedInVersion": package.get("fixedInVersion"),
-                "filePath": package.get("filePath"),
-                "sourceLayerHash": package.get("sourceLayerHash"),
-                "sourceLambdaLayerArn": package.get("sourceLambdaLayerArn"),
+                **_package_link_fields(package),
             }
-            packages_set.add(frozenset(package.items()))
         finding_contents.append((f, content["id"]))
     return (
         list(contents.values()),
-        [dict(p) for p in packages_set],
+        list(packages_by_id.values()),
         list(content_to_package_map.values()),
         list(vulnerabilities.values()),
         finding_contents,
@@ -353,7 +343,7 @@ def _vulnerability_record(
     details: Dict[str, Any],
 ) -> Dict[str, Any]:
     vulnerability_id = details["vulnerabilityId"]
-    cve_id = cve_id_of(vulnerability_id)
+    cve_id = canonical_cve_id(vulnerability_id)
     return {
         "id": vulnerability_id,
         "vulnerabilityid": vulnerability_id,
@@ -378,17 +368,27 @@ def _add_vulnerability(
     finding: Dict[str, Any],
     details: Dict[str, Any],
 ) -> None:
-    candidate = _vulnerability_record(finding, details)
+    _merge_vulnerability(vulnerabilities, _vulnerability_record(finding, details))
+
+
+def _merge_vulnerability(
+    vulnerabilities: Dict[str, Dict[str, Any]],
+    candidate: Dict[str, Any],
+) -> bool:
+    """Merge one finding's view of a vulnerability in; return whether it changed."""
     vulnerability = vulnerabilities.get(candidate["id"])
     if vulnerability is None:
-        vulnerabilities[candidate["id"]] = candidate
-        return
+        vulnerabilities[candidate["id"]] = dict(candidate)
+        return True
     # Each finding lists the advisories of its own distribution, so the
     # vulnerability gets every reference URL that any of its findings report.
-    urls = set(vulnerability["referenceurls"]) | set(candidate["referenceurls"])
+    urls = sorted(set(vulnerability["referenceurls"]) | set(candidate["referenceurls"]))
+    changed = urls != vulnerability["referenceurls"]
     if _advisory_order(candidate) < _advisory_order(vulnerability):
         vulnerability.update(candidate)
-    vulnerability["referenceurls"] = sorted(urls)
+        changed = True
+    vulnerability["referenceurls"] = urls
+    return changed
 
 
 def _advisory_order(vulnerability: Dict[str, Any]) -> Tuple[str, ...]:
@@ -428,6 +428,16 @@ def transform_inspector_packages(
         packages[id] = {**package, "id": id}
 
     return packages
+
+
+def _package_link_fields(package: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "remediation": package.get("remediation"),
+        "fixedInVersion": package.get("fixedInVersion"),
+        "filePath": package.get("filePath"),
+        "sourceLayerHash": package.get("sourceLayerHash"),
+        "sourceLambdaLayerArn": package.get("sourceLambdaLayerArn"),
+    }
 
 
 def _port_range_string(details: Dict[str, Any]) -> str:
@@ -690,40 +700,35 @@ def _load_inspector_findings_batch(
         finding_contents,
     ) = transform_ec2_package_findings(ec2_package_findings)
 
-    vulnerabilities: Dict[str, Dict[str, Any]] = {}
-    for vulnerability in vulnerability_data + content_vulnerability_data:
-        seen = state.reference_urls.setdefault(vulnerability["id"], set())
-        seen.update(vulnerability["referenceurls"])
-        advisory = state.advisories.get(vulnerability["id"])
-        if advisory is None or _advisory_order(vulnerability) < _advisory_order(
-            advisory
-        ):
-            advisory = vulnerability
-            state.advisories[vulnerability["id"]] = advisory
-        vulnerabilities[vulnerability["id"]] = {
-            **advisory,
-            "referenceurls": sorted(seen),
-        }
-    packages = {p["id"]: p for p in package_data + content_package_data}
-    new_contents = [
-        c for c in content_data if c["id"] not in state.finding_sets.loaded_content_ids
-    ]
+    changed_vulnerability_ids = {
+        vulnerability["id"]
+        for vulnerability in vulnerability_data + content_vulnerability_data
+        if _merge_vulnerability(state.vulnerabilities, vulnerability)
+    }
+    # A package node holds only what its ID encodes, so it needs one write per sync.
+    new_packages = {
+        p["id"]: p
+        for p in package_data + content_package_data
+        if p["id"] not in state.loaded_package_ids
+    }
+    new_contents = [c for c in content_data if c["id"] not in state.loaded_content_ids]
     new_content_ids = {c["id"] for c in new_contents}
 
     # Findings and contents link to their vulnerability and packages on load, so those
     # must exist first.
     load_inspector_vulnerabilities(
         neo4j_session,
-        list(vulnerabilities.values()),
+        [dict(state.vulnerabilities[id]) for id in changed_vulnerability_ids],
         update_tag,
         current_aws_account_id,
     )
     load_inspector_packages(
         neo4j_session,
-        list(packages.values()),
+        list(new_packages.values()),
         update_tag,
         current_aws_account_id,
     )
+    state.loaded_package_ids.update(new_packages)
     logger.info(f"Loading {len(finding_data)} findings from account {account_id}")
     load_inspector_findings(
         neo4j_session,
@@ -757,7 +762,7 @@ def _load_inspector_findings_batch(
         update_tag,
         current_aws_account_id,
     )
-    state.finding_sets.loaded_content_ids.update(new_content_ids)
+    state.loaded_content_ids.update(new_content_ids)
     for finding, content_id in finding_contents:
         state.finding_sets.add(finding, content_id)
 
@@ -774,35 +779,39 @@ def _load_inspector_finding_sets(
         f"Loading {len(finding_sets)} finding sets for {len(instance_findings)} "
         f"EC2 instances in region {region}"
     )
-    load_inspector_finding_sets(
-        neo4j_session,
-        finding_sets,
-        update_tag,
-        current_aws_account_id,
-    )
+    # Sets carry their content IDs and instances their findings' IDs and times, so
+    # writes are bounded by findings, not rows: a fleet of large instances would
+    # otherwise send millions of findings in one transaction.
+    for batch in _batches_of_findings(finding_sets, "content_ids"):
+        load_inspector_finding_sets(
+            neo4j_session, batch, update_tag, current_aws_account_id
+        )
     load_inspector_finding_set_contents(
         neo4j_session,
         finding_set_slots,
         update_tag,
         current_aws_account_id,
     )
-    # Each instance carries its findings' IDs and times, so a write is bounded by
-    # findings, not instances: a fleet of large instances would otherwise send
-    # millions of findings in one transaction.
-    batch: List[Dict[str, Any]] = []
-    batch_findings = 0
-    for instance in instance_findings:
-        if batch and batch_findings + len(instance["finding_ids"]) > FINDINGS_PER_WRITE:
-            load_inspector_instance_findings(
-                neo4j_session, batch, region, update_tag, current_aws_account_id
-            )
-            batch, batch_findings = [], 0
-        batch.append(instance)
-        batch_findings += len(instance["finding_ids"])
-    if batch:
+    for batch in _batches_of_findings(instance_findings, "finding_ids"):
         load_inspector_instance_findings(
             neo4j_session, batch, region, update_tag, current_aws_account_id
         )
+
+
+def _batches_of_findings(
+    rows: List[Dict[str, Any]],
+    findings_key: str,
+) -> Iterator[List[Dict[str, Any]]]:
+    batch: List[Dict[str, Any]] = []
+    batch_findings = 0
+    for row in rows:
+        if batch and batch_findings + len(row[findings_key]) > FINDINGS_PER_WRITE:
+            yield batch
+            batch, batch_findings = [], 0
+        batch.append(row)
+        batch_findings += len(row[findings_key])
+    if batch:
+        yield batch
 
 
 async def _load_inspector_findings(
@@ -940,9 +949,8 @@ async def _sync_findings_for_account(
         if not _is_skippable_findings_error(e):
             raise
         # A skippable error after some findings loaded leaves the read incomplete.
-        partial = state.finding_sets.discard_account(account_id) or bool(
-            state.responses_received
-        )
+        state.finding_sets.discard_account(account_id)
+        partial = state.responses_received > 0
         logger.warning(
             "Skipping Inspector findings for account %s in region %s: %s",
             account_id,
