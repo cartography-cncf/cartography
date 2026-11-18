@@ -20,6 +20,16 @@ logger = logging.getLogger(__name__)
 # statuses that still need attention.
 ACTIVE_ALERT_STATUSES = ["pending", "opened", "in_progress"]
 
+# Maps each AWS ID field of a data store to the alert field that lists the AWS
+# resources of that type that the alert affects.
+_AFFECTED_AWS_RESOURCE_FIELDS = {
+    "aws_s3_bucket_name": "affected_aws_s3_bucket_names",
+    "aws_rds_instance_arn": "affected_aws_rds_instance_arns",
+    "aws_rds_cluster_arn": "affected_aws_rds_cluster_arns",
+    "aws_dynamodb_table_arn": "affected_aws_dynamodb_table_arns",
+    "aws_redshift_cluster_arn": "affected_aws_redshift_cluster_arns",
+}
+
 # Statuses from the violated objects endpoint that concern a single alert.
 _ALERT_SPECIFIC_ERROR_STATUSES = (404, 422)
 
@@ -86,6 +96,7 @@ def get_violated_objects(
 def transform(
     raw_alerts: list[dict[str, Any]],
     violated_objects: Mapping[str, Iterable[dict[str, Any]]] | None = None,
+    aws_ids_by_store: Mapping[str, Mapping[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Shape alerts for ingestion.
@@ -93,8 +104,13 @@ def transform(
     `violated_objects` maps an alert ID to the objects that violate the alert's
     policy. The stores and data classes of those objects become `AFFECTS` and
     `INVOLVES` links.
+
+    `aws_ids_by_store` maps a data store ID to the IDs of the AWS resource that the
+    store represents. An alert links with `AFFECTS` to the AWS resource of every
+    data store that it affects, in addition to the data store itself.
     """
     violated_objects = violated_objects or {}
+    aws_ids_by_store = aws_ids_by_store or {}
     result: list[dict[str, Any]] = []
     for alert in raw_alerts:
         entity_type = alert["entity_type"]
@@ -111,6 +127,15 @@ def transform(
                 data_class["id"]
                 for data_class in violated_object.get("data_classes") or []
             )
+
+        affected_aws_resources: dict[str, set[str]] = {
+            field: set() for field in _AFFECTED_AWS_RESOURCE_FIELDS.values()
+        }
+        for store_id in affected_data_store_ids:
+            for id_field, aws_id in aws_ids_by_store.get(store_id, {}).items():
+                affected_aws_resources[_AFFECTED_AWS_RESOURCE_FIELDS[id_field]].add(
+                    aws_id,
+                )
 
         result.append(
             {
@@ -147,6 +172,10 @@ def transform(
                 "last_modified": alert.get("last_modified"),
                 "affected_data_store_ids": sorted(affected_data_store_ids),
                 "violated_data_class_ids": sorted(violated_data_class_ids),
+                **{
+                    field: sorted(aws_ids)
+                    for field, aws_ids in affected_aws_resources.items()
+                },
                 "affected_aws_role_arn": (
                     cloud_unique_id
                     if entity_type == "IAM_ROLE"
@@ -193,6 +222,7 @@ def sync(
     tenant_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    aws_ids_by_store: Mapping[str, Mapping[str, str]],
 ) -> None:
     logger.info("Syncing Sentra alerts for organization %s", tenant_id)
     alerts = (
@@ -207,6 +237,7 @@ def sync(
                 for raw in page
                 if raw["entity_type"] == "STORE"
             },
+            aws_ids_by_store,
         )
     )
     load_alerts(neo4j_session, alerts, tenant_id, update_tag)

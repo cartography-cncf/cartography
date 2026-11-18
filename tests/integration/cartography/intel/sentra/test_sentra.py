@@ -233,6 +233,26 @@ def test_sync_loads_sentra_data_and_links_aws_resources(neo4j_session, mocker):
         "id",
         "AFFECTS",
     ) == {(STORE_ALERT_ID, S3_STORE_ID)}
+    # The store alert also links directly to the S3 bucket that its store represents.
+    assert check_rels(
+        neo4j_session,
+        "SentraAlert",
+        "id",
+        "AWSS3Bucket",
+        "id",
+        "AFFECTS",
+    ) == {(STORE_ALERT_ID, S3_BUCKET_NAME)}
+    assert (
+        check_rels(
+            neo4j_session,
+            "SentraAlert",
+            "id",
+            "AWSRDSInstance",
+            "id",
+            "AFFECTS",
+        )
+        == set()
+    )
     assert check_rels(
         neo4j_session,
         "SentraAlert",

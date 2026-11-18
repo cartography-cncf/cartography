@@ -217,3 +217,38 @@ def test_policy_transform_resolves_data_class_names_and_categories_to_ids():
         [DATA_CLASS_EMAIL_ID],
         [],
     ]
+
+
+def test_alert_transform_lists_aws_resources_of_affected_stores():
+    # Arrange
+    store_alert = {**ALERTS[0], "entity_id": "store-bucket"}
+    violated_objects = {
+        store_alert["id"]: [
+            {"id": "object-1", "store_id": "store-table", "data_classes": []},
+            {"id": "object-2", "store_id": "store-saas", "data_classes": []},
+        ],
+    }
+    aws_ids_by_store = {
+        "store-bucket": {"aws_s3_bucket_name": "example-bucket"},
+        "store-table": {
+            "aws_dynamodb_table_arn": (
+                "arn:aws:dynamodb:us-east-1:123456789012:table/orders"
+            ),
+        },
+    }
+
+    # Act
+    [transformed] = alerts.transform(
+        [store_alert],
+        violated_objects,
+        aws_ids_by_store,
+    )
+
+    # Assert
+    assert transformed["affected_aws_s3_bucket_names"] == ["example-bucket"]
+    assert transformed["affected_aws_dynamodb_table_arns"] == [
+        "arn:aws:dynamodb:us-east-1:123456789012:table/orders",
+    ]
+    assert transformed["affected_aws_rds_instance_arns"] == []
+    assert transformed["affected_aws_rds_cluster_arns"] == []
+    assert transformed["affected_aws_redshift_cluster_arns"] == []

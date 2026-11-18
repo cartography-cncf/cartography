@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 _AWS_ARN_RE = re.compile(
     r"^arn:aws(?:-[a-z]+)*:(?P<service>[a-z0-9-]+):[a-z0-9-]*:\d*:(?P<resource>.+)$",
 )
-_AWS_RESOURCE_ID_FIELDS = (
+AWS_RESOURCE_ID_FIELDS = (
     "aws_s3_bucket_name",
     "aws_rds_instance_arn",
     "aws_rds_cluster_arn",
@@ -47,7 +47,7 @@ def aws_resource_ids(
     service and resource type, and an S3 bucket name is globally unique. Every other
     field stays `None`, so the store never links to a resource of a different kind.
     """
-    ids: dict[str, str | None] = dict.fromkeys(_AWS_RESOURCE_ID_FIELDS)
+    ids: dict[str, str | None] = dict.fromkeys(AWS_RESOURCE_ID_FIELDS)
     arn = _AWS_ARN_RE.match(native_unique_id) if native_unique_id else None
     if arn:
         service = arn["service"]
@@ -157,8 +157,22 @@ def sync(
     tenant_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> dict[str, dict[str, str]]:
+    """
+    Sync data stores and return the AWS resource IDs of each one, keyed by store ID.
+
+    Alerts use the IDs to link to the AWS resources that they affect. A store that
+    represents no AWS resource is left out.
+    """
     logger.info("Syncing Sentra data stores for organization %s", tenant_id)
-    data_stores = (store for page in get(session, api_url) for store in transform(page))
+    data_stores = [store for page in get(session, api_url) for store in transform(page)]
     load_data_stores(neo4j_session, data_stores, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    aws_ids_by_store: dict[str, dict[str, str]] = {}
+    for store in data_stores:
+        aws_ids = {
+            field: store[field] for field in AWS_RESOURCE_ID_FIELDS if store[field]
+        }
+        if aws_ids:
+            aws_ids_by_store[store["id"]] = aws_ids
+    return aws_ids_by_store
