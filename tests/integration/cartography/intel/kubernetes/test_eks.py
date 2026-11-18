@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from botocore.exceptions import ClientError
 from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ConfigMap
 
@@ -11,6 +12,7 @@ from cartography.intel.aws.iam import transform_users
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.eks import load_oidc_provider
 from cartography.intel.kubernetes.eks import sync as sync_eks
+from cartography.intel.kubernetes.eks import transform_oidc_provider
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_WITH_ACCOUNTS_DATA
 from tests.data.kubernetes.eks import MOCK_ACCESS_ENTRIES
@@ -725,6 +727,53 @@ def test_eks_sync_resolves_supported_aws_auth_templates(
     # Note: OIDC Provider nodes only contain infrastructure metadata.
     # Identity relationships (OktaUser/Group -> KubernetesUser/Group) are handled
     # by the respective data models and Okta module, not by the EKS module.
+
+
+@patch("cartography.intel.kubernetes.eks.get_access_entries", return_value=[])
+def test_eks_sync_keeps_oidc_providers_when_listing_is_denied(
+    mock_get_access_entries,
+    neo4j_session,
+):
+    load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+    load_oidc_provider(
+        neo4j_session,
+        transform_oidc_provider(MOCK_OIDC_PROVIDER, TEST_CLUSTER_NAME),
+        TEST_UPDATE_TAG - 1,
+        TEST_CLUSTER_ID,
+        TEST_CLUSTER_NAME,
+    )
+
+    mock_k8s_client = MagicMock()
+    mock_k8s_client.name = TEST_CLUSTER_NAME
+    mock_k8s_client.core.read_namespaced_config_map.side_effect = ApiException(
+        status=404, reason="Not Found"
+    )
+    mock_boto3_session = MagicMock()
+    mock_boto3_session.client.return_value.list_identity_provider_configs.side_effect = ClientError(
+        {"Error": {"Code": "AccessDeniedException", "Message": "Access denied"}},
+        "ListIdentityProviderConfigs",
+    )
+
+    sync_eks(
+        neo4j_session,
+        mock_k8s_client,
+        mock_boto3_session,
+        TEST_REGION,
+        TEST_UPDATE_TAG,
+        TEST_CLUSTER_ID,
+        TEST_CLUSTER_ARN,
+    )
+
+    assert {(TEST_CLUSTER_ID, f"{TEST_CLUSTER_NAME}/oidc/okta-provider")}.issubset(
+        check_rels(
+            neo4j_session,
+            "KubernetesCluster",
+            "id",
+            "KubernetesOIDCProvider",
+            "id",
+            "TRUSTS",
+        )
+    )
 
 
 def _run_eks_sync_with_configmap_error(
