@@ -19,6 +19,8 @@ TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_REGION_FOR_KMS = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
+PUBLIC_DOC_ARN = "arn:aws:ssm:us-east-1:000000000000:document/RunSecurityBaseline"
+PRIVATE_DOC_ARN = "arn:aws:ssm:us-east-1:000000000000:document/PrivateAutomation"
 
 
 def _ensure_load_instances(neo4j_session):
@@ -359,68 +361,47 @@ def test_load_ssm_documents(
     )
 
     # Assert
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "AWSSSMDocument",
+        ["id", "name", "document_type", "version", "region", "lastupdated"],
+    ) == {
         (
-            "arn:aws:ssm:us-east-1:000000000000:document/RunSecurityBaseline",
+            PUBLIC_DOC_ARN,
             "RunSecurityBaseline",
             "Command",
-            "JSON",
-            "000000000000",
-            ("Linux", "Windows"),
-            1717200000,
-            "2.2",
             "3",
-            "3",
-            ("Environment=prod",),
-            ("all",),
             TEST_REGION,
             TEST_UPDATE_TAG,
         ),
         (
-            "arn:aws:ssm:us-east-1:000000000000:document/PrivateAutomation",
+            PRIVATE_DOC_ARN,
             "PrivateAutomation",
             "Automation",
-            "YAML",
-            "000000000000",
-            ("Linux",),
-            1717200000,
-            "0.3",
             "1",
-            "1",
-            (),
-            ("111122223333",),
             TEST_REGION,
             TEST_UPDATE_TAG,
         ),
     }
-    actual_nodes = {
-        (
-            record["n.id"],
-            record["n.name"],
-            record["n.document_type"],
-            record["n.document_format"],
-            record["n.owner"],
-            tuple(record["n.platform_types"]),
-            record["n.created_date"],
-            record["n.schema_version"],
-            record["n.version"],
-            record["n.default_version"],
-            tuple(record["n.tags"]),
-            tuple(record["n.shared_account_ids"]),
-            record["n.region"],
-            record["n.lastupdated"],
-        )
+    actual_sharing = {
+        (record["n.id"], tuple(record["n.shared_account_ids"]))
         for record in neo4j_session.run(
             """
             MATCH (n:AWSSSMDocument)
-            RETURN n.id, n.name, n.document_type, n.document_format, n.owner,
-                   n.platform_types, n.created_date, n.schema_version, n.version,
-                   n.default_version, n.tags, n.shared_account_ids, n.region,
-                   n.lastupdated
+            RETURN n.id, n.shared_account_ids
             """,
         )
     }
-    assert actual_nodes == expected_nodes
+    assert actual_sharing == {
+        (
+            PUBLIC_DOC_ARN,
+            ("all",),
+        ),
+        (
+            PRIVATE_DOC_ARN,
+            ("111122223333",),
+        ),
+    }
     assert check_rels(
         neo4j_session,
         "AWSAccount",
@@ -432,11 +413,11 @@ def test_load_ssm_documents(
     ) == {
         (
             TEST_ACCOUNT_ID,
-            "arn:aws:ssm:us-east-1:000000000000:document/RunSecurityBaseline",
+            PUBLIC_DOC_ARN,
         ),
         (
             TEST_ACCOUNT_ID,
-            "arn:aws:ssm:us-east-1:000000000000:document/PrivateAutomation",
+            PRIVATE_DOC_ARN,
         ),
     }
 

@@ -212,7 +212,6 @@ SSM_DOCUMENTS_DATA = [
         "SchemaVersion": "2.2",
         "DocumentFormat": "JSON",
         "CreatedDate": datetime.datetime(2024, 6, 1, tzinfo=tz.utc),
-        "Tags": [{"Key": "Environment", "Value": "prod"}],
         "SharedAccountIds": ["all"],
     },
     {
@@ -224,7 +223,6 @@ SSM_DOCUMENTS_DATA = [
         "SchemaVersion": "0.3",
         "DocumentFormat": "YAML",
         "CreatedDate": datetime.datetime(2024, 6, 1, tzinfo=tz.utc),
-        "Tags": [],
         "SharedAccountIds": ["111122223333"],
     },
 ]

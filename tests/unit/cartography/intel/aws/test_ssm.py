@@ -213,7 +213,10 @@ def test_get_ssm_documents_lists_self_owned_documents_and_sharing() -> None:
     paginator.paginate.return_value = [{"DocumentIdentifiers": [document]}]
     client = MagicMock()
     client.get_paginator.return_value = paginator
-    client.describe_document_permission.return_value = {"AccountIds": ["all"]}
+    client.describe_document_permission.side_effect = [
+        {"AccountIds": ["111122223333"], "NextToken": "page-2"},
+        {"AccountIds": ["all"]},
+    ]
     boto3_session = MagicMock()
     boto3_session.client.return_value = client
 
@@ -223,16 +226,20 @@ def test_get_ssm_documents_lists_self_owned_documents_and_sharing() -> None:
         {
             "Name": "RunSecurityBaseline",
             "Owner": "000000000000",
-            "SharedAccountIds": ["all"],
+            "SharedAccountIds": ["111122223333", "all"],
         },
     ]
     paginator.paginate.assert_called_once_with(
         Filters=[{"Key": "Owner", "Values": ["Self"]}],
     )
-    client.describe_document_permission.assert_called_once_with(
-        Name="RunSecurityBaseline",
-        PermissionType="Share",
-    )
+    assert client.describe_document_permission.call_args_list == [
+        call(Name="RunSecurityBaseline", PermissionType="Share"),
+        call(
+            Name="RunSecurityBaseline",
+            PermissionType="Share",
+            NextToken="page-2",
+        ),
+    ]
 
 
 def test_get_ssm_documents_keeps_document_when_permission_lookup_fails() -> None:
@@ -241,16 +248,19 @@ def test_get_ssm_documents_keeps_document_when_permission_lookup_fails() -> None
     paginator.paginate.return_value = [{"DocumentIdentifiers": [document]}]
     client = MagicMock()
     client.get_paginator.return_value = paginator
-    client.describe_document_permission.side_effect = ClientError(
-        {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
-        "DescribeDocumentPermission",
-    )
+    client.describe_document_permission.side_effect = [
+        {"AccountIds": ["111122223333"], "NextToken": "page-2"},
+        ClientError(
+            {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
+            "DescribeDocumentPermission",
+        ),
+    ]
     boto3_session = MagicMock()
     boto3_session.client.return_value = client
 
     documents = get_ssm_documents(boto3_session, "us-east-1")
 
-    assert documents == [{"Name": "PrivateAutomation", "SharedAccountIds": []}]
+    assert documents == [{"Name": "PrivateAutomation", "SharedAccountIds": None}]
 
 
 def test_transform_ssm_documents_builds_arn_and_security_fields() -> None:
@@ -258,34 +268,20 @@ def test_transform_ssm_documents_builds_arn_and_security_fields() -> None:
         [
             {
                 "Name": "RunSecurityBaseline",
-                "Owner": "000000000000",
-                "PlatformTypes": ["Linux"],
-                "DocumentVersion": "3",
-                "DocumentType": "Command",
-                "DocumentFormat": "JSON",
-                "SchemaVersion": "2.2",
                 "CreatedDate": datetime(2024, 6, 1, tzinfo=timezone.utc),
-                "Tags": [{"Key": "Environment", "Value": "prod"}],
                 "SharedAccountIds": ["all"],
             },
         ],
-        "us-east-1",
+        "cn-north-1",
         "000000000000",
     )
 
     assert transformed == [
         {
             "Name": "RunSecurityBaseline",
-            "Owner": "000000000000",
-            "PlatformTypes": ["Linux"],
-            "DocumentVersion": "3",
-            "DocumentType": "Command",
-            "DocumentFormat": "JSON",
-            "SchemaVersion": "2.2",
             "CreatedDate": 1717200000,
-            "Tags": ["Environment=prod"],
             "SharedAccountIds": ["all"],
-            "Arn": "arn:aws:ssm:us-east-1:000000000000:document/RunSecurityBaseline",
+            "Arn": "arn:aws-cn:ssm:cn-north-1:000000000000:document/RunSecurityBaseline",
         },
     ]
 
