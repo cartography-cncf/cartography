@@ -133,8 +133,9 @@ cartography --selected-modules gcp
 layers, build provenance and parent images read from their OCI configs, and
 requires `artifact_registry`. To sync the image inventory without that
 enrichment, list `artifact_registry` in `--gcp-requested-syncs` and leave out
-`artifact_registry_image_layers`. Layer and provenance data already in Neo4j
-stays in place.
+`artifact_registry_image_layers`. Image provenance and layers that a project
+already links to stay in place. The once-per-sync orphan cleanup still deletes
+layers that no project links to.
 
 ````{note}
 Exclusions are non-destructive. Cartography only runs cleanup after it has a
