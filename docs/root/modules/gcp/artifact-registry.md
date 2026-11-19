@@ -34,7 +34,10 @@ current update tag as `lastupdated`. Their `RESOURCE`, `CONTAINS`,
 `lastupdated` of the sync that last wrote them. When the listing is complete, a
 tag that it no longer returns is deleted with its relationships, and so is a
 manifest list's `CONTAINS_IMAGE` relationship. When a repository cannot be
-listed, for example because access is denied, nothing is deleted.
+listed, for example because access is denied, no tag or `CONTAINS_IMAGE`
+relationship is deleted. A tag that is written again always loses the
+relationships it had before, such as the `IMAGE` relationship to the digest it
+used to point to.
 
 OCI image layers are modeled independently by uncompressed diff ID. `HAS_LAYER`
 links an image to every layer, `HEAD` and `TAIL` mark the ordered boundaries,
