@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.artifact_registry import supply_chain
 from cartography.intel.gcp.artifact_registry import sync
 from cartography.intel.gcp.artifact_registry.artifact import cleanup_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
@@ -19,7 +20,6 @@ from cartography.intel.gcp.artifact_registry.manifest import load_manifests
 from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
 )
-from cartography.intel.gcp.artifact_registry import supply_chain
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
 from cartography.intel.gcp.artifact_registry.supply_chain import (
     _get_provenance_complete_names,
@@ -1236,8 +1236,9 @@ def test_layer_graph_comes_back_after_being_turned_off(neo4j_session, monkeypatc
             neo4j_session,
             {"UPDATE_TAG": update_tag},
         )
-        return neo4j_session.run(
-            """
+        return (
+            neo4j_session.run(
+                """
             RETURN
                 COUNT {
                     (:GCPArtifactRegistryImageLayer)
@@ -1251,10 +1252,13 @@ def test_layer_graph_comes_back_after_being_turned_off(neo4j_session, monkeypatc
                     -[:BUILT_FROM]->(:GCPArtifactRegistryImage {digest: $base})
                 } AS built_from
             """,
-            project_id=project_id,
-            app=app_digest,
-            base=base_digest,
-        ).single().data()
+                project_id=project_id,
+                app=app_digest,
+                base=base_digest,
+            )
+            .single()
+            .data()
+        )
 
     # Act and assert
     assert _sync(TEST_UPDATE_TAG, True) == {

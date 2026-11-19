@@ -13,9 +13,9 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_autocommit_query_with_retry
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
+from cartography.client.core.tx import run_autocommit_query_with_retry
 from cartography.graph.job import GraphJob
 from cartography.helpers import batch
 from cartography.intel.container_arch import normalize_architecture
