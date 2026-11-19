@@ -161,6 +161,7 @@ def test_refresh_layer_closures_projects_source_to_ontology(neo4j_session):
             {
                 ("image", 2),
                 ("project_layer_link", 2),
+                ("BUILT_FROM", 2),
                 ("layer", 1),
                 ("HAS_LAYER", 1),
                 ("HEAD", 1),
@@ -173,6 +174,7 @@ def test_refresh_layer_closures_projects_source_to_ontology(neo4j_session):
             {
                 ("image", 2),
                 ("project_layer_link", 2),
+                ("BUILT_FROM", 2),
                 ("layer", 2),
                 ("HAS_LAYER", 2),
                 ("HEAD", 2),
@@ -204,6 +206,11 @@ def test_refresh_layer_closures_refreshes_what_cleanup_reads(
         CREATE (img)-[:HEAD {lastupdated: 1}]->(a)
         CREATE (img)-[:TAIL {lastupdated: 1}]->(b)
         CREATE (a)-[:NEXT {lastupdated: 1}]->(b)
+        CREATE (img)-[:BUILT_FROM {
+            lastupdated: 1,
+            _sub_resource_label: 'GCPProject',
+            _sub_resource_id: 'project-1'
+        }]->(:GCPArtifactRegistryImage {digest: 'sha256:parent', lastupdated: 1})
         """
     ).consume()
     shape = replace(
@@ -223,8 +230,11 @@ def test_refresh_layer_closures_refreshes_what_cleanup_reads(
     # Assert
     rows = neo4j_session.run(
         """
-        MATCH (img:GCPArtifactRegistryImage)
+        MATCH (img:GCPArtifactRegistryImage {digest: 'sha256:img'})
         RETURN 'image' AS entity, img.lastupdated AS tag
+        UNION
+        MATCH (:GCPArtifactRegistryImage)-[r:BUILT_FROM]->()
+        RETURN 'BUILT_FROM' AS entity, r.lastupdated AS tag
         UNION
         MATCH (layer:GCPArtifactRegistryImageLayer)
         RETURN 'layer' AS entity, layer.lastupdated AS tag
