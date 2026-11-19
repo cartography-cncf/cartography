@@ -4,6 +4,7 @@ import json
 import logging
 from collections import Counter
 from dataclasses import dataclass
+from dataclasses import replace
 from typing import Any
 
 import httpx
@@ -12,6 +13,7 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_autocommit_query_with_retry
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
@@ -92,6 +94,11 @@ GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
     # links to it, and its edges go with it.
     closure_cleaned_by_reachability=True,
     layer_id_property="id",
+)
+# What a sync without the layer graph still refreshes: images and BUILT_FROM.
+GCP_ARTIFACT_REGISTRY_IMAGE_GRAPH = replace(
+    GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+    layer_scoped=False,
 )
 
 ALL_MANIFEST_ACCEPT = ", ".join(
@@ -1886,6 +1893,7 @@ def _enrich_chunk(
     sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]],
     embedded_provenance: dict[str, dict[str, str]],
     denied_repositories: Counter[str],
+    sync_layer_graph: bool,
 ) -> _ChunkEnrichment:
     single_image_digests_by_name = {
         artifact["name"]: digest
@@ -1898,21 +1906,29 @@ def _enrich_chunk(
         neo4j_session,
         set(single_image_digests_by_name),
     )
-    # A layer graph stamp is written only after this project saved the image's
-    # layers, so its digest needs no layer closure check.
-    layer_graph_stamped = _get_layer_graph_complete_names(
-        neo4j_session,
-        provenance_stamped,
-    )
-    trusted_digests = {
-        single_image_digests_by_name[name] for name in layer_graph_stamped
-    }
-    checked_digests = get_complete_layer_digests(
-        neo4j_session,
-        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
-        set(single_image_digests_by_name.values()) - trusted_digests,
-        {"id": project_id},
-    )
+    if sync_layer_graph:
+        # A layer graph stamp is written only after this project saved the
+        # image's layers, so its digest needs no layer closure check.
+        layer_graph_stamped = _get_layer_graph_complete_names(
+            neo4j_session,
+            provenance_stamped,
+        )
+        trusted_digests = {
+            single_image_digests_by_name[name] for name in layer_graph_stamped
+        }
+        checked_digests = get_complete_layer_digests(
+            neo4j_session,
+            GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+            set(single_image_digests_by_name.values()) - trusted_digests,
+            {"id": project_id},
+        )
+    else:
+        # Without the layer graph, the provenance stamp alone says the image is done.
+        layer_graph_stamped = set()
+        trusted_digests = {
+            single_image_digests_by_name[name] for name in provenance_stamped
+        }
+        checked_digests = set()
     complete_digests = trusted_digests | checked_digests
     if complete_digests:
         logger.info(
@@ -1951,14 +1967,15 @@ def _enrich_chunk(
             update_tag,
         )
 
-    layer_dicts = _build_layer_dicts(enrichments)
+    layer_dicts = _build_layer_dicts(enrichments) if sync_layer_graph else []
     if layer_dicts:
         load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
-    load_image_layer_relationships(
-        neo4j_session,
-        merged_provenance_updates,
-        update_tag,
-    )
+    if sync_layer_graph:
+        load_image_layer_relationships(
+            neo4j_session,
+            merged_provenance_updates,
+            update_tag,
+        )
     # Written after this chunk's enrichment: a stamp lets later syncs skip the
     # artifact, so it must not land before what this pass read for it is saved.
     # Stamping per chunk keeps the progress of a sync that is stopped part way.
@@ -1966,7 +1983,7 @@ def _enrich_chunk(
     # skipped one passed the layer closure check, so both get the layer graph
     # stamp. When discovery was incomplete, SBOM tags in repositories that were
     # not listed went unseen, so the pass only clears stamps.
-    if cleanup_safe:
+    if cleanup_safe and sync_layer_graph:
         layer_graph_names = {
             name for name, version in provenance_versions.items() if version
         } | {
@@ -1976,12 +1993,13 @@ def _enrich_chunk(
             and single_image_digests_by_name[name] in checked_digests
         }
     else:
+        layer_graph_names = set()
+    if not cleanup_safe:
         provenance_versions = {
             name: version
             for name, version in provenance_versions.items()
             if version is None
         }
-        layer_graph_names = set()
     load_repository_image_provenance(
         neo4j_session,
         docker_artifacts_raw,
@@ -2001,6 +2019,26 @@ def _enrich_chunk(
     )
 
 
+def _clear_layer_graph_stamps(neo4j_session: neo4j.Session, project_id: str) -> None:
+    """Forget that the project's images have a layer graph, before deleting it.
+
+    Otherwise turning the layer graph back on would trust the stamps and never
+    load the layers again.
+    """
+    run_autocommit_query_with_retry(
+        neo4j_session,
+        """
+        MATCH (:GCPProject {id: $project_id})-[:RESOURCE]->
+              (ri:GCPArtifactRegistryRepositoryImage)
+        WHERE ri.layer_graph_digest IS NOT NULL
+        CALL (ri) {
+            SET ri.layer_graph_digest = NULL
+        } IN TRANSACTIONS OF 10000 ROWS
+        """,
+        {"project_id": project_id},
+    )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -2010,6 +2048,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     cleanup_safe: bool = True,
+    sync_layer_graph: bool = True,
 ) -> None:
     """
     Enrich GCP Artifact Registry container images with build provenance and layer data.
@@ -2019,6 +2058,10 @@ def sync(
     the image nodes in the graph. This enables the existing GitHub/GitLab supply
     chain modules to create PACKAGED_FROM relationships via provenance matching
     and Dockerfile analysis.
+
+    Without sync_layer_graph, images still get provenance, parent images and
+    layer_diff_ids, and the project's layer links are removed, which lets the
+    orphan cleanup delete layers no other project uses.
     """
     logger.info("Starting supply chain sync for GCP project %s", project_id)
 
@@ -2064,6 +2107,7 @@ def sync(
             sbom_artifacts_by_digest,
             embedded_provenance,
             denied_repositories,
+            sync_layer_graph,
         )
         complete_digests |= result.complete_digests
         fetch_failures += result.fetch_failures
@@ -2087,7 +2131,11 @@ def sync(
 
     refresh_layer_closures(
         neo4j_session,
-        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+        (
+            GCP_ARTIFACT_REGISTRY_LAYER_GRAPH
+            if sync_layer_graph
+            else GCP_ARTIFACT_REGISTRY_IMAGE_GRAPH
+        ),
         complete_digests,
         {"id": project_id},
         update_tag,
@@ -2107,14 +2155,19 @@ def sync(
     if fetch_failures:
         skip_reasons.append(f"{fetch_failures} image(s) failed to enrich")
 
+    # Without the layer graph, no layer link was written or refreshed this sync,
+    # so every one goes: the gates only protect links an image may still need.
+    if not sync_layer_graph:
+        _clear_layer_graph_stamps(neo4j_session, project_id)
+    if not skip_reasons or not sync_layer_graph:
+        cleanup_image_layers(neo4j_session, project_id, common_job_parameters)
     if skip_reasons:
         logger.warning(
-            "Skipping image layer cleanup for project %s: %s.",
+            "Skipping stale Artifact Registry link cleanup for project %s: %s.",
             project_id,
             "; ".join(skip_reasons),
         )
     else:
-        cleanup_image_layers(neo4j_session, project_id, common_job_parameters)
         GraphJob.from_matchlink(
             GCPArtifactRegistryImageBuiltFromMatchLink(),
             "GCPProject",

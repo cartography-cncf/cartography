@@ -1149,6 +1149,43 @@ def test_sync_keeps_finished_chunks_when_a_later_chunk_fails(patched_sync, monke
     )
 
 
+def test_sync_without_layer_graph_keeps_provenance_and_removes_layer_links(
+    patched_sync, monkeypatch
+):
+    # Arrange: a failed fetch would normally hold back the layer link cleanup.
+    set_enrichments, cleanup_runs = patched_sync
+    set_enrichments(
+        enrichments=[
+            {
+                "digest": "sha256:img",
+                "source_uri": "https://github.com/foo/bar",
+                "layer_diff_ids": ["sha256:a", "sha256:b"],
+            }
+        ],
+        fetch_failures=1,
+    )
+
+    # Act
+    supply_chain.sync(
+        neo4j_session=MagicMock(),
+        credentials=MagicMock(),
+        docker_artifacts_raw=[{"name": "img"}],
+        project_id="proj",
+        update_tag=1,
+        common_job_parameters={},
+        sync_layer_graph=False,
+    )
+
+    # Assert
+    assert supply_chain.load_image_provenance.call_args.args[1][0]["source_uri"] == (
+        "https://github.com/foo/bar"
+    )
+    supply_chain.get_complete_layer_digests.assert_not_called()
+    supply_chain.load_image_layers.assert_not_called()
+    supply_chain.load_image_layer_relationships.assert_not_called()
+    assert cleanup_runs == ["gcp_artifact_registry_orphan_image_layer_cleanup.json"]
+
+
 @pytest.mark.asyncio
 async def test_cached_digest_rechecks_provenance_without_fetching_config(monkeypatch):
     config_fetch = AsyncMock()

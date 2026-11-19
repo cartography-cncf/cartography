@@ -132,7 +132,7 @@ def test_exposure_jobs_follow_the_sync_that_feeds_them(requested_syncs, expected
 
 
 @pytest.mark.parametrize(
-    "requested_syncs, enriched",
+    "requested_syncs, layer_graph",
     [
         pytest.param(
             {"artifact_registry", "artifact_registry_image_layers"},
@@ -142,17 +142,25 @@ def test_exposure_jobs_follow_the_sync_that_feeds_them(requested_syncs, expected
         pytest.param({"artifact_registry"}, False, id="layers_not_requested"),
     ],
 )
-def test_artifact_registry_image_layers_follow_requested_syncs(
-    requested_syncs, enriched
+@pytest.mark.parametrize(
+    "docker_images",
+    [
+        [{"name": "image", "uri": "us-docker.pkg.dev/p/r/i@sha256:abc"}],
+        # A project whose last image is gone still cleans up its layer links.
+        [],
+    ],
+    ids=["images", "no_images"],
+)
+def test_artifact_registry_layer_graph_follows_requested_syncs(
+    requested_syncs, layer_graph, docker_images
 ):
     """
-    Image layer enrichment costs far more than the Artifact Registry inventory on
-    large registries, so it runs only when artifact_registry_image_layers is
-    requested alongside artifact_registry.
+    The layer graph costs far more than the Artifact Registry inventory on large
+    registries, so it loads only when artifact_registry_image_layers is requested.
+    Build provenance and parent images load either way.
     """
     gar = cartography.intel.gcp.artifact_registry
     serviceusage_client = _make_serviceusage_client(["artifactregistry.googleapis.com"])
-    docker_image = {"name": "image", "uri": "us-docker.pkg.dev/p/r/i@sha256:abc"}
 
     with (
         patch("cartography.intel.gcp.build_client", return_value=serviceusage_client),
@@ -165,7 +173,7 @@ def test_artifact_registry_image_layers_follow_requested_syncs(
         patch.object(
             gar,
             "sync_artifact_registry_artifacts",
-            return_value=ArtifactRegistryArtifactSyncResult([], [docker_image], True),
+            return_value=ArtifactRegistryArtifactSyncResult([], docker_images, True),
         ),
         patch.object(gar, "cleanup_manifests"),
         patch.object(gar, "run_scoped_analysis_job"),
@@ -180,4 +188,4 @@ def test_artifact_registry_image_layers_follow_requested_syncs(
             requested_syncs=requested_syncs,
         )
 
-    assert sync_supply_chain.called is enriched
+    assert sync_supply_chain.call_args.kwargs["sync_layer_graph"] is layer_graph
