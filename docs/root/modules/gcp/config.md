@@ -129,6 +129,13 @@ cartography --selected-modules gcp
 | `--gcp-excluded-folder-ids` | Comma-separated GCP folder IDs to exclude from ingestion. The entire subtree under each excluded folder is skipped |
 | `--gcp-exclude-org-root-projects` | Exclude projects attached directly to the organization root, i.e. not inside any folder (default: included) |
 
+`artifact_registry_image_layers` enriches Artifact Registry Docker images with
+layers, build provenance and parent images read from their OCI configs, and
+requires `artifact_registry`. To sync the image inventory without that
+enrichment, list `artifact_registry` in `--gcp-requested-syncs` and leave out
+`artifact_registry_image_layers`. Layer and provenance data already in Neo4j
+stays in place.
+
 ````{note}
 Exclusions are non-destructive. Cartography only runs cleanup after it has a
 complete inventory of a scope, and an excluded scope is never inventoried —

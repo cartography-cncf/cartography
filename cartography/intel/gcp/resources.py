@@ -15,6 +15,10 @@ RESOURCE_FUNCTIONS: list[str] = [
     "cloud_sql",
     "secretsmanager",
     "artifact_registry",
+    # Layer, build provenance and parent image enrichment for Artifact Registry
+    # images. Separate from artifact_registry because on registries with
+    # millions of images it costs far more than the inventory itself.
+    "artifact_registry_image_layers",
     "cloud_run",
     "bigquery",
     "bigquery_connection",

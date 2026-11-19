@@ -578,6 +578,10 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                sync_image_layers=(
+                    requested_syncs is None
+                    or "artifact_registry_image_layers" in requested_syncs
+                ),
             )
 
         if service_names.cloud_run in enabled_services:
@@ -857,6 +861,7 @@ def start_gcp_ingestion(
             "policy_bindings": ["iam"],
             "permission_relationships": ["iam", "policy_bindings"],
             "bigquery_connection": ["bigquery"],
+            "artifact_registry_image_layers": ["artifact_registry"],
         }
         for module, dependencies in module_dependencies.items():
             if module in requested_syncs:
