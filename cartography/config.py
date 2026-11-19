@@ -213,6 +213,10 @@ class Config:
     :param notion_config: Base64 encoded config object for Notion ingestion. Optional.
     :type github_commit_lookback_days: int
     :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
+    :type github_incremental_sync: bool
+    :param github_incremental_sync: Enable incremental sync for GitHub repos. Skips archived/disabled repos,
+        skips commits for repos with no push in the lookback window, and skips re-fetching workflow YAML and
+        dependency manifests for repos whose pushedAt is unchanged since the last sync. Optional.
     :type digitalocean_token: str
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
@@ -941,6 +945,8 @@ class Config:
         neon_api_key: str | None = None,
         neon_org_ids: str | None = None,
         neon_base_url: str | None = None,
+        # Appended last to preserve positional-arg compatibility for existing callers.
+        github_incremental_sync=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1030,6 +1036,7 @@ class Config:
         self.github_config = github_config
         self.github_commit_lookback_days = github_commit_lookback_days
         self.notion_config = notion_config
+        self.github_incremental_sync = github_incremental_sync
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file

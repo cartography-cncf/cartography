@@ -110,6 +110,9 @@ class GitHubRepositoryNodeProperties(CartographyNodeProperties):
         "dependabot_security_updates_enabled",
         description="Whether Dependabot security updates are enabled.",
     )
+    pushedat: PropertyRef = PropertyRef(
+        "pushedat", description="Timestamp when the repository was last pushed to."
+    )
 
 
 @dataclass(frozen=True)
