@@ -287,6 +287,10 @@ class GCPArtifactRegistryRepositoryImageProvenanceNodeProperties(
         "provenance_digest",
         description="Digest the provenance_version stamp was written for. A tag can move to another digest, so the stamp only counts while this matches the node's digest.",
     )
+    layer_graph_digest: PropertyRef = PropertyRef(
+        "layer_graph_digest",
+        description="Digest whose layer graph this project had saved when the provenance stamp was written. While it matches the node's digest, the sync skips the image's layer closure check.",
+    )
 
 
 @dataclass(frozen=True)
