@@ -175,7 +175,7 @@ def test_artifact_registry_layer_graph_follows_requested_syncs(
             "sync_artifact_registry_artifacts",
             return_value=ArtifactRegistryArtifactSyncResult([], docker_images, True),
         ),
-        patch.object(gar, "cleanup_manifests"),
+        patch.object(gar, "sync_manifests"),
         patch.object(gar, "run_scoped_analysis_job"),
         patch.object(gar, "sync_supply_chain") as sync_supply_chain,
     ):
