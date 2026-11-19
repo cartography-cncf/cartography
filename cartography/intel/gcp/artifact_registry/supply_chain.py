@@ -1109,55 +1109,28 @@ async def _process_single_image(
     return (result if len(result) > 1 else None), fetch_failed
 
 
-async def _fetch_all_image_provenance(
-    credentials: GoogleCredentials | None,
-    docker_artifacts_raw: list[dict[str, Any]],
-    project_id: str,
-    max_concurrent: int = 50,
-    complete_digests: set[str] | None = None,
-    digests_with_source_file: set[str] | None = None,
-    provenance_complete_names: set[str] | None = None,
-) -> tuple[list[dict[str, Any]], int, dict[str, int | None]]:
-    """Run enrichment for single-image artifacts whose provenance pass is not done.
+def _log_denied_repositories(denied_repositories: Counter[str]) -> None:
+    for repository, skipped in denied_repositories.items():
+        logger.warning(
+            "Could not enrich %d artifact(s) in Artifact Registry repository %s: "
+            "access denied (HTTP 403).",
+            skipped,
+            repository,
+        )
 
-    Returns (results, fetch_failures, provenance_versions). `fetch_failures` is
-    the count of images that hit a transient fetch error; callers use it to
-    suppress stale-layer cleanup when the enrichment pass was incomplete.
-    `provenance_versions` maps each processed artifact's resource name to the
-    stamp its repository images get: GAR_PROVENANCE_VERSION, or None when a fetch
-    failed, which clears an earlier stamp so the artifact is read again.
-    """
-    resolved = _resolve_credentials(credentials)
-    if not resolved.valid:
-        resolved.refresh(Request())
-    token_manager = _TokenManager(resolved)
-    sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
-    complete_digests = complete_digests or set()
-    provenance_complete_names = provenance_complete_names or set()
-    attestation_digests = _embedded_attestation_digests(docker_artifacts_raw)
-    single_images = [
-        a
-        for a in docker_artifacts_raw
-        if a.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
-        and _artifact_digest(a) not in attestation_digests
-    ]
-    if not single_images:
-        return [], 0, {}
-
-    semaphore = asyncio.Semaphore(max_concurrent)
-    results: list[dict[str, Any]] = []
-    fetch_failures = 0
-    provenance_versions: dict[str, int | None] = {}
-    embedded_provenance: dict[str, dict[str, str]] = {}
-    # Read access is granted per repository, so once a repository answers 403
-    # the rest of its fetches are skipped and reported once, with a count.
-    denied_repositories: Counter[str] = Counter()
+async def _fetch_embedded_attestations(
+    client: httpx.AsyncClient,
+    token_manager: "_TokenManager",
+    semaphore: asyncio.Semaphore,
+    attestation_refs: list[tuple[str, str, str]],
+    denied_repositories: Counter[str],
+) -> tuple[dict[str, dict[str, str]], int]:
+    """Return provenance keyed by subject digest, and the number of failed fetches."""
 
     async def bounded_attestation(
-        ref: tuple[str, str, str], client: httpx.AsyncClient
+        ref: tuple[str, str, str],
     ) -> dict[str, dict[str, str]] | None:
-        """Return provenance keyed by subject digest, or None if the fetch failed."""
         registry, image_path, attestation_digest = ref
         repository = _repository_path(registry, image_path)
         async with semaphore:
@@ -1180,6 +1153,107 @@ async def _fetch_all_image_provenance(
                     e,
                 )
                 return None
+
+    if attestation_refs:
+        logger.info(
+            "Fetching %d BuildKit attestation manifests embedded in image indexes...",
+            len(attestation_refs),
+        )
+    embedded_provenance: dict[str, dict[str, str]] = {}
+    failures = 0
+    for provenance_by_subject in await asyncio.gather(
+        *(bounded_attestation(ref) for ref in attestation_refs)
+    ):
+        if provenance_by_subject is None:
+            failures += 1
+            continue
+        embedded_provenance.update(provenance_by_subject)
+    return embedded_provenance, failures
+
+
+async def _fetch_project_embedded_provenance(
+    credentials: GoogleCredentials | None,
+    docker_artifacts_raw: list[dict[str, Any]],
+    digests_with_source_file: set[str],
+    denied_repositories: Counter[str],
+    max_concurrent: int = 50,
+) -> tuple[dict[str, dict[str, str]], int]:
+    attestation_refs = _embedded_attestation_refs(
+        docker_artifacts_raw, digests_with_source_file
+    )
+    if not attestation_refs:
+        return {}, 0
+    resolved = _resolve_credentials(credentials)
+    if not resolved.valid:
+        resolved.refresh(Request())
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        return await _fetch_embedded_attestations(
+            client,
+            _TokenManager(resolved),
+            asyncio.Semaphore(max_concurrent),
+            attestation_refs,
+            denied_repositories,
+        )
+
+
+async def _fetch_all_image_provenance(
+    credentials: GoogleCredentials | None,
+    docker_artifacts_raw: list[dict[str, Any]],
+    project_id: str,
+    max_concurrent: int = 50,
+    complete_digests: set[str] | None = None,
+    digests_with_source_file: set[str] | None = None,
+    provenance_complete_names: set[str] | None = None,
+    sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]] | None = None,
+    embedded_provenance: dict[str, dict[str, str]] | None = None,
+    denied_repositories: Counter[str] | None = None,
+) -> tuple[list[dict[str, Any]], int, dict[str, int | None]]:
+    """Run enrichment for single-image artifacts whose provenance pass is not done.
+
+    Returns (results, fetch_failures, provenance_versions). `fetch_failures` is
+    the count of images that hit a transient fetch error; callers use it to
+    suppress stale-layer cleanup when the enrichment pass was incomplete.
+    `provenance_versions` maps each processed artifact's resource name to the
+    stamp its repository images get: GAR_PROVENANCE_VERSION, or None when a fetch
+    failed, which clears an earlier stamp so the artifact is read again.
+
+    A caller enriching a project in parts passes the project's SBOM lookup,
+    embedded attestation provenance and denied repositories, since an SBOM or an
+    attestation can describe an image in another part.
+    """
+    resolved = _resolve_credentials(credentials)
+    if not resolved.valid:
+        resolved.refresh(Request())
+    token_manager = _TokenManager(resolved)
+    if sbom_artifacts_by_digest is None:
+        sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(
+            docker_artifacts_raw
+        )
+
+    complete_digests = complete_digests or set()
+    provenance_complete_names = provenance_complete_names or set()
+    attestation_digests = _embedded_attestation_digests(docker_artifacts_raw)
+    single_images = [
+        a
+        for a in docker_artifacts_raw
+        if a.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
+        and _artifact_digest(a) not in attestation_digests
+    ]
+    if not single_images:
+        return [], 0, {}
+
+    semaphore = asyncio.Semaphore(max_concurrent)
+    results: list[dict[str, Any]] = []
+    fetch_failures = 0
+    provenance_versions: dict[str, int | None] = {}
+    reads_attestations = embedded_provenance is None
+    embedded_provenance = embedded_provenance or {}
+    # Read access is granted per repository, so once a repository answers 403
+    # the rest of its fetches are skipped and reported once, with a count.
+    reports_denied = denied_repositories is None
+    denied_repositories = (
+        Counter() if denied_repositories is None else denied_repositories
+    )
 
     async def bounded_process(
         artifact: dict[str, Any], fetch_config: bool, client: httpx.AsyncClient
@@ -1216,21 +1290,17 @@ async def _fetch_all_image_provenance(
                 return None, True
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        attestation_refs = _embedded_attestation_refs(
-            docker_artifacts_raw, digests_with_source_file or set()
-        )
-        if attestation_refs:
-            logger.info(
-                "Fetching %d BuildKit attestation manifests embedded in image indexes...",
-                len(attestation_refs),
+        if reads_attestations:
+            read_provenance, fetch_failures = await _fetch_embedded_attestations(
+                client,
+                token_manager,
+                semaphore,
+                _embedded_attestation_refs(
+                    docker_artifacts_raw, digests_with_source_file or set()
+                ),
+                denied_repositories,
             )
-            for provenance_by_subject in await asyncio.gather(
-                *(bounded_attestation(ref, client) for ref in attestation_refs)
-            ):
-                if provenance_by_subject is None:
-                    fetch_failures += 1
-                    continue
-                embedded_provenance.update(provenance_by_subject)
+            embedded_provenance.update(read_provenance)
 
         # An artifact whose layers are complete and whose repository image is stamped
         # is skipped: its config cannot change, and the stamped pass read this
@@ -1276,13 +1346,8 @@ async def _fetch_all_image_provenance(
             if result is not None:
                 results.append(result)
 
-    for repository, skipped in denied_repositories.items():
-        logger.warning(
-            "Could not enrich %d artifact(s) in Artifact Registry repository %s: "
-            "access denied (HTTP 403).",
-            skipped,
-            repository,
-        )
+    if reports_denied:
+        _log_denied_repositories(denied_repositories)
     logger.info(
         "Extracted provenance/layer data for %d of %d images (%d fetch failures)",
         len(results),
@@ -1446,6 +1511,28 @@ def _get_provenance_complete_names(
     return provenance_complete
 
 
+def _get_layer_graph_complete_names(
+    neo4j_session: neo4j.Session,
+    resource_names: set[str],
+    batch_size: int = 1000,
+) -> set[str]:
+    layer_graph_complete: set[str] = set()
+    for name_batch in batch(sorted(resource_names), size=batch_size):
+        layer_graph_complete.update(
+            neo4j_session.execute_read(
+                read_list_of_values_tx,
+                """
+                UNWIND $resource_names AS resource_name
+                MATCH (ri:GCPArtifactRegistryRepositoryImage {resource_name: resource_name})
+                WHERE ri.layer_graph_digest = ri.digest
+                RETURN DISTINCT ri.resource_name
+                """,
+                resource_names=name_batch,
+            ),
+        )
+    return layer_graph_complete
+
+
 @timeit
 def load_repository_image_provenance(
     neo4j_session: neo4j.Session,
@@ -1453,19 +1540,32 @@ def load_repository_image_provenance(
     provenance_versions: dict[str, int | None],
     project_id: str,
     update_tag: int,
+    layer_graph_names: set[str] | None = None,
 ) -> None:
     # Repository image nodes are keyed by tag, and a tag can move to another digest,
-    # so the stamp also records the digest it was written for.
-    rows = [
-        {
-            "id": node_id,
-            "provenance_version": provenance_versions[artifact["name"]],
-            "provenance_digest": _artifact_digest(artifact),
-        }
-        for artifact in docker_artifacts_raw
-        if artifact.get("name") in provenance_versions
-        for _, node_id in repository_image_refs(artifact)
-    ]
+    # so the stamp also records the digest it was written for. An artifact in
+    # layer_graph_names but not in provenance_versions was skipped with an earlier
+    # provenance stamp, and now also gets its layer graph stamp.
+    layer_graph_names = layer_graph_names or set()
+    rows = []
+    for artifact in docker_artifacts_raw:
+        name = artifact.get("name")
+        if name not in provenance_versions and name not in layer_graph_names:
+            continue
+        digest = _artifact_digest(artifact)
+        for _, node_id in repository_image_refs(artifact):
+            rows.append(
+                {
+                    "id": node_id,
+                    "provenance_version": provenance_versions.get(
+                        name, GAR_PROVENANCE_VERSION
+                    ),
+                    "provenance_digest": digest,
+                    "layer_graph_digest": (
+                        digest if name in layer_graph_names else None
+                    ),
+                }
+            )
     load_nodes_without_relationships(
         neo4j_session,
         GCPArtifactRegistryRepositoryImageProvenanceSchema(),
@@ -1619,6 +1719,38 @@ def load_missing_built_from(
 
 
 @timeit
+def _keep_existing_layer_history(
+    neo4j_session: neo4j.Session,
+    layer_dicts: list[dict[str, Any]],
+) -> None:
+    """Fill in history an image's config omits from what another image recorded.
+
+    Layers are shared across images, and loading a layer without history would
+    erase the created_by command Dockerfile matching reads.
+    """
+    missing = [
+        layer["diff_id"] for layer in layer_dicts if layer.get("history") is None
+    ]
+    if not missing:
+        return
+    existing = {
+        row["id"]: row["history"]
+        for row in neo4j_session.execute_read(
+            read_list_of_dicts_tx,
+            """
+            UNWIND $ids AS id
+            MATCH (layer:GCPArtifactRegistryImageLayer {id: id})
+            WHERE layer.history IS NOT NULL
+            RETURN layer.id AS id, layer.history AS history
+            """,
+            ids=missing,
+        )
+    }
+    for layer in layer_dicts:
+        if layer.get("history") is None:
+            layer["history"] = existing.get(layer["diff_id"])
+
+
 def load_image_layers(
     neo4j_session: neo4j.Session,
     layer_dicts: list[dict[str, Any]],
@@ -1706,9 +1838,12 @@ def cleanup_image_layers(
 @dataclass(frozen=True)
 class _ChunkEnrichment:
     complete_digests: set[str]
-    enrichments: list[dict[str, Any]]
     fetch_failures: int
-    layer_count: int
+    enriched: int
+    with_source: int
+    with_parent: int
+    with_layers: int
+    layers_loaded: int
 
 
 def _image_path_chunks(
@@ -1747,6 +1882,9 @@ def _enrich_chunk(
     project_id: str,
     update_tag: int,
     cleanup_safe: bool,
+    sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]],
+    embedded_provenance: dict[str, dict[str, str]],
+    denied_repositories: Counter[str],
 ) -> _ChunkEnrichment:
     single_image_digests_by_name = {
         artifact["name"]: digest
@@ -1755,33 +1893,31 @@ def _enrich_chunk(
         and artifact.get("name")
         if (digest := _artifact_digest(artifact))
     }
-    # A stamp is written only after its pass saved the image's layers, so a
-    # stamped artifact's digest needs no layer closure check.
-    stamped_names = _get_provenance_complete_names(
+    provenance_stamped = _get_provenance_complete_names(
         neo4j_session,
         set(single_image_digests_by_name),
     )
-    stamped_digests = {single_image_digests_by_name[name] for name in stamped_names}
-    complete_digests = stamped_digests | get_complete_layer_digests(
+    # A layer graph stamp is written only after this project saved the image's
+    # layers, so its digest needs no layer closure check.
+    layer_graph_stamped = _get_layer_graph_complete_names(
+        neo4j_session,
+        provenance_stamped,
+    )
+    trusted_digests = {
+        single_image_digests_by_name[name] for name in layer_graph_stamped
+    }
+    checked_digests = get_complete_layer_digests(
         neo4j_session,
         GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
-        set(single_image_digests_by_name.values()) - stamped_digests,
+        set(single_image_digests_by_name.values()) - trusted_digests,
         {"id": project_id},
     )
+    complete_digests = trusted_digests | checked_digests
     if complete_digests:
         logger.info(
             "Skipping OCI config fetches for %d already-enriched GAR digests",
             len(complete_digests),
         )
-
-    digests_with_source_file = {
-        digest
-        for digest, existing in _get_existing_image_provenance(
-            neo4j_session,
-            _platform_image_digests(docker_artifacts_raw),
-        ).items()
-        if existing.get("source_file")
-    }
 
     enrichments, fetch_failures, provenance_versions = loop.run_until_complete(
         _fetch_all_image_provenance(
@@ -1789,8 +1925,10 @@ def _enrich_chunk(
             docker_artifacts_raw,
             project_id,
             complete_digests=complete_digests,
-            provenance_complete_names=stamped_names,
-            digests_with_source_file=digests_with_source_file,
+            provenance_complete_names=provenance_stamped,
+            sbom_artifacts_by_digest=sbom_artifacts_by_digest,
+            embedded_provenance=embedded_provenance,
+            denied_repositories=denied_repositories,
         ),
     )
 
@@ -1814,6 +1952,7 @@ def _enrich_chunk(
 
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
+        _keep_existing_layer_history(neo4j_session, layer_dicts)
         load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
     load_image_layer_relationships(
         neo4j_session,
@@ -1823,26 +1962,42 @@ def _enrich_chunk(
     # Written after this chunk's enrichment: a stamp lets later syncs skip the
     # artifact, so it must not land before what this pass read for it is saved.
     # Stamping per chunk keeps the progress of a sync that is stopped part way.
-    # When discovery was incomplete, SBOM tags in repositories that were not
-    # listed went unseen, so the pass only clears stamps.
-    if not cleanup_safe:
+    # A processed artifact's layers were saved above or already complete, and a
+    # skipped one passed the layer closure check, so both get the layer graph
+    # stamp. When discovery was incomplete, SBOM tags in repositories that were
+    # not listed went unseen, so the pass only clears stamps.
+    if cleanup_safe:
+        layer_graph_names = {
+            name for name, version in provenance_versions.items() if version
+        } | {
+            name
+            for name in provenance_stamped - layer_graph_stamped
+            if name not in provenance_versions
+            and single_image_digests_by_name[name] in checked_digests
+        }
+    else:
         provenance_versions = {
             name: version
             for name, version in provenance_versions.items()
             if version is None
         }
+        layer_graph_names = set()
     load_repository_image_provenance(
         neo4j_session,
         docker_artifacts_raw,
         provenance_versions,
         project_id,
         update_tag,
+        layer_graph_names=layer_graph_names,
     )
     return _ChunkEnrichment(
         complete_digests=complete_digests,
-        enrichments=enrichments,
         fetch_failures=fetch_failures,
-        layer_count=len(layer_dicts),
+        enriched=len(enrichments),
+        with_source=sum(1 for e in enrichments if e.get("source_uri")),
+        with_parent=sum(1 for e in enrichments if e.get("parent_image_digest")),
+        with_layers=sum(1 for e in enrichments if e.get("layer_diff_ids")),
+        layers_loaded=len(layer_dicts),
     )
 
 
@@ -1873,10 +2028,29 @@ def sync(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+    # Read once for the whole project: an SBOM tag or an index's attestation can
+    # describe an image in another image path, and so in another chunk.
+    denied_repositories: Counter[str] = Counter()
+    digests_with_source_file = {
+        digest
+        for digest, existing in _get_existing_image_provenance(
+            neo4j_session,
+            _platform_image_digests(docker_artifacts_raw),
+        ).items()
+        if existing.get("source_file")
+    }
+    embedded_provenance, fetch_failures = loop.run_until_complete(
+        _fetch_project_embedded_provenance(
+            credentials,
+            docker_artifacts_raw,
+            digests_with_source_file,
+            denied_repositories,
+        ),
+    )
+    sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
+
     complete_digests: set[str] = set()
-    enrichments: list[dict[str, Any]] = []
-    fetch_failures = 0
-    layer_count = 0
+    totals: Counter[str] = Counter()
     chunks = _image_path_chunks(docker_artifacts_raw, ENRICHMENT_CHUNK_SIZE)
     for index, chunk in enumerate(chunks, start=1):
         result = _enrich_chunk(
@@ -1887,11 +2061,18 @@ def sync(
             project_id,
             update_tag,
             cleanup_safe,
+            sbom_artifacts_by_digest,
+            embedded_provenance,
+            denied_repositories,
         )
         complete_digests |= result.complete_digests
-        enrichments.extend(result.enrichments)
         fetch_failures += result.fetch_failures
-        layer_count += result.layer_count
+        totals.update(
+            with_source=result.with_source,
+            with_parent=result.with_parent,
+            with_layers=result.with_layers,
+            layers_loaded=result.layers_loaded,
+        )
         logger.info(
             "Enriched Artifact Registry chunk %d/%d for project %s: "
             "%d artifacts, %d enriched, %d fetch failures",
@@ -1899,9 +2080,10 @@ def sync(
             len(chunks),
             project_id,
             len(chunk),
-            len(result.enrichments),
+            result.enriched,
             result.fetch_failures,
         )
+    _log_denied_repositories(denied_repositories)
 
     refresh_layer_closures(
         neo4j_session,
@@ -1940,16 +2122,13 @@ def sync(
             update_tag,
         ).run(neo4j_session)
 
-    provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
-    parent_count = sum(1 for e in enrichments if e.get("parent_image_digest"))
-    layer_image_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))
     logger.info(
         "Completed supply chain sync for GCP project %s: "
         "%d images with source provenance, %d with parent image lineage, "
         "%d with layer data, %d layers loaded",
         project_id,
-        provenance_count,
-        parent_count,
-        layer_image_count,
-        layer_count,
+        totals["with_source"],
+        totals["with_parent"],
+        totals["with_layers"],
+        totals["layers_loaded"],
     )

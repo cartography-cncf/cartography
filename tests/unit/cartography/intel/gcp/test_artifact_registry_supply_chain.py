@@ -631,6 +631,11 @@ def patched_sync(monkeypatch):
         "_get_provenance_complete_names",
         MagicMock(return_value=set()),
     )
+    monkeypatch.setattr(
+        supply_chain,
+        "_get_layer_graph_complete_names",
+        MagicMock(return_value=set()),
+    )
     monkeypatch.setattr(supply_chain, "load_repository_image_provenance", MagicMock())
     monkeypatch.setattr(supply_chain, "load_missing_built_from", MagicMock())
 
@@ -959,42 +964,56 @@ def test_sync_skips_cleanup_when_discovery_unsafe(patched_sync):
     assert cleanup_runs == []
 
 
+def _single_image(name_suffix, digest_char):
+    digest = "sha256:" + digest_char * 64
+    return {
+        "name": f"projects/p/locations/l/repositories/r/dockerImages/{name_suffix}@{digest}",
+        "uri": f"us-docker.pkg.dev/p/r/i@{digest}",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    }
+
+
 @pytest.mark.parametrize(
-    ("cleanup_safe", "expected_stamps"),
+    ("cleanup_safe", "expected_stamps", "expected_layer_graph_stamps"),
     [
-        (True, {"new": GAR_PROVENANCE_VERSION, "failed": None}),
+        (
+            True,
+            {"new": GAR_PROVENANCE_VERSION, "failed": None},
+            {"new", "provenance-only"},
+        ),
         # Discovery was incomplete, so SBOM tags in unlisted repositories went
         # unseen: the pass only clears stamps.
-        (False, {"failed": None}),
+        (False, {"failed": None}, set()),
     ],
     ids=["complete_discovery", "incomplete_discovery"],
 )
-def test_sync_skips_config_fetch_for_stamped_digest(
-    patched_sync, monkeypatch, cleanup_safe, expected_stamps
+def test_sync_checks_layers_only_without_a_layer_graph_stamp(
+    patched_sync,
+    monkeypatch,
+    cleanup_safe,
+    expected_stamps,
+    expected_layer_graph_stamps,
 ):
-    # Arrange
-    stamped_digest = "sha256:" + ("a" * 64)
-    new_digest = "sha256:" + ("b" * 64)
-    stamped_name = (
-        f"projects/p/locations/l/repositories/r/dockerImages/i@{stamped_digest}"
-    )
-    new_name = f"projects/p/locations/l/repositories/r/dockerImages/i@{new_digest}"
-    artifacts = [
-        {
-            "name": stamped_name,
-            "uri": f"us-docker.pkg.dev/p/r/i@{stamped_digest}",
-            "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        },
-        {
-            "name": new_name,
-            "uri": f"us-docker.pkg.dev/p/r/i@{new_digest}",
-            "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        },
-    ]
+    # Arrange: one artifact with both stamps, one stamped before layer graph
+    # stamps existed whose layers check out, and one never enriched.
+    trusted = _single_image("trusted", "a")
+    provenance_only = _single_image("provenance-only", "b")
+    new = _single_image("new", "c")
+    artifacts = [trusted, provenance_only, new]
+    names = {
+        trusted["name"]: "trusted",
+        provenance_only["name"]: "provenance-only",
+        new["name"]: "new",
+    }
+    supply_chain._get_provenance_complete_names.return_value = {
+        trusted["name"],
+        provenance_only["name"],
+    }
+    supply_chain._get_layer_graph_complete_names.return_value = {trusted["name"]}
+    supply_chain.get_complete_layer_digests.return_value = {"sha256:" + "b" * 64}
     fetch = AsyncMock(
-        return_value=([], 0, {"new": GAR_PROVENANCE_VERSION, "failed": None}),
+        return_value=([], 0, {new["name"]: GAR_PROVENANCE_VERSION, "failed": None}),
     )
-    supply_chain._get_provenance_complete_names.return_value = {stamped_name}
     monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", fetch)
     neo4j_session = MagicMock()
     writes = []
@@ -1018,18 +1037,22 @@ def test_sync_skips_config_fetch_for_stamped_digest(
         cleanup_safe=cleanup_safe,
     )
 
-    # Assert: a stamped artifact skips both its config fetch and the layer
-    # closure check, and this pass's outcome is written back.
-    assert supply_chain.get_complete_layer_digests.call_args.args[2] == {new_digest}
-    assert fetch.await_args.kwargs["complete_digests"] == {stamped_digest}
-    assert fetch.await_args.kwargs["provenance_complete_names"] == {stamped_name}
-    supply_chain.load_repository_image_provenance.assert_called_once_with(
-        neo4j_session,
-        artifacts,
-        expected_stamps,
-        "proj",
-        1,
-    )
+    # Assert
+    assert supply_chain.get_complete_layer_digests.call_args.args[2] == {
+        "sha256:" + "b" * 64,
+        "sha256:" + "c" * 64,
+    }
+    assert fetch.await_args.kwargs["complete_digests"] == {
+        "sha256:" + "a" * 64,
+        "sha256:" + "b" * 64,
+    }
+    stamp_args = supply_chain.load_repository_image_provenance.call_args
+    assert {
+        names.get(n, n): v for n, v in stamp_args.args[2].items()
+    } == expected_stamps
+    assert {
+        names[n] for n in stamp_args.kwargs["layer_graph_names"]
+    } == expected_layer_graph_stamps
     # A stamp lets later syncs skip the artifact, so it lands after its chunk's
     # enrichment writes.
     assert writes == [
@@ -1037,6 +1060,40 @@ def test_sync_skips_config_fetch_for_stamped_digest(
         "load_repository_image_provenance",
         "load_missing_built_from",
     ]
+
+
+def test_sync_reads_sboms_from_other_image_paths(patched_sync, monkeypatch):
+    # Arrange: one chunk per image path, and the SBOM sits in another path, as
+    # ko publishes it.
+    monkeypatch.setattr(supply_chain, "ENRICHMENT_CHUNK_SIZE", 1)
+    subject = _single_image("subject", "d")
+    sbom = {
+        "name": "projects/p/locations/l/repositories/r/dockerImages/sbom@sha256:"
+        + "e" * 64,
+        "uri": "us-docker.pkg.dev/p/r/sbom@sha256:" + "e" * 64,
+        "tags": ["sha256-" + "d" * 64 + ".sbom"],
+    }
+    sbom_lookups = {}
+
+    async def _fetch(_credentials, artifacts, _project_id, **kwargs):
+        for artifact in artifacts:
+            sbom_lookups[artifact["name"]] = kwargs["sbom_artifacts_by_digest"]
+        return [], 0, {}
+
+    monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", _fetch)
+
+    # Act
+    supply_chain.sync(
+        neo4j_session=MagicMock(),
+        credentials=MagicMock(),
+        docker_artifacts_raw=[subject, sbom],
+        project_id="proj",
+        update_tag=1,
+        common_job_parameters={},
+    )
+
+    # Assert
+    assert sbom_lookups[subject["name"]]["sha256:" + "d" * 64] == [sbom]
 
 
 def test_sync_keeps_finished_chunks_when_a_later_chunk_fails(patched_sync, monkeypatch):
@@ -1082,6 +1139,7 @@ def test_sync_keeps_finished_chunks_when_a_later_chunk_fails(patched_sync, monke
         {first["name"]: GAR_PROVENANCE_VERSION},
         "proj",
         1,
+        layer_graph_names={first["name"]},
     )
 
 
