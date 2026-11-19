@@ -27,6 +27,7 @@ from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
 from cartography.intel.github.codeowners import normalize_repo_relative_path
+from cartography.intel.github.incremental import touch_skipped_repo_resources
 from cartography.intel.github.label_migrations import (
     migrate_dependency_graph_manifest_label,
 )
@@ -1264,6 +1265,8 @@ def get_repo_privileged_details_by_url(
     token: str,
     api_url: str,
     organization: str,
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Retrieve collaborator counts, branch protection, and ruleset fields for repositories in an organization.
@@ -1278,6 +1281,12 @@ def get_repo_privileged_details_by_url(
     )
     privileged_repo_data = {}
     privileged_nodes = cast(List[Optional[Dict]], repos.nodes)
+    if excluded_repo_urls:
+        privileged_nodes = [
+            repo
+            for repo in privileged_nodes
+            if repo is not None and repo.get("url") not in excluded_repo_urls
+        ]
     rulesets_by_url = _get_repo_rulesets_by_url(
         token,
         api_url,
@@ -1407,6 +1416,8 @@ def transform(
     repos_json: List[Optional[Dict]],
     direct_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
     outside_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
+    *,
+    skip_archived_repos: bool = False,
 ) -> Dict:
     """
     Parses the JSON returned from GitHub API to create data for graph ingestion
@@ -1461,6 +1472,10 @@ def transform(
             repo_object,
             transformed_repo_owners,
         )
+        if skip_archived_repos and (
+            repo_object.get("isArchived") or repo_object.get("isDisabled")
+        ):
+            continue
 
         # Allow sync to continue if we didn't have permissions to list collaborators
         repo_url = repo_object["url"]
@@ -2954,6 +2969,62 @@ def load(
         )
 
 
+def _touch_archived_repo_details(
+    neo4j_session: neo4j.Session,
+    repo_urls: set[str],
+    update_tag: int,
+    owner_org_id: str,
+) -> None:
+    if not repo_urls:
+        return
+    for schema in (GitHubBranchProtectionRuleSchema(), GitHubRulesetSchema()):
+        touch_skipped_repo_resources(
+            neo4j_session,
+            repo_urls,
+            schema,
+            update_tag,
+            owner_org_id,
+        )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_RULESET]->(:GitHubRuleset)
+              -[contains:CONTAINS_RULE]->(rule:GitHubRulesetRule)
+        SET rule.lastupdated = $update_tag, contains.lastupdated = $update_tag
+        WITH DISTINCT rule
+        MATCH (:GitHubOrganization {id: $org_url})-[res:RESOURCE]->(rule)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=sorted(repo_urls),
+        update_tag=update_tag,
+        org_url=owner_org_id,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[req:REQUIRES]->(dependency)
+        WHERE dependency:PythonLibrary OR dependency:GitHubDependency
+        SET dependency.lastupdated = $update_tag, req.lastupdated = $update_tag
+        """,
+        repo_urls=sorted(repo_urls),
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (user:GitHubUser)-[collab]->(:GitHubRepository {id: repo_url})
+        WHERE type(collab) IN $collaborator_labels
+        SET user.lastupdated = $update_tag, collab.lastupdated = $update_tag
+        """,
+        repo_urls=sorted(repo_urls),
+        update_tag=update_tag,
+        collaborator_labels=[label for _, _, label in GITHUB_COLLABORATOR_REL_LABELS],
+    )
+
+
 def sync(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -2976,6 +3047,13 @@ def sync(
     logger.info("Syncing GitHub repos")
     repos_json = get(github_api_key, github_url, organization)
     base_repo_count = sum(1 for repo in repos_json if repo is not None)
+    excluded_repo_urls = {
+        repo["url"]
+        for repo in repos_json
+        if repo is not None
+        and incremental_sync
+        and (repo.get("isArchived") or repo.get("isDisabled"))
+    }
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
     rulesets_cleanup_safe = True
@@ -2985,6 +3063,7 @@ def sync(
                 github_api_key,
                 github_url,
                 organization,
+                excluded_repo_urls=excluded_repo_urls,
             )
         except (requests.exceptions.RequestException, ValueError):
             rulesets_cleanup_safe = False
@@ -3011,16 +3090,21 @@ def sync(
 
     direct_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     outside_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
+    repos_to_enrich = [
+        repo
+        for repo in repos_json
+        if repo is None or repo["url"] not in excluded_repo_urls
+    ]
     try:
         direct_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
+            repos_to_enrich,
             "DIRECT",
             organization,
             github_url,
             github_api_key,
         )
         outside_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
+            repos_to_enrich,
             "OUTSIDE",
             organization,
             github_url,
@@ -3057,7 +3141,12 @@ def sync(
         if repo is not None and repo.get("url") in security_and_analysis_by_url:
             repo["securityAndAnalysis"] = security_and_analysis_by_url[repo["url"]]
 
-    repo_data = transform(repos_json, direct_collabs, outside_collabs)
+    repo_data = transform(
+        repos_json,
+        direct_collabs,
+        outside_collabs,
+        skip_archived_repos=incremental_sync,
+    )
     enrich_dependencies_with_lockfile_versions(
         repo_data["dependencies"],
         github_api_key,
@@ -3072,7 +3161,7 @@ def sync(
     repo_pushedat_updates = [
         {"repo_url": repo["url"], "pushedat": repo["pushedat"]}
         for repo in repo_data["repos"]
-        if repo.get("pushedat")
+        if repo.get("pushedat") and repo["id"] not in excluded_repo_urls
     ]
 
     owner_org_id = next(
@@ -3094,6 +3183,12 @@ def sync(
         common_job_parameters,
     )
     load(neo4j_session, common_job_parameters, repo_data)
+    _touch_archived_repo_details(
+        neo4j_session,
+        excluded_repo_urls,
+        common_job_parameters["UPDATE_TAG"],
+        owner_org_id,
+    )
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
     # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from

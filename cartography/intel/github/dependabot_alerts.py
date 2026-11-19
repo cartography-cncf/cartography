@@ -8,6 +8,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.github.incremental import touch_skipped_repo_resources
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import is_github_dotcom_api_url
@@ -116,6 +117,8 @@ def _dedupe_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def transform(
     alerts: list[dict[str, Any]],
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """
     Transform Dependabot alert payloads into alert and lightweight user rows.
@@ -124,6 +127,13 @@ def transform(
     transformed_users: list[dict[str, Any]] = []
 
     for alert in alerts:
+        repository = alert.get("repository") or {}
+        if excluded_repo_urls is not None and (
+            repository.get("html_url") in excluded_repo_urls
+            or repository.get("archived")
+            or repository.get("disabled")
+        ):
+            continue
         alert_id = alert.get("html_url") or alert.get("url")
         if not alert_id:
             logger.debug("Skipping Dependabot alert without url/html_url.")
@@ -141,7 +151,6 @@ def transform(
         epss = advisory.get("epss") or {}
         identifiers = advisory.get("identifiers") or []
         references = advisory.get("references") or []
-        repository = alert.get("repository") or {}
         dismissed_by = _transform_user(alert.get("dismissed_by"))
         assignees = [
             transformed_user
@@ -287,6 +296,8 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> None:
     logger.info("Syncing GitHub Dependabot alerts for organization: %s", organization)
     org_url = github_org_url(github_url, organization)
@@ -300,7 +311,17 @@ def sync(
         )
         return
 
-    transformed = transform(fetch_result.alerts)
+    transformed = transform(
+        fetch_result.alerts,
+        excluded_repo_urls=excluded_repo_urls,
+    )
     load_users(neo4j_session, transformed["users"], update_tag)
     load_alerts(neo4j_session, transformed["alerts"], update_tag, org_url)
+    touch_skipped_repo_resources(
+        neo4j_session,
+        excluded_repo_urls,
+        GitHubDependabotAlertSchema(),
+        update_tag,
+        org_url,
+    )
     cleanup(neo4j_session, common_job_parameters, org_url)

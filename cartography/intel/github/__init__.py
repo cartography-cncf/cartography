@@ -241,6 +241,15 @@ def start_github_ingestion(
             org_name,
             incremental_sync=config.github_incremental_sync,
         )
+        excluded_repo_urls = (
+            {
+                repo["id"]
+                for repo in repo_sync_result.repos
+                if repo.get("archived") or repo.get("disabled")
+            }
+            if config.github_incremental_sync
+            else None
+        )
         cartography.intel.github.personal_access_tokens.sync(
             neo4j_session,
             common_job_parameters,
@@ -263,6 +272,7 @@ def start_github_ingestion(
             org_name,
             repo_sync_result.repos,
             repos_complete=repo_sync_result.repos_complete,
+            excluded_repo_urls=excluded_repo_urls,
         )
         cartography.intel.github.dependabot_alerts.sync(
             neo4j_session,
@@ -270,6 +280,7 @@ def start_github_ingestion(
             token,
             api_url,
             org_name,
+            excluded_repo_urls=excluded_repo_urls,
         )
         github_teams = cartography.intel.github.teams.sync_github_teams(
             neo4j_session,
@@ -289,6 +300,7 @@ def start_github_ingestion(
             dependency_manifests_cleanup_safe=repo_sync_result.manifests_cleanup_safe,
             github_users=github_users,
             github_teams=github_teams,
+            excluded_repo_urls=excluded_repo_urls,
         )
 
         # Sync GitHub Actions (workflows, secrets, variables, environments)
@@ -350,6 +362,7 @@ def start_github_ingestion(
                 common_job_parameters,
                 valid_repos,
                 workflows=all_workflows,
+                excluded_repo_urls=excluded_repo_urls,
             )
 
         # Write synced_pushedat now that all downstream stages have completed.

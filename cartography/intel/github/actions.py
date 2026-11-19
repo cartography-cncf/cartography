@@ -1076,6 +1076,18 @@ def _touch_archived_repo_actions(
         repo_urls=archived_repo_urls,
         update_tag=update_tag,
     )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_ENVIRONMENT*0..1]->(owner)
+              -[:HAS_SECRET|HAS_VARIABLE]->(resource)
+              <-[res:RESOURCE]-(:GitHubOrganization)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=archived_repo_urls,
+        update_tag=update_tag,
+    )
 
 
 @timeit

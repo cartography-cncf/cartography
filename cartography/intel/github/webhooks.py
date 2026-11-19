@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.github.incremental import touch_skipped_repo_resources
 from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import parse_github_timestamp
@@ -117,6 +118,8 @@ def get(
     api_url: str,
     organization: str,
     repos: list[dict[str, Any]],
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], bool]:
     """
     Fetch organization and repository webhooks.
@@ -132,6 +135,8 @@ def get(
     for repo in repos:
         fullname = repo.get("fullname")
         repo_url = repo.get("url")
+        if excluded_repo_urls and repo_url in excluded_repo_urls:
+            continue
         if not fullname or not repo_url:
             continue
         hooks = get_repository_webhooks(token, api_url, fullname)
@@ -199,6 +204,7 @@ def sync(
     organization: str,
     repos: list[dict[str, Any]],
     repos_complete: bool = True,
+    excluded_repo_urls: set[str] | None = None,
 ) -> None:
     """
     :param repos_complete: Whether `repos` is the organization's full repository
@@ -206,9 +212,18 @@ def sync(
     """
     org_url = github_org_url(api_url, organization)
     update_tag = common_job_parameters["UPDATE_TAG"]
-    org_hooks, repo_hooks, complete = get(token, api_url, organization, repos)
+    org_hooks, repo_hooks, complete = get(
+        token, api_url, organization, repos, excluded_repo_urls=excluded_repo_urls
+    )
     webhooks = transform_webhooks(org_hooks, repo_hooks, org_url)
     load_webhooks(neo4j_session, webhooks, org_url, update_tag)
+    touch_skipped_repo_resources(
+        neo4j_session,
+        excluded_repo_urls,
+        GitHubWebhookSchema(),
+        update_tag,
+        org_url,
+    )
     if complete and repos_complete:
         cleanup(neo4j_session, org_url, update_tag)
     else:

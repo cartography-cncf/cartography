@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import patch
 
 import requests
@@ -15,6 +16,77 @@ TEST_GITHUB_URL = "https://api.github.com/graphql"
 TEST_GITHUB_ENTERPRISE_URL = "https://fake.github.net/graphql/"
 TEST_ORGANIZATION = "simpsoncorp"
 FAKE_API_KEY = "asdf"
+
+
+def test_incremental_dependabot_refreshes_inactive_repos_and_preserves_archived(
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ensure_org_and_repos_exist(neo4j_session)
+    archived_url = "https://github.com/simpsoncorp/sample_repo"
+    inactive_url = "https://github.com/simpsoncorp/SampleRepo2"
+    neo4j_session.run(
+        """
+        MATCH (repo:GitHubRepository)
+        SET repo.pushedat = '2000-01-01T00:00:00Z',
+            repo.synced_pushedat = '2000-01-01T00:00:00Z'
+        """,
+    )
+    updated = deepcopy(GET_DEPENDABOT_ALERTS[2])
+    updated["state"] = "dismissed"
+    new_inactive = deepcopy(updated)
+    new_inactive["html_url"] = f"{inactive_url}/security/dependabot/5"
+    new_archived = deepcopy(GET_DEPENDABOT_ALERTS[0])
+    new_archived["html_url"] = f"{archived_url}/security/dependabot/6"
+    with patch.object(
+        cartography.intel.github.dependabot_alerts,
+        "get",
+        side_effect=[
+            DependabotAlertsFetchResult(GET_DEPENDABOT_ALERTS, True),
+            DependabotAlertsFetchResult([updated, new_inactive, new_archived], True),
+        ],
+    ):
+        cartography.intel.github.dependabot_alerts.sync(
+            neo4j_session,
+            TEST_JOB_PARAMS,
+            FAKE_API_KEY,
+            TEST_GITHUB_URL,
+            TEST_ORGANIZATION,
+        )
+
+        # Act
+        cartography.intel.github.dependabot_alerts.sync(
+            neo4j_session,
+            {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+            FAKE_API_KEY,
+            TEST_GITHUB_URL,
+            TEST_ORGANIZATION,
+            excluded_repo_urls={archived_url},
+        )
+
+    # Assert - old archived alerts survive, inactive alerts update, stale active data is removed.
+    assert check_nodes(
+        neo4j_session, "GitHubDependabotAlert", ["id", "state", "lastupdated"]
+    ) == {
+        (f"{archived_url}/security/dependabot/1", "open", TEST_UPDATE_TAG + 1),
+        (f"{archived_url}/security/dependabot/2", "dismissed", TEST_UPDATE_TAG + 1),
+        (f"{inactive_url}/security/dependabot/3", "dismissed", TEST_UPDATE_TAG + 1),
+        (f"{inactive_url}/security/dependabot/5", "dismissed", TEST_UPDATE_TAG + 1),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GitHubDependabotAlert",
+        "id",
+        "GitHubRepository",
+        "id",
+        "FOUND_IN",
+    ) == {
+        (f"{archived_url}/security/dependabot/1", archived_url),
+        (f"{archived_url}/security/dependabot/2", archived_url),
+        (f"{inactive_url}/security/dependabot/3", inactive_url),
+        (f"{inactive_url}/security/dependabot/5", inactive_url),
+    }
 
 
 def _clear_dependabot_alerts(neo4j_session):

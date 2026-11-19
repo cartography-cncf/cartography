@@ -125,6 +125,56 @@ def _run_codeowners_sync(
     )
 
 
+def test_incremental_codeowners_preserves_archived_rules_and_manifest_matches(
+    neo4j_session,
+):
+    # Arrange
+    _seed_codeowners_prerequisites(neo4j_session)
+    with patch.object(
+        cartography.intel.github.codeowners,
+        "get_effective_codeowners_file",
+        return_value=CodeOwnersFileFetchResult(
+            "CODEOWNERS", "/package.json @js-owner", True
+        ),
+    ) as fetch:
+        _run_codeowners_sync(neo4j_session, TEST_UPDATE_TAG)
+        fetch.reset_mock()
+
+        # Act
+        sync(
+            neo4j_session,
+            {"UPDATE_TAG": TEST_UPDATE_TAG_2},
+            TEST_API_KEY,
+            TEST_GITHUB_URL,
+            TEST_GITHUB_ORG,
+            _repository_rows(),
+            [],
+            excluded_repo_urls={TEST_REPO_URL},
+        )
+
+    # Assert
+    fetch.assert_not_called()
+    assert check_nodes(
+        neo4j_session, "GitHubCodeOwnerRule", ["pattern", "lastupdated"]
+    ) == {("/package.json", TEST_UPDATE_TAG_2)}
+    assert check_rels(
+        neo4j_session,
+        "GitHubDependencyGraphManifest",
+        "id",
+        "GitHubCodeOwnerRule",
+        "pattern",
+        "MATCHES_CODEOWNER_RULE",
+    ) == {(f"{TEST_REPO_URL}#/package.json", "/package.json")}
+    assert check_rels(
+        neo4j_session,
+        "GitHubCodeOwnerRule",
+        "pattern",
+        "GitHubUser",
+        "id",
+        "CODEOWNER",
+    ) == {("/package.json", "https://github.com/js-owner")}
+
+
 def test_sync_codeowners_loads_rules_owner_relationships_and_manifest_matches(
     neo4j_session,
 ) -> None:

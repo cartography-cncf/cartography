@@ -8,6 +8,7 @@ import requests
 from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.supply_chain import ContainerImage
@@ -353,6 +354,8 @@ def get_dockerfiles_for_repos(
     repos: list[dict[str, Any]],
     org: str,
     base_url: str = "https://api.github.com",
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Search and download Dockerfiles for a list of repositories using org-wide search.
@@ -370,6 +373,8 @@ def get_dockerfiles_for_repos(
 
     for repo in repos:
         owner, repo_name, repo_url = _extract_repo_info(repo)
+        if excluded_repo_urls and repo_url in excluded_repo_urls:
+            continue
         if not owner or not repo_name:
             continue
         full_name = f"{owner}/{repo_name}"
@@ -423,6 +428,8 @@ def sync(
     workflows: list[dict[str, Any]] | None = None,
     image_limit: int | None = _DEFAULT_IMAGE_LIMIT,
     min_match_confidence: float = _DEFAULT_MIN_MATCH_CONFIDENCE,
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> None:
     """
     Sync supply chain relationships for a GitHub organization.
@@ -451,6 +458,27 @@ def sync(
     :param min_match_confidence: Minimum confidence threshold for matches (default: 0.5)
     """
     logger.info("Starting supply chain sync for %s", organization)
+    if excluded_repo_urls:
+        repos = [repo for repo in repos if repo.get("url") not in excluded_repo_urls]
+        workflows = [
+            workflow
+            for workflow in workflows or []
+            if workflow.get("repo_url") not in excluded_repo_urls
+        ]
+        run_write_query(
+            neo4j_session,
+            """
+            UNWIND $repo_urls AS repo_url
+            MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW*0..1]->(target)
+                  <-[rel:PACKAGED_FROM|PACKAGED_BY]-(:Image)
+            WHERE rel._sub_resource_label = 'GitHubOrganization'
+              AND rel._sub_resource_id = $organization
+            SET rel.lastupdated = $update_tag
+            """,
+            repo_urls=sorted(excluded_repo_urls),
+            organization=organization,
+            update_tag=update_tag,
+        )
 
     # Extract base REST API URL from the GraphQL URL
     base_url = api_url
@@ -567,6 +595,12 @@ def sync(
         organization,
         update_tag,
     )
+    if excluded_repo_urls:
+        package_owner_data = [
+            entry
+            for entry in package_owner_data
+            if entry["repo_url"] not in excluded_repo_urls
+        ]
     if package_owner_data:
         for entry in package_owner_data:
             entry.update(

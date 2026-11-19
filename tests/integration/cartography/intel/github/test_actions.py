@@ -1404,6 +1404,25 @@ def test_sync_github_actions_archived_skip_preserves_workflows(
     }
     assert first_action_ids
 
+    first_secret_resources = check_rels(
+        neo4j_session,
+        "GitHubOrganization",
+        "id",
+        "GitHubActionsSecret",
+        "id",
+        "RESOURCE",
+    )
+    first_variable_resources = check_rels(
+        neo4j_session,
+        "GitHubOrganization",
+        "id",
+        "GitHubActionsVariable",
+        "id",
+        "RESOURCE",
+    )
+    assert first_secret_resources
+    assert first_variable_resources
+
     # Now mark the repo archived so the next incremental sync excludes it.
     neo4j_session.run(
         'MATCH (r:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"}) '
@@ -1438,3 +1457,25 @@ def test_sync_github_actions_archived_skip_preserves_workflows(
     ).data()
     assert {row["id"] for row in action_rows} == first_action_ids
     assert all(row["lastupdated"] == second_update_tag for row in action_rows)
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubOrganization",
+            "id",
+            "GitHubActionsSecret",
+            "id",
+            "RESOURCE",
+        )
+        == first_secret_resources
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubOrganization",
+            "id",
+            "GitHubActionsVariable",
+            "id",
+            "RESOURCE",
+        )
+        == first_variable_resources
+    )

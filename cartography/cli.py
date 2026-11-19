@@ -1129,11 +1129,13 @@ class CLI:
                     "--github-incremental-sync",
                     help=(
                         "Enable incremental sync for GitHub repos. "
-                        "Skips archived/disabled repos in Actions, commits, and manifest syncs. "
+                        "Skips repository-specific refreshes for archived/disabled repos "
+                        "while preserving previously synced data. "
                         "Skips commits for repos with no push in the lookback window. "
                         "Skips re-fetching workflow YAML and dependency manifests for repos "
                         "whose pushedAt is unchanged since the last sync. "
-                        "Secrets, variables, and environments are always refreshed regardless."
+                        "Dependabot alerts, security settings, secrets, variables, and "
+                        "environments are refreshed for non-archived repos regardless of activity."
                     ),
                     rich_help_panel=PANEL_GITHUB,
                     hidden=PANEL_GITHUB not in visible_panels,

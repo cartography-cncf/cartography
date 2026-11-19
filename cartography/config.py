@@ -214,7 +214,8 @@ class Config:
     :type github_commit_lookback_days: int
     :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
     :type github_incremental_sync: bool
-    :param github_incremental_sync: Enable incremental sync for GitHub repos. Skips archived/disabled repos,
+    :param github_incremental_sync: Enable incremental sync for GitHub repos. Skips repository-specific
+        refreshes for archived/disabled repos while preserving their previously synced data,
         skips commits for repos with no push in the lookback window, and skips re-fetching workflow YAML and
         dependency manifests for repos whose pushedAt is unchanged since the last sync. Optional.
     :type digitalocean_token: str

@@ -146,6 +146,54 @@ def test_sync_webhooks(mock_pages, neo4j_session):
 @patch.object(
     cartography.intel.github.util,
     "fetch_all_rest_api_pages",
+    side_effect=_pages,
+)
+def test_incremental_webhooks_preserves_archived_hooks(mock_pages, neo4j_session):
+    # Arrange
+    _reset_and_seed_graph(neo4j_session)
+    cartography.intel.github.webhooks.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+        REPOS,
+    )
+    mock_pages.reset_mock()
+
+    # Act
+    cartography.intel.github.webhooks.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+        REPOS,
+        excluded_repo_urls={REPO_URL},
+    )
+
+    # Assert
+    assert {call.args[2] for call in mock_pages.call_args_list} == {
+        "/orgs/simpsoncorp/hooks",
+        "/repos/simpsoncorp/another_repo/hooks",
+    }
+    assert check_nodes(neo4j_session, "GitHubWebhook", ["hook_id", "lastupdated"]) == {
+        (501, TEST_UPDATE_TAG + 1),
+        (601, TEST_UPDATE_TAG + 1),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubWebhook",
+        "hook_id",
+        "HAS_WEBHOOK",
+    ) == {(REPO_URL, 601)}
+
+
+@patch.object(
+    cartography.intel.github.util,
+    "fetch_all_rest_api_pages",
     side_effect=_pages_repo_forbidden,
 )
 def test_sync_webhooks_incomplete_inventory_skips_cleanup(mock_pages, neo4j_session):
