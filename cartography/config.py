@@ -213,6 +213,8 @@ class Config:
     :param notion_config: Base64 encoded config object for Notion ingestion. Optional.
     :type github_commit_lookback_days: int
     :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
+    :type github_parallel_workers: int
+    :param github_parallel_workers: Number of parallel workers for per-repo GitHub API fetches. Default 1 (sequential).
     :type digitalocean_token: str
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
@@ -941,6 +943,7 @@ class Config:
         neon_api_key: str | None = None,
         neon_org_ids: str | None = None,
         neon_base_url: str | None = None,
+        github_parallel_workers=1,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1030,6 +1033,7 @@ class Config:
         self.github_config = github_config
         self.github_commit_lookback_days = github_commit_lookback_days
         self.notion_config = notion_config
+        self.github_parallel_workers: int = github_parallel_workers
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
