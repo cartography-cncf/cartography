@@ -34,8 +34,8 @@ def _run_sync_with_cleanup_mocks(monkeypatch, getter):
 
     with (
         patch(
-            "cartography.intel.gcp.artifact_registry.artifact.cleanup_docker_images"
-        ) as cleanup_docker_images,
+            "cartography.intel.gcp.artifact_registry.artifact.sync_docker_images"
+        ) as sync_docker_images,
         patch(
             "cartography.intel.gcp.artifact_registry.artifact.cleanup_helm_charts"
         ) as cleanup_helm_charts,
@@ -58,7 +58,7 @@ def _run_sync_with_cleanup_mocks(monkeypatch, getter):
 
     return (
         result,
-        cleanup_docker_images,
+        sync_docker_images,
         cleanup_helm_charts,
         cleanup_language_packages,
         cleanup_generic_artifacts,
@@ -70,7 +70,7 @@ def test_sync_artifact_registry_artifacts_skips_cleanup_when_repository_incomple
 ):
     (
         result,
-        cleanup_docker_images,
+        sync_docker_images,
         cleanup_helm_charts,
         cleanup_language_packages,
         cleanup_generic_artifacts,
@@ -78,7 +78,7 @@ def test_sync_artifact_registry_artifacts_skips_cleanup_when_repository_incomple
 
     assert result.cleanup_safe is False
     assert result.platform_images == []
-    cleanup_docker_images.assert_not_called()
+    assert sync_docker_images.call_args.kwargs["cleanup_safe"] is False
     cleanup_helm_charts.assert_not_called()
     cleanup_language_packages.assert_not_called()
     cleanup_generic_artifacts.assert_not_called()

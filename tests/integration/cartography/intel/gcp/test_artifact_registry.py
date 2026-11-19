@@ -6,8 +6,8 @@ from unittest.mock import patch
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry import supply_chain
 from cartography.intel.gcp.artifact_registry import sync
-from cartography.intel.gcp.artifact_registry.artifact import cleanup_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
+from cartography.intel.gcp.artifact_registry.artifact import sync_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import transform_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import (
@@ -2038,7 +2038,7 @@ def test_load_manifests_large_parent_relationships_are_idempotent(neo4j_session)
     )
 
 
-def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
+def test_deleting_gone_tags_preserves_manifest_children(neo4j_session):
     project_id = "test-gar-preserve-manifest-children"
     repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
     _clear_gar_project(neo4j_session, project_id)
@@ -2061,13 +2061,24 @@ def test_cleanup_docker_images_preserves_manifest_children(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    cleanup_docker_images(
+    sync_docker_images(
         neo4j_session,
-        {
-            "PROJECT_ID": project_id,
-            "UPDATE_TAG": TEST_UPDATE_TAG,
-            "LIMIT_SIZE": 1,
-        },
+        [],
+        project_id,
+        TEST_UPDATE_TAG + 1,
+        cleanup_safe=True,
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:GCPProject {id: $project_id})-[:RESOURCE]->
+                  (ri:GCPArtifactRegistryRepositoryImage)
+            RETURN count(ri)
+            """,
+            project_id=project_id,
+        ).single()[0]
+        == 0
     )
 
     assert check_rels(
