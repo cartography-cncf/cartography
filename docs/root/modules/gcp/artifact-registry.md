@@ -30,8 +30,10 @@ tags, repositories, or projects may resolve to the same immutable image node.
 Each sync writes only the tags that are new or changed since the last sync.
 Unchanged tags, and the images they resolve to, get the current update tag as
 `lastupdated`. Their `RESOURCE`, `CONTAINS`, `REPO_IMAGE`, and `IMAGE`
-relationships keep the `lastupdated` of the sync that last wrote the tag. A tag
-that the listing no longer returns is deleted with its relationships.
+relationships keep the `lastupdated` of the sync that last wrote the tag. When
+the listing is complete, a tag that it no longer returns is deleted with its
+relationships. When a repository cannot be listed, for example because access
+is denied, no tag is deleted.
 
 OCI image layers are modeled independently by uncompressed diff ID. `HAS_LAYER`
 links an image to every layer, `HEAD` and `TAIL` mark the ordered boundaries,
