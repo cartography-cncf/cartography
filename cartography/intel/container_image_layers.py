@@ -34,6 +34,10 @@ class ContainerImageLayerGraphShape:
     stable_image_rel_types: tuple[str, ...] = ("BUILT_FROM",)
     stable_image_rels_are_matchlinks: bool = False
     has_next: bool = False
+    # Set when cleanup deletes layers only once nothing links to them. Nothing
+    # then reads the lastupdated of layer nodes, image-layer relationships or NEXT
+    # edges, so the refresh leaves them alone.
+    closure_cleaned_by_reachability: bool = False
     image_digest_property: str = "digest"
     image_layer_ids_property: str = "layer_diff_ids"
     layer_id_property: str = "diff_id"
@@ -138,9 +142,7 @@ def get_complete_layer_digests(
 
     relationship_predicates: list[str] = []
     layer_ids = f"img.{shape.image_layer_ids_property}"
-    layer_match = (
-        f"(layer:{shape.layer_label} " f"{{{shape.layer_id_property}: layer_id}})"
-    )
+    layer_match = f"(layer:{shape.layer_label} {{{shape.layer_id_property}: layer_id}})"
     if "HAS_LAYER" in shape.image_layer_rel_types:
         relationship_predicates.append(
             f"""
@@ -368,20 +370,24 @@ def _refresh_layer_closure_batch(
         """
     run_write_query(neo4j_session, image_query, **parameters)
 
-    layer_query = f"""
-    MATCH (img:{shape.image_label})
-    WHERE img.{shape.image_digest_property} IN $digests
-    UNWIND coalesce(img.{shape.image_layer_ids_property}, []) AS layer_id
-    MATCH (layer:{shape.layer_label} {{{shape.layer_id_property}: layer_id}})
-    SET layer.lastupdated = $update_tag
-    """
-    run_write_query(neo4j_session, layer_query, **parameters)
+    if not shape.closure_cleaned_by_reachability:
+        layer_query = f"""
+        MATCH (img:{shape.image_label})
+        WHERE img.{shape.image_digest_property} IN $digests
+        UNWIND coalesce(img.{shape.image_layer_ids_property}, []) AS layer_id
+        WITH DISTINCT layer_id
+        MATCH (layer:{shape.layer_label} {{{shape.layer_id_property}: layer_id}})
+        SET layer.lastupdated = $update_tag
+        """
+        run_write_query(neo4j_session, layer_query, **parameters)
 
     if shape.layer_scoped:
+        # Images in a batch share base layers, so each layer is refreshed once.
         layer_scope_query = f"""
         MATCH (img:{shape.image_label})
         WHERE img.{shape.image_digest_property} IN $digests
         UNWIND coalesce(img.{shape.image_layer_ids_property}, []) AS layer_id
+        WITH DISTINCT layer_id
         MATCH (scope:{shape.scope_label} {{{scope_match}}})
               -[resource:RESOURCE]->
               (layer:{shape.layer_label} {{{shape.layer_id_property}: layer_id}})
@@ -389,7 +395,7 @@ def _refresh_layer_closure_batch(
         """
         run_write_query(neo4j_session, layer_scope_query, **parameters)
 
-    if shape.image_layer_rel_types:
+    if shape.image_layer_rel_types and not shape.closure_cleaned_by_reachability:
         image_layer_query = f"""
         MATCH (img:{shape.image_label})-[relationship]->
               (layer:{shape.layer_label})
@@ -432,7 +438,7 @@ def _refresh_layer_closure_batch(
             **parameters,
         )
 
-    if shape.has_next:
+    if shape.has_next and not shape.closure_cleaned_by_reachability:
         # Bind both layers before matching NEXT, as in _present_next_pairs. The
         # subquery keeps the planner from expanding NEXT out of one endpoint.
         next_query = f"""

@@ -969,30 +969,32 @@ def test_sync_skips_cleanup_when_discovery_unsafe(patched_sync):
     ],
     ids=["complete_discovery", "incomplete_discovery"],
 )
-def test_sync_skips_config_fetch_for_complete_digest(
+def test_sync_skips_config_fetch_for_stamped_digest(
     patched_sync, monkeypatch, cleanup_safe, expected_stamps
 ):
     # Arrange
-    digest = "sha256:" + ("a" * 64)
-    name = f"projects/p/locations/l/repositories/r/dockerImages/i@{digest}"
-    new_name = f"projects/p/locations/l/repositories/r/dockerImages/j@sha256:{'b' * 64}"
+    stamped_digest = "sha256:" + ("a" * 64)
+    new_digest = "sha256:" + ("b" * 64)
+    stamped_name = (
+        f"projects/p/locations/l/repositories/r/dockerImages/i@{stamped_digest}"
+    )
+    new_name = f"projects/p/locations/l/repositories/r/dockerImages/i@{new_digest}"
     artifacts = [
         {
-            "name": name,
-            "uri": f"us-docker.pkg.dev/p/r/i@{digest}",
+            "name": stamped_name,
+            "uri": f"us-docker.pkg.dev/p/r/i@{stamped_digest}",
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
         {
             "name": new_name,
-            "uri": f"us-docker.pkg.dev/p/r/j@sha256:{'b' * 64}",
+            "uri": f"us-docker.pkg.dev/p/r/i@{new_digest}",
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
         },
     ]
     fetch = AsyncMock(
         return_value=([], 0, {"new": GAR_PROVENANCE_VERSION, "failed": None}),
     )
-    supply_chain.get_complete_layer_digests.return_value = {digest}
-    supply_chain._get_provenance_complete_names.return_value = {name}
+    supply_chain._get_provenance_complete_names.return_value = {stamped_name}
     monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", fetch)
     neo4j_session = MagicMock()
     writes = []
@@ -1016,11 +1018,11 @@ def test_sync_skips_config_fetch_for_complete_digest(
         cleanup_safe=cleanup_safe,
     )
 
-    # Assert: stamps are read only for layer-complete artifacts, and this pass's
-    # outcome is written back to the repository images.
-    assert supply_chain._get_provenance_complete_names.call_args.args[1] == {name}
-    assert fetch.await_args.kwargs["complete_digests"] == {digest}
-    assert fetch.await_args.kwargs["provenance_complete_names"] == {name}
+    # Assert: a stamped artifact skips both its config fetch and the layer
+    # closure check, and this pass's outcome is written back.
+    assert supply_chain.get_complete_layer_digests.call_args.args[2] == {new_digest}
+    assert fetch.await_args.kwargs["complete_digests"] == {stamped_digest}
+    assert fetch.await_args.kwargs["provenance_complete_names"] == {stamped_name}
     supply_chain.load_repository_image_provenance.assert_called_once_with(
         neo4j_session,
         artifacts,
@@ -1028,13 +1030,59 @@ def test_sync_skips_config_fetch_for_complete_digest(
         "proj",
         1,
     )
-    supply_chain.refresh_layer_closures.assert_called_once()
-    # A stamp lets later syncs skip the artifact, so it is written last.
+    # A stamp lets later syncs skip the artifact, so it lands after its chunk's
+    # enrichment writes.
     assert writes == [
         "load_image_layer_relationships",
-        "load_missing_built_from",
         "load_repository_image_provenance",
+        "load_missing_built_from",
     ]
+
+
+def test_sync_keeps_finished_chunks_when_a_later_chunk_fails(patched_sync, monkeypatch):
+    # Arrange: one chunk per image path. Image i has two artifacts, which an index
+    # and its platform images would need read together.
+    monkeypatch.setattr(supply_chain, "ENRICHMENT_CHUNK_SIZE", 1)
+    first = {
+        "name": "projects/p/locations/l/repositories/r/dockerImages/i@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "uri": "us-docker.pkg.dev/p/r/i@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    }
+    second = {
+        "name": "projects/p/locations/l/repositories/r/dockerImages/i@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "uri": "us-docker.pkg.dev/p/r/i@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    }
+    other_repository = {
+        "name": "projects/p/locations/l/repositories/r/dockerImages/j@sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "uri": "us-docker.pkg.dev/p/r/j@sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    }
+
+    async def _fetch(_credentials, artifacts, _project_id, **_kwargs):
+        if other_repository in artifacts:
+            raise RuntimeError("registry unavailable")
+        return [], 0, {first["name"]: GAR_PROVENANCE_VERSION}
+
+    monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", _fetch)
+    neo4j_session = MagicMock()
+
+    # Act
+    with pytest.raises(RuntimeError):
+        supply_chain.sync(
+            neo4j_session=neo4j_session,
+            credentials=MagicMock(),
+            docker_artifacts_raw=[first, second, other_repository],
+            project_id="proj",
+            update_tag=1,
+            common_job_parameters={},
+        )
+
+    # Assert
+    supply_chain.load_repository_image_provenance.assert_called_once_with(
+        neo4j_session,
+        [first, second],
+        {first["name"]: GAR_PROVENANCE_VERSION},
+        "proj",
+        1,
+    )
 
 
 @pytest.mark.asyncio

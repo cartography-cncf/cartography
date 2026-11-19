@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 from collections import Counter
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -73,6 +74,9 @@ SINGLE_IMAGE_MEDIA_TYPES = {
 # to another repository is read there too. Bump it when the pass learns a source that
 # images enriched before should be checked for, so each is read once more.
 GAR_PROVENANCE_VERSION = 1
+# Artifacts enriched and stamped together. A sync stopped part way keeps every
+# finished chunk, so smaller chunks keep more progress at the cost of more queries.
+ENRICHMENT_CHUNK_SIZE = 10_000
 
 GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
     image_label="GCPArtifactRegistryImage",
@@ -84,6 +88,9 @@ GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
     stable_image_rel_types=("BUILT_FROM",),
     stable_image_rels_are_matchlinks=True,
     has_next=True,
+    # gcp_artifact_registry_orphan_cleanup.json deletes a layer once no project
+    # links to it, and its edges go with it.
+    closure_cleaned_by_reachability=True,
     layer_id_property="id",
 )
 
@@ -1696,38 +1703,69 @@ def cleanup_image_layers(
     )
 
 
-@timeit
-def sync(
+@dataclass(frozen=True)
+class _ChunkEnrichment:
+    complete_digests: set[str]
+    enrichments: list[dict[str, Any]]
+    fetch_failures: int
+    layer_count: int
+
+
+def _image_path_chunks(
+    docker_artifacts_raw: list[dict[str, Any]],
+    chunk_size: int,
+) -> list[list[dict[str, Any]]]:
+    """Group artifacts into chunks of whole image paths.
+
+    An index, its platform images, their attestations and their SBOM tags share
+    one image path, and enriching one reads the others, so an image path is never
+    split across chunks.
+    """
+    by_image_path: dict[str, list[dict[str, Any]]] = {}
+    for artifact in docker_artifacts_raw:
+        parsed = parse_docker_image_uri(artifact.get("uri", ""))
+        image_path = f"{parsed[0]}/{parsed[1]}" if parsed else ""
+        by_image_path.setdefault(image_path, []).append(artifact)
+
+    chunks: list[list[dict[str, Any]]] = []
+    chunk: list[dict[str, Any]] = []
+    for artifacts in by_image_path.values():
+        if chunk and len(chunk) + len(artifacts) > chunk_size:
+            chunks.append(chunk)
+            chunk = []
+        chunk.extend(artifacts)
+    if chunk:
+        chunks.append(chunk)
+    return chunks
+
+
+def _enrich_chunk(
     neo4j_session: neo4j.Session,
+    loop: asyncio.AbstractEventLoop,
     credentials: GoogleCredentials | None,
     docker_artifacts_raw: list[dict[str, Any]],
     project_id: str,
     update_tag: int,
-    common_job_parameters: dict[str, Any],
-    cleanup_safe: bool = True,
-) -> None:
-    """
-    Enrich GCP Artifact Registry container images with build provenance and layer data.
-
-    Fetches OCI image configs from the Docker Registry API, extracts provenance
-    metadata (source_uri, source_revision) and layer information, then updates
-    the image nodes in the graph. This enables the existing GitHub/GitLab supply
-    chain modules to create PACKAGED_FROM relationships via provenance matching
-    and Dockerfile analysis.
-    """
-    logger.info("Starting supply chain sync for GCP project %s", project_id)
-    merged_provenance_updates: list[dict[str, Any]] = []
-
-    candidate_digests = {
-        digest
+    cleanup_safe: bool,
+) -> _ChunkEnrichment:
+    single_image_digests_by_name = {
+        artifact["name"]: digest
         for artifact in docker_artifacts_raw
         if artifact.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
+        and artifact.get("name")
         if (digest := _artifact_digest(artifact))
     }
-    complete_digests = get_complete_layer_digests(
+    # A stamp is written only after its pass saved the image's layers, so a
+    # stamped artifact's digest needs no layer closure check.
+    stamped_names = _get_provenance_complete_names(
+        neo4j_session,
+        set(single_image_digests_by_name),
+    )
+    stamped_digests = {single_image_digests_by_name[name] for name in stamped_names}
+    complete_digests = stamped_digests | get_complete_layer_digests(
         neo4j_session,
         GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
-        candidate_digests,
+        set(single_image_digests_by_name.values()) - stamped_digests,
         {"id": project_id},
     )
     if complete_digests:
@@ -1745,31 +1783,18 @@ def sync(
         if existing.get("source_file")
     }
 
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
     enrichments, fetch_failures, provenance_versions = loop.run_until_complete(
         _fetch_all_image_provenance(
             credentials,
             docker_artifacts_raw,
             project_id,
             complete_digests=complete_digests,
-            provenance_complete_names=_get_provenance_complete_names(
-                neo4j_session,
-                {
-                    artifact["name"]
-                    for artifact in docker_artifacts_raw
-                    if artifact.get("name")
-                    and _artifact_digest(artifact) in complete_digests
-                },
-            ),
+            provenance_complete_names=stamped_names,
             digests_with_source_file=digests_with_source_file,
         ),
     )
 
+    merged_provenance_updates: list[dict[str, Any]] = []
     if enrichments:
         provenance_updates = [
             {
@@ -1795,18 +1820,11 @@ def sync(
         merged_provenance_updates,
         update_tag,
     )
-    refresh_layer_closures(
-        neo4j_session,
-        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
-        complete_digests,
-        {"id": project_id},
-        update_tag,
-    )
-    load_missing_built_from(neo4j_session, project_id, update_tag)
-    # Written last: a stamp lets later syncs skip the artifact, so it must not land
-    # before what this pass read for it is saved. When discovery was incomplete,
-    # SBOM tags in repositories that were not listed went unseen, so the pass only
-    # clears stamps.
+    # Written after this chunk's enrichment: a stamp lets later syncs skip the
+    # artifact, so it must not land before what this pass read for it is saved.
+    # Stamping per chunk keeps the progress of a sync that is stopped part way.
+    # When discovery was incomplete, SBOM tags in repositories that were not
+    # listed went unseen, so the pass only clears stamps.
     if not cleanup_safe:
         provenance_versions = {
             name: version
@@ -1820,6 +1838,79 @@ def sync(
         project_id,
         update_tag,
     )
+    return _ChunkEnrichment(
+        complete_digests=complete_digests,
+        enrichments=enrichments,
+        fetch_failures=fetch_failures,
+        layer_count=len(layer_dicts),
+    )
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    credentials: GoogleCredentials | None,
+    docker_artifacts_raw: list[dict[str, Any]],
+    project_id: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+    cleanup_safe: bool = True,
+) -> None:
+    """
+    Enrich GCP Artifact Registry container images with build provenance and layer data.
+
+    Fetches OCI image configs from the Docker Registry API, extracts provenance
+    metadata (source_uri, source_revision) and layer information, then updates
+    the image nodes in the graph. This enables the existing GitHub/GitLab supply
+    chain modules to create PACKAGED_FROM relationships via provenance matching
+    and Dockerfile analysis.
+    """
+    logger.info("Starting supply chain sync for GCP project %s", project_id)
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    complete_digests: set[str] = set()
+    enrichments: list[dict[str, Any]] = []
+    fetch_failures = 0
+    layer_count = 0
+    chunks = _image_path_chunks(docker_artifacts_raw, ENRICHMENT_CHUNK_SIZE)
+    for index, chunk in enumerate(chunks, start=1):
+        result = _enrich_chunk(
+            neo4j_session,
+            loop,
+            credentials,
+            chunk,
+            project_id,
+            update_tag,
+            cleanup_safe,
+        )
+        complete_digests |= result.complete_digests
+        enrichments.extend(result.enrichments)
+        fetch_failures += result.fetch_failures
+        layer_count += result.layer_count
+        logger.info(
+            "Enriched Artifact Registry chunk %d/%d for project %s: "
+            "%d artifacts, %d enriched, %d fetch failures",
+            index,
+            len(chunks),
+            project_id,
+            len(chunk),
+            len(result.enrichments),
+            result.fetch_failures,
+        )
+
+    refresh_layer_closures(
+        neo4j_session,
+        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+        complete_digests,
+        {"id": project_id},
+        update_tag,
+    )
+    load_missing_built_from(neo4j_session, project_id, update_tag)
 
     # Stale-layer cleanup is only safe when artifact discovery was complete AND
     # the enrichment pass had no fetch failures. Discovery completeness governs
@@ -1851,14 +1942,14 @@ def sync(
 
     provenance_count = sum(1 for e in enrichments if e.get("source_uri"))
     parent_count = sum(1 for e in enrichments if e.get("parent_image_digest"))
-    layer_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))
+    layer_image_count = sum(1 for e in enrichments if e.get("layer_diff_ids"))
     logger.info(
         "Completed supply chain sync for GCP project %s: "
         "%d images with source provenance, %d with parent image lineage, "
-        "%d with layer data, %d unique layers",
+        "%d with layer data, %d layers loaded",
         project_id,
         provenance_count,
         parent_count,
+        layer_image_count,
         layer_count,
-        len(layer_dicts),
     )

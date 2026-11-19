@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from cartography.intel.container_image_layers import get_complete_layer_digests
@@ -149,3 +151,89 @@ def test_refresh_layer_closures_projects_source_to_ontology(neo4j_session):
         ).data()
         == [{"uri": "https://github.com/example/app", "revision": "abc123"}]
     )
+
+
+@pytest.mark.parametrize(
+    ("closure_cleaned_by_reachability", "expected"),
+    [
+        (
+            True,
+            {
+                ("image", 2),
+                ("project_layer_link", 2),
+                ("layer", 1),
+                ("HAS_LAYER", 1),
+                ("HEAD", 1),
+                ("TAIL", 1),
+                ("NEXT", 1),
+            },
+        ),
+        (
+            False,
+            {
+                ("image", 2),
+                ("project_layer_link", 2),
+                ("layer", 2),
+                ("HAS_LAYER", 2),
+                ("HEAD", 2),
+                ("TAIL", 2),
+                ("NEXT", 2),
+            },
+        ),
+    ],
+    ids=["cleaned_by_reachability", "cleaned_by_timestamp"],
+)
+def test_refresh_layer_closures_refreshes_what_cleanup_reads(
+    neo4j_session, closure_cleaned_by_reachability, expected
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    neo4j_session.run(
+        """
+        CREATE (project:GCPProject {id: 'project-1'})
+        CREATE (img:GCPArtifactRegistryImage {
+            digest: 'sha256:img', layer_diff_ids: ['sha256:a', 'sha256:b'],
+            lastupdated: 1
+        })
+        CREATE (a:GCPArtifactRegistryImageLayer {id: 'sha256:a', lastupdated: 1})
+        CREATE (b:GCPArtifactRegistryImageLayer {id: 'sha256:b', lastupdated: 1})
+        CREATE (project)-[:RESOURCE {lastupdated: 1}]->(a)
+        CREATE (project)-[:RESOURCE {lastupdated: 1}]->(b)
+        CREATE (img)-[:HAS_LAYER {lastupdated: 1}]->(a)
+        CREATE (img)-[:HAS_LAYER {lastupdated: 1}]->(b)
+        CREATE (img)-[:HEAD {lastupdated: 1}]->(a)
+        CREATE (img)-[:TAIL {lastupdated: 1}]->(b)
+        CREATE (a)-[:NEXT {lastupdated: 1}]->(b)
+        """
+    ).consume()
+    shape = replace(
+        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+        closure_cleaned_by_reachability=closure_cleaned_by_reachability,
+    )
+
+    # Act
+    refresh_layer_closures(
+        neo4j_session,
+        shape,
+        ["sha256:img"],
+        {"id": "project-1"},
+        2,
+    )
+
+    # Assert
+    rows = neo4j_session.run(
+        """
+        MATCH (img:GCPArtifactRegistryImage)
+        RETURN 'image' AS entity, img.lastupdated AS tag
+        UNION
+        MATCH (layer:GCPArtifactRegistryImageLayer)
+        RETURN 'layer' AS entity, layer.lastupdated AS tag
+        UNION
+        MATCH (:GCPProject)-[r:RESOURCE]->(:GCPArtifactRegistryImageLayer)
+        RETURN 'project_layer_link' AS entity, r.lastupdated AS tag
+        UNION
+        MATCH ()-[r:HAS_LAYER|HEAD|TAIL|NEXT]->()
+        RETURN type(r) AS entity, r.lastupdated AS tag
+        """
+    ).data()
+    assert {(row["entity"], row["tag"]) for row in rows} == expected
