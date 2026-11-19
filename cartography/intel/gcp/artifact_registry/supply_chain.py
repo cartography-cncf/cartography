@@ -1759,6 +1759,7 @@ def load_image_layers(
 ) -> None:
     if not layer_dicts:
         return
+    _keep_existing_layer_history(neo4j_session, layer_dicts)
 
     schema = GCPArtifactRegistryImageLayerSchema()
     load_nodes_without_relationships(
@@ -1952,7 +1953,6 @@ def _enrich_chunk(
 
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
-        _keep_existing_layer_history(neo4j_session, layer_dicts)
         load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
     load_image_layer_relationships(
         neo4j_session,

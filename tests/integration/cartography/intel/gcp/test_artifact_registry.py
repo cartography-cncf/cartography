@@ -23,9 +23,6 @@ from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_di
 from cartography.intel.gcp.artifact_registry.supply_chain import (
     _get_provenance_complete_names,
 )
-from cartography.intel.gcp.artifact_registry.supply_chain import (
-    _keep_existing_layer_history,
-)
 from cartography.intel.gcp.artifact_registry.supply_chain import cleanup_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import GAR_PROVENANCE_VERSION
 from cartography.intel.gcp.artifact_registry.supply_chain import (
@@ -1147,7 +1144,6 @@ def test_load_image_layers_keeps_history_another_image_recorded(neo4j_session):
     ]
 
     # Act
-    _keep_existing_layer_history(neo4j_session, layers)
     load_image_layers(neo4j_session, layers, project_id, TEST_UPDATE_TAG + 1)
 
     # Assert
