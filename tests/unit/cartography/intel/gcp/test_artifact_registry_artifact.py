@@ -5,11 +5,16 @@ from unittest.mock import patch
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
 
+from cartography.intel.gcp.artifact_registry.artifact import get_docker_images
+from cartography.intel.gcp.artifact_registry.artifact import get_maven_artifacts
+from cartography.intel.gcp.artifact_registry.artifact import get_npm_packages
+from cartography.intel.gcp.artifact_registry.artifact import get_python_packages
 from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
 )
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
 from cartography.intel.gcp.artifact_registry.util import _load_with_progress
+from cartography.intel.gcp.artifact_registry.util import ARTIFACT_REGISTRY_LIST_TIMEOUT
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -201,3 +206,27 @@ def test_load_with_progress_rejects_non_positive_batch_size():
             batch_size=0,
             progress_description="test GAR nodes",
         )
+
+
+@pytest.mark.parametrize(
+    ("get_artifacts", "list_method"),
+    [
+        (get_docker_images, lambda client: client.list_docker_images),
+        (get_maven_artifacts, lambda client: client.list_maven_artifacts),
+        (get_npm_packages, lambda client: client.list_npm_packages),
+        (get_python_packages, lambda client: client.list_python_packages),
+    ],
+)
+def test_artifact_listing_asks_for_full_pages(get_artifacts, list_method):
+    client = MagicMock()
+    list_method(client).return_value = []
+
+    get_artifacts(client, "projects/test-project/locations/us-east1/repositories/repo")
+
+    list_method(client).assert_called_once_with(
+        request={
+            "parent": "projects/test-project/locations/us-east1/repositories/repo",
+            "page_size": 1000,
+        },
+        timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
+    )

@@ -41,6 +41,9 @@ DEFAULT_ARTIFACT_REGISTRY_WORKERS = 8
 # never arrives would block the calling thread, and the whole sync, forever.
 # Expiry raises DeadlineExceeded, a ServerError retried by the backoff below.
 ARTIFACT_REGISTRY_LIST_TIMEOUT = 60.0
+# Without a page size the list methods return about 30 items a page, so listing
+# a large registry is mostly round trips. 1,000 is the most the API allows.
+ARTIFACT_REGISTRY_LIST_PAGE_SIZE = 1000
 MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.list.v2+json",
     "application/vnd.oci.image.index.v1+json",
@@ -179,6 +182,10 @@ def list_artifact_registry_resources(
 ) -> list[ResultT]:
     # Retries rematerialize the pager from the beginning; these list calls are read-only.
     return list(fetcher(timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT))
+
+
+def list_request(parent: str) -> dict[str, Any]:
+    return {"parent": parent, "page_size": ARTIFACT_REGISTRY_LIST_PAGE_SIZE}
 
 
 def fetch_artifact_registry_resources(

@@ -33,11 +33,17 @@ def test_get_artifact_registry_repositories_uses_gapic_client(monkeypatch):
     assert result.repositories == [{"name": "repo-1"}, {"name": "repo-2"}]
     assert result.cleanup_safe is True
     client.list_repositories.assert_any_call(
-        parent="projects/test-project/locations/us-central1",
+        request={
+            "parent": "projects/test-project/locations/us-central1",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
     client.list_repositories.assert_any_call(
-        parent="projects/test-project/locations/us-east1",
+        request={
+            "parent": "projects/test-project/locations/us-east1",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
 

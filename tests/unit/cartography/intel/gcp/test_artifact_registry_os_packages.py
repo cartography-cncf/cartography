@@ -64,11 +64,17 @@ def test_get_apt_artifacts_uses_packages_and_versions():
         }
     ]
     client.list_packages.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo",
+        request={
+            "parent": "projects/test-project/locations/us-east1/repositories/repo",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
     client.list_versions.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo/packages/curl",
+        request={
+            "parent": "projects/test-project/locations/us-east1/repositories/repo/packages/curl",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
 
@@ -89,11 +95,17 @@ def test_get_yum_artifacts_uses_packages_and_versions():
         }
     ]
     client.list_packages.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo",
+        request={
+            "parent": "projects/test-project/locations/us-east1/repositories/repo",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
     client.list_versions.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo/packages/bash",
+        request={
+            "parent": "projects/test-project/locations/us-east1/repositories/repo/packages/bash",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
 
@@ -114,11 +126,17 @@ def test_get_go_modules_uses_packages_and_versions():
         }
     ]
     client.list_packages.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo",
+        request={
+            "parent": "projects/test-project/locations/us-east1/repositories/repo",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
     client.list_versions.assert_called_once_with(
-        parent="projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo",
+        request={
+            "parent": "projects/test-project/locations/us-east1/repositories/repo/packages/example.com/foo",
+            "page_size": 1000,
+        },
         timeout=ARTIFACT_REGISTRY_LIST_TIMEOUT,
     )
 

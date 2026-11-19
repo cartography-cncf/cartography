@@ -29,6 +29,7 @@ from cartography.intel.gcp.artifact_registry.util import (
 from cartography.intel.gcp.artifact_registry.util import (
     list_artifact_registry_resources,
 )
+from cartography.intel.gcp.artifact_registry.util import list_request
 from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
 from cartography.intel.gcp.artifact_registry.util import (
     load_nodes_without_relationships,
@@ -104,13 +105,17 @@ def _list_package_versions(
 ) -> list[dict]:
     artifacts: list[dict] = []
     packages = list_artifact_registry_resources(
-        lambda **kwargs: client.list_packages(parent=repository_name, **kwargs)
+        lambda **kwargs: client.list_packages(
+            request=list_request(repository_name), **kwargs
+        )
     )
     for package in packages:
         package_name = _extract_package_name(package)
         try:
             versions = list_artifact_registry_resources(
-                lambda **kwargs: client.list_versions(parent=package.name, **kwargs)
+                lambda **kwargs: client.list_versions(
+                    request=list_request(package.name), **kwargs
+                )
             )
         except NotFound:
             logger.debug(
@@ -144,7 +149,7 @@ def get_docker_images(
             proto_message_to_dict(image)
             for image in list_artifact_registry_resources(
                 lambda **kwargs: client.list_docker_images(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
@@ -182,7 +187,7 @@ def get_maven_artifacts(
             proto_message_to_dict(artifact)
             for artifact in list_artifact_registry_resources(
                 lambda **kwargs: client.list_maven_artifacts(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
@@ -220,7 +225,7 @@ def get_npm_packages(
             proto_message_to_dict(package)
             for package in list_artifact_registry_resources(
                 lambda **kwargs: client.list_npm_packages(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
@@ -257,7 +262,7 @@ def get_python_packages(
             proto_message_to_dict(package)
             for package in list_artifact_registry_resources(
                 lambda **kwargs: client.list_python_packages(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
