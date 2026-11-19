@@ -28,6 +28,7 @@ def sync(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    sync_image_layers: bool = True,
 ) -> None:
     """
     Syncs GCP Artifact Registry resources for a project.
@@ -36,7 +37,8 @@ def sync(
     1. Repositories
     2. Artifacts (Docker images, Maven, npm, Python, Go, APT, YUM)
     3. Image manifests (for multi-architecture Docker images, extracted from imageManifests field)
-    4. Supply chain provenance (source repo + layer data from OCI image configs)
+    4. Supply chain provenance (source repo, parent image and layer data from OCI
+       image configs, attestations and SBOMs)
 
     :param neo4j_session: The Neo4j session.
     :param credentials: GCP credentials used to build the GAPIC Artifact Registry client
@@ -44,6 +46,9 @@ def sync(
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
+    :param sync_image_layers: Whether to keep the image layer graph: layer nodes,
+                              their project links, and HAS_LAYER, HEAD, TAIL and
+                              NEXT relationships.
     """
     logger.info(f"Syncing Artifact Registry for project {project_id}.")
     artifact_registry_client = build_artifact_registry_client(credentials=credentials)
@@ -92,14 +97,15 @@ def sync(
             project_id,
         )
 
-    # Enrich images with build provenance and layer data from OCI configs
-    if artifact_result.docker_images_raw:
-        sync_supply_chain(
-            neo4j_session,
-            credentials,
-            artifact_result.docker_images_raw,
-            project_id,
-            update_tag,
-            common_job_parameters,
-            cleanup_safe=artifact_result.cleanup_safe,
-        )
+    # Enrich images with build provenance and layer data from OCI configs. A
+    # project whose last image is gone still runs it, so its layer links go too.
+    sync_supply_chain(
+        neo4j_session,
+        credentials,
+        artifact_result.docker_images_raw,
+        project_id,
+        update_tag,
+        common_job_parameters,
+        cleanup_safe=artifact_result.cleanup_safe,
+        sync_layer_graph=sync_image_layers,
+    )

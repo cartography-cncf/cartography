@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.artifact_registry import supply_chain
 from cartography.intel.gcp.artifact_registry import sync
 from cartography.intel.gcp.artifact_registry.artifact import cleanup_docker_images
 from cartography.intel.gcp.artifact_registry.artifact import load_docker_images
@@ -1150,6 +1151,131 @@ def test_load_image_layers_keeps_history_another_image_recorded(neo4j_session):
     assert check_nodes(
         neo4j_session, "GCPArtifactRegistryImageLayer", ["id", "history"]
     ) >= {("sha256:recorded", "RUN make"), ("sha256:unrecorded", None)}
+
+
+def _raw_docker_image(project_id: str, repository_id: str, index: int) -> dict:
+    digest = f"sha256:{index:064x}"
+    return {
+        "name": f"{repository_id}/dockerImages/app-{index}@{digest}",
+        "uri": f"us-central1-docker.pkg.dev/{project_id}/docker-repo/app-{index}@{digest}",
+        "mediaType": TEST_SINGLE_IMAGE_MEDIA_TYPE,
+    }
+
+
+def test_layer_graph_comes_back_after_being_turned_off(neo4j_session, monkeypatch):
+    # Arrange: two images share a base layer, and the second is built from the first.
+    project_id = "test-gar-layer-toggle-project"
+    repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
+    _clear_gar_project(neo4j_session, project_id)
+    _create_gar_project_and_repositories(neo4j_session, project_id, [repo_id])
+    base = _raw_docker_image(project_id, repo_id, 0x7091)
+    app = _raw_docker_image(project_id, repo_id, 0x7092)
+    base_digest = f"sha256:{0x7091:064x}"
+    app_digest = f"sha256:{0x7092:064x}"
+    enrichments = {
+        base_digest: {
+            "digest": base_digest,
+            "layer_diff_ids": ["sha256:toggle-shared"],
+            "layer_history": [{"created_by": "FROM scratch", "empty_layer": False}],
+        },
+        app_digest: {
+            "digest": app_digest,
+            "layer_diff_ids": ["sha256:toggle-shared", "sha256:toggle-app"],
+            "layer_history": [
+                {"created_by": "FROM scratch", "empty_layer": False},
+                {"created_by": "COPY app /app", "empty_layer": False},
+            ],
+            "parent_image_uri": base["uri"],
+            "parent_image_digest": base_digest,
+        },
+    }
+
+    async def _fetch(
+        _credentials,
+        artifacts,
+        _project_id,
+        complete_digests,
+        provenance_complete_names,
+        **_kwargs,
+    ):
+        # Read what the registry would be asked for: images without a finished
+        # pass, and configs only for images whose layers are not complete.
+        results, versions = [], {}
+        for artifact in artifacts:
+            digest = artifact["uri"].split("@")[1]
+            if (
+                digest in complete_digests
+                and artifact["name"] in provenance_complete_names
+            ):
+                continue
+            versions[artifact["name"]] = GAR_PROVENANCE_VERSION
+            if digest not in complete_digests:
+                results.append(enrichments[digest])
+        return results, 0, versions
+
+    monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", _fetch)
+
+    def _sync(update_tag, sync_layer_graph):
+        load_docker_images(
+            neo4j_session,
+            transform_docker_images([base, app], repo_id, project_id),
+            project_id,
+            update_tag,
+        )
+        supply_chain.sync(
+            neo4j_session,
+            MagicMock(),
+            [base, app],
+            project_id,
+            update_tag,
+            {"UPDATE_TAG": update_tag, "PROJECT_ID": project_id},
+            sync_layer_graph=sync_layer_graph,
+        )
+        run_analysis_job(
+            "gcp_artifact_registry_orphan_cleanup.json",
+            neo4j_session,
+            {"UPDATE_TAG": update_tag},
+        )
+        return (
+            neo4j_session.run(
+                """
+            RETURN
+                COUNT {
+                    (:GCPArtifactRegistryImageLayer)
+                    <-[:RESOURCE]-(:GCPProject {id: $project_id})
+                } AS project_layer_links,
+                COUNT {
+                    (:GCPArtifactRegistryImage {digest: $app})-[:HAS_LAYER]->()
+                } AS app_layers,
+                COUNT {
+                    (:GCPArtifactRegistryImage {digest: $app})
+                    -[:BUILT_FROM]->(:GCPArtifactRegistryImage {digest: $base})
+                } AS built_from
+            """,
+                project_id=project_id,
+                app=app_digest,
+                base=base_digest,
+            )
+            .single()
+            .data()
+        )
+
+    # Act and assert
+    assert _sync(TEST_UPDATE_TAG, True) == {
+        "project_layer_links": 2,
+        "app_layers": 2,
+        "built_from": 1,
+    }
+    assert _sync(TEST_UPDATE_TAG + 1, False) == {
+        "project_layer_links": 0,
+        "app_layers": 0,
+        "built_from": 1,
+    }
+    assert _sync(TEST_UPDATE_TAG + 2, True) == {
+        "project_layer_links": 2,
+        "app_layers": 2,
+        "built_from": 1,
+    }
 
 
 def test_load_image_provenance_preserves_source_and_updates_metadata(

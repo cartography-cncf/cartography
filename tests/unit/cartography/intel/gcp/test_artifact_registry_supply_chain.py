@@ -907,14 +907,25 @@ def test_build_image_layer_relationship_dicts_skips_manifest_lists():
     ]
 
 
-def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
+@pytest.mark.parametrize(
+    "docker_artifacts_raw",
+    [
+        [{"name": "img"}],
+        # A project whose last image is gone still removes its stale layer links.
+        [],
+    ],
+    ids=["images", "no_images"],
+)
+def test_sync_runs_cleanup_when_safe_and_no_failures(
+    patched_sync, docker_artifacts_raw
+):
     set_enrichments, cleanup_runs = patched_sync
     set_enrichments(enrichments=[], fetch_failures=0)
 
     supply_chain.sync(
         neo4j_session=MagicMock(),
         credentials=MagicMock(),
-        docker_artifacts_raw=[{"name": "img"}],
+        docker_artifacts_raw=docker_artifacts_raw,
         project_id="proj",
         update_tag=1,
         common_job_parameters={},
@@ -1147,6 +1158,45 @@ def test_sync_keeps_finished_chunks_when_a_later_chunk_fails(patched_sync, monke
         1,
         layer_graph_names={first["name"]},
     )
+
+
+def test_sync_without_layer_graph_keeps_provenance_and_removes_layer_links(
+    patched_sync, monkeypatch
+):
+    # Arrange: a failed fetch would normally hold back the layer link cleanup.
+    set_enrichments, cleanup_runs = patched_sync
+    set_enrichments(
+        enrichments=[
+            {
+                "digest": "sha256:img",
+                "source_uri": "https://github.com/foo/bar",
+                "layer_diff_ids": ["sha256:a", "sha256:b"],
+            }
+        ],
+        fetch_failures=1,
+    )
+
+    # Act
+    supply_chain.sync(
+        neo4j_session=MagicMock(),
+        credentials=MagicMock(),
+        docker_artifacts_raw=[{"name": "img"}],
+        project_id="proj",
+        update_tag=1,
+        common_job_parameters={},
+        sync_layer_graph=False,
+    )
+
+    # Assert
+    provenance_update = supply_chain.load_image_provenance.call_args.args[1][0]
+    assert (provenance_update["source_uri"], provenance_update["layer_diff_ids"]) == (
+        "https://github.com/foo/bar",
+        ["sha256:a", "sha256:b"],
+    )
+    supply_chain.get_complete_layer_digests.assert_not_called()
+    supply_chain.load_image_layers.assert_not_called()
+    supply_chain.load_image_layer_relationships.assert_not_called()
+    assert cleanup_runs == ["gcp_artifact_registry_orphan_image_layer_cleanup.json"]
 
 
 @pytest.mark.asyncio
