@@ -995,15 +995,18 @@ def test_sync_checks_layers_only_without_a_layer_graph_stamp(
     expected_layer_graph_stamps,
 ):
     # Arrange: one artifact with both stamps, one stamped before layer graph
-    # stamps existed whose layers check out, and one never enriched.
+    # stamps existed whose layers check out, one never enriched, and one whose
+    # fetch fails.
     trusted = _single_image("trusted", "a")
     provenance_only = _single_image("provenance-only", "b")
     new = _single_image("new", "c")
-    artifacts = [trusted, provenance_only, new]
+    failed = _single_image("failed", "f")
+    artifacts = [trusted, provenance_only, new, failed]
     names = {
         trusted["name"]: "trusted",
         provenance_only["name"]: "provenance-only",
         new["name"]: "new",
+        failed["name"]: "failed",
     }
     supply_chain._get_provenance_complete_names.return_value = {
         trusted["name"],
@@ -1012,7 +1015,11 @@ def test_sync_checks_layers_only_without_a_layer_graph_stamp(
     supply_chain._get_layer_graph_complete_names.return_value = {trusted["name"]}
     supply_chain.get_complete_layer_digests.return_value = {"sha256:" + "b" * 64}
     fetch = AsyncMock(
-        return_value=([], 0, {new["name"]: GAR_PROVENANCE_VERSION, "failed": None}),
+        return_value=(
+            [],
+            0,
+            {new["name"]: GAR_PROVENANCE_VERSION, failed["name"]: None},
+        ),
     )
     monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", fetch)
     neo4j_session = MagicMock()
@@ -1041,15 +1048,14 @@ def test_sync_checks_layers_only_without_a_layer_graph_stamp(
     assert supply_chain.get_complete_layer_digests.call_args.args[2] == {
         "sha256:" + "b" * 64,
         "sha256:" + "c" * 64,
+        "sha256:" + "f" * 64,
     }
     assert fetch.await_args.kwargs["complete_digests"] == {
         "sha256:" + "a" * 64,
         "sha256:" + "b" * 64,
     }
     stamp_args = supply_chain.load_repository_image_provenance.call_args
-    assert {
-        names.get(n, n): v for n, v in stamp_args.args[2].items()
-    } == expected_stamps
+    assert {names[n]: v for n, v in stamp_args.args[2].items()} == expected_stamps
     assert {
         names[n] for n in stamp_args.kwargs["layer_graph_names"]
     } == expected_layer_graph_stamps
