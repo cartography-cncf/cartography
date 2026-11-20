@@ -1001,8 +1001,9 @@ def transform_role_trust_policies(
         # The allowed principals of type AWS, i.e. IAM users, roles and accounts.
         aws_principal_arns: set[str] = set()
 
+        # A policy's "Statement" may be a single object instead of a list.
         for statement_index, statement in enumerate(
-            role["AssumeRolePolicyDocument"]["Statement"]
+            ensure_list(role["AssumeRolePolicyDocument"]["Statement"])
         ):
             actions = _statement_assume_role_actions(statement)
             if not actions:
