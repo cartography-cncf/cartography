@@ -105,6 +105,12 @@ def test_load_ontology_users_integration(mock_get_source_nodes, neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n;")  # Clean the database
     _ensure_local_neo4j_has_test_duo_users(neo4j_session)
     _ensure_local_neo4j_has_test_tailscale_users(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (t:TailscaleUser {email: 'hjsimpson@simpson.corp'})
+        SET t.email = 'HJSimpson@Simpson.corp', t._ont_email = 'HJSimpson@Simpson.corp'
+        """
+    )
 
     # Act
     cartography.intel.ontology.users.sync(
@@ -151,7 +157,7 @@ def test_load_ontology_users_integration(mock_get_source_nodes, neo4j_session):
     # Assert - Check that relationships to TailscaleUser nodes were created
     expected_rels = {
         ("mbsimpson@simpson.corp", "mbsimpson@simpson.corp"),
-        ("hjsimpson@simpson.corp", "hjsimpson@simpson.corp"),
+        ("hjsimpson@simpson.corp", "HJSimpson@Simpson.corp"),
     }
     actual_rels = check_rels(
         neo4j_session,
