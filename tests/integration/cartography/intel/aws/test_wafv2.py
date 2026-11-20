@@ -41,12 +41,14 @@ def _fake_boto3_session(list_web_acls: dict[tuple[str, str], Any]) -> MagicMock:
         wafv2.list_web_acls.side_effect = lambda Scope: copy.deepcopy(
             list_web_acls.get((region_name, Scope), {"WebACLs": []}),
         )
+        wafv2.list_rule_groups.return_value = {"RuleGroups": []}
         wafv2.list_resources_for_web_acl.side_effect = (
             lambda WebACLArn, ResourceType: LIST_RESOURCES_FOR_WEB_ACL.get(
                 WebACLArn,
                 test_data.LIST_RESOURCES_NONE,
             )
         )
+        wafv2.get_web_acl.return_value = {"WebACL": {}}
         return wafv2
 
     session = MagicMock()
@@ -337,6 +339,79 @@ def test_sync_removes_protects_edge_when_distribution_drops_its_web_acl(
             "AWSCloudFrontDistribution",
             "arn",
             "PROTECTS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+
+def test_sync_rule_groups(neo4j_session):
+    _reset_graph(neo4j_session)
+    session = _fake_boto3_session(LIST_WEB_ACLS)
+    original_client = session.client.side_effect
+
+    def client(service_name: str, region_name: str, **kwargs: Any) -> MagicMock:
+        wafv2 = original_client(service_name, region_name, **kwargs)
+
+        def list_rule_groups(Scope: str) -> dict:
+            if region_name == "us-east-1" and Scope == "REGIONAL":
+                return copy.deepcopy(test_data.LIST_RULE_GROUPS)
+            return {"RuleGroups": []}
+
+        def get_web_acl(Name: str, Scope: str, Id: str) -> dict:
+            if region_name == "us-east-1" and Name == "alb-acl":
+                return copy.deepcopy(test_data.GET_WEB_ACL_WITH_RULE_GROUP)
+            return {"WebACL": {}}
+
+        wafv2.list_rule_groups.side_effect = list_rule_groups
+        wafv2.get_web_acl.side_effect = get_web_acl
+        return wafv2
+
+    session.client.side_effect = client
+    sync(
+        neo4j_session,
+        session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSRuleGroup",
+        ["arn", "name", "scope"],
+    ) == {(test_data.RULE_GROUP_ARN, "shared-rules", "REGIONAL")}
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSRuleGroup",
+        "arn",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {(TEST_ACCOUNT_ID, test_data.RULE_GROUP_ARN)}
+    assert check_rels(
+        neo4j_session,
+        "AWSWebACL",
+        "arn",
+        "AWSRuleGroup",
+        "arn",
+        "REFERENCES",
+        rel_direction_right=True,
+    ) == {(test_data.ALB_WEB_ACL_ARN, test_data.RULE_GROUP_ARN)}
+
+    _sync(neo4j_session, ["us-east-1"], TEST_UPDATE_TAG + 1)
+
+    assert check_nodes(neo4j_session, "AWSRuleGroup", ["arn"]) == set()
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSWebACL",
+            "arn",
+            "AWSRuleGroup",
+            "arn",
+            "REFERENCES",
             rel_direction_right=True,
         )
         == set()

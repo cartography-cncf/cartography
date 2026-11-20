@@ -2,9 +2,11 @@ import copy
 from unittest.mock import MagicMock
 
 import botocore.exceptions
+import pytest
 
 import tests.data.aws.wafv2 as test_data
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
+from cartography.intel.aws.wafv2 import _get_rule_group_arns_for_web_acl
 from cartography.intel.aws.wafv2 import get_web_acls
 from cartography.intel.aws.wafv2 import transform_web_acls
 
@@ -92,6 +94,7 @@ def test_get_web_acls_adds_the_load_balancers_a_regional_web_acl_protects() -> N
             "Description": "Protects the public load balancer",
             "LockToken": "lock-token-1",
             "ARN": test_data.ALB_WEB_ACL_ARN,
+            "RuleGroupArns": [],
             "AlbArns": [test_data.PROTECTED_ALB_ARN],
         },
     ]
@@ -120,6 +123,7 @@ def test_get_web_acls_keeps_a_web_acl_deleted_while_listing_its_resources() -> N
             "Description": "Protects the public load balancer",
             "LockToken": "lock-token-1",
             "ARN": test_data.ALB_WEB_ACL_ARN,
+            "RuleGroupArns": [],
             "AlbArns": [],
         },
     ]
@@ -145,6 +149,7 @@ def test_transform_web_acls_records_scope_and_protected_load_balancers() -> None
         {
             **test_data.ALB_WEB_ACL_SUMMARY,
             "AlbArns": [test_data.PROTECTED_ALB_ARN],
+            "RuleGroupArns": [],
         },
     ]
 
@@ -160,13 +165,14 @@ def test_transform_web_acls_records_scope_and_protected_load_balancers() -> None
             "Description": "Protects the public load balancer",
             "Scope": "REGIONAL",
             "AlbArns": [test_data.PROTECTED_ALB_ARN],
+            "RuleGroupArns": [],
         },
     ]
 
 
 def test_transform_web_acls_defaults_load_balancers_to_an_empty_list() -> None:
     # Arrange
-    web_acls = [test_data.CLOUDFRONT_WEB_ACL_SUMMARY]
+    web_acls = [{**test_data.CLOUDFRONT_WEB_ACL_SUMMARY, "RuleGroupArns": []}]
 
     # Act
     result = transform_web_acls(web_acls, "CLOUDFRONT")
@@ -180,5 +186,52 @@ def test_transform_web_acls_defaults_load_balancers_to_an_empty_list() -> None:
             "Description": "Protects the CDN",
             "Scope": "CLOUDFRONT",
             "AlbArns": [],
+            "RuleGroupArns": [],
         },
     ]
+
+
+def test_get_rule_group_arns_reads_a_rule_group_reference() -> None:
+    client = MagicMock()
+    client.get_web_acl.return_value = test_data.GET_WEB_ACL_WITH_RULE_GROUP
+
+    assert _get_rule_group_arns_for_web_acl(
+        client,
+        test_data.ALB_WEB_ACL_SUMMARY,
+        "REGIONAL",
+    ) == [test_data.RULE_GROUP_ARN]
+
+
+def test_get_rule_group_arns_skips_a_web_acl_deleted_while_fetching_rules() -> None:
+    client = MagicMock()
+    client.get_web_acl.side_effect = botocore.exceptions.ClientError(
+        error_response={"Error": {"Code": "WAFNonexistentItemException"}},
+        operation_name="GetWebACL",
+    )
+
+    assert (
+        _get_rule_group_arns_for_web_acl(
+            client,
+            test_data.ALB_WEB_ACL_SUMMARY,
+            "REGIONAL",
+        )
+        == []
+    )
+
+
+def test_get_rule_group_arns_raises_other_client_errors() -> None:
+    client = MagicMock()
+    error = botocore.exceptions.ClientError(
+        error_response={"Error": {"Code": "WAFInvalidParameterException"}},
+        operation_name="GetWebACL",
+    )
+    client.get_web_acl.side_effect = error
+
+    with pytest.raises(botocore.exceptions.ClientError) as exc_info:
+        _get_rule_group_arns_for_web_acl(
+            client,
+            test_data.ALB_WEB_ACL_SUMMARY,
+            "REGIONAL",
+        )
+
+    assert exc_info.value is error

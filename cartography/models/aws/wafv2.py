@@ -135,6 +135,24 @@ class AWSWebACLToCloudFrontDistributionRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSWebACLToRuleGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSWebACLToRuleGroupRel(CartographyRelSchema):
+    """Created when a web ACL rule references a rule group."""
+
+    target_node_label: str = "AWSRuleGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("RuleGroupArns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "REFERENCES"
+    properties: AWSWebACLToRuleGroupRelProperties = AWSWebACLToRuleGroupRelProperties()
+
+
+@dataclass(frozen=True)
 class AWSWebACLSchema(CartographyNodeSchema):
     """Representation of an AWS WAFv2 [web ACL](https://docs.aws.amazon.com/waf/latest/APIReference/API_WebACL.html)"""
 
@@ -149,5 +167,64 @@ class AWSWebACLSchema(CartographyNodeSchema):
             AWSWebACLToLoadBalancerV2Rel(),
             AWSWebACLToAPIGatewayStageRel(),
             AWSWebACLToCloudFrontDistributionRel(),
+            AWSWebACLToRuleGroupRel(),
         ],
+    )
+
+
+@dataclass(frozen=True)
+class AWSRuleGroupNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("ARN", description="The ARN of the rule group")
+    arn: PropertyRef = PropertyRef(
+        "ARN",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the rule group",
+    )
+    rule_group_id: PropertyRef = PropertyRef(
+        "Id",
+        description="The unique identifier of the rule group",
+    )
+    name: PropertyRef = PropertyRef("Name", description="The name of the rule group")
+    description: PropertyRef = PropertyRef(
+        "Description",
+        description="The description of the rule group",
+    )
+    scope: PropertyRef = PropertyRef(
+        "Scope",
+        description="Where the rule group can be used, either REGIONAL or CLOUDFRONT",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of the rule group",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSRuleGroupToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSRuleGroupToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSRuleGroupToAWSAccountRelProperties = (
+        AWSRuleGroupToAWSAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSRuleGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS WAFv2 [rule group](https://docs.aws.amazon.com/waf/latest/APIReference/API_RuleGroup.html)"""
+
+    label: str = "AWSRuleGroup"
+    properties: AWSRuleGroupNodeProperties = AWSRuleGroupNodeProperties()
+    sub_resource_relationship: AWSRuleGroupToAWSAccountRel = (
+        AWSRuleGroupToAWSAccountRel()
     )
