@@ -6,6 +6,7 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from . import acm
 from . import apigateway
 from . import apigatewayv2
+from . import backup
 from . import bedrock
 from . import cloudformation
 from . import cloudfront
@@ -81,9 +82,10 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "iam": iam.sync,
         "iaminstanceprofiles": sync_iam_instance_profiles,
         # `kms` must run before the resources that create canonical ENCRYPTED_BY
-        # edges to existing AWSKMSKey nodes by matching on the key ARN: `s3`, `rds`,
-        # `efs`, `dynamodb`, and the Secrets Manager / SSM secret syncs.
+        # edges to existing AWSKMSKey nodes by matching on the key ARN: `backup`,
+        # `s3`, `rds`, `efs`, `dynamodb`, and the Secrets Manager / SSM secret syncs.
         "kms": kms.sync,
+        "backup": backup.sync,
         "s3": s3.sync,
         "dynamodb": dynamodb.sync,
         "ec2:launch_templates": sync_ec2_launch_templates,
