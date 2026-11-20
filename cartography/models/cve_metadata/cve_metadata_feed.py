@@ -27,6 +27,13 @@ class CVEMetadataFeedNodeProperties(CartographyNodeProperties):
         "source_vulnrichment",
         description="Whether CISA Vulnrichment enrichment was enabled for the sync.",
     )
+    source_euvd: PropertyRef = PropertyRef(
+        "source_euvd",
+        description=(
+            "Whether ENISA EU Vulnerability Database enrichment was enabled for "
+            "the sync."
+        ),
+    )
     kev_catalog_version: PropertyRef = PropertyRef(
         "kev_catalog_version",
         description=(

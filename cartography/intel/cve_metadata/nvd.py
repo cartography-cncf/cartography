@@ -132,6 +132,7 @@ def _transform_cve(cve: dict[str, Any]) -> dict[str, Any]:
         transformed.update(
             {
                 "cvss_version": cvss_version,
+                "cvss_source": "nvd",
                 "vectorString": cvss_data.get("vectorString"),
                 "attackVector": cvss_data.get("attackVector"),
                 "attackComplexity": cvss_data.get("attackComplexity"),

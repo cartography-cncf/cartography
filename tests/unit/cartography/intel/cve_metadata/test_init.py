@@ -43,6 +43,7 @@ def test_load_cve_metadata_bounds_batch_size(mock_load):
 @patch.object(cve_metadata, "run_analysis_job")
 @patch.object(cve_metadata, "load_cve_metadata_feed")
 @patch.object(cve_metadata, "load_cve_metadata")
+@patch.object(cve_metadata.euvd, "get_euvd_records")
 @patch.object(cve_metadata.vulnrichment, "merge_vulnrichment_into_cves")
 @patch.object(cve_metadata.vulnrichment, "get_vulnrichment_records")
 @patch.object(cve_metadata.kev, "merge_kev_into_cves")
@@ -64,6 +65,7 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
     mock_merge_kev_into_cves,
     mock_get_vulnrichment_records,
     mock_merge_vulnrichment_into_cves,
+    mock_get_euvd_records,
     mock_load_cve_metadata,
     mock_load_cve_metadata_feed,
     mock_run_analysis_job,
@@ -97,6 +99,7 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
         },
     ]
     mock_get_kev_catalog.return_value = GET_KEV_CATALOG
+    mock_get_euvd_records.return_value = cve_metadata.euvd.EuvdLookup()
     vulnrichment_snapshot = cve_metadata.vulnrichment.VulnrichmentSnapshot(
         commit="0123abcd",
     )
@@ -123,12 +126,17 @@ def test_start_cve_metadata_ingestion_loads_one_year_at_a_time(
         http_session,
         {"CVE-2023-0001", "CVE-2023-0002", "CVE-2024-0001"},
     )
+    # The NVD merge is mocked out, so no CVE has a score and EUVD is asked about all.
+    assert mock_get_euvd_records.call_args_list == [
+        call(http_session, ["CVE-2023-0001", "CVE-2023-0002"]),
+        call(http_session, ["CVE-2024-0001"]),
+    ]
     kev_catalog = cve_metadata.kev.transform_kev_catalog(GET_KEV_CATALOG)
     assert mock_load_cve_metadata_feed.call_args_list == [
         call(
             neo4j_session,
             123,
-            {"nvd", "epss", "kev", "vulnrichment"},
+            {"nvd", "epss", "kev", "vulnrichment", "euvd"},
             kev_catalog,
             vulnrichment_snapshot,
         ),
