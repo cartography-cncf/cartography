@@ -75,6 +75,14 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
         "azure_resource_group",
         description="Lowercased node resource group parsed from an AKS node's `provider_id`; null for non-Azure providers. AKS creates the cluster's Azure load balancers in this resource group.",
     )
+    csi_node_ids: PropertyRef = PropertyRef(
+        "csi_node_ids",
+        description='Node IDs registered by the CSI drivers installed on the node, from the node\'s `CSINode` object (`spec.drivers[].nodeID`), stored as a JSON-encoded object keyed by driver name (e.g. `{"csi.scaleway.com": "fr-par-2/11111111-2222-3333-4444-555555555555"}`). Cloud block-storage drivers usually register the cloud instance ID, which identifies the backing instance even when `provider_id` does not; null when no driver is registered or `list csinodes` is not granted.',
+    )
+    scaleway_instance_id: PropertyRef = PropertyRef(
+        "scaleway_instance_id",
+        description="Scaleway Instance server ID backing the node, parsed from `provider_id` (`scaleway://instance/{zone}/{server id}`, set on Kapsule and by the Scaleway cloud controller manager) or, failing that, from the `csi.scaleway.com` entry of `csi_node_ids` (`{zone}/{server id}`); null for nodes not running on Scaleway Instances.",
+    )
     gke_node_pool: PropertyRef = PropertyRef(
         "gke_node_pool",
         description='GKE node pool name from the Kubernetes `Node.metadata.labels["cloud.google.com/gke-nodepool"]` label; null for non-GKE nodes.',
@@ -173,6 +181,29 @@ class KubernetesNodeToGCPInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesNodeToScalewayInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesNode)-[:IS_INSTANCE]->(:ScalewayInstance)
+# Only created for nodes whose providerID or Scaleway CSI node ID resolves to
+# a Scaleway Instance server id.
+class KubernetesNodeToScalewayInstanceRel(CartographyRelSchema):
+    """Links a node to the Scaleway Instance backing it. Covers Kapsule nodes and self-managed clusters (k3s, kubeadm, ...) running the Scaleway CSI driver."""
+
+    target_node_label: str = "ScalewayInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("scaleway_instance_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: KubernetesNodeToScalewayInstanceRelProperties = (
+        KubernetesNodeToScalewayInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesNodeToGKENodePoolRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -207,6 +238,7 @@ class KubernetesNodeSchema(CartographyNodeSchema):
         [
             KubernetesNodeToEC2InstanceRel(),
             KubernetesNodeToGCPInstanceRel(),
+            KubernetesNodeToScalewayInstanceRel(),
             KubernetesNodeToGKENodePoolRel(),
         ]
     )
