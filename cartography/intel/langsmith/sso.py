@@ -4,6 +4,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
@@ -26,6 +27,7 @@ def sync(
     raw_providers, providers_complete = get_sso_settings(client, org_id)
     raw_policies, policies_complete = get_access_policies(client, org_id)
     data_planes, data_planes_complete = get_data_planes(client, org_id)
+    data_planes = keep_known_created_at(neo4j_session, data_planes, org_id)
     load_sso(
         neo4j_session,
         transform_providers(raw_providers, org_id),
@@ -54,7 +56,12 @@ def sync(
     )
 
 
-def _get_optional(client: LangSmithClient, org_id: str, path: str) -> tuple[Any, bool]:
+def _get_optional(
+    client: LangSmithClient,
+    org_id: str,
+    path: str,
+    params: dict[str, Any] | None = None,
+) -> tuple[Any, bool]:
     """
     Fetch an organization-level listing that a credential or plan may not expose.
 
@@ -63,7 +70,7 @@ def _get_optional(client: LangSmithClient, org_id: str, path: str) -> tuple[Any,
     answer. A 401/403 means the listing exists but is hidden, so it is reported incomplete.
     """
     try:
-        return client.get(path, org_id=org_id), True
+        return client.get(path, params=params, org_id=org_id), True
     except LangSmithFetchError as err:
         logger.warning("Skipping LangSmith %s: %s", path, err)
         return None, err.not_found
@@ -98,11 +105,69 @@ def get_data_planes(
 
     Data planes only exist for hybrid and self-hosted deployments, and the route is not
     served for organizations without one.
+
+    The full view needs organization:infrastructure:read, which only Organization Admin
+    and Operator hold. When it is denied, the summary view is requested instead: it
+    needs only organization:read and still carries id, name and status, but not
+    created_at; sync() carries a previously stored created_at forward.
     """
-    payload, complete = _get_optional(client, org_id, "/orgs/current/data-planes")
+    path = "/orgs/current/data-planes"
+    try:
+        payload = client.get(path, org_id=org_id)
+    except LangSmithFetchError as err:
+        if err.not_found or err.status_code not in (401, 403):
+            logger.warning("Skipping LangSmith %s: %s", path, err)
+            return [], err.not_found
+        logger.info(
+            "LangSmith %s full view was denied (%s); using the summary view, which "
+            "omits created_at.",
+            path,
+            err,
+        )
+        payload, complete = _get_optional(
+            client, org_id, path, params={"view": "SUMMARY"}
+        )
+        if not complete:
+            return [], False
     if isinstance(payload, dict):
-        return payload.get("data_planes") or [], complete
-    return payload or [], complete
+        return payload.get("data_planes") or [], True
+    return payload or [], True
+
+
+def keep_known_created_at(
+    neo4j_session: neo4j.Session,
+    data_planes: list[dict[str, Any]],
+    org_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Carry a data plane's stored created_at forward when the summary view omitted it.
+
+    Ingestion writes every schema property, so a row without created_at would clear the
+    value an earlier full-view sync recorded. A data plane's creation time never
+    changes, so the stored value is still correct.
+    """
+    missing = [dp["id"] for dp in data_planes if "created_at" not in dp]
+    if not missing:
+        return data_planes
+    known = {
+        row["id"]: row["created_at"]
+        for row in neo4j_session.execute_read(
+            read_list_of_dicts_tx,
+            "MATCH (:LangSmithOrganization {id: $ORG_ID})-[:RESOURCE]->"
+            "(d:LangSmithDataPlane) WHERE d.id IN $IDS AND d.created_at IS NOT NULL "
+            "RETURN d.id AS id, d.created_at AS created_at",
+            ORG_ID=org_id,
+            IDS=missing,
+        )
+    }
+    return [
+        (
+            {**dp, "created_at": known[dp["id"]]}
+            if "created_at" not in dp and dp["id"] in known
+            else dp
+        )
+        for dp in data_planes
+    ]
 
 
 def transform_providers(

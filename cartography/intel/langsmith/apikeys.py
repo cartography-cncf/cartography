@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_preserving_unread
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import org_scoped_id
@@ -29,15 +30,20 @@ def sync(
     service_accounts, service_accounts_complete = get_service_accounts(client, org_id)
 
     keys: list[dict[str, Any]] = []
-    keys_complete = True
+    # Organization-wide listings that failed are tracked by key type, and per-workspace
+    # listings by workspace, so cleanup can still run for everything that was read.
+    unread_key_types: set[str] = set()
+    unread_workspace_ids: set[str] = set()
     for key_type in ("service_key", "pat", "scim_token"):
         rows, ok = _fetch_optional(client, org_id, key_type)
         keys.extend(rows)
-        keys_complete = keys_complete and ok
+        if not ok:
+            unread_key_types.add(key_type)
     for workspace in workspaces:
         rows, ok = _fetch_workspace_keys(client, org_id, workspace["id"])
         keys.extend(rows)
-        keys_complete = keys_complete and ok
+        if not ok:
+            unread_workspace_ids.add(workspace["id"])
 
     transformed = transform_keys(keys, user_lookup, workspaces, org_id)
     load_api_keys(
@@ -47,8 +53,12 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup_if_complete(
-        neo4j_session, LangSmithApiKeySchema(), keys_complete, common_job_parameters
+    cleanup_preserving_unread(
+        neo4j_session,
+        LangSmithApiKeySchema(),
+        common_job_parameters,
+        unread_workspace_ids,
+        unread_key_types,
     )
     cleanup_if_complete(
         neo4j_session,

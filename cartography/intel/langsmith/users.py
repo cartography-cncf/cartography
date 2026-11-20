@@ -7,7 +7,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import build_user_lookup
-from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_preserving_unread
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import org_scoped_id
@@ -39,7 +39,7 @@ def sync(
     users, org_memberships = transform_users(org_id, active, pending)
     workspace_links = transform_workspace_links(active)
 
-    workspace_memberships_complete = True
+    unread_workspace_ids: set[str] = set()
     memberships: list[dict[str, Any]] = []
     for workspace_id in workspace_ids:
         try:
@@ -51,9 +51,8 @@ def sync(
                 workspace_id,
                 err,
             )
-            workspace_memberships_complete = (
-                workspace_memberships_complete and err.not_found
-            )
+            if not err.not_found:
+                unread_workspace_ids.add(workspace_id)
             continue
         memberships.extend(
             transform_memberships(org_id, workspace_id, workspace_members)
@@ -68,7 +67,7 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters, workspace_memberships_complete)
+    cleanup(neo4j_session, common_job_parameters, unread_workspace_ids)
     return build_user_lookup(users, org_memberships)
 
 
@@ -287,15 +286,15 @@ def load_users(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    workspace_memberships_complete: bool,
+    unread_workspace_ids: set[str],
 ) -> None:
     # LangSmithUser itself is never cleaned up: it has no sub-resource because a user can
     # span organizations. Its relationships are pruned through the schemas below.
-    cleanup_if_complete(
+    cleanup_preserving_unread(
         neo4j_session,
         LangSmithWorkspaceMembershipSchema(),
-        workspace_memberships_complete,
         common_job_parameters,
+        unread_workspace_ids,
     )
     GraphJob.from_node_schema(
         LangSmithOrgMembershipSchema(), common_job_parameters

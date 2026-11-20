@@ -3,17 +3,19 @@ Workspace-scoped resources: secrets, resource tags, OAuth clients and MCP server
 
 These all need an ``X-Tenant-Id`` header and are fetched per workspace. A credential
 commonly holds ``workspaces:read`` in only some workspaces, so each fetch degrades to a
-warning rather than failing the module, and the resource type it belongs to skips cleanup.
+warning rather than failing the module. That resource type is then cleaned up everywhere
+except in the workspace that could not be read.
 """
 
 import logging
+from collections import Counter
 from typing import Any
 
 import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_preserving_unread
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -38,28 +40,47 @@ def sync(
     tags: list[dict[str, Any]] = []
     oauth_clients: list[dict[str, Any]] = []
     mcp_servers: list[dict[str, Any]] = []
-    secrets_complete = tags_complete = oauth_clients_complete = mcp_servers_complete = (
-        True
-    )
+    unread_secrets: set[str] = set()
+    unread_tags: set[str] = set()
+    unread_oauth_clients: set[str] = set()
+    unread_mcp_servers: set[str] = set()
+    unconnected_vendors: Counter[str] = Counter()
 
     for workspace in workspaces:
         workspace_id = workspace["id"]
 
         raw_secrets, ok = get_secrets(client, org_id, workspace_id)
         secrets.extend(transform_secrets(workspace_id, raw_secrets))
-        secrets_complete = secrets_complete and ok
+        if not ok:
+            unread_secrets.add(workspace_id)
 
         rows, ok = get_tags(client, org_id, workspace_id)
         tags.extend(rows)
-        tags_complete = tags_complete and ok
+        if not ok:
+            unread_tags.add(workspace_id)
 
         rows, ok = get_oauth_clients(client, org_id, workspace_id)
         oauth_clients.extend(rows)
-        oauth_clients_complete = oauth_clients_complete and ok
+        if not ok:
+            unread_oauth_clients.add(workspace_id)
 
-        rows, ok = get_mcp_servers(client, org_id, workspace_id)
+        rows, ok = get_mcp_servers(
+            client, org_id, workspace_id, unconnected_vendors=unconnected_vendors
+        )
         mcp_servers.extend(rows)
-        mcp_servers_complete = mcp_servers_complete and ok
+        if not ok:
+            unread_mcp_servers.add(workspace_id)
+
+    if unconnected_vendors:
+        logger.info(
+            "LangSmith MCP vendors registered but not connected, so exposing no gateways, "
+            "in organization %s: %s",
+            org_id,
+            ", ".join(
+                f"{vendor} in {count} workspace(s)"
+                for vendor, count in sorted(unconnected_vendors.items())
+            ),
+        )
 
     load_workspace_resources(
         neo4j_session,
@@ -74,10 +95,10 @@ def sync(
         neo4j_session,
         common_job_parameters,
         [
-            (LangSmithSecretSchema(), secrets_complete),
-            (LangSmithResourceTagSchema(), tags_complete),
-            (LangSmithOAuthClientSchema(), oauth_clients_complete),
-            (LangSmithMcpServerSchema(), mcp_servers_complete),
+            (LangSmithSecretSchema(), unread_secrets),
+            (LangSmithResourceTagSchema(), unread_tags),
+            (LangSmithOAuthClientSchema(), unread_oauth_clients),
+            (LangSmithMcpServerSchema(), unread_mcp_servers),
         ],
     )
 
@@ -190,13 +211,18 @@ def get_oauth_clients(
 
 @timeit
 def get_mcp_servers(
-    client: LangSmithClient, org_id: str, workspace_id: str
+    client: LangSmithClient,
+    org_id: str,
+    workspace_id: str,
+    unconnected_vendors: Counter[str] | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch the vendor-managed MCP gateways a workspace exposes.
 
     Each MCP vendor is listed first, then its gateways, because the gateway route is
-    keyed by vendor slug.
+    keyed by vendor slug. The vendor listing can name a vendor the workspace never
+    connected, which is the common case, so each one is tallied in
+    ``unconnected_vendors`` for a single summary line rather than logged per workspace.
     """
     try:
         vendor_payload = client.get(
@@ -233,15 +259,15 @@ def get_mcp_servers(
         except requests.HTTPError as err:
             # A vendor that is registered but not yet OAuth-connected in this workspace
             # answers 400 ("Please connect your Arcade account first"). It exposes no
-            # gateways, so treat it as empty rather than failing the whole sync.
+            # gateways, which is a complete answer, so it is not a skip.
             if err.response is not None and err.response.status_code == 400:
-                logger.warning(
-                    "Skipping LangSmith MCP gateways for vendor %s in workspace %s: "
-                    "the vendor is not connected (%s)",
+                logger.debug(
+                    "LangSmith MCP vendor %s is not connected in workspace %s",
                     vendor_slug,
                     workspace_id,
-                    err,
                 )
+                if unconnected_vendors is not None:
+                    unconnected_vendors[vendor_slug] += 1
                 continue
             raise
         for gateway in gateways:
@@ -294,7 +320,9 @@ def load_workspace_resources(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    schemas: list[tuple[CartographyNodeSchema, bool]],
+    schemas: list[tuple[CartographyNodeSchema, set[str]]],
 ) -> None:
-    for schema, complete in schemas:
-        cleanup_if_complete(neo4j_session, schema, complete, common_job_parameters)
+    for schema, unread_workspace_ids in schemas:
+        cleanup_preserving_unread(
+            neo4j_session, schema, common_job_parameters, unread_workspace_ids
+        )

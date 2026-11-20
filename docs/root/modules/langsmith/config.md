@@ -46,6 +46,7 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 | --- | --- | --- |
 | `organization:pats:read` | The organization-wide personal access token inventory | Cartography logs a warning and skips other members' tokens. |
 | `deployments:read` | Deployments, agents, OAuth providers, and agent credentials | Cartography logs a warning and skips the agent-to-user OAuth graph for that workspace. |
+| `organization:infrastructure:read` | The full data plane listing, including `created_at` | Cartography falls back to the summary listing, which needs only `organization:read`, and leaves `created_at` empty. |
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a
@@ -101,13 +102,14 @@ to `--langsmith-host-api-url`.
 
 | Symptom | Cause |
 | --- | --- |
-| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types. |
+| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning and continues. It still cleans up every other workspace, but keeps the existing nodes in that one. |
 | Timeouts logged for some routes | LangSmith was slow or unreachable. Cartography logs a warning, keeps the existing nodes for those routes, and retries on the next run. |
 | No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. |
 | No `LangSmithApiKey` nodes with `key_type = pat` for other members | The token lacks `organization:pats:read`. |
 | `401 Unauthorized` on every route | The token expired, or LangSmith deactivated the identity that owns it. LangSmith rejects tokens that belong to a deactivated identity. |
 | No custom `LangSmithRole` nodes | Your plan doesn't include custom roles. |
-| Deleted agents stay in the graph | A deployment isn't `READY` or has no URL, so Cartography can't list its agents. Agent cleanup resumes when every deployment serves again or is deleted. |
+| Deleted agents stay in the graph | The agent ran on a deployment that isn't `READY`, has no URL, or didn't answer the assistant search, so Cartography can't tell whether the agent still exists. Agents on every other deployment are cleaned up normally. |
+| Assistant search returns `401` for some deployments | The deployment uses custom auth. Cartography asks it to use LangSmith auth instead, which works unless the deployment disabled LangSmith (Studio) auth. Agents on those deployments are kept as they are. |
 
 ## References
 
