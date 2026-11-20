@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections import namedtuple
 from collections.abc import Callable
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 from typing import cast
 from typing import Dict
@@ -21,9 +22,12 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from cartography.client.core.tx import load as load_data
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.helpers import backoff_handler
 from cartography.intel.github.codeowners import normalize_repo_relative_path
+from cartography.intel.github.incremental import touch_skipped_repo_resources
 from cartography.intel.github.label_migrations import (
     migrate_dependency_graph_manifest_label,
 )
@@ -85,6 +89,7 @@ class GitHubRepoSyncResult:
     repos_complete: bool
     """False when GitHub omitted repositories from the listing (null entries), so
     syncs that enumerate per-repository resources must not clean up by organization."""
+    repo_pushedat_updates: list[dict[str, str]] = field(default_factory=list)
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
@@ -109,6 +114,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                     createdAt
                     description
                     updatedAt
+                    pushedAt
                     homepageUrl
                     languages(first: 25){
                         totalCount
@@ -570,11 +576,150 @@ def _get_repo_dep_manifests(
     return manifests, cleanup_safe
 
 
+def _touch_skipped_dependency_manifests(
+    neo4j_session: neo4j.Session,
+    skipped_repo_urls: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Refresh `lastupdated` on the existing manifest/dependency subgraph for repos
+    whose manifest fetch was skipped this run (pushedat unchanged), so the
+    stale-tag cleanups don't delete it. Cleanup also deletes stale relationships
+    by their own `lastupdated`, so every relationship reaped by the manifest,
+    dependency, and CODEOWNERS-matchlink cleanups is touched too.
+    """
+    if not skipped_repo_urls:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[hm:HAS_MANIFEST]->(m)
+        WHERE m:GitHubDependencyGraphManifest OR m:DependencyGraphManifest
+        SET m.lastupdated = $update_tag, hm.lastupdated = $update_tag
+        WITH DISTINCT m
+        MATCH (:GitHubOrganization)-[res:RESOURCE]->(m)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_MANIFEST]->(m)
+              -[hd:HAS_DEP]->(d:GitHubDependency)
+        WHERE m:GitHubDependencyGraphManifest OR m:DependencyGraphManifest
+        SET d.lastupdated = $update_tag, hd.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[req:REQUIRES]->(:GitHubDependency)
+        SET req.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_MANIFEST]->(m)
+              -[mc:MATCHES_CODEOWNER_RULE]->(:GitHubCodeOwnerRule)
+        WHERE m:GitHubDependencyGraphManifest OR m:DependencyGraphManifest
+        SET mc.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+
+
+def _update_manifests_synced_bookmarks(
+    neo4j_session: neo4j.Session,
+    synced_bookmarks: list[dict[str, str]],
+) -> None:
+    """
+    Record the `pushedat` value seen at the time of a successful (i.e. not
+    skipped) dependency manifest fetch, so future runs can compare against it
+    to decide whether to skip.
+    """
+    if not synced_bookmarks:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $updates AS u
+        MATCH (repo:GitHubRepository {id: u.repo_url})
+        SET repo.manifests_synced_pushedat = u.pushedat
+        """,
+        updates=synced_bookmarks,
+    )
+
+
+def _write_synced_pushedat(
+    neo4j_session: neo4j.Session,
+    updates: list[dict[str, str]],
+) -> None:
+    """
+    Write the ``synced_pushedat`` bookmark on each ``GitHubRepository`` node.
+
+    This single bookmark is written once after a successful repos sync and is
+    shared by all downstream incremental-skip stages (Actions, manifests,
+    commits). A stage skips re-fetching a repo when its current ``pushedat``
+    matches ``synced_pushedat``, meaning nothing has been pushed since the last
+    time the repos sync ran.
+    """
+    if not updates:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $updates AS u
+        MATCH (repo:GitHubRepository {id: u.repo_url})
+        SET repo.synced_pushedat = u.pushedat
+        """,
+        updates=updates,
+    )
+
+
+def _get_manifests_synced_bookmarks(
+    neo4j_session: neo4j.Session,
+    repo_urls: list[str],
+) -> dict[str, str | None]:
+    """
+    Fetch the ``synced_pushedat`` bookmark for the given repo URLs from the
+    graph. This is the value written after the last successful repos sync and
+    is used by the manifests incremental-skip logic.
+    """
+    if not repo_urls:
+        return {}
+    rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (r:GitHubRepository {id: repo_url})
+        RETURN r.id AS url, r.synced_pushedat AS synced_pushedat
+        """,
+        repo_urls=repo_urls,
+    )
+    return {row["url"]: row["synced_pushedat"] for row in rows}
+
+
 def _get_dep_manifests_for_repos(
     repo_raw_data: list[dict[str, Any] | None],
     org: str,
     api_url: str,
     token: str,
+    skip_archived_repos: bool = False,
+    skip_unchanged_repos: bool = False,
+    neo4j_session: neo4j.Session | None = None,
+    update_tag: int | None = None,
 ) -> tuple[dict[str, dict[str, Any]], bool]:
     """
     For every repo in the given list, retrieve its dependency graph manifests individually.
@@ -584,9 +729,24 @@ def _get_dep_manifests_for_repos(
     :param org: The name of the target Github organization as string.
     :param api_url: The Github v4 API endpoint as string.
     :param token: The Github API token as string.
+    :param skip_archived_repos: Skip archived/disabled repos if True.
+    :param skip_unchanged_repos: Skip repos whose pushedAt is unchanged since
+        the last successful manifest fetch, if True. Requires neo4j_session.
+    :param neo4j_session: Neo4j session, required when skip_unchanged_repos is True
+        (used to look up prior sync bookmarks and to touch/update them).
     :return: A tuple of repo URL to dependencyGraphManifests structure and
         whether manifest cleanup is safe.
     """
+    non_null_repos = [repo for repo in repo_raw_data if repo is not None]
+
+    if skip_unchanged_repos and neo4j_session is not None:
+        bookmarks = _get_manifests_synced_bookmarks(
+            neo4j_session,
+            [repo["url"] for repo in non_null_repos if repo.get("url")],
+        )
+        for r in non_null_repos:
+            r["manifests_synced_pushedat"] = bookmarks.get(r.get("url", ""))
+
     logger.info(
         "Fetching dependency graph manifests for %d repos in org %s.",
         len(repo_raw_data),
@@ -599,6 +759,9 @@ def _get_dep_manifests_for_repos(
     org_wide_forbidden = False
     not_attempted_count = 0
     cleanup_safe = True
+    skipped_unchanged_repo_urls: list[str] = []
+    skipped_archived_repo_urls: list[str] = []
+    synced_bookmarks: list[dict[str, str]] = []
 
     for index, repo in enumerate(repo_raw_data):
         if repo is None:
@@ -606,6 +769,36 @@ def _get_dep_manifests_for_repos(
         repo_name = repo.get("name")
         repo_url = repo.get("url")
         if not repo_name or not repo_url:
+            continue
+
+        # Incremental skips: archived/disabled repos and repos whose pushedAt is
+        # unchanged since the last successful manifest fetch.
+        if skip_archived_repos and (repo.get("isArchived") or repo.get("isDisabled")):
+            logger.debug(
+                "Skipping dependency manifest fetch for archived/disabled repo %s.",
+                repo_name,
+            )
+            # We chose not to re-fetch this repo, but its existing manifest
+            # subgraph is still valid; touch it so stale-tag cleanup keeps it.
+            # Kept separate from the unchanged list so the archived repo does not
+            # get a synced_pushedat bookmark advance (it was skipped by policy,
+            # not because pushedAt was unchanged).
+            skipped_archived_repo_urls.append(repo_url)
+            continue
+
+        pushedat = repo.get("pushedAt")
+        synced_pushedat = repo.get("manifests_synced_pushedat")
+        if (
+            skip_unchanged_repos
+            and pushedat is not None
+            and synced_pushedat is not None
+            and pushedat == synced_pushedat
+        ):
+            logger.debug(
+                "Skipping dependency manifest fetch for unchanged repo %s (pushedat unchanged).",
+                repo_name,
+            )
+            skipped_unchanged_repo_urls.append(repo_url)
             continue
 
         try:
@@ -623,6 +816,8 @@ def _get_dep_manifests_for_repos(
                     len(manifests),
                     repo_name,
                 )
+            if skip_unchanged_repos and pushedat is not None:
+                synced_bookmarks.append({"repo_url": repo_url, "pushedat": pushedat})
         except DependencyGraphForbiddenError as err:
             forbidden_count += 1
             forbidden_message = str(err)
@@ -670,6 +865,44 @@ def _get_dep_manifests_for_repos(
             org,
         )
     logger.debug("Fetched dependency manifests for %d repos.", len(result))
+
+    if skip_unchanged_repos and neo4j_session is not None and update_tag is not None:
+        _touch_skipped_dependency_manifests(
+            neo4j_session,
+            skipped_unchanged_repo_urls,
+            update_tag,
+        )
+        _update_manifests_synced_bookmarks(neo4j_session, synced_bookmarks)
+        logger.info(
+            "Dependency manifest incremental sync for org %s: skipped refetch "
+            "for %d/%d unchanged repos.",
+            org,
+            len(skipped_unchanged_repo_urls),
+            len(non_null_repos),
+        )
+
+    if (
+        skip_archived_repos
+        and neo4j_session is not None
+        and update_tag is not None
+        and skipped_archived_repo_urls
+    ):
+        # Archived/disabled repos are skipped by policy, not because their data
+        # changed. Their existing manifest subgraph is still valid, so touch it
+        # to keep the stale-tag cleanup from deleting it. No bookmark advance.
+        _touch_skipped_dependency_manifests(
+            neo4j_session,
+            skipped_archived_repo_urls,
+            update_tag,
+        )
+        logger.info(
+            "Dependency manifest incremental sync for org %s: preserved existing "
+            "manifests for %d/%d skipped archived/disabled repos.",
+            org,
+            len(skipped_archived_repo_urls),
+            len(non_null_repos),
+        )
+
     return result, cleanup_safe
 
 
@@ -1032,6 +1265,8 @@ def get_repo_privileged_details_by_url(
     token: str,
     api_url: str,
     organization: str,
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Retrieve collaborator counts, branch protection, and ruleset fields for repositories in an organization.
@@ -1046,6 +1281,12 @@ def get_repo_privileged_details_by_url(
     )
     privileged_repo_data = {}
     privileged_nodes = cast(List[Optional[Dict]], repos.nodes)
+    if excluded_repo_urls:
+        privileged_nodes = [
+            repo
+            for repo in privileged_nodes
+            if repo is not None and repo.get("url") not in excluded_repo_urls
+        ]
     rulesets_by_url = _get_repo_rulesets_by_url(
         token,
         api_url,
@@ -1175,6 +1416,8 @@ def transform(
     repos_json: List[Optional[Dict]],
     direct_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
     outside_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
+    *,
+    skip_archived_repos: bool = False,
 ) -> Dict:
     """
     Parses the JSON returned from GitHub API to create data for graph ingestion
@@ -1229,6 +1472,10 @@ def transform(
             repo_object,
             transformed_repo_owners,
         )
+        if skip_archived_repos and (
+            repo_object.get("isArchived") or repo_object.get("isDisabled")
+        ):
+            continue
 
         # Allow sync to continue if we didn't have permissions to list collaborators
         repo_url = repo_object["url"]
@@ -1393,6 +1640,7 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
             "updatedat": input_repo_object["updatedAt"],
+            "pushedat": input_repo_object.get("pushedAt"),
             "owner_org_id": owner["url"] if owner_type == "Organization" else None,
             "owner_user_id": owner["url"] if owner_type == "User" else None,
         },
@@ -2721,12 +2969,69 @@ def load(
         )
 
 
+def _touch_archived_repo_details(
+    neo4j_session: neo4j.Session,
+    repo_urls: set[str],
+    update_tag: int,
+    owner_org_id: str,
+) -> None:
+    if not repo_urls:
+        return
+    for schema in (GitHubBranchProtectionRuleSchema(), GitHubRulesetSchema()):
+        touch_skipped_repo_resources(
+            neo4j_session,
+            repo_urls,
+            schema,
+            update_tag,
+            owner_org_id,
+        )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_RULESET]->(:GitHubRuleset)
+              -[contains:CONTAINS_RULE]->(rule:GitHubRulesetRule)
+        SET rule.lastupdated = $update_tag, contains.lastupdated = $update_tag
+        WITH DISTINCT rule
+        MATCH (:GitHubOrganization {id: $org_url})-[res:RESOURCE]->(rule)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=sorted(repo_urls),
+        update_tag=update_tag,
+        org_url=owner_org_id,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[req:REQUIRES]->(dependency)
+        WHERE dependency:PythonLibrary OR dependency:GitHubDependency
+        SET dependency.lastupdated = $update_tag, req.lastupdated = $update_tag
+        """,
+        repo_urls=sorted(repo_urls),
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (user:GitHubUser)-[collab]->(:GitHubRepository {id: repo_url})
+        WHERE type(collab) IN $collaborator_labels
+        SET user.lastupdated = $update_tag, collab.lastupdated = $update_tag
+        """,
+        repo_urls=sorted(repo_urls),
+        update_tag=update_tag,
+        collaborator_labels=[label for _, _, label in GITHUB_COLLABORATOR_REL_LABELS],
+    )
+
+
 def sync(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
     github_api_key: str,
     github_url: str,
     organization: str,
+    incremental_sync: bool = False,
 ) -> GitHubRepoSyncResult:
     """
     Performs the sequential tasks to collect, transform, and sync github data
@@ -2735,11 +3040,20 @@ def sync(
     :param github_api_key: The API key to access the GitHub v4 API
     :param github_url: The URL for the GitHub v4 endpoint to use
     :param organization: The organization to query GitHub for
+    :param incremental_sync: Skip archived/disabled repos and skip re-fetching
+        manifests for repos whose pushedAt is unchanged since the last sync.
     :return: Repository and dependency manifest data fetched for this org.
     """
     logger.info("Syncing GitHub repos")
     repos_json = get(github_api_key, github_url, organization)
     base_repo_count = sum(1 for repo in repos_json if repo is not None)
+    excluded_repo_urls = {
+        repo["url"]
+        for repo in repos_json
+        if repo is not None
+        and incremental_sync
+        and (repo.get("isArchived") or repo.get("isDisabled"))
+    }
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
     rulesets_cleanup_safe = True
@@ -2749,6 +3063,7 @@ def sync(
                 github_api_key,
                 github_url,
                 organization,
+                excluded_repo_urls=excluded_repo_urls,
             )
         except (requests.exceptions.RequestException, ValueError):
             rulesets_cleanup_safe = False
@@ -2775,16 +3090,21 @@ def sync(
 
     direct_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     outside_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
+    repos_to_enrich = [
+        repo
+        for repo in repos_json
+        if repo is None or repo["url"] not in excluded_repo_urls
+    ]
     try:
         direct_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
+            repos_to_enrich,
             "DIRECT",
             organization,
             github_url,
             github_api_key,
         )
         outside_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
+            repos_to_enrich,
             "OUTSIDE",
             organization,
             github_url,
@@ -2803,6 +3123,10 @@ def sync(
         organization,
         github_url,
         github_api_key,
+        skip_archived_repos=incremental_sync,
+        skip_unchanged_repos=incremental_sync,
+        neo4j_session=neo4j_session,
+        update_tag=common_job_parameters["UPDATE_TAG"],
     )
     for repo in repos_json:
         if repo is not None and repo.get("url") in dep_manifests_by_url:
@@ -2817,12 +3141,29 @@ def sync(
         if repo is not None and repo.get("url") in security_and_analysis_by_url:
             repo["securityAndAnalysis"] = security_and_analysis_by_url[repo["url"]]
 
-    repo_data = transform(repos_json, direct_collabs, outside_collabs)
+    repo_data = transform(
+        repos_json,
+        direct_collabs,
+        outside_collabs,
+        skip_archived_repos=incremental_sync,
+    )
     enrich_dependencies_with_lockfile_versions(
         repo_data["dependencies"],
         github_api_key,
         github_url,
     )
+
+    # Build the pushedat update list to be written by the caller
+    # (start_github_ingestion) AFTER all downstream stages (actions, manifests,
+    # commits) have completed. Writing synced_pushedat here would immediately
+    # overwrite the bookmark with the current run's pushedat before the skip
+    # comparisons have a chance to use it.
+    repo_pushedat_updates = [
+        {"repo_url": repo["url"], "pushedat": repo["pushedat"]}
+        for repo in repo_data["repos"]
+        if repo.get("pushedat") and repo["id"] not in excluded_repo_urls
+    ]
+
     owner_org_id = next(
         (
             repo["owner_org_id"]
@@ -2842,6 +3183,12 @@ def sync(
         common_job_parameters,
     )
     load(neo4j_session, common_job_parameters, repo_data)
+    _touch_archived_repo_details(
+        neo4j_session,
+        excluded_repo_urls,
+        common_job_parameters["UPDATE_TAG"],
+        owner_org_id,
+    )
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
     # DEPRECATED: compatibility migrations to backfill the RESOURCE edge from
@@ -2882,4 +3229,5 @@ def sync(
         manifests=repo_data["manifests"],
         manifests_cleanup_safe=dep_manifests_cleanup_safe,
         repos_complete=all(repo is not None for repo in repos_json),
+        repo_pushedat_updates=repo_pushedat_updates,
     )

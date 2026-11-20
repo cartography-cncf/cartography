@@ -34,6 +34,11 @@ def deterministic_jitter():
         yield
 
 
+@pytest.fixture(params=[False, True])
+def incremental_sync(request):
+    return request.param
+
+
 @pytest.fixture(autouse=True)
 def posture_syncs():
     """Stub the organization posture syncs so ingestion tests never call GitHub."""
@@ -112,6 +117,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
     posture_syncs: dict[str, Mock],
+    incremental_sync: bool,
 ) -> None:
     github_config = {
         "organization": [
@@ -123,10 +129,19 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
         github_config=b64encode(json.dumps(github_config).encode()).decode(),
         update_tag=123,
         github_commit_lookback_days=7,
+        github_incremental_sync=incremental_sync,
     )
     repo_sync_results = [
         GitHubRepoSyncResult(
-            repos=[{"id": "https://github.com/org-1/repo"}],
+            repos=[
+                {
+                    "id": "https://github.com/org-1/repo",
+                    "pushedat": "2000-01-01T00:00:00Z",
+                    "synced_pushedat": "2000-01-01T00:00:00Z",
+                },
+                {"id": "https://github.com/org-1/archived", "archived": True},
+                {"id": "https://github.com/org-1/disabled", "disabled": True},
+            ],
             manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
             manifests_cleanup_safe=True,
             repos_complete=True,
@@ -175,6 +190,22 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert posture_syncs["app_installations"].call_count == 2
     assert posture_syncs["webhooks"].call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
+    expected_exclusions = (
+        {
+            "https://github.com/org-1/archived",
+            "https://github.com/org-1/disabled",
+        }
+        if incremental_sync
+        else None
+    )
+    for stage in (
+        mock_dependabot_alerts_sync,
+        mock_codeowners_sync,
+        posture_syncs["webhooks"],
+    ):
+        assert (
+            stage.call_args_list[0].kwargs["excluded_repo_urls"] == expected_exclusions
+        )
     assert mock_codeowners_sync.call_count == 2
     assert mock_codeowners_sync.call_args_list[0].args[-2:] == (
         repo_sync_results[0].repos,

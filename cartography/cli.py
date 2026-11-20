@@ -1125,6 +1125,24 @@ class CLI:
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),
             ] = 30,
+            github_incremental_sync: Annotated[
+                bool,
+                typer.Option(
+                    "--github-incremental-sync",
+                    help=(
+                        "Enable incremental sync for GitHub repos. "
+                        "Skips repository-specific refreshes for archived/disabled repos "
+                        "while preserving previously synced data. "
+                        "Skips commits for repos with no push in the lookback window. "
+                        "Skips re-fetching workflow YAML and dependency manifests for repos "
+                        "whose pushedAt is unchanged since the last sync. "
+                        "Dependabot alerts, security settings, secrets, variables, and "
+                        "environments are refreshed for non-archived repos regardless of activity."
+                    ),
+                    rich_help_panel=PANEL_GITHUB,
+                    hidden=PANEL_GITHUB not in visible_panels,
+                ),
+            ] = False,
             # =================================================================
             # Notion Options
             # =================================================================
@@ -4441,6 +4459,7 @@ class CLI:
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
                 notion_config=notion_config,
+                github_incremental_sync=github_incremental_sync,
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,

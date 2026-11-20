@@ -1742,6 +1742,7 @@ def test_sync_continues_when_privileged_fetch_fails(
         "token",
         "https://api.github.com/graphql",
         "example-org",
+        excluded_repo_urls=set(),
     )
     assert mock_get_repo_collaborators.call_count == 2
     mock_load.assert_called_once()

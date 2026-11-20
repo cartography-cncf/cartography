@@ -14,6 +14,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.github.incremental import touch_skipped_repo_resources
 from cartography.intel.github.util import get_file_content
 from cartography.intel.github.util import github_org_url
 from cartography.models.github.codeowners import (
@@ -432,6 +433,8 @@ def get_effective_codeowners_file(
 def transform_repositories_for_codeowners(
     repositories: list[dict[str, Any]],
     owner_org_id: str,
+    *,
+    excluded_repo_urls: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     repos = [
         {
@@ -440,7 +443,9 @@ def transform_repositories_for_codeowners(
             "default_branch": repo.get("defaultbranch"),
         }
         for repo in repositories
-        if repo.get("id") and repo.get("owner_org_id") == owner_org_id
+        if repo.get("id")
+        and repo.get("owner_org_id") == owner_org_id
+        and (not excluded_repo_urls or repo["id"] not in excluded_repo_urls)
     ]
     return sorted(repos, key=lambda repo: repo["repo_url"])
 
@@ -559,10 +564,13 @@ def sync(
     dependency_manifests_cleanup_safe: bool = True,
     github_users: list[dict[str, Any]] | None = None,
     github_teams: list[dict[str, Any]] | None = None,
+    excluded_repo_urls: set[str] | None = None,
 ) -> None:
     update_tag = common_job_parameters["UPDATE_TAG"]
     owner_org_id = github_org_url(github_url, organization)
-    repos = transform_repositories_for_codeowners(repositories, owner_org_id)
+    repos = transform_repositories_for_codeowners(
+        repositories, owner_org_id, excluded_repo_urls=excluded_repo_urls
+    )
     logger.info(
         "Syncing GitHub CODEOWNERS for %d repositories in org %s.",
         len(repos),
@@ -608,6 +616,14 @@ def sync(
         default_branches_by_repo_url,
     )
     load_manifest_matches(neo4j_session, manifest_matches, update_tag, owner_org_id)
+    touch_skipped_repo_resources(
+        neo4j_session,
+        excluded_repo_urls,
+        GitHubCodeOwnerRuleSchema(),
+        update_tag,
+        owner_org_id,
+        matchlinks=(DependencyGraphManifestToCodeOwnerRuleMatchLink(),),
+    )
 
     if cleanup_safe:
         if dependency_manifests_cleanup_safe:
