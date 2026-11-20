@@ -288,6 +288,10 @@ github_codeowners_coverage = Rule(
 
 # Personal access tokens
 
+# GitHub keeps listing a classic PAT's SAML authorization after the token expires,
+# and an expired token cannot authenticate, so it is neither a finding nor counted.
+_TOKEN_ACTIVE = "(n.expires_at IS NULL OR n.expires_at > datetime())"
+
 
 def _personal_access_token_fact(
     issue: str,
@@ -302,7 +306,7 @@ def _personal_access_token_fact(
         description=description,
         cypher_query=f"""
         MATCH (o:GitHubOrganization)-[:RESOURCE]->(n:GitHubPersonalAccessToken)
-        WHERE {condition}
+        WHERE {_TOKEN_ACTIVE} AND {condition}
         WITH n, collect(o.username) AS organizations
         RETURN n.token_name AS asset_name, n.id AS asset_id,
             reduce(s = head(organizations), x IN tail(organizations) | s + ', ' + x)
@@ -312,12 +316,13 @@ def _personal_access_token_fact(
         """,
         cypher_visual_query=f"""
         MATCH (o:GitHubOrganization)-[:RESOURCE]->(n:GitHubPersonalAccessToken)
-        WHERE {condition}
+        WHERE {_TOKEN_ACTIVE} AND {condition}
         OPTIONAL MATCH (n)-[:OWNED_BY]->(owner:GitHubUser)
         RETURN o, n, owner
         """,
-        cypher_count_query="""
+        cypher_count_query=f"""
         MATCH (n:GitHubPersonalAccessToken)
+        WHERE {_TOKEN_ACTIVE}
         RETURN count(n) AS count
         """,
         asset_label="GitHubPersonalAccessToken",
@@ -332,7 +337,7 @@ _classic_personal_access_token = _personal_access_token_fact(
     issue="classic",
     name="Classic personal access tokens with organization access",
     description=(
-        "Classic personal access tokens authorized for an organization. Classic "
+        "Unexpired classic personal access tokens authorized for an organization. Classic "
         "tokens carry every repository and organization the owner can reach, at the "
         "breadth of their OAuth scopes. Cartography lists them only through SAML "
         "SSO credential authorizations, so they are not visible for organizations "

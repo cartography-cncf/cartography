@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 import pytest
 
 from cartography.client.core.tx import load
@@ -135,7 +138,7 @@ def _load_tokens(neo4j_session, rows):
                 "token_kind": "fine_grained",
                 "token_name": f"token-{i}",
                 "owner_login": "hjsimpson",
-                "expires_at": "2030-01-01T00:00:00Z",
+                "expires_at": datetime(2099, 1, 1, tzinfo=timezone.utc),
                 **row,
             }
             for i, row in enumerate(rows)
@@ -330,7 +333,14 @@ _SAFE_WEBHOOK = {
             "github_personal_access_token_classic",
             _load_tokens,
             {"token_kind": "classic", "scopes": ["repo", "read:org"]},
-            [{}],
+            [
+                {},
+                # GitHub still lists an expired token's authorization.
+                {
+                    "token_kind": "classic",
+                    "expires_at": datetime(2020, 1, 1, tzinfo=timezone.utc),
+                },
+            ],
             2,
         ),
         (
