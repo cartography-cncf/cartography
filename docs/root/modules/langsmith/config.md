@@ -109,6 +109,7 @@ to `--langsmith-host-api-url`.
 | `401 Unauthorized` on every route | The token expired, or LangSmith deactivated the identity that owns it. LangSmith rejects tokens that belong to a deactivated identity. |
 | No custom `LangSmithRole` nodes | Your plan doesn't include custom roles. |
 | Deleted agents stay in the graph | A deployment isn't `READY` or has no URL, so Cartography can't list its agents. Agent cleanup resumes when every deployment serves again or is deleted. |
+| Deleted `LangSmithMcpServer` nodes stay in the graph | LangSmith lists MCP gateways by asking the vendor, such as Arcade, with the syncing user's own connection to it. A service key, or a user who hasn't connected the vendor, can't list them, so Cartography keeps the gateways it already has. |
 | Assistant search returns `401` or `403` for some deployments | The deployment uses custom auth. Cartography sends `x-auth-scheme: langsmith` to ask it to use LangSmith auth instead. A deployment that disables LangSmith (Studio) auth ignores the header and still rejects the token, and agent cleanup is skipped as for any other deployment Cartography can't list. |
 
 ## References

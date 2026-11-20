@@ -27,8 +27,10 @@ def _client(gateway_side_effect):
 @pytest.mark.parametrize(
     "first_vendor_error, expected_complete",
     [
-        # Registered but not OAuth-connected: it has no gateways, which is a full answer.
-        (_http_error(400), True),
+        # The syncing user has no connection to the vendor: gateways may still exist.
+        (_http_error(400), False),
+        # LangSmith cannot list gateways for this vendor at all: nothing to list.
+        (_http_error(501), True),
         # The vendor route is not served: also nothing to list.
         (LangSmithFetchError("/mcp-servers", 404, "HTTP 404"), True),
         # Hidden from this credential: gateways may exist, so cleanup must be skipped.
@@ -73,8 +75,9 @@ def test_an_unconnected_vendor_is_tallied_not_warned(caplog):
         )
 
     # Assert
-    # Every workspace without an Arcade connection answers 400; that is an expected
-    # state, so it must not add a warning per workspace.
-    assert complete is True
+    # Every workspace answers 400 when the syncing user has no Arcade connection. That
+    # is an expected state, so it must not add a warning per workspace, but the gateways
+    # were not read, so cleanup must not treat them as gone.
+    assert complete is False
     assert unconnected == Counter({"arcade": 1})
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
