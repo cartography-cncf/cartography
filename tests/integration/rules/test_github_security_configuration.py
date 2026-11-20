@@ -3,8 +3,14 @@ import pytest
 from cartography.client.core.tx import load
 from cartography.models.github.app_installations import GitHubAppInstallationSchema
 from cartography.models.github.orgs import GitHubOrganizationSchema
+from cartography.models.github.personal_access_tokens import (
+    GitHubPersonalAccessTokenSchema,
+)
 from cartography.models.github.repos import GitHubRepositorySchema
 from cartography.models.github.webhooks import GitHubWebhookSchema
+from cartography.rules.data.rules.github_posture import (
+    github_personal_access_token_hygiene,
+)
 from cartography.rules.data.rules.github_security_configuration import (
     github_actions_permissive_policy,
 )
@@ -29,6 +35,7 @@ GITHUB_RULES = (
     github_actions_permissive_policy,
     github_app_sensitive_permissions,
     github_webhook_insecure_delivery,
+    github_personal_access_token_hygiene,
 )
 
 
@@ -43,7 +50,8 @@ def _fact(fact_id):
 def _reset(neo4j_session):
     neo4j_session.run(
         "MATCH (n) WHERE n:GitHubOrganization OR n:GitHubRepository "
-        "OR n:GitHubAppInstallation OR n:GitHubWebhook DETACH DELETE n",
+        "OR n:GitHubAppInstallation OR n:GitHubWebhook "
+        "OR n:GitHubPersonalAccessToken DETACH DELETE n",
     )
 
 
@@ -107,6 +115,27 @@ def _load_webhooks(neo4j_session, rows):
                 "scope": "organization",
                 "target_scheme": "https",
                 "target_host": f"hooks-{i}.example",
+                **row,
+            }
+            for i, row in enumerate(rows)
+        ],
+        lastupdated=UPDATE_TAG,
+        org_url=f"{ORG_URL}-0",
+    )
+
+
+def _load_tokens(neo4j_session, rows):
+    _load_orgs(neo4j_session, [{}])
+    load(
+        neo4j_session,
+        GitHubPersonalAccessTokenSchema(),
+        [
+            {
+                "id": f"{ORG_URL}/personal-access-tokens/{i}",
+                "token_kind": "fine_grained",
+                "token_name": f"token-{i}",
+                "owner_login": "hjsimpson",
+                "expires_at": "2030-01-01T00:00:00Z",
                 **row,
             }
             for i, row in enumerate(rows)
@@ -297,6 +326,20 @@ _SAFE_WEBHOOK = {
             ],
             2,
         ),
+        (
+            "github_personal_access_token_classic",
+            _load_tokens,
+            {"token_kind": "classic", "scopes": ["repo", "read:org"]},
+            [{}],
+            2,
+        ),
+        (
+            "github_personal_access_token_no_expiry",
+            _load_tokens,
+            {"expires_at": None},
+            [{}, {"token_kind": "classic", "scopes": []}],
+            3,
+        ),
     ],
 )
 def test_github_security_configuration_fact(
@@ -329,3 +372,7 @@ def test_github_security_configuration_fact(
         # Only the sensitive permissions are listed, joined for display.
         assert finding.current_value == "contents, workflows"
         assert finding.repository_selection == "all"
+    if fact_id == "github_personal_access_token_classic":
+        assert finding.current_value == (
+            "Classic PAT owned by hjsimpson with scopes: repo, read:org"
+        )
