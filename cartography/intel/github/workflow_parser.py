@@ -201,13 +201,70 @@ def parse_permissions(permissions: Any) -> dict[str, str]:
         # Global permission level: expand to all scopes
         # e.g., "read-all" -> {"actions": "read", "contents": "read", ...}
         level = permissions.replace("-all", "")
-        return {scope: level for scope in ALL_PERMISSION_SCOPES}
+        result = {scope: level for scope in ALL_PERMISSION_SCOPES}
+        # OIDC token requests support write/none, not read access.
+        if permissions == "read-all":
+            result["id_token"] = "none"
+        return result
 
     if isinstance(permissions, dict):
         # Convert keys to use underscores for consistency
         return {k.replace("-", "_"): str(v) for k, v in permissions.items()}
 
     return {}
+
+
+def _declared_permissions(permissions: Any) -> dict[str, str] | None:
+    """Normalize an explicit block; None means its defaults are unknown."""
+    if not isinstance(permissions, dict) and permissions not in (
+        "read-all",
+        "write-all",
+    ):
+        return None
+    if isinstance(permissions, dict) and any(
+        not isinstance(scope, str) for scope in permissions
+    ):
+        return None
+    # GitHub rejects workflows with invalid permission blocks; treat the whole
+    # block as unknown rather than retaining its individually valid scopes.
+    parsed = parse_permissions(permissions)
+    if any(level not in ("none", "read", "write") for level in parsed.values()):
+        return None
+    if parsed.get("id_token") == "read":
+        # Treat an invalid explicit block as unknown, like other invalid levels.
+        return None
+    # An explicit mapping replaces defaults, including scopes it omits.
+    return {scope: parsed.get(scope, "none") for scope in ALL_PERMISSION_SCOPES}
+
+
+def summarize_workflow_permissions(workflow: dict[str, Any]) -> dict[str, str]:
+    """Summarize YAML job declarations without inferring runtime token access.
+
+    Known writes survive unknown defaults. Otherwise an unknown job prevents
+    a read/none conclusion. Missing scopes in the result represent uncertainty.
+    """
+    defaults = _declared_permissions(workflow.get("permissions"))
+    jobs = workflow.get("jobs", {})
+    declarations = []
+    if isinstance(jobs, dict):
+        for job in jobs.values():
+            if isinstance(job, dict):
+                declarations.append(
+                    _declared_permissions(job["permissions"])
+                    if "permissions" in job
+                    else defaults
+                )
+    if not declarations:
+        # Retain explicit workflow declarations even when no valid jobs exist.
+        return defaults or {}
+    summary = {}
+    for scope in ALL_PERMISSION_SCOPES:
+        levels = [job[scope] if job is not None else None for job in declarations]
+        if "write" in levels:
+            summary[scope] = "write"
+        elif None not in levels:
+            summary[scope] = "read" if "read" in levels else "none"
+    return summary
 
 
 def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
@@ -239,8 +296,8 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
     elif isinstance(on_triggers, dict):
         result.trigger_events = list(on_triggers.keys())
 
-    # Extract top-level permissions
-    result.permissions = parse_permissions(workflow.get("permissions"))
+    # Resolve job overrides before summarizing declared permissions.
+    result.permissions = summarize_workflow_permissions(workflow)
 
     # Extract top-level env vars
     env = workflow.get("env", {})
@@ -274,11 +331,6 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
                     ):
                         result.reusable_workflow_calls.append(uses)
                     result.actions.append(action)
-
-            # Merge job-level permissions (not stored separately, just for completeness)
-            job_permissions = parse_permissions(job.get("permissions"))
-            if job_permissions and not result.permissions:
-                result.permissions = job_permissions
 
             # Process steps
             steps = job.get("steps", [])
