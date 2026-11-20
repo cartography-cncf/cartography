@@ -1,3 +1,7 @@
+from dataclasses import dataclass
+
+import pytest
+
 from cartography.graph.querybuilder import _build_ontology_field_statement_coalesce
 from cartography.graph.querybuilder import _build_ontology_field_statement_equal_boolean
 from cartography.graph.querybuilder import (
@@ -11,7 +15,12 @@ from cartography.graph.querybuilder import _build_ontology_field_statement_or_bo
 from cartography.graph.querybuilder import _build_ontology_field_statement_static_value
 from cartography.graph.querybuilder import _build_ontology_field_statement_to_boolean
 from cartography.graph.querybuilder import _escape_cypher_string
+from cartography.graph.querybuilder import build_ingestion_query
+from cartography.models.aws.ec2.instances import EC2InstanceNodeProperties
+from cartography.models.aws.ec2.instances import EC2InstanceSchema
 from cartography.models.core.common import PropertyRef
+from cartography.models.gcp.apikeys import GCPApiKeyNodeProperties
+from cartography.models.gcp.apikeys import GCPApiKeySchema
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 
 
@@ -651,3 +660,40 @@ def test_build_ontology_field_statement_mapping_with_special_chars():
         "END"
     )
     assert result == expected
+
+
+@dataclass(frozen=True)
+class _EC2InstanceWithAnalysisOwnedRegion(EC2InstanceNodeProperties):
+    region: PropertyRef = PropertyRef("Region", set_by_analysis=True)
+
+
+@dataclass(frozen=True)
+class _EC2InstanceWithAnalysisOwnedRegionSchema(EC2InstanceSchema):
+    properties: EC2InstanceNodeProperties = _EC2InstanceWithAnalysisOwnedRegion()
+
+
+@dataclass(frozen=True)
+class _GCPApiKeyWithAnalysisOwnedName(GCPApiKeyNodeProperties):
+    name: PropertyRef = PropertyRef("name", set_by_analysis=True)
+
+
+@dataclass(frozen=True)
+class _GCPApiKeyWithAnalysisOwnedNameSchema(GCPApiKeySchema):
+    properties: GCPApiKeyNodeProperties = _GCPApiKeyWithAnalysisOwnedName()
+
+
+@pytest.mark.parametrize(
+    ("schema", "ontology_field"),
+    [
+        (_EC2InstanceWithAnalysisOwnedRegionSchema(), "_ont_region"),
+        # _ont_name falls back to name through extra["fields"], not node_field.
+        (_GCPApiKeyWithAnalysisOwnedNameSchema(), "_ont_name"),
+    ],
+)
+def test_ontology_field_reading_an_analysis_owned_property_is_rejected(
+    schema, ontology_field
+):
+    # An analysis-owned property is absent from the transform, so deriving an
+    # ontology field from it at load time would reset that field on every sync.
+    with pytest.raises(ValueError, match=ontology_field):
+        build_ingestion_query(schema)
