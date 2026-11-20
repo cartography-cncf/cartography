@@ -40,6 +40,14 @@ class OktaOrganizationNodeProperties(CartographyNodeProperties):
             "does not mean the org has none."
         ),
     )
+    agents_synced: PropertyRef = PropertyRef(
+        "agents_synced",
+        description=(
+            "Whether the last sync could read the org's agent pools. False when the "
+            "API token lacks `okta.agentPools.read`, so a missing `OktaAgent` does "
+            "not mean the org runs no agents."
+        ),
+    )
     admin_roles_synced: PropertyRef = PropertyRef(
         "admin_roles_synced",
         description=(
