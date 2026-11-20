@@ -658,7 +658,9 @@ class TestIncompleteDiscoveryIsNotAnEmptyInventory:
 
         # Assert
         # Hundreds of deployments can fail the same way; one line per run, not per host.
-        warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        warnings = [
+            r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING
+        ]
         assert complete is False
         assert len(warnings) == 1
         assert "3 of 3" in warnings[0]
