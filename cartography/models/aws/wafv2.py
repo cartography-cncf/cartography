@@ -111,6 +111,31 @@ class AWSWebACLToAPIGatewayStageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSWebACLToAPIGatewayV2StageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSWebACLToAPIGatewayV2StageRel(CartographyRelSchema):
+    """
+    Created when a REGIONAL web ACL is associated with an API Gateway v2 (HTTP
+    API) stage. Matches the stage ARN that ListResourcesForWebACL returns for
+    API_GATEWAY associations, which the apigatewayv2 module constructs because
+    the GetStages response does not carry the web ACL ARN.
+    """
+
+    target_node_label: str = "AWSAPIGatewayV2Stage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ApiGatewayStageArns", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PROTECTS"
+    properties: AWSWebACLToAPIGatewayV2StageRelProperties = (
+        AWSWebACLToAPIGatewayV2StageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSWebACLToCloudFrontDistributionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -148,6 +173,7 @@ class AWSWebACLSchema(CartographyNodeSchema):
         [
             AWSWebACLToLoadBalancerV2Rel(),
             AWSWebACLToAPIGatewayStageRel(),
+            AWSWebACLToAPIGatewayV2StageRel(),
             AWSWebACLToCloudFrontDistributionRel(),
         ],
     )
