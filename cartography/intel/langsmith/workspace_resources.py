@@ -1,5 +1,6 @@
 """
-Workspace-scoped resources: secrets, resource tags, OAuth clients and MCP servers.
+Workspace-scoped resources: secrets, resource tags, OAuth clients, MCP servers, and the
+ways data leaves a workspace (see the exposure module).
 
 These all need an ``X-Tenant-Id`` header and are fetched per workspace. A credential
 commonly holds ``workspaces:read`` in only some workspaces, so each fetch degrades to a
@@ -15,19 +16,34 @@ from typing import Any
 import neo4j
 import requests
 
+from cartography.intel.langsmith import exposure
 from cartography.intel.langsmith.util import cleanup_legacy_ownership
 from cartography.intel.langsmith.util import cleanup_workspaces
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.util import load_by_workspace
+from cartography.models.langsmith.bulkexportdestination import (
+    LangSmithBulkExportDestinationSchema,
+)
 from cartography.models.langsmith.legacy import LangSmithLegacyWorkspaceContainsRel
 from cartography.models.langsmith.mcpserver import LangSmithMcpServerSchema
 from cartography.models.langsmith.oauthclient import LangSmithOAuthClientSchema
+from cartography.models.langsmith.publicshare import LangSmithPublicShareSchema
 from cartography.models.langsmith.resourcetag import LangSmithResourceTagSchema
 from cartography.models.langsmith.secret import LangSmithSecretSchema
+from cartography.models.langsmith.webhook import LangSmithWebhookSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Resources that earlier versions attached to the organization and to their workspace
+# through CONTAINS.
+_OWNED_BY_THE_ORGANIZATION_BEFORE = {
+    LangSmithSecretSchema().label,
+    LangSmithResourceTagSchema().label,
+    LangSmithOAuthClientSchema().label,
+    LangSmithMcpServerSchema().label,
+}
 
 
 @timeit
@@ -36,6 +52,7 @@ def sync(
     client: LangSmithClient,
     org_id: str,
     workspaces: list[dict[str, Any]],
+    public_sharing_disabled: bool,
     common_job_parameters: dict[str, Any],
 ) -> None:
     unconnected_vendors: Counter[str] = Counter()
@@ -46,6 +63,19 @@ def sync(
         (
             LangSmithMcpServerSchema(),
             partial(get_mcp_servers, unconnected_vendors=unconnected_vendors),
+        ),
+        (
+            LangSmithPublicShareSchema(),
+            (
+                _nothing_shared
+                if public_sharing_disabled
+                else exposure.get_public_shares
+            ),
+        ),
+        (LangSmithWebhookSchema(), exposure.get_webhooks),
+        (
+            LangSmithBulkExportDestinationSchema(),
+            exposure.get_bulk_export_destinations,
         ),
     )
     rows: dict[str, list[dict[str, Any]]] = {schema.label: [] for schema, _ in fetchers}
@@ -78,14 +108,28 @@ def sync(
         cleanup_workspaces(
             neo4j_session, schema, readable[schema.label], common_job_parameters
         )
-        cleanup_legacy_ownership(
-            neo4j_session,
-            schema,
-            readable[schema.label],
-            [workspace["id"] for workspace in workspaces],
-            common_job_parameters,
-            LangSmithLegacyWorkspaceContainsRel(),
-        )
+        if schema.label in _OWNED_BY_THE_ORGANIZATION_BEFORE:
+            cleanup_legacy_ownership(
+                neo4j_session,
+                schema,
+                readable[schema.label],
+                [workspace["id"] for workspace in workspaces],
+                common_job_parameters,
+                LangSmithLegacyWorkspaceContainsRel(),
+            )
+
+
+def _nothing_shared(
+    client: LangSmithClient, org_id: str, workspace_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """
+    Report that nothing is publicly readable, without listing share links.
+
+    An organization that disables public sharing serves none of its share links or public
+    repos, and a workspace can hold tens of thousands of old links that are slow to page
+    through.
+    """
+    return [], True
 
 
 @timeit

@@ -2,6 +2,8 @@ import logging
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 import neo4j
 import requests
@@ -211,6 +213,24 @@ class LangSmithClient:
             cursor = payload.get("next_cursor")
             if not cursor:
                 return results
+
+
+def without_credentials(url: str | None) -> str | None:
+    """
+    Drop the parts of a URL that can carry a credential: userinfo, query and fragment.
+
+    Repository, endpoint and custom domain URLs come from operators, who sometimes embed
+    a token in them.
+    """
+    if not url:
+        return url
+    parts = urlsplit(url)
+    if not parts.netloc:
+        return url.split("?", 1)[0].split("#", 1)[0]
+    host = parts.hostname or ""
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    return urlunsplit((parts.scheme, host, parts.path, "", ""))
 
 
 def org_scoped_id(org_id: str, raw_id: str | None) -> str | None:

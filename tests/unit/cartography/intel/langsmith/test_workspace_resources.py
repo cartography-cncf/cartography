@@ -4,8 +4,12 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
+from cartography.intel.langsmith import exposure
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.workspace_resources import get_mcp_servers
+from tests.data.langsmith.fake_client import FakeLangSmithClient
+from tests.data.langsmith.fake_client import SIMPSON_CORP_ROUTES
+from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 
 
 def _http_error(status_code: int) -> requests.HTTPError:
@@ -65,3 +69,39 @@ def test_get_mcp_servers_reraises_other_http_errors():
     # Act and assert
     with pytest.raises(requests.HTTPError):
         get_mcp_servers(client, "org-1", "ws-1")
+
+
+@pytest.mark.parametrize(
+    "fetch, answering_route, sibling_route",
+    [
+        (
+            exposure.get_public_shares,
+            "/api/v1/workspaces/current/shared",
+            "/api/v1/repos",
+        ),
+        (exposure.get_webhooks, "/api/v1/runs/rules", "/api/v1/prompt-webhooks"),
+    ],
+    ids=["shares", "webhooks"],
+)
+@pytest.mark.parametrize(
+    "sibling_status, expected_complete",
+    [(404, True), (403, False)],
+    ids=["sibling not served", "sibling denied"],
+)
+def test_a_failed_sibling_listing_keeps_what_the_other_returned(
+    fetch, answering_route, sibling_route, sibling_status, expected_complete
+):
+    # Arrange
+    client = FakeLangSmithClient(failures={(sibling_route, "w1"): sibling_status})
+    client.routes = {
+        (answering_route, "w1"): SIMPSON_CORP_ROUTES[
+            (answering_route, WORKSPACE_PROD_ID)
+        ]
+    }
+
+    # Act
+    rows, complete = fetch(client, "org-1", "w1")
+
+    # Assert
+    assert rows
+    assert complete is expected_complete
