@@ -50,27 +50,6 @@ class LangSmithWorkspaceMembershipNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithWorkspaceMembershipToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithWorkspaceMembership)
-class LangSmithWorkspaceMembershipToOrganizationRel(CartographyRelSchema):
-    """Links an organization to a workspace membership within it."""
-
-    target_node_label: str = "LangSmithOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: LangSmithWorkspaceMembershipToOrganizationRelProperties = (
-        LangSmithWorkspaceMembershipToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithWorkspaceMembershipToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -97,16 +76,16 @@ class LangSmithWorkspaceMembershipToWorkspaceRelProperties(CartographyRelPropert
 
 
 @dataclass(frozen=True)
-# (:LangSmithWorkspaceMembership)-[:IN_WORKSPACE]->(:LangSmithWorkspace)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithWorkspaceMembership)
 class LangSmithWorkspaceMembershipToWorkspaceRel(CartographyRelSchema):
-    """Links a membership to the workspace it grants access to."""
+    """Links a workspace to a membership that grants access to it."""
 
     target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "IN_WORKSPACE"
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
     properties: LangSmithWorkspaceMembershipToWorkspaceRelProperties = (
         LangSmithWorkspaceMembershipToWorkspaceRelProperties()
     )
@@ -141,19 +120,22 @@ class LangSmithWorkspaceMembershipSchema(CartographyNodeSchema):
     This is modeled as a node rather than a relationship because role assignment is a
     (user, workspace, role) triple and LangSmith supports organization-defined custom roles,
     so the role cannot be encoded in a fixed set of relationship labels.
+
+    The workspace is the sub-resource, so Cartography cleans these up one workspace at a
+    time, and only in workspaces it read in full. A workspace it can't read keeps its
+    existing nodes, and a workspace that is deleted takes them with it.
     """
 
     label: str = "LangSmithWorkspaceMembership"
     properties: LangSmithWorkspaceMembershipNodeProperties = (
         LangSmithWorkspaceMembershipNodeProperties()
     )
-    sub_resource_relationship: LangSmithWorkspaceMembershipToOrganizationRel = (
-        LangSmithWorkspaceMembershipToOrganizationRel()
+    sub_resource_relationship: LangSmithWorkspaceMembershipToWorkspaceRel = (
+        LangSmithWorkspaceMembershipToWorkspaceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             LangSmithWorkspaceMembershipToUserRel(),
-            LangSmithWorkspaceMembershipToWorkspaceRel(),
             LangSmithWorkspaceMembershipToRoleRel(),
         ],
     )

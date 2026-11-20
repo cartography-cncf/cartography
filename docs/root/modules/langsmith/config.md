@@ -36,9 +36,9 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 
 | Permission | Enables |
 | --- | --- |
-| `organization:read` | Organizations, members, workspaces, service accounts, SSO settings, SCIM tokens, and access policies |
+| `organization:read` | Organizations, members, workspaces, service accounts, SSO settings, SCIM tokens, access policies, and OAuth clients |
 | `organization:read-metadata` | Organization settings and the role catalog |
-| `workspaces:read` | Workspace members, secret key names, resource tags, OAuth clients, and MCP servers |
+| `workspaces:read` | Workspace members, secret key names, resource tags, and MCP servers |
 
 ## Optional Permissions
 
@@ -50,7 +50,9 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a
-warning for each workspace that it skips.
+warning for each workspace that it skips. Cartography cleans up workspace resources one
+workspace at a time, so a workspace it can't read keeps its existing nodes and every
+other workspace is still cleaned up.
 
 Cartography keeps nodes that the token could read before but can't read now. If you
 narrow the token's access, stale data stays in the graph until you restore access.
@@ -102,7 +104,7 @@ to `--langsmith-host-api-url`.
 
 | Symptom | Cause |
 | --- | --- |
-| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types. |
+| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types in that workspace only. |
 | Timeouts logged for some routes | LangSmith was slow or unreachable. Cartography logs a warning, keeps the existing nodes for those routes, and retries on the next run. |
 | No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. |
 | No `LangSmithApiKey` nodes with `key_type = pat` for other members | The token lacks `organization:pats:read`. |

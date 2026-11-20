@@ -82,9 +82,10 @@ SIMPSON_CORP_ROUTES: dict[Route, Any] = {
         f"/api/v1/workspaces/current/tag-keys/{TAG_KEY_ID}/tag-values",
         WORKSPACE_PROD_ID,
     ): workspace_resources.LANGSMITH_TAG_VALUES[TAG_KEY_ID],
-    **_per_workspace(
-        "/api/v1/platform/oauth/clients", workspace_resources.LANGSMITH_OAUTH_CLIENTS
-    ),
+    (
+        "/api/v1/platform/oauth/clients",
+        None,
+    ): workspace_resources.LANGSMITH_OAUTH_CLIENTS,
     **_per_workspace(
         "/api/v1/platform/mcp-vendors", workspace_resources.LANGSMITH_MCP_VENDORS
     ),

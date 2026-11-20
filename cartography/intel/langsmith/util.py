@@ -7,6 +7,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.core.nodes import CartographyNodeSchema
 
@@ -386,3 +387,52 @@ def cleanup_if_complete(
         )
         return
     GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+
+
+def load_by_workspace(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    rows_by_workspace: dict[str, list[dict[str, Any]]],
+    complete_workspace_ids: set[str],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Load a workspace-scoped schema, then clean it up in each workspace read in full.
+
+    ``rows_by_workspace`` names every workspace that was attempted, with an empty list
+    for one that could not be read, so that skipped cleanups can be reported.
+    The schema's sub-resource is its workspace, so cleanup only ever touches one
+    workspace at a time. A workspace the credential could not read, or read only in
+    part, keeps its existing nodes; every other workspace is cleaned up as usual.
+    """
+    for workspace_id, rows in rows_by_workspace.items():
+        load(
+            neo4j_session,
+            schema,
+            rows,
+            lastupdated=common_job_parameters["UPDATE_TAG"],
+            WORKSPACE_ID=workspace_id,
+        )
+    for workspace_id in sorted(complete_workspace_ids):
+        cleanup_workspace(neo4j_session, schema, workspace_id, common_job_parameters)
+    skipped = set(rows_by_workspace) - complete_workspace_ids
+    if skipped:
+        logger.warning(
+            "Skipping %s cleanup in %d LangSmith workspace(s) that could not be read in "
+            "full (%s); their existing nodes are kept.",
+            schema.label,
+            len(skipped),
+            ", ".join(sorted(skipped)),
+        )
+
+
+def cleanup_workspace(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    workspace_id: str,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """Run a workspace-scoped schema's standard cleanup for one workspace."""
+    GraphJob.from_node_schema(
+        schema, {**common_job_parameters, "WORKSPACE_ID": workspace_id}
+    ).run(neo4j_session)
