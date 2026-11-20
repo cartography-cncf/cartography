@@ -737,13 +737,16 @@ TAILSCALE_DEVICE_INSTANCE_LINKING = AnalysisJob(
 )
 # Providers disagree on email case for the same person, so the exact-match
 # HAS_ACCOUNT relationship in UserSchema misses those accounts.
+# GitHubUser is excluded: its profile email is self-asserted, and
+# USER_HAS_GITHUB_ACCOUNT weighs it against verified-domain and SAML evidence.
 USER_HAS_ACCOUNT_BY_NORMALIZED_EMAIL = AnalysisJob(
     name="Ontology - UserAccount HAS_ACCOUNT User linking by normalized email",
     short_name="ontology_users_normalized_email",
     statements=(
         AnalysisStatement(
             match=(
-                "MATCH (a:UserAccount) WHERE a._ont_email IS NOT NULL "
+                "MATCH (a:UserAccount) "
+                "WHERE a._ont_email IS NOT NULL AND NOT a:GitHubUser "
                 "MATCH (u:User {normalized_email: toLower(trim(a._ont_email))})"
             ),
             effects=(
@@ -753,6 +756,10 @@ USER_HAS_ACCOUNT_BY_NORMALIZED_EMAIL = AnalysisJob(
                     "a",
                     source_label="User",
                     target_label="UserAccount",
+                    # UserSchema cleanup removes stale HAS_ACCOUNT links at the
+                    # end of the sync. Cleaning up here would delete the links
+                    # that the later linking jobs refresh.
+                    cleanup_where="false",
                 ),
             ),
         ),
