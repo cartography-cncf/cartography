@@ -47,6 +47,30 @@ MATCH (m)-[:IN_WORKSPACE]->(w:LangSmithWorkspace)
 RETURN w.name, r.name, collect(u.email)
 ```
 
+## Find tracing projects that a tag-based access policy can apply to
+
+Lists each policy that matches on a resource tag, with the projects carrying a tag under
+that key. Read `p.condition_summary` for the operator and value; a `not_equals` or
+`if_exists` condition also applies to projects without the tag.
+
+```cypher
+MATCH (p:LangSmithAccessPolicy)-[:ATTACHED_TO]->(r:LangSmithRole)
+UNWIND p.condition_tag_keys AS tag_key
+MATCH (w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)
+      -[:TAGGED]->(t:LangSmithResourceTag {key: tag_key})
+RETURN p.name, p.effect, p.condition_summary, r.name, w.name, proj.name, t.key, t.value
+```
+
+## Find untagged tracing projects
+
+Tag-based policies with plain `equals` conditions don't apply to these projects.
+
+```cypher
+MATCH (w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)
+WHERE NOT (proj)-[:TAGGED]->(:LangSmithResourceTag)
+RETURN w.name, proj.name
+```
+
 ## Find deployments that can be shared outside the organization
 
 ```cypher

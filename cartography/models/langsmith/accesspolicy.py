@@ -28,7 +28,15 @@ class LangSmithAccessPolicyNodeProperties(CartographyNodeProperties):
         "condition_summary",
         description=(
             "Flattened, human-readable rendering of the policy's attribute-based condition "
-            "groups, for example 'project.tag in [prod]'."
+            "groups, for example "
+            "'(runs:read on project: resource_tag_key:env equals prod)'."
+        ),
+    )
+    condition_tag_keys: PropertyRef = PropertyRef(
+        "condition_tag_keys",
+        description=(
+            "Resource tag keys the policy's conditions match on. Match them against "
+            "LangSmithResourceTag.key to find the tagged projects a policy can apply to."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

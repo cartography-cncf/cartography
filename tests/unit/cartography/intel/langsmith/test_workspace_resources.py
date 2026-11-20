@@ -5,6 +5,7 @@ import requests
 
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.workspace_resources import get_mcp_servers
+from cartography.intel.langsmith.workspace_resources import get_projects
 
 
 def _http_error(status_code: int) -> requests.HTTPError:
@@ -57,3 +58,56 @@ def test_get_mcp_servers_reraises_other_http_errors():
     # Act and assert
     with pytest.raises(requests.HTTPError):
         get_mcp_servers(client, "org-1", "ws-1")
+
+
+def _projects_client(taggings):
+    client = MagicMock()
+    client.get_paginated.return_value = [
+        {"id": "proj-1", "name": "checkout-agent"},
+        {"id": "proj-2", "name": "scratch"},
+    ]
+    client.get.side_effect = [taggings]
+    return client
+
+
+def test_get_projects_attaches_tag_values_to_tagged_projects():
+    # Arrange
+    client = _projects_client(
+        [
+            {
+                "tag_value_id": "tv-prod",
+                "resources": {
+                    "projects": [{"resource_id": "proj-1"}],
+                    "datasets": [{"resource_id": "ds-1"}],
+                },
+            },
+        ]
+    )
+
+    # Act
+    projects, complete = get_projects(client, "org-1", "ws-1")
+
+    # Assert
+    assert {p["id"]: p["tag_value_ids"] for p in projects} == {
+        "proj-1": ["tv-prod"],
+        "proj-2": [],
+    }
+    assert complete is True
+
+
+@pytest.mark.parametrize(
+    "status, expected_complete",
+    [(404, True), (403, False), (None, False)],
+)
+def test_get_projects_keeps_projects_when_taggings_fail(status, expected_complete):
+    # Arrange
+    client = _projects_client(
+        LangSmithFetchError("/api/v1/workspaces/current/taggings", status, "failed")
+    )
+
+    # Act
+    projects, complete = get_projects(client, "org-1", "ws-1")
+
+    # Assert
+    assert [p["id"] for p in projects] == ["proj-1", "proj-2"]
+    assert complete is expected_complete

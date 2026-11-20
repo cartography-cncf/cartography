@@ -19,6 +19,8 @@ from tests.data.langsmith.roles import WORKSPACE_VIEWER_ROLE_ID
 from tests.data.langsmith.users import BART_LS_USER_ID
 from tests.data.langsmith.users import HOMER_LS_USER_ID
 from tests.data.langsmith.users import MARGE_LS_USER_ID
+from tests.data.langsmith.workspace_resources import CHECKOUT_PROJECT_ID
+from tests.data.langsmith.workspace_resources import SCRATCH_PROJECT_ID
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 from tests.integration.util import check_nodes
@@ -232,6 +234,14 @@ def test_sync_links_sso_and_access_policies_to_roles(neo4j_session):
         "id",
         "ATTACHED_TO",
     ) == {("Production projects only", CUSTOM_ROLE)}
+    policy = neo4j_session.run(
+        "MATCH (p:LangSmithAccessPolicy) "
+        "RETURN p.condition_summary AS summary, p.condition_tag_keys AS tag_keys"
+    ).single()
+    assert policy["summary"] == (
+        "(runs:read on project: resource_tag_key:environment equals prod)"
+    )
+    assert policy["tag_keys"] == ["environment"]
 
 
 def test_sync_links_deployments_to_the_agents_they_run(neo4j_session):
@@ -368,6 +378,25 @@ def test_sync_loads_workspace_resources(neo4j_session):
         neo4j_session,
         "LangSmithWorkspace",
         "id",
+        "LangSmithProject",
+        "name",
+        "CONTAINS",
+    ) == {
+        (WORKSPACE_PROD_ID, "checkout-agent"),
+        (WORKSPACE_PROD_ID, "scratch"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "LangSmithProject",
+        "name",
+        "LangSmithResourceTag",
+        "value",
+        "TAGGED",
+    ) == {("checkout-agent", "prod")}
+    assert check_rels(
+        neo4j_session,
+        "LangSmithWorkspace",
+        "id",
         "LangSmithOAuthClient",
         "id",
         "CONTAINS",
@@ -438,6 +467,13 @@ STALE_CASES = [
         id="agent-credential",
     ),
     pytest.param(
+        ("/api/v1/sessions", WORKSPACE_PROD_ID),
+        [],
+        "LangSmithProject",
+        SCRATCH_PROJECT_ID,
+        id="project",
+    ),
+    pytest.param(
         ("/api/v1/platform/oauth/clients", WORKSPACE_PROD_ID),
         {"clients": []},
         "LangSmithOAuthClient",
@@ -488,6 +524,29 @@ def test_resync_preserves_what_could_not_be_read(
     # Assert
     # The data may still exist, so a failed read must not be treated as a deletion.
     assert node_id in _ids(neo4j_session, label)
+
+
+@pytest.mark.parametrize("status", [403, None], ids=["403", "timeout"])
+def test_resync_keeps_project_tags_when_taggings_cannot_be_read(neo4j_session, status):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    unreadable = FakeLangSmithClient(
+        failures={("/api/v1/workspaces/current/taggings", WORKSPACE_PROD_ID): status}
+    )
+
+    # Act
+    _sync(neo4j_session, unreadable, NEXT_UPDATE_TAG)
+
+    # Assert
+    # A missing tag could hide a deny policy, so an unread tagging must not be dropped.
+    assert check_rels(
+        neo4j_session,
+        "LangSmithProject",
+        "id",
+        "LangSmithResourceTag",
+        "value",
+        "TAGGED",
+    ) == {(CHECKOUT_PROJECT_ID, "prod")}
 
 
 def test_resync_keeps_agents_on_a_deployment_that_did_not_answer(neo4j_session):

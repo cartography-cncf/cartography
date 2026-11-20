@@ -3,6 +3,10 @@ from tests.data.langsmith.roles import CUSTOM_ROLE_ID
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 
+PROD_TAG_VALUE_ID = "ad11ad11-0001-4001-8001-ad11ad11ad11"
+CHECKOUT_PROJECT_ID = "ba11ba11-0001-4001-8001-ba11ba11ba11"
+SCRATCH_PROJECT_ID = "ba11ba11-0002-4002-8002-ba11ba11ba11"
+
 LANGSMITH_SSO_SETTINGS = [
     {
         "id": "9a9a9a9a-0001-4001-8001-9a9a9a9a9a9a",
@@ -30,11 +34,14 @@ LANGSMITH_ACCESS_POLICIES = {
             "role_ids": [CUSTOM_ROLE_ID],
             "condition_groups": [
                 {
+                    "permission": "runs:read",
+                    "resource_type": "project",
                     "conditions": [
                         {
-                            "attribute": "project.tag",
-                            "operator": "in",
-                            "value": ["prod"],
+                            "attribute_name": "resource_tag_key",
+                            "attribute_key": "environment",
+                            "operator": "equals",
+                            "attribute_value": "prod",
                         },
                     ],
                 },
@@ -61,8 +68,56 @@ LANGSMITH_TAG_KEYS = {
 
 LANGSMITH_TAG_VALUES = {
     "ac11ac11-0001-4001-8001-ac11ac11ac11": [
-        {"id": "ad11ad11-0001-4001-8001-ad11ad11ad11", "value": "prod"},
+        {"id": PROD_TAG_VALUE_ID, "value": "prod"},
     ],
+}
+
+LANGSMITH_PROJECTS = {
+    WORKSPACE_PROD_ID: [
+        {
+            "id": CHECKOUT_PROJECT_ID,
+            "tenant_id": WORKSPACE_PROD_ID,
+            "name": "checkout-agent",
+            "description": "Production checkout agent traces.",
+            "start_time": "2026-02-01T09:00:00Z",
+            "trace_tier": "longlived",
+            "reference_dataset_id": None,
+        },
+        {
+            "id": SCRATCH_PROJECT_ID,
+            "tenant_id": WORKSPACE_PROD_ID,
+            "name": "scratch",
+            "description": None,
+            "start_time": "2026-02-02T09:00:00Z",
+            "trace_tier": "shortlived",
+            "reference_dataset_id": None,
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
+}
+
+# The taggings listing groups each tag value's resources by type.
+LANGSMITH_TAGGINGS = {
+    WORKSPACE_PROD_ID: [
+        {
+            "tag_key": "environment",
+            "tag_key_id": "ac11ac11-0001-4001-8001-ac11ac11ac11",
+            "tag_value": "prod",
+            "tag_value_id": PROD_TAG_VALUE_ID,
+            "resources": {
+                "projects": [
+                    {
+                        "tagging_id": "bb11bb11-0001-4001-8001-bb11bb11bb11",
+                        "resource_id": CHECKOUT_PROJECT_ID,
+                        "resource_name": "checkout-agent",
+                    },
+                ],
+                "datasets": [],
+                "prompts": [],
+            },
+        },
+    ],
+    WORKSPACE_DEV_ID: [],
 }
 
 LANGSMITH_OAUTH_CLIENTS = {

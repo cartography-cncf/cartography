@@ -1,5 +1,6 @@
 """
-Workspace-scoped resources: secrets, resource tags, OAuth clients and MCP servers.
+Workspace-scoped resources: secrets, resource tags, tracing projects, OAuth clients and
+MCP servers.
 
 These all need an ``X-Tenant-Id`` header and are fetched per workspace. A credential
 commonly holds ``workspaces:read`` in only some workspaces, so each fetch degrades to a
@@ -19,11 +20,15 @@ from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.langsmith.mcpserver import LangSmithMcpServerSchema
 from cartography.models.langsmith.oauthclient import LangSmithOAuthClientSchema
+from cartography.models.langsmith.project import LangSmithProjectSchema
 from cartography.models.langsmith.resourcetag import LangSmithResourceTagSchema
 from cartography.models.langsmith.secret import LangSmithSecretSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# The tracing project listing caps `limit` at 100.
+_PROJECT_PAGE_SIZE = 100
 
 
 @timeit
@@ -36,11 +41,11 @@ def sync(
 ) -> None:
     secrets: list[dict[str, Any]] = []
     tags: list[dict[str, Any]] = []
+    projects: list[dict[str, Any]] = []
     oauth_clients: list[dict[str, Any]] = []
     mcp_servers: list[dict[str, Any]] = []
-    secrets_complete = tags_complete = oauth_clients_complete = mcp_servers_complete = (
-        True
-    )
+    secrets_complete = tags_complete = projects_complete = True
+    oauth_clients_complete = mcp_servers_complete = True
 
     for workspace in workspaces:
         workspace_id = workspace["id"]
@@ -52,6 +57,10 @@ def sync(
         rows, ok = get_tags(client, org_id, workspace_id)
         tags.extend(rows)
         tags_complete = tags_complete and ok
+
+        rows, ok = get_projects(client, org_id, workspace_id)
+        projects.extend(rows)
+        projects_complete = projects_complete and ok
 
         rows, ok = get_oauth_clients(client, org_id, workspace_id)
         oauth_clients.extend(rows)
@@ -65,6 +74,7 @@ def sync(
         neo4j_session,
         secrets,
         tags,
+        projects,
         oauth_clients,
         mcp_servers,
         org_id,
@@ -76,6 +86,7 @@ def sync(
         [
             (LangSmithSecretSchema(), secrets_complete),
             (LangSmithResourceTagSchema(), tags_complete),
+            (LangSmithProjectSchema(), projects_complete),
             (LangSmithOAuthClientSchema(), oauth_clients_complete),
             (LangSmithMcpServerSchema(), mcp_servers_complete),
         ],
@@ -164,6 +175,66 @@ def get_tags(
                 }
             )
     return tags, complete
+
+
+@timeit
+def get_projects(
+    client: LangSmithClient, org_id: str, workspace_id: str
+) -> tuple[list[dict[str, Any]], bool]:
+    """
+    Fetch the workspace's tracing projects, each with the IDs of the tag values applied to
+    it.
+
+    Tags come from the workspace's taggings listing. If that listing can't be read, the
+    projects are still returned but reported incomplete, so cleanup doesn't remove tag
+    edges that may still exist.
+    """
+    try:
+        projects = client.get_paginated(
+            "/api/v1/sessions",
+            params={"reference_free": "true", "skip_enrichment": "true"},
+            org_id=org_id,
+            tenant_id=workspace_id,
+            page_size=_PROJECT_PAGE_SIZE,
+        )
+    except LangSmithFetchError as err:
+        logger.warning(
+            "Skipping LangSmith projects for workspace %s: %s", workspace_id, err
+        )
+        return [], err.not_found
+
+    tag_value_ids: dict[str, list[str]] = {}
+    complete = True
+    try:
+        taggings = client.get(
+            "/api/v1/workspaces/current/taggings",
+            org_id=org_id,
+            tenant_id=workspace_id,
+        )
+    except LangSmithFetchError as err:
+        logger.warning(
+            "Skipping LangSmith project tags for workspace %s: %s", workspace_id, err
+        )
+        taggings = []
+        complete = err.not_found
+    for tagging in taggings:
+        for project in (tagging.get("resources") or {}).get("projects") or []:
+            tag_value_ids.setdefault(project["resource_id"], []).append(
+                tagging["tag_value_id"]
+            )
+
+    return [
+        {
+            "id": project["id"],
+            "name": project.get("name"),
+            "description": project.get("description"),
+            "start_time": project.get("start_time"),
+            "trace_tier": project.get("trace_tier"),
+            "workspace_id": workspace_id,
+            "tag_value_ids": tag_value_ids.get(project["id"], []),
+        }
+        for project in projects
+    ], complete
 
 
 @timeit
@@ -276,6 +347,7 @@ def load_workspace_resources(
     neo4j_session: neo4j.Session,
     secrets: list[dict[str, Any]],
     tags: list[dict[str, Any]],
+    projects: list[dict[str, Any]],
     oauth_clients: list[dict[str, Any]],
     mcp_servers: list[dict[str, Any]],
     org_id: str,
@@ -284,6 +356,7 @@ def load_workspace_resources(
     for schema, data in (
         (LangSmithSecretSchema(), secrets),
         (LangSmithResourceTagSchema(), tags),
+        (LangSmithProjectSchema(), projects),
         (LangSmithOAuthClientSchema(), oauth_clients),
         (LangSmithMcpServerSchema(), mcp_servers),
     ):
