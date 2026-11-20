@@ -44,13 +44,23 @@ def _glob_regex(pattern_expression: str) -> str:
 # the default branch, plus the rules of those rulesets (`ruleset_rules`). Rulesets
 # are ingested with `includes_parents`, so organization rulesets that target the
 # repository are linked to it.
+# GitHub applies a single classic rule per branch: one naming the branch exactly
+# wins over wildcard patterns. Among several wildcard rules the oldest wins, and
+# creation order is not ingested, so those are all kept and a check passes when
+# any of them enforces the setting.
 _DEFAULT_BRANCH_CONTROLS = f"""
     MATCH (n:GitHubRepository)
     WHERE coalesce(n.archived, false) = false AND n.defaultbranch IS NOT NULL
     WITH n, {_GLOB_TO_REGEX_STEPS_CYPHER} AS glob_steps
     OPTIONAL MATCH (n)-[:HAS_RULE]->(bpr:GitHubBranchProtectionRule)
     WITH n, glob_steps,
-        [b IN collect(bpr) WHERE n.defaultbranch =~ {_glob_regex("b.pattern")}] AS bprs
+        [b IN collect(bpr) WHERE n.defaultbranch =~ {_glob_regex("b.pattern")}]
+            AS matching_bprs
+    WITH n, glob_steps, CASE
+        WHEN any(b IN matching_bprs WHERE b.pattern = n.defaultbranch)
+        THEN [b IN matching_bprs WHERE b.pattern = n.defaultbranch]
+        ELSE matching_bprs
+    END AS bprs
     OPTIONAL MATCH (n)-[:HAS_RULESET]->(rs:GitHubRuleset)
     WHERE rs.target = 'BRANCH' AND rs.enforcement = 'ACTIVE'
     WITH n, glob_steps, bprs, collect(rs) AS active_rulesets

@@ -176,6 +176,18 @@ def _load_repository(
             id="weak_wildcard_branch_rule",
         ),
         pytest.param(
+            [
+                {"pattern": "main", "allows_force_pushes": True},
+                {**STRONG_BRANCH_RULE, "pattern": "*"},
+            ],
+            [],
+            True,
+            False,
+            {NO_REVIEWS, FORCE_PUSH, ADMINS, CODEOWNER_REVIEW},
+            ALWAYS_EVALUATED | {ADMINS, CODEOWNER_REVIEW},
+            id="exact_branch_rule_wins_over_wildcard",
+        ),
+        pytest.param(
             [],
             [_ruleset(["~DEFAULT_BRANCH"])],
             True,
