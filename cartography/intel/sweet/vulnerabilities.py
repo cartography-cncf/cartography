@@ -14,8 +14,9 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 # Resolved vulnerabilities are not fetched. Cleanup then removes the ones that were
-# resolved since the previous sync.
-ACTIVE_STATUSES = "open,in_progress,ignored"
+# resolved since the previous sync. The API's status filter is case-sensitive and
+# takes the title-case values it returns, so a lowercase filter matches nothing.
+ACTIVE_STATUSES = "Open,In Progress,Ignored"
 _BARE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -28,6 +29,13 @@ def get(session: requests.Session, api_url: str) -> list[dict[str, Any]]:
         {"status": ACTIVE_STATUSES},
         "vulnerabilities",
     )
+
+
+def _normalize_status(status: str | None) -> str | None:
+    """Turn Sweet's title-case status, such as `In Progress`, into `in_progress`."""
+    if not status:
+        return None
+    return "_".join(status.strip().lower().split()) or None
 
 
 def _image_digest_for_match(digest: str | None) -> str | None:
@@ -61,7 +69,7 @@ def transform(raw_vulnerabilities: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "cve_id": cve_id,
                 "has_cve": str(cve_id is not None).lower(),
                 "severity": vulnerability.get("severity"),
-                "status": vulnerability.get("status"),
+                "status": _normalize_status(vulnerability.get("status")),
                 "sweet_score": vulnerability.get("sweetScore"),
                 "sweet_severity": vulnerability.get("sweetSeverity"),
                 "epss_score": vulnerability.get("epssScore"),
