@@ -52,6 +52,8 @@ def load_workspaces(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(LangSmithWorkspaceSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    # A deleted workspace takes its stale contents with it: they hang off the workspace,
+    # so no per-workspace cleanup could reach them once it is gone.
+    GraphJob.from_node_schema(
+        LangSmithWorkspaceSchema(), common_job_parameters, cascade_delete=True
+    ).run(neo4j_session)

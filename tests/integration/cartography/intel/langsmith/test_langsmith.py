@@ -34,6 +34,9 @@ CUSTOM_ROLE = f"{LANGSMITH_ORG_ID}|{CUSTOM_ROLE_ID}"
 SUPPORT_AGENT = f"{LANGSMITH_ORG_ID}|{WORKSPACE_PROD_ID}|{SUPPORT_AGENT_ID}"
 TRIAGE_AGENT = f"{LANGSMITH_ORG_ID}|{WORKSPACE_DEV_ID}|{TRIAGE_AGENT_ID}"
 TRIAGE_CREDENTIAL_ID = "cc11cc11-0003-4003-8003-cc11cc11cc11"
+WORKSPACE_KEY_ID = "9b9b9b9b-0001-4001-8001-9b9b9b9b9b9b"
+PAT_ID = "7a7a7a7a-0001-4001-8001-7a7a7a7a7a7a"
+SERVICE_KEY_ID = "6a6a6a6a-0001-4001-8001-6a6a6a6a6a6a"
 
 
 def _sync(
@@ -139,7 +142,7 @@ def test_sync_loads_members_with_per_workspace_roles(neo4j_session):
     role_by_membership = neo4j_session.run(
         """
         MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(m:LangSmithWorkspaceMembership)
-              -[:IN_WORKSPACE]->(w:LangSmithWorkspace)
+              <-[:RESOURCE]-(w:LangSmithWorkspace)
         MATCH (m)-[:HAS_ROLE]->(r:LangSmithRole)
         RETURN u.id AS user, w.id AS workspace, r.id AS role
         """
@@ -185,11 +188,17 @@ def test_sync_attributes_every_credential_to_its_owner(neo4j_session):
         "id",
         "LangSmithApiKey",
         "short_key",
+        "RESOURCE",
+    ) == {(WORKSPACE_PROD_ID, "lsv2_ws_prod")}
+    # An organization service key names its default workspace.
+    assert check_rels(
+        neo4j_session,
+        "LangSmithWorkspace",
+        "id",
+        "LangSmithApiKey",
+        "short_key",
         "CONTAINS",
-    ) == {
-        (WORKSPACE_PROD_ID, "lsv2_sk_abcd"),
-        (WORKSPACE_PROD_ID, "lsv2_ws_prod"),
-    }
+    ) == {(WORKSPACE_PROD_ID, "lsv2_sk_abcd")}
     assert check_rels(
         neo4j_session,
         "LangSmithServiceAccount",
@@ -263,7 +272,7 @@ def test_sync_links_deployments_to_the_agents_they_run(neo4j_session):
         "id",
         "LangSmithDeployment",
         "id",
-        "CONTAINS",
+        "RESOURCE",
     ) == {
         (WORKSPACE_PROD_ID, SUPPORT_DEPLOYMENT_ID),
         (WORKSPACE_DEV_ID, TRIAGE_DEPLOYMENT_ID),
@@ -351,7 +360,7 @@ def test_sync_loads_workspace_resources(neo4j_session):
 
     # Assert
     assert check_rels(
-        neo4j_session, "LangSmithWorkspace", "id", "LangSmithSecret", "name", "CONTAINS"
+        neo4j_session, "LangSmithWorkspace", "id", "LangSmithSecret", "name", "RESOURCE"
     ) == {
         (WORKSPACE_PROD_ID, "OPENAI_API_KEY"),
         (WORKSPACE_PROD_ID, "SLACK_BOT_TOKEN"),
@@ -363,7 +372,7 @@ def test_sync_loads_workspace_resources(neo4j_session):
         "id",
         "LangSmithResourceTag",
         "value",
-        "CONTAINS",
+        "RESOURCE",
     ) == {(WORKSPACE_PROD_ID, "prod")}
     assert check_nodes(neo4j_session, "LangSmithResourceTag", ["key", "value"]) == {
         ("environment", "prod"),
@@ -374,7 +383,7 @@ def test_sync_loads_workspace_resources(neo4j_session):
         "id",
         "LangSmithOAuthClient",
         "id",
-        "CONTAINS",
+        "RESOURCE",
     ) == {(WORKSPACE_PROD_ID, "langsmith-mcp-client")}
     assert check_rels(
         neo4j_session,
@@ -382,7 +391,7 @@ def test_sync_loads_workspace_resources(neo4j_session):
         "id",
         "LangSmithMcpServer",
         "name",
-        "CONTAINS",
+        "RESOURCE",
     ) == {(WORKSPACE_PROD_ID, "Internal Docs")}
     assert check_nodes(neo4j_session, "LangSmithMcpServer", ["name", "vendor"]) == {
         ("Internal Docs", "arcade"),
@@ -499,6 +508,127 @@ def test_resync_preserves_what_could_not_be_read(
     # Assert
     # The data may still exist, so a failed read must not be treated as a deletion.
     assert node_id in _ids(neo4j_session, label)
+
+
+@pytest.mark.parametrize(
+    "deleted_route, failing_route, label, removed_id, kept_id",
+    [
+        pytest.param(
+            ("/v2/deployments", WORKSPACE_PROD_ID),
+            ("/v2/deployments", WORKSPACE_DEV_ID),
+            "LangSmithDeployment",
+            SUPPORT_DEPLOYMENT_ID,
+            TRIAGE_DEPLOYMENT_ID,
+            id="another-workspace-unreadable",
+        ),
+        pytest.param(
+            ("/api/v1/api-key", WORKSPACE_PROD_ID),
+            ("/api/v1/orgs/current/members/personal-access-tokens", None),
+            "LangSmithApiKey",
+            WORKSPACE_KEY_ID,
+            PAT_ID,
+            id="organization-listing-unreadable",
+        ),
+        pytest.param(
+            ("/api/v1/orgs/current/service-keys", None),
+            ("/api/v1/orgs/current/members/personal-access-tokens", None),
+            "LangSmithApiKey",
+            SERVICE_KEY_ID,
+            PAT_ID,
+            id="another-organization-listing-unreadable",
+        ),
+    ],
+)
+def test_resync_cleans_up_what_it_could_read_despite_another_failed_listing(
+    neo4j_session, deleted_route, failing_route, label, removed_id, kept_id
+):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    partly_unreadable = FakeLangSmithClient(
+        routes={**SIMPSON_CORP_ROUTES, deleted_route: []},
+        failures={failing_route: 403},
+    )
+
+    # Act
+    _sync(neo4j_session, partly_unreadable, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert removed_id not in _ids(neo4j_session, label)
+    assert kept_id in _ids(neo4j_session, label)
+
+
+@pytest.mark.parametrize(
+    "label, legacy_workspace_edge",
+    [
+        ("LangSmithDeployment", "(w)-[:CONTAINS {lastupdated: $old}]->(n)"),
+        ("LangSmithSecret", "(w)-[:CONTAINS {lastupdated: $old}]->(n)"),
+        (
+            "LangSmithWorkspaceMembership",
+            "(n)-[:IN_WORKSPACE {lastupdated: $old}]->(w)",
+        ),
+        ("LangSmithAgent", None),
+    ],
+)
+def test_resync_removes_what_earlier_versions_left_behind(
+    neo4j_session, label, legacy_workspace_edge
+):
+    """Earlier versions owned workspace resources through the organization."""
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    legacy_edges = "CREATE (o)-[:RESOURCE {lastupdated: $old}]->(n)\n"
+    if legacy_workspace_edge:
+        legacy_edges += f"CREATE {legacy_workspace_edge}\n"
+    neo4j_session.run(
+        f"""
+        MATCH (o:LangSmithOrganization {{id: $org}})
+        MATCH (w:LangSmithWorkspace {{id: $workspace}})-[:RESOURCE]->(live:{label})
+        WITH o, w, collect(live) AS live
+        CREATE (deleted:{label} {{id: 'deleted-before-upgrade', lastupdated: $old}})
+        WITH o, w, live + [deleted] AS nodes
+        UNWIND nodes AS n
+        {legacy_edges}
+        """,
+        org=LANGSMITH_ORG_ID,
+        workspace=WORKSPACE_PROD_ID,
+        old=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient(), NEXT_UPDATE_TAG)
+
+    # Assert
+    assert "deleted-before-upgrade" not in _ids(neo4j_session, label)
+    leftover = neo4j_session.run(
+        f"""
+        MATCH (n:{label})-[r:CONTAINS|IN_WORKSPACE|RESOURCE]-(:LangSmithOrganization|LangSmithWorkspace)
+        WHERE r.lastupdated < $tag
+        RETURN count(r) AS n
+        """,
+        tag=TEST_UPDATE_TAG,
+    ).single()["n"]
+    assert leftover == 0
+
+
+def test_deleting_a_workspace_removes_what_it_contained(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    production_only = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            ("/api/v1/workspaces", None): [
+                workspace
+                for workspace in SIMPSON_CORP_ROUTES[("/api/v1/workspaces", None)]
+                if workspace["id"] == WORKSPACE_PROD_ID
+            ],
+        }
+    )
+
+    # Act
+    _sync(neo4j_session, production_only, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert TRIAGE_DEPLOYMENT_ID not in _ids(neo4j_session, "LangSmithDeployment")
+    assert SUPPORT_DEPLOYMENT_ID in _ids(neo4j_session, "LangSmithDeployment")
 
 
 def test_resync_keeps_credential_providers_when_providers_cannot_be_read(

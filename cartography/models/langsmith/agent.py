@@ -48,23 +48,23 @@ class LangSmithAgentNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithAgentToOrganizationRelProperties(CartographyRelProperties):
+class LangSmithAgentToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithAgent)
-class LangSmithAgentToOrganizationRel(CartographyRelSchema):
-    """Links an organization to an agent running within it."""
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithAgent)
+class LangSmithAgentToWorkspaceRel(CartographyRelSchema):
+    """Links an agent to the workspace it belongs to."""
 
-    target_node_label: str = "LangSmithOrganization"
+    target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LangSmithAgentToOrganizationRelProperties = (
-        LangSmithAgentToOrganizationRelProperties()
+    properties: LangSmithAgentToWorkspaceRelProperties = (
+        LangSmithAgentToWorkspaceRelProperties()
     )
 
 
@@ -127,8 +127,8 @@ class LangSmithAgentSchema(CartographyNodeSchema):
 
     label: str = "LangSmithAgent"
     properties: LangSmithAgentNodeProperties = LangSmithAgentNodeProperties()
-    sub_resource_relationship: LangSmithAgentToOrganizationRel = (
-        LangSmithAgentToOrganizationRel()
+    sub_resource_relationship: LangSmithAgentToWorkspaceRel = (
+        LangSmithAgentToWorkspaceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -1,16 +1,28 @@
 import logging
 from collections import Counter
+from dataclasses import replace
 from typing import Any
 
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_workspaces
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import load_by_workspace
 from cartography.intel.langsmith.util import org_scoped_id
 from cartography.intel.langsmith.util import resolve_ls_user_id
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.langsmith.apikey import LangSmithApiKeySchema
+from cartography.models.langsmith.apikey import LangSmithPersonalAccessTokenSchema
+from cartography.models.langsmith.apikey import LangSmithScimTokenSchema
+from cartography.models.langsmith.apikey import LangSmithServiceKeySchema
+from cartography.models.langsmith.apikey import LangSmithWorkspaceApiKeySchema
+from cartography.models.langsmith.apikey import PAT_LISTING_LABEL
+from cartography.models.langsmith.apikey import SCIM_TOKEN_LISTING_LABEL
+from cartography.models.langsmith.apikey import SERVICE_KEY_LISTING_LABEL
 from cartography.models.langsmith.serviceaccount import LangSmithServiceAccountSchema
 from cartography.util import timeit
 
@@ -28,27 +40,51 @@ def sync(
 ) -> None:
     service_accounts, service_accounts_complete = get_service_accounts(client, org_id)
 
-    keys: list[dict[str, Any]] = []
-    keys_complete = True
-    for key_type in ("service_key", "pat", "scim_token"):
+    org_keys: dict[str, list[dict[str, Any]]] = {}
+    complete_listings: set[str] = set()
+    for key_type in _ORG_KEY_LISTINGS:
         rows, ok = _fetch_optional(client, org_id, key_type)
-        keys.extend(rows)
-        keys_complete = keys_complete and ok
+        org_keys[key_type] = transform_keys(rows, user_lookup, workspaces, org_id)
+        if ok:
+            complete_listings.add(key_type)
+
+    workspace_keys: list[dict[str, Any]] = []
+    readable_workspace_ids: set[str] = set()
     for workspace in workspaces:
         rows, ok = _fetch_workspace_keys(client, org_id, workspace["id"])
-        keys.extend(rows)
-        keys_complete = keys_complete and ok
+        workspace_keys.extend(rows)
+        if ok:
+            readable_workspace_ids.add(workspace["id"])
 
-    transformed = transform_keys(keys, user_lookup, workspaces, org_id)
     load_api_keys(
         neo4j_session,
         service_accounts,
-        transformed,
+        org_keys,
+        transform_keys(workspace_keys, user_lookup, workspaces, org_id),
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
+    # Each listing's keys are cleaned up when that listing answered, so a missing
+    # organization:pats:read holds back only personal access tokens.
+    for key_type in complete_listings:
+        schema, listing_label = _ORG_KEY_LISTINGS[key_type]
+        GraphJob.from_node_schema(
+            replace(schema, label=listing_label.label), common_job_parameters
+        ).run(neo4j_session)
+    # Keys ingested before they carried their listing's label are reached only through
+    # the shared label, and only once every listing answered.
     cleanup_if_complete(
-        neo4j_session, LangSmithApiKeySchema(), keys_complete, common_job_parameters
+        neo4j_session,
+        LangSmithApiKeySchema(),
+        complete_listings == set(_ORG_KEY_LISTINGS)
+        and readable_workspace_ids == {workspace["id"] for workspace in workspaces},
+        common_job_parameters,
+    )
+    cleanup_workspaces(
+        neo4j_session,
+        LangSmithWorkspaceApiKeySchema(),
+        readable_workspace_ids,
+        common_job_parameters,
     )
     cleanup_if_complete(
         neo4j_session,
@@ -57,6 +93,12 @@ def sync(
         common_job_parameters,
     )
 
+
+_ORG_KEY_LISTINGS: dict[str, tuple[LangSmithApiKeySchema, ExtraNodeLabel]] = {
+    "service_key": (LangSmithServiceKeySchema(), SERVICE_KEY_LISTING_LABEL),
+    "pat": (LangSmithPersonalAccessTokenSchema(), PAT_LISTING_LABEL),
+    "scim_token": (LangSmithScimTokenSchema(), SCIM_TOKEN_LISTING_LABEL),
+}
 
 _ORG_KEY_SOURCES = {
     "service_key": "/api/v1/orgs/current/service-keys",
@@ -176,7 +218,8 @@ def transform_keys(
 def load_api_keys(
     neo4j_session: neo4j.Session,
     service_accounts: list[dict[str, Any]],
-    keys: list[dict[str, Any]],
+    org_keys: dict[str, list[dict[str, Any]]],
+    workspace_keys: list[dict[str, Any]],
     org_id: str,
     update_tag: int,
 ) -> None:
@@ -187,10 +230,18 @@ def load_api_keys(
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
-    load(
+    for key_type, rows in org_keys.items():
+        load(
+            neo4j_session,
+            _ORG_KEY_LISTINGS[key_type][0],
+            rows,
+            lastupdated=update_tag,
+            ORG_ID=org_id,
+        )
+    load_by_workspace(
         neo4j_session,
-        LangSmithApiKeySchema(),
-        keys,
-        lastupdated=update_tag,
-        ORG_ID=org_id,
+        LangSmithWorkspaceApiKeySchema(),
+        workspace_keys,
+        org_id,
+        update_tag,
     )

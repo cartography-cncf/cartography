@@ -1,3 +1,4 @@
+from collections import Counter
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,17 +24,19 @@ def _client(gateway_side_effect):
 
 
 @pytest.mark.parametrize(
-    "first_vendor_error, expected_complete",
+    "first_vendor_error, expected_complete, expected_unconnected",
     [
         # Registered but not OAuth-connected: it has no gateways, which is a full answer.
-        (_http_error(400), True),
+        (_http_error(400), True, {"arcade": 1}),
         # The vendor route is not served: also nothing to list.
-        (LangSmithFetchError("/mcp-servers", 404, "HTTP 404"), True),
+        (LangSmithFetchError("/mcp-servers", 404, "HTTP 404"), True, {}),
         # Hidden from this credential: gateways may exist, so cleanup must be skipped.
-        (LangSmithFetchError("/mcp-servers", 403, "HTTP 403"), False),
+        (LangSmithFetchError("/mcp-servers", 403, "HTTP 403"), False, {}),
     ],
 )
-def test_get_mcp_servers_skips_a_failing_vendor(first_vendor_error, expected_complete):
+def test_get_mcp_servers_skips_a_failing_vendor(
+    first_vendor_error, expected_complete, expected_unconnected
+):
     # Arrange
     client = _client(
         [
@@ -42,12 +45,17 @@ def test_get_mcp_servers_skips_a_failing_vendor(first_vendor_error, expected_com
         ]
     )
 
+    unconnected: Counter[str] = Counter()
+
     # Act
-    servers, complete = get_mcp_servers(client, "org-1", "ws-1")
+    servers, complete = get_mcp_servers(
+        client, "org-1", "ws-1", unconnected_vendors=unconnected
+    )
 
     # Assert
     assert [s["id"] for s in servers] == ["gw-1"]
     assert complete is expected_complete
+    assert unconnected == expected_unconnected
 
 
 def test_get_mcp_servers_reraises_other_http_errors():

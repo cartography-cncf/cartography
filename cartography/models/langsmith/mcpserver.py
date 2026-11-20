@@ -7,7 +7,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -47,42 +46,21 @@ class LangSmithMcpServerNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LangSmithMcpServerToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithMcpServer)
-class LangSmithMcpServerToOrganizationRel(CartographyRelSchema):
-    """Links an organization to an MCP server registered within it."""
-
-    target_node_label: str = "LangSmithOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: LangSmithMcpServerToOrganizationRelProperties = (
-        LangSmithMcpServerToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithMcpServerToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:LangSmithWorkspace)-[:CONTAINS]->(:LangSmithMcpServer)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithMcpServer)
 class LangSmithMcpServerToWorkspaceRel(CartographyRelSchema):
-    """Links an MCP server to the workspace that exposes it."""
+    """Links an MCP server to the workspace it belongs to."""
 
     target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: LangSmithMcpServerToWorkspaceRelProperties = (
         LangSmithMcpServerToWorkspaceRelProperties()
     )
@@ -94,11 +72,6 @@ class LangSmithMcpServerSchema(CartographyNodeSchema):
 
     label: str = "LangSmithMcpServer"
     properties: LangSmithMcpServerNodeProperties = LangSmithMcpServerNodeProperties()
-    sub_resource_relationship: LangSmithMcpServerToOrganizationRel = (
-        LangSmithMcpServerToOrganizationRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            LangSmithMcpServerToWorkspaceRel(),
-        ],
+    sub_resource_relationship: LangSmithMcpServerToWorkspaceRel = (
+        LangSmithMcpServerToWorkspaceRel()
     )

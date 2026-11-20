@@ -1,4 +1,6 @@
 import logging
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import Any
 
 import neo4j
@@ -6,8 +8,12 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.langsmith.legacy import LangSmithLegacyOrganizationRel
+from cartography.models.langsmith.legacy import LangSmithLegacyOwnershipCleanupSchema
 
 logger = logging.getLogger(__name__)
 
@@ -283,3 +289,82 @@ def cleanup_if_complete(
         )
         return
     GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+
+
+def load_by_workspace(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    rows: list[dict[str, Any]],
+    org_id: str,
+    update_tag: int,
+) -> None:
+    """Load each row under the workspace its ``workspace_id`` names."""
+    by_workspace: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        by_workspace[row["workspace_id"]].append(row)
+    for workspace_id, workspace_rows in by_workspace.items():
+        load(
+            neo4j_session,
+            schema,
+            workspace_rows,
+            lastupdated=update_tag,
+            ORG_ID=org_id,
+            WORKSPACE_ID=workspace_id,
+        )
+
+
+def cleanup_workspaces(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    readable_workspace_ids: Iterable[str],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Clean up a workspace-scoped schema in each workspace whose listings completed.
+
+    A workspace the credential could not read keeps its nodes, because they may still
+    exist. Every other workspace is cleaned up regardless, so one unreadable workspace
+    doesn't freeze the organization's whole graph.
+    """
+    for workspace_id in sorted(readable_workspace_ids):
+        GraphJob.from_node_schema(
+            schema, {**common_job_parameters, "WORKSPACE_ID": workspace_id}
+        ).run(neo4j_session)
+
+
+def cleanup_legacy_ownership(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    readable_workspace_ids: Iterable[str],
+    workspace_ids: Iterable[str],
+    common_job_parameters: dict[str, Any],
+    legacy_workspace_rel: CartographyRelSchema | None = None,
+) -> None:
+    """
+    Remove the ownership edges, and the deleted nodes, that earlier versions left behind.
+
+    A node deleted upstream before the upgrade never gets the new workspace edge, so the
+    schema's own cleanup can't reach it. Its old workspace edge, where it had one, is
+    cleaned with each readable workspace. Its organization edge is cleaned only when
+    every workspace was read, which is when earlier versions cleaned up.
+
+    DEPRECATED: remove with cartography.models.langsmith.legacy.
+    """
+    readable = set(readable_workspace_ids)
+    if legacy_workspace_rel is not None:
+        cleanup_workspaces(
+            neo4j_session,
+            LangSmithLegacyOwnershipCleanupSchema(
+                label=schema.label, sub_resource_relationship=legacy_workspace_rel
+            ),
+            readable,
+            common_job_parameters,
+        )
+    if readable >= set(workspace_ids):
+        GraphJob.from_node_schema(
+            LangSmithLegacyOwnershipCleanupSchema(
+                label=schema.label,
+                sub_resource_relationship=LangSmithLegacyOrganizationRel(),
+            ),
+            common_job_parameters,
+        ).run(neo4j_session)
