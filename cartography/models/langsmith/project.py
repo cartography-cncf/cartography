@@ -25,7 +25,7 @@ class LangSmithProjectNodeProperties(CartographyNodeProperties):
     )
     trace_tier: PropertyRef = PropertyRef(
         "trace_tier",
-        description="Retention tier new traces in the project are stored under.",
+        description="Retention tier that LangSmith stores the project's new traces in.",
     )
     workspace_id: PropertyRef = PropertyRef(
         "workspace_id", description="UUID of the workspace the project belongs to."
@@ -102,8 +102,8 @@ class LangSmithProjectToResourceTagRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithProjectSchema(CartographyNodeSchema):
     """
-    A tracing project, which holds the traces whose read access attribute-based access
-    policies restrict. Experiments are not included.
+    A tracing project. Attribute-based access policies restrict who can read the traces
+    it holds. Cartography doesn't ingest experiments.
     """
 
     label: str = "LangSmithProject"
