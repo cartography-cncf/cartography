@@ -632,6 +632,16 @@ class Config:
     :param onepassword_source: Report source locator for 1Password collector snapshots.
         Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or
         azblob://account/container/prefix. Optional.
+    :type sweet_api_key: str
+    :param sweet_api_key: Sweet Security API key. Optional.
+    :type sweet_api_secret: str
+    :param sweet_api_secret: Secret paired with the Sweet Security API key. Optional.
+    :type sweet_tenant_id: str
+    :param sweet_tenant_id: Stable identifier for the Sweet Security tenant, used as the
+        SweetTenant node ID. Optional.
+    :type sweet_api_url: str
+    :param sweet_api_url: Sweet Security API origin. Defaults to
+        https://eapi.sweet.security. Optional.
     :type zoom_account_id: str
     :param zoom_account_id: Zoom account ID for server-to-server OAuth. Optional.
     :type zoom_client_id: str
@@ -932,6 +942,10 @@ class Config:
         onepassword_source: str | None = None,
         sentra_api_key: str | None = None,
         sentra_api_url: str | None = None,
+        sweet_api_key: str | None = None,
+        sweet_api_secret: str | None = None,
+        sweet_tenant_id: str | None = None,
+        sweet_api_url: str | None = None,
         bitbucket_workspaces: str | None = None,
         bitbucket_auth_method: str | None = None,
         bitbucket_token: str | None = None,
@@ -1270,6 +1284,10 @@ class Config:
         self.aibom_s3_prefix = aibom_s3_prefix
         self.zizmor_source = zizmor_source
         self.onepassword_source = onepassword_source
+        self.sweet_api_key = sweet_api_key
+        self.sweet_api_secret = sweet_api_secret
+        self.sweet_tenant_id = sweet_tenant_id
+        self.sweet_api_url = sweet_api_url
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.zoom_account_id = zoom_account_id

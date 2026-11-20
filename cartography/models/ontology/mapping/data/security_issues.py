@@ -647,6 +647,55 @@ sentra_mapping = OntologyMapping(
     ],
 )
 
+# Sweet attack chain severity is already lowercase CVSS-style banding.
+_SWEET_ATTACK_CHAIN_SEVERITY = {
+    "critical": "critical",
+    "high": "high",
+    "medium": "medium",
+    "low": "low",
+}
+# Resolved and Closed chains are not ingested.
+_SWEET_ATTACK_CHAIN_STATUS = {
+    "Open": "open",
+    "In Progress": "open",
+}
+
+sweet_mapping = OntologyMapping(
+    module_name="sweet",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SweetAttackChain",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _SWEET_ATTACK_CHAIN_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "attack_chain"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SWEET_ATTACK_CHAIN_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="first_detected_at",
+                ),
+            ],
+        ),
+    ],
+)
+
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bbot": bbot_mapping,
     "huntress": huntress_mapping,
@@ -659,4 +708,5 @@ SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentra": sentra_mapping,
     "azure": azure_mapping,
     "supabase": supabase_mapping,
+    "sweet": sweet_mapping,
 }

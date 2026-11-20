@@ -95,6 +95,7 @@ PANEL_SENTRA = "Sentra Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_WIZ = "Wiz Options"
 PANEL_ORCA = "Orca Security Options"
+PANEL_SWEET = "Sweet Security Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
@@ -176,6 +177,7 @@ MODULE_PANELS = {
     "tenable": PANEL_TENABLE,
     "wiz": PANEL_WIZ,
     "orca": PANEL_ORCA,
+    "sweet": PANEL_SWEET,
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
@@ -2881,6 +2883,51 @@ class CLI:
                 ),
             ] = "ORCASECURITY_API_TOKEN",
             # =================================================================
+            # Sweet Security Options
+            # =================================================================
+            sweet_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--sweet-tenant-id",
+                    help=(
+                        "Stable identifier for the Sweet Security tenant, such as "
+                        "its name. Required to enable the Sweet module."
+                    ),
+                    rich_help_panel=PANEL_SWEET,
+                    hidden=PANEL_SWEET not in visible_panels,
+                ),
+            ] = None,
+            sweet_api_key_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--sweet-api-key-env-var",
+                    help="Environment variable name containing the Sweet Security API key.",
+                    rich_help_panel=PANEL_SWEET,
+                    hidden=PANEL_SWEET not in visible_panels,
+                ),
+            ] = "SWEET_API_KEY",
+            sweet_api_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--sweet-api-secret-env-var",
+                    help="Environment variable name containing the Sweet Security API secret.",
+                    rich_help_panel=PANEL_SWEET,
+                    hidden=PANEL_SWEET not in visible_panels,
+                ),
+            ] = "SWEET_API_SECRET",
+            sweet_api_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--sweet-api-url",
+                    help=(
+                        "Sweet Security API origin. Defaults to "
+                        "https://eapi.sweet.security."
+                    ),
+                    rich_help_panel=PANEL_SWEET,
+                    hidden=PANEL_SWEET not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Keycloak Options
             # =================================================================
             keycloak_client_id: Annotated[
@@ -4246,6 +4293,21 @@ class CLI:
                 )
                 orca_api_token = os.environ.get(orca_api_token_env_var)
 
+            # Read Sweet Security API key and secret
+            sweet_api_key = None
+            sweet_api_secret = None
+            if sweet_tenant_id:
+                logger.debug(
+                    "Reading Sweet Security API key from environment variable %s",
+                    sweet_api_key_env_var,
+                )
+                sweet_api_key = os.environ.get(sweet_api_key_env_var)
+                logger.debug(
+                    "Reading Sweet Security API secret from environment variable %s",
+                    sweet_api_secret_env_var,
+                )
+                sweet_api_secret = os.environ.get(sweet_api_secret_env_var)
+
             # Read Keycloak client secret
             keycloak_client_secret = None
             if keycloak_client_secret_env_var:
@@ -4571,6 +4633,10 @@ class CLI:
                 aibom_s3_prefix=aibom_s3_prefix,
                 zizmor_source=zizmor_source,
                 onepassword_source=onepassword_source,
+                sweet_api_key=sweet_api_key,
+                sweet_api_secret=sweet_api_secret,
+                sweet_tenant_id=sweet_tenant_id,
+                sweet_api_url=sweet_api_url,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,
