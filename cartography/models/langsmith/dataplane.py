@@ -54,3 +54,32 @@ class LangSmithDataPlaneSchema(CartographyNodeSchema):
     sub_resource_relationship: LangSmithDataPlaneToOrganizationRel = (
         LangSmithDataPlaneToOrganizationRel()
     )
+
+
+@dataclass(frozen=True)
+class LangSmithDataPlaneSummaryNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id", description="Data plane UUID.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Data plane name."
+    )
+    status: PropertyRef = PropertyRef("status", description="Data plane status.")
+    url: PropertyRef = PropertyRef("url", description="URL of the data plane.")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class LangSmithDataPlaneSummarySchema(CartographyNodeSchema):
+    """
+    A data plane as the summary listing describes it.
+
+    The summary listing omits created_at, so loading through this schema leaves the
+    registration time an earlier full listing recorded.
+    """
+
+    label: str = "LangSmithDataPlane"
+    properties: LangSmithDataPlaneSummaryNodeProperties = (
+        LangSmithDataPlaneSummaryNodeProperties()
+    )
+    sub_resource_relationship: LangSmithDataPlaneToOrganizationRel = (
+        LangSmithDataPlaneToOrganizationRel()
+    )

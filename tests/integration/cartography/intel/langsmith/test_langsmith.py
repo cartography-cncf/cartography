@@ -209,11 +209,42 @@ def test_sync_attributes_every_credential_to_its_owner(neo4j_session):
     ) == {("ci-deployer", WORKSPACE_PROD_ID)}
 
 
+def test_sync_shows_which_workspaces_a_key_reaches(neo4j_session):
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "LangSmithApiKey",
+        "short_key",
+        "LangSmithWorkspace",
+        "id",
+        "SCOPED_TO",
+    ) == {("lsv2_sk_abcd", WORKSPACE_PROD_ID)}
+    assert check_nodes(
+        neo4j_session, "LangSmithApiKey", ["short_key", "is_tracing_key"]
+    ) == {
+        ("lsv2_sk_abcd", None),
+        ("lsv2_pt_wxyz", None),
+        ("lsv2_sc_1234", None),
+        ("lsv2_ws_prod", True),
+    }
+
+
 def test_sync_links_sso_and_access_policies_to_roles(neo4j_session):
     # Act
     _sync(neo4j_session, FakeLangSmithClient())
 
     # Assert
+    assert check_nodes(
+        neo4j_session, "LangSmithAccessPolicy", ["effect", "condition_summary"]
+    ) == {
+        (
+            "allow",
+            "projects:read on project where resource_tag_key environment equals prod",
+        )
+    }
     assert check_rels(
         neo4j_session,
         "LangSmithSSOProvider",
@@ -607,6 +638,47 @@ def test_resync_removes_what_earlier_versions_left_behind(
         tag=TEST_UPDATE_TAG,
     ).single()["n"]
     assert leftover == 0
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_a_denied_full_data_plane_listing_falls_back_to_the_summary(
+    neo4j_session, status
+):
+    """The full listing needs organization:infrastructure:read; the summary doesn't."""
+    # Arrange
+    kept = {"id": "d9d9d9d9-0001", "name": "byoc-east", "status": "READY"}
+    deleted = {"id": "d9d9d9d9-0002", "name": "byoc-west", "status": "READY"}
+    added = {"id": "d9d9d9d9-0003", "name": "byoc-north", "status": "PROVISIONING"}
+    registered = "2026-01-05T00:00:00Z"
+    path = "/orgs/current/data-planes"
+    full_listing = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            (path, None): [
+                {**kept, "created_at": registered},
+                {**deleted, "created_at": registered},
+            ],
+        }
+    )
+    _sync(neo4j_session, full_listing, TEST_UPDATE_TAG)
+    summary_only = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            (f"{path}?view=SUMMARY", None): [{**kept, "status": "DEGRADED"}, added],
+        },
+        failures={(path, None): status},
+    )
+
+    # Act
+    _sync(neo4j_session, summary_only, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "LangSmithDataPlane", ["id", "status", "created_at"]
+    ) == {
+        (kept["id"], "DEGRADED", registered),
+        (added["id"], "PROVISIONING", None),
+    }
 
 
 def test_deleting_a_workspace_removes_what_it_contained(neo4j_session):
