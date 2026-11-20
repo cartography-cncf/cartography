@@ -425,6 +425,68 @@ def test_tag_saved_differently_from_its_listing_is_repaired(
 
 
 @pytest.mark.parametrize(
+    ("second_listing", "expected_links"),
+    [
+        pytest.param(
+            [_docker_image(PROJECT_ID, REPO_ID, DIGEST_1, ["v1"])],
+            {
+                ("RESOURCE", PROJECT_ID, 1),
+                ("CONTAINS", REPO_ID, 1),
+                ("REPO_IMAGE", REPO_ID, 1),
+                ("IMAGE", DIGEST_1, 1),
+                ("CONTAINS", "custom-inventory", 1),
+                ("IMAGE", "custom-image", 1),
+            },
+            id="tag-unchanged",
+        ),
+        pytest.param(
+            [_docker_image(PROJECT_ID, REPO_ID, DIGEST_2, ["v1"])],
+            {
+                ("RESOURCE", PROJECT_ID, 2),
+                ("CONTAINS", REPO_ID, 2),
+                ("REPO_IMAGE", REPO_ID, 2),
+                ("IMAGE", DIGEST_2, 2),
+                ("CONTAINS", "custom-inventory", 1),
+                ("IMAGE", "custom-image", 1),
+            },
+            id="tag-moved-to-another-digest",
+        ),
+    ],
+)
+def test_links_another_writer_adds_to_a_tag_are_left_alone(
+    neo4j_session, monkeypatch, second_listing, expected_links
+):
+    # Arrange: something other than this sync links a custom node to the tag
+    # with relationship types the tag inventory also uses.
+    _create_project(neo4j_session, PROJECT_ID)
+    tag_id = f"us-central1-docker.pkg.dev/{PROJECT_ID}/docker-repo/app:v1"
+    _sync(
+        neo4j_session,
+        monkeypatch,
+        PROJECT_ID,
+        REPO_ID,
+        [_docker_image(PROJECT_ID, REPO_ID, DIGEST_1, ["v1"])],
+        1,
+    )
+    neo4j_session.run(
+        """
+        MATCH (ri:GCPArtifactRegistryRepositoryImage {id: $tag_id})
+        MERGE (inventory:CustomInventory {id: 'custom-inventory'})
+        MERGE (image:CustomImage {id: 'custom-image'})
+        MERGE (inventory)-[:CONTAINS {lastupdated: 1}]->(ri)
+        MERGE (ri)-[:IMAGE {lastupdated: 1}]->(image)
+        """,
+        tag_id=tag_id,
+    )
+
+    # Act
+    _sync(neo4j_session, monkeypatch, PROJECT_ID, REPO_ID, second_listing, 2)
+
+    # Assert
+    assert _links(neo4j_session, tag_id) == expected_links
+
+
+@pytest.mark.parametrize(
     "damage",
     [
         pytest.param(

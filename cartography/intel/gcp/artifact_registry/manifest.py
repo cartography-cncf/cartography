@@ -311,8 +311,9 @@ _PLATFORM_IMAGE_FIELDS = sorted(
 )
 _PLATFORM_IMAGE_LABELS = GCPArtifactRegistryImageManifestChildSchema().extra_node_labels
 
-# Only this project's links: another project that lists the same manifest list
-# owns its own copy of the link, and loading takes it over, as before.
+# Only this project's links. A manifest list has one CONTAINS_IMAGE link per
+# platform image however many projects list it, scoped to the project that wrote
+# it last. A link another project wrote last is written again, as before.
 _SAVED_PLATFORM_IMAGES_QUERY = """
 MATCH (parent:GCPArtifactRegistryImage)-[r:CONTAINS_IMAGE]->
       (child:GCPArtifactRegistryImage)

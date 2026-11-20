@@ -837,7 +837,9 @@ _REPOSITORY_IMAGE_LABELS = ":".join(
 # The saved values come back as a list, which the driver decodes faster than a
 # map. A saved tag counts as written only with its labels and exactly the links
 # load_docker_images gives it, so a sync stopped between the node and link
-# loads, or a tag that kept an old digest's IMAGE link, is written again.
+# loads, or a tag that kept an old digest's IMAGE link, is written again. Links
+# are matched by type, direction and the label of the other end, so an edge some
+# other writer adds to a tag is neither counted nor deleted here.
 _SAVED_REPOSITORY_IMAGES_QUERY = f"""
 MATCH (:GCPProject {{id: $project_id}})-[:RESOURCE]->
       (ri:GCPArtifactRegistryRepositoryImage)
@@ -845,14 +847,17 @@ RETURN
     ri.id AS id,
     [node_property IN $node_properties | ri[node_property]] AS saved,
     ri:{_REPOSITORY_IMAGE_LABELS}
-    AND COUNT {{ (ri)<-[:RESOURCE|CONTAINS|REPO_IMAGE]-() }} = 3
+    AND COUNT {{ (ri)<-[:RESOURCE]-(:GCPProject) }} = 1
+    AND COUNT {{ (ri)<-[:CONTAINS]-(:GCPArtifactRegistryRepository) }} = 1
+    AND COUNT {{ (ri)<-[:REPO_IMAGE]-(:GCPArtifactRegistryRepository) }} = 1
     AND EXISTS {{
         (ri)<-[:CONTAINS]-(:GCPArtifactRegistryRepository {{id: ri.repository_id}})
     }}
     AND EXISTS {{
         (ri)<-[:REPO_IMAGE]-(:GCPArtifactRegistryRepository {{id: ri.repository_id}})
     }}
-    AND COUNT {{ (ri)-[:IMAGE]->() }} = CASE WHEN ri.digest IS NULL THEN 0 ELSE 1 END
+    AND COUNT {{ (ri)-[:IMAGE]->(:GCPArtifactRegistryImage) }}
+        = CASE WHEN ri.digest IS NULL THEN 0 ELSE 1 END
     AND (
         ri.digest IS NULL
         OR EXISTS {{ (ri)-[:IMAGE]->(:GCPArtifactRegistryImage {{digest: ri.digest}}) }}
@@ -952,9 +957,21 @@ def cleanup_rewritten_repository_image_links(
             """
             UNWIND $ids AS id
             MATCH (ri:GCPArtifactRegistryRepositoryImage {id: id})
-                  -[r:RESOURCE|CONTAINS|REPO_IMAGE|IMAGE]-()
-            WHERE r.lastupdated IS NULL OR r.lastupdated <> $update_tag
-            DELETE r
+            CALL (ri) {
+                MATCH (ri)<-[r:RESOURCE]-(:GCPProject)
+                WHERE r.lastupdated IS NULL OR r.lastupdated <> $update_tag
+                DELETE r
+            }
+            CALL (ri) {
+                MATCH (ri)<-[r:CONTAINS|REPO_IMAGE]-(:GCPArtifactRegistryRepository)
+                WHERE r.lastupdated IS NULL OR r.lastupdated <> $update_tag
+                DELETE r
+            }
+            CALL (ri) {
+                MATCH (ri)-[r:IMAGE]->(:GCPArtifactRegistryImage)
+                WHERE r.lastupdated IS NULL OR r.lastupdated <> $update_tag
+                DELETE r
+            }
             """,
             ids=id_batch,
             update_tag=update_tag,
