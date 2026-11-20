@@ -26,6 +26,7 @@ def test_transform_fine_grained_pat_serializes_metadata_without_token_values():
 
     assert result == {
         "id": "https://github.com/simpsoncorp/personal-access-tokens/25381",
+        "credential_id": None,
         "token_kind": "fine_grained",
         "token_id": 98716,
         "token_name": "cartography-readonly",
@@ -56,7 +57,8 @@ def test_transform_classic_pat_drops_token_fragment():
     )
 
     assert result == {
-        "id": "https://github.com/simpsoncorp/credential-authorizations/161195",
+        "id": "https://github.com/classic-personal-access-tokens/021cf96732b321e37159005e72d1b32c",
+        "credential_id": 161195,
         "token_kind": "classic",
         "token_id": None,
         "token_name": "hjsimpson (classic PAT)",
@@ -99,6 +101,7 @@ def test_transform_pat_without_owner_or_id_handles_optional_data():
     )
 
     assert result is not None
+    assert result["id"] == f"{ORG_URL}/credential-authorizations/123"
     assert result["owner_login"] is None
     assert result["owner_user_id"] is None
     assert result["scopes"] == []

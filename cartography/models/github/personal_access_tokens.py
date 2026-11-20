@@ -21,7 +21,12 @@ from cartography.models.ontology.labels import API_KEY
 class GitHubPersonalAccessTokenNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="Stable identifier derived from the organization and access grant.",
+        description=(
+            "Stable identifier. Fine-grained PATs are keyed by the organization's "
+            "access grant, since a fine-grained PAT has a single resource owner. "
+            "Classic PATs are keyed by a hash of the owner and the token's last eight "
+            "characters, so one token authorized for several organizations is one node."
+        ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     token_kind: PropertyRef = PropertyRef(
@@ -84,8 +89,21 @@ class GitHubPersonalAccessTokenRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+class GitHubPersonalAccessTokenToOrgRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    credential_id: PropertyRef = PropertyRef(
+        "credential_id",
+        description=(
+            "ID of the organization's SAML SSO authorization of a classic PAT. "
+            "Revoke the token's access to this organization with "
+            "`DELETE /orgs/{org}/credential-authorizations/{credential_id}`."
+        ),
+    )
+
+
+@dataclass(frozen=True)
 class GitHubPersonalAccessTokenToOrgRel(CartographyRelSchema):
-    """Scopes a GitHub resource to its organization."""
+    """Scopes a GitHub personal access token to an organization it can access. A classic PAT authorized for several organizations has one edge per organization."""
 
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -93,8 +111,8 @@ class GitHubPersonalAccessTokenToOrgRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GitHubPersonalAccessTokenRelProperties = (
-        GitHubPersonalAccessTokenRelProperties()
+    properties: GitHubPersonalAccessTokenToOrgRelProperties = (
+        GitHubPersonalAccessTokenToOrgRelProperties()
     )
 
 
