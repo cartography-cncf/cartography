@@ -6,8 +6,7 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
 )
-from cartography.intel.gcp.artifact_registry.manifest import cleanup_manifests
-from cartography.intel.gcp.artifact_registry.manifest import load_manifests
+from cartography.intel.gcp.artifact_registry.manifest import sync_manifests
 from cartography.intel.gcp.artifact_registry.repository import (
     sync_artifact_registry_repositories,
 )
@@ -73,19 +72,18 @@ def sync(
         cleanup_safe=repository_result.cleanup_safe,
     )
 
-    # Load platform images (manifests) - no HTTP calls needed, data comes from dockerImages API
-    if artifact_result.platform_images:
-        load_manifests(
-            neo4j_session,
-            artifact_result.platform_images,
-            project_id,
-            update_tag,
-        )
+    # Platform images come from the dockerImages listing; no registry calls needed.
+    sync_manifests(
+        neo4j_session,
+        artifact_result.platform_images,
+        project_id,
+        update_tag,
+        cleanup_safe=artifact_result.cleanup_safe,
+    )
 
     if artifact_result.cleanup_safe:
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["PROJECT_ID"] = project_id
-        cleanup_manifests(neo4j_session, cleanup_job_params)
         run_scoped_analysis_job(
             "gcp_artifact_registry_image_migration_cleanup.json",
             neo4j_session,

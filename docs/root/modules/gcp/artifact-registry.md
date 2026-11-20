@@ -27,6 +27,18 @@ repository-scoped, pullable image identity. Each repository-image node resolves
 through `IMAGE` to digest-scoped `GCPArtifactRegistryImage` content, so multiple
 tags, repositories, or projects may resolve to the same immutable image node.
 
+Each sync writes only the tags and platform images that are new or changed
+since the last sync. Unchanged ones, and the images the tags resolve to, get the
+current update tag as `lastupdated`. Their `RESOURCE`, `CONTAINS`,
+`REPO_IMAGE`, `IMAGE`, and `CONTAINS_IMAGE` relationships keep the
+`lastupdated` of the sync that last wrote them. When the listing is complete, a
+tag that it no longer returns is deleted with its relationships, and so is a
+manifest list's `CONTAINS_IMAGE` relationship. When a repository cannot be
+listed, for example because access is denied, no tag or `CONTAINS_IMAGE`
+relationship is deleted. A tag that is written again always loses the
+relationships it had before, such as the `IMAGE` relationship to the digest it
+used to point to.
+
 OCI image layers are modeled independently by uncompressed diff ID. `HAS_LAYER`
 links an image to every layer, `HEAD` and `TAIL` mark the ordered boundaries,
 and `NEXT` links adjacent layers.
