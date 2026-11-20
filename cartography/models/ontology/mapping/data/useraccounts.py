@@ -8,10 +8,14 @@ entra_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="EntraUser",
             fields=[
+                # Entra leaves `mail` empty for accounts without a mailbox, such
+                # as admin and service accounts. The UPN is their sign-in name.
                 OntologyFieldMapping(
                     ontology_field="email",
                     node_field="email",
                     required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["user_principal_name"]},
                 ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="given_name"
