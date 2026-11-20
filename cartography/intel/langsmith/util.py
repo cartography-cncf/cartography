@@ -235,7 +235,7 @@ class LangSmithClient:
 
         Expressed as a POST because /assistants/search is a search; it reads and never
         mutates. The deployment API key check is tenant-scoped, so X-Tenant-Id is required:
-        without it the data plane answers 403 "API key tenant mismatch".
+        without it the data plane answers 403 "Invalid tenant ID".
 
         Returns the assistants and, when the listing did not complete, a short reason such
         as ``HTTP 401`` or an exception class name (``None`` means it completed). A failure
@@ -258,7 +258,15 @@ class LangSmithClient:
         assistants: list[dict[str, Any]] = []
         offset = 0
         url = deployment_url.rstrip("/") + "/assistants/search"
-        headers = {"X-Api-Key": self._pat, "X-Tenant-Id": tenant_id}
+        headers = {
+            "X-Api-Key": self._pat,
+            "X-Tenant-Id": tenant_id,
+            # A deployment with custom auth hands every request to the customer's own
+            # handler, which rejects a LangSmith key with 401. This header asks it to
+            # route the key to LangSmith auth instead; deployments that disabled
+            # LangSmith (studio) auth ignore it and still refuse the key.
+            "x-auth-scheme": "langsmith",
+        }
         while True:
             try:
                 response = self._worker_session.post(

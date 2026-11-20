@@ -99,33 +99,56 @@ def get_providers(
     """
     Fetch the OAuth providers agents can obtain tokens from.
 
-    Provider records are organization-scoped, but the route is gated on the
-    workspace-scoped deployments:read permission, so it is called per workspace and the
-    results are deduplicated.
+    Neither route depends on the workspace: /v2/auth/providers lists the organization's
+    providers, and /v2/auth/platform-providers lists a global, platform-owned set. Both
+    are gated on the workspace-scoped deployments:read permission, though, so each is
+    tried workspace by workspace until one answers. The listing is complete once both
+    have answered.
     """
     providers: dict[str, dict[str, Any]] = {}
     complete = True
-    for workspace in workspaces:
-        for path, is_platform in (
-            ("/v2/auth/providers", False),
-            ("/v2/auth/platform-providers", True),
-        ):
-            try:
-                rows = client.get(
-                    path, org_id=org_id, tenant_id=workspace["id"], host=True
-                )
-            except LangSmithFetchError as err:
-                logger.warning(
-                    "Skipping LangSmith %s for workspace %s: %s",
-                    path,
-                    workspace["id"],
-                    err,
-                )
-                complete = complete and err.not_found
-                continue
-            for row in rows:
-                providers[row["id"]] = transform_provider(row, is_platform=is_platform)
+    for path, is_platform in (
+        ("/v2/auth/providers", False),
+        ("/v2/auth/platform-providers", True),
+    ):
+        rows, ok = _first_readable(client, org_id, workspaces, path)
+        complete = complete and ok
+        for row in rows:
+            providers[row["id"]] = transform_provider(row, is_platform=is_platform)
     return list(providers.values()), complete
+
+
+def _first_readable(
+    client: LangSmithClient,
+    org_id: str,
+    workspaces: list[dict[str, Any]],
+    path: str,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Read a workspace-independent listing through the first workspace that allows it."""
+    failed: list[str] = []
+    for workspace in workspaces:
+        try:
+            rows = client.get(path, org_id=org_id, tenant_id=workspace["id"], host=True)
+        except LangSmithFetchError as err:
+            if err.not_found:
+                # The route is not served for this organization: nothing to list.
+                return [], True
+            failed.append(workspace["id"])
+            continue
+        if failed:
+            logger.debug(
+                "LangSmith %s failed in %d workspace(s) before one answered",
+                path,
+                len(failed),
+            )
+        return rows, True
+    if workspaces:
+        logger.warning(
+            "Skipping LangSmith %s: it failed in every workspace; the credential needs "
+            "deployments:read in at least one workspace.",
+            path,
+        )
+    return [], not workspaces
 
 
 @timeit

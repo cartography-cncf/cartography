@@ -67,13 +67,17 @@ def test_envelope_without_its_rows_fails_rather_than_reading_empty():
     [
         (
             requests.ConnectionError(
-                MaxRetryError(None, "/assistants/search", ConnectTimeoutError("slow"))
+                MaxRetryError(
+                    MagicMock(), "/assistants/search", ConnectTimeoutError("slow")
+                )
             ),
             "ConnectTimeoutError",
         ),
         (
             requests.exceptions.RetryError(
-                MaxRetryError(None, "/assistants/search", ResponseError("too many 503"))
+                MaxRetryError(
+                    MagicMock(), "/assistants/search", ResponseError("too many 503")
+                )
             ),
             "repeated 429/5xx",
         ),
@@ -97,3 +101,27 @@ def test_an_unreachable_deployment_is_not_retried():
     # retry either; retrying only stretches the slowest worker.
     assert retry.connect == 0
     assert retry.read == 0
+
+
+def test_assistant_search_asks_custom_auth_deployments_for_langsmith_auth():
+    # Arrange
+    client = _client()
+    session = MagicMock()
+    session.post.return_value = MagicMock(
+        status_code=200,
+        is_redirect=False,
+        is_permanent_redirect=False,
+        json=MagicMock(return_value=[]),
+    )
+    client._thread_local.session = session
+
+    # Act
+    _, failure = client.search_assistants("https://dep.example", "ws-1")
+
+    # Assert
+    # Without it, a deployment with custom auth hands the key to the customer's handler,
+    # which answers 401.
+    headers = session.post.call_args.kwargs["headers"]
+    assert failure is None
+    assert headers["x-auth-scheme"] == "langsmith"
+    assert headers["X-Tenant-Id"] == "ws-1"
