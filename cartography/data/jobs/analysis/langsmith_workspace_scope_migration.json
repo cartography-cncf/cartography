@@ -1,0 +1,30 @@
+{
+  "name": "LangSmith workspace sub-resource migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Remove in v1.0.0. Earlier versions scoped LangSmithDeployment, LangSmithSecret, LangSmithResourceTag and LangSmithMcpServer to the organization and linked them to their workspace with CONTAINS. The workspace is now their sub-resource. Backfill the RESOURCE edge from the workspace, so nodes in a workspace that can't be read this run stay reachable by its cleanup. Scoped by $ORG_ID. Idempotent (MERGE).",
+      "query": "MATCH (:LangSmithOrganization {id: $ORG_ID})-[:RESOURCE]->(w:LangSmithWorkspace)-[:CONTAINS]->(n) WHERE n:LangSmithDeployment OR n:LangSmithSecret OR n:LangSmithResourceTag OR n:LangSmithMcpServer MERGE (w)-[r:RESOURCE]->(n) ON CREATE SET r.firstseen = timestamp(), r.lastupdated = n.lastupdated",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Remove in v1.0.0. Earlier versions scoped LangSmithWorkspaceMembership to the organization and linked it to its workspace with IN_WORKSPACE. Backfill the RESOURCE edge from the workspace. Scoped by $ORG_ID. Idempotent (MERGE).",
+      "query": "MATCH (:LangSmithOrganization {id: $ORG_ID})-[:RESOURCE]->(w:LangSmithWorkspace)<-[:IN_WORKSPACE]-(m:LangSmithWorkspaceMembership) MERGE (w)-[r:RESOURCE]->(m) ON CREATE SET r.firstseen = timestamp(), r.lastupdated = m.lastupdated",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Remove in v1.0.0. Remove the workspace CONTAINS edges that RESOURCE replaces. LangSmithOAuthClient is included because OAuth clients are registered against the organization, not a workspace. LangSmithApiKey keeps its CONTAINS edges. Scoped by $ORG_ID.",
+      "query": "MATCH (:LangSmithOrganization {id: $ORG_ID})-[:RESOURCE]->(:LangSmithWorkspace)-[c:CONTAINS]->(n) WHERE n:LangSmithDeployment OR n:LangSmithSecret OR n:LangSmithResourceTag OR n:LangSmithMcpServer OR n:LangSmithOAuthClient DELETE c",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Remove in v1.0.0. Remove the IN_WORKSPACE edges that RESOURCE replaces. Scoped by $ORG_ID.",
+      "query": "MATCH (:LangSmithOrganization {id: $ORG_ID})-[:RESOURCE]->(:LangSmithWorkspace)<-[e:IN_WORKSPACE]-(:LangSmithWorkspaceMembership) DELETE e",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Remove in v1.0.0. Remove the organization RESOURCE edges from nodes that now hang off a workspace. Only nodes that already have their workspace RESOURCE edge lose the organization edge, so no node is left unreachable. Scoped by $ORG_ID.",
+      "query": "MATCH (:LangSmithOrganization {id: $ORG_ID})-[r:RESOURCE]->(n) WHERE (n:LangSmithDeployment OR n:LangSmithSecret OR n:LangSmithResourceTag OR n:LangSmithMcpServer OR n:LangSmithWorkspaceMembership) AND EXISTS { MATCH (n)<-[:RESOURCE]-(:LangSmithWorkspace) } DELETE r",
+      "iterative": false
+    }
+  ]
+}

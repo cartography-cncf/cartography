@@ -1,13 +1,14 @@
 import logging
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import load_by_workspace
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.deployment import LangSmithDeploymentSchema
 from cartography.util import timeit
@@ -37,34 +38,43 @@ def sync(
     agent inventory is complete. Agents are cleaned up by the agent_auth sync, which also
     loads them, so it must not clean up on an incomplete inventory.
     """
-    raw: list[dict[str, Any]] = []
-    deployments_complete = True
+    deployments_by_workspace: dict[str, list[dict[str, Any]]] = {}
+    read_workspace_ids: set[str] = set()
     for workspace in workspaces:
+        workspace_id = workspace["id"]
         try:
-            raw.extend(get(client, org_id, workspace["id"]))
+            raw = get(client, org_id, workspace_id)
         except LangSmithFetchError as err:
             # deployments:read is commonly absent in some workspaces.
             logger.warning(
                 "Skipping LangSmith deployments for workspace %s: %s",
-                workspace["id"],
+                workspace_id,
                 err,
             )
-            deployments_complete = deployments_complete and err.not_found
+            deployments_by_workspace[workspace_id] = []
+            if err.not_found:
+                read_workspace_ids.add(workspace_id)
             continue
+        deployments_by_workspace[workspace_id] = transform_deployments(raw)
+        read_workspace_ids.add(workspace_id)
+    deployments_complete = len(read_workspace_ids) == len(deployments_by_workspace)
 
-    deployments = transform_deployments(raw)
+    deployments = [
+        deployment for rows in deployments_by_workspace.values() for deployment in rows
+    ]
     agents = transform_agents(deployments, org_id)
     assistants, assistants_complete = get_assistants(client, deployments, org_id)
     agents = merge_assistants(agents, assistants)
-    load_deployments(
-        neo4j_session, agents, deployments, org_id, common_job_parameters["UPDATE_TAG"]
-    )
-    cleanup_if_complete(
+    # Deployments must land before agents: every agent carries the ids of the deployments
+    # serving it, and that one-to-many RUNS edge can only match deployments that exist.
+    load_by_workspace(
         neo4j_session,
         LangSmithDeploymentSchema(),
-        deployments_complete,
+        deployments_by_workspace,
+        read_workspace_ids,
         common_job_parameters,
     )
+    load_agents(neo4j_session, agents, org_id, common_job_parameters["UPDATE_TAG"])
 
     workspace_by_deployment = {
         deployment["id"]: deployment["tenant_id"] for deployment in deployments
@@ -122,20 +132,24 @@ def get_assistants(
                 candidates,
             )
         )
-    complete = not skipped and all(ok for _, ok in results)
-    if not complete:
+    failures = Counter(failure for _, failure in results if failure)
+    if failures:
         logger.warning(
-            "Assistant discovery was incomplete for at least one deployment; agent "
-            "cleanup will be skipped so existing agents are not deleted.",
+            "Assistant search did not complete for %d of %d LangSmith deployment(s) "
+            "(%s); agent cleanup will be skipped so existing agents are not deleted.",
+            sum(failures.values()),
+            len(candidates),
+            ", ".join(f"{reason}: {count}" for reason, count in failures.most_common()),
         )
+    complete = not skipped and not failures
     return [assistant for batch, _ in results for assistant in batch], complete
 
 
 def _assistants_for(
     client: LangSmithClient, deployment: dict[str, Any], org_id: str
-) -> tuple[list[dict[str, Any]], bool]:
-    """Shape one deployment's assistants, and report whether the listing completed."""
-    assistants, complete = client.search_assistants(
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Shape one deployment's assistants, and report why the listing failed, if it did."""
+    assistants, failure = client.search_assistants(
         deployment["url"], deployment["tenant_id"]
     )
     return [
@@ -152,7 +166,7 @@ def _assistants_for(
             "updated_at": assistant.get("updated_at"),
         }
         for assistant in assistants
-    ], complete
+    ], failure
 
 
 def merge_assistants(
@@ -278,22 +292,12 @@ def transform_agents(
 
 
 @timeit
-def load_deployments(
+def load_agents(
     neo4j_session: neo4j.Session,
     agents: list[dict[str, Any]],
-    deployments: list[dict[str, Any]],
     org_id: str,
     update_tag: int,
 ) -> None:
-    # Deployments must land before agents: every agent carries the ids of the deployments
-    # serving it, and that one-to-many RUNS edge can only match deployments that exist.
-    load(
-        neo4j_session,
-        LangSmithDeploymentSchema(),
-        deployments,
-        lastupdated=update_tag,
-        ORG_ID=org_id,
-    )
     load(
         neo4j_session,
         LangSmithAgentSchema(),

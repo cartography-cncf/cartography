@@ -65,28 +65,26 @@ LANGSMITH_TAG_VALUES = {
     ],
 }
 
+# OAuth clients are registered against the organization; the listing carries no workspace.
 LANGSMITH_OAUTH_CLIENTS = {
-    WORKSPACE_PROD_ID: {
-        "clients": [
-            {
-                "id": "ae11ae11-0001-4001-8001-ae11ae11ae11",
-                "client_id": "langsmith-mcp-client",
-                "client_name": "Internal MCP Client",
-                "client_type": "confidential",
-                "client_uri": "https://tools.simpson.corp",
-                "logo_uri": None,
-                "policy_uri": None,
-                "tos_uri": None,
-                "redirect_uris": ["https://tools.simpson.corp/callback"],
-                "allowed_scopes": ["runs:read", "projects:read"],
-                "grant_types": ["authorization_code", "refresh_token"],
-                "disabled": False,
-                "created_at": "2026-02-05T09:00:00Z",
-                "updated_at": "2026-02-05T09:00:00Z",
-            },
-        ],
-    },
-    WORKSPACE_DEV_ID: {"clients": []},
+    "clients": [
+        {
+            "id": "ae11ae11-0001-4001-8001-ae11ae11ae11",
+            "client_id": "langsmith-mcp-client",
+            "client_name": "Internal MCP Client",
+            "client_type": "confidential",
+            "client_uri": "https://tools.simpson.corp",
+            "logo_uri": None,
+            "policy_uri": None,
+            "tos_uri": None,
+            "redirect_uris": ["https://tools.simpson.corp/callback"],
+            "allowed_scopes": ["runs:read", "projects:read"],
+            "grant_types": ["authorization_code", "refresh_token"],
+            "disabled": False,
+            "created_at": "2026-02-05T09:00:00Z",
+            "updated_at": "2026-02-05T09:00:00Z",
+        },
+    ],
 }
 
 # MCP gateways are listed per vendor, so the vendor listing comes first.

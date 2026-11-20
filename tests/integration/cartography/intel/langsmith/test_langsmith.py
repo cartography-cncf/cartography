@@ -19,6 +19,7 @@ from tests.data.langsmith.roles import WORKSPACE_VIEWER_ROLE_ID
 from tests.data.langsmith.users import BART_LS_USER_ID
 from tests.data.langsmith.users import HOMER_LS_USER_ID
 from tests.data.langsmith.users import MARGE_LS_USER_ID
+from tests.data.langsmith.workspaces import LANGSMITH_WORKSPACES
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 from tests.integration.util import check_nodes
@@ -139,7 +140,7 @@ def test_sync_loads_members_with_per_workspace_roles(neo4j_session):
     role_by_membership = neo4j_session.run(
         """
         MATCH (u:LangSmithUser)-[:HAS_MEMBERSHIP]->(m:LangSmithWorkspaceMembership)
-              -[:IN_WORKSPACE]->(w:LangSmithWorkspace)
+              <-[:RESOURCE]-(w:LangSmithWorkspace)
         MATCH (m)-[:HAS_ROLE]->(r:LangSmithRole)
         RETURN u.id AS user, w.id AS workspace, r.id AS role
         """
@@ -259,7 +260,7 @@ def test_sync_links_deployments_to_the_agents_they_run(neo4j_session):
         "id",
         "LangSmithDeployment",
         "id",
-        "CONTAINS",
+        "RESOURCE",
     ) == {
         (WORKSPACE_PROD_ID, SUPPORT_DEPLOYMENT_ID),
         (WORKSPACE_DEV_ID, TRIAGE_DEPLOYMENT_ID),
@@ -347,7 +348,7 @@ def test_sync_loads_workspace_resources(neo4j_session):
 
     # Assert
     assert check_rels(
-        neo4j_session, "LangSmithWorkspace", "id", "LangSmithSecret", "name", "CONTAINS"
+        neo4j_session, "LangSmithWorkspace", "id", "LangSmithSecret", "name", "RESOURCE"
     ) == {
         (WORKSPACE_PROD_ID, "OPENAI_API_KEY"),
         (WORKSPACE_PROD_ID, "SLACK_BOT_TOKEN"),
@@ -359,26 +360,27 @@ def test_sync_loads_workspace_resources(neo4j_session):
         "id",
         "LangSmithResourceTag",
         "value",
-        "CONTAINS",
+        "RESOURCE",
     ) == {(WORKSPACE_PROD_ID, "prod")}
     assert check_nodes(neo4j_session, "LangSmithResourceTag", ["key", "value"]) == {
         ("environment", "prod"),
     }
+    # OAuth clients are registered against the organization, not a workspace.
     assert check_rels(
         neo4j_session,
-        "LangSmithWorkspace",
+        "LangSmithOrganization",
         "id",
         "LangSmithOAuthClient",
         "id",
-        "CONTAINS",
-    ) == {(WORKSPACE_PROD_ID, "langsmith-mcp-client")}
+        "RESOURCE",
+    ) == {(LANGSMITH_ORG_ID, "langsmith-mcp-client")}
     assert check_rels(
         neo4j_session,
         "LangSmithWorkspace",
         "id",
         "LangSmithMcpServer",
         "name",
-        "CONTAINS",
+        "RESOURCE",
     ) == {(WORKSPACE_PROD_ID, "Internal Docs")}
     assert check_nodes(neo4j_session, "LangSmithMcpServer", ["name", "vendor"]) == {
         ("Internal Docs", "arcade"),
@@ -438,7 +440,7 @@ STALE_CASES = [
         id="agent-credential",
     ),
     pytest.param(
-        ("/api/v1/platform/oauth/clients", WORKSPACE_PROD_ID),
+        ("/api/v1/platform/oauth/clients", None),
         {"clients": []},
         "LangSmithOAuthClient",
         "langsmith-mcp-client",
@@ -557,6 +559,197 @@ def test_resync_keeps_credential_providers_when_providers_cannot_be_read(
         "id",
         "FOR_PROVIDER",
     )
+
+
+DATA_PLANES = "/orgs/current/data-planes"
+DATA_PLANE = {
+    "id": "dd11dd11-0001-4001-8001-dd11dd11dd11",
+    "name": "eu-hybrid",
+    "status": "active",
+    "created_at": "2026-02-01T09:00:00Z",
+}
+
+
+def test_a_denied_data_plane_listing_falls_back_to_the_summary_view(neo4j_session):
+    # Arrange
+    summary_row = {k: v for k, v in DATA_PLANE.items() if k != "created_at"}
+    summary_only = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            (f"{DATA_PLANES}?view=SUMMARY", None): [summary_row],
+        },
+        failures={(DATA_PLANES, None): 403},
+    )
+
+    # Act
+    _sync(neo4j_session, summary_only, TEST_UPDATE_TAG)
+
+    # Assert
+    # The full view needs organization:infrastructure:read; the summary view still names
+    # the data plane, just without its creation time.
+    assert check_nodes(neo4j_session, "LangSmithDataPlane", ["id", "name"]) == {
+        (DATA_PLANE["id"], DATA_PLANE["name"])
+    }
+
+
+def test_the_summary_view_keeps_a_known_data_plane_creation_time(neo4j_session):
+    # Arrange
+    _sync(
+        neo4j_session,
+        FakeLangSmithClient(
+            routes={**SIMPSON_CORP_ROUTES, (DATA_PLANES, None): [DATA_PLANE]}
+        ),
+        TEST_UPDATE_TAG,
+    )
+    summary_row = {k: v for k, v in DATA_PLANE.items() if k != "created_at"}
+    summary_only = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            (f"{DATA_PLANES}?view=SUMMARY", None): [summary_row],
+        },
+        failures={(DATA_PLANES, None): 403},
+    )
+
+    # Act
+    _sync(neo4j_session, summary_only, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "LangSmithDataPlane", ["id", "created_at", "lastupdated"]
+    ) == {(DATA_PLANE["id"], DATA_PLANE["created_at"], NEXT_UPDATE_TAG)}
+
+
+def test_providers_are_cleaned_up_when_one_workspace_answers(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    github_only = [
+        provider
+        for provider in SIMPSON_CORP_ROUTES[("/v2/auth/providers", WORKSPACE_DEV_ID)]
+        if provider["id"] == GITHUB_PROVIDER_ID
+    ]
+    one_workspace = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            ("/v2/auth/providers", WORKSPACE_DEV_ID): github_only,
+        },
+        failures={
+            ("/v2/auth/providers", WORKSPACE_PROD_ID): 403,
+            ("/v2/auth/platform-providers", WORKSPACE_PROD_ID): 403,
+        },
+    )
+
+    # Act
+    _sync(neo4j_session, one_workspace, NEXT_UPDATE_TAG)
+
+    # Assert
+    # The provider listing is organization-wide, so one workspace answering is enough.
+    providers = _ids(neo4j_session, "LangSmithOAuthProvider")
+    assert GITHUB_PROVIDER_ID in providers
+    assert GOOGLE_PROVIDER_ID not in providers
+
+
+def test_one_unreadable_workspace_does_not_block_cleanup_in_another(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    prod_hidden_dev_emptied = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            ("/api/v1/workspaces/current/secrets", WORKSPACE_DEV_ID): [],
+            ("/v2/deployments", WORKSPACE_DEV_ID): [],
+        },
+        failures={
+            ("/api/v1/workspaces/current/secrets", WORKSPACE_PROD_ID): 403,
+            ("/v2/deployments", WORKSPACE_PROD_ID): 403,
+        },
+    )
+
+    # Act
+    _sync(neo4j_session, prod_hidden_dev_emptied, NEXT_UPDATE_TAG)
+
+    # Assert
+    # Each workspace is cleaned up on its own: the readable one loses what was deleted,
+    # and the unreadable one keeps everything it held.
+    secrets = _ids(neo4j_session, "LangSmithSecret")
+    assert f"{WORKSPACE_DEV_ID}|OPENAI_API_KEY" not in secrets
+    assert f"{WORKSPACE_PROD_ID}|OPENAI_API_KEY" in secrets
+    assert f"{WORKSPACE_PROD_ID}|SLACK_BOT_TOKEN" in secrets
+    deployments = _ids(neo4j_session, "LangSmithDeployment")
+    assert TRIAGE_DEPLOYMENT_ID not in deployments
+    assert SUPPORT_DEPLOYMENT_ID in deployments
+
+
+def test_a_deleted_workspace_takes_what_it_held_with_it(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    prod_only = [w for w in LANGSMITH_WORKSPACES if w["id"] == WORKSPACE_PROD_ID]
+    dev_deleted = FakeLangSmithClient(
+        routes={**SIMPSON_CORP_ROUTES, ("/api/v1/workspaces", None): prod_only}
+    )
+
+    # Act
+    _sync(neo4j_session, dev_deleted, NEXT_UPDATE_TAG)
+
+    # Assert
+    # Nothing can reach these nodes once their workspace is gone, so they go with it.
+    assert WORKSPACE_DEV_ID not in _ids(neo4j_session, "LangSmithWorkspace")
+    assert TRIAGE_DEPLOYMENT_ID not in _ids(neo4j_session, "LangSmithDeployment")
+    assert f"{WORKSPACE_DEV_ID}|OPENAI_API_KEY" not in _ids(
+        neo4j_session, "LangSmithSecret"
+    )
+    assert f"{BART_LS_USER_ID}|{WORKSPACE_DEV_ID}" not in _ids(
+        neo4j_session, "LangSmithWorkspaceMembership"
+    )
+    assert SUPPORT_DEPLOYMENT_ID in _ids(neo4j_session, "LangSmithDeployment")
+
+
+def test_the_migration_moves_an_older_graph_onto_its_workspaces(neo4j_session):
+    # Arrange
+    # Earlier versions hung workspace resources off the organization, linking them to
+    # their workspace with CONTAINS (or IN_WORKSPACE for memberships).
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (o:LangSmithOrganization {id: $org_id})-[:RESOURCE]->(w:LangSmithWorkspace)
+              -[r:RESOURCE]->(n)
+        DELETE r
+        MERGE (o)-[:RESOURCE]->(n)
+        WITH w, n
+        FOREACH (_ IN CASE WHEN n:LangSmithWorkspaceMembership THEN [1] ELSE [] END |
+            MERGE (n)-[:IN_WORKSPACE]->(w))
+        FOREACH (_ IN CASE WHEN n:LangSmithWorkspaceMembership THEN [] ELSE [1] END |
+            MERGE (w)-[:CONTAINS]->(n))
+        """,
+        org_id=LANGSMITH_ORG_ID,
+    )
+    prod_secrets_hidden = FakeLangSmithClient(
+        failures={("/api/v1/workspaces/current/secrets", WORKSPACE_PROD_ID): 403}
+    )
+
+    # Act
+    _sync(neo4j_session, prod_secrets_hidden, NEXT_UPDATE_TAG)
+
+    # Assert
+    # A secret that could not be re-read is still reachable from its workspace, so a
+    # later sync can clean it up.
+    assert (WORKSPACE_PROD_ID, f"{WORKSPACE_PROD_ID}|SLACK_BOT_TOKEN") in check_rels(
+        neo4j_session, "LangSmithWorkspace", "id", "LangSmithSecret", "id", "RESOURCE"
+    )
+    leftovers = neo4j_session.run(
+        """
+        MATCH (:LangSmithOrganization)-[r:RESOURCE]->(n)
+        WHERE n:LangSmithDeployment OR n:LangSmithSecret OR n:LangSmithResourceTag
+           OR n:LangSmithMcpServer OR n:LangSmithWorkspaceMembership
+        RETURN count(r) AS org_edges
+        UNION ALL
+        MATCH (:LangSmithWorkspace)-[r:CONTAINS]->(n)
+        WHERE NOT n:LangSmithApiKey
+        RETURN count(r) AS org_edges
+        UNION ALL
+        MATCH ()-[r:IN_WORKSPACE]->()
+        RETURN count(r) AS org_edges
+        """
+    ).data()
+    assert [row["org_edges"] for row in leftovers] == [0, 0, 0]
 
 
 def test_syncing_another_organization_keeps_this_organizations_graph(neo4j_session):
