@@ -35,9 +35,10 @@ class OktaOrganizationNodeProperties(CartographyNodeProperties):
     log_streams_synced: PropertyRef = PropertyRef(
         "log_streams_synced",
         description=(
-            "Whether the last sync could read the org's log streams. False when the "
-            "API token lacks `okta.logStreams.read`, so a missing `OktaLogStream` "
-            "does not mean the org has none."
+            "Whether the last sync could read the org's agent pools. API tokens use "
+            "the creator's admin role. OAuth service apps need an admin role that can "
+            "read agent pools and the `okta.agentPools.read` scope. When false, "
+            "the agent inventory may be incomplete."
         ),
     )
     agents_synced: PropertyRef = PropertyRef(

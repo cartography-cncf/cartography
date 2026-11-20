@@ -28,7 +28,7 @@ In the Okta Admin Console:
       Private key**, click **Save**, and confirm. Okta deletes the unused client
       secret.
 1. On the **Okta API Scopes** tab, click **Grant** for each of these scopes:
-   `okta.agentPools.read`, `okta.apiTokens.read`, `okta.apps.read`, `okta.authenticators.read`,
+   `okta.apiTokens.read`, `okta.apps.read`, `okta.authenticators.read`,
    `okta.devices.read`, `okta.groups.read`, `okta.logStreams.read`,
    `okta.networkZones.read`, `okta.policies.read`, `okta.roles.read`,
    `okta.trustedOrigins.read`, `okta.userTypes.read`, `okta.users.read`.
@@ -69,6 +69,9 @@ the granted ones with `--okta-scopes`. The Okta sync fails without
 `okta.authenticators.read`, `okta.trustedOrigins.read`, and
 `okta.userTypes.read`. It skips the resources under
 [Permissions](#permissions) whose scope is missing.
+
+To include agent pools and agents, grant the service app `okta.agentPools.read`
+and pass it alongside your other granted scopes in `--okta-scopes`.
 
 ### API token
 
