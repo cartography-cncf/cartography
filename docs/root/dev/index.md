@@ -4,5 +4,6 @@
 developer-guide
 writing-analysis-jobs
 writing-intel-modules
+parallelism
 matchlinks
 ```
