@@ -1376,6 +1376,12 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "disabled": input_repo_object["isDisabled"],
             "archived": input_repo_object["isArchived"],
             "locked": input_repo_object["isLocked"],
+            # GitHub returns null for these connections, rather than an empty
+            # one, when the credential cannot read them.
+            "branch_protection_rules_visible": (
+                input_repo_object.get("branchProtectionRules") is not None
+            ),
+            "rulesets_visible": input_repo_object.get("rulesets") is not None,
             "fork": input_repo_object.get("isFork", False),
             "parent": parent["url"] if parent else None,
             "visibility": (

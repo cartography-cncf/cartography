@@ -1250,6 +1250,21 @@ def test_transform_includes_branch_protection_rules():
     assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
 
 
+@pytest.mark.parametrize(
+    "repo,visible",
+    [
+        (GET_REPOS[2], True),
+        # Without administration access GitHub returns null for both connections.
+        (GET_REPOS[0], False),
+    ],
+)
+def test_transform_records_whether_protection_was_visible(repo, visible):
+    result = transform([repo], {repo["url"]: []}, {repo["url"]: []})
+
+    assert result["repos"][0]["branch_protection_rules_visible"] is visible
+    assert result["repos"][0]["rulesets_visible"] is visible
+
+
 def test_transform_includes_rulesets():
     """
     Test that the transform function includes rulesets in the output.

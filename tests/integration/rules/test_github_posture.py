@@ -62,7 +62,12 @@ def _issue(fact):
 
 
 def _load_repository(
-    neo4j_session, branch_rules, rulesets, has_codeowners, archived=False
+    neo4j_session,
+    branch_rules,
+    rulesets,
+    has_codeowners,
+    archived=False,
+    protection_visible=True,
 ):
     neo4j_session.run(
         "MATCH (n) WHERE n:GitHubRepository OR n:GitHubBranchProtectionRule "
@@ -78,6 +83,8 @@ def _load_repository(
                 "fullname": "simpsoncorp/sample_repo",
                 "defaultbranch": "main",
                 "archived": archived,
+                "branch_protection_rules_visible": protection_visible,
+                "rulesets_visible": protection_visible,
             }
         ],
         lastupdated=UPDATE_TAG,
@@ -129,13 +136,14 @@ def _load_repository(
 
 
 @pytest.mark.parametrize(
-    "branch_rules,rulesets,has_codeowners,archived,failing,evaluated",
+    "branch_rules,rulesets,has_codeowners,archived,protection_visible,failing,evaluated",
     [
         pytest.param(
             [],
             [],
             False,
             False,
+            True,
             {UNPROTECTED, NO_REVIEWS, FORCE_PUSH, CODEOWNERS_MISSING},
             ALWAYS_EVALUATED,
             id="no_protection",
@@ -145,6 +153,7 @@ def _load_repository(
             [],
             True,
             False,
+            True,
             set(),
             ALWAYS_EVALUATED | {ADMINS, CODEOWNER_REVIEW},
             id="strong_branch_rule",
@@ -154,6 +163,7 @@ def _load_repository(
             [],
             False,
             False,
+            True,
             {UNPROTECTED, NO_REVIEWS, FORCE_PUSH, CODEOWNERS_MISSING},
             ALWAYS_EVALUATED,
             id="branch_rule_for_other_branch",
@@ -171,6 +181,7 @@ def _load_repository(
             [],
             True,
             False,
+            True,
             {NO_REVIEWS, FORCE_PUSH, ADMINS, CODEOWNER_REVIEW},
             ALWAYS_EVALUATED | {ADMINS, CODEOWNER_REVIEW},
             id="weak_wildcard_branch_rule",
@@ -183,6 +194,7 @@ def _load_repository(
             [],
             True,
             False,
+            True,
             {NO_REVIEWS, FORCE_PUSH, ADMINS, CODEOWNER_REVIEW},
             ALWAYS_EVALUATED | {ADMINS, CODEOWNER_REVIEW},
             id="exact_branch_rule_wins_over_wildcard",
@@ -192,6 +204,7 @@ def _load_repository(
             [_ruleset(["~DEFAULT_BRANCH"])],
             True,
             False,
+            True,
             set(),
             ALWAYS_EVALUATED | {CODEOWNER_REVIEW},
             id="strong_default_branch_ruleset",
@@ -201,6 +214,7 @@ def _load_repository(
             [_ruleset(["refs/heads/ma*"], rules=[{"type": "DELETION"}])],
             True,
             False,
+            True,
             set(),
             ALWAYS_EVALUATED | {CODEOWNER_REVIEW},
             id="ruleset_also_applies_so_admin_check_skipped",
@@ -210,6 +224,7 @@ def _load_repository(
             [_ruleset(["refs/heads/ma*"], rules=[{"type": "DELETION"}])],
             True,
             False,
+            True,
             {NO_REVIEWS, FORCE_PUSH, CODEOWNER_REVIEW},
             ALWAYS_EVALUATED | {CODEOWNER_REVIEW},
             id="glob_ruleset_without_review_or_force_push_rules",
@@ -222,11 +237,22 @@ def _load_repository(
             ],
             False,
             False,
+            True,
             {UNPROTECTED, NO_REVIEWS, FORCE_PUSH, CODEOWNERS_MISSING},
             ALWAYS_EVALUATED,
             id="rulesets_not_enforced_or_excluding_default_branch",
         ),
-        pytest.param([], [], False, True, set(), set(), id="archived"),
+        pytest.param([], [], False, True, True, set(), set(), id="archived"),
+        pytest.param(
+            [],
+            [],
+            False,
+            False,
+            False,
+            {CODEOWNERS_MISSING},
+            {CODEOWNERS_MISSING},
+            id="protection_not_visible",
+        ),
     ],
 )
 def test_github_repository_posture_facts(
@@ -235,11 +261,19 @@ def test_github_repository_posture_facts(
     rulesets,
     has_codeowners,
     archived,
+    protection_visible,
     failing,
     evaluated,
 ):
     # Arrange
-    _load_repository(neo4j_session, branch_rules, rulesets, has_codeowners, archived)
+    _load_repository(
+        neo4j_session,
+        branch_rules,
+        rulesets,
+        has_codeowners,
+        archived,
+        protection_visible,
+    )
 
     # Act
     failing_facts = {

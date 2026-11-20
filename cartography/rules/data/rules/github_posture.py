@@ -98,6 +98,12 @@ _REQUIRES_CODE_OWNER_REVIEW = """(
 
 _HAS_CODEOWNERS = "EXISTS { (n)-[:HAS_CODEOWNER_RULE]->(:GitHubCodeOwnerRule) }"
 
+# Without administration read access the sync cannot see branch protection rules
+# or rulesets, and an absent control would otherwise read as no protection.
+_PROTECTION_VISIBLE = (
+    "n.branch_protection_rules_visible = true AND n.rulesets_visible = true"
+)
+
 
 def _default_branch_fact(
     issue: str,
@@ -105,7 +111,7 @@ def _default_branch_fact(
     description: str,
     condition: str,
     current_value: str,
-    evaluated: str = "true",
+    evaluated: str = _PROTECTION_VISIBLE,
 ) -> Fact:
     return Fact(
         id=f"github_repository_{issue}",
@@ -187,7 +193,7 @@ _default_branch_admins_not_enforced = _default_branch_fact(
         "apply to administrators unless they are bypass actors, which Cartography "
         "does not ingest, so repositories with an active ruleset are not evaluated."
     ),
-    evaluated="size(rulesets) = 0 AND size(bprs) > 0",
+    evaluated=f"{_PROTECTION_VISIBLE} AND size(rulesets) = 0 AND size(bprs) > 0",
     condition="NOT any(b IN bprs WHERE coalesce(b.is_admin_enforced, false))",
     current_value="'Administrators can bypass protection on ' + n.defaultbranch",
 )
@@ -199,9 +205,9 @@ github_default_branch_protection = Rule(
         "Checks that the default branch of every unarchived repository is protected "
         "by a classic branch protection rule or an active ruleset, requires an "
         "approving review, blocks force pushes and, for classic protection, applies "
-        "to administrators. Branch protection rules are only visible with repository "
-        "administration read access; without it every default branch appears "
-        "unprotected unless a ruleset covers it."
+        "to administrators. Branch protection rules and rulesets are only visible "
+        "with repository administration read access; repositories where the sync "
+        "could not read them are not evaluated."
     ),
     output_model=GitHubSecurityConfigurationOutput,
     facts=(
@@ -241,6 +247,7 @@ _codeowners_missing = _default_branch_fact(
         "either because there is no CODEOWNERS file in `.github/`, the root or "
         "`docs/`, or because none of its lines name an owner."
     ),
+    evaluated="true",
     condition=f"NOT {_HAS_CODEOWNERS}",
     current_value="'No CODEOWNERS rules on ' + n.defaultbranch",
 )
@@ -253,7 +260,7 @@ _codeowners_review_not_required = _default_branch_fact(
         "protection rule nor an active ruleset on the default branch requires "
         "review from code owners, so ownership is advisory."
     ),
-    evaluated=_HAS_CODEOWNERS,
+    evaluated=f"{_PROTECTION_VISIBLE} AND {_HAS_CODEOWNERS}",
     condition=f"NOT {_REQUIRES_CODE_OWNER_REVIEW}",
     current_value="'Code owner review not required on ' + n.defaultbranch",
 )
