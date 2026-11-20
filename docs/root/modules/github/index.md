@@ -19,7 +19,10 @@ only. It never stores token values, prefixes, or token fragments.
 A classic PAT is identified by a hash of its owner and its last eight
 characters, so a token authorized for several organizations is one node with a
 `RESOURCE` edge from each organization. Each edge's `credential_id` is the SAML
-authorization to revoke for that organization.
+authorization to revoke for that organization. When GitHub omits the owner login
+or the last eight characters, Cartography falls back to the organization-scoped
+credential authorization ID, so that token is not deduplicated across
+organizations.
 When GitHub returns authorization or availability errors for either inventory
 endpoint, Cartography skips cleanup so previously synced token metadata is
 preserved.
