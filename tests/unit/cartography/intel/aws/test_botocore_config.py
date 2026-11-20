@@ -75,6 +75,18 @@ def test_get_lambda_botocore_config_inherits_global_retry_mode_override(monkeypa
     assert config.read_timeout == 30
 
 
+def test_get_lambda_botocore_config_inherits_global_max_attempts_override(
+    monkeypatch,
+):
+    monkeypatch.setenv("CARTOGRAPHY_AWS_MAX_ATTEMPTS", "5")
+
+    config = get_lambda_botocore_config()
+
+    assert config.retries["max_attempts"] == 5
+    assert config.retries["mode"] == "standard"
+    assert config.read_timeout == 30
+
+
 def test_create_boto3_client_uses_shared_config_by_default():
     client = create_boto3_client(FakeSession(), "ec2", region_name="eu-west-1")
 
