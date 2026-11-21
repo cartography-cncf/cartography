@@ -64,7 +64,7 @@ OKTA_MISSING_SCOPE_WARNING = (
     "it, and an OAuth service app also needs the %s scope"
 )
 
-# Read-only scopes covering every endpoint the Okta sync calls. An OAuth service
+# Read-only scopes requested by default. An OAuth service
 # app must be granted all of them, or Okta refuses to issue an access token.
 OKTA_OAUTH_DEFAULT_SCOPES = (
     "okta.apiTokens.read",

@@ -7,6 +7,7 @@ import neo4j
 from okta.client import Client as OktaClient
 
 from cartography.config import Config
+from cartography.intel.okta import agents
 from cartography.intel.okta import api_tokens
 from cartography.intel.okta import applications
 from cartography.intel.okta import authenticators
@@ -187,6 +188,11 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
+    agents_synced = agents.sync_okta_agent_pools(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
     # Runs after users and network zones: tokens link to both.
     api_tokens.sync_okta_api_tokens(
         okta_client,
@@ -207,6 +213,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         org_properties,
         {
             "log_streams_synced": log_streams_synced,
+            "agents_synced": agents_synced,
             "admin_roles_synced": user_roles_synced and group_roles_synced,
         },
     )
