@@ -48,7 +48,12 @@ def run_drift_detection(config: GetDriftConfig) -> None:
         )
         end_state = state_serializer.load(end_state_data)
         new_results, missing_results = perform_drift_detection(start_state, end_state)
-        report_drift(new_results, missing_results, end_state.name, end_state.properties)
+        report_drift(
+            new_results,
+            missing_results,
+            end_state.name,
+            end_state.properties or start_state.properties,
+        )
     except ValidationError as err:
         msg = "Unable to create DriftStates from files {},{} for \n{} in directory {}.".format(
             config.start_state,
@@ -83,7 +88,12 @@ def perform_drift_detection(start_state: State, end_state: State):
     if start_state.validation_query != end_state.validation_query:
         raise ValueError("State queries do not match.")
     if start_state.properties != end_state.properties:
-        raise ValueError("State properties do not match.")
+        # Empty query results are saved without column metadata. Accept those
+        # snapshots without relaxing validation of conflicting known columns.
+        start_columns_unknown = not start_state.properties and not start_state.results
+        end_columns_unknown = not end_state.properties and not end_state.results
+        if not (start_columns_unknown or end_columns_unknown):
+            raise ValueError("State properties do not match.")
     new_results = compare_states(start_state, end_state)
     missing_results = compare_states(end_state, start_state)
     return new_results, missing_results
