@@ -7,6 +7,7 @@ warning rather than failing the module, and the resource type it belongs to skip
 """
 
 import logging
+from collections import Counter
 from typing import Any
 
 import neo4j
@@ -41,6 +42,7 @@ def sync(
     secrets_complete = tags_complete = oauth_clients_complete = mcp_servers_complete = (
         True
     )
+    unconnected_vendors: Counter[str] = Counter()
 
     for workspace in workspaces:
         workspace_id = workspace["id"]
@@ -57,9 +59,23 @@ def sync(
         oauth_clients.extend(rows)
         oauth_clients_complete = oauth_clients_complete and ok
 
-        rows, ok = get_mcp_servers(client, org_id, workspace_id)
+        rows, ok = get_mcp_servers(
+            client, org_id, workspace_id, unconnected_vendors=unconnected_vendors
+        )
         mcp_servers.extend(rows)
         mcp_servers_complete = mcp_servers_complete and ok
+
+    if unconnected_vendors:
+        logger.info(
+            "LangSmith MCP gateways could not be listed in organization %s, so their "
+            "cleanup is skipped: %s. The vendor answers from the syncing user's own "
+            "connection to it, which the credential lacks.",
+            org_id,
+            ", ".join(
+                f"{vendor} in {count} workspace(s)"
+                for vendor, count in sorted(unconnected_vendors.items())
+            ),
+        )
 
     load_workspace_resources(
         neo4j_session,
@@ -190,13 +206,21 @@ def get_oauth_clients(
 
 @timeit
 def get_mcp_servers(
-    client: LangSmithClient, org_id: str, workspace_id: str
+    client: LangSmithClient,
+    org_id: str,
+    workspace_id: str,
+    unconnected_vendors: Counter[str] | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch the vendor-managed MCP gateways a workspace exposes.
 
     Each MCP vendor is listed first, then its gateways, because the gateway route is
-    keyed by vendor slug.
+    keyed by vendor slug. The vendor listing is a static catalog, and the gateway route
+    proxies to the vendor using the calling user's own connection to it. A credential
+    without one (any service key, or a user who never connected the vendor) gets a 400,
+    which says nothing about whether gateways exist, so the listing is incomplete. That
+    is the common case, so each one is tallied in ``unconnected_vendors`` for a single
+    summary line rather than logged per workspace.
     """
     try:
         vendor_payload = client.get(
@@ -231,17 +255,25 @@ def get_mcp_servers(
             complete = complete and err.not_found
             continue
         except requests.HTTPError as err:
-            # A vendor that is registered but not yet OAuth-connected in this workspace
-            # answers 400 ("Please connect your Arcade account first"). It exposes no
-            # gateways, so treat it as empty rather than failing the whole sync.
-            if err.response is not None and err.response.status_code == 400:
-                logger.warning(
-                    "Skipping LangSmith MCP gateways for vendor %s in workspace %s: "
-                    "the vendor is not connected (%s)",
+            status = err.response.status_code if err.response is not None else None
+            if status == 501:
+                # LangSmith lists this vendor in its catalog but cannot list gateways
+                # for it, so there is nothing it could return.
+                continue
+            # The vendor answers 400 when the calling user has no connection to it
+            # ("Please connect your Arcade account first"), when the workspace has no
+            # vendor configuration, or when the caller has no user identity. Gateways
+            # may still exist, so they must not be cleaned up.
+            if status == 400:
+                logger.debug(
+                    "LangSmith MCP vendor %s could not list gateways in workspace %s: %s",
                     vendor_slug,
                     workspace_id,
                     err,
                 )
+                complete = False
+                if unconnected_vendors is not None:
+                    unconnected_vendors[vendor_slug] += 1
                 continue
             raise
         for gateway in gateways:

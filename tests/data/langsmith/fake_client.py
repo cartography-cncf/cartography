@@ -102,7 +102,9 @@ class FakeLangSmithClient:
     Unknown routes answer 404, as the real API does. Routes in ``failures`` fail with the
     given status, or with a timeout when the status is None, the way the real client
     reports them. Deployments in ``cold_deployment_urls`` fail their assistant search,
-    the way a scaled-to-zero deployment times out.
+    the way a scaled-to-zero deployment times out. A ``view`` query parameter is part of
+    the route: ``("/orgs/current/data-planes?view=SUMMARY", None)`` answers the summary
+    view only.
     """
 
     def __init__(
@@ -115,8 +117,16 @@ class FakeLangSmithClient:
         self.failures = failures or {}
         self.cold_deployment_urls = cold_deployment_urls
 
-    def get(self, path: str, *, tenant_id: str | None = None, **_: Any) -> Any:
-        route = (path, tenant_id)
+    def get(
+        self,
+        path: str,
+        *,
+        tenant_id: str | None = None,
+        params: dict[str, Any] | None = None,
+        **_: Any,
+    ) -> Any:
+        view = (params or {}).get("view")
+        route = (f"{path}?view={view}" if view else path, tenant_id)
         if route in self.failures:
             status = self.failures[route]
             raise LangSmithFetchError(path, status, f"HTTP {status or 'timeout'}")
@@ -130,10 +140,10 @@ class FakeLangSmithClient:
 
     def search_assistants(
         self, deployment_url: str, tenant_id: str
-    ) -> tuple[list[dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], str | None]:
         if deployment_url in self.cold_deployment_urls:
-            return [], False
+            return [], "ReadTimeoutError"
         return (
             copy.deepcopy(deployments.LANGSMITH_ASSISTANTS.get(deployment_url, [])),
-            True,
+            None,
         )

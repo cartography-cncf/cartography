@@ -559,6 +559,93 @@ def test_resync_keeps_credential_providers_when_providers_cannot_be_read(
     )
 
 
+DATA_PLANES = "/orgs/current/data-planes"
+DATA_PLANE = {
+    "id": "dd11dd11-0001-4001-8001-dd11dd11dd11",
+    "name": "eu-hybrid",
+    "status": "active",
+    "created_at": "2026-02-01T09:00:00Z",
+}
+
+
+def test_a_denied_data_plane_listing_falls_back_to_the_summary_view(neo4j_session):
+    # Arrange
+    summary_row = {k: v for k, v in DATA_PLANE.items() if k != "created_at"}
+    summary_only = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            (f"{DATA_PLANES}?view=SUMMARY", None): [summary_row],
+        },
+        failures={(DATA_PLANES, None): 403},
+    )
+
+    # Act
+    _sync(neo4j_session, summary_only, TEST_UPDATE_TAG)
+
+    # Assert
+    # The full view needs organization:infrastructure:read; the summary view still names
+    # the data plane, just without its creation time.
+    assert check_nodes(neo4j_session, "LangSmithDataPlane", ["id", "name"]) == {
+        (DATA_PLANE["id"], DATA_PLANE["name"])
+    }
+
+
+def test_the_summary_view_keeps_a_known_data_plane_creation_time(neo4j_session):
+    # Arrange
+    _sync(
+        neo4j_session,
+        FakeLangSmithClient(
+            routes={**SIMPSON_CORP_ROUTES, (DATA_PLANES, None): [DATA_PLANE]}
+        ),
+        TEST_UPDATE_TAG,
+    )
+    summary_row = {k: v for k, v in DATA_PLANE.items() if k != "created_at"}
+    summary_only = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            (f"{DATA_PLANES}?view=SUMMARY", None): [summary_row],
+        },
+        failures={(DATA_PLANES, None): 403},
+    )
+
+    # Act
+    _sync(neo4j_session, summary_only, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "LangSmithDataPlane", ["id", "created_at", "lastupdated"]
+    ) == {(DATA_PLANE["id"], DATA_PLANE["created_at"], NEXT_UPDATE_TAG)}
+
+
+def test_providers_are_cleaned_up_when_one_workspace_answers(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    github_only = [
+        provider
+        for provider in SIMPSON_CORP_ROUTES[("/v2/auth/providers", WORKSPACE_DEV_ID)]
+        if provider["id"] == GITHUB_PROVIDER_ID
+    ]
+    one_workspace = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            ("/v2/auth/providers", WORKSPACE_DEV_ID): github_only,
+        },
+        failures={
+            ("/v2/auth/providers", WORKSPACE_PROD_ID): 403,
+            ("/v2/auth/platform-providers", WORKSPACE_PROD_ID): 403,
+        },
+    )
+
+    # Act
+    _sync(neo4j_session, one_workspace, NEXT_UPDATE_TAG)
+
+    # Assert
+    # The provider listing is organization-wide, so one workspace answering is enough.
+    providers = _ids(neo4j_session, "LangSmithOAuthProvider")
+    assert GITHUB_PROVIDER_ID in providers
+    assert GOOGLE_PROVIDER_ID not in providers
+
+
 def test_syncing_another_organization_keeps_this_organizations_graph(neo4j_session):
     # Arrange
     other_org_id = "00000000-0000-4000-8000-000000000002"

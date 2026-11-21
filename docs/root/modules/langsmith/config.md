@@ -46,6 +46,7 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 | --- | --- | --- |
 | `organization:pats:read` | The organization-wide personal access token inventory | Cartography logs a warning and skips other members' tokens. |
 | `deployments:read` | Deployments, agents, OAuth providers, and agent credentials | Cartography logs a warning and skips the agent-to-user OAuth graph for that workspace. |
+| `organization:infrastructure:read` | The full data plane listing, including `created_at` | Cartography falls back to the summary listing, which needs only `organization:read`. Data planes keep a `created_at` value from an earlier full sync, and new ones have none. |
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a
@@ -108,6 +109,8 @@ to `--langsmith-host-api-url`.
 | `401 Unauthorized` on every route | The token expired, or LangSmith deactivated the identity that owns it. LangSmith rejects tokens that belong to a deactivated identity. |
 | No custom `LangSmithRole` nodes | Your plan doesn't include custom roles. |
 | Deleted agents stay in the graph | A deployment isn't `READY` or has no URL, so Cartography can't list its agents. Agent cleanup resumes when every deployment serves again or is deleted. |
+| Deleted `LangSmithMcpServer` nodes stay in the graph | LangSmith lists MCP gateways by asking the vendor, such as Arcade, with the syncing user's own connection to it. A service key, or a user who hasn't connected the vendor, can't list them, so Cartography keeps the gateways it already has. |
+| Assistant search returns `401` or `403` for some deployments | The deployment uses custom auth. Cartography sends `x-auth-scheme: langsmith` to ask it to use LangSmith auth instead. A deployment that disables LangSmith (Studio) auth ignores the header and still rejects the token, and agent cleanup is skipped as for any other deployment Cartography can't list. |
 
 ## References
 

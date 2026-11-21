@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -122,20 +123,24 @@ def get_assistants(
                 candidates,
             )
         )
-    complete = not skipped and all(ok for _, ok in results)
-    if not complete:
+    failures = Counter(failure for _, failure in results if failure)
+    if failures:
         logger.warning(
-            "Assistant discovery was incomplete for at least one deployment; agent "
-            "cleanup will be skipped so existing agents are not deleted.",
+            "Assistant search did not complete for %d of %d LangSmith deployment(s) "
+            "(%s); agent cleanup will be skipped so existing agents are not deleted.",
+            sum(failures.values()),
+            len(candidates),
+            ", ".join(f"{reason}: {count}" for reason, count in failures.most_common()),
         )
+    complete = not skipped and not failures
     return [assistant for batch, _ in results for assistant in batch], complete
 
 
 def _assistants_for(
     client: LangSmithClient, deployment: dict[str, Any], org_id: str
-) -> tuple[list[dict[str, Any]], bool]:
-    """Shape one deployment's assistants, and report whether the listing completed."""
-    assistants, complete = client.search_assistants(
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Shape one deployment's assistants, and report why the listing failed, if it did."""
+    assistants, failure = client.search_assistants(
         deployment["url"], deployment["tenant_id"]
     )
     return [
@@ -152,7 +157,7 @@ def _assistants_for(
             "updated_at": assistant.get("updated_at"),
         }
         for assistant in assistants
-    ], complete
+    ], failure
 
 
 def merge_assistants(
