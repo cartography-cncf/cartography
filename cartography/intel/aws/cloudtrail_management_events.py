@@ -440,7 +440,8 @@ def transform_web_identity_role_events_to_role_assumptions(
 
             # Only process GitHub Actions events
             if "token.actions.githubusercontent.com" in identity_provider:
-                # Extract GitHub repo fullname from userName format: "repo:{organization}/{repository}:{context}"
+                # Extract GitHub repo fullname from the OIDC subject in userName, e.g.
+                # "repo:{organization}/{repository}:{context}" or its immutable form with "@{id}" suffixes
                 user_name = user_identity.get("userName", "")
                 if not user_name:
                     logger.debug(
@@ -622,12 +623,32 @@ def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
     return assumed_role_arn
 
 
+def _strip_github_subject_id(segment: str) -> str:
+    """
+    Strip the immutable "@{id}" suffix from an owner or repository name in a GitHub OIDC subject.
+
+    GitHub separates names from IDs with "@" because "@" cannot appear in GitHub owner or
+    repository names. Returns the segment unchanged when it has no suffix, and an empty string
+    when the suffix is not a numeric ID.
+    """
+    name, separator, github_id = segment.partition("@")
+    if not separator:
+        return segment
+    if not github_id.isdigit():
+        return ""
+    return name
+
+
 def _extract_github_repo_from_username(user_name: str) -> str:
     """
     Extract GitHub repository fullname from CloudTrail userName field.
 
-    GitHub Actions CloudTrail events have userName in the format:
-    "repo:{organization}/{repository}:{context}"
+    GitHub Actions CloudTrail events have userName set to the OIDC subject claim, in either format:
+    - "repo:{organization}/{repository}:{context}"
+    - "repo:{organization}@{organization_id}/{repository}@{repository_id}:{context}" (immutable)
+
+    Both return "{organization}/{repository}", which matches GitHubRepository.fullname.
+    See https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
     """
     if not user_name:
         return ""
@@ -638,19 +659,21 @@ def _extract_github_repo_from_username(user_name: str) -> str:
     if len(parts) < 3 or parts[0] != "repo":
         return ""
 
-    # Extract "{organization}/{repository}"
-    repo_fullname = parts[1]
+    # Extract "{organization}/{repository}", with or without immutable IDs
+    repo_path = parts[1]
 
     # Validate it looks like "{organization}/{repository}" format
-    if repo_fullname.count("/") != 1:
+    if repo_path.count("/") != 1:
         return ""
 
     # Ensure both organization and repo exist
-    owner, repo = repo_fullname.split("/")
+    owner_segment, repo_segment = repo_path.split("/")
+    owner = _strip_github_subject_id(owner_segment)
+    repo = _strip_github_subject_id(repo_segment)
     if not owner or not repo:
         return ""
 
-    return repo_fullname
+    return f"{owner}/{repo}"
 
 
 @timeit

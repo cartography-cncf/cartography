@@ -163,6 +163,64 @@ def test_transform_single_github_web_identity_role_event():
     assert assumption["last_used"] == "2024-01-15T12:15:30.789000"
 
 
+@pytest.mark.parametrize(
+    "user_name, expected",
+    [
+        ("repo:octo-org/octo-repo:pull_request", "octo-org/octo-repo"),
+        (
+            "repo:octo-org@123456/octo-repo@456789:pull_request",
+            "octo-org/octo-repo",
+        ),
+        (
+            "repo:octo-org@123456/octo-repo@456789:ref:refs/heads/main",
+            "octo-org/octo-repo",
+        ),
+        (
+            "repo:octo-org@123456/octo-repo@456789:environment:production",
+            "octo-org/octo-repo",
+        ),
+        ("repo:octo-org@abc/octo-repo@456789:pull_request", ""),
+        ("repo:@123456/octo-repo@456789:pull_request", ""),
+        ("repo:octo-org@123456/octo-repo@:pull_request", ""),
+        ("repo:octo-org/team/octo-repo:pull_request", ""),
+        ("repo:octo-org/octo-repo", ""),
+        ("", ""),
+    ],
+)
+def test_extract_github_repo_from_username(user_name, expected):
+    """Legacy and immutable GitHub OIDC subjects resolve to the same repository fullname."""
+    assert (
+        cloudtrail_management_events._extract_github_repo_from_username(user_name)
+        == expected
+    )
+
+
+def test_transform_github_web_identity_events_aggregate_legacy_and_immutable_subjects():
+    """A repository that moves to immutable subjects keeps a single aggregated assumption."""
+    # Arrange
+    immutable_event = {
+        "EventName": "AssumeRoleWithWebIdentity",
+        "EventTime": "2026-07-20T09:00:00.000000",
+        "EventId": "test-event-id-immutable",
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:example-org@123456/example-repo@456789:ref:refs/heads/main", "userName": "repo:example-org@123456/example-repo@456789:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/GitHubActionsRole", "roleSessionName": "GitHubActions"}}',
+    }
+    events = [SAMPLE_GITHUB_ASSUME_ROLE_WITH_WEB_IDENTITY_EVENT, immutable_event]
+
+    # Act
+    result = transform_web_identity_role_events_to_role_assumptions(events=events)
+
+    # Assert
+    assert result == [
+        {
+            "source_repo_fullname": "example-org/example-repo",
+            "destination_principal_arn": "arn:aws:iam::987654321098:role/GitHubActionsRole",
+            "times_used": 2,
+            "first_seen_in_time_window": "2024-01-15T12:15:30.789000",
+            "last_used": "2026-07-20T09:00:00.000000",
+        },
+    ]
+
+
 def test_transform_assume_role_events_with_null_request_parameters():
     """Test that AssumeRole events with null requestParameters are gracefully skipped."""
     # Arrange
