@@ -53,8 +53,10 @@ def test_local_report_reader_wraps_read_errors(tmp_path) -> None:
     reports.mkdir()
     ref = ReportRef(uri=str(reports / "deleted.json"), name="deleted.json")
 
-    with pytest.raises(ObjectStoreError, match=ref.uri):
+    with pytest.raises(ObjectStoreError) as exc_info:
         LocalReportReader(str(reports)).read_bytes(ref)
+
+    assert exc_info.value.source == ref.uri
 
 
 def test_s3_bucket_reader_lists_objects_and_skips_pseudo_directories() -> None:
