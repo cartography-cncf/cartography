@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Amazon Inspector - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="AWS Identity and Access Investigations" href="identity-access.html" /><link rel="prev" title="AWS Container Images" href="container-images.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/aws/inspector.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=4f8dd3c3" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/aws/inspector.html"/>
+  <meta property="og:title" content="Amazon Inspector"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../module-list.html">Intel Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Amazon Web Services (AWS)</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Amazon Inspector</a></li>
+<li class="toctree-l3"><a class="reference internal" href="identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="analysis.html">AWS Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bitbucket/index.html">Bitbucket Cloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bitbucket/config.html">Bitbucket Cloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bitbucket/schema.html">Bitbucket Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/queries.html">CVE Metadata Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../huntress/index.html">Huntress</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/config.html">Huntress Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/schema.html">Huntress Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jira/index.html">Jira</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jira/config.html">Jira Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jira/schema.html">Jira Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jira/queries.html">Jira Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../langsmith/index.html">LangSmith</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../langsmith/config.html">LangSmith Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../langsmith/schema.html">Langsmith Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../langsmith/queries.html">LangSmith Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/config.html">Microsoft configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../neon/index.html">Neon</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../neon/config.html">Neon Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../neon/schema.html">Neon Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../notion/index.html">Notion</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../notion/config.html">Notion Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../notion/schema.html">Notion Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../onepassword/index.html">1Password</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../onepassword/config.html">1Password Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../onepassword/schema.html">1Password Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../onepassword/queries.html">1Password Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../orca/index.html">Orca Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../orca/config.html">Orca Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../orca/schema.html">Orca Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../opsgenie/index.html">Opsgenie</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../opsgenie/config.html">Opsgenie Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../opsgenie/schema.html">Opsgenie Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentra/index.html">Sentra</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentra/config.html">Sentra configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentra/schema.html">Sentra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snowflake/index.html">Snowflake</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/config.html">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sweet/index.html">Sweet Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sweet/config.html">Sweet Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sweet/schema.html">Sweet Security Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/queries.html">Trivy Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zendesk/index.html">Zendesk</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zendesk/config.html">Zendesk Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zendesk/schema.html">Zendesk Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zoom/index.html">Zoom</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zoom/config.html">Zoom Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zoom/schema.html">Zoom Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/index.html">Developer docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/index.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#vulnerabilities-and-cves">Vulnerabilities and CVEs</a></li>
+<li><a class="reference internal" href="#packages">Packages</a></li>
+<li><a class="reference internal" href="#why-ec2-package-findings-use-finding-sets">Why EC2 package findings use finding sets</a><ul>
+<li><a class="reference internal" href="#read-one-row-per-finding">Read one row per finding</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#migrate-queries-on-ec2-package-findings">Migrate queries on EC2 package findings</a><ul>
+<li><a class="reference internal" href="#example-a-remediation-sla-report">Example: a remediation SLA report</a></li>
+<li><a class="reference internal" href="#example-cves-on-the-nodes-of-each-eks-cluster">Example: CVEs on the nodes of each EKS cluster</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#upgrade-an-existing-graph">Upgrade an existing graph</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/aws/inspector.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../module-list.html"><span itemprop="name">Intel Modules</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Amazon Web Services (AWS)</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="3" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Amazon Inspector</strong>
+        <meta itemprop="position" content="4" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/aws/inspector.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/aws/inspector.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/aws/inspector.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/aws/inspector.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/aws/inspector.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="amazon-inspector">
+<h1>Amazon Inspector<a class="headerlink" href="#amazon-inspector" title="Link to this heading">#</a></h1>
+<p>Cartography stores Amazon Inspector findings in two shapes:</p>
+<ul class="simple">
+<li><p>Cartography groups package vulnerability findings on EC2 instances into finding sets.
+One <code class="docutils literal notranslate"><span class="pre">AWSInspectorInstanceFindings</span></code> node per instance points at one <code class="docutils literal notranslate"><span class="pre">AWSInspectorFindingSet</span></code>,
+which contains the <code class="docutils literal notranslate"><span class="pre">AWSInspectorFindingContent</span></code> nodes the instance shares with other
+instances.</p></li>
+<li><p>Every other finding, including network reachability findings on EC2 instances and
+findings on ECR images, repositories, and Lambda functions, is one <code class="docutils literal notranslate"><span class="pre">AWSInspectorFinding</span></code>
+node per finding ARN.</p></li>
+</ul>
+<p>Earlier versions stored every finding as an <code class="docutils literal notranslate"><span class="pre">AWSInspectorFinding</span></code>. To update queries
+written for that shape, see <a class="reference internal" href="#migrate-queries-on-ec2-package-findings">Migrate queries on EC2 package findings</a>.</p>
+<section id="vulnerabilities-and-cves">
+<h2>Vulnerabilities and CVEs<a class="headerlink" href="#vulnerabilities-and-cves" title="Link to this heading">#</a></h2>
+<p>Each package vulnerability that Inspector reports is one <code class="docutils literal notranslate"><span class="pre">AWSInspectorVulnerability</span></code>
+node. It holds the advisory data that is the same for every finding of the vulnerability:
+the description, reference URLs, and the vendor and NVD CVSS entries.</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">AWSInspectorFinding</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">HAS_VULNERABILITY</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorVulnerability</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">AWSInspectorFindingContent</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">HAS_VULNERABILITY</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorVulnerability</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(:</span><span class="n">CVEMetadata</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">ENRICHES</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorVulnerability</span><span class="p">:</span><span class="n">CVE</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Cartography labels a vulnerability <code class="docutils literal notranslate"><span class="pre">:CVE</span></code> only when its identifier is a CVE. Inspector
+also reports GHSA and ALAS advisories; those vulnerabilities have no <code class="docutils literal notranslate"><span class="pre">cve_id</span></code> and no
+<code class="docutils literal notranslate"><span class="pre">:CVE</span></code> label. Findings don’t carry <code class="docutils literal notranslate"><span class="pre">:CVE</span></code>, so a query on <code class="docutils literal notranslate"><span class="pre">:CVE</span></code> returns each Inspector CVE
+once rather than once per affected resource. The first sync after upgrading removes the
+<code class="docutils literal notranslate"><span class="pre">:CVE</span></code> label and its <code class="docutils literal notranslate"><span class="pre">_ont_*</span></code> fields from findings that earlier versions labeled.</p>
+</section>
+<section id="packages">
+<h2>Packages<a class="headerlink" href="#packages" title="Link to this heading">#</a></h2>
+<p>Each vulnerable package that Inspector reports is one <code class="docutils literal notranslate"><span class="pre">AWSInspectorPackage</span></code> node. Its
+ID starts with Inspector’s package manager and, for an operating system package, the
+distribution, such as <code class="docutils literal notranslate"><span class="pre">OS|amazon|openssl|1:1.0.2k-24.amzn2.X86_64</span></code> or
+<code class="docutils literal notranslate"><span class="pre">PIP|requests|2.28.0</span></code>. Packages from different ecosystems or distributions never share a
+node. The same build on two releases of one distribution, such as Debian 11 and 12,
+shares one, as it shares one <code class="docutils literal notranslate"><span class="pre">PackageVersion</span></code>.</p>
+<p>When Cartography recognizes the package manager, the package also gets a package URL in
+<code class="docutils literal notranslate"><span class="pre">purl</span></code>. An operating system package needs the platform of the affected EC2 instance or
+ECR image, such as <code class="docutils literal notranslate"><span class="pre">AMAZON_LINUX_2023</span></code> or <code class="docutils literal notranslate"><span class="pre">DEBIAN_12</span></code>, to name its distribution. The
+ontology packages sync maps each package with a package URL to a <code class="docutils literal notranslate"><span class="pre">PackageVersion</span></code>, the
+same node that Trivy, Syft, and other scanners report the package as:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">PackageVersion</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">DETECTED_AS</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorPackage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>To find the package versions a finding affects, follow its packages:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">AWSInspectorFindingContent</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">HAS</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorPackage</span><span class="p">)</span>
+</span><span data-line="2"><span class="w">      </span><span class="o">&lt;-[</span><span class="p">:</span><span class="n">DETECTED_AS</span><span class="o">]-</span><span class="p">(</span><span class="n">pv</span><span class="p">:</span><span class="n">PackageVersion</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">vulnerabilityid</span><span class="p">,</span><span class="w"> </span><span class="n">pv</span><span class="p">.</span><span class="n">id</span>
+</span></pre></div>
+</div>
+</section>
+<section id="why-ec2-package-findings-use-finding-sets">
+<h2>Why EC2 package findings use finding sets<a class="headerlink" href="#why-ec2-package-findings-use-finding-sets" title="Link to this heading">#</a></h2>
+<p>Inspector reports one finding per instance and vulnerability. Instances launched from
+the same AMI report almost the same findings, so a fleet of thousands of instances stores
+the same data thousands of times. Autoscaled fleets also replace instances daily, so the
+sync writes and deletes millions of findings a day.</p>
+<p>With finding sets, Cartography stores the data that many instances share once:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">MEMBER</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">AFFECTS</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSEC2Instance</span><span class="p">)</span>
+</span><span data-line="3"><span class="p">(:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">HAS_FINDING_SET</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorFindingSet</span><span class="p">)</span>
+</span><span data-line="4"><span class="p">(:</span><span class="n">AWSInspectorFindingSet</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">CONTAINS</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorFindingContent</span><span class="p">)</span>
+</span><span data-line="5"><span class="p">(:</span><span class="n">AWSInspectorFindingContent</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">HAS</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorPackage</span><span class="p">)</span>
+</span><span data-line="6"><span class="p">(:</span><span class="n">AWSInspectorFindingContent</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">HAS_VULNERABILITY</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorVulnerability</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<ul class="simple">
+<li><p>An <code class="docutils literal notranslate"><span class="pre">AWSInspectorFindingContent</span></code> is everything in a finding that does not depend on the
+instance: the vulnerability, packages, Inspector score, severity, status, and fix and
+exploit availability. Instances whose network reachability changes their Inspector
+score get a different content.</p></li>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">AWSInspectorFindingSet</span></code> is a distinct group of contents that one or more instances
+report. Each content has one or more slots in the set, one per finding that reports it.
+The <code class="docutils literal notranslate"><span class="pre">CONTAINS</span></code> relationship lists them in <code class="docutils literal notranslate"><span class="pre">slots</span></code>.</p></li>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">AWSInspectorInstanceFindings</span></code> holds the instance’s account, AMI, and region. It
+exists even when Cartography has not synced the <code class="docutils literal notranslate"><span class="pre">AWSEC2Instance</span></code>, and links to it when
+it has.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">HAS_FINDING_SET</span></code> relationship holds the instance’s own findings as lists that line
+up with the set’s slots. Entry <code class="docutils literal notranslate"><span class="pre">k</span></code> of <code class="docutils literal notranslate"><span class="pre">finding_ids</span></code>, <code class="docutils literal notranslate"><span class="pre">first_observed_at_ms</span></code>,
+<code class="docutils literal notranslate"><span class="pre">last_observed_at_ms</span></code>, and <code class="docutils literal notranslate"><span class="pre">updated_at_ms</span></code> belongs to slot <code class="docutils literal notranslate"><span class="pre">k</span></code>. The times are
+Inspector’s own, in epoch milliseconds.</p></li>
+</ul>
+<p>When a fleet replaces an instance, the sync adds one <code class="docutils literal notranslate"><span class="pre">AWSInspectorInstanceFindings</span></code> node and
+links it to a set that usually exists already, and cleanup deletes the old instance’s
+node. Sets and contents change only when the findings themselves change.</p>
+<section id="read-one-row-per-finding">
+<h3>Read one row per finding<a class="headerlink" href="#read-one-row-per-finding" title="Link to this heading">#</a></h3>
+<p>This query returns one row per instance and finding, with the finding’s ARN and times:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">fi</span><span class="p">:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span><span class="o">-[</span><span class="n">o</span><span class="p">:</span><span class="n">HAS_FINDING_SET</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="n">AWSInspectorFindingSet</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">fi</span><span class="p">.</span><span class="n">finding_set_id</span>
+</span><span data-line="3"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-[</span><span class="n">c</span><span class="p">:</span><span class="n">CONTAINS</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">AWSInspectorFindingContent</span><span class="p">)</span>
+</span><span data-line="4"><span class="k">UNWIND</span><span class="w"> </span><span class="n">c</span><span class="p">.</span><span class="n">slots</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">k</span>
+</span><span data-line="5"><span class="k">RETURN</span><span class="w"> </span><span class="n">fi</span><span class="p">.</span><span class="n">instanceid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">instance</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">vulnerabilityid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">vulnerability</span><span class="p">,</span>
+</span><span data-line="6"><span class="w">       </span><span class="n">o</span><span class="p">.</span><span class="n">finding_arn_prefix</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">finding_ids</span><span class="o">[</span><span class="n">k</span><span class="o">]</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">finding_arn</span><span class="p">,</span>
+</span><span data-line="7"><span class="w">       </span><span class="n">datetime</span><span class="p">({</span><span class="n">epochMillis</span><span class="p">:</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">first_observed_at_ms</span><span class="o">[</span><span class="n">k</span><span class="o">]</span><span class="p">})</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">first_observed_at</span>
+</span></pre></div>
+</div>
+<p>Keep the <code class="docutils literal notranslate"><span class="pre">s.id</span> <span class="pre">=</span> <span class="pre">fi.finding_set_id</span></code> condition. When an instance’s findings change, it
+moves to another set. Until cleanup runs, the instance also keeps its previous
+<code class="docutils literal notranslate"><span class="pre">HAS_FINDING_SET</span></code> relationship, which still holds the findings that set had.</p>
+</section>
+</section>
+<section id="migrate-queries-on-ec2-package-findings">
+<h2>Migrate queries on EC2 package findings<a class="headerlink" href="#migrate-queries-on-ec2-package-findings" title="Link to this heading">#</a></h2>
+<p>Queries that read <code class="docutils literal notranslate"><span class="pre">AWSInspectorFinding</span></code> nodes for package vulnerabilities on EC2
+instances must change. Queries on any other finding do not. Apply these rules in order.</p>
+<ol class="arabic">
+<li><p><strong>Reach the findings through the instance’s set.</strong> Replace the finding match:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1">// Before</span>
+</span><span data-line="2"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">AWSInspectorFinding</span><span class="w"> </span><span class="p">{</span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;PACKAGE_VULNERABILITY&#39;</span><span class="p">})</span><span class="o">-[</span><span class="n">a</span><span class="p">:</span><span class="n">AFFECTS</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSEC2Instance</span><span class="p">)</span>
+</span><span data-line="3"><span class="c1">// After</span>
+</span><span data-line="4"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSEC2Instance</span><span class="p">)</span><span class="o">&lt;-[</span><span class="p">:</span><span class="n">AFFECTS</span><span class="o">]-</span><span class="p">(</span><span class="n">fi</span><span class="p">:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span>
+</span><span data-line="5"><span class="w">      </span><span class="o">-[</span><span class="n">o</span><span class="p">:</span><span class="n">HAS_FINDING_SET</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="n">AWSInspectorFindingSet</span><span class="p">)</span>
+</span><span data-line="6"><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">fi</span><span class="p">.</span><span class="n">finding_set_id</span>
+</span><span data-line="7"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-[</span><span class="n">c</span><span class="p">:</span><span class="n">CONTAINS</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">AWSInspectorFindingContent</span><span class="p">)</span>
+</span><span data-line="8"><span class="k">UNWIND</span><span class="w"> </span><span class="n">c</span><span class="p">.</span><span class="n">slots</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">k</span>
+</span></pre></div>
+</div>
+<p>Every <code class="docutils literal notranslate"><span class="pre">AWSInspectorFindingContent</span></code> is a package vulnerability, so drop the <code class="docutils literal notranslate"><span class="pre">type</span></code>
+filter. To include instances that Cartography has not synced, start from <code class="docutils literal notranslate"><span class="pre">fi</span></code> and
+leave out the <code class="docutils literal notranslate"><span class="pre">AWSEC2Instance</span></code> match.</p>
+</li>
+<li><p><strong>Read finding properties from where they are now.</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Property on <code class="docutils literal notranslate"><span class="pre">AWSInspectorFinding</span></code></p></th>
+<th class="head"><p>Read it from</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">severity</span></code>, <code class="docutils literal notranslate"><span class="pre">cvssscore</span></code>, <code class="docutils literal notranslate"><span class="pre">cvssvector</span></code>, <code class="docutils literal notranslate"><span class="pre">vulnerabilityid</span></code>, <code class="docutils literal notranslate"><span class="pre">cve_id</span></code>, <code class="docutils literal notranslate"><span class="pre">vendorseverity</span></code>, <code class="docutils literal notranslate"><span class="pre">vulnerablepackageids</span></code>, <code class="docutils literal notranslate"><span class="pre">fixavailable</span></code>, <code class="docutils literal notranslate"><span class="pre">exploitavailable</span></code>, <code class="docutils literal notranslate"><span class="pre">lastknownexploitat</span></code>, <code class="docutils literal notranslate"><span class="pre">epss_score_inspector</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">f</span></code>, the <code class="docutils literal notranslate"><span class="pre">AWSInspectorFindingContent</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">instanceid</span></code>, <code class="docutils literal notranslate"><span class="pre">awsaccount</span></code>, <code class="docutils literal notranslate"><span class="pre">region</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fi</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">arn</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">o.finding_arn_prefix</span> <span class="pre">+</span> <span class="pre">o.finding_ids[k]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">firstobservedat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">o.first_observed_at_ms[k]</span></code>, in epoch milliseconds</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">updatedat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">o.updated_at_ms[k]</span></code>, in epoch milliseconds</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Advisory data such as <code class="docutils literal notranslate"><span class="pre">description</span></code> and <code class="docutils literal notranslate"><span class="pre">referenceurls</span></code> stays on the
+<code class="docutils literal notranslate"><span class="pre">AWSInspectorVulnerability</span></code>: <code class="docutils literal notranslate"><span class="pre">(f)-[:HAS_VULNERABILITY]-&gt;(v)</span></code>.</p>
+</li>
+<li><p><strong>Keep package joins on the content.</strong> <code class="docutils literal notranslate"><span class="pre">(f)-[:HAS]-&gt;(p:AWSInspectorPackage)</span></code> and its
+relationship properties, such as <code class="docutils literal notranslate"><span class="pre">fixedinversion</span></code> and <code class="docutils literal notranslate"><span class="pre">remediation</span></code>, are unchanged
+with <code class="docutils literal notranslate"><span class="pre">f</span></code> bound to the content.</p></li>
+<li><p><strong>Use Inspector’s first-observed time for SLAs.</strong> <code class="docutils literal notranslate"><span class="pre">o.first_observed_at_ms[k]</span></code> replaces
+the <code class="docutils literal notranslate"><span class="pre">firstseen</span></code> of the finding’s <code class="docutils literal notranslate"><span class="pre">AFFECTS</span></code> relationship. <code class="docutils literal notranslate"><span class="pre">AFFECTS.firstseen</span></code> recorded
+when Cartography created the relationship and restarted whenever the finding node was
+recreated. Inspector’s time does not restart, but it can be earlier than the
+Cartography time it replaces, so compare both on a test graph before you switch an
+SLA report.</p></li>
+<li><p><strong>Find a finding by ARN.</strong> Take the finding ID after <code class="docutils literal notranslate"><span class="pre">finding/</span></code> and match it on the
+current set’s relationship. Add the account or region from the ARN to narrow the scan.</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">fi</span><span class="p">:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span><span class="o">-[</span><span class="n">o</span><span class="p">:</span><span class="n">HAS_FINDING_SET</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="n">AWSInspectorFindingSet</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">fi</span><span class="p">.</span><span class="n">finding_set_id</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="err">$</span><span class="n">finding_id</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">finding_ids</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">fi</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Use the instance’s sync time for the scan time.</strong> <code class="docutils literal notranslate"><span class="pre">AFFECTS.lastupdated</span></code> becomes
+<code class="docutils literal notranslate"><span class="pre">fi.lastupdated</span></code>.</p></li>
+<li><p><strong>Count findings as rows after <code class="docutils literal notranslate"><span class="pre">UNWIND</span> <span class="pre">c.slots</span></code>.</strong> A content node can stand for many
+instances and many slots, so count rows, not content nodes.</p></li>
+<li><p><strong>Write your own per-finding properties to a node you own.</strong> A property set on a
+content node applies to every instance and slot that shares the content, and a sync
+that changes the content leaves it behind. Write data that depends only on the
+vulnerability and package to the content, and reapply it after each sync. Key data
+that depends on the instance by finding ARN on a node that you create.</p></li>
+</ol>
+<section id="example-a-remediation-sla-report">
+<h3>Example: a remediation SLA report<a class="headerlink" href="#example-a-remediation-sla-report" title="Link to this heading">#</a></h3>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1">// Before</span>
+</span><span data-line="2"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSEC2Instance</span><span class="w"> </span><span class="p">{</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="err">$</span><span class="n">instance_id</span><span class="p">})</span>
+</span><span data-line="3"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">AWSInspectorFinding</span><span class="w"> </span><span class="p">{</span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;PACKAGE_VULNERABILITY&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ACTIVE&#39;</span><span class="p">})</span><span class="o">-[</span><span class="n">a</span><span class="p">:</span><span class="n">AFFECTS</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span><span data-line="4"><span class="k">OPTIONAL</span><span class="w"> </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">-[</span><span class="n">h</span><span class="p">:</span><span class="n">HAS</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorPackage</span><span class="p">)</span>
+</span><span data-line="5"><span class="k">RETURN</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">vulnerabilityid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">vulnerability</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">severity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">severity</span><span class="p">,</span>
+</span><span data-line="6"><span class="w">       </span><span class="n">f</span><span class="p">.</span><span class="n">description</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">description</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">arn</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">finding_arn</span><span class="p">,</span>
+</span><span data-line="7"><span class="w">       </span><span class="k">collect</span><span class="p">(</span><span class="n">h</span><span class="p">.</span><span class="n">fixedinversion</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">fixed_versions</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">firstseen</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">first_seen_ms</span>
+</span><span data-line="8">
+</span><span data-line="9"><span class="c1">// After</span>
+</span><span data-line="10"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSEC2Instance</span><span class="w"> </span><span class="p">{</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="err">$</span><span class="n">instance_id</span><span class="p">})</span><span class="o">&lt;-[</span><span class="p">:</span><span class="n">AFFECTS</span><span class="o">]-</span><span class="p">(</span><span class="n">fi</span><span class="p">:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span>
+</span><span data-line="11"><span class="w">      </span><span class="o">-[</span><span class="n">o</span><span class="p">:</span><span class="n">HAS_FINDING_SET</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="n">AWSInspectorFindingSet</span><span class="p">)</span>
+</span><span data-line="12"><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">fi</span><span class="p">.</span><span class="n">finding_set_id</span>
+</span><span data-line="13"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-[</span><span class="n">c</span><span class="p">:</span><span class="n">CONTAINS</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">AWSInspectorFindingContent</span><span class="w"> </span><span class="p">{</span><span class="n">status</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ACTIVE&#39;</span><span class="p">})</span>
+</span><span data-line="14"><span class="w">      </span><span class="o">-[</span><span class="p">:</span><span class="n">HAS_VULNERABILITY</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">v</span><span class="p">:</span><span class="n">AWSInspectorVulnerability</span><span class="p">)</span>
+</span><span data-line="15"><span class="k">UNWIND</span><span class="w"> </span><span class="n">c</span><span class="p">.</span><span class="n">slots</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">k</span>
+</span><span data-line="16"><span class="k">OPTIONAL</span><span class="w"> </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">-[</span><span class="n">h</span><span class="p">:</span><span class="n">HAS</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSInspectorPackage</span><span class="p">)</span>
+</span><span data-line="17"><span class="k">RETURN</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">vulnerabilityid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">vulnerability</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">severity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">severity</span><span class="p">,</span>
+</span><span data-line="18"><span class="w">       </span><span class="n">v</span><span class="p">.</span><span class="n">description</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">description</span><span class="p">,</span>
+</span><span data-line="19"><span class="w">       </span><span class="n">o</span><span class="p">.</span><span class="n">finding_arn_prefix</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">finding_ids</span><span class="o">[</span><span class="n">k</span><span class="o">]</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">finding_arn</span><span class="p">,</span>
+</span><span data-line="20"><span class="w">       </span><span class="k">collect</span><span class="p">(</span><span class="n">h</span><span class="p">.</span><span class="n">fixedinversion</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">fixed_versions</span><span class="p">,</span>
+</span><span data-line="21"><span class="w">       </span><span class="n">o</span><span class="p">.</span><span class="n">first_observed_at_ms</span><span class="o">[</span><span class="n">k</span><span class="o">]</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">first_seen_ms</span>
+</span></pre></div>
+</div>
+</section>
+<section id="example-cves-on-the-nodes-of-each-eks-cluster">
+<h3>Example: CVEs on the nodes of each EKS cluster<a class="headerlink" href="#example-cves-on-the-nodes-of-each-eks-cluster" title="Link to this heading">#</a></h3>
+<p>Instances that share a set share its findings, so this query groups nodes by set before
+it expands the findings:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">eks</span><span class="p">:</span><span class="n">AWSEKSCluster</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">MAPS_TO</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">KubernetesCluster</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">KubernetesNode</span><span class="p">)</span>
+</span><span data-line="2"><span class="w">      </span><span class="o">-[</span><span class="p">:</span><span class="n">IS_INSTANCE</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">AWSEC2Instance</span><span class="p">)</span><span class="o">&lt;-[</span><span class="p">:</span><span class="n">AFFECTS</span><span class="o">]-</span><span class="p">(</span><span class="n">fi</span><span class="p">:</span><span class="n">AWSInspectorInstanceFindings</span><span class="p">)</span>
+</span><span data-line="3"><span class="w">      </span><span class="o">-[</span><span class="p">:</span><span class="n">HAS_FINDING_SET</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="n">AWSInspectorFindingSet</span><span class="p">)</span>
+</span><span data-line="4"><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">fi</span><span class="p">.</span><span class="n">finding_set_id</span>
+</span><span data-line="5"><span class="k">OPTIONAL</span><span class="w"> </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="p">:</span><span class="n">KubernetesPod</span><span class="w"> </span><span class="p">{</span><span class="n">status_phase</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;Running&#39;</span><span class="p">})</span><span class="o">-[</span><span class="p">:</span><span class="n">RUNS_ON</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span><span data-line="6"><span class="k">WITH</span><span class="w"> </span><span class="n">eks</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">(</span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">pods</span>
+</span><span data-line="7"><span class="k">WITH</span><span class="w"> </span><span class="n">eks</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">pods</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">pods</span>
+</span><span data-line="8"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">CONTAINS</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">f</span><span class="p">:</span><span class="n">AWSInspectorFindingContent</span><span class="w"> </span><span class="p">{</span><span class="n">status</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ACTIVE&#39;</span><span class="p">})</span>
+</span><span data-line="9"><span class="w">      </span><span class="o">-[</span><span class="p">:</span><span class="n">HAS_VULNERABILITY</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">v</span><span class="p">:</span><span class="n">AWSInspectorVulnerability</span><span class="p">:</span><span class="n">CVE</span><span class="p">)</span>
+</span><span data-line="10"><span class="k">WITH</span><span class="w"> </span><span class="n">eks</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">nodes</span><span class="p">,</span><span class="w"> </span><span class="n">pods</span><span class="p">,</span>
+</span><span data-line="11"><span class="w">     </span><span class="n">max</span><span class="p">(</span><span class="k">CASE</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">severity</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="s">&#39;CRITICAL&#39;</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="s">&#39;HIGH&#39;</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="m">3</span>
+</span><span data-line="12"><span class="w">                         </span><span class="k">WHEN</span><span class="w"> </span><span class="s">&#39;MEDIUM&#39;</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="s">&#39;LOW&#39;</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="n">ELSE</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="k">END</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">severity</span>
+</span><span data-line="13"><span class="k">RETURN</span><span class="w"> </span><span class="n">eks</span><span class="p">.</span><span class="n">arn</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">cluster</span><span class="p">,</span><span class="w"> </span><span class="n">eks</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">cluster_name</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="n">cve_id</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">cve</span><span class="p">,</span>
+</span><span data-line="14"><span class="w">       </span><span class="n">max</span><span class="p">(</span><span class="n">severity</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">severity</span><span class="p">,</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">affected_nodes</span><span class="p">,</span>
+</span><span data-line="15"><span class="w">       </span><span class="n">sum</span><span class="p">(</span><span class="n">pods</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">running_pods</span>
+</span><span data-line="16"><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">cluster</span><span class="p">,</span><span class="w"> </span><span class="n">severity</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">running_pods</span><span class="w"> </span><span class="k">DESC</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="upgrade-an-existing-graph">
+<h2>Upgrade an existing graph<a class="headerlink" href="#upgrade-an-existing-graph" title="Link to this heading">#</a></h2>
+<p>The first sync after upgrading loads EC2 package findings as finding sets, and its
+cleanup deletes the <code class="docutils literal notranslate"><span class="pre">AWSInspectorFinding</span></code> nodes that held them before. On a large fleet,
+that first cleanup deletes as many nodes as the fleet had findings, so it takes about as
+long as a cleanup after a day of full churn did before. Later syncs only delete the nodes
+of replaced instances.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="container-images.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">AWS Container Images</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="identity-access.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">AWS Identity and Access Investigations</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script src="../../_static/expand-intel-modules.js?v=8f45ed9c"></script></body>
+</html>

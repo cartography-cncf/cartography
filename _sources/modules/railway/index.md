@@ -1,0 +1,6 @@
+# Railway
+
+```{toctree}
+config
+schema
+```

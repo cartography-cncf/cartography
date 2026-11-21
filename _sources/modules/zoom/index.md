@@ -1,0 +1,6 @@
+# Zoom
+
+```{toctree}
+config
+schema
+```

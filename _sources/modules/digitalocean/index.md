@@ -1,0 +1,6 @@
+# DigitalOcean
+
+```{toctree}
+config
+schema
+```

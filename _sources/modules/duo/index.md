@@ -1,0 +1,6 @@
+# Duo
+
+```{toctree}
+config
+schema
+```
