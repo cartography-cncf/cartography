@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 from typing import Any
@@ -158,6 +159,7 @@ def _transform_fine_grained_token(
     permissions = raw_token.get("permissions")
     return {
         "id": f"{org_url}/personal-access-tokens/{pat_id}",
+        "credential_id": None,
         "token_kind": "fine_grained",
         "token_id": raw_token.get("token_id"),
         "token_name": raw_token.get("token_name"),
@@ -189,12 +191,28 @@ def _transform_saml_credential_authorization(
         return None
     owner_login = raw_credential.get("login")
     owner_user_id = _owner_user_url(org_url, None, owner_login)
+    token_last_eight = raw_credential.get("token_last_eight")
+    if owner_login and token_last_eight:
+        # credential_id identifies one organization's SAML authorization, so a
+        # token authorized for several organizations would become several nodes.
+        # The owner and the token's last eight characters identify the token
+        # itself; hash them so the token fragment is not stored.
+        token_digest = hashlib.sha256(
+            f"{owner_login}:{token_last_eight}".encode()
+        ).hexdigest()[:32]
+        token_node_id = (
+            f"{org_url.rsplit('/', 1)[0]}/classic-personal-access-tokens/"
+            f"{token_digest}"
+        )
+    else:
+        token_node_id = f"{org_url}/credential-authorizations/{credential_id}"
     # GitHub's SAML credential authorization endpoint reports credential_accessed_at
     # (auth events), which is not semantically equivalent to the fine-grained
     # token_last_used_at (API calls). Leave last_used_at unset for classic PATs;
     # credential_accessed_at remains available on its own property.
     return {
-        "id": f"{org_url}/credential-authorizations/{credential_id}",
+        "id": token_node_id,
+        "credential_id": credential_id,
         "token_kind": "classic",
         "token_id": None,
         "token_name": f"{owner_login} (classic PAT)" if owner_login else None,

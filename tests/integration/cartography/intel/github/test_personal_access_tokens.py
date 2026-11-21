@@ -16,6 +16,9 @@ FAKE_TOKEN = "fake-pat"
 ORG_URL = "https://github.com/simpsoncorp"
 USER_URL = "https://github.com/hjsimpson"
 SECOND_USER_URL = "https://github.com/mbsimpson"
+CLASSIC_PAT_ID = (
+    "https://github.com/classic-personal-access-tokens/021cf96732b321e37159005e72d1b32c"
+)
 REPO_URL = "https://github.com/simpsoncorp/sample_repo"
 SECOND_REPO_URL = "https://github.com/simpsoncorp/another_repo"
 
@@ -129,7 +132,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
             "mbsimpson",
         ),
         (
-            f"{ORG_URL}/credential-authorizations/161195",
+            CLASSIC_PAT_ID,
             "classic",
             "hjsimpson (classic PAT)",
             "hjsimpson",
@@ -137,7 +140,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
     }
     assert check_nodes(neo4j_session, "APIKey", ["id"]) >= {
         (f"{ORG_URL}/personal-access-tokens/25381",),
-        (f"{ORG_URL}/credential-authorizations/161195",),
+        (CLASSIC_PAT_ID,),
     }
     assert (
         {
@@ -189,7 +192,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
                 False,
                 True,
             ),
-            f"{ORG_URL}/credential-authorizations/161195": (
+            CLASSIC_PAT_ID: (
                 "github",
                 True,
                 True,
@@ -206,7 +209,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
         (f"{ORG_URL}/personal-access-tokens/25382",),
     }
     assert check_nodes(neo4j_session, "GitHubClassicPersonalAccessToken", ["id"]) == {
-        (f"{ORG_URL}/credential-authorizations/161195",),
+        (CLASSIC_PAT_ID,),
     }
     assert check_rels(
         neo4j_session,
@@ -219,7 +222,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
     ) == {
         (ORG_URL, f"{ORG_URL}/personal-access-tokens/25381"),
         (ORG_URL, f"{ORG_URL}/personal-access-tokens/25382"),
-        (ORG_URL, f"{ORG_URL}/credential-authorizations/161195"),
+        (ORG_URL, CLASSIC_PAT_ID),
     }
     assert check_rels(
         neo4j_session,
@@ -232,7 +235,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
     ) == {
         (USER_URL, f"{ORG_URL}/personal-access-tokens/25381"),
         (SECOND_USER_URL, f"{ORG_URL}/personal-access-tokens/25382"),
-        (USER_URL, f"{ORG_URL}/credential-authorizations/161195"),
+        (USER_URL, CLASSIC_PAT_ID),
     }
     # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
     assert check_rels(
@@ -246,7 +249,7 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
     ) == {
         (f"{ORG_URL}/personal-access-tokens/25381", USER_URL),
         (f"{ORG_URL}/personal-access-tokens/25382", SECOND_USER_URL),
-        (f"{ORG_URL}/credential-authorizations/161195", USER_URL),
+        (CLASSIC_PAT_ID, USER_URL),
     }
     assert check_rels(
         neo4j_session,
@@ -260,3 +263,58 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
         (f"{ORG_URL}/personal-access-tokens/25381", REPO_URL),
         (f"{ORG_URL}/personal-access-tokens/25382", SECOND_REPO_URL),
     }
+
+
+_CREDENTIAL_IDS_BY_ENDPOINT = {
+    "/orgs/simpsoncorp/credential-authorizations": 901,
+    "/orgs/simpsoncorp-labs/credential-authorizations": 902,
+}
+
+
+def _same_classic_pat_in_each_org(token, base_url, endpoint, result_key, **kwargs):
+    if endpoint in _CREDENTIAL_IDS_BY_ENDPOINT:
+        return [
+            {
+                **SAML_CREDENTIAL_AUTHORIZATIONS[0],
+                "credential_id": _CREDENTIAL_IDS_BY_ENDPOINT[endpoint],
+            }
+        ]
+    return []
+
+
+@patch(
+    "cartography.intel.github.personal_access_tokens.fetch_all_rest_api_pages",
+    side_effect=_same_classic_pat_in_each_org,
+)
+def test_classic_pat_authorized_for_two_orgs_is_one_token(mock_pages, neo4j_session):
+    # Arrange
+    _reset_and_seed_graph(neo4j_session)
+    second_org_url = "https://github.com/simpsoncorp-labs"
+    neo4j_session.run("MERGE (:GitHubOrganization {id: $id})", id=second_org_url)
+
+    # Act
+    for organization in (TEST_ORGANIZATION, "simpsoncorp-labs"):
+        cartography.intel.github.personal_access_tokens.sync(
+            neo4j_session,
+            TEST_JOB_PARAMS,
+            FAKE_TOKEN,
+            TEST_GITHUB_URL,
+            organization,
+        )
+
+    # Assert
+    assert check_nodes(neo4j_session, "GitHubClassicPersonalAccessToken", ["id"]) == {
+        (CLASSIC_PAT_ID,),
+    }
+    assert (
+        {
+            (row["org"], row["credential_id"])
+            for row in neo4j_session.run(
+                """
+            MATCH (o:GitHubOrganization)-[r:RESOURCE]->(:GitHubClassicPersonalAccessToken)
+            RETURN o.id AS org, r.credential_id AS credential_id
+            """
+            )
+        }
+        == {(ORG_URL, 901), (second_org_url, 902)}
+    )
