@@ -91,10 +91,15 @@ def build_cleanup_queries(
     # Case 1 [Standard]: the node has a sub resource and scoped cleanup is true => clean up stale nodes
     # of this type, scoped to the sub resource. Continue on to clean up the other_relationships too.
     if node_schema.sub_resource_relationship and node_schema.scoped_cleanup:
-        queries = _build_cleanup_node_and_rel_queries(
-            node_schema,
-            node_schema.sub_resource_relationship,
-            cascade_delete,
+        # Detach first so each delete transaction is bounded by a count of relationships
+        # rather than an unbounded per-node cascade. See _build_cleanup_detach_query().
+        queries = [_build_cleanup_detach_query(node_schema, cascade_delete)]
+        queries.extend(
+            _build_cleanup_node_and_rel_queries(
+                node_schema,
+                node_schema.sub_resource_relationship,
+                cascade_delete,
+            ),
         )
 
     # Case 2: The node has a sub resource but scoped cleanup is false => this does not make sense
@@ -123,7 +128,10 @@ def build_cleanup_queries(
 
     # Case 4: The node has no sub resource and scoped cleanup is false => clean up the stale nodes. Continue on to clean up the other_relationships too.
     else:
-        queries = [_build_cleanup_node_query_unscoped(node_schema)]
+        queries = [
+            _build_cleanup_detach_query(node_schema),
+            _build_cleanup_node_query_unscoped(node_schema),
+        ]
 
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
@@ -259,6 +267,87 @@ def _build_match_statement_for_cleanup(node_schema: CartographyNodeSchema) -> st
         sub_resource_link=sub_resource_link,
         sub_resource_label=sub_resource_label,
         match_sub_res_clause=match_sub_res_clause,
+    )
+
+
+def _build_cleanup_detach_query(
+    node_schema: CartographyNodeSchema,
+    cascade_delete: bool = False,
+) -> str:
+    """
+    Generate a query that deletes a stale node's relationships in bounded batches.
+
+    This function is meant to run immediately before the cleanup node query, which uses
+    ``DETACH DELETE``. Batching that query by node count does not bound its transaction size:
+    ``DETACH DELETE`` also deletes every relationship attached to the node in the same
+    transaction, so one densely connected node can breach ``db.memory.transaction.max``.
+    Deleting the relationships first, in batches counted by relationship, leaves the node delete
+    little to cascade through, so both queries do a bounded amount of work per transaction.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema whose stale nodes'
+            relationships should be deleted.
+        cascade_delete (bool): Whether the node delete also deletes owned children. Defaults
+            to False.
+
+    Returns:
+        str: A Neo4j query that deletes the relationships attached to stale nodes of this
+            type, except the ones the node delete query still needs (see Note).
+
+    Examples:
+        >>> query = _build_cleanup_detach_query(node_schema)
+        >>> print(query)
+        MATCH (n:AWSUser)<-[s:RESOURCE]-(sub:AWSAccount{id: $account_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE NOT (type(r) = 'RESOURCE' AND endNode(r) = n)
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+
+    Note:
+        The node delete query finds stale nodes through their sub resource relationship, so that
+        relationship must survive this pass. It is matched by type and direction rather than by
+        the specific relationship ``s``: a node can have several relationships of that type, and
+        each one is ``s`` in its own row of the cleanup match, so excluding only the row's own
+        ``s`` would protect none of them.
+
+        Relationships of the same type in the opposite direction point to children the node
+        owns. They are deleted here unless ``cascade_delete`` is set, because ``cascade_delete``
+        reaches the children through them. With ``cascade_delete`` those relationships, and each
+        child's own relationships, are still removed in the node delete transaction and are not
+        bounded by this query.
+    """
+    rel_filter_clause = ""
+    sub_resource_rel = node_schema.sub_resource_relationship
+    if sub_resource_rel:
+        if cascade_delete:
+            rel_filter_clause = f"WHERE type(r) <> '{sub_resource_rel.rel_label}'"
+        else:
+            parent_end = (
+                "endNode(r)"
+                if sub_resource_rel.direction == LinkDirection.INWARD
+                else "startNode(r)"
+            )
+            rel_filter_clause = (
+                f"WHERE NOT (type(r) = '{sub_resource_rel.rel_label}' "
+                f"AND {parent_end} = n)"
+            )
+
+    query_template = Template(
+        """
+        $match_statement
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        $rel_filter_clause
+        $delete_clause
+        """,
+    )
+    return query_template.safe_substitute(
+        match_statement=_build_match_statement_for_cleanup(node_schema),
+        rel_filter_clause=rel_filter_clause,
+        delete_clause=_delete_in_batches("r", "DELETE r"),
     )
 
 

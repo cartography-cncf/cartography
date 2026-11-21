@@ -1,12 +1,16 @@
+from dataclasses import dataclass
 from typing import List
 
 import pytest
 
+from cartography.graph.cleanupbuilder import _build_cleanup_detach_query
 from cartography.graph.cleanupbuilder import _build_cleanup_node_and_rel_queries
 from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_resource
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import get_parameters
 from cartography.models.aws.emr import EMRClusterToAWSAccountRel
+from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
+from cartography.models.core.relationships import LinkDirection
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm import (
     FakeEC2InstanceSchema,
@@ -27,6 +31,12 @@ from tests.data.graph.querybuilder.sample_models.invalid_unscoped import (
     InvalidUnscopedNodeSchema,
 )
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
+from tests.data.graph.querybuilder.sample_models.simple_node import (
+    SimpleNodeToSubResourceRel,
+)
+from tests.data.graph.querybuilder.sample_models.simple_node import (
+    SimpleNodeWithSubResourceSchema,
+)
 from tests.unit.cartography.graph.helpers import clean_query_list
 
 
@@ -57,6 +67,76 @@ def test_cleanup_sub_rel():
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
+
+
+def test_build_cleanup_detach_query_keeps_only_parent_link():
+    """
+    Test that the detach query keeps only the link to the sub resource (matched by type and
+    direction), since the node cleanup query needs it to find stale nodes. Same-type
+    relationships in the other direction are children and are deleted.
+    """
+    actual_query = _build_cleanup_detach_query(InterestingAssetSchema())
+    expected_query = """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE NOT (type(r) = 'RELATIONSHIP_LABEL' AND endNode(r) = n)
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """
+    assert clean_query_list([actual_query]) == clean_query_list([expected_query])
+
+
+@dataclass(frozen=True)
+class OutwardSubResourceRel(SimpleNodeToSubResourceRel):
+    """(:SimpleNode)-[:RELATIONSHIP_LABEL]->(:SubResource)"""
+
+    direction: LinkDirection = LinkDirection.OUTWARD
+
+
+@dataclass(frozen=True)
+class OutwardSubResourceSchema(SimpleNodeWithSubResourceSchema):
+    sub_resource_relationship: OutwardSubResourceRel = OutwardSubResourceRel()
+
+
+def test_build_cleanup_detach_query_keeps_parent_link_by_direction():
+    """
+    Test that the parent link is matched by direction: the node is the end of an INWARD sub
+    resource relationship and the start of an OUTWARD one.
+    """
+    inward = clean_query_list(
+        [_build_cleanup_detach_query(SimpleNodeWithSubResourceSchema())]
+    )
+    outward = clean_query_list(
+        [_build_cleanup_detach_query(OutwardSubResourceSchema())]
+    )
+    assert "WHERE NOT (type(r) = 'RELATIONSHIP_LABEL' AND endNode(r) = n)" in inward[0]
+    assert (
+        "WHERE NOT (type(r) = 'RELATIONSHIP_LABEL' AND startNode(r) = n)" in outward[0]
+    )
+
+
+def test_build_cleanup_detach_query_cascade_keeps_every_relationship_of_the_type():
+    """
+    Test that cascade_delete keeps same-type relationships in both directions, since the
+    cascade reaches the children through the ones in the opposite direction.
+    """
+    actual_query = _build_cleanup_detach_query(
+        InterestingAssetSchema(), cascade_delete=True
+    )
+    expected_query = """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """
+    assert clean_query_list([actual_query]) == clean_query_list([expected_query])
 
 
 def test_cleanup_with_selected_rel():
@@ -112,6 +192,16 @@ def test_build_cleanup_queries():
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE NOT (type(r) = 'RELATIONSHIP_LABEL' AND endNode(r) = n)
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """,
+        """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $SCAN_LIMIT_SIZE
         CALL (n) {
             DETACH DELETE n
@@ -140,6 +230,45 @@ def test_build_cleanup_queries():
         WITH r LIMIT $SCAN_LIMIT_SIZE
         CALL (r) {
             DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """,
+    ]
+    assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
+
+
+def test_build_cleanup_queries_aws_inspector_package():
+    """
+    Regression test for the production incident that motivated this module: AWSInspectorPackage
+    cleanup OOM'd (MemoryPoolOutOfMemoryError) because DETACH DELETE's relationship cascade was
+    unbounded for this densely-connected label. Uses the real schema, not a synthetic fixture, to
+    prove the fix applies to the label that actually broke.
+    """
+    actual_queries: list[str] = build_cleanup_queries(AWSInspectorPackageSchema())
+    expected_queries = [
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE NOT (type(r) = 'RESOURCE' AND endNode(r) = n)
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """,
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $SCAN_LIMIT_SIZE
+        CALL (n) {
+            DETACH DELETE n
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """,
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE s.lastupdated <> $UPDATE_TAG
+        WITH s LIMIT $SCAN_LIMIT_SIZE
+        CALL (s) {
+            DELETE s
         } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
         """,
     ]

@@ -106,13 +106,26 @@ def test_cascade_cleanup_with_selected_rel():
 def test_build_cleanup_queries_with_cascade():
     """
     Test that the full set of cleanup queries with cascade_delete=True is correct.
-    The first query should include cascade logic, subsequent rel queries are unchanged.
+    The detach query (queries[0]) excludes every relationship of the sub resource type, in
+    both directions: cascade_delete finds children through relationships of that same type in
+    the opposite direction, so deleting those early would orphan the children.
+    The second query includes cascade logic; subsequent rel queries are unchanged.
     """
     actual_queries: list[str] = build_cleanup_queries(
         InterestingAssetSchema(),
         cascade_delete=True,
     )
     expected_queries = [
+        """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WITH r LIMIT $SCAN_LIMIT_SIZE
+        CALL (r) {
+            DELETE r
+        } IN TRANSACTIONS OF $LIMIT_SIZE ROWS;
+        """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
