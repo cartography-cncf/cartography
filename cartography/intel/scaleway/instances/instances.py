@@ -8,7 +8,7 @@ from scaleway.instance.v1 import Server
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.scaleway.utils import DEFAULT_ZONE
+from cartography.intel.scaleway.utils import list_all_zones
 from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.instance.instance import ScalewayInstanceSchema
 from cartography.util import timeit
@@ -37,7 +37,7 @@ def get(
     org_id: str,
 ) -> list[Server]:
     api = InstanceV1API(client)
-    return api.list_servers_all(organization=org_id, zone=DEFAULT_ZONE)
+    return list_all_zones(api.list_servers_all, organization=org_id)
 
 
 def transform_instances(
