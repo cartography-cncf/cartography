@@ -290,6 +290,9 @@ them against the graph with `cartography-rules run <rule>`:
 | `github_actions_permissive_policy` | With Actions enabled: any action allowed, a write `GITHUB_TOKEN` by default, workflows that can approve pull requests | Actions policy |
 | `github_app_sensitive_permissions` | Active GitHub Apps with write access to code, workflows, secrets, webhooks, runners, members, or administration | Installed GitHub Apps |
 | `github_webhook_insecure_delivery` | Active webhooks without a signing secret, without TLS certificate verification, or over plain HTTP | Organization and repository webhooks |
+| `github_default_branch_protection` | Default branches with no branch protection rule or active ruleset, no required approving review, force pushes allowed, or, where no active ruleset covers the default branch, classic protection that does not apply to administrators | Branch protection rules and rulesets |
+| `github_codeowners_coverage` | Repositories without CODEOWNERS rules, or whose default branch does not require code owner review | CODEOWNERS files, branch protection rules and rulesets |
+| `github_personal_access_token_hygiene` | Unexpired classic PATs with organization access, and PATs without an expiration date | Personal access token inventory |
 
 Unknown values are skipped, so a check that evaluated no assets had nothing to
 test, which does not mean the organization is secure. Grant the matching

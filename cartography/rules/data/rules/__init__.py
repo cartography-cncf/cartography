@@ -260,6 +260,11 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
 )
 from cartography.rules.data.rules.device_security_posture_gaps import device_update_gaps
 from cartography.rules.data.rules.eol_software import eol_software
+from cartography.rules.data.rules.github_posture import github_codeowners_coverage
+from cartography.rules.data.rules.github_posture import github_default_branch_protection
+from cartography.rules.data.rules.github_posture import (
+    github_personal_access_token_hygiene,
+)
 from cartography.rules.data.rules.github_security_configuration import (
     github_actions_permissive_policy,
 )
@@ -402,6 +407,9 @@ RULES = {
     github_actions_permissive_policy.id: github_actions_permissive_policy,
     github_app_sensitive_permissions.id: github_app_sensitive_permissions,
     github_webhook_insecure_delivery.id: github_webhook_insecure_delivery,
+    github_default_branch_protection.id: github_default_branch_protection,
+    github_codeowners_coverage.id: github_codeowners_coverage,
+    github_personal_access_token_hygiene.id: github_personal_access_token_hygiene,
     # Databricks Rules
     databricks_pat_never_expires.id: databricks_pat_never_expires,
     databricks_ip_access_list_allows_all.id: databricks_ip_access_list_allows_all,

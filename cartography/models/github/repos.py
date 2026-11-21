@@ -54,6 +54,20 @@ class GitHubRepositoryNodeProperties(CartographyNodeProperties):
     archived: PropertyRef = PropertyRef(
         "archived", description="Whether the repository is archived."
     )
+    branch_protection_rules_visible: PropertyRef = PropertyRef(
+        "branch_protection_rules_visible",
+        description=(
+            "Whether the sync could read the repository's branch protection rules. "
+            "When false, a missing rule means unknown, not unprotected."
+        ),
+    )
+    rulesets_visible: PropertyRef = PropertyRef(
+        "rulesets_visible",
+        description=(
+            "Whether the sync could read the repository's rulesets. When false, a "
+            "missing ruleset means unknown, not unprotected."
+        ),
+    )
     locked: PropertyRef = PropertyRef(
         "locked", description="Whether the repository is locked."
     )
