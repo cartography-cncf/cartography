@@ -36,9 +36,9 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 
 | Permission | Enables |
 | --- | --- |
-| `organization:read` | Organizations, members, workspaces, service accounts, SSO settings, SCIM tokens, and access policies |
+| `organization:read` | Organizations, members, workspaces, service accounts, SSO settings, SCIM tokens, access policies, and OAuth clients |
 | `organization:read-metadata` | Organization settings and the role catalog |
-| `workspaces:read` | Workspace members, secret key names, resource tags, OAuth clients, and MCP servers |
+| `workspaces:read` | Workspace members, secret key names, resource tags, and MCP servers |
 
 ## Optional Permissions
 
@@ -46,10 +46,13 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 | --- | --- | --- |
 | `organization:pats:read` | The organization-wide personal access token inventory | Cartography logs a warning and skips other members' tokens. |
 | `deployments:read` | Deployments, agents, OAuth providers, and agent credentials | Cartography logs a warning and skips the agent-to-user OAuth graph for that workspace. |
+| `organization:infrastructure:read` | The full data plane listing, including `created_at` | Cartography falls back to the summary listing, which needs only `organization:read`. Data planes keep a `created_at` value from an earlier full sync, and new ones have none. |
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a
-warning for each workspace that it skips.
+warning for each workspace that it skips. Cartography cleans up workspace resources one
+workspace at a time, so a workspace it can't read keeps its existing nodes and every
+other workspace is still cleaned up.
 
 Cartography keeps nodes that the token could read before but can't read now. If you
 narrow the token's access, stale data stays in the graph until you restore access.
@@ -101,13 +104,15 @@ to `--langsmith-host-api-url`.
 
 | Symptom | Cause |
 | --- | --- |
-| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types. |
+| `403 Forbidden` on workspace routes | The token has no role in that workspace. Cartography logs a warning, continues, and skips cleanup for the affected node types in that workspace only. |
 | Timeouts logged for some routes | LangSmith was slow or unreachable. Cartography logs a warning, keeps the existing nodes for those routes, and retries on the next run. |
 | No `LangSmithAgentCredential` nodes | The token lacks `deployments:read`, or no agent has completed an OAuth flow yet. |
 | No `LangSmithApiKey` nodes with `key_type = pat` for other members | The token lacks `organization:pats:read`. |
 | `401 Unauthorized` on every route | The token expired, or LangSmith deactivated the identity that owns it. LangSmith rejects tokens that belong to a deactivated identity. |
 | No custom `LangSmithRole` nodes | Your plan doesn't include custom roles. |
 | Deleted agents stay in the graph | A deployment isn't `READY` or has no URL, so Cartography can't list its agents. Agent cleanup resumes when every deployment serves again or is deleted. |
+| Deleted `LangSmithMcpServer` nodes stay in the graph | LangSmith lists MCP gateways by asking the vendor, such as Arcade, with the syncing user's own connection to it. A service key, or a user who hasn't connected the vendor, can't list them, so Cartography keeps the gateways it already has. |
+| Assistant search returns `401` or `403` for some deployments | The deployment uses custom auth. Cartography sends `x-auth-scheme: langsmith` to ask it to use LangSmith auth instead. A deployment that disables LangSmith (Studio) auth ignores the header and still rejects the token, and agent cleanup is skipped as for any other deployment Cartography can't list. |
 
 ## References
 

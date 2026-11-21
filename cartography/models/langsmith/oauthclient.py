@@ -8,7 +8,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import THIRD_PARTY_APP
 
@@ -80,27 +79,6 @@ class LangSmithOAuthClientToOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class LangSmithOAuthClientToWorkspaceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithWorkspace)-[:CONTAINS]->(:LangSmithOAuthClient)
-class LangSmithOAuthClientToWorkspaceRel(CartographyRelSchema):
-    """Links an OAuth client to the workspace it was registered in."""
-
-    target_node_label: str = "LangSmithWorkspace"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
-    properties: LangSmithOAuthClientToWorkspaceRelProperties = (
-        LangSmithOAuthClientToWorkspaceRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithOAuthClientSchema(CartographyNodeSchema):
     """
     A third-party application registered to call the LangSmith API through OAuth. This is
@@ -117,9 +95,4 @@ class LangSmithOAuthClientSchema(CartographyNodeSchema):
     )
     sub_resource_relationship: LangSmithOAuthClientToOrganizationRel = (
         LangSmithOAuthClientToOrganizationRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            LangSmithOAuthClientToWorkspaceRel(),
-        ],
     )

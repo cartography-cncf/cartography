@@ -1,3 +1,5 @@
+import logging
+from collections import Counter
 from unittest.mock import MagicMock
 
 import pytest
@@ -25,8 +27,10 @@ def _client(gateway_side_effect):
 @pytest.mark.parametrize(
     "first_vendor_error, expected_complete",
     [
-        # Registered but not OAuth-connected: it has no gateways, which is a full answer.
-        (_http_error(400), True),
+        # The syncing user has no connection to the vendor: gateways may still exist.
+        (_http_error(400), False),
+        # LangSmith cannot list gateways for this vendor at all: nothing to list.
+        (_http_error(501), True),
         # The vendor route is not served: also nothing to list.
         (LangSmithFetchError("/mcp-servers", 404, "HTTP 404"), True),
         # Hidden from this credential: gateways may exist, so cleanup must be skipped.
@@ -57,3 +61,23 @@ def test_get_mcp_servers_reraises_other_http_errors():
     # Act and assert
     with pytest.raises(requests.HTTPError):
         get_mcp_servers(client, "org-1", "ws-1")
+
+
+def test_an_unconnected_vendor_is_tallied_not_warned(caplog):
+    # Arrange
+    client = _client([_http_error(400), []])
+    unconnected = Counter()
+
+    # Act
+    with caplog.at_level(logging.DEBUG):
+        _, complete = get_mcp_servers(
+            client, "org-1", "ws-1", unconnected_vendors=unconnected
+        )
+
+    # Assert
+    # Every workspace answers 400 when the syncing user has no Arcade connection. That
+    # is an expected state, so it must not add a warning per workspace, but the gateways
+    # were not read, so cleanup must not treat them as gone.
+    assert complete is False
+    assert unconnected == Counter({"arcade": 1})
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]

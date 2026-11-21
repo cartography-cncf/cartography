@@ -13,6 +13,7 @@ import cartography.intel.langsmith.workspace_resources
 import cartography.intel.langsmith.workspaces
 from cartography.config import Config
 from cartography.intel.langsmith.util import LangSmithClient
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,15 @@ def start_langsmith_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         # policies all point at them.
         cartography.intel.langsmith.roles.sync(
             neo4j_session, client, org_id, org_common_job_parameters
+        )
+
+        # DEPRECATED: moves graphs written by earlier versions onto the workspace
+        # sub-resource; will be removed in v1.0.0. It runs before the workspace sync,
+        # whose cascading cleanup reaches a deleted workspace's nodes through RESOURCE.
+        run_analysis_job(
+            "langsmith_workspace_scope_migration.json",
+            neo4j_session,
+            org_common_job_parameters,
         )
 
         workspaces = cartography.intel.langsmith.workspaces.sync(

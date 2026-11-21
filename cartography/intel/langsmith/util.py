@@ -7,6 +7,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.core.nodes import CartographyNodeSchema
 
@@ -46,13 +47,15 @@ def _build_assistant_session() -> requests.Session:
     """
     Build a session for the read-only assistant search, which is expressed as a POST.
 
-    Throttling and transient 5xx responses are retried, but read timeouts are not: a
-    scaled-to-zero deployment that times out once will time out again, and retrying it
-    would multiply the worst case the tight timeout exists to bound.
+    Throttling and transient 5xx responses are retried, but connect and read timeouts
+    are not: a scaled-to-zero or unreachable deployment that times out once will time out
+    again, and retrying it would multiply the worst case the tight timeout exists to
+    bound. A failed listing only defers agent cleanup, so giving up early is safe.
     """
     session = requests.Session()
     retry_policy = Retry(
         total=3,
+        connect=0,
         read=0,
         backoff_factor=1,
         status_forcelist=_RETRY_STATUSES,
@@ -223,7 +226,7 @@ class LangSmithClient:
         deployment_url: str,
         tenant_id: str,
         page_size: int = 100,
-    ) -> tuple[list[dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """
         List the assistants (agents) served by one deployment.
 
@@ -233,11 +236,13 @@ class LangSmithClient:
 
         Expressed as a POST because /assistants/search is a search; it reads and never
         mutates. The deployment API key check is tenant-scoped, so X-Tenant-Id is required:
-        without it the data plane answers 403 "API key tenant mismatch".
+        without it the data plane answers 403 "Invalid tenant ID".
 
-        Returns the assistants and whether the listing completed. A failure must not be
-        reported as an empty inventory, because callers use that inventory to decide what
-        to delete.
+        Returns the assistants and, when the listing did not complete, a short reason such
+        as ``HTTP 401`` or an exception class name (``None`` means it completed). A failure
+        must not be reported as an empty inventory, because callers use that inventory to
+        decide what to delete. Per-deployment failures are logged at DEBUG; the caller
+        reports them in aggregate, since one organization can have hundreds.
 
         Redirects are refused. The deployment host comes from API data rather than from
         operator configuration, and requests only strips the Authorization header when a
@@ -249,12 +254,20 @@ class LangSmithClient:
                 "Refusing to send credentials to non-HTTPS deployment URL for tenant %s",
                 tenant_id,
             )
-            return [], False
+            return [], "non-HTTPS URL"
 
         assistants: list[dict[str, Any]] = []
         offset = 0
         url = deployment_url.rstrip("/") + "/assistants/search"
-        headers = {"X-Api-Key": self._pat, "X-Tenant-Id": tenant_id}
+        headers = {
+            "X-Api-Key": self._pat,
+            "X-Tenant-Id": tenant_id,
+            # A deployment with custom auth hands every request to the customer's own
+            # handler, which rejects a LangSmith key with 401. This header asks it to
+            # route the key to LangSmith auth instead; deployments that disabled
+            # LangSmith (studio) auth ignore it and still refuse the key.
+            "x-auth-scheme": "langsmith",
+        }
         while True:
             try:
                 response = self._worker_session.post(
@@ -265,31 +278,47 @@ class LangSmithClient:
                     allow_redirects=False,
                 )
             except requests.RequestException as err:
-                logger.warning("Assistant search failed for a deployment: %s", err)
-                return assistants, False
+                logger.debug("Assistant search failed for %s: %s", url, err)
+                return assistants, _request_failure_reason(err)
             if response.is_redirect or response.is_permanent_redirect:
                 logger.warning(
                     "Refusing to follow a redirect from a deployment's assistant search "
                     "(status %s): following it would forward the API key to another host.",
                     response.status_code,
                 )
-                return assistants, False
+                return assistants, "redirect"
             if response.status_code != 200:
-                logger.warning(
-                    "Assistant search returned %s for a deployment",
-                    response.status_code,
+                logger.debug(
+                    "Assistant search returned %s for %s", response.status_code, url
                 )
-                return assistants, False
+                return assistants, f"HTTP {response.status_code}"
             page = response.json()
             if not isinstance(page, list):
                 logger.warning(
                     "Assistant search returned an unexpected shape for a deployment"
                 )
-                return assistants, False
+                return assistants, "unexpected response shape"
             assistants.extend(page)
             if len(page) < page_size:
-                return assistants, True
+                return assistants, None
             offset += len(page)
+
+
+def _request_failure_reason(err: requests.RequestException) -> str:
+    """
+    Name a transport failure by its root cause, without headers or the URL.
+
+    requests wraps exhausted retries in ConnectionError or RetryError, so the class name
+    alone would lump a connect timeout together with repeated 503s.
+    """
+    cause = err.args[0] if err.args else None
+    reason = getattr(cause, "reason", None)
+    if isinstance(reason, Exception):
+        # urllib3's ResponseError means retryable statuses (429/5xx) never cleared.
+        if type(reason).__name__ == "ResponseError":
+            return "repeated 429/5xx"
+        return type(reason).__name__
+    return type(err).__name__
 
 
 def org_scoped_id(org_id: str, raw_id: str | None) -> str | None:
@@ -358,3 +387,52 @@ def cleanup_if_complete(
         )
         return
     GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+
+
+def load_by_workspace(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    rows_by_workspace: dict[str, list[dict[str, Any]]],
+    complete_workspace_ids: set[str],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Load a workspace-scoped schema, then clean it up in each workspace read in full.
+
+    ``rows_by_workspace`` names every workspace that was attempted, with an empty list
+    for one that could not be read, so that skipped cleanups can be reported.
+    The schema's sub-resource is its workspace, so cleanup only ever touches one
+    workspace at a time. A workspace the credential could not read, or read only in
+    part, keeps its existing nodes; every other workspace is cleaned up as usual.
+    """
+    for workspace_id, rows in rows_by_workspace.items():
+        load(
+            neo4j_session,
+            schema,
+            rows,
+            lastupdated=common_job_parameters["UPDATE_TAG"],
+            WORKSPACE_ID=workspace_id,
+        )
+    for workspace_id in sorted(complete_workspace_ids):
+        cleanup_workspace(neo4j_session, schema, workspace_id, common_job_parameters)
+    skipped = set(rows_by_workspace) - complete_workspace_ids
+    if skipped:
+        logger.warning(
+            "Skipping %s cleanup in %d LangSmith workspace(s) that could not be read in "
+            "full (%s); their existing nodes are kept.",
+            schema.label,
+            len(skipped),
+            ", ".join(sorted(skipped)),
+        )
+
+
+def cleanup_workspace(
+    neo4j_session: neo4j.Session,
+    schema: CartographyNodeSchema,
+    workspace_id: str,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """Run a workspace-scoped schema's standard cleanup for one workspace."""
+    GraphJob.from_node_schema(
+        schema, {**common_job_parameters, "WORKSPACE_ID": workspace_id}
+    ).run(neo4j_session)
