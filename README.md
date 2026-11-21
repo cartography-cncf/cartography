@@ -95,7 +95,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 <summary>Click to expand full list of 30+ supported platforms</summary>
 
 - [Airbyte](https://docs.cartography.dev/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
-- [Amazon Web Services](https://docs.cartography.dev/modules/aws/index.html) - ACM, API Gateway, Bedrock, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR (including multi-arch images, image layers, and attestations), EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, SageMaker, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
+- [Amazon Web Services](https://docs.cartography.dev/modules/aws/index.html) - ACM, API Gateway, Bedrock, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR (including multi-arch images, image layers, and attestations), EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue, GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, SageMaker, Secrets Manager (Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
 - [AIBOM](https://docs.cartography.dev/modules/aibom/index.html) - AI component detections linked to ECR images
 - [Anthropic](https://docs.cartography.dev/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://docs.cartography.dev/modules/bigfix/index.html) - Computers
