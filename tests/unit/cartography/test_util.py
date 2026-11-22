@@ -424,6 +424,39 @@ def test_run_typed_analysis_and_ensure_deps(mock_run_typed_analysis_job):
     )
 
 
+@mock.patch.object(cartography.util, "run_typed_analysis_job", return_value=None)
+def test_run_typed_analysis_and_ensure_deps_missing_requirements(
+    mock_run_typed_analysis_job,
+):
+    # Arrange
+    neo4j_session = mock.MagicMock()
+    common_job_parameters = mock.MagicMock()
+    analysis_job = AnalysisJob(
+        name="typed job",
+        statements=(
+            AnalysisStatement(
+                match="MATCH (n:TestNode)",
+                effects=(SetProperty("n", "computed", True, label="TestNode"),),
+            ),
+        ),
+    )
+
+    required_dependencies = {"ec2:instance", "ec2:security_group"}
+    requested_syncs = {"ec2:instance"}
+
+    # Act
+    run_typed_analysis_and_ensure_deps(
+        analysis_job,
+        required_dependencies,
+        requested_syncs,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    # Assert
+    mock_run_typed_analysis_job.assert_not_called()
+
+
 def test_aws_handle_regions_retries_on_response_parser_error(mocker):
     """Test that aws_handle_regions retries on ResponseParserError.
 
