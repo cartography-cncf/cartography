@@ -1,8 +1,10 @@
 import logging
 from copy import deepcopy
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
+import requests
 
 import cartography.intel.github.repos
 import cartography.intel.github.util
@@ -1250,19 +1252,32 @@ def test_transform_includes_branch_protection_rules():
     assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
 
 
+def _with_truncated_branch_protection_rules(repo):
+    repo = deepcopy(repo)
+    repo["branchProtectionRules"]["totalCount"] = 51
+    return repo
+
+
 @pytest.mark.parametrize(
-    "repo,visible",
+    "repo,branch_protection_rules_visible,rulesets_visible",
     [
-        (GET_REPOS[2], True),
+        (GET_REPOS[2], True, True),
         # Without administration access GitHub returns null for both connections.
-        (GET_REPOS[0], False),
+        (GET_REPOS[0], False, False),
+        # A page that left rules out cannot show which rule protects the branch.
+        (_with_truncated_branch_protection_rules(GET_REPOS[2]), False, True),
     ],
 )
-def test_transform_records_whether_protection_was_visible(repo, visible):
+def test_transform_records_whether_protection_was_visible(
+    repo, branch_protection_rules_visible, rulesets_visible
+):
     result = transform([repo], {repo["url"]: []}, {repo["url"]: []})
 
-    assert result["repos"][0]["branch_protection_rules_visible"] is visible
-    assert result["repos"][0]["rulesets_visible"] is visible
+    assert (
+        result["repos"][0]["branch_protection_rules_visible"]
+        is branch_protection_rules_visible
+    )
+    assert result["repos"][0]["rulesets_visible"] is rulesets_visible
 
 
 @pytest.mark.parametrize(
@@ -1423,6 +1438,30 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
         "https://api.github.com",
         params={"includes_parents": "true"},
     )
+
+
+@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
+def test_get_repo_rulesets_by_url_skips_only_the_repo_github_refuses(
+    mock_fetch_all_rest_api_pages,
+):
+    forbidden = requests.exceptions.HTTPError(response=Mock(status_code=403))
+    mock_fetch_all_rest_api_pages.side_effect = [forbidden, [], []]
+
+    result = _get_repo_rulesets_by_url(
+        "token",
+        "https://api.github.com/graphql",
+        "simpsoncorp",
+        [
+            {"name": "locked", "url": "https://github.com/simpsoncorp/locked"},
+            {
+                "name": "open",
+                "url": "https://github.com/simpsoncorp/open",
+                "defaultBranchRef": {"name": "main"},
+            },
+        ],
+    )
+
+    assert set(result) == {"https://github.com/simpsoncorp/open"}
 
 
 def test_transform_rulesets_requires_ruleset_id():
@@ -1807,7 +1846,8 @@ def test_sync_continues_when_privileged_fetch_fails(
     # sync cycle), not from per-org sync(); see GitHubDependencySchema.
     mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once()
-    mock_cleanup_branch_protection_rules.assert_called_once()
+    # The failed fetch returned no rules, so cleaning up would delete them all.
+    mock_cleanup_branch_protection_rules.assert_not_called()
     mock_cleanup_rulesets.assert_not_called()
     mock_migrate_dependency_graph_manifest_label.assert_called_once_with(
         None,

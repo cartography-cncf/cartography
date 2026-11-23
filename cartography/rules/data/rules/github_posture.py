@@ -195,9 +195,10 @@ _codeowners_missing = _default_branch_fact(
     description=(
         "Unarchived repositories with no CODEOWNERS rule on the default branch, "
         "either because there is no CODEOWNERS file in `.github/`, the root or "
-        "`docs/`, or because none of its lines name an owner."
+        "`docs/`, or because none of its lines name an owner. Repositories whose "
+        "CODEOWNERS locations the sync could not read are not evaluated."
     ),
-    evaluated="true",
+    evaluated="n.codeowners_readable = true",
     condition=f"NOT {_HAS_CODEOWNERS}",
     current_value="'No CODEOWNERS rules on ' + n.defaultbranch",
 )

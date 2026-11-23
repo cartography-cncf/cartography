@@ -168,3 +168,28 @@ class DependencyGraphManifestToCodeOwnerRuleMatchLink(CartographyRelSchema):
     properties: DependencyGraphManifestToCodeOwnerRuleRelProperties = (
         DependencyGraphManifestToCodeOwnerRuleRelProperties()
     )
+
+
+@dataclass(frozen=True)
+class GitHubRepositoryCodeOwnersReadNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id", description="GitHub repository URL.")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    codeowners_readable: PropertyRef = PropertyRef(
+        "codeowners_readable",
+        description=(
+            "Whether the CODEOWNERS sync could read every CODEOWNERS location on the "
+            "default branch. When false, a missing CODEOWNERS rule means unknown, not "
+            "absent."
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class GitHubRepositoryCodeOwnersReadSchema(CartographyNodeSchema):
+    """Records on an existing GitHubRepository whether its CODEOWNERS file could be read. The repository sync owns the node and its cleanup."""
+
+    label: str = "GitHubRepository"
+    properties: GitHubRepositoryCodeOwnersReadNodeProperties = (
+        GitHubRepositoryCodeOwnersReadNodeProperties()
+    )
+    sub_resource_relationship: None = None

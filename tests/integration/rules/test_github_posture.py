@@ -5,6 +5,7 @@ from cartography.models.github.branch_protection_rules import (
     GitHubBranchProtectionRuleSchema,
 )
 from cartography.models.github.codeowners import GitHubCodeOwnerRuleSchema
+from cartography.models.github.codeowners import GitHubRepositoryCodeOwnersReadSchema
 from cartography.models.github.repos import GitHubRepositorySchema
 from cartography.models.github.ruleset_rules import GitHubRulesetRuleSchema
 from cartography.models.github.rulesets import GitHubRulesetSchema
@@ -97,6 +98,13 @@ def _load_repository(
                 "rulesets_visible": protection_visible[1],
             }
         ],
+        lastupdated=UPDATE_TAG,
+    )
+    load(
+        neo4j_session,
+        GitHubRepositoryCodeOwnersReadSchema(),
+        # None stands for a CODEOWNERS read that failed.
+        [{"id": REPO_URL, "codeowners_readable": has_codeowners is not None}],
         lastupdated=UPDATE_TAG,
     )
     load(
@@ -297,6 +305,16 @@ def _load_repository(
             {NO_REVIEWS, CODEOWNER_REVIEW},
             ALWAYS_EVALUATED | {CODEOWNER_REVIEW},
             id="update_restriction_blocks_force_pushes",
+        ),
+        pytest.param(
+            [],
+            [],
+            None,
+            False,
+            (True, True),
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            id="codeowners_not_readable",
         ),
         pytest.param([], [], False, True, (True, True), set(), set(), id="archived"),
         pytest.param(
