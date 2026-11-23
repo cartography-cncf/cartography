@@ -46,6 +46,10 @@ class AnalysisStatement:
     only to this statement's write query; generated cleanup statements are
     iterative separately and use AnalysisJob.cleanup_iterationsize.
 
+    batched_transactions commits the effects every iterationsize matched rows
+    instead of in one transaction, for a match whose row count grows with a
+    tenant's findings or assets. It supports AddRelationship effects.
+
     incremental_on names node or relationship variables whose lastupdated value
     must match $UPDATE_TAG during a stock sync run. Each variable must appear as a
     pattern element in match, which carries the freshness gate.
@@ -57,6 +61,7 @@ class AnalysisStatement:
     effects: Sequence[StatementEffect] = ()
     iterative: bool = False
     iterationsize: int = 0
+    batched_transactions: bool = False
     incremental_on: IncrementalTarget | Sequence[IncrementalTarget] | None = None
 
     def __post_init__(self) -> None:

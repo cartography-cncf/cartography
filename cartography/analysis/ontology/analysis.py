@@ -561,6 +561,8 @@ PACKAGE_AFFECTS_ORCA_LINKING = AnalysisJob(
                     target_label="PackageVersion",
                 ),
             ),
+            batched_transactions=True,
+            iterationsize=10000,
         ),
     ),
 )
@@ -579,6 +581,8 @@ PACKAGE_AFFECTS_CROWDSTRIKE_LINKING = AnalysisJob(
                     target_label="PackageVersion",
                 ),
             ),
+            batched_transactions=True,
+            iterationsize=10000,
         ),
     ),
 )
@@ -600,6 +604,8 @@ PACKAGE_DEPLOYED_DEVICE_CROWDSTRIKE = AnalysisJob(
                     target_label="Device",
                 ),
             ),
+            batched_transactions=True,
+            iterationsize=10000,
         ),
     ),
 )

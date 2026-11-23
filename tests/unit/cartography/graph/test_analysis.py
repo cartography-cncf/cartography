@@ -270,6 +270,81 @@ def test_statement_compiles_add_relationship_effect():
     )
 
 
+def test_batched_statement_commits_pending_relationships_in_batches():
+    # Arrange
+    job = AnalysisJob(
+        name="Findings to packages",
+        statements=(
+            AnalysisStatement(
+                match="MATCH (f:Finding)-[:AFFECTS]->(:ScannerPackage)<-[:DETECTED_AS]-(p:Package)",
+                effects=(
+                    AddRelationship(
+                        "f",
+                        "AFFECTS",
+                        "p",
+                        source_label="Finding",
+                        target_label="Package",
+                    ),
+                ),
+                batched_transactions=True,
+                iterationsize=500,
+            ),
+        ),
+    )
+
+    # Act
+    statement = to_graph_job(job).statements[0]
+
+    # Assert
+    assert statement.batched_transactions is True
+    assert statement.parameters["LIMIT_SIZE"] == 500
+    assert clean_query_list([statement.query]) == clean_query_list(
+        [
+            """
+            MATCH (f:Finding)-[:AFFECTS]->(:ScannerPackage)<-[:DETECTED_AS]-(p:Package)
+            WITH f, p
+            WHERE NOT exists((f)-[:AFFECTS {lastupdated: $UPDATE_TAG}]->(p))
+            WITH f, p LIMIT $SCAN_LIMIT_SIZE
+            CALL (f, p) {
+            MERGE (f)-[r:AFFECTS]->(p)
+            ON CREATE SET r.firstseen = timestamp()
+            SET r.lastupdated = $UPDATE_TAG
+            } IN TRANSACTIONS OF $LIMIT_SIZE ROWS
+            """
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("effect", "error"),
+    [
+        (SetProperty("f", "linked", True, label="Finding"), TypeError),
+        (
+            AddRelationship(
+                "f",
+                "AFFECTS",
+                "p",
+                source_label="Finding",
+                target_label="Package",
+                properties={"severity": RawCypher("s.level")},
+            ),
+            ValueError,
+        ),
+    ],
+    ids=["property_effect", "relationship_properties"],
+)
+def test_batched_statement_rejects_effects_it_cannot_carry_into_a_batch(effect, error):
+    statement = AnalysisStatement(
+        match="MATCH (f:Finding)-[:AFFECTS]->(s:ScannerPackage)<-[:DETECTED_AS]-(p:Package)",
+        effects=(effect,),
+        batched_transactions=True,
+        iterationsize=500,
+    )
+
+    with pytest.raises(error, match="batched_transactions"):
+        compile_query(statement)
+
+
 @pytest.mark.parametrize(
     ("match", "gated_match"),
     [
