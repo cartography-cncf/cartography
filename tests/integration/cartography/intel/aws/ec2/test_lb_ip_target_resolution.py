@@ -627,7 +627,7 @@ def _attach_instance(session, name, instance_id):
     session.run(
         """
         MATCH (eni:AWSNetworkInterface {id: $eni})
-        MERGE (i:EC2Instance:AWSEC2Instance {id: $instance})
+        MERGE (i:AWSEC2Instance {id: $instance})
         SET i.instanceid = $instance, i.lastupdated = 1
         MERGE (i)-[r:NETWORK_INTERFACE]->(eni)
         SET r.lastupdated = 1
