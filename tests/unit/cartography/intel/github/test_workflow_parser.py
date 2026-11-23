@@ -336,7 +336,9 @@ def test_enrich_workflow_read_all_permissions():
     assert parsed is not None
 
     workflow: dict = {"id": 1, "name": "Read All"}
-    enriched = enrich_workflow_with_parsed_content(workflow, parsed, "myorg", "myrepo")
+    enriched = enrich_workflow_with_parsed_content(
+        workflow, parsed, "https://github.com/myorg", "myrepo"
+    )
 
     assert enriched["permissions_actions"] == "read"
     assert enriched["permissions_contents"] == "read"
@@ -402,7 +404,11 @@ def test_extract_static_secrets_in_compound_expressions(content, expected):
     assert result == expected
 
 
-def test_compound_secret_refs_reach_workflow_enrichment():
+@pytest.mark.parametrize(
+    "org_url",
+    ["https://github.com/org", "https://ghe.example.com/org"],
+)
+def test_compound_secret_refs_reach_workflow_enrichment(org_url):
     # Arrange
     content = """
 name: Static references
@@ -423,13 +429,13 @@ jobs:
     # Act
     parsed = parse_workflow_yaml(content)
     assert parsed is not None
-    enriched = enrich_workflow_with_parsed_content({"id": 1}, parsed, "org", "repo")
+    enriched = enrich_workflow_with_parsed_content({"id": 1}, parsed, org_url, "repo")
 
     # Assert
     assert parsed.secret_refs == ["BACKUP", "TOKEN"]
     assert set(enriched["secret_ids"]) == {
-        "https://github.com/org/repo/actions/secrets/TOKEN",
-        "https://github.com/org/actions/secrets/TOKEN",
-        "https://github.com/org/repo/actions/secrets/BACKUP",
-        "https://github.com/org/actions/secrets/BACKUP",
+        f"{org_url}/repo/actions/secrets/TOKEN",
+        f"{org_url}/actions/secrets/TOKEN",
+        f"{org_url}/repo/actions/secrets/BACKUP",
+        f"{org_url}/actions/secrets/BACKUP",
     }

@@ -18,7 +18,11 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import _get_rest_api_base_url
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import get_file_content
+from cartography.intel.github.util import github_org_url
+from cartography.intel.github.util import is_github_dotcom_api_url
+from cartography.intel.github.util import UNAVAILABLE_STATUSES
 from cartography.intel.github.workflow_parser import deduplicate_actions
 from cartography.intel.github.workflow_parser import parse_workflow_yaml
 from cartography.intel.github.workflow_parser import ParsedWorkflow
@@ -117,7 +121,19 @@ def get_repo_secrets(
     """
     base_url = _get_rest_api_base_url(api_url)
     endpoint = f"/repos/{organization}/{repo_name}/actions/secrets"
-    return fetch_all_rest_api_pages(token, base_url, endpoint, "secrets")
+    if is_github_dotcom_api_url(api_url):
+        return fetch_all_rest_api_pages(token, base_url, endpoint, "secrets")
+    # GHES answers 500, not 404, when Actions is not enabled on the appliance,
+    # which is its default. Retrying would only stall every repo in the org.
+    secrets = fetch_all_rest_api_pages_or_none(
+        token,
+        base_url,
+        endpoint,
+        "secrets",
+        "repository Actions secrets",
+        unavailable=(*UNAVAILABLE_STATUSES, 500),
+    )
+    return secrets or []
 
 
 @timeit
@@ -181,18 +197,17 @@ def get_env_variables(
 
 def transform_org_secrets(
     secrets: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform organization-level secrets, adding computed fields.
     """
-    org_url = f"https://github.com/{organization}"
     result = []
     for secret in secrets:
         result.append(
             {
                 **secret,
-                "id": f"https://github.com/{organization}/actions/secrets/{secret['name']}",
+                "id": f"{org_url}/actions/secrets/{secret['name']}",
                 "level": "organization",
                 "org_url": org_url,
             }
@@ -202,18 +217,17 @@ def transform_org_secrets(
 
 def transform_org_variables(
     variables: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform organization-level variables, adding computed fields.
     """
-    org_url = f"https://github.com/{organization}"
     result = []
     for var in variables:
         result.append(
             {
                 **var,
-                "id": f"https://github.com/{organization}/actions/variables/{var['name']}",
+                "id": f"{org_url}/actions/variables/{var['name']}",
                 "level": "organization",
                 "org_url": org_url,
             }
@@ -223,13 +237,13 @@ def transform_org_variables(
 
 def transform_workflows(
     workflows: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
     repo_name: str,
 ) -> list[dict[str, Any]]:
     """
     Transform workflows, adding computed fields.
     """
-    repo_url = f"https://github.com/{organization}/{repo_name}"
+    repo_url = f"{org_url}/{repo_name}"
     result = []
     for wf in workflows:
         result.append(
@@ -243,13 +257,13 @@ def transform_workflows(
 
 def transform_environments(
     environments: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
     repo_name: str,
 ) -> list[dict[str, Any]]:
     """
     Transform environments, adding computed fields.
     """
-    repo_url = f"https://github.com/{organization}/{repo_name}"
+    repo_url = f"{org_url}/{repo_name}"
     result = []
     for env in environments:
         result.append(
@@ -263,19 +277,19 @@ def transform_environments(
 
 def transform_repo_secrets(
     secrets: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
     repo_name: str,
 ) -> list[dict[str, Any]]:
     """
     Transform repository-level secrets, adding computed fields.
     """
-    repo_url = f"https://github.com/{organization}/{repo_name}"
+    repo_url = f"{org_url}/{repo_name}"
     result = []
     for secret in secrets:
         result.append(
             {
                 **secret,
-                "id": f"https://github.com/{organization}/{repo_name}/actions/secrets/{secret['name']}",
+                "id": f"{repo_url}/actions/secrets/{secret['name']}",
                 "level": "repository",
                 "repo_url": repo_url,
                 # repo-level secrets don't have visibility
@@ -287,19 +301,19 @@ def transform_repo_secrets(
 
 def transform_repo_variables(
     variables: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
     repo_name: str,
 ) -> list[dict[str, Any]]:
     """
     Transform repository-level variables, adding computed fields.
     """
-    repo_url = f"https://github.com/{organization}/{repo_name}"
+    repo_url = f"{org_url}/{repo_name}"
     result = []
     for var in variables:
         result.append(
             {
                 **var,
-                "id": f"https://github.com/{organization}/{repo_name}/actions/variables/{var['name']}",
+                "id": f"{repo_url}/actions/variables/{var['name']}",
                 "level": "repository",
                 "repo_url": repo_url,
                 # repo-level variables don't have visibility
@@ -311,7 +325,7 @@ def transform_repo_variables(
 
 def transform_env_secrets(
     secrets: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
     repo_name: str,
     env_name: str,
     env_id: int,
@@ -324,7 +338,7 @@ def transform_env_secrets(
         result.append(
             {
                 **secret,
-                "id": f"https://github.com/{organization}/{repo_name}/environments/{env_name}/secrets/{secret['name']}",
+                "id": f"{org_url}/{repo_name}/environments/{env_name}/secrets/{secret['name']}",
                 "level": "environment",
                 "env_id": env_id,
                 # env-level secrets don't have visibility
@@ -336,7 +350,7 @@ def transform_env_secrets(
 
 def transform_env_variables(
     variables: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
     repo_name: str,
     env_name: str,
     env_id: int,
@@ -349,7 +363,7 @@ def transform_env_variables(
         result.append(
             {
                 **var,
-                "id": f"https://github.com/{organization}/{repo_name}/environments/{env_name}/variables/{var['name']}",
+                "id": f"{org_url}/{repo_name}/environments/{env_name}/variables/{var['name']}",
                 "level": "environment",
                 "env_id": env_id,
                 # env-level variables don't have visibility
@@ -391,7 +405,7 @@ def get_workflow_content(
 def enrich_workflow_with_parsed_content(
     workflow: dict[str, Any],
     parsed: ParsedWorkflow | None,
-    organization: str,
+    org_url: str,
     repo_name: str,
 ) -> dict[str, Any]:
     """
@@ -399,7 +413,7 @@ def enrich_workflow_with_parsed_content(
 
     :param workflow: The workflow dict from transform_workflows
     :param parsed: The parsed workflow content, or None if parsing failed
-    :param organization: The organization name
+    :param org_url: The organization URL, as GitHub reports it.
     :param repo_name: The repository name
     :return: Enriched workflow dict with parsed fields
     """
@@ -428,13 +442,9 @@ def enrich_workflow_with_parsed_content(
     secret_ids = []
     for secret_name in parsed.secret_refs:
         # Add repo-level secret ID
-        secret_ids.append(
-            f"https://github.com/{organization}/{repo_name}/actions/secrets/{secret_name}"
-        )
+        secret_ids.append(f"{org_url}/{repo_name}/actions/secrets/{secret_name}")
         # Add org-level secret ID
-        secret_ids.append(
-            f"https://github.com/{organization}/actions/secrets/{secret_name}"
-        )
+        secret_ids.append(f"{org_url}/actions/secrets/{secret_name}")
 
     return {
         **workflow,
@@ -716,11 +726,10 @@ def cleanup_org_level(
 # =============================================================================
 
 
-def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> list[str]:
+def _get_repos_from_graph(neo4j_session: neo4j.Session, org_url: str) -> list[str]:
     """
     Get repository names for an organization from the graph.
     """
-    org_url = f"https://github.com/{organization}"
     query = """
     MATCH (org:GitHubOrganization {id: $org_url})<-[:OWNER]-(repo:GitHubRepository)
     RETURN repo.name
@@ -758,7 +767,7 @@ def sync(
 
     :return: List of all transformed workflows (with repo_url and path) for supply chain sync.
     """
-    org_url = f"https://github.com/{organization}"
+    org_url = github_org_url(github_url, organization)
     update_tag = common_job_parameters["UPDATE_TAG"]
     all_workflows: list[dict[str, Any]] = []
 
@@ -767,18 +776,18 @@ def sync(
 
     org_secrets = get_org_secrets(github_api_key, github_url, organization)
     if org_secrets:
-        transformed_org_secrets = transform_org_secrets(org_secrets, organization)
+        transformed_org_secrets = transform_org_secrets(org_secrets, org_url)
         load_org_secrets(neo4j_session, transformed_org_secrets, update_tag, org_url)
 
     org_variables = get_org_variables(github_api_key, github_url, organization)
     if org_variables:
-        transformed_org_variables = transform_org_variables(org_variables, organization)
+        transformed_org_variables = transform_org_variables(org_variables, org_url)
         load_org_variables(
             neo4j_session, transformed_org_variables, update_tag, org_url
         )
 
     # 2. Get repos from graph and sync repo-level resources
-    repo_names = _get_repos_from_graph(neo4j_session, organization)
+    repo_names = _get_repos_from_graph(neo4j_session, org_url)
     logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
 
     for repo_name in repo_names:
@@ -787,9 +796,7 @@ def sync(
             github_api_key, github_url, organization, repo_name
         )
         if workflows:
-            transformed_workflows = transform_workflows(
-                workflows, organization, repo_name
-            )
+            transformed_workflows = transform_workflows(workflows, org_url, repo_name)
 
             # Fetch and parse workflow content for each workflow
             repo_actions: list[dict[str, Any]] = []
@@ -817,7 +824,7 @@ def sync(
 
                 # Enrich workflow with parsed data
                 enriched_wf = enrich_workflow_with_parsed_content(
-                    wf, parsed, organization, repo_name
+                    wf, parsed, org_url, repo_name
                 )
                 enriched_workflows.append(enriched_wf)
 
@@ -842,7 +849,7 @@ def sync(
         )
         if environments:
             transformed_environments = transform_environments(
-                environments, organization, repo_name
+                environments, org_url, repo_name
             )
             load_environments(
                 neo4j_session, transformed_environments, update_tag, org_url
@@ -854,7 +861,7 @@ def sync(
         )
         if repo_secrets:
             transformed_repo_secrets = transform_repo_secrets(
-                repo_secrets, organization, repo_name
+                repo_secrets, org_url, repo_name
             )
             load_repo_secrets(
                 neo4j_session, transformed_repo_secrets, update_tag, org_url
@@ -866,7 +873,7 @@ def sync(
         )
         if repo_variables:
             transformed_repo_variables = transform_repo_variables(
-                repo_variables, organization, repo_name
+                repo_variables, org_url, repo_name
             )
             load_repo_variables(
                 neo4j_session, transformed_repo_variables, update_tag, org_url
@@ -883,7 +890,7 @@ def sync(
             if env_secrets:
                 transformed_env_secrets = transform_env_secrets(
                     env_secrets,
-                    organization,
+                    org_url,
                     repo_name,
                     env_name,
                     env_id,
@@ -898,7 +905,7 @@ def sync(
             if env_variables:
                 transformed_env_variables = transform_env_variables(
                     env_variables,
-                    organization,
+                    org_url,
                     repo_name,
                     env_name,
                     env_id,

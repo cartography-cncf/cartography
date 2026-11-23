@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_page
+from cartography.intel.github.util import github_org_url
 from cartography.models.github.commits import GitHubUserCommittedToRepoRel
 from cartography.util import timeit
 
@@ -158,6 +159,7 @@ def process_repo_commits_batch(
     :param lookback_days: Number of days to look back for commits.
     :param batch_size: Number of repositories to process in each batch.
     """
+    org_url = github_org_url(api_url, organization)
     # Calculate lookback date based on configured days
     lookback_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
@@ -187,7 +189,7 @@ def process_repo_commits_batch(
                 repo_relationships = transform_single_repo_commits_to_relationships(
                     repo_name,
                     commits,
-                    organization,
+                    org_url,
                 )
                 batch_relationships.extend(repo_relationships)
 
@@ -206,7 +208,7 @@ def process_repo_commits_batch(
             load_github_commit_relationships(
                 neo4j_session,
                 batch_relationships,
-                organization,
+                org_url,
                 update_tag,
             )
 
@@ -217,7 +219,7 @@ def process_repo_commits_batch(
 def transform_single_repo_commits_to_relationships(
     repo_name: str,
     commits: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform commits from a single repository into user-repository relationships.
@@ -225,13 +227,13 @@ def transform_single_repo_commits_to_relationships(
 
     :param repo_name: The repository name.
     :param commits: List of commit data from the repository.
-    :param organization: The Github organization name.
+    :param org_url: The organization URL, as GitHub reports it.
     :return: List of user-repository relationship records for this repo.
     """
     if not commits:
         return []
 
-    repo_url = f"https://github.com/{organization}/{repo_name}"
+    repo_url = f"{org_url}/{repo_name}"
 
     # Count commits and track date ranges per user for this repo
     user_commit_data: dict[str, dict[str, Any]] = {}
@@ -272,13 +274,13 @@ def transform_single_repo_commits_to_relationships(
 
 def transform_commits_to_user_repo_relationships(
     commits_by_repo: dict[str, list[dict[str, Any]]],
-    organization: str,
+    org_url: str,
 ) -> list[dict[str, Any]]:
     """
     Transform commit data into user-repository relationship data.
 
     :param commits_by_repo: Dict mapping repo names to commit lists.
-    :param organization: The Github organization name.
+    :param org_url: The organization URL, as GitHub reports it.
     :return: List of user-repository relationship records.
     """
     logger.debug("Transforming commit data into user-repository relationships")
@@ -287,7 +289,7 @@ def transform_commits_to_user_repo_relationships(
     user_repo_commits: dict[tuple[str, str], list[dict[str, Any]]] = {}
 
     for repo_name, commits in commits_by_repo.items():
-        repo_url = f"https://github.com/{organization}/{repo_name}"
+        repo_url = f"{org_url}/{repo_name}"
 
         for commit in commits:
             # Use author if available, otherwise use committer
@@ -331,7 +333,7 @@ def transform_commits_to_user_repo_relationships(
 def load_github_commit_relationships(
     neo4j_session: neo4j.Session,
     commit_relationships: list[dict[str, Any]],
-    organization: str,
+    org_url: str,
     update_tag: int,
 ) -> None:
     """
@@ -339,7 +341,7 @@ def load_github_commit_relationships(
 
     :param neo4j_session: Neo4j session for database interface.
     :param commit_relationships: List of user-repository relationship records.
-    :param organization: The Github organization name for sub-resource scoping.
+    :param org_url: The organization URL, as GitHub reports it.
     :param update_tag: Timestamp used to determine data freshness.
     """
     if not commit_relationships:
@@ -347,7 +349,6 @@ def load_github_commit_relationships(
         return
 
     # Use organization URL as the sub-resource identifier
-    org_url = f"https://github.com/{organization}"
 
     load_matchlinks(
         neo4j_session,
@@ -362,19 +363,17 @@ def load_github_commit_relationships(
 @timeit
 def cleanup_github_commit_relationships(
     neo4j_session: neo4j.Session,
-    organization: str,
+    org_url: str,
     update_tag: int,
 ) -> None:
     """
     Clean up stale GitHub user-repository commit relationships.
 
     :param neo4j_session: Neo4j session for database interface.
-    :param organization: The Github organization name.
+    :param org_url: The organization URL, as GitHub reports it.
     :param update_tag: Timestamp used to determine data freshness.
     """
     logger.debug("Cleaning up GitHub user-repository commit relationships")
-
-    org_url = f"https://github.com/{organization}"
 
     GraphJob.from_matchlink(
         GitHubUserCommittedToRepoRel(),
@@ -422,6 +421,8 @@ def sync_github_commits(
     )
 
     # Cleanup stale relationships after all batches are processed
-    cleanup_github_commit_relationships(neo4j_session, organization, update_tag)
+    cleanup_github_commit_relationships(
+        neo4j_session, github_org_url(api_url, organization), update_tag
+    )
 
     logger.info("Completed GitHub commits sync")

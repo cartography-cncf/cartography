@@ -29,13 +29,13 @@ def _ensure_test_repos_exist(neo4j_session):
     """Ensure test GitHubRepository nodes exist for relationship testing."""
     neo4j_session.run(
         """
-        MERGE (r1:GitHubRepository {id: "https://github.com/testorg/repo1"})
+        MERGE (r1:GitHubRepository {id: "https://fake.github.net/testorg/repo1"})
         SET r1.name = "repo1", r1.fullname = "testorg/repo1", r1.lastupdated = $update_tag
 
-        MERGE (r2:GitHubRepository {id: "https://github.com/testorg/repo2"})
+        MERGE (r2:GitHubRepository {id: "https://fake.github.net/testorg/repo2"})
         SET r2.name = "repo2", r2.fullname = "testorg/repo2", r2.lastupdated = $update_tag
 
-        MERGE (org:GitHubOrganization {id: "https://github.com/testorg"})
+        MERGE (org:GitHubOrganization {id: "https://fake.github.net/testorg"})
         SET org.username = "testorg", org.lastupdated = $update_tag
     """,
         update_tag=TEST_UPDATE_TAG,
@@ -72,8 +72,8 @@ def test_sync_github_commits(mock_get_commits, neo4j_session):
 
     # Assert - Verify relationships were created using check_rels
     expected_rels = {
-        ("https://github.com/alice", "https://github.com/testorg/repo1"),
-        ("https://github.com/bob", "https://github.com/testorg/repo2"),
+        ("https://github.com/alice", "https://fake.github.net/testorg/repo1"),
+        ("https://github.com/bob", "https://fake.github.net/testorg/repo2"),
     }
 
     actual_rels = check_rels(
@@ -97,8 +97,8 @@ def test_sync_github_commits(mock_get_commits, neo4j_session):
     assert expected_users.issubset(actual_users)
 
     expected_repos = {
-        ("https://github.com/testorg/repo1",),
-        ("https://github.com/testorg/repo2",),
+        ("https://fake.github.net/testorg/repo1",),
+        ("https://fake.github.net/testorg/repo2",),
     }
     actual_repos = check_nodes(neo4j_session, "GitHubRepository", ["id"])
     assert expected_repos.issubset(actual_repos)
