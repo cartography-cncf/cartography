@@ -211,7 +211,8 @@ _codeowners_review_not_required = _default_branch_fact(
         "protection rule nor an active ruleset on the default branch requires "
         "review from code owners, so ownership is advisory."
     ),
-    evaluated=f"{_PROTECTION_VISIBLE} AND {_HAS_CODEOWNERS}",
+    evaluated=f"{_PROTECTION_VISIBLE} AND n.codeowners_readable = true "
+    f"AND {_HAS_CODEOWNERS}",
     condition=f"NOT {_REQUIRES_CODE_OWNER_REVIEW}",
     current_value="'Code owner review not required on ' + n.defaultbranch",
 )

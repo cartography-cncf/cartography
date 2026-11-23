@@ -103,8 +103,14 @@ def _load_repository(
     load(
         neo4j_session,
         GitHubRepositoryCodeOwnersReadSchema(),
-        # None stands for a CODEOWNERS read that failed.
-        [{"id": REPO_URL, "codeowners_readable": has_codeowners is not None}],
+        # None stands for a failed read; "stale" for a failed read that kept the
+        # rules an earlier sync loaded.
+        [
+            {
+                "id": REPO_URL,
+                "codeowners_readable": has_codeowners not in (None, "stale"),
+            }
+        ],
         lastupdated=UPDATE_TAG,
     )
     load(
@@ -317,6 +323,16 @@ def _load_repository(
             {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
             {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
             id="codeowners_not_readable",
+        ),
+        pytest.param(
+            [],
+            [],
+            "stale",
+            False,
+            (True, True),
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            id="codeowners_rules_kept_from_an_earlier_read",
         ),
         pytest.param([], [], False, True, (True, True), set(), set(), id="archived"),
         pytest.param(

@@ -2852,12 +2852,6 @@ def sync(
                 organization,
                 exc_info=True,
             )
-        else:
-            if any(
-                details.get("rulesets") is None
-                for details in privileged_repo_data_by_url.values()
-            ):
-                rulesets_cleanup_safe = False
 
     repos_json, merged_repo_count, missing_privileged_repo_count = (
         _merge_repos_with_privileged_details(repos_json, privileged_repo_data_by_url)
