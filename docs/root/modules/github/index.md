@@ -14,7 +14,9 @@ Personal access token (PAT) inventory depends on APIs that GitHub exposes only
 in specific contexts. Fine-grained PAT inventory requires GitHub App
 authentication and the organization `Personal access tokens: Read` permission.
 Classic PAT metadata is available only through SAML SSO credential
-authorizations for SAML-enabled organizations. Cartography stores token metadata
+authorizations for SAML-enabled organizations, readable by a GitHub App with
+organization `Administration: Read` or by a classic PAT of an organization owner
+with `read:org`. Cartography stores token metadata
 only. It never stores token values, prefixes, or token fragments.
 A classic PAT is identified by GitHub's `authorized_credential_id`, the token's
 own ID, so a token authorized for several organizations is one node with an
