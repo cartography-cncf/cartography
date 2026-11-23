@@ -63,6 +63,10 @@ class GitHubContainerImageNodeProperties(CartographyNodeProperties):
         "source_revision",
         description="Source commit revision extracted from provenance.",
     )
+    source_path_uri: PropertyRef = PropertyRef(
+        "source_path_uri",
+        description="URL of the folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label names a path instead of the repository root.",
+    )
     source_file: PropertyRef = PropertyRef(
         "source_file", description="Source definition file extracted from provenance."
     )

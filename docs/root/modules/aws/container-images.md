@@ -172,6 +172,11 @@ docker build \
   -t "$REPOSITORY_URI:$IMAGE_TAG" .
 ```
 
+A monorepo build can set the source label to the component's folder, for
+example `https://github.com/example-org/monorepo/tree/main/services/api`.
+Cartography stores the repository URL in `source_uri`, so the image still
+links to the repository, and keeps the folder URL in `source_path_uri`.
+
 ### Build provenance from CodeBuild
 
 CodeBuild does not write provenance onto the images it builds: no attestations,

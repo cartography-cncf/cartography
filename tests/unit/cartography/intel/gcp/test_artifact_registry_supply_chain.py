@@ -63,30 +63,35 @@ from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
 
 
 @pytest.mark.parametrize(
-    "source_label, expected_source_uri",
+    "source_label, expected_source_uri, expected_source_path_uri",
     [
-        ("https://github.com/foo/bar.git", "https://github.com/foo/bar"),
+        ("https://github.com/foo/bar.git", "https://github.com/foo/bar", None),
         (
-            "https://github.com/foo/bar/tree/main/services/api",
+            "https://github.com/foo/bar/tree/main/services/api/",
             "https://github.com/foo/bar",
+            "https://github.com/foo/bar/tree/main/services/api",
         ),
         (
             "https://gitlab.example.com/foo/sub/bar/-/tree/main/services/api",
             "https://gitlab.example.com/foo/sub/bar",
+            "https://gitlab.example.com/foo/sub/bar/-/tree/main/services/api",
         ),
         (
             "https://github.com/foo/bar/blob/main/services/api/Dockerfile",
             "https://github.com/foo/bar",
+            "https://github.com/foo/bar/blob/main/services/api/Dockerfile",
         ),
         (
             "https://gitlab.example.com/foo/bar/-/blob/main/Dockerfile",
             "https://gitlab.example.com/foo/bar",
+            "https://gitlab.example.com/foo/bar/-/blob/main/Dockerfile",
         ),
         (
             "https://github.com/foo/bar/tree/main/examples/-/tree/x",
             "https://github.com/foo/bar",
+            "https://github.com/foo/bar/tree/main/examples/-/tree/x",
         ),
-        ("https://github.com/tree/bar", "https://github.com/tree/bar"),
+        ("https://github.com/tree/bar", "https://github.com/tree/bar", None),
     ],
     ids=[
         "dot-git",
@@ -99,7 +104,7 @@ from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
     ],
 )
 def test_extract_provenance_from_oci_config_reads_labels(
-    source_label, expected_source_uri
+    source_label, expected_source_uri, expected_source_path_uri
 ):
     config = {
         "config": {
@@ -113,6 +118,7 @@ def test_extract_provenance_from_oci_config_reads_labels(
     provenance = extract_provenance_from_oci_config(config)
 
     assert provenance["source_uri"] == expected_source_uri
+    assert provenance.get("source_path_uri") == expected_source_path_uri
     assert provenance["source_revision"] == "deadbeef"
 
 

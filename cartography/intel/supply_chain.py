@@ -865,6 +865,21 @@ def normalize_vcs_url(url: str) -> str:
     return normalized
 
 
+def source_path_uri(url: str) -> str | None:
+    """
+    Return the folder or file URL a source label names inside a repository, or
+    None when the label names the repository itself.
+
+    The path is kept as a URL because the ref and the path cannot be told apart
+    from the URL alone: `/tree/release/1.2/api` has either `release` or
+    `release/1.2` as its ref.
+    """
+    stripped = url.strip().rstrip("/")
+    if any(folder_url.match(stripped) for folder_url in _FORGE_FOLDER_URLS):
+        return stripped
+    return None
+
+
 def migrate_source_folder_urls(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
@@ -1073,9 +1088,29 @@ def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     return None
 
 
-# Bump when image-config label provenance learns a new source, so registries re-read
-# the config of images ingested before the change once.
-LABEL_PROVENANCE_VERSION = 1
+# Bump when image-config label provenance learns a new field, so registries re-read
+# the config of images ingested before the change once. Version 1 read the source
+# labels. Version 2 also keeps the folder URL a source label names.
+LABEL_PROVENANCE_VERSION = 2
+_SOURCE_LABELS_READ_VERSION = 1
+
+
+def label_provenance_is_current(
+    version: int | None,
+    source_uri: str | None,
+    source_path_uri: str | None,
+) -> bool:
+    """
+    Whether an image's config labels need no further read. An image without a
+    source that was read at version 1 has no source label, so it has no folder
+    either. An image with a source may have taken it from a folder label that
+    version 1 trimmed, so it is read once more.
+    """
+    version = version or 0
+    if version >= LABEL_PROVENANCE_VERSION or source_path_uri:
+        return True
+    return not source_uri and version >= _SOURCE_LABELS_READ_VERSION
+
 
 # Standard OCI annotation keys for source provenance
 _OCI_SOURCE_LABELS = [
@@ -1111,7 +1146,7 @@ def extract_provenance_from_oci_config(
     BuildKit VCS metadata (vcs.source, vcs.revision).
 
     :param config: The parsed OCI image config JSON
-    :return: Dict with any of: source_uri, source_revision
+    :return: Dict with any of: source_uri, source_path_uri, source_revision
     """
     result: dict[str, str] = {}
 
@@ -1121,6 +1156,9 @@ def extract_provenance_from_oci_config(
         value = labels.get(key)
         if value:
             result["source_uri"] = normalize_vcs_url(value)
+            path_uri = source_path_uri(value)
+            if path_uri:
+                result["source_path_uri"] = path_uri
             break
 
     for key in _OCI_REVISION_LABELS:
