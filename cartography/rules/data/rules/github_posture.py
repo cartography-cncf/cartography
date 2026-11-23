@@ -7,71 +7,20 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-
-def _cypher_string(value: str) -> str:
-    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
-
-
-# Branch protection rules and ruleset ref conditions use fnmatch patterns where
-# `*` stops at `/` and `**` does not. Escape regex metacharacters, then translate
-# the wildcards. `[...]` character classes mean the same in both syntaxes.
-_GLOB_TO_REGEX_STEPS = (
-    *((char, "\\" + char) for char in "\\.+()^$|{}"),
-    ("**", "%GLOBSTAR%"),
-    ("*", "[^/]*"),
-    ("?", "[^/]"),
-    ("%GLOBSTAR%", ".*"),
-)
-_GLOB_TO_REGEX_STEPS_CYPHER = (
-    "["
-    + ", ".join(
-        f"[{_cypher_string(old)}, {_cypher_string(new)}]"
-        for old, new in _GLOB_TO_REGEX_STEPS
-    )
-    + "]"
-)
-
-
-def _glob_regex(pattern_expression: str) -> str:
-    return (
-        f"reduce(regex = {pattern_expression}, step IN glob_steps"
-        " | replace(regex, step[0], step[1]))"
-    )
-
-
 # Binds, for every unarchived repository with a default branch, the classic branch
-# protection rules (`bprs`) and active branch rulesets (`rulesets`) that apply to
-# the default branch, plus the rules of those rulesets (`ruleset_rules`). Rulesets
-# are ingested with `includes_parents`, so organization rulesets that target the
-# repository are linked to it.
-# GitHub applies a single classic rule per branch: one naming the branch exactly
-# wins over wildcard patterns. Among several wildcard rules the oldest wins, and
-# creation order is not ingested, so those are all kept and a check passes when
-# any of them enforces the setting.
-_DEFAULT_BRANCH_CONTROLS = f"""
+# protection rule (`bprs`, at most one) and the active rulesets (`rulesets`) that
+# GitHub reports as applying to the default branch, plus the rules of those
+# rulesets (`ruleset_rules`). GitHub resolves pattern matching, rule precedence
+# and ruleset include and exclude conditions itself, so none of that is
+# reimplemented here.
+_DEFAULT_BRANCH_CONTROLS = """
     MATCH (n:GitHubRepository)
     WHERE coalesce(n.archived, false) = false AND n.defaultbranch IS NOT NULL
-    WITH n, {_GLOB_TO_REGEX_STEPS_CYPHER} AS glob_steps
-    OPTIONAL MATCH (n)-[:HAS_RULE]->(bpr:GitHubBranchProtectionRule)
-    WITH n, glob_steps,
-        [b IN collect(bpr) WHERE n.defaultbranch =~ {_glob_regex("b.pattern")}]
-            AS matching_bprs
-    WITH n, glob_steps, CASE
-        WHEN any(b IN matching_bprs WHERE b.pattern = n.defaultbranch)
-        THEN [b IN matching_bprs WHERE b.pattern = n.defaultbranch]
-        ELSE matching_bprs
-    END AS bprs
-    OPTIONAL MATCH (n)-[:HAS_RULESET]->(rs:GitHubRuleset)
-    WHERE rs.target = 'BRANCH' AND rs.enforcement = 'ACTIVE'
-    WITH n, glob_steps, bprs, collect(rs) AS active_rulesets
-    WITH n, bprs, [r IN active_rulesets WHERE
-        any(p IN coalesce(r.conditions_ref_name_include, []) WHERE
-            p IN ['~ALL', '~DEFAULT_BRANCH']
-            OR 'refs/heads/' + n.defaultbranch =~ {_glob_regex("p")})
-        AND NOT any(p IN coalesce(r.conditions_ref_name_exclude, []) WHERE
-            p = '~DEFAULT_BRANCH'
-            OR 'refs/heads/' + n.defaultbranch =~ {_glob_regex("p")})
-    ] AS rulesets
+    WITH n,
+        [(n)-[:HAS_RULE]->(b:GitHubBranchProtectionRule)
+            WHERE b.protects_default_branch = true | b] AS bprs,
+        [(n)-[h:HAS_RULESET]->(rs:GitHubRuleset)
+            WHERE h.applies_to_default_branch = true | rs] AS rulesets
     WITH n, bprs, rulesets, reduce(
         acc = [], r IN rulesets
         | acc + [(r)-[:CONTAINS_RULE]->(x:GitHubRulesetRule) | x]
@@ -87,7 +36,7 @@ _REQUIRES_REVIEW = """(
 
 _BLOCKS_FORCE_PUSH = """(
     any(b IN bprs WHERE NOT coalesce(b.allows_force_pushes, true))
-    OR any(x IN ruleset_rules WHERE x.type = 'NON_FAST_FORWARD')
+    OR any(x IN ruleset_rules WHERE x.type IN ['NON_FAST_FORWARD', 'UPDATE'])
 )"""
 
 _REQUIRES_CODE_OWNER_REVIEW = """(
@@ -177,8 +126,9 @@ _default_branch_force_push_allowed = _default_branch_fact(
     name="Repositories whose default branch allows force pushes",
     description=(
         "Unarchived repositories where neither a branch protection rule nor an "
-        "active ruleset on the default branch blocks force pushes, so its history "
-        "can be rewritten. Unprotected default branches are included."
+        "active ruleset on the default branch blocks force pushes or all updates, "
+        "so its history can be rewritten. Unprotected default branches are "
+        "included."
     ),
     condition=f"NOT {_BLOCKS_FORCE_PUSH}",
     current_value="'Force pushes allowed on ' + n.defaultbranch",
@@ -188,8 +138,8 @@ _default_branch_admins_not_enforced = _default_branch_fact(
     issue="default_branch_admins_not_enforced",
     name="Repositories whose default branch protection does not apply to admins",
     description=(
-        "Unarchived repositories whose default branch is protected only by classic "
-        "branch protection rules, none of which apply to administrators. Rulesets "
+        "Unarchived repositories whose default branch is protected only by a classic "
+        "branch protection rule that does not apply to administrators. Rulesets "
         "apply to administrators unless they are bypass actors, which Cartography "
         "does not ingest, so repositories with an active ruleset are not evaluated."
     ),

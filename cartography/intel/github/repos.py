@@ -172,6 +172,12 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                     outsideCollaborators: collaborators(first: 100, affiliation: OUTSIDE) {
                         totalCount
                     }
+                    defaultBranchRef {
+                        name
+                        branchProtectionRule {
+                            id
+                        }
+                    }
                     branchProtectionRules(first: 50) {
                         nodes {
                             id
@@ -922,6 +928,38 @@ def _rest_ruleset_cache_key(ruleset: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def _get_default_branch_ruleset_ids(
+    token: str,
+    base_url: str,
+    repo_endpoint: str,
+    default_branch_ref: dict[str, Any] | None,
+) -> list[int]:
+    """
+    Return the IDs of the active rulesets GitHub applies to the default branch.
+
+    GitHub evaluates every ruleset's ref include and exclude conditions itself, so
+    this avoids reimplementing its fnmatch semantics.
+    """
+    default_branch = (default_branch_ref or {}).get("name")
+    if not default_branch:
+        return []
+    branch_rules = fetch_all_rest_api_pages(
+        token,
+        base_url,
+        f"{repo_endpoint}/rules/branches/{quote(default_branch, safe='')}",
+        result_key="",
+        raise_on_status=(403, 404),
+        params={"per_page": 100},
+    )
+    return sorted(
+        {
+            rule["ruleset_id"]
+            for rule in branch_rules
+            if isinstance(rule.get("ruleset_id"), int)
+        }
+    )
+
+
 def _get_repo_rulesets_by_url(
     token: str,
     api_url: str,
@@ -969,6 +1007,18 @@ def _get_repo_rulesets_by_url(
         rulesets_by_url[repo_url] = {
             "nodes": normalized_rulesets,
             "totalCount": len(normalized_rulesets),
+            # With no ruleset in scope there is nothing to apply, so skip the call:
+            # most repositories in large organizations have none.
+            "defaultBranchRulesetIds": (
+                _get_default_branch_ruleset_ids(
+                    token,
+                    base_url,
+                    f"/repos/{owner}/{encoded_repo_name}",
+                    repo.get("defaultBranchRef"),
+                )
+                if normalized_rulesets
+                else []
+            ),
         }
 
     return rulesets_by_url
@@ -1063,6 +1113,9 @@ def get_repo_privileged_details_by_url(
             "directCollaborators": repo.get("directCollaborators"),
             "outsideCollaborators": repo.get("outsideCollaborators"),
             "branchProtectionRules": repo.get("branchProtectionRules"),
+            "defaultBranchProtectionRule": (repo.get("defaultBranchRef") or {}).get(
+                "branchProtectionRule"
+            ),
             "rulesets": rulesets_by_url.get(repo_url),
         }
     return privileged_repo_data
@@ -1097,6 +1150,7 @@ def _merge_repos_with_privileged_details(
             "directCollaborators",
             "outsideCollaborators",
             "branchProtectionRules",
+            "defaultBranchProtectionRule",
             "rulesets",
         ):
             if merged_repo.get(field_name) is None and field_name in privileged_data:
@@ -1281,6 +1335,7 @@ def transform(
             (repo_object.get("branchProtectionRules") or {}).get("nodes", []),
             repo_url,
             transformed_branch_protection_rules,
+            (repo_object.get("defaultBranchProtectionRule") or {}).get("id"),
         )
         rulesets = repo_object.get("rulesets") or {}
         _warn_if_github_connection_truncated(rulesets, "rulesets", repo_url)
@@ -1289,6 +1344,7 @@ def transform(
             repo_url,
             transformed_rulesets,
             transformed_ruleset_rules,
+            set(rulesets.get("defaultBranchRulesetIds") or []),
         )
     results = {
         "repos": transformed_repo_list,
@@ -2049,6 +2105,7 @@ def _transform_branch_protection_rules(
     branch_protection_rules_data: List[Dict[str, Any]],
     repo_url: str,
     out_branch_protection_rules: List[Dict],
+    default_branch_rule_id: Optional[str] = None,
 ) -> None:
     """
     Transforms GitHub branch protection rule data from API format to Cartography format.
@@ -2076,6 +2133,7 @@ def _transform_branch_protection_rules(
                 "requires_strict_status_checks": rule["requiresStrictStatusChecks"],
                 "restricts_pushes": rule["restrictsPushes"],
                 "restricts_review_dismissals": rule["restrictsReviewDismissals"],
+                "protects_default_branch": rule["id"] == default_branch_rule_id,
                 "repo_url": repo_url,
             }
         )
@@ -2086,6 +2144,7 @@ def _transform_rulesets(
     repo_url: str,
     out_rulesets: List[Dict],
     out_rules: List[Dict],
+    default_branch_ruleset_ids: Optional[set[int]] = None,
 ) -> None:
     """
     Transforms GitHub repository ruleset data from API format to Cartography format.
@@ -2135,6 +2194,8 @@ def _transform_rulesets(
                 "conditions_organization_property_exclude": _json_dumps_or_none(
                     organization_property.get("exclude")
                 ),
+                "applies_to_default_branch": ruleset.get("databaseId")
+                in (default_branch_ruleset_ids or set()),
                 "repo_url": repo_url,
             }
         )

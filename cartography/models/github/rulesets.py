@@ -92,6 +92,13 @@ class GitHubRulesetToRepositoryRelProperties(CartographyRelProperties):
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    applies_to_default_branch: PropertyRef = PropertyRef(
+        "applies_to_default_branch",
+        description=(
+            "Whether GitHub reports this active ruleset as applying to the "
+            "repository's default branch."
+        ),
+    )
 
 
 @dataclass(frozen=True)

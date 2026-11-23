@@ -80,6 +80,14 @@ class GitHubBranchProtectionRuleNodeProperties(CartographyNodeProperties):
         "restricts_review_dismissals",
         description="Whether review dismissal is restricted to selected actors.",
     )
+    protects_default_branch: PropertyRef = PropertyRef(
+        "protects_default_branch",
+        description=(
+            "Whether GitHub applies this rule to the repository's default branch. "
+            "GitHub applies one rule per branch, so at most one rule per "
+            "repository is true."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

@@ -1265,6 +1265,26 @@ def test_transform_records_whether_protection_was_visible(repo, visible):
     assert result["repos"][0]["rulesets_visible"] is visible
 
 
+@pytest.mark.parametrize(
+    "default_branch_rule,default_branch_ruleset_ids,applies",
+    [
+        ({"id": "BPR_kwDOAbc123=="}, [5351760], True),
+        (None, [], False),
+    ],
+)
+def test_transform_marks_controls_github_applies_to_the_default_branch(
+    default_branch_rule, default_branch_ruleset_ids, applies
+):
+    repo = deepcopy(GET_REPOS[2])
+    repo["defaultBranchProtectionRule"] = default_branch_rule
+    repo["rulesets"]["defaultBranchRulesetIds"] = default_branch_ruleset_ids
+
+    result = transform([repo], {repo["url"]: []}, {repo["url"]: []})
+
+    assert result["branch_protection_rules"][0]["protects_default_branch"] is applies
+    assert result["rulesets"][0]["applies_to_default_branch"] is applies
+
+
 def test_transform_includes_rulesets():
     """
     Test that the transform function includes rulesets in the output.
@@ -1331,10 +1351,17 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
         {
             "name": "repo-one",
             "url": "https://github.com/simpsoncorp/repo-one",
+            "defaultBranchRef": {"name": "release/v1"},
         },
         {
             "name": "repo-two",
             "url": "https://github.com/simpsoncorp/repo-two",
+            "defaultBranchRef": None,
+        },
+        {
+            "name": "repo-three",
+            "url": "https://github.com/simpsoncorp/repo-three",
+            "defaultBranchRef": {"name": "main"},
         },
     ]
     ruleset_summary = {
@@ -1345,7 +1372,14 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
     }
     mock_fetch_all_rest_api_pages.side_effect = [
         [ruleset_summary],
+        # Rules GitHub applies to repo-one's default branch.
+        [
+            {"type": "deletion", "ruleset_id": 5351760},
+            {"type": "pull_request", "ruleset_id": 5351760},
+        ],
         [ruleset_summary],
+        # repo-three has no rulesets, so its default branch is not queried.
+        [],
     ]
     mock_call_github_rest_api.return_value = REST_RULESET_PRODUCTION
 
@@ -1359,12 +1393,27 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
     assert set(result) == {
         "https://github.com/simpsoncorp/repo-one",
         "https://github.com/simpsoncorp/repo-two",
+        "https://github.com/simpsoncorp/repo-three",
     }
     assert result["https://github.com/simpsoncorp/repo-one"]["totalCount"] == 1
     assert result["https://github.com/simpsoncorp/repo-two"]["nodes"][0]["id"] == (
         "RRS_lACkVXNlcs4AXenizgBRqVA"
     )
-    assert mock_fetch_all_rest_api_pages.call_count == 2
+    assert result["https://github.com/simpsoncorp/repo-one"][
+        "defaultBranchRulesetIds"
+    ] == [5351760]
+    assert (
+        result["https://github.com/simpsoncorp/repo-two"]["defaultBranchRulesetIds"]
+        == []
+    )
+    assert (
+        result["https://github.com/simpsoncorp/repo-three"]["defaultBranchRulesetIds"]
+        == []
+    )
+    assert mock_fetch_all_rest_api_pages.call_count == 4
+    assert mock_fetch_all_rest_api_pages.call_args_list[1].args[2] == (
+        "/repos/simpsoncorp/repo-one/rules/branches/release%2Fv1"
+    )
     assert mock_fetch_all_rest_api_pages.call_args_list[0].args == (
         "token",
         "https://api.github.com",
