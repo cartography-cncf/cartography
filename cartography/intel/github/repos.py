@@ -1007,11 +1007,17 @@ def _get_repo_rulesets_by_url(
         rulesets_by_url[repo_url] = {
             "nodes": normalized_rulesets,
             "totalCount": len(normalized_rulesets),
-            "defaultBranchRulesetIds": _get_default_branch_ruleset_ids(
-                token,
-                base_url,
-                f"/repos/{owner}/{encoded_repo_name}",
-                repo.get("defaultBranchRef"),
+            # With no ruleset in scope there is nothing to apply, so skip the call:
+            # most repositories in large organizations have none.
+            "defaultBranchRulesetIds": (
+                _get_default_branch_ruleset_ids(
+                    token,
+                    base_url,
+                    f"/repos/{owner}/{encoded_repo_name}",
+                    repo.get("defaultBranchRef"),
+                )
+                if normalized_rulesets
+                else []
             ),
         }
 
