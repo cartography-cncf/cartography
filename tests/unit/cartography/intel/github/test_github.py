@@ -23,6 +23,7 @@ from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
+from cartography.intel.github.util import handle_rest_rate_limit_sleep
 from cartography.intel.github.util import is_github_dotcom_api_url
 from cartography.intel.github.util import parse_github_timestamp
 from cartography.intel.github.util import sleep_with_jitter
@@ -780,6 +781,36 @@ def test_handle_rate_limit_sleep(
     mock_requests_get.assert_called_with(
         rate_url, headers={"Authorization": "Bearer my-token"}, timeout=(60, 60)
     )
+
+
+def _not_found() -> Response:
+    response = Response()
+    response.status_code = 404
+    response._content = b'{"message": "Not Found"}'
+    return response
+
+
+@pytest.mark.parametrize(
+    "check_rate_limit,url,rate_limiting_off",
+    [
+        (handle_rate_limit_sleep, "https://ghe.example.com/api/graphql", True),
+        (handle_rest_rate_limit_sleep, "https://ghe.example.com/api/v3", True),
+        (handle_rate_limit_sleep, "https://api.github.com/graphql", False),
+        (handle_rest_rate_limit_sleep, "https://api.github.com", False),
+    ],
+    ids=["ghes-graphql", "ghes-rest", "github-com-graphql", "github-com-rest"],
+)
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.get", return_value=_not_found())
+def test_rate_limit_404_means_rate_limiting_is_off_only_on_ghes(
+    mock_requests_get, mock_sleep, check_rate_limit, url, rate_limiting_off
+):
+    if rate_limiting_off:
+        check_rate_limit("my-token", url)
+        mock_sleep.assert_not_called()
+    else:
+        with pytest.raises(HTTPError):
+            check_rate_limit("my-token", url)
 
 
 @pytest.mark.parametrize("status", [401, 403, 404])
