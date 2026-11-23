@@ -76,7 +76,7 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     )
     source_path_uri: PropertyRef = PropertyRef(
         "source_path_uri",
-        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself.",
+        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself. Cleared when an attestation supplies the source, because the label may name another repository.",
     )
     source_file: PropertyRef = PropertyRef(
         "source_file",
@@ -315,9 +315,10 @@ class GitLabContainerImageProvenanceNodeProperties(CartographyNodeProperties):
         "source_revision",
         description="Source revision extracted from image provenance.",
     )
+    # Attestation rows never carry this key, so loading them clears the property.
     source_path_uri: PropertyRef = PropertyRef(
         "source_path_uri",
-        description="Never set from an attestation, so an attested source clears the folder URL that came from the image's source label. The label may name another repository.",
+        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself. Cleared when an attestation supplies the source, because the label may name another repository.",
     )
     source_file: PropertyRef = PropertyRef(
         "source_file",
