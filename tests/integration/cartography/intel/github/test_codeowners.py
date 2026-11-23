@@ -265,6 +265,9 @@ def test_sync_codeowners_fetch_failure_preserves_existing_rules(
         return_value=CodeOwnersFileFetchResult("CODEOWNERS", content, True),
     ):
         _run_codeowners_sync(neo4j_session, TEST_UPDATE_TAG)
+    assert check_nodes(
+        neo4j_session, "GitHubRepository", ["id", "codeowners_readable"]
+    ) == {(TEST_REPO_URL, True)}
 
     with patch.object(
         cartography.intel.github.codeowners,
@@ -284,6 +287,9 @@ def test_sync_codeowners_fetch_failure_preserves_existing_rules(
     assert {(row["pattern"], row["lastupdated"]) for row in rows} == {
         ("/package.json", TEST_UPDATE_TAG),
     }
+    assert check_nodes(
+        neo4j_session, "GitHubRepository", ["id", "codeowners_readable"]
+    ) == {(TEST_REPO_URL, False)}
 
 
 def test_sync_codeowners_preserves_manifest_matches_when_manifest_fetch_incomplete(

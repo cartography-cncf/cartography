@@ -39,6 +39,18 @@ repository that has a default branch and at least one ruleset. They are stored a
 `GitHubBranchProtectionRule.protects_default_branch` and the
 `applies_to_default_branch` property of `HAS_RULESET`.
 
+When a credential cannot read a repository's branch protection rules or
+rulesets, `branch_protection_rules_visible` or `rulesets_visible` on
+`GitHubRepository` is false, and the default-branch protection facts and
+`codeowners_review_not_required` do not evaluate that repository;
+`codeowners_missing` still does, since it only needs the CODEOWNERS read. A truncated branch protection rule list also counts as not visible.
+If the privileged fetch fails for the whole organization, branch protection rule
+and ruleset cleanup is skipped so previously synced data is kept. Otherwise
+cleanup runs, so a rule removed from a readable repository is not kept alive by
+another repository that is unreadable.
+`codeowners_readable` records whether every CODEOWNERS location on the default
+branch could be read.
+
 GitHub exposes Actions secret metadata but never secret values. Actions variable
 values, by contrast, are returned by the API and stored in plaintext in the
 graph.

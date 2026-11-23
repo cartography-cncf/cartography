@@ -179,6 +179,7 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                         }
                     }
                     branchProtectionRules(first: 50) {
+                        totalCount
                         nodes {
                             id
                             pattern
@@ -981,45 +982,57 @@ def _get_repo_rulesets_by_url(
         repo_url = repo.get("url")
         if not repo_name or not repo_url:
             continue
-        encoded_repo_name = quote(repo_name, safe="")
-        endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
-        ruleset_summaries = fetch_all_rest_api_pages(
-            token,
-            base_url,
-            endpoint,
-            result_key="rulesets",
-            raise_on_status=(403, 404),
-            params={"per_page": 100, "includes_parents": "true"},
-        )
-        normalized_rulesets = []
-        for ruleset_summary in ruleset_summaries:
-            cache_key = _rest_ruleset_cache_key(ruleset_summary)
-            ruleset_detail = ruleset_detail_cache.get(cache_key)
-            if ruleset_detail is None:
-                ruleset_detail = call_github_rest_api(
-                    f"{endpoint}/{ruleset_summary['id']}",
-                    token,
-                    base_url,
-                    params={"includes_parents": "true"},
-                )
-                ruleset_detail_cache[cache_key] = ruleset_detail
-            normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
-        rulesets_by_url[repo_url] = {
-            "nodes": normalized_rulesets,
-            "totalCount": len(normalized_rulesets),
-            # With no ruleset in scope there is nothing to apply, so skip the call:
-            # most repositories in large organizations have none.
-            "defaultBranchRulesetIds": (
-                _get_default_branch_ruleset_ids(
-                    token,
-                    base_url,
-                    f"/repos/{owner}/{encoded_repo_name}",
-                    repo.get("defaultBranchRef"),
-                )
-                if normalized_rulesets
-                else []
-            ),
-        }
+        try:
+            encoded_repo_name = quote(repo_name, safe="")
+            endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
+            ruleset_summaries = fetch_all_rest_api_pages(
+                token,
+                base_url,
+                endpoint,
+                result_key="rulesets",
+                raise_on_status=(403, 404),
+                params={"per_page": 100, "includes_parents": "true"},
+            )
+            normalized_rulesets = []
+            for ruleset_summary in ruleset_summaries:
+                cache_key = _rest_ruleset_cache_key(ruleset_summary)
+                ruleset_detail = ruleset_detail_cache.get(cache_key)
+                if ruleset_detail is None:
+                    ruleset_detail = call_github_rest_api(
+                        f"{endpoint}/{ruleset_summary['id']}",
+                        token,
+                        base_url,
+                        params={"includes_parents": "true"},
+                    )
+                    ruleset_detail_cache[cache_key] = ruleset_detail
+                normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
+            rulesets_by_url[repo_url] = {
+                "nodes": normalized_rulesets,
+                "totalCount": len(normalized_rulesets),
+                # With no ruleset in scope there is nothing to apply, so skip the
+                # call: most repositories in large organizations have none.
+                "defaultBranchRulesetIds": (
+                    _get_default_branch_ruleset_ids(
+                        token,
+                        base_url,
+                        f"/repos/{owner}/{encoded_repo_name}",
+                        repo.get("defaultBranchRef"),
+                    )
+                    if normalized_rulesets
+                    else []
+                ),
+            }
+        except requests.exceptions.HTTPError as err:
+            status = err.response.status_code if err.response is not None else None
+            if status not in (403, 404):
+                raise
+            # One repository the credential cannot read must not discard every
+            # other repository's rulesets; leave this one out so it reads as unknown.
+            logger.warning(
+                "Skipping rulesets for GitHub repo %s due to HTTP %s.",
+                repo_url,
+                status,
+            )
 
     return rulesets_by_url
 
@@ -1331,8 +1344,12 @@ def transform(
             repo_url,
             transformed_dependencies,
         )
+        branch_protection_rules = repo_object.get("branchProtectionRules") or {}
+        _warn_if_github_connection_truncated(
+            branch_protection_rules, "branch protection rules", repo_url
+        )
         _transform_branch_protection_rules(
-            (repo_object.get("branchProtectionRules") or {}).get("nodes", []),
+            branch_protection_rules.get("nodes", []),
             repo_url,
             transformed_branch_protection_rules,
             (repo_object.get("defaultBranchProtectionRule") or {}).get("id"),
@@ -1361,6 +1378,18 @@ def transform(
     }
 
     return results
+
+
+def _connection_complete(connection: Optional[Dict[str, Any]]) -> bool:
+    """
+    Whether a GraphQL connection was readable and returned every node, so a missing
+    node means absent rather than unread or cut off.
+    """
+    if connection is None:
+        return False
+    total_count = connection.get("totalCount")
+    nodes = connection.get("nodes") or []
+    return not isinstance(total_count, int) or len(nodes) >= total_count
 
 
 def _create_default_branch_id(repo_url: str, default_branch_ref_id: str) -> str:
@@ -1434,8 +1463,8 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "locked": input_repo_object["isLocked"],
             # GitHub returns null for these connections, rather than an empty
             # one, when the credential cannot read them.
-            "branch_protection_rules_visible": (
-                input_repo_object.get("branchProtectionRules") is not None
+            "branch_protection_rules_visible": _connection_complete(
+                input_repo_object.get("branchProtectionRules")
             ),
             "rulesets_visible": input_repo_object.get("rulesets") is not None,
             "fork": input_repo_object.get("isFork", False),
@@ -2809,6 +2838,7 @@ def sync(
     base_repo_count = sum(1 for repo in repos_json if repo is not None)
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    branch_protection_cleanup_safe = True
     rulesets_cleanup_safe = True
     if _repos_need_privileged_details(repos_json):
         try:
@@ -2818,12 +2848,13 @@ def sync(
                 organization,
             )
         except (requests.exceptions.RequestException, ValueError):
+            branch_protection_cleanup_safe = False
             rulesets_cleanup_safe = False
             logger.warning(
                 "Failed to fetch privileged GitHub repo details for org %s; "
                 "continuing without collaborator-count, branch-protection, and "
-                "ruleset enrichment. GitHub ruleset cleanup will be skipped to "
-                "preserve previously synced rulesets.",
+                "ruleset enrichment. Branch protection rule and ruleset cleanup "
+                "will be skipped to preserve previously synced data.",
                 organization,
                 exc_info=True,
             )
@@ -2935,7 +2966,16 @@ def sync(
             "GitHub returned incomplete dependency manifest data.",
             organization,
         )
-    cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)
+    if branch_protection_cleanup_safe:
+        cleanup_branch_protection_rules(
+            neo4j_session, common_job_parameters, owner_org_id
+        )
+    else:
+        logger.warning(
+            "Skipping GitHub branch protection rule cleanup for org %s because the "
+            "privileged repo fetch failed.",
+            organization,
+        )
     if rulesets_cleanup_safe:
         cleanup_rulesets(neo4j_session, common_job_parameters, owner_org_id)
     else:

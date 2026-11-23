@@ -5,6 +5,7 @@ from cartography.models.github.branch_protection_rules import (
     GitHubBranchProtectionRuleSchema,
 )
 from cartography.models.github.codeowners import GitHubCodeOwnerRuleSchema
+from cartography.models.github.codeowners import GitHubRepositoryCodeOwnersReadSchema
 from cartography.models.github.repos import GitHubRepositorySchema
 from cartography.models.github.ruleset_rules import GitHubRulesetRuleSchema
 from cartography.models.github.rulesets import GitHubRulesetSchema
@@ -95,6 +96,19 @@ def _load_repository(
                 "archived": archived,
                 "branch_protection_rules_visible": protection_visible[0],
                 "rulesets_visible": protection_visible[1],
+            }
+        ],
+        lastupdated=UPDATE_TAG,
+    )
+    load(
+        neo4j_session,
+        GitHubRepositoryCodeOwnersReadSchema(),
+        # None stands for a failed read; "stale" for a failed read that kept the
+        # rules an earlier sync loaded.
+        [
+            {
+                "id": REPO_URL,
+                "codeowners_readable": has_codeowners not in (None, "stale"),
             }
         ],
         lastupdated=UPDATE_TAG,
@@ -299,6 +313,26 @@ def _load_repository(
             {NO_REVIEWS, CODEOWNER_REVIEW},
             ALWAYS_EVALUATED | {CODEOWNER_REVIEW},
             id="update_restriction_blocks_force_pushes",
+        ),
+        pytest.param(
+            [],
+            [],
+            None,
+            False,
+            (True, True),
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            id="codeowners_not_readable",
+        ),
+        pytest.param(
+            [],
+            [],
+            "stale",
+            False,
+            (True, True),
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            {UNPROTECTED, NO_REVIEWS, FORCE_PUSH},
+            id="codeowners_rules_kept_from_an_earlier_read",
         ),
         pytest.param([], [], False, True, (True, True), set(), set(), id="archived"),
         pytest.param(

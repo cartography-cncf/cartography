@@ -20,6 +20,7 @@ from cartography.models.github.codeowners import (
     DependencyGraphManifestToCodeOwnerRuleMatchLink,
 )
 from cartography.models.github.codeowners import GitHubCodeOwnerRuleSchema
+from cartography.models.github.codeowners import GitHubRepositoryCodeOwnersReadSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -570,6 +571,7 @@ def sync(
     )
 
     all_rules: list[dict[str, Any]] = []
+    read_states: list[dict[str, Any]] = []
     cleanup_safe = True
     owner_targets = build_codeowner_target_lookups(github_users, github_teams)
     for repo in repos:
@@ -578,6 +580,9 @@ def sync(
             github_url,
             repo["repo_url"],
             repo.get("default_branch"),
+        )
+        read_states.append(
+            {"id": repo["repo_url"], "codeowners_readable": fetch_result.cleanup_safe}
         )
         if not fetch_result.cleanup_safe:
             cleanup_safe = False
@@ -598,6 +603,12 @@ def sync(
         )
 
     load_codeowner_rules(neo4j_session, all_rules, update_tag, owner_org_id)
+    load(
+        neo4j_session,
+        GitHubRepositoryCodeOwnersReadSchema(),
+        read_states,
+        lastupdated=update_tag,
+    )
 
     default_branches_by_repo_url = {
         repo["repo_url"]: repo.get("default_branch") for repo in repos
