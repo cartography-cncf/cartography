@@ -264,6 +264,8 @@ def _load_repository(
         ),
         pytest.param(
             [],
+            # The conditions are what GitHub resolved; the rule only reads its
+            # answer. Before that, an excluded ~ALL was counted as protection.
             [
                 _ruleset(["~DEFAULT_BRANCH"], enforcement="EVALUATE", applies=False),
                 _ruleset(["~ALL"], exclude=["refs/heads/main"], applies=False),
@@ -274,7 +276,7 @@ def _load_repository(
             (True, True),
             {UNPROTECTED, NO_REVIEWS, FORCE_PUSH, CODEOWNERS_MISSING},
             ALWAYS_EVALUATED,
-            id="rulesets_not_enforced_or_excluding_default_branch",
+            id="rulesets_github_does_not_apply_to_default_branch",
         ),
         pytest.param(
             [{**STRONG_BRANCH_RULE, "pattern": "m[!x]in"}],
