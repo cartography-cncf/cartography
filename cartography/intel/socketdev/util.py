@@ -20,7 +20,9 @@ def _create_session(api_token: str) -> requests.Session:
         read=3,
         status=3,
         other=0,
-        allowed_methods=["GET"],
+        # Socket's dependency search is a read that takes its query as a POST body,
+        # so retrying it is as safe as retrying a GET.
+        allowed_methods=["GET", "POST"],
         status_forcelist=_RETRY_STATUS_CODES,
         backoff_factor=1,
         raise_on_status=False,
