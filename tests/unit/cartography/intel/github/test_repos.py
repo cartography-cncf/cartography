@@ -1373,6 +1373,11 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
             "url": "https://github.com/simpsoncorp/repo-two",
             "defaultBranchRef": None,
         },
+        {
+            "name": "repo-three",
+            "url": "https://github.com/simpsoncorp/repo-three",
+            "defaultBranchRef": {"name": "main"},
+        },
     ]
     ruleset_summary = {
         "id": 5351760,
@@ -1388,6 +1393,8 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
             {"type": "pull_request", "ruleset_id": 5351760},
         ],
         [ruleset_summary],
+        # repo-three has no rulesets, so its default branch is not queried.
+        [],
     ]
     mock_call_github_rest_api.return_value = REST_RULESET_PRODUCTION
 
@@ -1401,6 +1408,7 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
     assert set(result) == {
         "https://github.com/simpsoncorp/repo-one",
         "https://github.com/simpsoncorp/repo-two",
+        "https://github.com/simpsoncorp/repo-three",
     }
     assert result["https://github.com/simpsoncorp/repo-one"]["totalCount"] == 1
     assert result["https://github.com/simpsoncorp/repo-two"]["nodes"][0]["id"] == (
@@ -1413,7 +1421,11 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
         result["https://github.com/simpsoncorp/repo-two"]["defaultBranchRulesetIds"]
         == []
     )
-    assert mock_fetch_all_rest_api_pages.call_count == 3
+    assert (
+        result["https://github.com/simpsoncorp/repo-three"]["defaultBranchRulesetIds"]
+        == []
+    )
+    assert mock_fetch_all_rest_api_pages.call_count == 4
     assert mock_fetch_all_rest_api_pages.call_args_list[1].args[2] == (
         "/repos/simpsoncorp/repo-one/rules/branches/release%2Fv1"
     )

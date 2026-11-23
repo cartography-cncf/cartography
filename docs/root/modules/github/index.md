@@ -35,7 +35,7 @@ Which branch protection rule and which rulesets govern a repository's default
 branch comes from GitHub rather than from matching patterns in Cartography: the
 GraphQL `defaultBranchRef.branchProtectionRule` field and the REST
 `GET /repos/{owner}/{repo}/rules/branches/{branch}` endpoint, called once per
-repository that has a default branch. They are stored as
+repository that has a default branch and at least one ruleset. They are stored as
 `GitHubBranchProtectionRule.protects_default_branch` and the
 `applies_to_default_branch` property of `HAS_RULESET`.
 
