@@ -14,6 +14,7 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.helpers import batch
+from cartography.intel.supply_chain import SOURCE_LABELS_READ_VERSION
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _NEXT_PAIR_BATCH_SIZE = 10_000
@@ -109,8 +110,8 @@ def get_complete_layer_digests(
     """
     Return digests whose layer closure is complete for the current scope. With
     min_label_provenance_version, an image whose config labels were read at an older
-    version counts as incomplete so its config is read once more, unless it already
-    has a source: labels rank below attestations, so re-reading them cannot help.
+    version counts as incomplete so its config is read once more. The predicate
+    mirrors supply_chain.label_provenance_is_current.
     """
 
     if batch_size <= 0:
@@ -190,8 +191,13 @@ def get_complete_layer_digests(
     if min_label_provenance_version is not None:
         label_provenance_predicate = (
             "AND (coalesce(img.label_provenance_version, 0) "
-            ">= $min_label_provenance_version OR img.source_uri IS NOT NULL)"
+            ">= $min_label_provenance_version "
+            "OR img.source_path_uri IS NOT NULL "
+            "OR (img.source_uri IS NULL "
+            "AND coalesce(img.label_provenance_version, 0) "
+            ">= $source_labels_read_version))"
         )
+        parameters["source_labels_read_version"] = SOURCE_LABELS_READ_VERSION
         parameters["min_label_provenance_version"] = min_label_provenance_version
     predicates = f"""
       AND img.{shape.image_layer_ids_property} IS NOT NULL

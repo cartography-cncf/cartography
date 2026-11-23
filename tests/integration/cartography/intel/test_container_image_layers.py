@@ -20,8 +20,9 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
     [
         (None, {"sha256:0", "sha256:2", "sha256:5", "sha256:7", "sha256:8"}),
         # sha256:5 was enriched before label provenance existed: read it again.
-        # sha256:7 already has a source, which its labels could not outrank.
-        (1, {"sha256:0", "sha256:2", "sha256:7", "sha256:8"}),
+        # sha256:7 has a source, so its label may name a folder: read it again.
+        # sha256:0 has no source label, and sha256:8 already has its folder.
+        (2, {"sha256:0", "sha256:2", "sha256:8"}),
     ],
 )
 def test_get_complete_layer_digests_preserves_completeness_and_scope(
@@ -41,7 +42,8 @@ def test_get_complete_layer_digests_preserves_completeness_and_scope(
         UNWIND $images AS image
         CREATE (project)-[:RESOURCE]->(img:GCPArtifactRegistryImage {
             digest: image.digest, layer_diff_ids: image.layers,
-            label_provenance_version: image.version, source_uri: image.source
+            label_provenance_version: image.version, source_uri: image.source,
+            source_path_uri: image.source_path
         })
         WITH img, image
         OPTIONAL MATCH (layer:GCPArtifactRegistryImageLayer)
@@ -73,6 +75,8 @@ def test_get_complete_layer_digests_preserves_completeness_and_scope(
                 "layers": ["local", "local"],
                 "linked": True,
                 "version": 1,
+                "source": "https://github.com/example/app",
+                "source_path": "https://github.com/example/app/tree/main/api",
             },
             # Every layer edge exists but local has no NEXT edge to unlinked.
             {

@@ -828,6 +828,14 @@ _FORGE_FOLDER_URLS = (
 )
 
 
+def _ssh_to_https(url: str) -> str:
+    ssh_match = re.match(r"git@([^:]+):(.+)", url)
+    if ssh_match:
+        host, path = ssh_match.groups()
+        return f"https://{host}/{path}"
+    return url
+
+
 def normalize_vcs_url(url: str) -> str:
     """
     Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
@@ -844,12 +852,7 @@ def normalize_vcs_url(url: str) -> str:
     :param url: The raw VCS URL from provenance
     :return: Normalized HTTPS URL without .git suffix
     """
-    normalized = url.strip()
-
-    ssh_match = re.match(r"git@([^:]+):(.+)", normalized)
-    if ssh_match:
-        host, path = ssh_match.groups()
-        normalized = f"https://{host}/{path}"
+    normalized = _ssh_to_https(url.strip())
 
     # Monorepo builds often label an image with the component's folder URL.
     for folder_url in _FORGE_FOLDER_URLS:
@@ -863,6 +866,27 @@ def normalize_vcs_url(url: str) -> str:
         normalized = normalized[:-4]
 
     return normalized
+
+
+def source_path_uri(url: str) -> str | None:
+    """
+    Return the branch, folder or file URL a source label names inside a
+    repository, or None when the label is the repository URL itself. The
+    repository part is normalized as in normalize_vcs_url, so the result starts
+    with the image's source_uri.
+
+    The path is kept as a URL because the ref and the path cannot be told apart
+    from the URL alone: `/tree/release/1.2/api` has either `release` or
+    `release/1.2` as its ref. For the same reason a branch root such as
+    `/tree/main` is kept.
+    """
+    https_url = _ssh_to_https(url.strip())
+    for folder_url in _FORGE_FOLDER_URLS:
+        folder_match = folder_url.match(https_url)
+        if folder_match:
+            repo = folder_match.group("repo")
+            return normalize_vcs_url(repo) + https_url[len(repo) :].rstrip("/")
+    return None
 
 
 def migrate_source_folder_urls(
@@ -1073,9 +1097,29 @@ def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     return None
 
 
-# Bump when image-config label provenance learns a new source, so registries re-read
-# the config of images ingested before the change once.
-LABEL_PROVENANCE_VERSION = 1
+# Bump when image-config label provenance learns a new field, so registries re-read
+# the config of images ingested before the change once. Version 1 read the source
+# labels. Version 2 also keeps the folder URL a source label names.
+LABEL_PROVENANCE_VERSION = 2
+SOURCE_LABELS_READ_VERSION = 1
+
+
+def label_provenance_is_current(
+    version: int | None,
+    source_uri: str | None,
+    source_path_uri: str | None,
+) -> bool:
+    """
+    Whether an image's config labels need no further read. An image without a
+    source that was read at version 1 has no source label, so it has no folder
+    either. An image with a source may have taken it from a folder label that
+    version 1 trimmed, so it is read once more.
+    """
+    version = version or 0
+    if version >= LABEL_PROVENANCE_VERSION or source_path_uri:
+        return True
+    return not source_uri and version >= SOURCE_LABELS_READ_VERSION
+
 
 # Standard OCI annotation keys for source provenance
 _OCI_SOURCE_LABELS = [
@@ -1111,7 +1155,7 @@ def extract_provenance_from_oci_config(
     BuildKit VCS metadata (vcs.source, vcs.revision).
 
     :param config: The parsed OCI image config JSON
-    :return: Dict with any of: source_uri, source_revision
+    :return: Dict with any of: source_uri, source_path_uri, source_revision
     """
     result: dict[str, str] = {}
 
@@ -1121,6 +1165,9 @@ def extract_provenance_from_oci_config(
         value = labels.get(key)
         if value:
             result["source_uri"] = normalize_vcs_url(value)
+            path_uri = source_path_uri(value)
+            if path_uri:
+                result["source_path_uri"] = path_uri
             break
 
     for key in _OCI_REVISION_LABELS:

@@ -949,6 +949,17 @@ def test_sync_circleci_label_provenance_links_github_repository(
     assert packaged_from["dockerfile_path"] == "deploy/Dockerfile"
 
 
+@pytest.mark.parametrize(
+    "stale_image_state",
+    [
+        "REMOVE img.label_provenance_version",
+        # Version 1 stored only the repository of a folder label.
+        "SET img.label_provenance_version = 1, "
+        "img.source_uri = 'https://github.com/exampleorg/service', "
+        "img.source_revision = 'abcdef0123456789abcdef0123456789abcdef01'",
+    ],
+    ids=["never-read", "read-before-folder-urls"],
+)
 @patch("cartography.intel.aws.ecr_image_layers.httpx.AsyncClient")
 @patch("cartography.intel.aws.ecr_image_layers.create_aioboto3_client")
 def test_sync_backfills_label_provenance_for_already_enriched_images(
@@ -956,9 +967,10 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
     mock_async_http_client,
     neo4j_session,
     mocker,
+    stale_image_state,
 ):
-    # Arrange: an image ingested before label provenance existed has a complete
-    # layer closure but no source_uri and no label provenance version.
+    # Arrange: an image ingested by an earlier version has a complete layer
+    # closure but its config labels were not read at the current version.
     neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
     mocker.patch.object(
         cartography.intel.aws.ecr,
@@ -1001,9 +1013,7 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
         TEST_UPDATE_TAG,
         job_parameters,
     )
-    neo4j_session.run(
-        "MATCH (img:AWSECRImage) REMOVE img.label_provenance_version"
-    ).consume()
+    neo4j_session.run(f"MATCH (img:AWSECRImage) {stale_image_state}").consume()
     mock_async_http_client.return_value = _FakeAsyncHttpClient(
         test_data.SAMPLE_CONFIG_BLOB_WITH_OCI_LABELS,
     )
@@ -1034,12 +1044,16 @@ def test_sync_backfills_label_provenance_for_already_enriched_images(
         neo4j_session.run(
             """
         MATCH (img:AWSECRImage {type: 'image'})
-        RETURN img.source_uri AS source_uri, img.source_revision AS source_revision
+        RETURN img.source_uri AS source_uri, img.source_path_uri AS source_path_uri,
+               img.source_revision AS source_revision
         """
         ).data()
         == [
             {
                 "source_uri": "https://github.com/exampleorg/service",
+                "source_path_uri": (
+                    "https://github.com/exampleorg/service/tree/main/services/api"
+                ),
                 "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
             },
         ]
@@ -1745,6 +1759,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         return_value={
             test_data.MANIFEST_LIST_AMD64_DIGEST: {
                 "source_uri": "https://github.com/exampleorg/from-labels",
+                "source_path_uri": (
+                    "https://github.com/exampleorg/from-labels/tree/main/api"
+                ),
             },
         },
     )
@@ -1757,10 +1774,14 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         TEST_UPDATE_TAG + 1,
         later_parameters,
     )
+    # The label's folder belongs to another repository, so it is not kept.
     assert (
         test_data.MANIFEST_LIST_AMD64_DIGEST,
         attested_source,
-    ) in check_nodes(neo4j_session, "AWSECRImage", ["digest", "source_uri"])
+        None,
+    ) in check_nodes(
+        neo4j_session, "AWSECRImage", ["digest", "source_uri", "source_path_uri"]
+    )
 
     # The list stays unstamped while a child lacks layers, so it is read again.
     sync_ecr_layers(

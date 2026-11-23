@@ -1559,22 +1559,37 @@ def test_sync_does_not_retry_non_credential_client_error(mocker):
     factory.assert_not_called()
 
 
-def test_label_provenance_backfill_candidates_reads_each_unlabeled_digest_once():
+def test_label_provenance_backfill_candidates_reads_each_stale_digest_once():
+    source = "https://github.com/exampleorg/app"
     skipped_images = [
         {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-a"},
         {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-b"},
-        {"imageDigest": "sha256:has-source", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:source-read-at-v1", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:no-source-read-at-v1", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:has-source-path", "repo_uri": "r.example/app"},
         {"imageDigest": "sha256:already-read", "repo_uri": "r.example/app"},
         {"imageDigest": "sha256:index", "repo_uri": "r.example/app"},
     ]
     existing_properties = {
         "sha256:unread": {"type": "image"},
-        "sha256:has-source": {
+        "sha256:source-read-at-v1": {
             "type": "image",
-            "source_uri": "https://github.com/exampleorg/app",
+            "source_uri": source,
+            "label_provenance_version": 1,
+        },
+        "sha256:no-source-read-at-v1": {
+            "type": "image",
+            "label_provenance_version": 1,
+        },
+        "sha256:has-source-path": {
+            "type": "image",
+            "source_uri": source,
+            "source_path_uri": f"{source}/tree/main/services/api",
+            "label_provenance_version": 1,
         },
         "sha256:already-read": {
             "type": "image",
+            "source_uri": source,
             "label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION,
         },
         "sha256:index": {"type": "manifest_list"},
@@ -1587,6 +1602,7 @@ def test_label_provenance_backfill_candidates_reads_each_unlabeled_digest_once()
 
     assert candidates == [
         {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-a"},
+        {"imageDigest": "sha256:source-read-at-v1", "repo_uri": "r.example/app"},
     ]
 
 

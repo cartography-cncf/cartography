@@ -31,6 +31,7 @@ from cartography.intel.supply_chain import extract_container_parent_image
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
+from cartography.intel.supply_chain import label_provenance_is_current
 from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
 from cartography.models.aws.ecr.image import ECRImageHasLayerRelSchema
 from cartography.models.aws.ecr.image import ECRImageLayerEnrichmentSchema
@@ -656,6 +657,16 @@ async def _diff_ids_for_manifest(
     return {platform: diff_ids}, history_by_diff_id, label_provenance
 
 
+def _drop_foreign_source_path(membership: dict[str, Any]) -> None:
+    """
+    A label's folder URL describes the label's repository. When an attestation or
+    CI label names a different repository as the source, the folder is dropped.
+    """
+    path_uri = membership.get("source_path_uri")
+    if path_uri and not path_uri.startswith(f"{membership.get('source_uri')}/"):
+        membership["source_path_uri"] = None
+
+
 def _apply_provenance_to_membership(
     membership: dict[str, Any],
     provenance: dict[str, Any],
@@ -664,6 +675,7 @@ def _apply_provenance_to_membership(
         "parent_image_uri",
         "parent_image_digest",
         "source_uri",
+        "source_path_uri",
         "source_revision",
         "invocation_uri",
         "invocation_workflow",
@@ -672,6 +684,7 @@ def _apply_provenance_to_membership(
     ):
         if provenance.get(field):
             membership[field] = provenance[field]
+    _drop_foreign_source_path(membership)
     if provenance.get(ATTESTATION_PROVENANCE_FIELD):
         membership["from_attestation"] = True
         membership["confidence"] = "explicit"
@@ -693,8 +706,7 @@ def _read_manifest_lists(
         digest
         for digest, properties in existing_properties.items()
         if properties.get("type") == "manifest_list"
-        and (properties.get("label_provenance_version") or 0)
-        >= LABEL_PROVENANCE_VERSION
+        and properties.get("label_provenance_version")
         and set(properties.get("child_image_digests") or []) <= complete_digests
     }
 
@@ -742,8 +754,7 @@ def _label_provenance_backfill_candidates(
 ) -> list[dict[str, Any]]:
     """
     Pick one repository reference per already-enriched platform image whose config
-    labels have not been read at the current version. Images that already carry a
-    source_uri gain nothing from labels, which rank below attestations and CI labels.
+    labels have not been read at the current version.
     """
     candidates: dict[str, dict[str, Any]] = {}
     for image in skipped_images:
@@ -752,9 +763,11 @@ def _label_provenance_backfill_candidates(
         if (
             digest not in candidates
             and properties.get("type") == "image"
-            and not properties.get("source_uri")
-            and (properties.get("label_provenance_version") or 0)
-            < LABEL_PROVENANCE_VERSION
+            and not label_provenance_is_current(
+                properties.get("label_provenance_version"),
+                properties.get("source_uri"),
+                properties.get("source_path_uri"),
+            )
         ):
             candidates[digest] = image
     return list(candidates.values())
@@ -848,6 +861,9 @@ def load_label_provenance_backfill(
         }
         if not membership.get("source_uri"):
             _apply_provenance_to_membership(membership, provenance)
+        elif provenance.get("source_path_uri"):
+            membership["source_path_uri"] = provenance["source_path_uri"]
+            _drop_foreign_source_path(membership)
         membership["label_provenance_version"] = LABEL_PROVENANCE_VERSION
         memberships.append(membership)
     logger.info(
@@ -1660,6 +1676,7 @@ def sync(
             img.child_image_digests AS child_image_digests,
             img.layer_diff_ids AS layer_diff_ids,
             img.source_uri AS source_uri,
+            img.source_path_uri AS source_path_uri,
             img.source_revision AS source_revision,
             img.source_file AS source_file,
             img.invocation_uri AS invocation_uri,
@@ -1702,6 +1719,7 @@ def sync(
                     "child_image_digests": img_data.get("child_image_digests"),
                     "layer_diff_ids": img_data.get("layer_diff_ids"),
                     "source_uri": img_data.get("source_uri"),
+                    "source_path_uri": img_data.get("source_path_uri"),
                     "source_revision": img_data.get("source_revision"),
                     "source_file": img_data.get("source_file"),
                     "invocation_uri": img_data.get("invocation_uri"),
