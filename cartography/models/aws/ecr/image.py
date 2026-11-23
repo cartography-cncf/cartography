@@ -136,7 +136,7 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     )
     label_provenance_version: PropertyRef = PropertyRef(
         "label_provenance_version",
-        description="Version of the provenance extraction last applied to this digest. Platform images below the current version have their config labels re-read once to backfill `source_uri` and `source_path_uri`. A manifest list is stamped once its children all have layers, and later syncs skip it.",
+        description="Version of the provenance extraction last applied to this digest. Platform images below the current version have their config labels re-read once to backfill `source_uri` and `source_path_uri`. An image read at version 1 that has no `source_uri` has no source label and is not re-read. A manifest list is stamped once its children all have layers, and later syncs skip it.",
     )
     # SLSA Provenance: Build invocation info from CI
     invocation_uri: PropertyRef = PropertyRef(

@@ -791,18 +791,29 @@ def test_sync_container_images_skips_manifest_fetch_on_second_run(
 
 LABEL_SOURCE = "https://gitlab.example.com/myorg/awesome-project"
 ATTESTED_SOURCE = "https://gitlab.example.com/myorg/other-project"
+LABEL_REVISION = "3333333333333333333333333333333333333333"
 
 
 @pytest.mark.parametrize(
-    "attested_source, expected_source, expected_source_path",
+    "attested_source, expected_source, expected_source_path, expected_revision",
     [
-        (None, LABEL_SOURCE, f"{LABEL_SOURCE}/-/tree/main/services/api"),
-        (ATTESTED_SOURCE, ATTESTED_SOURCE, None),
+        (
+            None,
+            LABEL_SOURCE,
+            f"{LABEL_SOURCE}/-/tree/main/services/api",
+            LABEL_REVISION,
+        ),
+        # The label's folder and revision describe the label's repository.
+        (ATTESTED_SOURCE, ATTESTED_SOURCE, None, None),
     ],
     ids=["parent-only-keeps-label-source", "attested-source-clears-label-folder"],
 )
 def test_attestation_and_label_source(
-    neo4j_session, attested_source, expected_source, expected_source_path
+    neo4j_session,
+    attested_source,
+    expected_source,
+    expected_source_path,
+    expected_revision,
 ):
     # Arrange: the image config names a folder of its source through OCI labels.
     # The attestation names a parent image, and in one case another source.
@@ -818,7 +829,7 @@ def test_attestation_and_label_source(
                     "org.opencontainers.image.source": (
                         f"{LABEL_SOURCE}.git/-/tree/main/services/api"
                     ),
-                    "org.opencontainers.image.revision": "3333333333333333333333333333333333333333",
+                    "org.opencontainers.image.revision": LABEL_REVISION,
                 },
             },
         },
@@ -858,6 +869,7 @@ def test_attestation_and_label_source(
         MATCH (img:GitLabContainerImage {digest: $digest})
         RETURN img.source_uri AS source_uri,
                img.source_path_uri AS source_path_uri,
+               img.source_revision AS source_revision,
                img._ont_source_uri AS ont_source_uri
         """,
             digest=digest,
@@ -866,6 +878,7 @@ def test_attestation_and_label_source(
             {
                 "source_uri": expected_source,
                 "source_path_uri": expected_source_path,
+                "source_revision": expected_revision,
                 "ont_source_uri": expected_source,
             },
         ]
