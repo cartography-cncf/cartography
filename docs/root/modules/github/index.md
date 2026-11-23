@@ -21,7 +21,8 @@ own ID, so a token authorized for several organizations is one node with an
 `AUTHORIZED_CREDENTIAL` edge from each organization. Each edge carries that
 organization's `credential_id` (the SAML authorization to revoke),
 `credential_authorized_at` and `credential_accessed_at`. An organization's sync
-removes only its own edge, and the token node is deleted once no organization
+removes only its own edge, and the token node is deleted by the unscoped
+cleanup that runs after all organizations have synced, once no organization
 authorizes it. When GitHub omits `authorized_credential_id`, Cartography falls
 back to the organization-scoped credential authorization ID, so that token is not
 deduplicated across organizations. Fine-grained PATs have a single resource owner

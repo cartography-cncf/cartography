@@ -347,15 +347,30 @@ def cleanup_personal_access_tokens(
             org_url,
             update_tag,
         ).run(neo4j_session)
-    # A classic token is shared by every organization that authorized it, so it is
-    # removed only once no organization's authorization remains.
+
+
+@timeit
+def cleanup_orphaned_classic_personal_access_tokens(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Delete classic tokens that no organization authorizes any more.
+
+    A classic token is shared by every organization that authorized it, so this
+    runs once after all organizations have synced, not inside one organization's
+    sync. A token refreshed in this run is kept even before its authorization edge
+    is loaded, so organizations synced in parallel cannot delete each other's.
+    """
     GraphStatement(
         """
         MATCH (t:GitHubClassicPersonalAccessToken)
         WHERE NOT (t)<-[:AUTHORIZED_CREDENTIAL]-(:GitHubOrganization)
+            AND t.lastupdated <> $UPDATE_TAG
         WITH t LIMIT $LIMIT_SIZE
         DETACH DELETE t;
         """,
+        {"UPDATE_TAG": common_job_parameters["UPDATE_TAG"]},
         iterative=True,
         iterationsize=100,
         parent_job_name="GitHubClassicPersonalAccessToken",
