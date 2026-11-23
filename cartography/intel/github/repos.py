@@ -35,6 +35,7 @@ from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import get_file_content
+from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.intel.github.util import rest_api_base_url
@@ -2927,7 +2928,7 @@ def sync(
             for repo in repo_data["repos"]
             if repo.get("owner_org_id")
         ),
-        f"https://github.com/{organization}",
+        github_org_url(github_url, organization),
     )
     migrate_dependency_graph_manifest_label(neo4j_session, owner_org_id)
     # DEPRECATED: detaches PythonLibrary nodes that the dependency graph loader
