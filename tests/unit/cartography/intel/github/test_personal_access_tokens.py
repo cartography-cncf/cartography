@@ -26,7 +26,6 @@ def test_transform_fine_grained_pat_serializes_metadata_without_token_values():
 
     assert result == {
         "id": "https://github.com/simpsoncorp/personal-access-tokens/25381",
-        "credential_id": None,
         "token_kind": "fine_grained",
         "token_id": 98716,
         "token_name": "cartography-readonly",
@@ -57,7 +56,7 @@ def test_transform_classic_pat_drops_token_fragment():
     )
 
     assert result == {
-        "id": "https://github.com/classic-personal-access-tokens/021cf96732b321e37159005e72d1b32c",
+        "id": "https://github.com/classic-personal-access-tokens/98765",
         "credential_id": 161195,
         "token_kind": "classic",
         "token_id": None,

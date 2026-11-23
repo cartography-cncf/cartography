@@ -16,13 +16,16 @@ authentication and the organization `Personal access tokens: Read` permission.
 Classic PAT metadata is available only through SAML SSO credential
 authorizations for SAML-enabled organizations. Cartography stores token metadata
 only. It never stores token values, prefixes, or token fragments.
-A classic PAT is identified by a hash of its owner and its last eight
-characters, so a token authorized for several organizations is one node with a
-`RESOURCE` edge from each organization. Each edge's `credential_id` is the SAML
-authorization to revoke for that organization. When GitHub omits the owner login
-or the last eight characters, Cartography falls back to the organization-scoped
-credential authorization ID, so that token is not deduplicated across
-organizations.
+A classic PAT is identified by GitHub's `authorized_credential_id`, the token's
+own ID, so a token authorized for several organizations is one node with an
+`AUTHORIZED_CREDENTIAL` edge from each organization. Each edge carries that
+organization's `credential_id` (the SAML authorization to revoke),
+`credential_authorized_at` and `credential_accessed_at`. An organization's sync
+removes only its own edge, and the token node is deleted once no organization
+authorizes it. When GitHub omits `authorized_credential_id`, Cartography falls
+back to the organization-scoped credential authorization ID, so that token is not
+deduplicated across organizations. Fine-grained PATs have a single resource owner
+and keep their `RESOURCE` edge.
 When GitHub returns authorization or availability errors for either inventory
 endpoint, Cartography skips cleanup so previously synced token metadata is
 preserved.

@@ -4,8 +4,15 @@ from datetime import timezone
 import pytest
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.models.github.app_installations import GitHubAppInstallationSchema
 from cartography.models.github.orgs import GitHubOrganizationSchema
+from cartography.models.github.personal_access_tokens import (
+    GitHubClassicPersonalAccessTokenSchema,
+)
+from cartography.models.github.personal_access_tokens import (
+    GitHubOrganizationAuthorizedCredentialMatchLink,
+)
 from cartography.models.github.personal_access_tokens import (
     GitHubPersonalAccessTokenSchema,
 )
@@ -129,22 +136,39 @@ def _load_webhooks(neo4j_session, rows):
 
 def _load_tokens(neo4j_session, rows):
     _load_orgs(neo4j_session, [{}])
+    tokens = [
+        {
+            "id": f"{ORG_URL}/personal-access-tokens/{i}",
+            "token_kind": "fine_grained",
+            "token_name": f"token-{i}",
+            "owner_login": "hjsimpson",
+            "expires_at": datetime(2099, 1, 1, tzinfo=timezone.utc),
+            "org_url": f"{ORG_URL}-0",
+            **row,
+        }
+        for i, row in enumerate(rows)
+    ]
     load(
         neo4j_session,
         GitHubPersonalAccessTokenSchema(),
-        [
-            {
-                "id": f"{ORG_URL}/personal-access-tokens/{i}",
-                "token_kind": "fine_grained",
-                "token_name": f"token-{i}",
-                "owner_login": "hjsimpson",
-                "expires_at": datetime(2099, 1, 1, tzinfo=timezone.utc),
-                **row,
-            }
-            for i, row in enumerate(rows)
-        ],
+        [t for t in tokens if t["token_kind"] == "fine_grained"],
         lastupdated=UPDATE_TAG,
         org_url=f"{ORG_URL}-0",
+    )
+    classic = [t for t in tokens if t["token_kind"] == "classic"]
+    load(
+        neo4j_session,
+        GitHubClassicPersonalAccessTokenSchema(),
+        classic,
+        lastupdated=UPDATE_TAG,
+    )
+    load_matchlinks(
+        neo4j_session,
+        GitHubOrganizationAuthorizedCredentialMatchLink(),
+        [t for t in classic if not t.get("unauthorized")],
+        lastupdated=UPDATE_TAG,
+        _sub_resource_label="GitHubOrganization",
+        _sub_resource_id=f"{ORG_URL}-0",
     )
 
 
@@ -347,7 +371,12 @@ _SAFE_WEBHOOK = {
             "github_personal_access_token_no_expiry",
             _load_tokens,
             {"expires_at": None},
-            [{}, {"token_kind": "classic", "scopes": []}],
+            [
+                {},
+                {"token_kind": "classic", "scopes": []},
+                # No organization authorizes it, so it is not evaluated.
+                {"token_kind": "classic", "expires_at": None, "unauthorized": True},
+            ],
             3,
         ),
     ],
