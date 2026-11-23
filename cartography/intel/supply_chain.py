@@ -828,6 +828,14 @@ _FORGE_FOLDER_URLS = (
 )
 
 
+def _ssh_to_https(url: str) -> str:
+    ssh_match = re.match(r"git@([^:]+):(.+)", url)
+    if ssh_match:
+        host, path = ssh_match.groups()
+        return f"https://{host}/{path}"
+    return url
+
+
 def normalize_vcs_url(url: str) -> str:
     """
     Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
@@ -844,12 +852,7 @@ def normalize_vcs_url(url: str) -> str:
     :param url: The raw VCS URL from provenance
     :return: Normalized HTTPS URL without .git suffix
     """
-    normalized = url.strip()
-
-    ssh_match = re.match(r"git@([^:]+):(.+)", normalized)
-    if ssh_match:
-        host, path = ssh_match.groups()
-        normalized = f"https://{host}/{path}"
+    normalized = _ssh_to_https(url.strip())
 
     # Monorepo builds often label an image with the component's folder URL.
     for folder_url in _FORGE_FOLDER_URLS:
@@ -867,16 +870,22 @@ def normalize_vcs_url(url: str) -> str:
 
 def source_path_uri(url: str) -> str | None:
     """
-    Return the folder or file URL a source label names inside a repository, or
-    None when the label names the repository itself.
+    Return the branch, folder or file URL a source label names inside a
+    repository, or None when the label is the repository URL itself. The
+    repository part is normalized as in normalize_vcs_url, so the result starts
+    with the image's source_uri.
 
     The path is kept as a URL because the ref and the path cannot be told apart
     from the URL alone: `/tree/release/1.2/api` has either `release` or
-    `release/1.2` as its ref.
+    `release/1.2` as its ref. For the same reason a branch root such as
+    `/tree/main` is kept.
     """
-    stripped = url.strip().rstrip("/")
-    if any(folder_url.match(stripped) for folder_url in _FORGE_FOLDER_URLS):
-        return stripped
+    https_url = _ssh_to_https(url.strip())
+    for folder_url in _FORGE_FOLDER_URLS:
+        folder_match = folder_url.match(https_url)
+        if folder_match:
+            repo = folder_match.group("repo")
+            return normalize_vcs_url(repo) + https_url[len(repo) :].rstrip("/")
     return None
 
 
@@ -1092,7 +1101,7 @@ def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
 # the config of images ingested before the change once. Version 1 read the source
 # labels. Version 2 also keeps the folder URL a source label names.
 LABEL_PROVENANCE_VERSION = 2
-_SOURCE_LABELS_READ_VERSION = 1
+SOURCE_LABELS_READ_VERSION = 1
 
 
 def label_provenance_is_current(
@@ -1109,7 +1118,7 @@ def label_provenance_is_current(
     version = version or 0
     if version >= LABEL_PROVENANCE_VERSION or source_path_uri:
         return True
-    return not source_uri and version >= _SOURCE_LABELS_READ_VERSION
+    return not source_uri and version >= SOURCE_LABELS_READ_VERSION
 
 
 # Standard OCI annotation keys for source provenance

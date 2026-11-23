@@ -599,34 +599,38 @@ def test_sync_ghcr_links_image_by_oci_source_label(
     labeled_configs = {
         "sha256:cfg-worker": _with_oci_labels(
             CONFIG_BLOBS_BY_DIGEST["sha256:cfg-worker"],
-            f"{REPO_URL}.git",
+            f"{REPO_URL}.git/tree/main/worker",
             "1111111111111111111111111111111111111111",
         ),
         "sha256:cfg-api-amd64": _with_oci_labels(
             CONFIG_BLOBS_BY_DIGEST["sha256:cfg-api-amd64"],
-            "https://github.com/simpsoncorp/base-images",
+            "https://github.com/simpsoncorp/base-images/tree/main/node",
             "2222222222222222222222222222222222222222",
         ),
     }
     base_images = "https://github.com/simpsoncorp/base-images"
     expected_images = {
+        # The attested source clears the base-image folder its config label names.
         (
             DIGEST_API_LATEST,
             REPO_URL,
+            None,
             REPO_URL,
             "abc123def456abc123def456abc123def4567890",
         ),
-        (DIGEST_API_INDEX, None, None, None),
+        (DIGEST_API_INDEX, None, None, None, None),
         (
             DIGEST_API_AMD64,
             base_images,
+            f"{base_images}/tree/main/node",
             base_images,
             "2222222222222222222222222222222222222222",
         ),
-        (DIGEST_API_ARM64, None, None, None),
+        (DIGEST_API_ARM64, None, None, None, None),
         (
             DIGEST_WORKER,
             REPO_URL,
+            f"{REPO_URL}/tree/main/worker",
             REPO_URL,
             "1111111111111111111111111111111111111111",
         ),
@@ -692,7 +696,13 @@ def test_sync_ghcr_links_image_by_oci_source_label(
         return check_nodes(
             neo4j_session,
             "GitHubContainerImage",
-            ["digest", "source_uri", "_ont_source_uri", "_ont_source_revision"],
+            [
+                "digest",
+                "source_uri",
+                "source_path_uri",
+                "_ont_source_uri",
+                "_ont_source_revision",
+            ],
         )
 
     def packaged_from():

@@ -92,6 +92,21 @@ from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
             "https://github.com/foo/bar/tree/main/examples/-/tree/x",
         ),
         ("https://github.com/tree/bar", "https://github.com/tree/bar", None),
+        (
+            "https://github.com/foo/bar.git/tree/main/services/api",
+            "https://github.com/foo/bar",
+            "https://github.com/foo/bar/tree/main/services/api",
+        ),
+        (
+            "git@github.com:foo/bar/tree/main/services/api",
+            "https://github.com/foo/bar",
+            "https://github.com/foo/bar/tree/main/services/api",
+        ),
+        (
+            "https://github.com/foo/bar/tree/main",
+            "https://github.com/foo/bar",
+            "https://github.com/foo/bar/tree/main",
+        ),
     ],
     ids=[
         "dot-git",
@@ -101,6 +116,9 @@ from tests.data.gcp.artifact_registry import MOCK_SUPPLY_CHAIN_SBOM_URI
         "gitlab-file",
         "github-folder-named-dash",
         "owner-named-tree",
+        "dot-git-folder",
+        "ssh-folder",
+        "branch-root",
     ],
 )
 def test_extract_provenance_from_oci_config_reads_labels(

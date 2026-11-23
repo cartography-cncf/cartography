@@ -128,7 +128,7 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     )
     source_path_uri: PropertyRef = PropertyRef(
         "source_path_uri",
-        description="URL of the folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label names a path instead of the repository root.",
+        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself.",
     )
     source_revision: PropertyRef = PropertyRef(
         "source_revision",
@@ -136,7 +136,7 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     )
     label_provenance_version: PropertyRef = PropertyRef(
         "label_provenance_version",
-        description="Version of the provenance extraction last applied to this digest. Platform images below the current version have their config labels re-read once to backfill `source_uri` and `source_path_uri`. Manifest lists below it are read again; a list is stamped once its children all have layers, and later syncs skip it.",
+        description="Version of the provenance extraction last applied to this digest. Platform images below the current version have their config labels re-read once to backfill `source_uri` and `source_path_uri`. A manifest list is stamped once its children all have layers, and later syncs skip it.",
     )
     # SLSA Provenance: Build invocation info from CI
     invocation_uri: PropertyRef = PropertyRef(

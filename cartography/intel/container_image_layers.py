@@ -14,6 +14,7 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.helpers import batch
+from cartography.intel.supply_chain import SOURCE_LABELS_READ_VERSION
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _NEXT_PAIR_BATCH_SIZE = 10_000
@@ -193,8 +194,10 @@ def get_complete_layer_digests(
             ">= $min_label_provenance_version "
             "OR img.source_path_uri IS NOT NULL "
             "OR (img.source_uri IS NULL "
-            "AND coalesce(img.label_provenance_version, 0) >= 1))"
+            "AND coalesce(img.label_provenance_version, 0) "
+            ">= $source_labels_read_version))"
         )
+        parameters["source_labels_read_version"] = SOURCE_LABELS_READ_VERSION
         parameters["min_label_provenance_version"] = min_label_provenance_version
     predicates = f"""
       AND img.{shape.image_layer_ids_property} IS NOT NULL

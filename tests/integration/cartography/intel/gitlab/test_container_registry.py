@@ -4,6 +4,8 @@ import base64
 import json
 from unittest.mock import patch
 
+import pytest
+
 from cartography.intel.gitlab.container_image_attestations import (
     AttestationDiscoverySummary,
 )
@@ -787,9 +789,23 @@ def test_sync_container_images_skips_manifest_fetch_on_second_run(
     ) == {(TEST_ORG_ID, DEDUP_IMAGE_DIGEST)}
 
 
-def test_parent_only_attestation_keeps_label_source(neo4j_session):
-    # Arrange: the image config names its source through OCI labels, and the only
-    # attestation names a parent image but no source.
+LABEL_SOURCE = "https://gitlab.example.com/myorg/awesome-project"
+ATTESTED_SOURCE = "https://gitlab.example.com/myorg/other-project"
+
+
+@pytest.mark.parametrize(
+    "attested_source, expected_source, expected_source_path",
+    [
+        (None, LABEL_SOURCE, f"{LABEL_SOURCE}/-/tree/main/services/api"),
+        (ATTESTED_SOURCE, ATTESTED_SOURCE, None),
+    ],
+    ids=["parent-only-keeps-label-source", "attested-source-clears-label-folder"],
+)
+def test_attestation_and_label_source(
+    neo4j_session, attested_source, expected_source, expected_source_path
+):
+    # Arrange: the image config names a folder of its source through OCI labels.
+    # The attestation names a parent image, and in one case another source.
     neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
     _create_test_org(neo4j_session)
     _create_test_parent_image(neo4j_session)
@@ -799,7 +815,9 @@ def test_parent_only_attestation_keeps_label_source(neo4j_session):
             **GET_CONTAINER_IMAGES_RESPONSE[0]["_config"],
             "config": {
                 "Labels": {
-                    "org.opencontainers.image.source": "https://gitlab.example.com/myorg/awesome-project.git",
+                    "org.opencontainers.image.source": (
+                        f"{LABEL_SOURCE}.git/-/tree/main/services/api"
+                    ),
                     "org.opencontainers.image.revision": "3333333333333333333333333333333333333333",
                 },
             },
@@ -823,6 +841,7 @@ def test_parent_only_attestation_keeps_label_source(neo4j_session):
         [
             {
                 "digest": digest,
+                "source_uri": attested_source,
                 "parent_image_uri": "registry.gitlab.example.com/myorg/base:1",
                 "parent_image_digest": parent_digest,
                 "from_attestation": True,
@@ -838,16 +857,16 @@ def test_parent_only_attestation_keeps_label_source(neo4j_session):
             """
         MATCH (img:GitLabContainerImage {digest: $digest})
         RETURN img.source_uri AS source_uri,
-               img.source_revision AS source_revision,
+               img.source_path_uri AS source_path_uri,
                img._ont_source_uri AS ont_source_uri
         """,
             digest=digest,
         ).data()
         == [
             {
-                "source_uri": "https://gitlab.example.com/myorg/awesome-project",
-                "source_revision": "3333333333333333333333333333333333333333",
-                "ont_source_uri": "https://gitlab.example.com/myorg/awesome-project",
+                "source_uri": expected_source,
+                "source_path_uri": expected_source_path,
+                "ont_source_uri": expected_source,
             },
         ]
     )
