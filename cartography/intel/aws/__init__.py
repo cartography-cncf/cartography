@@ -205,7 +205,14 @@ def _sync_one_account(
     for func_name in RESOURCE_FUNCTIONS:
         if func_name not in requested_syncs_set:
             continue
-        if func_name in AIOBOTO3_RESOURCE_FUNCTIONS and aioboto3_session is None:
+        if func_name in AIOBOTO3_RESOURCE_FUNCTIONS and (
+            aioboto3_session_factory is not None or aioboto3_session is None
+        ):
+            # Each of these syncs runs its own event loop, and a session's
+            # refreshable credentials hold an asyncio.Lock that binds to the first
+            # loop whose tasks contend for it. A session reused by a later sync
+            # fails its next concurrent credential refresh with "bound to a
+            # different event loop".
             aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
             aioboto3_session = aioboto3_session_factory()
 
