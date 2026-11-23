@@ -1,4 +1,7 @@
+from unittest.mock import Mock
 from unittest.mock import patch
+
+import requests
 
 import cartography.intel.github.personal_access_tokens
 from tests.data.github.personal_access_tokens import FINE_GRAINED_PAT_REPOSITORIES
@@ -274,9 +277,13 @@ def test_sync_github_personal_access_tokens(mock_pages, neo4j_session):
 _CREDENTIAL_IDS_BY_ORG = {"simpsoncorp": 901, "simpsoncorp-labs": 902}
 
 
-def _sync_orgs_authorizing_classic_pat(neo4j_session, update_tag, orgs, authorizing):
+def _sync_orgs_authorizing_classic_pat(
+    neo4j_session, update_tag, orgs, authorizing, forbidden=()
+):
     def _pages(token, base_url, endpoint, result_key, **kwargs):
         org = endpoint.split("/")[2]
+        if endpoint.endswith("/credential-authorizations") and org in forbidden:
+            raise requests.exceptions.HTTPError(response=Mock(status_code=403))
         if endpoint.endswith("/credential-authorizations") and org in authorizing:
             return [
                 {
@@ -339,8 +346,15 @@ def test_classic_pat_shared_by_two_orgs_survives_until_the_last_authorization_go
     )
     assert _classic_pat_authorizations(neo4j_session) == {(second_org_url, 902)}
 
+    # Act and assert: GitHub refuses the second organization's inventory, which
+    # is unknown rather than empty.
+    _sync_orgs_authorizing_classic_pat(
+        neo4j_session, 3, ["simpsoncorp-labs"], set(), forbidden={"simpsoncorp-labs"}
+    )
+    assert _classic_pat_authorizations(neo4j_session) == {(second_org_url, 902)}
+
     # Act and assert: the second organization revokes it too.
-    _sync_orgs_authorizing_classic_pat(neo4j_session, 3, ["simpsoncorp-labs"], set())
+    _sync_orgs_authorizing_classic_pat(neo4j_session, 4, ["simpsoncorp-labs"], set())
     assert (
         check_nodes(neo4j_session, "GitHubClassicPersonalAccessToken", ["id"]) == set()
     )

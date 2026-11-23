@@ -28,7 +28,8 @@ class GitHubPersonalAccessTokenNodeProperties(CartographyNodeProperties):
             "access grant, since a fine-grained PAT has a single resource owner. "
             "Classic PATs are keyed by GitHub's `authorized_credential_id`, the "
             "token's own ID, so one token authorized for several organizations is one "
-            "node."
+            "node. When GitHub omits it, the ID falls back to the organization's "
+            "`credential-authorizations/{credential_id}`."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
