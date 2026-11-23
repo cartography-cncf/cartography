@@ -1396,16 +1396,17 @@ def test_sync_one_account_all_sync_functions(
     assert mock_analysis.call_count == 3
 
 
-def test_sync_one_account_uses_owned_ecr_session_factory(
+def test_sync_one_account_gives_each_async_sync_its_own_session(
     mocker,
     neo4j_session,
 ):
     # Arrange
     ecr_sync = mock.MagicMock()
-    initial_session = mock.MagicMock(name="initial_session")
-    fresh_session = mock.MagicMock(name="fresh_session")
+    inspector_sync = mock.MagicMock()
+    ecr_session = mock.MagicMock(name="ecr_session")
+    inspector_session = mock.MagicMock(name="inspector_session")
     session_factory = mock.MagicMock(
-        side_effect=[initial_session, fresh_session],
+        side_effect=[ecr_session, inspector_session],
     )
     boto3_session = mock.MagicMock()
     mocker.patch.object(cartography.intel.aws, "migrate_legacy_aws_labels")
@@ -1414,7 +1415,7 @@ def test_sync_one_account_uses_owned_ecr_session_factory(
     # Act
     with mock.patch.dict(
         cartography.intel.aws.RESOURCE_FUNCTIONS,
-        {"ecr:image_layers": ecr_sync},
+        {"ecr:image_layers": ecr_sync, "inspector": inspector_sync},
         clear=True,
     ):
         cartography.intel.aws._sync_one_account(
@@ -1424,15 +1425,14 @@ def test_sync_one_account_uses_owned_ecr_session_factory(
             TEST_UPDATE_TAG,
             GRAPH_JOB_PARAMETERS,
             regions=TEST_REGIONS,
-            aws_requested_syncs=["ecr:image_layers"],
+            aws_requested_syncs=["ecr:image_layers", "inspector"],
             aioboto3_session_factory=session_factory,
         )
 
     # Assert
-    assert ecr_sync.call_args.args[1] is initial_session
+    assert ecr_sync.call_args.args[1] is ecr_session
     assert ecr_sync.call_args.kwargs["aioboto3_session_factory"] is session_factory
-    assert session_factory() is fresh_session
-    assert session_factory.call_count == 2
+    assert inspector_sync.call_args.args[1] is inspector_session
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
