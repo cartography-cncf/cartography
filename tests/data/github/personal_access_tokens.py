@@ -118,6 +118,7 @@ SAML_CREDENTIAL_AUTHORIZATIONS = [
     {
         "login": "hjsimpson",
         "credential_id": 161195,
+        "authorized_credential_id": 98765,
         "credential_type": "personal access token",
         "token_last_eight": "Ab12Cd34",
         "credential_authorized_at": "2024-01-26T19:06:43Z",

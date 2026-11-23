@@ -292,6 +292,10 @@ github_codeowners_coverage = Rule(
 # and an expired token cannot authenticate, so it is neither a finding nor counted.
 _TOKEN_ACTIVE = "(n.expires_at IS NULL OR n.expires_at > datetime())"
 
+# Fine-grained tokens hang off their organization by RESOURCE; a classic token is
+# shared and each organization that authorized it has an AUTHORIZED_CREDENTIAL edge.
+_TOKEN_ORG_EDGE = ":RESOURCE|AUTHORIZED_CREDENTIAL"
+
 
 def _personal_access_token_fact(
     issue: str,
@@ -305,7 +309,7 @@ def _personal_access_token_fact(
         name=name,
         description=description,
         cypher_query=f"""
-        MATCH (o:GitHubOrganization)-[:RESOURCE]->(n:GitHubPersonalAccessToken)
+        MATCH (o:GitHubOrganization)-[{_TOKEN_ORG_EDGE}]->(n:GitHubPersonalAccessToken)
         WHERE {_TOKEN_ACTIVE} AND {condition}
         WITH n, collect(o.username) AS organizations
         RETURN n.token_name AS asset_name, n.id AS asset_id,
@@ -315,15 +319,15 @@ def _personal_access_token_fact(
             n.repository_selection AS repository_selection
         """,
         cypher_visual_query=f"""
-        MATCH (o:GitHubOrganization)-[:RESOURCE]->(n:GitHubPersonalAccessToken)
+        MATCH (o:GitHubOrganization)-[{_TOKEN_ORG_EDGE}]->(n:GitHubPersonalAccessToken)
         WHERE {_TOKEN_ACTIVE} AND {condition}
         OPTIONAL MATCH (n)-[:OWNED_BY]->(owner:GitHubUser)
         RETURN o, n, owner
         """,
         cypher_count_query=f"""
-        MATCH (n:GitHubPersonalAccessToken)
+        MATCH (:GitHubOrganization)-[{_TOKEN_ORG_EDGE}]->(n:GitHubPersonalAccessToken)
         WHERE {_TOKEN_ACTIVE}
-        RETURN count(n) AS count
+        RETURN count(DISTINCT n) AS count
         """,
         asset_label="GitHubPersonalAccessToken",
         asset_id_field="asset_id",
