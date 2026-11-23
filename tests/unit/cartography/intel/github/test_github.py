@@ -15,6 +15,7 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 import cartography.intel.github.packages
+from cartography.intel.github.actions import get_repo_secrets
 from cartography.intel.github.external_identities import ExternalIdentitySnapshotError
 from cartography.intel.github.repos import GitHubRepoSyncResult
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
@@ -664,6 +665,42 @@ def test_fetch_all_rest_api_pages_retries_connection_errors(
     assert mock_requests_get.call_count == 2
     assert mock_handle_rest_rate_limit_sleep.call_count == 2
     mock_sleep.assert_called_once_with(2)
+
+
+def _server_error() -> Mock:
+    response = Mock(status_code=500, headers={})
+    response.raise_for_status = Mock(side_effect=HTTPError(response=response))
+    return response
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rest_rate_limit_sleep")
+@patch("cartography.intel.github.util.requests.get", return_value=_server_error())
+def test_get_repo_secrets_skips_ghes_without_actions(
+    mock_requests_get: Mock,
+    mock_handle_rest_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    secrets = get_repo_secrets(
+        "token", "https://ghe.example.com/api/graphql", "org", "repo"
+    )
+
+    assert secrets is None
+    assert mock_requests_get.call_count == 1
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rest_rate_limit_sleep")
+@patch("cartography.intel.github.util.requests.get", return_value=_server_error())
+def test_get_repo_secrets_retries_github_dotcom_server_errors(
+    mock_requests_get: Mock,
+    mock_handle_rest_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    with pytest.raises(HTTPError):
+        get_repo_secrets("token", "https://api.github.com/graphql", "org", "repo")
+
+    assert mock_requests_get.call_count == 5
 
 
 @pytest.mark.parametrize(

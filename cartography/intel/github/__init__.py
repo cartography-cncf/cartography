@@ -27,20 +27,20 @@ import cartography.intel.supply_chain
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.intel.github.app_auth import make_credential
+from cartography.intel.github.util import github_org_url
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
-def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> list[str]:
+def _get_repos_from_graph(neo4j_session: neo4j.Session, org_url: str) -> list[str]:
     """
     Get repository names for an organization from the graph instead of making an API call.
 
     :param neo4j_session: Neo4j session for database interface
-    :param organization: GitHub organization name
+    :param org_url: The organization URL, as GitHub reports it
     :return: List of repository names
     """
-    org_url = f"https://github.com/{organization}"
     query = """
     MATCH (org:GitHubOrganization {id: $org_url})<-[:OWNER]-(repo:GitHubRepository)
     RETURN repo.name
@@ -297,7 +297,9 @@ def start_github_ingestion(
 
         # Sync commit relationships for the configured lookback period
         # Get repo names from the graph instead of making another API call
-        repo_names = _get_repos_from_graph(neo4j_session, org_name)
+        repo_names = _get_repos_from_graph(
+            neo4j_session, github_org_url(api_url, org_name)
+        )
 
         cartography.intel.github.commits.sync_github_commits(
             neo4j_session,
