@@ -353,8 +353,21 @@ def test_classic_pat_shared_by_two_orgs_survives_until_the_last_authorization_go
     )
     assert _classic_pat_authorizations(neo4j_session) == {(second_org_url, 902)}
 
-    # Act and assert: the second organization revokes it too.
+    # Act and assert: the second organization revokes it too. The token outlives
+    # each organization's sync and goes in the cleanup that runs once all have
+    # synced; that cleanup spares a token loaded this run whose edge is pending.
     _sync_orgs_authorizing_classic_pat(neo4j_session, 4, ["simpsoncorp-labs"], set())
-    assert (
-        check_nodes(neo4j_session, "GitHubClassicPersonalAccessToken", ["id"]) == set()
+    neo4j_session.run(
+        "CREATE (:GitHubPersonalAccessToken:GitHubClassicPersonalAccessToken "
+        "{id: 'loaded-this-run', lastupdated: 4})"
     )
+    assert check_nodes(neo4j_session, "GitHubClassicPersonalAccessToken", ["id"]) == {
+        (CLASSIC_PAT_ID,),
+        ("loaded-this-run",),
+    }
+    cartography.intel.github.personal_access_tokens.cleanup_orphaned_classic_personal_access_tokens(
+        neo4j_session, {"UPDATE_TAG": 4}
+    )
+    assert check_nodes(neo4j_session, "GitHubClassicPersonalAccessToken", ["id"]) == {
+        ("loaded-this-run",),
+    }

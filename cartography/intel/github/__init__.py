@@ -69,6 +69,10 @@ def cleanup_unscoped_github_resources(
     have been refreshed with the same update tag.
     """
     cartography.intel.github.users.cleanup(neo4j_session, common_job_parameters)
+    cartography.intel.github.personal_access_tokens.cleanup_orphaned_classic_personal_access_tokens(
+        neo4j_session,
+        common_job_parameters,
+    )
     cartography.intel.github.repos.cleanup_global_resources(
         neo4j_session,
         common_job_parameters,

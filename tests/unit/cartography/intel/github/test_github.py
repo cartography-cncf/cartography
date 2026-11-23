@@ -61,6 +61,9 @@ def posture_syncs():
 
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
 @patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch(
+    "cartography.intel.github.personal_access_tokens.cleanup_orphaned_classic_personal_access_tokens"
+)
 @patch("cartography.intel.github.users.cleanup")
 @patch("cartography.intel.github.supply_chain.sync")
 @patch(
@@ -109,6 +112,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_attestations_sync: Mock,
     mock_supply_chain_sync: Mock,
     mock_users_cleanup: Mock,
+    mock_cleanup_orphaned_pats: Mock,
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
     posture_syncs: dict[str, Mock],
@@ -203,6 +207,9 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert second_codeowners_kwargs["github_users"] == github_users_by_org[1]
     assert second_codeowners_kwargs["github_teams"] == github_teams_by_org[1]
     mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
+    mock_cleanup_orphaned_pats.assert_called_once_with(
+        neo4j_session, {"UPDATE_TAG": 123}
+    )
     mock_cleanup_global_resources.assert_called_once_with(
         neo4j_session,
         {"UPDATE_TAG": 123},
@@ -331,11 +338,15 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
 
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
 @patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch(
+    "cartography.intel.github.personal_access_tokens.cleanup_orphaned_classic_personal_access_tokens"
+)
 @patch("cartography.intel.github.users.cleanup")
 @patch("cartography.intel.github.make_credential")
 def test_start_github_ingestion_skips_global_cleanup_when_no_orgs_configured(
     mock_make_credential: Mock,
     mock_users_cleanup: Mock,
+    mock_cleanup_orphaned_pats: Mock,
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
 ) -> None:
@@ -353,15 +364,20 @@ def test_start_github_ingestion_skips_global_cleanup_when_no_orgs_configured(
 
     mock_make_credential.assert_not_called()
     mock_users_cleanup.assert_not_called()
+    mock_cleanup_orphaned_pats.assert_not_called()
     mock_cleanup_global_resources.assert_not_called()
     mock_cleanup_orphaned_branches.assert_not_called()
 
 
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
 @patch("cartography.intel.github.repos.cleanup_global_resources")
+@patch(
+    "cartography.intel.github.personal_access_tokens.cleanup_orphaned_classic_personal_access_tokens"
+)
 @patch("cartography.intel.github.users.cleanup")
 def test_cleanup_unscoped_github_resources(
     mock_users_cleanup: Mock,
+    mock_cleanup_orphaned_pats: Mock,
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
 ) -> None:
@@ -373,6 +389,9 @@ def test_cleanup_unscoped_github_resources(
     cleanup_unscoped_github_resources(neo4j_session, common_job_parameters)
 
     mock_users_cleanup.assert_called_once_with(neo4j_session, common_job_parameters)
+    mock_cleanup_orphaned_pats.assert_called_once_with(
+        neo4j_session, common_job_parameters
+    )
     mock_cleanup_global_resources.assert_called_once_with(
         neo4j_session,
         common_job_parameters,
