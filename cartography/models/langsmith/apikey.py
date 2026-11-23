@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -154,8 +155,8 @@ class LangSmithApiKeyToWorkspaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithApiKeySchema(CartographyNodeSchema):
     """
-    A LangSmith credential: a personal access token, an organization service key, a
-    workspace API key, or a SCIM token. Cartography stores only the non-secret short prefix.
+    An organization credential: a personal access token, a service key, or a SCIM token.
+    Cartography stores only the non-secret short prefix.
     """
 
     label: str = "LangSmithApiKey"
@@ -171,5 +172,95 @@ class LangSmithApiKeySchema(CartographyNodeSchema):
             LangSmithApiKeyToUserRel(),
             LangSmithApiKeyToRoleRel(),
             LangSmithApiKeyToWorkspaceRel(),
+        ],
+    )
+
+
+# Each organization credential listing needs its own permission, so one can fail while the
+# others answer. The label a listing adds records that it reported the key, which lets each
+# listing's keys be cleaned up on their own.
+SERVICE_KEY_LISTING_LABEL = ExtraNodeLabel(
+    label="LangSmithServiceKey",
+    description="A LangSmith credential the organization's service-key listing reports.",
+)
+PAT_LISTING_LABEL = ExtraNodeLabel(
+    label="LangSmithPersonalAccessToken",
+    description=(
+        "A LangSmith credential the organization's personal access token listing "
+        "reports."
+    ),
+)
+SCIM_TOKEN_LISTING_LABEL = ExtraNodeLabel(
+    label="LangSmithScimToken",
+    description="A LangSmith credential the organization's SCIM token listing reports.",
+)
+
+
+@dataclass(frozen=True)
+class LangSmithServiceKeySchema(LangSmithApiKeySchema):
+    """A credential the organization's service-key listing reports."""
+
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [API_KEY, SERVICE_KEY_LISTING_LABEL]
+    )
+
+
+@dataclass(frozen=True)
+class LangSmithPersonalAccessTokenSchema(LangSmithApiKeySchema):
+    """A credential the organization's personal access token listing reports."""
+
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY, PAT_LISTING_LABEL])
+
+
+@dataclass(frozen=True)
+class LangSmithScimTokenSchema(LangSmithApiKeySchema):
+    """A credential the organization's SCIM token listing reports."""
+
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [API_KEY, SCIM_TOKEN_LISTING_LABEL]
+    )
+
+
+@dataclass(frozen=True)
+class LangSmithWorkspaceApiKeyToWorkspaceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithApiKey)
+class LangSmithWorkspaceApiKeyToWorkspaceRel(CartographyRelSchema):
+    """A workspace API key belongs to the workspace that lists it."""
+
+    target_node_label: str = "LangSmithWorkspace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: LangSmithWorkspaceApiKeyToWorkspaceRelProperties = (
+        LangSmithWorkspaceApiKeyToWorkspaceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class LangSmithWorkspaceApiKeySchema(CartographyNodeSchema):
+    """
+    An API key listed by a workspace.
+
+    It shares the LangSmithApiKey label with organization credentials but belongs to its
+    workspace, so a workspace the token can't read keeps its keys without holding back
+    cleanup in the workspaces it can.
+    """
+
+    label: str = "LangSmithApiKey"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
+    properties: LangSmithApiKeyNodeProperties = LangSmithApiKeyNodeProperties()
+    sub_resource_relationship: LangSmithWorkspaceApiKeyToWorkspaceRel = (
+        LangSmithWorkspaceApiKeyToWorkspaceRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            LangSmithApiKeyToUserRel(),
+            LangSmithApiKeyToRoleRel(),
         ],
     )

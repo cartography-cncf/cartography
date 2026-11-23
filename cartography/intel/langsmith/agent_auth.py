@@ -19,8 +19,11 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.intel.langsmith.util import agent_node_id
 from cartography.intel.langsmith.util import cleanup_if_complete
+from cartography.intel.langsmith.util import cleanup_legacy_ownership
+from cartography.intel.langsmith.util import cleanup_workspaces
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.intel.langsmith.util import load_by_workspace
 from cartography.intel.langsmith.util import resolve_ls_user_id
 from cartography.models.langsmith.agent import LangSmithAgentSchema
 from cartography.models.langsmith.agentcredential import LangSmithAgentCredentialSchema
@@ -44,11 +47,14 @@ def sync(
     workspaces: list[dict[str, Any]],
     agents: list[dict[str, Any]],
     user_lookup: dict[str, str],
-    agents_complete: bool,
+    agents_readable: set[str],
     common_job_parameters: dict[str, Any],
 ) -> None:
-    providers, providers_complete = get_providers(client, org_id, workspaces)
-    connections, connections_complete = get_connections(client, org_id, agents)
+    workspace_ids = [workspace["id"] for workspace in workspaces]
+    providers, providers_complete = get_providers(client, org_id, workspace_ids)
+    connections, connections_readable = get_connections(
+        client, org_id, agents, workspace_ids
+    )
     # Resolve each credential's provider slug to that provider's UUID within this
     # organization. Slugs are operator-chosen, so matching on one would happily link a
     # credential to another organization's identically named provider.
@@ -58,7 +64,7 @@ def sync(
     credentials = transform_credentials(
         connections, user_lookup, provider_uuid_by_slug, org_id
     )
-    # A credential can name an agent that no deployment reported, so top up the inventory.
+    # A credential can name an agent that no listing reported, so top up the inventory.
     extra_agents = transform_missing_agents(credentials, agents)
 
     load_agent_auth(
@@ -75,62 +81,89 @@ def sync(
         providers_complete,
         common_job_parameters,
     )
-    # Credentials are only fetched for agents we know about, and agents are loaded by
-    # both this module and the deployments sync, so both depend on a complete agent
-    # inventory. A cold deployment must not be mistaken for "these no longer exist".
-    agents_and_connections_complete = agents_complete and connections_complete
+    # Agents are loaded from the registry, from deployments, and from the credentials
+    # that name them, so a workspace's agents are complete only when all three are.
+    agents_complete = agents_readable & connections_readable
     # A credential's FOR_PROVIDER edge is resolved through the provider listing, so
     # cleaning credentials after a failed provider fetch would prune those edges.
-    cleanup_if_complete(
+    credentials_complete = agents_complete if providers_complete else set()
+    cleanup_workspaces(
         neo4j_session,
         LangSmithAgentCredentialSchema(),
-        agents_and_connections_complete and providers_complete,
+        credentials_complete,
         common_job_parameters,
     )
-    cleanup_if_complete(
-        neo4j_session,
-        LangSmithAgentSchema(),
-        agents_and_connections_complete,
-        common_job_parameters,
+    cleanup_workspaces(
+        neo4j_session, LangSmithAgentSchema(), agents_complete, common_job_parameters
     )
+    for schema, readable in (
+        (LangSmithAgentCredentialSchema(), credentials_complete),
+        (LangSmithAgentSchema(), agents_complete),
+    ):
+        cleanup_legacy_ownership(
+            neo4j_session, schema, readable, workspace_ids, common_job_parameters
+        )
 
 
 @timeit
 def get_providers(
     client: LangSmithClient,
     org_id: str,
-    workspaces: list[dict[str, Any]],
+    workspace_ids: list[str],
 ) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch the OAuth providers agents can obtain tokens from.
 
-    Provider records are organization-scoped, but the route is gated on the
-    workspace-scoped deployments:read permission, so it is called per workspace and the
-    results are deduplicated.
+    /v2/auth/providers lists the organization's providers, and /v2/auth/platform-providers
+    a global, platform-owned set. Neither depends on the workspace, but both are gated on
+    the workspace-scoped deployments:read permission, so each is read through the first
+    workspace that allows it. The listing is complete once both have answered.
     """
     providers: dict[str, dict[str, Any]] = {}
     complete = True
-    for workspace in workspaces:
-        for path, is_platform in (
-            ("/v2/auth/providers", False),
-            ("/v2/auth/platform-providers", True),
-        ):
-            try:
-                rows = client.get(
-                    path, org_id=org_id, tenant_id=workspace["id"], host=True
-                )
-            except LangSmithFetchError as err:
-                logger.warning(
-                    "Skipping LangSmith %s for workspace %s: %s",
-                    path,
-                    workspace["id"],
-                    err,
-                )
-                complete = complete and err.not_found
-                continue
-            for row in rows:
-                providers[row["id"]] = transform_provider(row, is_platform=is_platform)
+    for path, is_platform in (
+        ("/v2/auth/providers", False),
+        ("/v2/auth/platform-providers", True),
+    ):
+        rows, answered = _read_through_any_workspace(
+            client, org_id, workspace_ids, path
+        )
+        complete = complete and answered
+        for row in rows:
+            providers[row["id"]] = transform_provider(row, is_platform=is_platform)
     return list(providers.values()), complete
+
+
+def _read_through_any_workspace(
+    client: LangSmithClient,
+    org_id: str,
+    workspace_ids: list[str],
+    path: str,
+) -> tuple[list[dict[str, Any]], bool]:
+    denied = 0
+    for workspace_id in workspace_ids:
+        try:
+            rows = client.get(path, org_id=org_id, tenant_id=workspace_id, host=True)
+        except LangSmithFetchError as err:
+            if err.not_found:
+                # The route isn't served for this organization: nothing to list.
+                return [], True
+            denied += 1
+            continue
+        if denied:
+            logger.debug(
+                "LangSmith %s was denied in %d workspace(s) before one answered",
+                path,
+                denied,
+            )
+        return rows, True
+    if workspace_ids:
+        logger.warning(
+            "Skipping LangSmith %s: no workspace allowed it. The credential needs "
+            "deployments:read in at least one workspace.",
+            path,
+        )
+    return [], not workspace_ids
 
 
 @timeit
@@ -138,15 +171,17 @@ def get_connections(
     client: LangSmithClient,
     org_id: str,
     agents: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], bool]:
+    workspace_ids: list[str],
+) -> tuple[list[dict[str, Any]], set[str]]:
     """
-    Fetch each agent's OAuth connections in the workspace the agent belongs to.
+    Fetch each agent's OAuth connections in each workspace the agent was seen in.
 
     This route takes the agent from the path rather than from the caller's identity, so it
-    gives the organization-wide view of which agent holds which user's token.
+    gives the organization-wide view of which agent holds which user's token. Returns the
+    connections and the workspaces in which every agent's connections could be read.
     """
     connections: dict[str, dict[str, Any]] = {}
-    complete = True
+    readable_workspace_ids = set(workspace_ids)
     for agent_id, workspace_id in sorted(
         {
             (agent["agent_id"], agent["workspace_id"])
@@ -171,11 +206,11 @@ def get_connections(
                     workspace_id,
                     err,
                 )
-                complete = False
+                readable_workspace_ids.discard(workspace_id)
             continue
         for row in payload.get("data") or []:
             connections.setdefault(row["id"], {**row, "workspace_id": workspace_id})
-    return list(connections.values()), complete
+    return list(connections.values()), readable_workspace_ids
 
 
 def transform_provider(
@@ -255,17 +290,20 @@ def transform_missing_agents(
     credentials: list[dict[str, Any]],
     known_agents: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Create agent records for agents named by a credential but not seen on a deployment."""
-    known = {agent["id"] for agent in known_agents}
-    extra: dict[str, dict[str, Any]] = {}
+    """Create agent rows for agents a credential names but no listing reported."""
+    known = {(agent["id"], agent["workspace_id"]) for agent in known_agents}
+    extra: dict[tuple[str, str], dict[str, Any]] = {}
     for credential in credentials:
         agent_id = credential.get("agent_id")
-        if not agent_id or agent_id in known or agent_id in extra:
+        if not agent_id:
             continue
-        extra[agent_id] = {
+        key = (agent_id, credential["workspace_id"])
+        if key in known or key in extra:
+            continue
+        extra[key] = {
             "id": agent_id,
             "agent_id": credential.get("raw_agent_id"),
-            "workspace_id": credential.get("workspace_id"),
+            "workspace_id": credential["workspace_id"],
             "environments": [],
             "deployment_ids": [],
         }
@@ -282,13 +320,7 @@ def load_agent_auth(
     update_tag: int,
 ) -> None:
     # Agents and providers must land before credentials so the credential edges match.
-    load(
-        neo4j_session,
-        LangSmithAgentSchema(),
-        agents,
-        lastupdated=update_tag,
-        ORG_ID=org_id,
-    )
+    load_by_workspace(neo4j_session, LangSmithAgentSchema(), agents, org_id, update_tag)
     load(
         neo4j_session,
         LangSmithOAuthProviderSchema(),
@@ -296,10 +328,6 @@ def load_agent_auth(
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
-    load(
-        neo4j_session,
-        LangSmithAgentCredentialSchema(),
-        credentials,
-        lastupdated=update_tag,
-        ORG_ID=org_id,
+    load_by_workspace(
+        neo4j_session, LangSmithAgentCredentialSchema(), credentials, org_id, update_tag
     )
