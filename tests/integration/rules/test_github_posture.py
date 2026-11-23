@@ -35,6 +35,8 @@ STRONG_BRANCH_RULE = {
     "requires_approving_reviews": True,
     "required_approving_review_count": 1,
     "requires_code_owner_reviews": True,
+    # GitHub's answer for which classic rule governs the default branch.
+    "protects_default_branch": True,
 }
 STRONG_RULESET_RULES = [
     {
@@ -46,12 +48,20 @@ STRONG_RULESET_RULES = [
 ]
 
 
-def _ruleset(include, exclude=(), enforcement="ACTIVE", rules=STRONG_RULESET_RULES):
+def _ruleset(
+    include,
+    exclude=(),
+    enforcement="ACTIVE",
+    rules=STRONG_RULESET_RULES,
+    applies=True,
+):
     return {
         "conditions_ref_name_include": list(include),
         "conditions_ref_name_exclude": list(exclude),
         "enforcement": enforcement,
         "rules": rules,
+        # GitHub's answer from the rules-for-a-branch endpoint.
+        "applies_to_default_branch": applies,
     }
 
 
@@ -159,7 +169,13 @@ def _load_repository(
             id="strong_branch_rule",
         ),
         pytest.param(
-            [{**STRONG_BRANCH_RULE, "pattern": "release/*"}],
+            [
+                {
+                    **STRONG_BRANCH_RULE,
+                    "pattern": "release/*",
+                    "protects_default_branch": False,
+                }
+            ],
             [],
             False,
             False,
@@ -176,6 +192,7 @@ def _load_repository(
                     "is_admin_enforced": False,
                     "requires_approving_reviews": True,
                     "required_approving_review_count": 0,
+                    "protects_default_branch": True,
                 }
             ],
             [],
@@ -188,8 +205,16 @@ def _load_repository(
         ),
         pytest.param(
             [
-                {"pattern": "main", "allows_force_pushes": True},
-                {**STRONG_BRANCH_RULE, "pattern": "*"},
+                {
+                    "pattern": "main",
+                    "allows_force_pushes": True,
+                    "protects_default_branch": True,
+                },
+                {
+                    **STRONG_BRANCH_RULE,
+                    "pattern": "*",
+                    "protects_default_branch": False,
+                },
             ],
             [],
             True,
@@ -197,7 +222,7 @@ def _load_repository(
             (True, True),
             {NO_REVIEWS, FORCE_PUSH, ADMINS, CODEOWNER_REVIEW},
             ALWAYS_EVALUATED | {ADMINS, CODEOWNER_REVIEW},
-            id="exact_branch_rule_wins_over_wildcard",
+            id="only_the_rule_github_applies_counts",
         ),
         pytest.param(
             [],
@@ -232,8 +257,9 @@ def _load_repository(
         pytest.param(
             [],
             [
-                _ruleset(["~DEFAULT_BRANCH"], enforcement="EVALUATE"),
-                _ruleset(["~ALL"], exclude=["refs/heads/main"]),
+                _ruleset(["~DEFAULT_BRANCH"], enforcement="EVALUATE", applies=False),
+                _ruleset(["~ALL"], exclude=["refs/heads/main"], applies=False),
+                _ruleset(["~DEFAULT_BRANCH"], exclude=["~ALL"], applies=False),
             ],
             False,
             False,
@@ -241,6 +267,36 @@ def _load_repository(
             {UNPROTECTED, NO_REVIEWS, FORCE_PUSH, CODEOWNERS_MISSING},
             ALWAYS_EVALUATED,
             id="rulesets_not_enforced_or_excluding_default_branch",
+        ),
+        pytest.param(
+            [{**STRONG_BRANCH_RULE, "pattern": "m[!x]in"}],
+            [],
+            True,
+            False,
+            (True, True),
+            set(),
+            ALWAYS_EVALUATED | {ADMINS, CODEOWNER_REVIEW},
+            id="negated_bracket_rule_github_applies",
+        ),
+        pytest.param(
+            [{**STRONG_BRANCH_RULE, "pattern": "mai[n[]"}],
+            [],
+            True,
+            False,
+            (True, True),
+            set(),
+            ALWAYS_EVALUATED | {ADMINS, CODEOWNER_REVIEW},
+            id="unclosed_bracket_rule_github_applies",
+        ),
+        pytest.param(
+            [],
+            [_ruleset(["~DEFAULT_BRANCH"], rules=[{"type": "UPDATE"}])],
+            True,
+            False,
+            (True, True),
+            {NO_REVIEWS, CODEOWNER_REVIEW},
+            ALWAYS_EVALUATED | {CODEOWNER_REVIEW},
+            id="update_restriction_blocks_force_pushes",
         ),
         pytest.param([], [], False, True, (True, True), set(), set(), id="archived"),
         pytest.param(
