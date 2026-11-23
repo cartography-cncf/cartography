@@ -102,3 +102,32 @@ def test_sync_github_commits(mock_get_commits, neo4j_session):
     }
     actual_repos = check_nodes(neo4j_session, "GitHubRepository", ["id"])
     assert expected_repos.issubset(actual_repos)
+
+    # Act - a later sync where repo2 fails keeps its known relationship
+    def fail_repo2(token, api_url, organization, repo_name, since_date):
+        if repo_name == "repo2":
+            raise RuntimeError("GitHub unavailable")
+        return MOCK_COMMITS_BY_REPO.get(repo_name, [])
+
+    mock_get_commits.side_effect = fail_repo2
+    cartography.intel.github.commits.sync_github_commits(
+        neo4j_session,
+        "fake-token",
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+        TEST_REPO_NAMES,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubUser",
+            "id",
+            "GitHubRepository",
+            "id",
+            "COMMITTED_TO",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )

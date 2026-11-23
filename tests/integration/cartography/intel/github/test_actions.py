@@ -628,6 +628,20 @@ def test_sync_github_actions_repo_secrets(
         ),
     }
 
+    # Act - a later sync where the listing is unavailable keeps the known secrets
+    mock_repo_secrets.return_value = None
+    cartography.intel.github.actions.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+    )
+
+    assert expected_repo_secrets.issubset(
+        check_nodes(neo4j_session, "GitHubActionsSecret", ["id", "name", "level"])
+    )
+
 
 @patch.object(
     cartography.intel.github.actions,

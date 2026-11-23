@@ -146,7 +146,7 @@ def process_repo_commits_batch(
     update_tag: int,
     lookback_days: int = 30,
     batch_size: int = 10,
-) -> None:
+) -> bool:
     """
     Process repository commits in batches to save memory and API quota.
 
@@ -158,8 +158,10 @@ def process_repo_commits_batch(
     :param update_tag: Timestamp used to determine data freshness.
     :param lookback_days: Number of days to look back for commits.
     :param batch_size: Number of repositories to process in each batch.
+    :return: False when any repository's commits could not be fetched.
     """
     org_url = github_org_url(api_url, organization)
+    complete = True
     # Calculate lookback date based on configured days
     lookback_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
@@ -201,6 +203,7 @@ def process_repo_commits_batch(
                 logger.warning(
                     f"Failed to fetch commits for {repo_name}", exc_info=True
                 )
+                complete = False
                 continue
 
         # Load this batch of relationships
@@ -214,6 +217,8 @@ def process_repo_commits_batch(
 
         # Clear memory for next batch
         batch_relationships.clear()
+
+    return complete
 
 
 def transform_single_repo_commits_to_relationships(
@@ -409,7 +414,7 @@ def sync_github_commits(
 
     # Process repositories in batches to save memory and API quota
     # This approach processes repos in batches, transforms immediately, and loads in batches
-    process_repo_commits_batch(
+    complete = process_repo_commits_batch(
         neo4j_session,
         token,
         api_url,
@@ -420,9 +425,16 @@ def sync_github_commits(
         batch_size=10,  # Process 10 repos at a time
     )
 
-    # Cleanup stale relationships after all batches are processed
-    cleanup_github_commit_relationships(
-        neo4j_session, github_org_url(api_url, organization), update_tag
-    )
+    # A failed repository loaded nothing, so cleanup would delete its
+    # still-current relationships.
+    if complete:
+        cleanup_github_commit_relationships(
+            neo4j_session, github_org_url(api_url, organization), update_tag
+        )
+    else:
+        logger.warning(
+            "Skipping GitHub commit relationship cleanup for %s: some repositories failed to sync.",
+            organization,
+        )
 
     logger.info("Completed GitHub commits sync")

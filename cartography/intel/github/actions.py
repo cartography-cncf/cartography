@@ -114,9 +114,9 @@ def get_repo_secrets(
     api_url: str,
     organization: str,
     repo_name: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
-    Fetch repository-level Actions secrets.
+    Fetch repository-level Actions secrets, or None when GHES reports them unavailable.
     GET /repos/{owner}/{repo}/actions/secrets
     """
     base_url = _get_rest_api_base_url(api_url)
@@ -125,7 +125,7 @@ def get_repo_secrets(
         return fetch_all_rest_api_pages(token, base_url, endpoint, "secrets")
     # GHES answers 500, not 404, when Actions is not enabled on the appliance,
     # which is its default. Retrying would only stall every repo in the org.
-    secrets = fetch_all_rest_api_pages_or_none(
+    return fetch_all_rest_api_pages_or_none(
         token,
         base_url,
         endpoint,
@@ -133,7 +133,6 @@ def get_repo_secrets(
         "repository Actions secrets",
         unavailable=(*UNAVAILABLE_STATUSES, 500),
     )
-    return secrets or []
 
 
 @timeit
@@ -666,6 +665,7 @@ def load_actions(
 def cleanup_org_level(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    secrets_complete: bool = True,
 ) -> None:
     """
     Clean up stale GitHub Actions nodes scoped to the organization.
@@ -686,39 +686,29 @@ def cleanup_org_level(
     GraphJob.from_node_schema(GitHubActionSchema(), common_job_parameters).run(
         neo4j_session,
     )
-    # Org-level secrets and variables
-    GraphJob.from_node_schema(
-        GitHubOrgActionsSecretSchema(), common_job_parameters
-    ).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(
-        GitHubOrgActionsVariableSchema(), common_job_parameters
-    ).run(
-        neo4j_session,
-    )
-    # Environment-level secrets and variables
-    GraphJob.from_node_schema(
-        GitHubEnvActionsSecretSchema(), common_job_parameters
-    ).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(
-        GitHubEnvActionsVariableSchema(), common_job_parameters
-    ).run(
-        neo4j_session,
-    )
-    # Repo-level secrets and variables
-    GraphJob.from_node_schema(
-        GitHubRepoActionsSecretSchema(), common_job_parameters
-    ).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(
-        GitHubRepoActionsVariableSchema(), common_job_parameters
-    ).run(
-        neo4j_session,
-    )
+    # Variables
+    for variable_schema in (
+        GitHubOrgActionsVariableSchema(),
+        GitHubEnvActionsVariableSchema(),
+        GitHubRepoActionsVariableSchema(),
+    ):
+        GraphJob.from_node_schema(variable_schema, common_job_parameters).run(
+            neo4j_session,
+        )
+    # Every secret schema shares the GitHubActionsSecret label and the org as
+    # sub_resource, so any of these jobs also reaps repo secrets. When a repo
+    # listing was unavailable nothing was loaded for it, and cleaning up would
+    # delete secrets that still exist.
+    if not secrets_complete:
+        return
+    for secret_schema in (
+        GitHubOrgActionsSecretSchema(),
+        GitHubEnvActionsSecretSchema(),
+        GitHubRepoActionsSecretSchema(),
+    ):
+        GraphJob.from_node_schema(secret_schema, common_job_parameters).run(
+            neo4j_session,
+        )
 
 
 # =============================================================================
@@ -790,6 +780,7 @@ def sync(
     repo_names = _get_repos_from_graph(neo4j_session, org_url)
     logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
 
+    secrets_complete = True
     for repo_name in repo_names:
         # Sync workflows
         workflows = get_repo_workflows(
@@ -859,7 +850,9 @@ def sync(
         repo_secrets = get_repo_secrets(
             github_api_key, github_url, organization, repo_name
         )
-        if repo_secrets:
+        if repo_secrets is None:
+            secrets_complete = False
+        elif repo_secrets:
             transformed_repo_secrets = transform_repo_secrets(
                 repo_secrets, org_url, repo_name
             )
@@ -926,6 +919,6 @@ def sync(
         neo4j_session,
         org_cleanup_params,
     )
-    cleanup_org_level(neo4j_session, org_cleanup_params)
+    cleanup_org_level(neo4j_session, org_cleanup_params, secrets_complete)
 
     return all_workflows

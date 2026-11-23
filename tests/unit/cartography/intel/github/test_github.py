@@ -685,7 +685,7 @@ def test_get_repo_secrets_skips_ghes_without_actions(
         "token", "https://ghe.example.com/api/graphql", "org", "repo"
     )
 
-    assert secrets == []
+    assert secrets is None
     assert mock_requests_get.call_count == 1
 
 
