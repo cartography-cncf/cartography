@@ -1,11 +1,16 @@
+from tests.data.langsmith.users import BART_LS_USER_ID
+from tests.data.langsmith.users import MARGE_LS_USER_ID
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 
 SUPPORT_DEPLOYMENT_ID = "aa11aa11-0001-4001-8001-aa11aa11aa11"
 TRIAGE_DEPLOYMENT_ID = "aa11aa11-0002-4002-8002-aa11aa11aa11"
 
-SUPPORT_AGENT_ID = "agent-support-bot"
-TRIAGE_AGENT_ID = "agent-triage-bot"
+SUPPORT_AGENT_ID = "d0d0d0d0-0001-4001-8001-d0d0d0d0d0d0"
+TRIAGE_AGENT_ID = "d0d0d0d0-0002-4002-8002-d0d0d0d0d0d0"
+
+SUPPORT_TRACING_PROJECT_ID = "bb22bb22-0001-4001-8001-bb22bb22bb22"
+TRIAGE_TRACING_PROJECT_ID = "bb22bb22-0002-4002-8002-bb22bb22bb22"
 
 LANGSMITH_DEPLOYMENTS = {
     WORKSPACE_PROD_ID: [
@@ -23,7 +28,7 @@ LANGSMITH_DEPLOYMENTS = {
             "route_through_gateway": True,
             "is_managed_deep_agent": False,
             "is_preview": False,
-            "tracer_session_id": "bb22bb22-0001-4001-8001-bb22bb22bb22",
+            "tracer_session_id": SUPPORT_TRACING_PROJECT_ID,
             "created_at": "2026-02-01T09:00:00Z",
             "updated_at": "2026-03-01T09:00:00Z",
             "agent": {"agent_id": SUPPORT_AGENT_ID, "environment": "production"},
@@ -55,7 +60,7 @@ LANGSMITH_DEPLOYMENTS = {
             "route_through_gateway": False,
             "is_managed_deep_agent": True,
             "is_preview": False,
-            "tracer_session_id": None,
+            "tracer_session_id": TRIAGE_TRACING_PROJECT_ID,
             "created_at": "2026-02-02T09:00:00Z",
             "updated_at": "2026-03-02T09:00:00Z",
             # Most real deployments carry no agent block; credentials attach to the
@@ -67,30 +72,45 @@ LANGSMITH_DEPLOYMENTS = {
     ],
 }
 
-# Assistants served on each deployment's own data plane, keyed by deployment URL. The
-# support deployment also declares its agent in an agent block, so its record is merged;
-# the triage deployment has agent: null, so its agent is only discoverable this way.
-LANGSMITH_ASSISTANTS = {
-    "https://support-bot.us.langgraph.app": [
+# The agent registry, listed per workspace. An environment traces into the same tracing
+# project as the deployment serving it. The support deployment also names its agent in an
+# agent block; the triage deployment has agent: null, the common case, so only the shared
+# tracing project links the two.
+LANGSMITH_AGENT_LISTINGS = {
+    WORKSPACE_PROD_ID: [
         {
-            "assistant_id": SUPPORT_AGENT_ID,
-            "graph_id": "support_graph",
+            "id": SUPPORT_AGENT_ID,
             "name": "Support Bot",
-            "description": "Answers customer support tickets.",
-            "version": 3,
+            "agent_type": "CUSTOM",
+            "source_type": "LSD",
+            "owner_id": MARGE_LS_USER_ID,
             "created_at": "2026-02-01T09:05:00Z",
-            "updated_at": "2026-03-01T09:05:00Z",
+            "environments": [
+                {
+                    "id": "ee11ee11-0001-4001-8001-ee11ee11ee11",
+                    "agent_id": SUPPORT_AGENT_ID,
+                    "environment": "PRODUCTION",
+                    "tracer_session_id": SUPPORT_TRACING_PROJECT_ID,
+                },
+            ],
         },
     ],
-    "https://triage-bot.us.langgraph.app": [
+    WORKSPACE_DEV_ID: [
         {
-            "assistant_id": TRIAGE_AGENT_ID,
-            "graph_id": "triage_graph",
+            "id": TRIAGE_AGENT_ID,
             "name": "Triage Bot",
-            "description": "Routes incoming issues.",
-            "version": 1,
+            "agent_type": "CUSTOM",
+            "source_type": "LSD",
+            "owner_id": BART_LS_USER_ID,
             "created_at": "2026-02-02T09:05:00Z",
-            "updated_at": "2026-03-02T09:05:00Z",
+            "environments": [
+                {
+                    "id": "ee11ee11-0002-4002-8002-ee11ee11ee11",
+                    "agent_id": TRIAGE_AGENT_ID,
+                    "environment": "DEVELOPMENT",
+                    "tracer_session_id": TRIAGE_TRACING_PROJECT_ID,
+                },
+            ],
         },
     ],
 }

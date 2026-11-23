@@ -11,11 +11,13 @@ and none is returned by the endpoints used here.
 """
 
 import logging
+import re
 from typing import Any
 
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.intel.langsmith.util import agent_node_id
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithFetchError
@@ -27,6 +29,12 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# Agent auth keys connections on assistant ids, which LangGraph issues as UUIDs. Agent
+# registry ids are user-chosen slugs the route can't resolve: it answers 500 for them.
+_ASSISTANT_ID = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
 
 @timeit
 def sync(
@@ -35,15 +43,12 @@ def sync(
     org_id: str,
     workspaces: list[dict[str, Any]],
     agents: list[dict[str, Any]],
-    workspace_by_deployment: dict[str, str],
     user_lookup: dict[str, str],
     agents_complete: bool,
     common_job_parameters: dict[str, Any],
 ) -> None:
     providers, providers_complete = get_providers(client, org_id, workspaces)
-    connections, connections_complete = get_connections(
-        client, org_id, agents, workspace_by_deployment
-    )
+    connections, connections_complete = get_connections(client, org_id, agents)
     # Resolve each credential's provider slug to that provider's UUID within this
     # organization. Slugs are operator-chosen, so matching on one would happily link a
     # credential to another organization's identically named provider.
@@ -133,51 +138,43 @@ def get_connections(
     client: LangSmithClient,
     org_id: str,
     agents: list[dict[str, Any]],
-    workspace_by_deployment: dict[str, str],
 ) -> tuple[list[dict[str, Any]], bool]:
     """
-    Fetch each agent's OAuth connections.
+    Fetch each agent's OAuth connections in the workspace the agent belongs to.
 
     This route takes the agent from the path rather than from the caller's identity, so it
-    gives the organization-wide view of which agent holds which user's token. It is
-    workspace-scoped, so each agent is queried in the workspaces of the deployments that
-    serve it.
+    gives the organization-wide view of which agent holds which user's token.
     """
     connections: dict[str, dict[str, Any]] = {}
     complete = True
-    for agent in agents:
-        # The API is keyed by the raw assistant id; agent["id"] is namespaced by
-        # organization for the graph and is not a valid path segment here.
-        assistant_id = agent["assistant_id"]
-        workspace_ids = sorted(
-            {
-                workspace_by_deployment[deployment_id]
-                for deployment_id in agent.get("deployment_ids") or []
-                if deployment_id in workspace_by_deployment
-            }
-        )
-        for workspace_id in workspace_ids:
-            try:
-                payload = client.get(
-                    f"/v2/auth/agents/{assistant_id}/connections",
-                    org_id=org_id,
-                    tenant_id=workspace_id,
-                    host=True,
+    for agent_id, workspace_id in sorted(
+        {
+            (agent["agent_id"], agent["workspace_id"])
+            for agent in agents
+            if _ASSISTANT_ID.match(agent["agent_id"] or "")
+        }
+    ):
+        try:
+            payload = client.get(
+                f"/v2/auth/agents/{agent_id}/connections",
+                org_id=org_id,
+                tenant_id=workspace_id,
+                host=True,
+            )
+        except LangSmithFetchError as err:
+            # 404 means agent auth has never seen this agent: it holds no
+            # connections. Anything else hides connections that may exist.
+            if not err.not_found:
+                logger.warning(
+                    "Skipping LangSmith connections for agent %s in workspace %s: %s",
+                    agent_id,
+                    workspace_id,
+                    err,
                 )
-            except LangSmithFetchError as err:
-                # 404 means agent auth has never seen this agent: it holds no
-                # connections. Anything else hides connections that may exist.
-                if not err.not_found:
-                    logger.warning(
-                        "Skipping LangSmith connections for agent %s in workspace %s: %s",
-                        assistant_id,
-                        workspace_id,
-                        err,
-                    )
-                    complete = False
-                continue
-            for row in payload.get("data") or []:
-                connections.setdefault(row["id"], row)
+                complete = False
+            continue
+        for row in payload.get("data") or []:
+            connections.setdefault(row["id"], {**row, "workspace_id": workspace_id})
     return list(connections.values()), complete
 
 
@@ -226,15 +223,15 @@ def transform_credentials(
         transformed.append(
             {
                 "id": connection["id"],
-                # Namespaced to match the agent node, which is namespaced because
-                # LangSmith derives assistant ids from graphs and they can repeat across
-                # organizations.
                 "agent_id": (
-                    f"{org_id}|{connection['agent_id']}"
+                    agent_node_id(
+                        org_id, connection["workspace_id"], connection["agent_id"]
+                    )
                     if connection.get("agent_id")
                     else None
                 ),
-                "assistant_id": connection.get("agent_id"),
+                "raw_agent_id": connection.get("agent_id"),
+                "workspace_id": connection["workspace_id"],
                 "provider_id": connection.get("provider_id"),
                 "provider_uuid": (
                     provider_uuid_by_slug.get(connection["provider_id"])
@@ -267,7 +264,9 @@ def transform_missing_agents(
             continue
         extra[agent_id] = {
             "id": agent_id,
-            "assistant_id": credential.get("assistant_id"),
+            "agent_id": credential.get("raw_agent_id"),
+            "workspace_id": credential.get("workspace_id"),
+            "environments": [],
             "deployment_ids": [],
         }
     return list(extra.values())
