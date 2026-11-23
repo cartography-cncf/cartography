@@ -106,7 +106,7 @@ def _batch_row(effect: StatementEffect) -> _BatchRow:
 
 @_batch_row.register
 def _(effect: AddRelationship) -> _BatchRow:
-    if effect.properties or effect.firstseen:
+    if effect.properties or effect.firstseen is not None:
         # Their values can reference match variables that the batch does not carry.
         raise ValueError(
             "batched_transactions does not support AddRelationship properties "

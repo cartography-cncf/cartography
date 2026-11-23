@@ -61,8 +61,8 @@ class AnalysisStatement:
     effects: Sequence[StatementEffect] = ()
     iterative: bool = False
     iterationsize: int = 0
-    batched_transactions: bool = False
     incremental_on: IncrementalTarget | Sequence[IncrementalTarget] | None = None
+    batched_transactions: bool = False
 
     def __post_init__(self) -> None:
         if self.query and (self.match or self.effects):
@@ -71,6 +71,12 @@ class AnalysisStatement:
             )
         if not self.query and (not self.match or not self.effects):
             raise ValueError("AnalysisStatement requires query or match/effects.")
+        if self.query and self.batched_transactions:
+            # The compiler adds the filter that lets a batched statement finish; a
+            # raw query would rerun until it stopped reporting updates on its own.
+            raise ValueError(
+                "AnalysisStatement.batched_transactions requires match/effects."
+            )
 
 
 @dataclass(frozen=True)

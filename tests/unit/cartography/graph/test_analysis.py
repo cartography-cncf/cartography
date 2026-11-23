@@ -330,8 +330,19 @@ def test_batched_statement_commits_pending_relationships_in_batches():
             ),
             ValueError,
         ),
+        (
+            AddRelationship(
+                "f",
+                "AFFECTS",
+                "p",
+                source_label="Finding",
+                target_label="Package",
+                firstseen=0,
+            ),
+            ValueError,
+        ),
     ],
-    ids=["property_effect", "relationship_properties"],
+    ids=["property_effect", "relationship_properties", "relationship_firstseen"],
 )
 def test_batched_statement_rejects_effects_it_cannot_carry_into_a_batch(effect, error):
     statement = AnalysisStatement(
@@ -514,6 +525,15 @@ def test_statement_rejects_property_effect_without_label():
     # Act and assert
     with pytest.raises(ValueError, match="Property effects require label"):
         compile_query(statement)
+
+
+def test_statement_rejects_batching_a_raw_query():
+    with pytest.raises(ValueError, match="batched_transactions"):
+        AnalysisStatement(
+            query="MATCH (n:AWSEC2Instance) SET n.exposed = true",
+            batched_transactions=True,
+            iterationsize=500,
+        )
 
 
 def test_statement_rejects_mixed_raw_and_compiled_query():

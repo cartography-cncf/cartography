@@ -151,7 +151,7 @@ The match clauses only identify the rows to update. The effects describe the gra
 
 ### Large matches
 
-By default a statement writes every matched row in one transaction, and Neo4j holds each change in memory until the transaction commits. When the match grows with the number of findings or assets in the graph, set `batched_transactions=True` and an `iterationsize` on the `AnalysisStatement`. The compiler then commits the effects every `iterationsize` rows and skips rows that this run has already linked, so the statement stops when nothing is left to write. Batching supports `AddRelationship` effects that set no properties.
+By default a statement writes every matched row in one transaction, and Neo4j holds each change in memory until the transaction commits. When the match grows with the number of findings or assets in the graph, set `batched_transactions=True` and an `iterationsize` on the `AnalysisStatement`. The compiler then commits the effects every `iterationsize` rows and skips rows that this run has already linked, so the statement stops when nothing is left to write. Batching supports `AddRelationship` effects that do not specify `properties` or `firstseen`.
 
 ```python
 AnalysisStatement(
