@@ -30,11 +30,14 @@ LANGSMITH_ACCESS_POLICIES = {
             "role_ids": [CUSTOM_ROLE_ID],
             "condition_groups": [
                 {
+                    "permission": "projects:read",
+                    "resource_type": "project",
                     "conditions": [
                         {
-                            "attribute": "project.tag",
-                            "operator": "in",
-                            "value": ["prod"],
+                            "attribute_name": "resource_tag_key",
+                            "attribute_key": "environment",
+                            "operator": "equals",
+                            "attribute_value": "prod",
                         },
                     ],
                 },

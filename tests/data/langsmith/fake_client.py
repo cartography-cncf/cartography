@@ -113,7 +113,17 @@ class FakeLangSmithClient:
         self.routes = SIMPSON_CORP_ROUTES if routes is None else routes
         self.failures = failures or {}
 
-    def get(self, path: str, *, tenant_id: str | None = None, **_: Any) -> Any:
+    def get(
+        self,
+        path: str,
+        *,
+        tenant_id: str | None = None,
+        params: dict[str, Any] | None = None,
+        **_: Any,
+    ) -> Any:
+        # A view is a different listing of the same route, so it routes on its own.
+        if params and params.get("view"):
+            path = f"{path}?view={params['view']}"
         route = (path, tenant_id)
         if route in self.failures:
             status = self.failures[route]
