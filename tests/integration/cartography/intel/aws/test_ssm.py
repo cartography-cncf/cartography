@@ -421,6 +421,23 @@ def test_load_ssm_documents(
         ),
     }
 
+    # Act and assert: a transient failure keeps the last good documents
+    mock_get_ssm_documents.side_effect = (
+        cartography.intel.aws.ssm.SSMDocumentTransientRegionFailure("ListDocuments")
+    )
+    cartography.intel.aws.ssm.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    assert check_nodes(neo4j_session, "AWSSSMDocument", ["id"]) == {
+        (PUBLIC_DOC_ARN,),
+        (PRIVATE_DOC_ARN,),
+    }
+
 
 @patch.object(cartography.intel.aws.ssm, "get_instance_ids", return_value=[])
 @patch.object(cartography.intel.aws.ssm, "get_instance_information", return_value=[])

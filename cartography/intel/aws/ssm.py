@@ -2,7 +2,9 @@ import json
 import logging
 import re
 from collections.abc import Iterable
+from functools import wraps
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 
@@ -10,6 +12,10 @@ import backoff
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import ReadTimeoutError
+from botocore.exceptions import SSLError
+from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -28,6 +34,7 @@ from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
 from cartography.models.aws.ssm.parameters import PublicSSMParameterSchema
 from cartography.models.aws.ssm.parameters import SSMParameterSchema
 from cartography.util import aws_handle_regions
+from cartography.util import AWSGetFunc
 from cartography.util import backoff_handler
 from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
@@ -291,8 +298,36 @@ def _shared_account_ids(client: Any, name: str) -> List[str] | None:
         return None
 
 
+class SSMDocumentTransientRegionFailure(Exception):
+    pass
+
+
+def _raise_on_transient_failure(func: AWSGetFunc) -> AWSGetFunc:
+    # aws_handle_regions turns some 5xx and timeouts into [], which cleanup
+    # can't tell apart from an empty region.
+    @wraps(func)
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except ClientError as error:
+            status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            if (status or 0) >= 500:
+                raise SSMDocumentTransientRegionFailure(func.__name__) from error
+            raise
+        except (
+            ConnectTimeoutError,
+            ReadTimeoutError,
+            ResponseParserError,
+            SSLError,
+        ) as error:
+            raise SSMDocumentTransientRegionFailure(func.__name__) from error
+
+    return cast(AWSGetFunc, wrapped)
+
+
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_ssm_documents(
     boto3_session: boto3.session.Session,
     region: str,
@@ -325,7 +360,6 @@ def transform_ssm_documents(
             region=get_base_region(region),
             partition=get_partition(region),
         )
-        document["CreatedDate"] = dict_date_to_epoch(document, "CreatedDate")
         transformed.append(document)
     return transformed
 
@@ -444,6 +478,7 @@ def load_public_ssm_parameters(
 def cleanup_ssm(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
+    cleanup_documents: bool = True,
 ) -> None:
     logger.info("Running SSM cleanup")
     GraphJob.from_node_schema(
@@ -456,9 +491,15 @@ def cleanup_ssm(
     GraphJob.from_node_schema(SSMParameterSchema(), common_job_parameters).run(
         neo4j_session,
     )
-    GraphJob.from_node_schema(SSMDocumentSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    if cleanup_documents:
+        GraphJob.from_node_schema(SSMDocumentSchema(), common_job_parameters).run(
+            neo4j_session,
+        )
+    else:
+        logger.warning(
+            "Skipping SSM document cleanup for account %s to keep last-known-good data.",
+            common_job_parameters["AWS_ID"],
+        )
 
 
 @timeit
@@ -489,6 +530,7 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    cleanup_documents = True
     for region in regions:
         logger.info(
             "Syncing SSM for region '%s' in account '%s'.",
@@ -526,7 +568,17 @@ def sync(
             update_tag,
         )
 
-        data = get_ssm_documents(boto3_session, region)
+        try:
+            data = get_ssm_documents(boto3_session, region)
+        except SSMDocumentTransientRegionFailure as error:
+            cleanup_documents = False
+            logger.warning(
+                "Skipping SSM documents for account %s in region %s: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         data = transform_ssm_documents(data, region, current_aws_account_id)
         load_ssm_documents(
             neo4j_session,
@@ -536,7 +588,7 @@ def sync(
             update_tag,
         )
 
-    cleanup_ssm(neo4j_session, common_job_parameters)
+    cleanup_ssm(neo4j_session, common_job_parameters, cleanup_documents)
 
 
 @timeit

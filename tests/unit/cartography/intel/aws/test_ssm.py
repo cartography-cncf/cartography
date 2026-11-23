@@ -15,6 +15,7 @@ from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
 from cartography.intel.aws.ssm import get_instance_patches
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
 from cartography.intel.aws.ssm import get_ssm_documents
+from cartography.intel.aws.ssm import SSMDocumentTransientRegionFailure
 from cartography.intel.aws.ssm import sync_public_parameters
 from cartography.intel.aws.ssm import transform_ssm_documents
 from cartography.intel.aws.ssm import transform_ssm_parameters
@@ -263,6 +264,24 @@ def test_get_ssm_documents_keeps_document_when_permission_lookup_fails() -> None
     assert documents == [{"Name": "PrivateAutomation", "SharedAccountIds": None}]
 
 
+def test_get_ssm_documents_raises_on_server_error() -> None:
+    # Arrange
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.side_effect = ClientError(
+        {
+            "Error": {"Code": "InternalServerError", "Message": ""},
+            "ResponseMetadata": {"HTTPStatusCode": 500},
+        },
+        "ListDocuments",
+    )
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+
+    # Act and assert
+    with pytest.raises(SSMDocumentTransientRegionFailure):
+        get_ssm_documents(boto3_session, "us-east-1")
+
+
 def test_transform_ssm_documents_builds_arn_and_security_fields() -> None:
     transformed = transform_ssm_documents(
         [
@@ -279,7 +298,7 @@ def test_transform_ssm_documents_builds_arn_and_security_fields() -> None:
     assert transformed == [
         {
             "Name": "RunSecurityBaseline",
-            "CreatedDate": 1717200000,
+            "CreatedDate": datetime(2024, 6, 1, tzinfo=timezone.utc),
             "SharedAccountIds": ["all"],
             "Arn": "arn:aws-cn:ssm:cn-north-1:000000000000:document/RunSecurityBaseline",
         },

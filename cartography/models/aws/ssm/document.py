@@ -38,7 +38,7 @@ class SSMDocumentNodeProperties(CartographyNodeProperties):
     )
     created_date: PropertyRef = PropertyRef(
         "CreatedDate",
-        description="Date the document was created, stored as epoch time.",
+        description="Date the document was created.",
     )
     schema_version: PropertyRef = PropertyRef(
         "SchemaVersion",
