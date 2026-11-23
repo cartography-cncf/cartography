@@ -224,6 +224,10 @@ SCIM_TOKEN_LISTING_LABEL = ExtraNodeLabel(
     label="LangSmithScimToken",
     description="A LangSmith credential the organization's SCIM token listing reports.",
 )
+TRACING_KEY_LISTING_LABEL = ExtraNodeLabel(
+    label="LangSmithTracingKey",
+    description="A LangSmith credential the organization's tracing key listing reports.",
+)
 
 
 @dataclass(frozen=True)
@@ -240,6 +244,15 @@ class LangSmithPersonalAccessTokenSchema(LangSmithApiKeySchema):
     """A credential the organization's personal access token listing reports."""
 
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY, PAT_LISTING_LABEL])
+
+
+@dataclass(frozen=True)
+class LangSmithTracingKeySchema(LangSmithApiKeySchema):
+    """A credential the organization's tracing key listing reports."""
+
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [API_KEY, TRACING_KEY_LISTING_LABEL]
+    )
 
 
 @dataclass(frozen=True)

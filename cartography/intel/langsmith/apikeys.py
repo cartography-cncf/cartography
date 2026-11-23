@@ -19,10 +19,12 @@ from cartography.models.langsmith.apikey import LangSmithApiKeySchema
 from cartography.models.langsmith.apikey import LangSmithPersonalAccessTokenSchema
 from cartography.models.langsmith.apikey import LangSmithScimTokenSchema
 from cartography.models.langsmith.apikey import LangSmithServiceKeySchema
+from cartography.models.langsmith.apikey import LangSmithTracingKeySchema
 from cartography.models.langsmith.apikey import LangSmithWorkspaceApiKeySchema
 from cartography.models.langsmith.apikey import PAT_LISTING_LABEL
 from cartography.models.langsmith.apikey import SCIM_TOKEN_LISTING_LABEL
 from cartography.models.langsmith.apikey import SERVICE_KEY_LISTING_LABEL
+from cartography.models.langsmith.apikey import TRACING_KEY_LISTING_LABEL
 from cartography.models.langsmith.serviceaccount import LangSmithServiceAccountSchema
 from cartography.util import timeit
 
@@ -65,7 +67,8 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
     # Each listing's keys are cleaned up when that listing answered, so a missing
-    # organization:pats:read holds back only personal access tokens.
+    # organization:pats:read holds back only personal access tokens, and a service key's
+    # denied tracing-key listing only tracing keys.
     for key_type in complete_listings:
         schema, listing_label = _ORG_KEY_LISTINGS[key_type]
         GraphJob.from_node_schema(
@@ -98,12 +101,14 @@ _ORG_KEY_LISTINGS: dict[str, tuple[LangSmithApiKeySchema, ExtraNodeLabel]] = {
     "service_key": (LangSmithServiceKeySchema(), SERVICE_KEY_LISTING_LABEL),
     "pat": (LangSmithPersonalAccessTokenSchema(), PAT_LISTING_LABEL),
     "scim_token": (LangSmithScimTokenSchema(), SCIM_TOKEN_LISTING_LABEL),
+    "tracing_key": (LangSmithTracingKeySchema(), TRACING_KEY_LISTING_LABEL),
 }
 
 _ORG_KEY_SOURCES = {
     "service_key": "/api/v1/orgs/current/service-keys",
     "pat": "/api/v1/orgs/current/members/personal-access-tokens",
     "scim_token": "/api/v1/platform/orgs/current/scim/tokens",
+    "tracing_key": "/api/v1/orgs/current/tracing-keys",
 }
 
 
@@ -119,7 +124,10 @@ def _fetch_optional(
     """
     path = _ORG_KEY_SOURCES[key_type]
     try:
-        rows = client.get(path, org_id=org_id)
+        if key_type == "tracing_key":
+            rows = client.get_cursor_paginated(path, key="items", org_id=org_id)
+        else:
+            rows = client.get(path, org_id=org_id)
     except LangSmithFetchError as err:
         logger.warning("Skipping LangSmith %s inventory: %s", key_type, err)
         # A 404 means the feature is off for this organization (for example SCIM), so
