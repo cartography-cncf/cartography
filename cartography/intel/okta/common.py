@@ -60,12 +60,14 @@ OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 OKTA_MISSING_SCOPE_ERROR_CODE = "E0000006"
 # Logged with a resource name and the scope it needs when Okta refuses it.
 OKTA_MISSING_SCOPE_WARNING = (
-    "Unable to sync %s - the Okta credential needs an admin role that allows "
-    "it, and an OAuth service app also needs the %s scope"
+    "Skipping %s because Okta denied the request. OAuth service app: grant the "
+    "app the %s scope, add that scope to --okta-scopes if you set that option, "
+    "and give the app an admin role that can read this resource. API token: "
+    "create the token as an admin whose role can read this resource."
 )
 
-# Read-only scopes requested by default. An OAuth service
-# app must be granted all of them, or Okta refuses to issue an access token.
+# Read-only scopes that the Okta sync needs. An OAuth service app must be
+# granted all of them.
 OKTA_OAUTH_DEFAULT_SCOPES = (
     "okta.apiTokens.read",
     "okta.apps.read",
@@ -80,6 +82,13 @@ OKTA_OAUTH_DEFAULT_SCOPES = (
     "okta.userTypes.read",
     "okta.users.read",
 )
+
+# Read-only scopes requested with the defaults unless --okta-scopes is set. A
+# service app without one still syncs: only the resource that needs it is skipped.
+OKTA_OAUTH_OPTIONAL_SCOPES = ("okta.agentPools.read",)
+
+# Token endpoint error returned when the app was not granted a requested scope.
+OKTA_OAUTH_INVALID_SCOPE_ERROR_CODE = "invalid_scope"
 
 # Token endpoint errors returned when an OAuth service app cannot get an access
 # token: unknown client ID or key, scopes not granted, or a DPoP mismatch.
@@ -260,7 +269,14 @@ def is_resource_not_found_error(error: OktaApiError) -> bool:
 
 
 def is_missing_scope_error(error: OktaApiError) -> bool:
-    return error.error_code == OKTA_MISSING_SCOPE_ERROR_CODE
+    if error.error_code == OKTA_MISSING_SCOPE_ERROR_CODE:
+        return True
+    # Okta answers an OAuth token that lacks an endpoint's scope with a 403 that
+    # has no JSON body, so there is no error code: the reason is in the header.
+    if not isinstance(error.error, HTTPError) or error.error.status != 403:
+        return False
+    challenge = (error.error.response_headers or {}).get("WWW-Authenticate", "")
+    return "insufficient_scope" in challenge
 
 
 def is_oauth_token_error(error: OktaApiError) -> bool:

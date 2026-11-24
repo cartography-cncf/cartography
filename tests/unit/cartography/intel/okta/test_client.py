@@ -50,6 +50,7 @@ class _Response:
     content_type: str = "application/json"
     headers: dict[str, str] = field(default_factory=dict)
     links: dict[str, Any] = field(default_factory=dict)
+    reason: str = "OK"
 
 
 @dataclass
@@ -69,9 +70,13 @@ class _FakeOktaApi:
     def __init__(self) -> None:
         self.requests: list[_Request] = []
         self.token_error: dict[str, str] | None = None
+        self.ungranted_scopes: set[str] = set()
 
     def reject_token(self, error: str, description: str) -> None:
         self.token_error = {"error": error, "error_description": description}
+
+    def reject_token_requests_for(self, scope: str) -> None:
+        self.ungranted_scopes.add(scope)
 
     async def send_request(
         self,
@@ -91,6 +96,14 @@ class _FakeOktaApi:
             response = _Response(200, {})
         elif self.token_error:
             response = _Response(400, self.token_error)
+        elif self.ungranted_scopes & set(request["form"]["scope"].split()):
+            response = _Response(
+                400,
+                {
+                    "error": "invalid_scope",
+                    "error_description": "The following scopes are not allowed.",
+                },
+            )
         else:
             # Okta binds the token with DPoP when the request carries a proof.
             token_type = "DPoP" if "DPoP" in headers else "Bearer"
@@ -138,6 +151,23 @@ def _oauth_config(**kwargs: Any) -> Config:
 def _fetch_org(config: Config) -> None:
     client = okta_intel.create_okta_client(config)
     asyncio.run(get_raw_json(client, "/api/v1/org"))
+
+
+class _SyncStopped(Exception):
+    pass
+
+
+@pytest.fixture
+def stop_after_authentication(monkeypatch):
+    """End the ingestion once the organization step has fetched a token.
+
+    The fake API cannot serve the rest of the sync.
+    """
+
+    def stop(*args: Any, **kwargs: Any) -> None:
+        raise _SyncStopped
+
+    monkeypatch.setattr(okta_intel.users, "sync_okta_users", stop)
 
 
 def _dpop_proof_claims(proof: str) -> dict[str, Any]:
@@ -195,7 +225,7 @@ def test_oauth_token_request_is_signed_with_the_service_app_key(
     assert claims["sub"] == "0oaclient"
 
 
-def test_oauth_token_request_asks_for_the_default_scopes(
+def test_oauth_token_request_asks_for_the_default_and_optional_scopes(
     okta_api: _FakeOktaApi,
 ) -> None:
     # Act
@@ -203,7 +233,49 @@ def test_oauth_token_request_asks_for_the_default_scopes(
 
     # Assert
     token_request, _ = okta_api.requests
-    assert token_request.form["scope"] == " ".join(OKTA_OAUTH_DEFAULT_SCOPES)
+    assert token_request.form["scope"] == " ".join(
+        [*OKTA_OAUTH_DEFAULT_SCOPES, "okta.agentPools.read"],
+    )
+
+
+def test_start_okta_ingestion_retries_without_a_refused_optional_scope(
+    okta_api: _FakeOktaApi,
+    stop_after_authentication: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Arrange
+    okta_api.reject_token_requests_for("okta.agentPools.read")
+
+    # Act
+    with caplog.at_level(logging.WARNING), pytest.raises(_SyncStopped):
+        okta_intel.start_okta_ingestion(
+            MagicMock(),
+            _oauth_config(okta_dpop_enabled=False),
+        )
+
+    # Assert
+    refused, retried = (r for r in okta_api.requests if r.url == TOKEN_URL)
+    assert "okta.agentPools.read" in refused.form["scope"]
+    assert retried.form["scope"] == " ".join(OKTA_OAUTH_DEFAULT_SCOPES)
+    assert "grant them to the service app" in caplog.text
+
+
+def test_start_okta_ingestion_fails_when_a_configured_scope_is_refused(
+    okta_api: _FakeOktaApi,
+) -> None:
+    # Arrange
+    okta_api.reject_token_requests_for("okta.agentPools.read")
+
+    # Act / Assert
+    with pytest.raises(OktaApiError) as exc_info:
+        okta_intel.start_okta_ingestion(
+            MagicMock(),
+            _oauth_config(
+                okta_dpop_enabled=False,
+                okta_scopes="okta.users.read,okta.agentPools.read",
+            ),
+        )
+    assert exc_info.value.error_code == "invalid_scope"
 
 
 def test_oauth_token_request_asks_for_configured_scopes(
