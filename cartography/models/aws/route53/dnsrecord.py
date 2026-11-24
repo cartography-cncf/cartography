@@ -204,6 +204,26 @@ class AWSDNSRecordToESDomainRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSDNSRecordToRedshiftClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToRedshiftClusterRel(CartographyRelSchema):
+    target_node_label: str = "AWSRedshiftCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "endpoint_address": PropertyRef("value"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DNS_POINTS_TO"
+    properties: AWSDNSRecordToRedshiftClusterRelProperties = (
+        AWSDNSRecordToRedshiftClusterRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSDNSRecordToDNSRecordRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -277,6 +297,7 @@ class AWSDNSRecordSchema(CartographyNodeSchema):
             AWSDNSRecordToLoadBalancerRel(),
             AWSDNSRecordToLoadBalancerV2Rel(),
             AWSDNSRecordToESDomainRel(),
+            AWSDNSRecordToRedshiftClusterRel(),
             AWSDNSRecordToDNSRecordRel(),
             AWSDNSRecordToZoneRel(),
             AWSDNSRecordToIpRel(),

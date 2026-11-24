@@ -220,6 +220,45 @@ ELASTIC_IP_RELATIONSHIP_TEST_RECORDS = [
     ),
 ]
 
+# Records pointing at the Redshift cluster fixture in tests/data/aws/redshift.py:
+# the target values are CLUSTERS[0]["Endpoint"]["Address"] verbatim (with the trailing
+# root dot on the alias target, as Route53 returns it).
+GET_ZONES_REDSHIFT_RESPONSE = [
+    (
+        {
+            "CallerReference": "test-ref-redshift",
+            "Config": {
+                "PrivateZone": False,
+            },
+            "Id": "/hostedzone/REDSHIFT_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 2,
+        },
+        [
+            {
+                "Name": "warehouse.example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "my-cluster.abc.us-east-1.redshift.amazonaws.example.com",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "CNAME",
+            },
+            {
+                "Name": "warehouse-alias.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "HOSTED_ZONE_2",
+                    "DNSName": "my-cluster.abc.us-east-1.redshift.amazonaws.example.com.",
+                    "EvaluateTargetHealth": False,
+                },
+                "TTL": 60,
+                "Type": "A",
+            },
+        ],
+    ),
+]
+
 GET_ZONES_WITH_SUBZONE = [
     (
         {

@@ -1,7 +1,11 @@
+import copy
+
+import cartography.intel.aws.redshift
 import cartography.intel.aws.route53
 import cartography.util
 import tests.data.aws.ec2.elastic_ip_addresses
 import tests.data.aws.ec2.load_balancers
+import tests.data.aws.redshift
 import tests.data.aws.route53
 from tests.integration.util import check_rels
 
@@ -317,3 +321,58 @@ def test_link_sub_zones_handles_cycles(neo4j_session):
         rel_direction_right=True,
     )
     assert actual == expected
+
+
+def test_load_dnspointsto_redshift_relationships(neo4j_session):
+    """
+    1. Start with a clean database
+    2. Load Redshift clusters and DNS records pointing at the cluster endpoint
+    3. Ensure that the expected :DNS_POINTS_TO relationships have been created
+    """
+    # Arrange: start with a clean db. Redshift clusters must be loaded first; it's the
+    # Route53 module that links DNS records to Redshift clusters.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id:$AccountId})
+        ON CREATE SET a.firstseen = timestamp()
+        SET a.lastupdated=$UpdateTag, a :Tenant
+        """,
+        AccountId=TEST_AWS_ACCOUNTID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
+    clusters = cartography.intel.aws.redshift.transform_redshift_cluster_data(
+        copy.deepcopy(tests.data.aws.redshift.CLUSTERS),
+        TEST_AWS_REGION,
+        TEST_AWS_ACCOUNTID,
+    )
+    cartography.intel.aws.redshift.load_redshift_cluster_data(
+        neo4j_session,
+        clusters,
+        TEST_AWS_REGION,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.aws.route53.load_dns_details(
+        neo4j_session,
+        tests.data.aws.route53.GET_ZONES_REDSHIFT_RESPONSE,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert: both the CNAME and the ALIAS record point at the cluster endpoint.
+    endpoint_address = tests.data.aws.redshift.CLUSTERS[0]["Endpoint"]["Address"]
+    assert check_rels(
+        neo4j_session,
+        "AWSDNSRecord",
+        "name",
+        "AWSRedshiftCluster",
+        "endpoint_address",
+        "DNS_POINTS_TO",
+        rel_direction_right=True,
+    ) == {
+        ("warehouse.example.com", endpoint_address),
+        ("warehouse-alias.example.com", endpoint_address),
+    }
