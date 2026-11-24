@@ -71,6 +71,7 @@ AWS_TAGGABLE_RESOURCES = (
     AWSTaggableResource("ecs:cluster", "AWSECSCluster", "id"),
     AWSTaggableResource("ecs:container", "AWSECSContainer", "id"),
     AWSTaggableResource("ecs:container-instance", "AWSECSContainerInstance", "id"),
+    AWSTaggableResource("ecs:service", "AWSECSService", "id"),
     AWSTaggableResource("ecs:task", "AWSECSTask", "id"),
     AWSTaggableResource("ecs:task-definition", "AWSECSTaskDefinition", "id"),
     AWSTaggableResource("eks:cluster", "AWSEKSCluster", "id"),
