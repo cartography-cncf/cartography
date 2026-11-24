@@ -453,6 +453,33 @@ def test_is_github_dotcom_api_url(api_url: str, expected: bool) -> None:
     assert is_github_dotcom_api_url(api_url) is expected
 
 
+def _http_500(message: str) -> HTTPError:
+    response = Response()
+    response.status_code = 500
+    return HTTPError(message, response=response)
+
+
+@pytest.mark.parametrize(
+    "fetch_page_behavior, expected_exception",
+    [
+        pytest.param(
+            {"side_effect": _http_500("my-error")},
+            HTTPError,
+            id="http-500",
+        ),
+        pytest.param(
+            {"return_value": {"errors": [{"message": "my-error"}]}},
+            ValueError,
+            id="graphql-errors-without-data",
+        ),
+        pytest.param(
+            {"return_value": {"data": None, "errors": [{"message": "my-error"}]}},
+            ValueError,
+            id="graphql-errors-with-null-data",
+        ),
+    ],
+)
+@typing.no_type_check
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.handle_rate_limit_sleep")
 @patch("cartography.intel.github.util.fetch_page")
@@ -460,18 +487,17 @@ def test_fetch_all_handles_retries(
     mock_fetch_page: Mock,
     mock_handle_rate_limit_sleep: Mock,
     mock_sleep: Mock,
+    fetch_page_behavior: dict[str, typing.Any],
+    expected_exception: type[Exception],
 ) -> None:
     """
-    Ensures that fetch_all re-reaises the same exceptions when exceeding retry limit
+    Ensures that fetch_all raises once every attempt has failed
     """
     # Arrange
-    exception = HTTPError
-    response = Response()
-    response.status_code = 500
-    mock_fetch_page.side_effect = exception("my-error", response=response)
+    mock_fetch_page.configure_mock(**fetch_page_behavior)
     retries = 3
     # Act
-    with pytest.raises(exception) as excinfo:
+    with pytest.raises(expected_exception) as excinfo:
         fetch_all(
             "my-token",
             "my-api_url",
@@ -549,6 +575,113 @@ def test_fetch_all_retries_connection_errors(
 
     assert mock_fetch_page.call_count == 2
     mock_sleep.assert_called_once_with(2)
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_retries_a_later_page_that_returns_no_data(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    # Arrange
+    first_page = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [{"name": "repo-1"}],
+                    "edges": [],
+                    "pageInfo": {"endCursor": "cursor-1", "hasNextPage": True},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    failed_page = {"errors": [{"message": "Something went wrong"}]}
+    second_page = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [{"name": "repo-2"}],
+                    "edges": [],
+                    "pageInfo": {"endCursor": "cursor-2", "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    mock_fetch_page.side_effect = [first_page, failed_page, second_page]
+
+    # Act
+    data, _ = fetch_all("token", "api_url", "org", "query", "repositories")
+
+    # Assert
+    assert data.nodes == [{"name": "repo-1"}, {"name": "repo-2"}]
+    assert mock_fetch_page.call_args_list[2][0][4] == "cursor-1"
+
+
+@pytest.mark.parametrize(
+    "extensions",
+    [
+        pytest.param(
+            {"saml_failure": False, "ip_allow_list_failure": True},
+            id="ip-allow-list",
+        ),
+        pytest.param(
+            {"saml_failure": True, "ip_allow_list_failure": False},
+            id="saml-sso",
+        ),
+    ],
+)
+@typing.no_type_check
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_logs_other_organizations_access_policies_below_warning(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    caplog: pytest.LogCaptureFixture,
+    extensions: dict[str, bool],
+) -> None:
+    # Arrange
+    access_policy_error = {
+        "type": "FORBIDDEN",
+        "path": ["organization", "repositories", "nodes", 0, "parent"],
+        "extensions": extensions,
+        "message": "The `upstream-org` organization restricts access to this resource.",
+    }
+    timeout_error = {
+        "path": ["organization", "repositories", "nodes", 1, "object"],
+        "message": "timedout",
+    }
+    mock_fetch_page.return_value = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [{"name": "fork", "parent": None}, {"name": "repo"}],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+        "errors": [access_policy_error, timeout_error],
+    }
+
+    # Act
+    with caplog.at_level("INFO", logger="cartography.intel.github.util"):
+        fetch_all("token", "api_url", "org", "query", "repositories")
+
+    # Assert
+    info, warning = caplog.records
+    assert info.levelname == "INFO"
+    assert "upstream-org" in info.getMessage()
+    assert warning.levelname == "WARNING"
+    assert "timedout" in warning.getMessage()
+    assert "upstream-org" not in warning.getMessage()
 
 
 @typing.no_type_check
