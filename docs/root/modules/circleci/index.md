@@ -1,10 +1,12 @@
 # CircleCI
 
-Cartography discovers CircleCI projects from each organization's pipeline feed
-because CircleCI API v2 does not provide an endpoint that lists every project
-in an organization. The feed covers recently built projects followed by the
-token owner, approximately 250 projects per organization. Add projects without
-recent pipeline activity explicitly with `--circleci-project-slugs`.
+Cartography discovers CircleCI projects from two sources because CircleCI API
+v2 does not provide an endpoint that lists every project in an organization.
+The Insights summary names every project in the organization that the token
+can read. The pipeline feed covers recently built projects followed by the
+token owner, approximately 250 projects per organization, and is the only
+source when the Insights summary is not available. Add projects that neither
+source returns explicitly with `--circleci-project-slugs`.
 
 Because discovery is partial, `CircleCIProject` nodes are upserted but are not
 automatically deleted when they disappear from the recent feed. Sub-resources
