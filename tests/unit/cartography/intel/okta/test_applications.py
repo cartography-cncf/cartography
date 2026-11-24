@@ -1,3 +1,4 @@
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -12,6 +13,10 @@ from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.application import ACTIVE_DIRECTORY_APPLICATION
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import APPLICATION_WITH_UNKNOWN_SIGN_ON_MODE
+from tests.data.okta.application import GITHUBCLOUD_SAML_APPLICATION
+from tests.data.okta.application import GOOGLE_BROWSER_PLUGIN_APPLICATION
+from tests.data.okta.application import SALESFORCE_SAML_APPLICATION
+from tests.data.okta.application import SLACK_SAML_APPLICATION
 
 
 async def _empty_assignments(*args):
@@ -221,3 +226,138 @@ def test_transform_okta_applications_reraises_other_okta_errors_on_groups(
     # Act and assert
     with pytest.raises(OktaApiError):
         applications._transform_okta_applications(MagicMock(), [application])
+
+
+@patch.object(
+    applications,
+    "collect_raw_paginated",
+    new_callable=AsyncMock,
+)
+def test_get_okta_applications_calls_collect_raw_paginated(
+    mock_collect_raw: AsyncMock,
+) -> None:
+    # Arrange
+    okta_client = MagicMock()
+    mock_collect_raw.return_value = [SLACK_SAML_APPLICATION]
+
+    # Act
+    result = asyncio.run(applications._get_okta_applications(okta_client))
+
+    # Assert
+    mock_collect_raw.assert_awaited_once_with(
+        okta_client, "/api/v1/apps", params={"limit": "200"}
+    )
+    assert result == [SLACK_SAML_APPLICATION]
+
+
+def test_transform_okta_applications_extracts_allowlisted_settings_app(
+    monkeypatch,
+) -> None:
+    # Arrange
+    ghes_app = {
+        "id": "0oaGhesSaml",
+        "name": "ghecenterprisesaml",
+        "label": "GitHub Enterprise Server",
+        "status": "ACTIVE",
+        "signOnMode": "SAML_2_0",
+        "settings": {
+            "app": {
+                "githubEnterprise": "example-enterprise",
+            },
+        },
+    }
+    empty_domain_app = {
+        "id": "0oaEmptyDomain",
+        "name": "slack",
+        "label": "Slack Empty",
+        "status": "ACTIVE",
+        "signOnMode": "SAML_2_0",
+        "settings": {
+            "app": {
+                "domain": "",
+            },
+        },
+    }
+    raw_apps = [
+        SLACK_SAML_APPLICATION,
+        GITHUBCLOUD_SAML_APPLICATION,
+        GOOGLE_BROWSER_PLUGIN_APPLICATION,
+        SALESFORCE_SAML_APPLICATION,
+        ghes_app,
+        empty_domain_app,
+    ]
+    sdk_apps = [ApplicationJsonConverter.from_dict(raw) for raw in raw_apps]
+    monkeypatch.setattr(
+        applications, "_get_application_assigned_users", _empty_assignments
+    )
+    monkeypatch.setattr(
+        applications, "_get_application_assigned_groups", _empty_assignments
+    )
+
+    # Act
+    result = applications._transform_okta_applications(
+        None, sdk_apps, raw_applications=raw_apps
+    )
+
+    # Assert
+    by_id = {app["id"]: app for app in result}
+
+    assert by_id["0oaSlackSaml"]["settings_app_domain"] == "example-team"
+    assert "userEmailValue" not in by_id["0oaSlackSaml"]
+    assert "settings_app_user_email_value" not in by_id["0oaSlackSaml"]
+
+    assert by_id["0oaGithubCloud"]["settings_app_github_org"] == "example-org"
+
+    assert by_id["0oaGoogleSwa"]["settings_app_domain"] == "example.com"
+    assert "afwOnly" not in by_id["0oaGoogleSwa"]
+    assert "settings_app_afw_only" not in by_id["0oaGoogleSwa"]
+
+    assert (
+        by_id["0oaSalesforceSaml"]["settings_app_login_url"]
+        == "https://example.my.salesforce.com"
+    )
+    assert by_id["0oaSalesforceSaml"]["settings_app_instance_type"] == "PRODUCTION"
+    assert by_id["0oaSalesforceSaml"]["settings_app_custom_domain"] == "example"
+    assert "integrationType" not in by_id["0oaSalesforceSaml"]
+    assert "settings_app_integration_type" not in by_id["0oaSalesforceSaml"]
+
+    # githubEnterprise names a GitHub enterprise, which Cartography has no node for
+    assert "settings_app_github_enterprise" not in by_id["0oaGhesSaml"]
+    assert by_id["0oaEmptyDomain"]["settings_app_domain"] is None
+
+
+def test_transform_okta_applications_drops_non_string_settings_app_values(
+    monkeypatch,
+) -> None:
+    # Arrange: a catalog app that stores a map under an allowlisted key
+    raw_app = {
+        "id": "0oaMapDomain",
+        "name": "slack",
+        "label": "Slack Map",
+        "status": "ACTIVE",
+        "signOnMode": "SAML_2_0",
+        "settings": {
+            "app": {
+                "domain": {"value": "example-team"},
+                "loginUrl": ["https://example.my.salesforce.com"],
+                "instanceType": True,
+            },
+        },
+    }
+    sdk_apps = [ApplicationJsonConverter.from_dict(raw_app)]
+    monkeypatch.setattr(
+        applications, "_get_application_assigned_users", _empty_assignments
+    )
+    monkeypatch.setattr(
+        applications, "_get_application_assigned_groups", _empty_assignments
+    )
+
+    # Act
+    result = applications._transform_okta_applications(
+        None, sdk_apps, raw_applications=[raw_app]
+    )
+
+    # Assert: Neo4j cannot store maps, so only string values are kept
+    assert result[0]["settings_app_domain"] is None
+    assert result[0]["settings_app_login_url"] is None
+    assert result[0]["settings_app_instance_type"] is None

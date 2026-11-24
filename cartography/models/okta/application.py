@@ -100,6 +100,26 @@ class OktaApplicationNodeProperties(CartographyNodeProperties):
     settings_app_username_field: PropertyRef = PropertyRef(
         "settings_app_username_field", description="Okta settings app username field."
     )
+    settings_app_domain: PropertyRef = PropertyRef(
+        "settings_app_domain",
+        description="Target tenant domain configured in Okta catalog app settings (e.g., Slack or Google).",
+    )
+    settings_app_github_org: PropertyRef = PropertyRef(
+        "settings_app_github_org",
+        description="Target GitHub organization configured in Okta GitHub Cloud catalog app settings.",
+    )
+    settings_app_login_url: PropertyRef = PropertyRef(
+        "settings_app_login_url",
+        description="Target login URL configured in Okta catalog app settings (e.g., Salesforce).",
+    )
+    settings_app_instance_type: PropertyRef = PropertyRef(
+        "settings_app_instance_type",
+        description="Target instance type configured in Okta catalog app settings (e.g., Salesforce PRODUCTION or SANDBOX).",
+    )
+    settings_app_custom_domain: PropertyRef = PropertyRef(
+        "settings_app_custom_domain",
+        description="Target custom domain configured in Okta catalog app settings (e.g., Salesforce My Domain).",
+    )
     settings_app_implicit_assignment: PropertyRef = PropertyRef(
         "settings_app_implicit_assignment",
         description="Okta settings app implicit assignment.",

@@ -240,3 +240,60 @@ ACTIVE_DIRECTORY_APPLICATION = {
         },
     },
 }
+
+SLACK_SAML_APPLICATION = {
+    "id": "0oaSlackSaml",
+    "name": "slack",
+    "label": "Slack",
+    "status": "ACTIVE",
+    "signOnMode": "SAML_2_0",
+    "settings": {
+        "app": {
+            "domain": "example-team",
+            "userEmailValue": "Email",
+        },
+    },
+}
+
+GITHUBCLOUD_SAML_APPLICATION = {
+    "id": "0oaGithubCloud",
+    "name": "githubcloud",
+    "label": "GitHub Cloud",
+    "status": "ACTIVE",
+    "signOnMode": "SAML_2_0",
+    "settings": {
+        "app": {
+            "githubOrg": "example-org",
+        },
+    },
+}
+
+GOOGLE_BROWSER_PLUGIN_APPLICATION = {
+    "id": "0oaGoogleSwa",
+    "name": "google",
+    "label": "Google Workspace",
+    "status": "ACTIVE",
+    "signOnMode": "BROWSER_PLUGIN",
+    "settings": {
+        "app": {
+            "domain": "example.com",
+            "afwOnly": False,
+        },
+    },
+}
+
+SALESFORCE_SAML_APPLICATION = {
+    "id": "0oaSalesforceSaml",
+    "name": "salesforce",
+    "label": "Salesforce",
+    "status": "ACTIVE",
+    "signOnMode": "SAML_2_0",
+    "settings": {
+        "app": {
+            "loginUrl": "https://example.my.salesforce.com",
+            "instanceType": "PRODUCTION",
+            "customDomain": "example",
+            "integrationType": "STANDARD",
+        },
+    },
+}
