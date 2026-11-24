@@ -1,4 +1,6 @@
 from copy import deepcopy
+from datetime import datetime
+from datetime import timezone
 from unittest.mock import Mock
 
 import pytest
@@ -87,8 +89,8 @@ def test_transform_extracts_fields_and_strips_secrets():
             "state": "ENABLED",
             "description": "Project-scoped rule",
             "write_access_type": "OWNER_ONLY",
-            "created": 1700000000000,
-            "updated": 1700000100000,
+            "created": datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc),
+            "updated": datetime(2023, 11, 14, 22, 15, 0, tzinfo=timezone.utc),
             "trigger_type": "jira.issue.event.trigger:created",
             "has_incoming_webhook_trigger": False,
             "is_global": False,
@@ -106,8 +108,8 @@ def test_transform_extracts_fields_and_strips_secrets():
             "state": "DISABLED",
             "description": "Global rule with incoming webhook",
             "write_access_type": "ADMIN_ONLY",
-            "created": 1700000200000,
-            "updated": 1700000300000,
+            "created": datetime(2023, 11, 14, 22, 16, 40, tzinfo=timezone.utc),
+            "updated": datetime(2023, 11, 14, 22, 18, 20, tzinfo=timezone.utc),
             "trigger_type": "jira.incoming.webhook",
             "has_incoming_webhook_trigger": True,
             "is_global": True,
@@ -271,3 +273,17 @@ def test_sync_skips_cleanup_when_some_rules_were_unreadable(monkeypatch):
     # Assert
     load.assert_called_once()
     graph_job.from_node_schema.assert_not_called()
+
+
+def test_transform_leaves_missing_timestamps_empty():
+    # Arrange
+    rule = deepcopy(RULE_DETAIL_GLOBAL["rule"])
+    rule.pop("created")
+    rule["updated"] = None
+
+    # Act
+    result = transform([rule], CLOUD_ID)
+
+    # Assert
+    assert result[0]["created"] is None
+    assert result[0]["updated"] is None

@@ -92,11 +92,11 @@ class JiraAutomationRuleProperties(CartographyNodeProperties):
     )
     created: PropertyRef = PropertyRef(
         "created",
-        description="Rule creation timestamp in epoch milliseconds.",
+        description="When the rule was created.",
     )
     updated: PropertyRef = PropertyRef(
         "updated",
-        description="Rule last-updated timestamp in epoch milliseconds.",
+        description="When the rule was last updated.",
     )
     trigger_type: PropertyRef = PropertyRef(
         "trigger_type",

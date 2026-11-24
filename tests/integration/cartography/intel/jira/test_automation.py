@@ -88,6 +88,14 @@ def test_sync_automation_rules_and_cleanup(neo4j_session: neo4j.Session) -> None
     # Act
     sync(neo4j_session, client, 1)
 
+    # Assert timestamps are stored as native datetimes, not epoch milliseconds
+    types = neo4j_session.run(
+        "MATCH (r:JiraAutomationRule) "
+        "RETURN collect(DISTINCT valueType(r.created)) + "
+        "collect(DISTINCT valueType(r.updated)) AS types"
+    ).single()["types"]
+    assert set(types) == {"ZONED DATETIME NOT NULL"}
+
     # Assert all five relationship kinds
     assert check_rels(
         neo4j_session,

@@ -1,6 +1,8 @@
 import logging
 import re
 from collections.abc import Iterator
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 from urllib.parse import parse_qs
 from urllib.parse import quote
@@ -82,6 +84,12 @@ def _iter_components(node: Any) -> Iterator[dict[str, Any]]:
         nested = node.get(key)
         if nested:
             yield from _iter_components(nested)
+
+
+def _epoch_ms_to_datetime(value: Any) -> datetime | None:
+    if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return datetime.fromtimestamp(value / 1000, tz=timezone.utc)
 
 
 def _extract_project_id(ari: str) -> str | None:
@@ -232,8 +240,8 @@ def transform(rules: list[dict[str, Any]], cloud_id: str) -> list[dict[str, Any]
                 "state": rule.get("state"),
                 "description": rule.get("description"),
                 "write_access_type": rule.get("writeAccessType"),
-                "created": rule.get("created"),
-                "updated": rule.get("updated"),
+                "created": _epoch_ms_to_datetime(rule.get("created")),
+                "updated": _epoch_ms_to_datetime(rule.get("updated")),
                 "trigger_type": trigger_type,
                 "has_incoming_webhook_trigger": (
                     trigger_type == "jira.incoming.webhook"
