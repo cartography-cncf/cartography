@@ -453,37 +453,59 @@ def test_is_github_dotcom_api_url(api_url: str, expected: bool) -> None:
     assert is_github_dotcom_api_url(api_url) is expected
 
 
-@patch("cartography.intel.github.util.time.sleep")
-@patch("cartography.intel.github.util.handle_rate_limit_sleep")
-@patch("cartography.intel.github.util.fetch_page")
-def test_fetch_all_handles_retries(
-    mock_fetch_page: Mock,
-    mock_handle_rate_limit_sleep: Mock,
-    mock_sleep: Mock,
-) -> None:
-    """
-    Ensures that fetch_all re-reaises the same exceptions when exceeding retry limit
-    """
-    # Arrange
-    exception = HTTPError
+def _github_response(status_code: int, payload: dict[str, typing.Any]) -> Response:
     response = Response()
-    response.status_code = 500
-    mock_fetch_page.side_effect = exception("my-error", response=response)
-    retries = 3
-    # Act
-    with pytest.raises(exception) as excinfo:
+    response.status_code = status_code
+    response._content = json.dumps(payload).encode()
+    return response
+
+
+@pytest.mark.parametrize(
+    "response, expected_exception, expected_message",
+    [
+        pytest.param(
+            _github_response(500, {"message": "Server Error"}),
+            HTTPError,
+            "500 Server Error",
+            id="http-500",
+        ),
+        pytest.param(
+            _github_response(200, {"errors": [{"message": "Something went wrong"}]}),
+            ValueError,
+            "Something went wrong",
+            id="graphql-errors-without-data",
+        ),
+        pytest.param(
+            _github_response(
+                200, {"data": None, "errors": [{"message": "Something went wrong"}]}
+            ),
+            ValueError,
+            "Something went wrong",
+            id="graphql-errors-with-null-data",
+        ),
+    ],
+)
+@typing.no_type_check
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_fetch_all_raises_after_every_attempt_fails(
+    mock_post, mock_sleep, mock_gate, response, expected_exception, expected_message
+):
+    # Arrange
+    mock_post.return_value = response
+
+    # Act and assert
+    with pytest.raises(expected_exception, match=expected_message):
         fetch_all(
-            "my-token",
-            "my-api_url",
-            "my-org",
-            "my-query",
-            "my-resource",
-            retries=retries,
+            "test-token",
+            "https://api.github.com/graphql",
+            "example-org",
+            "query",
+            "repositories",
+            retries=3,
         )
-    # Assert
-    assert mock_handle_rate_limit_sleep.call_count == retries
-    assert mock_fetch_page.call_count == retries
-    assert "my-error" in str(excinfo.value)
+    assert mock_post.call_count == 3
 
 
 @patch("cartography.intel.github.util.time.sleep")
@@ -549,6 +571,147 @@ def test_fetch_all_retries_connection_errors(
 
     assert mock_fetch_page.call_count == 2
     mock_sleep.assert_called_once_with(2)
+
+
+@pytest.mark.parametrize(
+    "failed_page, expected_sleep_seconds",
+    [
+        pytest.param(
+            {"errors": [{"message": "Something went wrong"}]},
+            2,
+            id="query-failed",
+        ),
+        pytest.param(
+            {
+                "errors": [
+                    {"type": "RATE_LIMITED", "message": "API rate limit exceeded"}
+                ]
+            },
+            60,
+            id="rate-limited",
+        ),
+    ],
+)
+@typing.no_type_check
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_fetch_all_retries_a_later_page_that_returns_no_data(
+    mock_post, mock_sleep, mock_gate, failed_page, expected_sleep_seconds
+):
+    # Arrange
+    first_page = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [{"name": "repo-1"}],
+                    "edges": [],
+                    "pageInfo": {"endCursor": "cursor-1", "hasNextPage": True},
+                },
+                "url": "https://github.com/example-org",
+                "login": "example-org",
+            },
+        }
+    }
+    second_page = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [{"name": "repo-2"}],
+                    "edges": [],
+                    "pageInfo": {"endCursor": "cursor-2", "hasNextPage": False},
+                },
+                "url": "https://github.com/example-org",
+                "login": "example-org",
+            },
+        }
+    }
+    mock_post.side_effect = [
+        _github_response(200, first_page),
+        _github_response(200, failed_page),
+        _github_response(200, second_page),
+    ]
+
+    # Act
+    data, _ = fetch_all(
+        "test-token",
+        "https://api.github.com/graphql",
+        "example-org",
+        "query",
+        "repositories",
+    )
+
+    # Assert
+    assert data.nodes == [{"name": "repo-1"}, {"name": "repo-2"}]
+    retried_request = mock_post.call_args_list[2]
+    assert json.loads(retried_request.kwargs["json"]["variables"])["cursor"] == (
+        "cursor-1"
+    )
+    mock_sleep.assert_called_once_with(expected_sleep_seconds)
+
+
+@pytest.mark.parametrize(
+    "extensions",
+    [
+        pytest.param(
+            {"saml_failure": False, "ip_allow_list_failure": True},
+            id="ip-allow-list",
+        ),
+        pytest.param(
+            {"saml_failure": True, "ip_allow_list_failure": False},
+            id="saml-sso",
+        ),
+    ],
+)
+@typing.no_type_check
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_fetch_all_does_not_warn_about_fields_other_organizations_restrict(
+    mock_post, mock_gate, caplog, extensions
+):
+    # Arrange
+    access_policy_error = {
+        "type": "FORBIDDEN",
+        "path": ["organization", "repositories", "nodes", 0, "parent"],
+        "extensions": extensions,
+        "message": "The `upstream-org` organization restricts access to this resource.",
+    }
+    timeout_error = {
+        "path": ["organization", "repositories", "nodes", 1, "object"],
+        "message": "timedout",
+    }
+    mock_post.return_value = _github_response(
+        200,
+        {
+            "data": {
+                "organization": {
+                    "repositories": {
+                        "nodes": [{"name": "fork", "parent": None}, {"name": "repo"}],
+                        "edges": [],
+                        "pageInfo": {"endCursor": None, "hasNextPage": False},
+                    },
+                    "url": "https://github.com/example-org",
+                    "login": "example-org",
+                },
+            },
+            "errors": [access_policy_error, timeout_error],
+        },
+    )
+
+    # Act
+    with caplog.at_level("WARNING", logger="cartography.intel.github.util"):
+        fetch_all(
+            "test-token",
+            "https://api.github.com/graphql",
+            "example-org",
+            "query",
+            "repositories",
+        )
+
+    # Assert
+    (warning,) = caplog.records
+    assert "timedout" in warning.getMessage()
+    assert "upstream-org" not in warning.getMessage()
 
 
 @typing.no_type_check
