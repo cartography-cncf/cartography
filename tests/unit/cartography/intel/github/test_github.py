@@ -453,63 +453,59 @@ def test_is_github_dotcom_api_url(api_url: str, expected: bool) -> None:
     assert is_github_dotcom_api_url(api_url) is expected
 
 
-def _http_500(message: str) -> HTTPError:
+def _github_response(status_code: int, payload: dict[str, typing.Any]) -> Response:
     response = Response()
-    response.status_code = 500
-    return HTTPError(message, response=response)
+    response.status_code = status_code
+    response._content = json.dumps(payload).encode()
+    return response
 
 
 @pytest.mark.parametrize(
-    "fetch_page_behavior, expected_exception",
+    "response, expected_exception, expected_message",
     [
         pytest.param(
-            {"side_effect": _http_500("my-error")},
+            _github_response(500, {"message": "Server Error"}),
             HTTPError,
+            "500 Server Error",
             id="http-500",
         ),
         pytest.param(
-            {"return_value": {"errors": [{"message": "my-error"}]}},
+            _github_response(200, {"errors": [{"message": "Something went wrong"}]}),
             ValueError,
+            "Something went wrong",
             id="graphql-errors-without-data",
         ),
         pytest.param(
-            {"return_value": {"data": None, "errors": [{"message": "my-error"}]}},
+            _github_response(
+                200, {"data": None, "errors": [{"message": "Something went wrong"}]}
+            ),
             ValueError,
+            "Something went wrong",
             id="graphql-errors-with-null-data",
         ),
     ],
 )
 @typing.no_type_check
-@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.handle_rate_limit_sleep")
-@patch("cartography.intel.github.util.fetch_page")
-def test_fetch_all_handles_retries(
-    mock_fetch_page: Mock,
-    mock_handle_rate_limit_sleep: Mock,
-    mock_sleep: Mock,
-    fetch_page_behavior: dict[str, typing.Any],
-    expected_exception: type[Exception],
-) -> None:
-    """
-    Ensures that fetch_all raises once every attempt has failed
-    """
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_fetch_all_raises_after_every_attempt_fails(
+    mock_post, mock_sleep, mock_gate, response, expected_exception, expected_message
+):
     # Arrange
-    mock_fetch_page.configure_mock(**fetch_page_behavior)
-    retries = 3
-    # Act
-    with pytest.raises(expected_exception) as excinfo:
+    mock_post.return_value = response
+
+    # Act and assert
+    with pytest.raises(expected_exception, match=expected_message):
         fetch_all(
-            "my-token",
-            "my-api_url",
-            "my-org",
-            "my-query",
-            "my-resource",
-            retries=retries,
+            "test-token",
+            "https://api.github.com/graphql",
+            "example-org",
+            "query",
+            "repositories",
+            retries=3,
         )
-    # Assert
-    assert mock_handle_rate_limit_sleep.call_count == retries
-    assert mock_fetch_page.call_count == retries
-    assert "my-error" in str(excinfo.value)
+    assert mock_post.call_count == 3
 
 
 @patch("cartography.intel.github.util.time.sleep")
@@ -597,16 +593,12 @@ def test_fetch_all_retries_connection_errors(
     ],
 )
 @typing.no_type_check
-@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.handle_rate_limit_sleep")
-@patch("cartography.intel.github.util.fetch_page")
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
 def test_fetch_all_retries_a_later_page_that_returns_no_data(
-    mock_fetch_page: Mock,
-    mock_handle_rate_limit_sleep: Mock,
-    mock_sleep: Mock,
-    failed_page: dict[str, typing.Any],
-    expected_sleep_seconds: int,
-) -> None:
+    mock_post, mock_sleep, mock_gate, failed_page, expected_sleep_seconds
+):
     # Arrange
     first_page = {
         "data": {
@@ -616,8 +608,8 @@ def test_fetch_all_retries_a_later_page_that_returns_no_data(
                     "edges": [],
                     "pageInfo": {"endCursor": "cursor-1", "hasNextPage": True},
                 },
-                "url": "url",
-                "login": "org",
+                "url": "https://github.com/example-org",
+                "login": "example-org",
             },
         }
     }
@@ -629,19 +621,32 @@ def test_fetch_all_retries_a_later_page_that_returns_no_data(
                     "edges": [],
                     "pageInfo": {"endCursor": "cursor-2", "hasNextPage": False},
                 },
-                "url": "url",
-                "login": "org",
+                "url": "https://github.com/example-org",
+                "login": "example-org",
             },
         }
     }
-    mock_fetch_page.side_effect = [first_page, failed_page, second_page]
+    mock_post.side_effect = [
+        _github_response(200, first_page),
+        _github_response(200, failed_page),
+        _github_response(200, second_page),
+    ]
 
     # Act
-    data, _ = fetch_all("token", "api_url", "org", "query", "repositories")
+    data, _ = fetch_all(
+        "test-token",
+        "https://api.github.com/graphql",
+        "example-org",
+        "query",
+        "repositories",
+    )
 
     # Assert
     assert data.nodes == [{"name": "repo-1"}, {"name": "repo-2"}]
-    assert mock_fetch_page.call_args_list[2][0][4] == "cursor-1"
+    retried_request = mock_post.call_args_list[2]
+    assert json.loads(retried_request.kwargs["json"]["variables"])["cursor"] == (
+        "cursor-1"
+    )
     mock_sleep.assert_called_once_with(expected_sleep_seconds)
 
 
@@ -660,13 +665,10 @@ def test_fetch_all_retries_a_later_page_that_returns_no_data(
 )
 @typing.no_type_check
 @patch("cartography.intel.github.util.handle_rate_limit_sleep")
-@patch("cartography.intel.github.util.fetch_page")
-def test_fetch_all_logs_other_organizations_access_policies_below_warning(
-    mock_fetch_page: Mock,
-    mock_handle_rate_limit_sleep: Mock,
-    caplog: pytest.LogCaptureFixture,
-    extensions: dict[str, bool],
-) -> None:
+@patch("cartography.intel.github.util.requests.post")
+def test_fetch_all_does_not_warn_about_fields_other_organizations_restrict(
+    mock_post, mock_gate, caplog, extensions
+):
     # Arrange
     access_policy_error = {
         "type": "FORBIDDEN",
@@ -678,30 +680,36 @@ def test_fetch_all_logs_other_organizations_access_policies_below_warning(
         "path": ["organization", "repositories", "nodes", 1, "object"],
         "message": "timedout",
     }
-    mock_fetch_page.return_value = {
-        "data": {
-            "organization": {
-                "repositories": {
-                    "nodes": [{"name": "fork", "parent": None}, {"name": "repo"}],
-                    "edges": [],
-                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+    mock_post.return_value = _github_response(
+        200,
+        {
+            "data": {
+                "organization": {
+                    "repositories": {
+                        "nodes": [{"name": "fork", "parent": None}, {"name": "repo"}],
+                        "edges": [],
+                        "pageInfo": {"endCursor": None, "hasNextPage": False},
+                    },
+                    "url": "https://github.com/example-org",
+                    "login": "example-org",
                 },
-                "url": "url",
-                "login": "org",
             },
+            "errors": [access_policy_error, timeout_error],
         },
-        "errors": [access_policy_error, timeout_error],
-    }
+    )
 
     # Act
-    with caplog.at_level("INFO", logger="cartography.intel.github.util"):
-        fetch_all("token", "api_url", "org", "query", "repositories")
+    with caplog.at_level("WARNING", logger="cartography.intel.github.util"):
+        fetch_all(
+            "test-token",
+            "https://api.github.com/graphql",
+            "example-org",
+            "query",
+            "repositories",
+        )
 
     # Assert
-    info, warning = caplog.records
-    assert info.levelname == "INFO"
-    assert "upstream-org" in info.getMessage()
-    assert warning.levelname == "WARNING"
+    (warning,) = caplog.records
     assert "timedout" in warning.getMessage()
     assert "upstream-org" not in warning.getMessage()
 
