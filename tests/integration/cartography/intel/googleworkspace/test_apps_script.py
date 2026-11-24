@@ -167,7 +167,7 @@ def test_sync_googleworkspace_apps_script_nodes_rels_and_cleanup(
             "script-domain-user-3": (PROJECT_DOMAIN_USER, DEPLOYMENTS_DOMAIN_USER),
         }
     )
-    mock_build.side_effect = [drive_u1_403, MagicMock(), drive_u2_r2, script_u2_r2]
+    mock_build.side_effect = [drive_u1_403, drive_u2_r2, script_u2_r2]
 
     sync_googleworkspace_apps_script(
         neo4j_session,
@@ -234,13 +234,8 @@ def test_partial_sync_cleans_up_only_users_read_completely(mock_build, neo4j_ses
     drive_u1_403.files.return_value.list.return_value.execute.side_effect = (
         _make_http_error(403)
     )
-    drive_u2_empty, script_u2_empty = _make_user_services({})
-    mock_build.side_effect = [
-        drive_u1_403,
-        MagicMock(),
-        drive_u2_empty,
-        script_u2_empty,
-    ]
+    drive_u2_empty, _ = _make_user_services({})
+    mock_build.side_effect = [drive_u1_403, drive_u2_empty]
     sync_googleworkspace_apps_script(
         neo4j_session,
         creds,

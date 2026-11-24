@@ -180,8 +180,7 @@ def test_sync_unauthorized_client_on_first_user_skips_all(
     drive_mock.files.return_value.list.return_value.execute.side_effect = RefreshError(
         "unauthorized_client: Client is unauthorized to retrieve access tokens"
     )
-    script_mock = MagicMock()
-    mock_build.side_effect = [drive_mock, script_mock]
+    mock_build.side_effect = [drive_mock]
 
     with caplog.at_level(
         logging.INFO, logger="cartography.intel.googleworkspace.apps_script"
@@ -218,7 +217,6 @@ def test_sync_one_user_403_loads_others_and_skips_cleanup(
     drive_user1.files.return_value.list.return_value.execute.side_effect = (
         _make_http_error(403)
     )
-    script_user1 = MagicMock()
 
     drive_user2 = MagicMock()
     drive_user2.files.return_value.list.return_value.execute.return_value = {
@@ -232,7 +230,7 @@ def test_sync_one_user_403_loads_others_and_skips_cleanup(
         "deployments": DEPLOYMENTS_DOMAIN_USER,
     }
 
-    mock_build.side_effect = [drive_user1, script_user1, drive_user2, script_user2]
+    mock_build.side_effect = [drive_user1, drive_user2, script_user2]
 
     with (
         caplog.at_level(
@@ -495,9 +493,9 @@ def test_sync_unexpected_http_error_does_not_stop_googleworkspace_sync(
     drive.files.return_value.list.return_value.execute.side_effect = _make_http_error(
         500
     )
-    mock_build.side_effect = [drive, MagicMock()]
+    mock_build.side_effect = [drive]
 
-    # Act: must not raise, so later Google Workspace syncs still run
+    # Act: must not raise, so the Google Workspace sync does not fail
     with caplog.at_level(
         logging.WARNING, logger="cartography.intel.googleworkspace.apps_script"
     ):
@@ -533,7 +531,7 @@ def test_sync_unauthorized_client_after_failed_first_user_skips_all(
     drive_user2.files.return_value.list.return_value.execute.side_effect = RefreshError(
         "unauthorized_client: Client is unauthorized to retrieve access tokens"
     )
-    mock_build.side_effect = [drive_user1, MagicMock(), drive_user2, MagicMock()]
+    mock_build.side_effect = [drive_user1, drive_user2]
 
     # Act
     with caplog.at_level(
@@ -611,7 +609,7 @@ def test_sync_drive_api_disabled_in_cloud_project_skips_all(
         "Google Drive API has not been used in project 123 before or it is disabled.",
         reason="SERVICE_DISABLED",
     )
-    mock_build.side_effect = [drive, MagicMock()]
+    mock_build.side_effect = [drive]
 
     # Act
     with caplog.at_level(
@@ -624,8 +622,37 @@ def test_sync_drive_api_disabled_in_cloud_project_skips_all(
             {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
         )
 
-    # Assert: no second user is tried, nothing is loaded or cleaned up
-    assert mock_build.call_count == 2
+    # Assert: no second user is tried and no script client is built
+    assert mock_build.call_count == 1
     mock_load.assert_not_called()
     mock_cleanup.assert_not_called()
     assert any("Drive API" in r.getMessage() for r in caplog.records)
+
+
+@patch("cartography.intel.googleworkspace.apps_script.cleanup_apps_script_projects")
+@patch("cartography.intel.googleworkspace.apps_script.load_apps_script_projects")
+@patch("cartography.intel.googleworkspace.apps_script.googleapiclient.discovery.build")
+@patch(
+    "cartography.intel.googleworkspace.apps_script._get_active_users_for_tenant",
+    return_value=[{"id": "user-1", "primary_email": "mbsimpson@simpson.corp"}],
+)
+def test_sync_skips_script_client_when_user_has_no_scripts(
+    _mock_get_users, mock_build, mock_load, mock_cleanup
+):
+    # Arrange
+    mock_build.side_effect = [_drive_listing([])]
+
+    # Act
+    sync_googleworkspace_apps_script(
+        MagicMock(),
+        _make_service_account_creds(),
+        123,
+        {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
+    )
+
+    # Assert: only the Drive client is built, and the user still counts as read
+    assert mock_build.call_count == 1
+    assert mock_build.call_args[0][0] == "drive"
+    mock_load.assert_called_once()
+    assert mock_load.call_args[0][1] == []
+    mock_cleanup.assert_called_once()

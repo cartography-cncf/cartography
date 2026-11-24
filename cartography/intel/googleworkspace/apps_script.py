@@ -174,12 +174,6 @@ def get_apps_script_projects(
             credentials=user_creds,
             cache_discovery=False,
         )
-        script = googleapiclient.discovery.build(
-            "script",
-            "v1",
-            credentials=user_creds,
-            cache_discovery=False,
-        )
 
         try:
             script_ids = _list_user_script_ids(drive)
@@ -205,6 +199,17 @@ def get_apps_script_projects(
             raise
         any_user_authorized = True
         user_fully_read = True
+
+        if not script_ids:
+            read_user_ids.append(user_id)
+            continue
+
+        script = googleapiclient.discovery.build(
+            "script",
+            "v1",
+            credentials=user_creds,
+            cache_discovery=False,
+        )
 
         for script_id in script_ids:
             try:
@@ -402,6 +407,19 @@ def cleanup_apps_script_projects_of_users(
         UPDATE_TAG=update_tag,
         USER_IDS=user_ids,
     )
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:GoogleWorkspaceTenant {id: $CUSTOMER_ID})-[:RESOURCE]->(p:GoogleWorkspaceAppsScriptProject)
+        MATCH (u:GoogleWorkspaceUser)-[r:OWNS]->(p)
+        WHERE u.id IN $USER_IDS
+          AND r.lastupdated <> $UPDATE_TAG
+        DELETE r
+        """,
+        CUSTOMER_ID=customer_id,
+        UPDATE_TAG=update_tag,
+        USER_IDS=user_ids,
+    )
 
 
 @timeit
@@ -440,7 +458,7 @@ def sync_googleworkspace_apps_script(
         )
         return
     except HttpError as e:
-        # Apps Script is optional; do not stop the Google Workspace syncs after it.
+        # Apps Script is optional; do not fail the Google Workspace sync.
         logger.warning(
             "Skipping Apps Script sync - Google API error HTTP %s",
             e.resp.status,
