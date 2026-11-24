@@ -1,9 +1,12 @@
 import copy
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.intel.aws import AWS_ECS_ASSET_EXPOSURE_DEPS
 from cartography.util import run_typed_analysis_and_ensure_deps
 from cartography.util import run_typed_analysis_job
@@ -1173,3 +1176,110 @@ def test_ecs_direct_exposure_skipped_when_security_group_not_synced(neo4j_sessio
     ran = _get_container_exposure(neo4j_session, container_id)
     assert ran["exposed"] is True
     assert "direct" in ran["types"]
+
+
+@pytest.mark.parametrize(
+    ("registered_container_name", "sidecar_exposure"),
+    [
+        pytest.param("web", (None, None, []), id="registration-names-the-container"),
+        pytest.param(
+            None, (True, ["elbv2"], ["lb-bridge"]), id="registration-names-no-container"
+        ),
+    ],
+)
+def test_ecs_exposure_through_service_target_group(
+    neo4j_session, registered_container_name, sidecar_exposure
+):
+    """
+    A bridge-mode task has no network interface, so an internet-facing load balancer reaches it
+    through its container instance. When the target group registered on the service names the
+    container it routes to, the sidecar in the same task stays unmarked. A registration that names
+    no container marks every container in the task. The instance has one EXPOSE edge per load
+    balancer, which records a single target group, so a second service on the same instance and
+    load balancer is marked through its own registration. A task on the same instance whose
+    service is registered on a load balancer that does not route to that instance stays unmarked.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    cluster_arn = "arn:aws:ecs:us-east-1:000000000000:cluster/bridge"
+    task_id = "arn:aws:ecs:us-east-1:000000000000:task/bridge/task-bridge"
+    neo4j_session.run(
+        """
+        MERGE (lb:AWSLoadBalancerV2{id: 'lb-bridge'}) SET lb.lastupdated = $tag, lb.exposed_internet = true
+        MERGE (tg:AWSELBV2TargetGroup{id: 'tg-bridge'}) SET tg.lastupdated = $tag
+        MERGE (service:AWSECSService{id: 'svc-bridge'})
+            SET service.lastupdated = $tag, service.name = 'bridge-service', service.cluster_arn = $cluster_arn
+        MERGE (task:AWSECSTask{id: $task_id})
+            SET task.lastupdated = $tag, task.service_name = 'bridge-service', task.cluster_arn = $cluster_arn
+        MERGE (web:AWSECSContainer{id: $task_id + '/web'}) SET web.lastupdated = $tag, web.name = 'web'
+        MERGE (sidecar:AWSECSContainer{id: $task_id + '/sidecar'})
+            SET sidecar.lastupdated = $tag, sidecar.name = 'sidecar'
+        MERGE (instance:AWSEC2Instance{id: 'i-bridge'}) SET instance.lastupdated = $tag
+        MERGE (host:AWSECSContainerInstance{id: 'ci-bridge'}) SET host.lastupdated = $tag
+        MERGE (neighbor_task:AWSECSTask{id: $task_id + '-neighbor'})
+            SET neighbor_task.lastupdated = $tag, neighbor_task.service_name = 'other-service',
+                neighbor_task.cluster_arn = $cluster_arn
+        MERGE (neighbor:AWSECSContainer{id: $task_id + '-neighbor/web'})
+            SET neighbor.lastupdated = $tag, neighbor.name = 'web'
+        MERGE (other_lb:AWSLoadBalancerV2{id: 'lb-other'})
+            SET other_lb.lastupdated = $tag, other_lb.exposed_internet = true
+        MERGE (other_tg:AWSELBV2TargetGroup{id: 'tg-other'}) SET other_tg.lastupdated = $tag
+        MERGE (shared_tg:AWSELBV2TargetGroup{id: 'tg-shared'}) SET shared_tg.lastupdated = $tag
+        MERGE (shared_service:AWSECSService{id: 'svc-shared'})
+            SET shared_service.lastupdated = $tag, shared_service.name = 'shared-service',
+                shared_service.cluster_arn = $cluster_arn
+        MERGE (shared_task:AWSECSTask{id: $task_id + '-shared'})
+            SET shared_task.lastupdated = $tag, shared_task.service_name = 'shared-service',
+                shared_task.cluster_arn = $cluster_arn
+        MERGE (shared:AWSECSContainer{id: $task_id + '-shared/web'})
+            SET shared.lastupdated = $tag, shared.name = 'web'
+        MERGE (other_service:AWSECSService{id: 'svc-other'})
+            SET other_service.lastupdated = $tag, other_service.name = 'other-service',
+                other_service.cluster_arn = $cluster_arn
+        MERGE (lb)-[:ELBV2_TARGET_GROUP]->(tg)
+        MERGE (lb)-[:ELBV2_TARGET_GROUP]->(shared_tg)
+        MERGE (other_lb)-[:ELBV2_TARGET_GROUP]->(other_tg)
+        MERGE (shared_tg)-[:TARGETS{container_name: 'web', container_port: 8080}]->(shared_service)
+        MERGE (host)-[:HAS_TASK]->(shared_task)
+        MERGE (shared_task)-[:HAS_CONTAINER]->(shared)
+        MERGE (lb)-[:EXPOSE{target_group_arn: 'tg-bridge'}]->(instance)
+        MERGE (tg)-[registration:TARGETS{container_port: 8080}]->(service)
+            SET registration.container_name = $registered_container_name
+        MERGE (other_tg)-[:TARGETS{container_name: 'web', container_port: 8080}]->(other_service)
+        MERGE (host)-[:IS_INSTANCE]->(instance)
+        MERGE (host)-[:HAS_TASK]->(task)
+        MERGE (host)-[:HAS_TASK]->(neighbor_task)
+        MERGE (task)-[:HAS_CONTAINER]->(web)
+        MERGE (task)-[:HAS_CONTAINER]->(sidecar)
+        MERGE (neighbor_task)-[:HAS_CONTAINER]->(neighbor)
+        """,
+        tag=TEST_UPDATE_TAG,
+        cluster_arn=cluster_arn,
+        task_id=task_id,
+        registered_container_name=registered_container_name,
+    )
+
+    run_typed_analysis_job(
+        AWS_ECS_ASSET_EXPOSURE,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    run_typed_analysis_job(
+        AWS_LB_CONTAINER_EXPOSURE,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert {
+        record["id"]: (record["exposed"], record["types"], record["routed"])
+        for record in neo4j_session.run(
+            "MATCH (c:AWSECSContainer) WHERE c.id STARTS WITH $task_id "
+            "RETURN c.id AS id, c.exposed_internet AS exposed, c.exposed_internet_type AS types, "
+            "[(lb:AWSLoadBalancerV2)-[:EXPOSE]->(c) | lb.id] AS routed",
+            task_id=task_id,
+        )
+    } == {
+        f"{task_id}/web": (True, ["elbv2"], ["lb-bridge"]),
+        f"{task_id}/sidecar": sidecar_exposure,
+        f"{task_id}-shared/web": (True, ["elbv2"], ["lb-bridge"]),
+        f"{task_id}-neighbor/web": (None, None, []),
+    }

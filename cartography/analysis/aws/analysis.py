@@ -130,6 +130,27 @@ AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
                 ),
             ),
         ),
+        # A bridge or host task has no network interface of its own, so the load balancer
+        # reaches it through the container instance and the statement above cannot see it.
+        # See the matching statement in AWS_ECS_ASSET_EXPOSURE.
+        AnalysisStatement(
+            match="""
+            MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:ELBV2_TARGET_GROUP]->(group:AWSELBV2TargetGroup)-[registration:TARGETS]->(service:AWSECSService)
+            MATCH (lb)-[:EXPOSE]->(:AWSEC2Instance)<-[:IS_INSTANCE]-(:AWSECSContainerInstance)-[:HAS_TASK]->(task:AWSECSTask {cluster_arn: service.cluster_arn, service_name: service.name})-[:HAS_CONTAINER]->(container:AWSECSContainer)
+            WHERE registration.container_name IS NULL OR container.name = registration.container_name
+            WITH DISTINCT lb, container
+            """,
+            effects=(
+                AddRelationship(
+                    "lb",
+                    "EXPOSE",
+                    "container",
+                    properties={"exposure_type": "via_lb_only"},
+                    source_label="AWSLoadBalancerV2",
+                    target_label="AWSECSContainer",
+                ),
+            ),
+        ),
     ),
 )
 AWS_LB_NACL_DIRECT = AnalysisJob(
@@ -351,6 +372,36 @@ AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
         AnalysisStatement(
             match="""
             MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(container:AWSECSContainer)
+            WITH DISTINCT container
+            """,
+            effects=(
+                SetProperty(
+                    "container", "exposed_internet", True, label="AWSECSContainer"
+                ),
+                AddToSet(
+                    "container",
+                    "exposed_internet_type",
+                    "elbv2",
+                    label="AWSECSContainer",
+                ),
+            ),
+        ),
+        # Exposed via an internet-facing load balancer that targets the task's container
+        # instance. A bridge or host task has no network interface of its own, so the statement
+        # above cannot see it. Two facts must agree: the load balancer routes to the EC2 instance
+        # the task runs on, and one of its target groups is registered on the task's service.
+        # The instance alone would mark every task it hosts, and the registration alone is a
+        # claim that no synced target backs. The route's target_group_arn is not compared with
+        # the registration: an instance that sits in several target groups of one load balancer
+        # has a single EXPOSE edge, which records only one of them. The registration names the
+        # container the target group routes to, so a sidecar in the same task is not marked.
+        # The task is matched to its service by name, not WORKLOAD_PARENT, for the reason
+        # AWS_ECS_NO_MODELED_INTERNET_PATH gives.
+        AnalysisStatement(
+            match="""
+            MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:ELBV2_TARGET_GROUP]->(group:AWSELBV2TargetGroup)-[registration:TARGETS]->(service:AWSECSService)
+            MATCH (lb)-[:EXPOSE]->(:AWSEC2Instance)<-[:IS_INSTANCE]-(:AWSECSContainerInstance)-[:HAS_TASK]->(task:AWSECSTask {cluster_arn: service.cluster_arn, service_name: service.name})-[:HAS_CONTAINER]->(container:AWSECSContainer)
+            WHERE registration.container_name IS NULL OR container.name = registration.container_name
             WITH DISTINCT container
             """,
             effects=(

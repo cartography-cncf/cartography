@@ -80,7 +80,7 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
         "exposed_internet",
         set_by_analysis=True,
         extra_index=True,
-        description="`True` when the container is reachable from the internet, through an exposed load balancer or an awsvpc network interface with a public IP and an open security group. Unset otherwise: it is never written as `false`, so its absence does not mean the container is private. `no_modeled_internet_path`, set on a container the analysis checked, is `true` when no internet path the graph models reaches it and `false` when the analysis declined.",
+        description="`True` when the container is reachable from the internet: through an exposed load balancer that reaches its task's network interface, or that routes to its container instance and has a target group registered on its service, or through an awsvpc network interface with a public IP and an open security group. Unset otherwise: it is never written as `false`, so its absence does not mean the container is private. `no_modeled_internet_path`, set on a container the analysis checked, is `true` when no internet path the graph models reaches it and `false` when the analysis declined.",
     )  # Populated by the AWS_ECS_ASSET_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
