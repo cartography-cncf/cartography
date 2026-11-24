@@ -287,3 +287,20 @@ def test_transform_leaves_missing_timestamps_empty():
     # Assert
     assert result[0]["created"] is None
     assert result[0]["updated"] is None
+
+
+def test_transform_ignores_non_dict_component_value():
+    # Arrange
+    rule = deepcopy(RULE_DETAIL_PROJECT["rule"])
+    rule["components"] = [
+        {"type": "jira.issue.outgoing.webhook", "value": "not-a-dict"},
+    ]
+
+    # Act
+    result = transform([rule], CLOUD_ID)
+
+    # Assert
+    assert result[0]["outgoing_request_count"] == 1
+    assert result[0]["outgoing_request_hosts"] == []
+    assert result[0]["github_repository_ids"] == []
+    assert result[0]["slack_team_ids"] == []

@@ -218,7 +218,8 @@ def transform(rules: list[dict[str, Any]], cloud_id: str) -> list[dict[str, Any]
             if comp_type not in _OUTGOING_COMPONENT_TYPES:
                 continue
             outgoing_request_count += 1
-            value = component.get("value") or {}
+            raw_value = component.get("value")
+            value = raw_value if isinstance(raw_value, dict) else {}
             raw_url = (
                 value.get("webhookUrl")
                 if comp_type == "slack.notification"
