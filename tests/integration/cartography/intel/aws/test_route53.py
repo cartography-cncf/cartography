@@ -1,5 +1,7 @@
+import cartography.intel.aws.cloudfront
 import cartography.intel.aws.route53
 import cartography.util
+import tests.data.aws.cloudfront
 import tests.data.aws.ec2.elastic_ip_addresses
 import tests.data.aws.ec2.load_balancers
 import tests.data.aws.route53
@@ -269,6 +271,59 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
         rel_direction_right=True,
     )
     expected = {("hello.what.example.com", "192.168.1.1")}
+    assert actual == expected
+
+
+def test_load_dnspointsto_cloudfront_relationships(neo4j_session):
+    """
+    1. Start with a clean database
+    2. Load a CloudFront distribution and DNS records that target its domain name
+    3. Ensure that the expected :DNS_POINTS_TO relationships have been created
+    """
+    # Arrange: start with a clean db and create the test account.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id:$AccountId})
+        ON CREATE SET a.firstseen = timestamp()
+        SET a.lastupdated=$UpdateTag, a :Tenant
+        """,
+        AccountId=TEST_AWS_ACCOUNTID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
+    # The distribution must be loaded first; it's the Route53 module that links DNS
+    # records to CloudFront distributions. Transform then load, as sync() does.
+    cartography.intel.aws.cloudfront.load_cloudfront_distributions(
+        neo4j_session,
+        cartography.intel.aws.cloudfront.transform_cloudfront_distributions(
+            tests.data.aws.cloudfront.CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN,
+        ),
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: load DNS records whose ALIAS and CNAME targets are the distribution's domain.
+    cartography.intel.aws.route53.load_dns_details(
+        neo4j_session,
+        tests.data.aws.route53.GET_ZONES_CLOUDFRONT_RELATIONSHIP_TEST_RECORDS,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert: both records point to the distribution via DNS_POINTS_TO.
+    actual = check_rels(
+        neo4j_session,
+        "AWSDNSRecord",
+        "name",
+        "AWSCloudFrontDistribution",
+        "domain_name",
+        "DNS_POINTS_TO",
+        rel_direction_right=True,
+    )
+    expected = {
+        ("cdn.example.com", "d5555555555555.cloudfront.net"),
+        ("cdn2.example.com", "d5555555555555.cloudfront.net"),
+    }
     assert actual == expected
 
 

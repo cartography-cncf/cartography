@@ -303,7 +303,12 @@ DNS_RECORD_TARGETS = (
         _ROUTE53_EXCLUDED_FILTER,
         _ROUTE53_CLEANUP_WHERE,
     ),
-    DNSRecordTarget("AWSCloudFrontDistribution", ("domain_name",)),
+    DNSRecordTarget(
+        "AWSCloudFrontDistribution",
+        ("domain_name",),
+        _ROUTE53_EXCLUDED_FILTER,
+        _ROUTE53_CLEANUP_WHERE,
+    ),
     DNSRecordTarget(
         "AWSEC2Instance",
         ("publicdnsname",),
