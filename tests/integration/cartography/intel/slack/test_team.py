@@ -24,6 +24,25 @@ def test_load_slack_team(neo4j_session):
 
     # Assert Team exists
     expected_nodes = {
-        (SLACK_TEAM_ID, "Simpson Corp"),
+        (
+            SLACK_TEAM_ID,
+            "Simpson Corp",
+            "E0EXAMPLE01",
+            "Example Org",
+            "example-org",
+        ),
     }
-    assert check_nodes(neo4j_session, "SlackTeam", ["id", "name"]) == expected_nodes
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SlackTeam",
+            [
+                "id",
+                "name",
+                "enterprise_id",
+                "enterprise_name",
+                "enterprise_domain",
+            ],
+        )
+        == expected_nodes
+    )

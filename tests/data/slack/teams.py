@@ -19,5 +19,8 @@ SLACK_TEAMS_DETAILS = {
         },
         "avatar_base_url": "https://ca.slack-edge.com/",
         "is_verified": False,
+        "enterprise_id": "E0EXAMPLE01",
+        "enterprise_name": "Example Org",
+        "enterprise_domain": "example-org",
     },
 }

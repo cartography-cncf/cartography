@@ -17,6 +17,10 @@ class SalesforceOrganizationNodeProperties(CartographyNodeProperties):
     instance_name: PropertyRef = PropertyRef(
         "InstanceName", description="Salesforce instance name."
     )
+    instance_url: PropertyRef = PropertyRef(
+        "instance_url",
+        description="Instance URL (My Domain) that the integration authenticated against.",
+    )
     is_sandbox: PropertyRef = PropertyRef(
         "IsSandbox", description="Whether the organization is a sandbox."
     )
