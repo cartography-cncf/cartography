@@ -373,21 +373,29 @@ def fetch_all(
         # with HTTP 200 and only `errors`. The same query usually succeeds on retry.
         if resp.get("data") is None:
             unusable_page_retry += 1
-            error_messages = _graphql_error_messages(resp.get("errors") or [])
+            errors = resp.get("errors") or []
+            error_messages = _graphql_error_messages(errors)
             if unusable_page_retry >= retries:
                 raise ValueError(
                     f"GitHub returned no data for resource `{resource_type}` of org `{organization}` "
                     f"after {unusable_page_retry} attempts: {error_messages}",
                 )
+            delay = 2**unusable_page_retry
+            if any(error.get("type") == "RATE_LIMITED" for error in errors):
+                # The next attempt checks the primary reset; back off here
+                # for secondary limits, which /rate_limit cannot report.
+                delay = 60 * 2 ** (unusable_page_retry - 1)
             logger.warning(
-                "GitHub returned no data for resource `%s` of org `%s`. Retrying (%d/%d). Errors: %s",
+                "GitHub returned no data for resource `%s` of org `%s`. Retrying (%d/%d) in %d seconds. "
+                "Errors: %s",
                 resource_type,
                 organization,
                 unusable_page_retry,
                 retries,
+                delay,
                 error_messages,
             )
-            sleep_with_jitter(2**unusable_page_retry)
+            sleep_with_jitter(delay)
             continue
 
         if resp["data"].get("organization") is None:

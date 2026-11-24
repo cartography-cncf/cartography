@@ -577,6 +577,26 @@ def test_fetch_all_retries_connection_errors(
     mock_sleep.assert_called_once_with(2)
 
 
+@pytest.mark.parametrize(
+    "failed_page, expected_sleep_seconds",
+    [
+        pytest.param(
+            {"errors": [{"message": "Something went wrong"}]},
+            2,
+            id="query-failed",
+        ),
+        pytest.param(
+            {
+                "errors": [
+                    {"type": "RATE_LIMITED", "message": "API rate limit exceeded"}
+                ]
+            },
+            60,
+            id="rate-limited",
+        ),
+    ],
+)
+@typing.no_type_check
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.handle_rate_limit_sleep")
 @patch("cartography.intel.github.util.fetch_page")
@@ -584,6 +604,8 @@ def test_fetch_all_retries_a_later_page_that_returns_no_data(
     mock_fetch_page: Mock,
     mock_handle_rate_limit_sleep: Mock,
     mock_sleep: Mock,
+    failed_page: dict[str, typing.Any],
+    expected_sleep_seconds: int,
 ) -> None:
     # Arrange
     first_page = {
@@ -599,7 +621,6 @@ def test_fetch_all_retries_a_later_page_that_returns_no_data(
             },
         }
     }
-    failed_page = {"errors": [{"message": "Something went wrong"}]}
     second_page = {
         "data": {
             "organization": {
@@ -621,6 +642,7 @@ def test_fetch_all_retries_a_later_page_that_returns_no_data(
     # Assert
     assert data.nodes == [{"name": "repo-1"}, {"name": "repo-2"}]
     assert mock_fetch_page.call_args_list[2][0][4] == "cursor-1"
+    mock_sleep.assert_called_once_with(expected_sleep_seconds)
 
 
 @pytest.mark.parametrize(
