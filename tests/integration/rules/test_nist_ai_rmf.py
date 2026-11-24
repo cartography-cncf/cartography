@@ -127,8 +127,11 @@ def test_api_key_hygiene_reports_a_key_once_after_its_project_is_removed(
     # Act
     rows = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
 
-    # Assert
-    assert sorted(row["api_key_id"] for row in rows) == [
-        "key_abc",
-        "key_iegheiWieG2jupheeYin",
+    # Assert: one row per key, and the removed project's key no longer has a
+    # project scope.
+    assert sorted(
+        (row["api_key_id"], row["has_project_or_workspace_scope"]) for row in rows
+    ) == [
+        ("key_abc", False),
+        ("key_iegheiWieG2jupheeYin", False),
     ]
