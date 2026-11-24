@@ -138,6 +138,11 @@ def get_retry_sleep_seconds_for_http_error(
     return None
 
 
+# Servers seen answering /rate_limit with 404. The check runs before every page,
+# and without this a server with rate limiting off gets one extra request per page.
+_RATE_LIMITING_OFF: set[str] = set()
+
+
 def _get_rate_limit(token: Any, base_url: str, resource: str) -> dict[str, Any] | None:
     """
     Return one resource of the instance's rate limit, or None when it has none.
@@ -145,13 +150,16 @@ def _get_rate_limit(token: Any, base_url: str, resource: str) -> dict[str, Any] 
     GitHub Enterprise Server has API rate limiting off by default, and then
     answers /rate_limit with 404: there is no budget to wait for.
     """
+    if base_url in _RATE_LIMITING_OFF:
+        return None
     response = requests.get(
         f"{base_url}/rate_limit",
         headers={"Authorization": f"Bearer {_resolve_token(token)}"},
         timeout=_TIMEOUT,
     )
     if response.status_code == 404 and urlsplit(base_url).netloc != "api.github.com":
-        logger.debug("GitHub at %s has API rate limiting turned off", base_url)
+        logger.info("GitHub at %s has API rate limiting turned off", base_url)
+        _RATE_LIMITING_OFF.add(base_url)
         return None
     response.raise_for_status()
     rate_limit: dict[str, Any] = response.json()["resources"][resource]
