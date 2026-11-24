@@ -1,6 +1,8 @@
 import copy
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
@@ -1176,13 +1178,26 @@ def test_ecs_direct_exposure_skipped_when_security_group_not_synced(neo4j_sessio
     assert "direct" in ran["types"]
 
 
-def test_ecs_exposure_through_service_target_group(neo4j_session):
+@pytest.mark.parametrize(
+    ("registered_container_name", "sidecar_exposure"),
+    [
+        pytest.param("web", (None, None, False), id="registration-names-the-container"),
+        pytest.param(
+            None, (True, ["elbv2"], True), id="registration-names-no-container"
+        ),
+    ],
+)
+def test_ecs_exposure_through_service_target_group(
+    neo4j_session, registered_container_name, sidecar_exposure
+):
     """
     A bridge-mode task has no network interface, so an internet-facing load balancer reaches it
-    through its container instance. The target group registered on the service names the container
-    it routes to. The sidecar in the same task stays unmarked, and so does a task on the same
-    instance whose service is registered on a target group that does not route to that instance.
+    through its container instance. When the target group registered on the service names the
+    container it routes to, the sidecar in the same task stays unmarked. A registration that names
+    no container marks every container in the task. A task on the same instance whose service is
+    registered on a target group that does not route to that instance always stays unmarked.
     """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     cluster_arn = "arn:aws:ecs:us-east-1:000000000000:cluster/bridge"
     task_id = "arn:aws:ecs:us-east-1:000000000000:task/bridge/task-bridge"
     neo4j_session.run(
@@ -1210,7 +1225,8 @@ def test_ecs_exposure_through_service_target_group(neo4j_session):
         MERGE (lb)-[:ELBV2_TARGET_GROUP]->(tg)
         MERGE (lb)-[:ELBV2_TARGET_GROUP]->(other_tg)
         MERGE (lb)-[:EXPOSE{target_group_arn: 'tg-bridge'}]->(instance)
-        MERGE (tg)-[:TARGETS{container_name: 'web', container_port: 8080}]->(service)
+        MERGE (tg)-[registration:TARGETS{container_port: 8080}]->(service)
+            SET registration.container_name = $registered_container_name
         MERGE (other_tg)-[:TARGETS{container_name: 'web', container_port: 8080}]->(other_service)
         MERGE (host)-[:IS_INSTANCE]->(instance)
         MERGE (host)-[:HAS_TASK]->(task)
@@ -1222,6 +1238,7 @@ def test_ecs_exposure_through_service_target_group(neo4j_session):
         tag=TEST_UPDATE_TAG,
         cluster_arn=cluster_arn,
         task_id=task_id,
+        registered_container_name=registered_container_name,
     )
 
     run_typed_analysis_job(
@@ -1236,20 +1253,15 @@ def test_ecs_exposure_through_service_target_group(neo4j_session):
     )
 
     assert {
-        record["id"]: (record["exposed"], record["types"])
+        record["id"]: (record["exposed"], record["types"], record["routed"])
         for record in neo4j_session.run(
             "MATCH (c:AWSECSContainer) WHERE c.id STARTS WITH $task_id "
-            "RETURN c.id AS id, c.exposed_internet AS exposed, c.exposed_internet_type AS types",
+            "RETURN c.id AS id, c.exposed_internet AS exposed, c.exposed_internet_type AS types, "
+            "EXISTS { (:AWSLoadBalancerV2{id: 'lb-bridge'})-[:EXPOSE]->(c) } AS routed",
             task_id=task_id,
         )
     } == {
-        f"{task_id}/web": (True, ["elbv2"]),
-        f"{task_id}/sidecar": (None, None),
-        f"{task_id}-neighbor/web": (None, None),
+        f"{task_id}/web": (True, ["elbv2"], True),
+        f"{task_id}/sidecar": sidecar_exposure,
+        f"{task_id}-neighbor/web": (None, None, False),
     }
-    assert {
-        record["id"]
-        for record in neo4j_session.run(
-            "MATCH (:AWSLoadBalancerV2{id: 'lb-bridge'})-[:EXPOSE]->(c:AWSECSContainer) RETURN c.id AS id"
-        )
-    } == {f"{task_id}/web"}
