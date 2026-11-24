@@ -231,3 +231,31 @@ def test_sync_okta_federation_removes_stale_links(neo4j_session) -> None:
     ) == {
         ("app-google", "C_OTHER"),
     }
+
+
+def test_sync_okta_federation_cleanup_keeps_other_orgs_links(neo4j_session) -> None:
+    # Arrange: the other Okta org syncs first and links its Google app
+    _setup_federation_graph(neo4j_session)
+    cartography.intel.okta.federation.sync_okta_federation(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        OTHER_ORG_ID,
+    )
+
+    # Act: this org syncs later with a newer update tag, which runs its cleanup
+    cartography.intel.okta.federation.sync_okta_federation(
+        neo4j_session,
+        TEST_UPDATE_TAG + 1,
+        TEST_ORG_ID,
+    )
+
+    # Assert: the other org's older link survives this org's cleanup
+    assert ("app-other-org-google", "C_OTHER") in check_rels(
+        neo4j_session,
+        "OktaApplication",
+        "id",
+        "GoogleWorkspaceTenant",
+        "id",
+        "FEDERATES_TO",
+        rel_direction_right=True,
+    )
