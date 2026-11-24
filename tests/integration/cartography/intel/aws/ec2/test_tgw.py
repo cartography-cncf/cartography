@@ -12,6 +12,7 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
+TEST_VPC_ID = "vpc-16719ae825ca14e92"
 
 
 @patch.object(
@@ -36,6 +37,12 @@ def test_sync_transit_gateways(
     """
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    # The VPC the attachment points at, so the relationship has something to match.
+    neo4j_session.run(
+        "MERGE (v:AWSVpc{id: $vpc_id}) SET v.lastupdated = $update_tag",
+        vpc_id=TEST_VPC_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     cartography.intel.aws.ec2.tgw.sync_transit_gateways(
         neo4j_session,
@@ -70,4 +77,19 @@ def test_sync_transit_gateways(
             "tgw-attach-aaaabbbbccccdef01",
             "arn:aws:ec2:eu-west-1:000000000000:transit-gateway/tgw-0123456789abcdef0",
         ),
+    }
+
+    # Verify AWSTransitGatewayAttachment -[:MEMBER_OF_AWS_VPC]-> AWSVpc.
+    # This edge used to be declared as RESOURCE/INWARD, the same label and direction as the
+    # schema's sub_resource_relationship to AWSAccount, and was silently never created.
+    assert check_rels(
+        neo4j_session,
+        "AWSTransitGatewayAttachment",
+        "id",
+        "AWSVpc",
+        "id",
+        "MEMBER_OF_AWS_VPC",
+        rel_direction_right=True,
+    ) == {
+        ("tgw-attach-aaaabbbbccccdef01", TEST_VPC_ID),
     }
