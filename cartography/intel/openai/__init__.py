@@ -11,6 +11,7 @@ import cartography.intel.openai.projects
 import cartography.intel.openai.serviceaccounts
 import cartography.intel.openai.users
 from cartography.config import Config
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -94,4 +95,12 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         common_job_parameters,
         ORG_ID=config.openai_org_id,
         known_project_key_ids=known_project_key_ids,
+    )
+
+    # DEPRECATED: one-off migration that sweeps API keys and service accounts
+    # orphaned before project cleanup cascaded to them. It will be removed in v1.0.0.
+    run_analysis_job(
+        "openai_orphaned_project_resources_migration.json",
+        neo4j_session,
+        common_job_parameters,
     )

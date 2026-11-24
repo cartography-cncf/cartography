@@ -102,7 +102,12 @@ class OpenAIProjectToUserAdminRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OpenAIProjectSchema(CartographyNodeSchema):
-    """A project in an OpenAI organization."""
+    """
+    A project in an OpenAI organization.
+
+    When a project leaves the organization, cleanup removes the project together
+    with its API keys and service accounts.
+    """
 
     label: str = "OpenAIProject"
     properties: OpenAIProjectNodeProperties = OpenAIProjectNodeProperties()
