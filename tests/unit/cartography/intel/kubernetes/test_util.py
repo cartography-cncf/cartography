@@ -7,6 +7,7 @@ from kubernetes.client.exceptions import ApiException
 from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import k8s_paginate_pages
+from cartography.intel.kubernetes.util import MAX_EXPIRED_CONTINUES
 
 
 def _page(items: list[str], next_token: str | None = None) -> SimpleNamespace:
@@ -63,26 +64,26 @@ def test_k8s_paginate_flattens_pages():
     "responses,expected_items,expected_tokens",
     [
         pytest.param(
-            [_page(["a"], "t1"), _expired("resume"), _page(["b"])],
+            [_page(["a"], "t1"), _expired("r1"), _page(["b"])],
             ["a", "b"],
-            [None, "t1", "resume"],
+            [None, "t1", "r1"],
             id="resumes-with-the-token-the-410-carries",
         ),
         pytest.param(
-            [_page(["a"], "t1"), _expired(), _page(["a"], "t2"), _page(["b"])],
-            ["a", "a", "b"],
-            [None, "t1", None, "t2"],
-            id="restarts-once-without-a-token",
-        ),
-        pytest.param(
-            [_page(["a"], "t1"), _expired("t1"), _page(["a"])],
-            ["a", "a"],
-            [None, "t1", None],
-            id="restarts-when-the-410-returns-the-same-token",
+            [
+                _page(["a"], "t1"),
+                _expired("r1"),
+                _page(["b"], "t2"),
+                _expired("r2"),
+                _page(["c"]),
+            ],
+            ["a", "b", "c"],
+            [None, "t1", "r1", "t2", "r2"],
+            id="resumes-each-time-a-token-expires",
         ),
     ],
 )
-def test_k8s_paginate_pages_recovers_from_an_expired_continue_token(
+def test_k8s_paginate_pages_resumes_an_expired_continue_token(
     responses, expected_items, expected_tokens
 ):
     calls: list[tuple[int, str | None]] = []
@@ -101,10 +102,12 @@ def test_k8s_paginate_pages_recovers_from_an_expired_continue_token(
         pytest.param(
             [_page(["a"], "t1"), ApiException(status=500)], id="error-after-a-page"
         ),
-        pytest.param([_expired("resume")], id="410-without-a-continue-token"),
+        pytest.param([_expired("r1")], id="410-on-the-first-request"),
+        pytest.param([_page(["a"], "t1"), _expired()], id="410-without-a-token"),
         pytest.param(
-            [_page(["a"], "t1"), _expired(), _page(["a"], "t2"), _expired()],
-            id="second-410-without-a-token",
+            [_page(["a"], "t1")]
+            + [_expired(f"r{n}") for n in range(MAX_EXPIRED_CONTINUES + 1)],
+            id="more-expiries-than-the-resume-cap",
         ),
     ],
 )

@@ -407,6 +407,7 @@ def parse_rfc3339(value: str | None) -> datetime | None:
 
 
 DEFAULT_PAGE_SIZE = 500
+MAX_EXPIRED_CONTINUES = 10
 
 
 def k8s_paginate(list_func: Callable, **kwargs: Any) -> list[Any]:
@@ -450,14 +451,14 @@ def k8s_paginate_pages(list_func: Callable, **kwargs: Any) -> Iterator[list[Any]
     A continue token lives only until etcd compacts its revision (five minutes by
     default), so a slow list of a large cluster can get 410 Gone partway through. The
     API server then returns a token that resumes from the next key at the latest
-    revision, and this function continues with it. That remainder is read from a newer
-    snapshot than the pages before it, which is fine for an inventory sync: an object
-    deleted in between is absent from the remainder and cleaned up. When the 410 carries
-    no such token, the list restarts from the beginning once, so a caller can see the
-    resources of earlier pages twice. A second such 410 raises.
+    revision, and this function continues with it, up to ``MAX_EXPIRED_CONTINUES``
+    times. That remainder is read from a newer snapshot than the pages before it, which
+    is fine for an inventory sync: an object deleted in between is absent from the
+    remainder and cleaned up, and one created before the next key waits for the next
+    sync. A 410 without such a token raises like any other error.
     """
     continue_token = None
-    restarted = False
+    resumes = 0
     limit = kwargs.pop("limit", DEFAULT_PAGE_SIZE)
     function_name = list_func.__name__
 
@@ -470,24 +471,18 @@ def k8s_paginate_pages(list_func: Callable, **kwargs: Any) -> Iterator[list[Any]
             else:
                 response = list_func(limit=limit, **kwargs)
         except ApiException as e:
-            if e.status == 410 and continue_token:
-                resume_token = _resume_token(e)
-                if resume_token and resume_token != continue_token:
-                    logger.warning(
-                        "Continue token for %s expired; resuming the list from the "
-                        "latest snapshot.",
-                        function_name,
-                    )
-                    continue_token = resume_token
-                    continue
-                if not restarted:
-                    logger.warning(
-                        "Continue token for %s expired; restarting the list.",
-                        function_name,
-                    )
-                    restarted = True
-                    continue_token = None
-                    continue
+            resume_token = _resume_token(e) if e.status == 410 else None
+            if continue_token and resume_token and resumes < MAX_EXPIRED_CONTINUES:
+                resumes += 1
+                logger.warning(
+                    "Continue token for %s expired; resuming the list from the latest "
+                    "snapshot (resume %d of at most %d).",
+                    function_name,
+                    resumes,
+                    MAX_EXPIRED_CONTINUES,
+                )
+                continue_token = resume_token
+                continue
             # 401/403 propagate quietly so the caller can log a permission-specific
             # message.
             if e.status not in (401, 403):
