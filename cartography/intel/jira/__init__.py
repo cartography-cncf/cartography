@@ -4,6 +4,7 @@ import neo4j
 
 from cartography.config import Config
 from cartography.intel.jira.access import sync
+from cartography.intel.jira.automation import sync as sync_automation
 from cartography.intel.jira.util import JiraClient
 from cartography.util import timeit
 
@@ -23,3 +24,4 @@ def start_jira_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     )
     with client.session:
         sync(neo4j_session, client, config.update_tag)
+        sync_automation(neo4j_session, client, config.update_tag)
