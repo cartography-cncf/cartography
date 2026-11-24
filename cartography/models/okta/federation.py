@@ -148,7 +148,10 @@ class OktaApplicationToSalesforceOrganizationMatchLink(CartographyRelSchema):
     compares the host of `settings_app_login_url` with the host of
     `SalesforceOrganization.instance_url` (`matched_on` is
     `settings.app.loginUrl`). If no organization has that host, it compares
-    `<settings_app_custom_domain>.my.salesforce.com` instead (`matched_on` is
+    `<settings_app_custom_domain>.my.salesforce.com` (or
+    `<settings_app_custom_domain>.sandbox.my.salesforce.com` and
+    `<settings_app_custom_domain>--<name>.sandbox.my.salesforce.com` when
+    `settings_app_instance_type` is `SANDBOX`) instead (`matched_on` is
     `settings.app.customDomain`). Cartography skips a candidate when
     `settings_app_instance_type` is `PRODUCTION` and `is_sandbox` is `true`, or
     `SANDBOX` and `is_sandbox` is `false`. It links the app only when exactly

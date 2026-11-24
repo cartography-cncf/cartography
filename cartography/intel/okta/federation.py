@@ -64,12 +64,15 @@ def _salesforce_custom_domain_candidates(
 ) -> list[dict[str, Any]]:
     domain = custom_domain.lower()
     if instance_type == "SANDBOX":
-        # Sandbox My Domain hosts are <domain>--<sandbox>.sandbox.my.salesforce.com.
+        # Sandbox My Domain hosts are <domain>--<sandbox>.sandbox.my.salesforce.com;
+        # admins may enter either the base domain or <domain>--<sandbox> in customDomain.
+        exact = f"{domain}.sandbox.my.salesforce.com"
         prefix = f"{domain}--"
         return [
             org
             for host, orgs in sf_by_host.items()
-            if host.startswith(prefix) and host.endswith(".sandbox.my.salesforce.com")
+            if host == exact
+            or (host.startswith(prefix) and host.endswith(".sandbox.my.salesforce.com"))
             for org in orgs
         ]
     return sf_by_host.get(f"{domain}.my.salesforce.com", [])

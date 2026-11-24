@@ -445,3 +445,39 @@ def test_salesforce_sandbox_custom_domain_matches_sandbox_host() -> None:
             "matched_on": "settings.app.customDomain",
         },
     ]
+
+
+def test_resolve_salesforce_sandbox_exact_custom_domain():
+    okta_apps = [
+        {
+            "id": "app-sf-sandbox-full",
+            "name": "salesforce",
+            "sign_on_mode": "SAML_2_0",
+            "settings_app_login_url": "https://test.salesforce.com",
+            "settings_app_instance_type": "SANDBOX",
+            "settings_app_custom_domain": "multi--dev",
+        },
+    ]
+    salesforce_orgs = [
+        {
+            "id": "00D_MULTI_1",
+            "instance_url": "https://multi--dev.sandbox.my.salesforce.com",
+            "is_sandbox": True,
+        },
+        {
+            "id": "00D_MULTI_2",
+            "instance_url": "https://multi--qa.sandbox.my.salesforce.com",
+            "is_sandbox": True,
+        },
+    ]
+
+    result = resolve_okta_federation_links(okta_apps, [], [], [], salesforce_orgs)
+
+    assert result["SalesforceOrganization"] == [
+        {
+            "okta_app_id": "app-sf-sandbox-full",
+            "target_id": "00D_MULTI_1",
+            "sign_on_mode": "SAML_2_0",
+            "matched_on": "settings.app.customDomain",
+        },
+    ]
