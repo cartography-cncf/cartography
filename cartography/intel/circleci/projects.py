@@ -19,6 +19,17 @@ _MAX_DISCOVERY_PAGES = 5
 
 
 @timeit
+def get_insights_project_names(
+    api_session: requests.Session,
+    base_url: str,
+    org_slug: str,
+) -> list[str]:
+    req = api_session.get(f"{base_url}/insights/{org_slug}/summary", timeout=_TIMEOUT)
+    req.raise_for_status()
+    return req.json().get("all_projects") or []
+
+
+@timeit
 def discover_project_slugs(
     api_session: requests.Session,
     base_url: str,
@@ -26,9 +37,11 @@ def discover_project_slugs(
 ) -> set[str]:
     """
     Enumerate project slugs for an org. API v2 has no list-projects endpoint, so
-    we derive slugs from the pipeline feed (GET /pipeline?org-slug=...), which
-    surfaces project_slug for recently-built projects you follow. Combine with
-    any operator-configured slugs for full coverage.
+    two sources are combined. The Insights summary names every project in the
+    org that the token can read. The pipeline feed (GET /pipeline?org-slug=...)
+    only surfaces recently-built projects the token owner follows, and stays as
+    the fallback for orgs where the summary is unavailable or where a project is
+    not addressable by name.
     """
     pipelines = paginated_get(
         api_session,
@@ -36,7 +49,19 @@ def discover_project_slugs(
         params={"org-slug": org_slug},
         max_pages=_MAX_DISCOVERY_PAGES,
     )
-    return {p["project_slug"] for p in pipelines if p.get("project_slug")}
+    slugs = {p["project_slug"] for p in pipelines if p.get("project_slug")}
+
+    try:
+        names = get_insights_project_names(api_session, base_url, org_slug)
+    except requests.exceptions.RequestException as exc:
+        logger.warning(
+            "CircleCI Insights summary for org %s not available (%s); "
+            "discovering projects from the pipeline feed only.",
+            org_slug,
+            exc,
+        )
+        return slugs
+    return slugs | {f"{org_slug}/{name}" for name in names}
 
 
 @timeit
@@ -48,16 +73,15 @@ def sync(
 ) -> list[dict[str, Any]]:
     projects: list[dict[str, Any]] = []
     for slug in project_slugs:
+        # One project's failure must not drop the others: with org-wide discovery
+        # a sync fetches hundreds of projects, and an exhausted retry on any of
+        # them would otherwise skip the load for all. Projects are never cleaned
+        # up org-wide, so a skipped project keeps its previously ingested data.
         try:
             raw = get(api_session, common_job_parameters["BASE_URL"], slug)
-        except requests.exceptions.HTTPError as exc:
-            status = exc.response.status_code if exc.response is not None else None
-            if status in (403, 404):
-                logger.warning(
-                    "CircleCI project %s not accessible (%s); skipping.", slug, status
-                )
-                continue
-            raise
+        except requests.exceptions.RequestException as exc:
+            logger.warning("Skipping CircleCI project %s: %s", slug, exc)
+            continue
         projects.append(transform(raw))
 
     # NOTE: projects are upserted but never cleaned up org-wide. The input set is

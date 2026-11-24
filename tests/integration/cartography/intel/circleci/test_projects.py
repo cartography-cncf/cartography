@@ -16,7 +16,12 @@ TEST_ORG_ID = "org-1111-aaaa"
 TEST_SLUGS = ["gh/acme/web", "gh/acme/api"]
 
 
+UNREACHABLE_SLUG = "gh/acme/unreachable"
+
+
 def _fake_get(api_session, base_url, slug):
+    if slug == UNREACHABLE_SLUG:
+        raise requests.exceptions.RetryError("too many 503 error responses")
     return tests.data.circleci.projects.CIRCLECI_PROJECTS[slug]
 
 
@@ -50,7 +55,7 @@ def test_load_circleci_projects(mock_api, neo4j_session):
         neo4j_session,
         api_session,
         common_job_parameters,
-        TEST_SLUGS,
+        [UNREACHABLE_SLUG, *TEST_SLUGS],
     )
 
     # Assert projects exist
