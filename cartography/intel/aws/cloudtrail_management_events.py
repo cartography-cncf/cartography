@@ -450,6 +450,12 @@ def transform_web_identity_role_events_to_role_assumptions(
                     continue
 
                 github_repo = _extract_github_repo_from_username(user_name)
+                if not github_repo:
+                    logger.debug(
+                        f"Skipping GitHub WebIdentity event with malformed subject: {event.get('EventId', 'unknown')}"
+                    )
+                    continue
+
                 key = (github_repo, destination_principal)
 
                 if key in github_aggregated:

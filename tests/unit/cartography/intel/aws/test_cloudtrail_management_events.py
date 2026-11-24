@@ -221,6 +221,25 @@ def test_transform_github_web_identity_events_aggregate_legacy_and_immutable_sub
     ]
 
 
+def test_transform_github_web_identity_events_skip_malformed_subjects():
+    """Events whose subject does not resolve to a repository are not aggregated."""
+    # Arrange
+    malformed_event = {
+        "EventName": "AssumeRoleWithWebIdentity",
+        "EventTime": "2026-07-20T09:00:00.000000",
+        "EventId": "test-event-id-malformed",
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:example-org@abc/example-repo:ref:refs/heads/main", "userName": "repo:example-org@abc/example-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/GitHubActionsRole", "roleSessionName": "GitHubActions"}}',
+    }
+
+    # Act
+    result = transform_web_identity_role_events_to_role_assumptions(
+        events=[malformed_event]
+    )
+
+    # Assert
+    assert result == []
+
+
 def test_transform_assume_role_events_with_null_request_parameters():
     """Test that AssumeRole events with null requestParameters are gracefully skipped."""
     # Arrange
