@@ -1194,8 +1194,10 @@ def test_ecs_exposure_through_service_target_group(
     A bridge-mode task has no network interface, so an internet-facing load balancer reaches it
     through its container instance. When the target group registered on the service names the
     container it routes to, the sidecar in the same task stays unmarked. A registration that names
-    no container marks every container in the task. A task on the same instance whose service is
-    registered on a target group that does not route to that instance always stays unmarked.
+    no container marks every container in the task. The instance has one EXPOSE edge per load
+    balancer, which records a single target group, so a second service on the same instance and
+    load balancer is marked through its own registration. A task on the same instance whose
+    service is registered on a load balancer that does not route to that instance stays unmarked.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     cluster_arn = "arn:aws:ecs:us-east-1:000000000000:cluster/bridge"
@@ -1218,12 +1220,27 @@ def test_ecs_exposure_through_service_target_group(
                 neighbor_task.cluster_arn = $cluster_arn
         MERGE (neighbor:AWSECSContainer{id: $task_id + '-neighbor/web'})
             SET neighbor.lastupdated = $tag, neighbor.name = 'web'
+        MERGE (other_lb:AWSLoadBalancerV2{id: 'lb-other'})
+            SET other_lb.lastupdated = $tag, other_lb.exposed_internet = true
         MERGE (other_tg:AWSELBV2TargetGroup{id: 'tg-other'}) SET other_tg.lastupdated = $tag
+        MERGE (shared_tg:AWSELBV2TargetGroup{id: 'tg-shared'}) SET shared_tg.lastupdated = $tag
+        MERGE (shared_service:AWSECSService{id: 'svc-shared'})
+            SET shared_service.lastupdated = $tag, shared_service.name = 'shared-service',
+                shared_service.cluster_arn = $cluster_arn
+        MERGE (shared_task:AWSECSTask{id: $task_id + '-shared'})
+            SET shared_task.lastupdated = $tag, shared_task.service_name = 'shared-service',
+                shared_task.cluster_arn = $cluster_arn
+        MERGE (shared:AWSECSContainer{id: $task_id + '-shared/web'})
+            SET shared.lastupdated = $tag, shared.name = 'web'
         MERGE (other_service:AWSECSService{id: 'svc-other'})
             SET other_service.lastupdated = $tag, other_service.name = 'other-service',
                 other_service.cluster_arn = $cluster_arn
         MERGE (lb)-[:ELBV2_TARGET_GROUP]->(tg)
-        MERGE (lb)-[:ELBV2_TARGET_GROUP]->(other_tg)
+        MERGE (lb)-[:ELBV2_TARGET_GROUP]->(shared_tg)
+        MERGE (other_lb)-[:ELBV2_TARGET_GROUP]->(other_tg)
+        MERGE (shared_tg)-[:TARGETS{container_name: 'web', container_port: 8080}]->(shared_service)
+        MERGE (host)-[:HAS_TASK]->(shared_task)
+        MERGE (shared_task)-[:HAS_CONTAINER]->(shared)
         MERGE (lb)-[:EXPOSE{target_group_arn: 'tg-bridge'}]->(instance)
         MERGE (tg)-[registration:TARGETS{container_port: 8080}]->(service)
             SET registration.container_name = $registered_container_name
@@ -1257,11 +1274,12 @@ def test_ecs_exposure_through_service_target_group(
         for record in neo4j_session.run(
             "MATCH (c:AWSECSContainer) WHERE c.id STARTS WITH $task_id "
             "RETURN c.id AS id, c.exposed_internet AS exposed, c.exposed_internet_type AS types, "
-            "EXISTS { (:AWSLoadBalancerV2{id: 'lb-bridge'})-[:EXPOSE]->(c) } AS routed",
+            "EXISTS { (:AWSLoadBalancerV2)-[:EXPOSE]->(c) } AS routed",
             task_id=task_id,
         )
     } == {
         f"{task_id}/web": (True, ["elbv2"], True),
         f"{task_id}/sidecar": sidecar_exposure,
+        f"{task_id}-shared/web": (True, ["elbv2"], True),
         f"{task_id}-neighbor/web": (None, None, False),
     }
