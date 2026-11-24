@@ -112,8 +112,13 @@ def test_k8s_paginate_pages_resumes_an_expired_continue_token(
     ],
 )
 def test_k8s_paginate_pages_raises_instead_of_returning_a_partial_list(responses):
+    calls: list[tuple[int, str | None]] = []
+
     with pytest.raises(ApiException):
-        list(k8s_paginate_pages(_scripted_list(responses, [])))
+        list(k8s_paginate_pages(_scripted_list(responses, calls)))
+
+    # Pins the cap row to every allowed resume, not just the first expiry.
+    assert len(calls) == len(responses)
 
 
 def test_get_gpu_quantity_sums_extended_gpu_resources():
