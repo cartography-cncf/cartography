@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_nodes(client: K8sClient) -> list[V1Node]:
-    return k8s_paginate(client.core.list_node, raise_on_error=True)
+    return k8s_paginate(client.core.list_node)
 
 
 def _ec2_instance_id_from_provider_id(provider_id: str | None) -> str | None:

@@ -27,9 +27,7 @@ GKE_NEG_STATUS_ANNOTATION = "cloud.google.com/neg-status"
 
 @timeit
 def get_services(client: K8sClient) -> list[V1Service]:
-    items = k8s_paginate(
-        client.core.list_service_for_all_namespaces, raise_on_error=True
-    )
+    items = k8s_paginate(client.core.list_service_for_all_namespaces)
     return items
 
 

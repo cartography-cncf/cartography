@@ -32,48 +32,34 @@ def _format_labels(labels: dict[str, str] | None) -> str:
     return json.dumps(labels or {})
 
 
-# The workload list calls re-raise on ANY error (raise_on_error) so sync_workloads
-# never mistakes a partial/empty result for a complete one: a missing controller
-# would otherwise leave pods with unmatched WORKLOAD_PARENT edges and trigger a
-# destructive cleanup. sync_workloads turns any failure into a skip (return None).
 @timeit
 def get_deployments(client: K8sClient) -> list[V1Deployment]:
-    return k8s_paginate(
-        client.apps.list_deployment_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(client.apps.list_deployment_for_all_namespaces)
 
 
 @timeit
 def get_replicasets(client: K8sClient) -> list[V1ReplicaSet]:
-    return k8s_paginate(
-        client.apps.list_replica_set_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(client.apps.list_replica_set_for_all_namespaces)
 
 
 @timeit
 def get_statefulsets(client: K8sClient) -> list[V1StatefulSet]:
-    return k8s_paginate(
-        client.apps.list_stateful_set_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(client.apps.list_stateful_set_for_all_namespaces)
 
 
 @timeit
 def get_daemonsets(client: K8sClient) -> list[V1DaemonSet]:
-    return k8s_paginate(
-        client.apps.list_daemon_set_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(client.apps.list_daemon_set_for_all_namespaces)
 
 
 @timeit
 def get_jobs(client: K8sClient) -> list[V1Job]:
-    return k8s_paginate(client.batch.list_job_for_all_namespaces, raise_on_error=True)
+    return k8s_paginate(client.batch.list_job_for_all_namespaces)
 
 
 @timeit
 def get_cronjobs(client: K8sClient) -> list[V1CronJob]:
-    return k8s_paginate(
-        client.batch.list_cron_job_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(client.batch.list_cron_job_for_all_namespaces)
 
 
 def transform_deployments(deployments: list[V1Deployment]) -> list[dict[str, Any]]:

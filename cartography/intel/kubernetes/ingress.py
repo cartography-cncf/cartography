@@ -26,9 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_ingress(client: K8sClient) -> list[V1Ingress]:
-    items = k8s_paginate(
-        client.networking.list_ingress_for_all_namespaces, raise_on_error=True
-    )
+    items = k8s_paginate(client.networking.list_ingress_for_all_namespaces)
     return items
 
 

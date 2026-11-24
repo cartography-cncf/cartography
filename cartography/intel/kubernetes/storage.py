@@ -33,19 +33,18 @@ def _storage_bytes(quantity: str | None) -> int | None:
 
 @timeit
 def get_storage_classes(client: K8sClient) -> list[V1StorageClass]:
-    return k8s_paginate(client.storage.list_storage_class, raise_on_error=True)
+    return k8s_paginate(client.storage.list_storage_class)
 
 
 @timeit
 def get_persistent_volumes(client: K8sClient) -> list[V1PersistentVolume]:
-    return k8s_paginate(client.core.list_persistent_volume, raise_on_error=True)
+    return k8s_paginate(client.core.list_persistent_volume)
 
 
 @timeit
 def get_persistent_volume_claims(client: K8sClient) -> list[V1PersistentVolumeClaim]:
     return k8s_paginate(
         client.core.list_persistent_volume_claim_for_all_namespaces,
-        raise_on_error=True,
     )
 
 
