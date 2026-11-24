@@ -1,6 +1,7 @@
 import json
 import logging
-from itertools import chain
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 from typing import Dict
 from typing import List
@@ -38,33 +39,23 @@ IRSA_ROLE_ARN_ANNOTATION = "eks.amazonaws.com/role-arn"
 GKE_WORKLOAD_IDENTITY_ANNOTATION = "iam.gke.io/gcp-service-account"
 
 
-@timeit
-def get_service_accounts(k8s_client: K8sClient) -> List[V1ServiceAccount]:
-
+def get_service_accounts(k8s_client: K8sClient) -> Iterator[V1ServiceAccount]:
     return k8s_paginate(k8s_client.core.list_service_account_for_all_namespaces)
 
 
-@timeit
-def get_roles(k8s_client: K8sClient) -> List[V1Role]:
-
+def get_roles(k8s_client: K8sClient) -> Iterator[V1Role]:
     return k8s_paginate(k8s_client.rbac.list_role_for_all_namespaces)
 
 
-@timeit
-def get_role_bindings(k8s_client: K8sClient) -> List[V1RoleBinding]:
-
+def get_role_bindings(k8s_client: K8sClient) -> Iterator[V1RoleBinding]:
     return k8s_paginate(k8s_client.rbac.list_role_binding_for_all_namespaces)
 
 
-@timeit
-def get_cluster_roles(k8s_client: K8sClient) -> List[V1ClusterRole]:
-
+def get_cluster_roles(k8s_client: K8sClient) -> Iterator[V1ClusterRole]:
     return k8s_paginate(k8s_client.rbac.list_cluster_role)
 
 
-@timeit
-def get_cluster_role_bindings(k8s_client: K8sClient) -> List[V1ClusterRoleBinding]:
-
+def get_cluster_role_bindings(k8s_client: K8sClient) -> Iterator[V1ClusterRoleBinding]:
     return k8s_paginate(k8s_client.rbac.list_cluster_role_binding)
 
 
@@ -76,7 +67,7 @@ def _serialize_rules(rules: List[V1PolicyRule] | None) -> str:
 
 
 def transform_service_accounts(
-    service_accounts: List[V1ServiceAccount], cluster_name: str
+    service_accounts: Iterable[V1ServiceAccount], cluster_name: str
 ) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes ServiceAccounts into a list of dictionaries.
@@ -105,7 +96,7 @@ def transform_service_accounts(
     return result
 
 
-def transform_roles(roles: List[V1Role], cluster_name: str) -> List[Dict[str, Any]]:
+def transform_roles(roles: Iterable[V1Role], cluster_name: str) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes Roles into a list of dictionaries.
     Flattens rules into separate api_groups, resources, and verbs lists.
@@ -148,7 +139,7 @@ def transform_roles(roles: List[V1Role], cluster_name: str) -> List[Dict[str, An
 
 
 def transform_role_bindings(
-    role_bindings: List[V1RoleBinding], cluster_name: str
+    role_bindings: Iterable[V1RoleBinding], cluster_name: str
 ) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes RoleBindings into a list of dictionaries.
@@ -198,7 +189,7 @@ def transform_role_bindings(
 
 
 def transform_cluster_roles(
-    cluster_roles: List[V1ClusterRole], cluster_name: str
+    cluster_roles: Iterable[V1ClusterRole], cluster_name: str
 ) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes ClusterRoles into a list of dictionaries.
@@ -243,7 +234,7 @@ def transform_cluster_roles(
 
 
 def transform_cluster_role_bindings(
-    cluster_role_bindings: List[V1ClusterRoleBinding], cluster_name: str
+    cluster_role_bindings: Iterable[V1ClusterRoleBinding], cluster_name: str
 ) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes ClusterRoleBindings into a list of dictionaries.
@@ -291,60 +282,39 @@ def transform_cluster_role_bindings(
     return result
 
 
-def transform_users(
-    role_bindings: List[V1RoleBinding],
-    cluster_role_bindings: List[V1ClusterRoleBinding],
-    cluster_name: str,
+def _binding_subjects(
+    bindings: Iterable[Dict[str, Any]], ids_key: str, cluster_name: str
 ) -> List[Dict[str, Any]]:
-    """
-    Transform Kubernetes Users from RoleBindings and ClusterRoleBindings into a list of dicts.
-    """
-    # Extract all users from rolebindings and clusterrolebindings
-    all_users = {
-        subject.name
-        for binding in chain(
-            role_bindings, cluster_role_bindings
-        )  # iterate through combined bindings and role bindings
-        for subject in (
-            binding.subjects or []
-        )  # iterates through each binding's subjects to get unique users
-        if subject.kind == "User"
+    prefix = f"{cluster_name}/"
+    subject_ids = {
+        subject_id for binding in bindings for subject_id in binding[ids_key]
     }
-
     return [
         {
-            "id": f"{cluster_name}/{user_name}",
-            "name": user_name,
+            "id": subject_id,
+            "name": subject_id.removeprefix(prefix),
             "cluster_name": cluster_name,
         }
-        for user_name in sorted(all_users)
+        for subject_id in sorted(subject_ids)
     ]
+
+
+def transform_users(
+    bindings: Iterable[Dict[str, Any]], cluster_name: str
+) -> List[Dict[str, Any]]:
+    """
+    Build one user per `User` subject of the transformed RoleBindings and ClusterRoleBindings.
+    """
+    return _binding_subjects(bindings, "user_ids", cluster_name)
 
 
 def transform_groups(
-    role_bindings: List[V1RoleBinding],
-    cluster_role_bindings: List[V1ClusterRoleBinding],
-    cluster_name: str,
+    bindings: Iterable[Dict[str, Any]], cluster_name: str
 ) -> List[Dict[str, Any]]:
     """
-    Transform Kubernetes Groups from RoleBindings and ClusterRoleBindings into a list of dicts.
+    Build one group per `Group` subject of the transformed RoleBindings and ClusterRoleBindings.
     """
-    # Extract all groups from rolebindings and clusterrolebindings
-    all_groups = {
-        subject.name
-        for binding in chain(role_bindings, cluster_role_bindings)
-        for subject in (binding.subjects or [])
-        if subject.kind == "Group"
-    }
-
-    return [
-        {
-            "id": f"{cluster_name}/{group_name}",
-            "name": group_name,
-            "cluster_name": cluster_name,
-        }
-        for group_name in sorted(all_groups)
-    ]
+    return _binding_subjects(bindings, "group_ids", cluster_name)
 
 
 @timeit
@@ -522,14 +492,19 @@ def sync_kubernetes_rbac(
     logger.info(f"Syncing Kubernetes RBAC resources for cluster {client.name}")
 
     try:
-        # Get namespace-scoped resources
-        service_accounts = get_service_accounts(client)
-        roles = get_roles(client)
-        role_bindings = get_role_bindings(client)
-
-        # Get cluster-scoped resources
-        cluster_roles = get_cluster_roles(client)
-        cluster_role_bindings = get_cluster_role_bindings(client)
+        transformed_service_accounts = transform_service_accounts(
+            get_service_accounts(client), client.name
+        )
+        transformed_roles = transform_roles(get_roles(client), client.name)
+        transformed_role_bindings = transform_role_bindings(
+            get_role_bindings(client), client.name
+        )
+        transformed_cluster_roles = transform_cluster_roles(
+            get_cluster_roles(client), client.name
+        )
+        transformed_cluster_role_bindings = transform_cluster_role_bindings(
+            get_cluster_role_bindings(client), client.name
+        )
     except ApiException as err:
         if err.status in (401, 403):
             # A partial RBAC snapshot cannot be told apart from an empty one, so skip
@@ -545,28 +520,9 @@ def sync_kubernetes_rbac(
             return
         raise
 
-    # Transform namespace-scoped resources
-    transformed_service_accounts = transform_service_accounts(
-        service_accounts, client.name
-    )
-    transformed_roles = transform_roles(roles, client.name)
-    transformed_role_bindings = transform_role_bindings(role_bindings, client.name)
-
-    # Transform cluster-scoped resources
-    transformed_cluster_roles = transform_cluster_roles(cluster_roles, client.name)
-    transformed_cluster_role_bindings = transform_cluster_role_bindings(
-        cluster_role_bindings, client.name
-    )
-
-    # Transform users from all bindings
-    transformed_users = transform_users(
-        role_bindings, cluster_role_bindings, client.name
-    )
-
-    # Transform groups from all bindings
-    transformed_groups = transform_groups(
-        role_bindings, cluster_role_bindings, client.name
-    )
+    all_bindings = transformed_role_bindings + transformed_cluster_role_bindings
+    transformed_users = transform_users(all_bindings, client.name)
+    transformed_groups = transform_groups(all_bindings, client.name)
 
     cluster_id = common_job_parameters["CLUSTER_ID"]
     cluster_name = client.name

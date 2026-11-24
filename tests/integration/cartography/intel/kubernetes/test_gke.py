@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -126,12 +125,10 @@ def _load_kubernetes(session, monkeypatch, update_tag: int) -> None:
         GKE_CLUSTER_ID,
         GKE_CLUSTER_NAME,
     )
-    reader_binding = SimpleNamespace(
-        subjects=[SimpleNamespace(kind="User", name=GKE_GSA_EMAIL)],
-    )
+    reader_binding = {"user_ids": [f"{GKE_CLUSTER_NAME}/{GKE_GSA_EMAIL}"]}
     load_users(
         session,
-        transform_users([], [reader_binding], GKE_CLUSTER_NAME),
+        transform_users([reader_binding], GKE_CLUSTER_NAME),
         update_tag,
         GKE_CLUSTER_ID,
         GKE_CLUSTER_NAME,

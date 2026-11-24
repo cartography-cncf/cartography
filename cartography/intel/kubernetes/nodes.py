@@ -1,6 +1,8 @@
 import json
 import logging
 import re
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -22,8 +24,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-@timeit
-def get_nodes(client: K8sClient) -> list[V1Node]:
+def get_nodes(client: K8sClient) -> Iterator[V1Node]:
     return k8s_paginate(client.core.list_node)
 
 
@@ -56,7 +57,7 @@ def _azure_scope_from_provider_id(
 
 
 def transform_nodes(
-    nodes: list[V1Node],
+    nodes: Iterable[V1Node],
     cluster_name: str,
     gke_resource_name: str | None = None,
 ) -> list[dict[str, Any]]:
@@ -142,8 +143,11 @@ def sync_nodes(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> dict[str, str]:
+    gke_ref = get_gke_cluster_ref(client)
     try:
-        raw_nodes = get_nodes(client)
+        transformed = transform_nodes(
+            get_nodes(client), client.name, gke_ref.resource_name if gke_ref else None
+        )
     except ApiException as err:
         if err.status in (401, 403):
             # A partial nodes snapshot cannot be told apart from an empty one, so skip
@@ -156,10 +160,6 @@ def sync_nodes(
             )
             return {}
         raise
-    gke_ref = get_gke_cluster_ref(client)
-    transformed = transform_nodes(
-        raw_nodes, client.name, gke_ref.resource_name if gke_ref else None
-    )
     load_nodes(
         session,
         transformed,

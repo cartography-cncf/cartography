@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -25,9 +27,8 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def get_ingress(client: K8sClient) -> list[V1Ingress]:
-    items = k8s_paginate(client.networking.list_ingress_for_all_namespaces)
-    return items
+def get_ingress(client: K8sClient) -> Iterator[V1Ingress]:
+    return k8s_paginate(client.networking.list_ingress_for_all_namespaces)
 
 
 def _format_ingress_backend(backend: V1IngressBackend | None) -> dict[str, Any]:
@@ -108,7 +109,7 @@ def _extract_load_balancer_dns_names(
 
 
 def transform_ingresses(
-    ingress: list[V1Ingress],
+    ingress: Iterable[V1Ingress],
     gke_scope: GKENetworkScope | None = None,
 ) -> list[dict[str, Any]]:
     transformed_ingresses: list[dict[str, Any]] = []
@@ -204,7 +205,9 @@ def sync_ingress(
     common_job_parameters: dict[str, Any],
 ) -> None:
     try:
-        ingresses = get_ingress(client)
+        transformed_ingresses = transform_ingresses(
+            get_ingress(client), get_gke_network_scope(client)
+        )
     except ApiException as err:
         if err.status in (401, 403):
             # A partial ingresses snapshot cannot be told apart from an empty one, so skip
@@ -217,9 +220,6 @@ def sync_ingress(
             )
             return
         raise
-    transformed_ingresses = transform_ingresses(
-        ingresses, get_gke_network_scope(client)
-    )
     load_ingresses(
         neo4j_session,
         transformed_ingresses,

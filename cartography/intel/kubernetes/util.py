@@ -2,7 +2,9 @@ import ipaddress
 import json
 import logging
 import re
+from collections import defaultdict
 from collections.abc import Callable
+from collections.abc import Iterable
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -294,6 +296,19 @@ def get_qualified_resource_name(namespace: str, name: str) -> str:
     return f"{namespace}/{name}"
 
 
+def index_pods_by_namespace(
+    pods: Iterable[dict[str, Any]],
+) -> dict[str, list[tuple[str, dict[str, str]]]]:
+    """
+    Group transformed pods by namespace as ``(uid, labels)`` pairs, parsing each pod's
+    labels once, so matching a selector scans only its own namespace.
+    """
+    index: dict[str, list[tuple[str, dict[str, str]]]] = defaultdict(list)
+    for pod in pods:
+        index[pod["namespace"]].append((pod["uid"], json.loads(pod["labels"]) or {}))
+    return index
+
+
 def get_controller_owner_reference(metadata: Any) -> tuple[str, str] | None:
     """Return the ``(kind, uid)`` of the controlling ownerReference, if any.
 
@@ -410,25 +425,30 @@ DEFAULT_PAGE_SIZE = 500
 MAX_EXPIRED_CONTINUES = 10
 
 
-def k8s_paginate(list_func: Callable, **kwargs: Any) -> list[Any]:
+def k8s_paginate(list_func: Callable, **kwargs: Any) -> Iterator[Any]:
     """
-    Return every resource of a paginated Kubernetes list call.
+    Lazily yield every resource of a paginated Kubernetes list call.
+
+    Only the page being consumed is held in memory: a deserialized client model is an
+    order of magnitude larger than its transformed dict, so a caller should transform
+    resources as they are yielded rather than collecting them first. Nothing is
+    fetched until the iterator is consumed, so an ``ApiException`` surfaces there.
 
     :param list_func: The list function to call (e.g. client.core.list_pod_for_all_namespaces)
     :param kwargs: Keyword arguments to pass to the list function (e.g. limit=100)
     :raises ApiException: When any page fails, so a partial list is never mistaken for a
         complete one and cleanup never prunes the resources it did not reach.
     """
-    all_resources = []
+    count = 0
     for page in k8s_paginate_pages(list_func, **kwargs):
-        all_resources.extend(page)
+        count += len(page)
+        yield from page
 
     logger.debug(
         "Completed pagination for %s: retrieved %s resources",
         list_func.__name__,
-        len(all_resources),
+        count,
     )
-    return all_resources
 
 
 def _resume_token(error: ApiException) -> str | None:
@@ -442,11 +462,6 @@ def _resume_token(error: ApiException) -> str | None:
 def k8s_paginate_pages(list_func: Callable, **kwargs: Any) -> Iterator[list[Any]]:
     """
     Lazily yield each page of a paginated Kubernetes list call.
-
-    Same semantics as ``k8s_paginate``, but lets the caller transform and drop each page
-    before the next one is fetched. Use this for high-cardinality resources (e.g. pods):
-    the deserialized client models are an order of magnitude larger than the transformed
-    dicts, so holding every page at once can exhaust memory on large clusters.
 
     A continue token lives only until etcd compacts its revision (five minutes by
     default), so a slow list of a large cluster can get 410 Gone partway through. The

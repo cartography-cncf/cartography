@@ -14,7 +14,7 @@ from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_controller_owner_reference
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_gpu_quantity
-from cartography.intel.kubernetes.util import k8s_paginate_pages
+from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.containers import KubernetesContainerSchema
 from cartography.models.kubernetes.pods import KubernetesPodSchema
@@ -310,10 +310,7 @@ def _extract_pod_secrets(pod: V1Pod, cluster_name: str) -> tuple[list[str], list
 
 
 def get_pods(client: K8sClient) -> Iterator[V1Pod]:
-    # Stream page by page: a deserialized V1Pod is ~10x larger than its transformed
-    # dict, so materializing every pod first OOMs the sync on large clusters.
-    for page in k8s_paginate_pages(client.core.list_pod_for_all_namespaces):
-        yield from page
+    return k8s_paginate(client.core.list_pod_for_all_namespaces)
 
 
 def _format_pod_labels(labels: dict[str, str]) -> str:

@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -15,6 +17,7 @@ from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_gke_network_scope
 from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import GKENetworkScope
+from cartography.intel.kubernetes.util import index_pods_by_namespace
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.services import KubernetesServiceSchema
@@ -25,10 +28,8 @@ logger = logging.getLogger(__name__)
 GKE_NEG_STATUS_ANNOTATION = "cloud.google.com/neg-status"
 
 
-@timeit
-def get_services(client: K8sClient) -> list[V1Service]:
-    items = k8s_paginate(client.core.list_service_for_all_namespaces)
-    return items
+def get_services(client: K8sClient) -> Iterator[V1Service]:
+    return k8s_paginate(client.core.list_service_for_all_namespaces)
 
 
 def _format_service_selector(selector: dict[str, str]) -> str:
@@ -116,10 +117,11 @@ def _gcp_neg_ids(
 
 
 def transform_services(
-    services: list[V1Service],
+    services: Iterable[V1Service],
     all_pods: list[dict[str, Any]],
     gke_scope: GKENetworkScope | None = None,
 ) -> list[dict[str, Any]]:
+    pods_by_namespace = index_pods_by_namespace(all_pods)
     services_list = []
     for service in services:
         item = {
@@ -156,22 +158,16 @@ def transform_services(
         )
         item["gcp_neg_ids"] = _gcp_neg_ids(service.metadata.annotations, gke_scope)
 
-        # check if pod labels match service selector and add pod_ids to item
-        pod_ids = []
-        for pod in all_pods:
-            if pod["namespace"] == service.metadata.namespace:
-                service_selector: dict[str, str] | None = service.spec.selector
-                pod_labels: dict[str, str] | None = json.loads(pod["labels"])
-
-                # check if pod labels match service selector
-                if pod_labels and service_selector:
-                    if all(
-                        service_selector[key] == pod_labels.get(key)
-                        for key in service_selector
-                    ):
-                        pod_ids.append(pod["uid"])
-
-        item["pod_ids"] = pod_ids
+        selector: dict[str, str] | None = service.spec.selector
+        item["pod_ids"] = [
+            pod_id
+            for pod_id, pod_labels in pods_by_namespace.get(
+                service.metadata.namespace, []
+            )
+            if selector
+            and pod_labels
+            and all(pod_labels.get(key) == value for key, value in selector.items())
+        ]
 
         services_list.append(item)
     return services_list
@@ -211,7 +207,9 @@ def sync_services(
     common_job_parameters: dict[str, Any],
 ) -> None:
     try:
-        services = get_services(client)
+        transformed_services = transform_services(
+            get_services(client), all_pods, get_gke_network_scope(client)
+        )
     except ApiException as err:
         if err.status in (401, 403):
             # A partial services snapshot cannot be told apart from an empty one, so skip
@@ -224,9 +222,6 @@ def sync_services(
             )
             return
         raise
-    transformed_services = transform_services(
-        services, all_pods, get_gke_network_scope(client)
-    )
     load_services(
         session=session,
         services=transformed_services,

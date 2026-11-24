@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -18,10 +20,8 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-@timeit
-def get_secrets(client: K8sClient) -> list[V1Secret]:
-    items = k8s_paginate(client.core.list_secret_for_all_namespaces)
-    return items
+def get_secrets(client: K8sClient) -> Iterator[V1Secret]:
+    return k8s_paginate(client.core.list_secret_for_all_namespaces)
 
 
 def _get_owner_references(
@@ -44,7 +44,7 @@ def _get_owner_references(
 
 
 def transform_secrets(
-    secrets: list[V1Secret], cluster_name: str
+    secrets: Iterable[V1Secret], cluster_name: str
 ) -> list[dict[str, Any]]:
     secrets_list = []
     for secret in secrets:
@@ -102,7 +102,7 @@ def sync_secrets(
     common_job_parameters: dict[str, Any],
 ) -> None:
     try:
-        secrets = get_secrets(client)
+        transformed_secrets = transform_secrets(get_secrets(client), client.name)
     except ApiException as e:
         if e.status in (401, 403):
             # Skipping load + cleanup is intentional: if the operator previously granted
@@ -118,7 +118,6 @@ def sync_secrets(
             )
             return
         raise
-    transformed_secrets = transform_secrets(secrets, client.name)
     load_secrets(
         session=session,
         secrets=transformed_secrets,

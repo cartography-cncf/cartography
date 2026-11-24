@@ -135,3 +135,37 @@ def test_transform_services_fails_on_unparseable_neg_status():
             all_pods=[],
             gke_scope=GKENetworkScope("example-project", None),
         )
+
+
+SELECTOR_PODS = [
+    {"uid": "web", "namespace": "shop", "labels": json.dumps({"app": "web"})},
+    {
+        "uid": "web-elsewhere",
+        "namespace": "other",
+        "labels": json.dumps({"app": "web"}),
+    },
+    {"uid": "api", "namespace": "shop", "labels": json.dumps({"app": "api"})},
+    {"uid": "unlabeled", "namespace": "shop", "labels": json.dumps(None)},
+]
+
+
+@pytest.mark.parametrize(
+    "selector,expected_pod_ids",
+    [
+        pytest.param({"app": "web"}, ["web"], id="matching-pods-in-its-namespace"),
+        pytest.param({"app": "web", "tier": "front"}, [], id="every-label-must-match"),
+        pytest.param({}, [], id="empty-selector"),
+        pytest.param(None, [], id="no-selector"),
+    ],
+)
+def test_transform_services_targets_the_pods_its_selector_matches(
+    selector, expected_pod_ids
+):
+    service = V1Service(
+        metadata=V1ObjectMeta(uid="svc", name="svc", namespace="shop"),
+        spec=V1ServiceSpec(type="ClusterIP", selector=selector),
+    )
+
+    [transformed] = transform_services([service], SELECTOR_PODS)
+
+    assert transformed["pod_ids"] == expected_pod_ids

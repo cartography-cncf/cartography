@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -15,6 +17,7 @@ from kubernetes.client.models import V1NetworkPolicySpec
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import index_pods_by_namespace
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.networkpolicies import KubernetesNetworkPolicySchema
@@ -23,10 +26,8 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-@timeit
-def get_network_policies(client: K8sClient) -> list[V1NetworkPolicy]:
-    items = k8s_paginate(client.networking.list_network_policy_for_all_namespaces)
-    return items
+def get_network_policies(client: K8sClient) -> Iterator[V1NetworkPolicy]:
+    return k8s_paginate(client.networking.list_network_policy_for_all_namespaces)
 
 
 def _format_label_selector(selector: V1LabelSelector | None) -> dict[str, Any] | None:
@@ -176,7 +177,7 @@ def _selector_matches(
 def _match_pods(
     pod_selector: dict[str, Any] | None,
     namespace: str,
-    all_pods: list[dict[str, Any]],
+    pods_by_namespace: dict[str, list[tuple[str, dict[str, str]]]],
 ) -> list[str]:
     """
     Resolve a NetworkPolicy podSelector to the uids of the pods it selects, in
@@ -189,23 +190,21 @@ def _match_pods(
     match_labels: dict[str, str] | None = selector.get("match_labels")
     match_expressions = selector.get("match_expressions")
 
-    pod_ids = []
-    for pod in all_pods:
-        if pod["namespace"] != namespace:
-            continue
-        # Empty selector => selects all pods in the namespace.
-        if not match_labels and not match_expressions:
-            pod_ids.append(pod["uid"])
-            continue
-        pod_labels: dict[str, str] = json.loads(pod["labels"]) or {}
-        if _selector_matches(pod_labels, match_labels, match_expressions):
-            pod_ids.append(pod["uid"])
-    return pod_ids
+    pods = pods_by_namespace.get(namespace, [])
+    # Empty selector => selects all pods in the namespace.
+    if not match_labels and not match_expressions:
+        return [pod_id for pod_id, _ in pods]
+    return [
+        pod_id
+        for pod_id, pod_labels in pods
+        if _selector_matches(pod_labels, match_labels, match_expressions)
+    ]
 
 
 def transform_network_policies(
-    policies: list[V1NetworkPolicy], all_pods: list[dict[str, Any]]
+    policies: Iterable[V1NetworkPolicy], all_pods: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
+    pods_by_namespace = index_pods_by_namespace(all_pods)
     transformed_policies: list[dict[str, Any]] = []
     for policy in policies:
         namespace = policy.metadata.namespace
@@ -225,7 +224,9 @@ def transform_network_policies(
                 "egress_rules": json.dumps(_format_egress_rules(policy.spec.egress)),
                 "restricts_ingress": "Ingress" in policy_types,
                 "restricts_egress": "Egress" in policy_types,
-                "pod_ids": _match_pods(formatted_selector, namespace, all_pods),
+                "pod_ids": _match_pods(
+                    formatted_selector, namespace, pods_by_namespace
+                ),
             }
         )
     return transformed_policies
@@ -265,7 +266,9 @@ def sync_network_policies(
     common_job_parameters: dict[str, Any],
 ) -> None:
     try:
-        policies = get_network_policies(client)
+        transformed_policies = transform_network_policies(
+            get_network_policies(client), all_pods
+        )
     except ApiException as e:
         if e.status in (401, 403):
             # Skipping load + cleanup is intentional: if the operator previously
@@ -282,7 +285,6 @@ def sync_network_policies(
             )
             return
         raise
-    transformed_policies = transform_network_policies(policies, all_pods)
     load_network_policies(
         session=session,
         network_policies=transformed_policies,

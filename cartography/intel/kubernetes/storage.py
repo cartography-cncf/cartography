@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from decimal import ROUND_CEILING
 from typing import Any
 
@@ -31,25 +33,24 @@ def _storage_bytes(quantity: str | None) -> int | None:
     )
 
 
-@timeit
-def get_storage_classes(client: K8sClient) -> list[V1StorageClass]:
+def get_storage_classes(client: K8sClient) -> Iterator[V1StorageClass]:
     return k8s_paginate(client.storage.list_storage_class)
 
 
-@timeit
-def get_persistent_volumes(client: K8sClient) -> list[V1PersistentVolume]:
+def get_persistent_volumes(client: K8sClient) -> Iterator[V1PersistentVolume]:
     return k8s_paginate(client.core.list_persistent_volume)
 
 
-@timeit
-def get_persistent_volume_claims(client: K8sClient) -> list[V1PersistentVolumeClaim]:
+def get_persistent_volume_claims(
+    client: K8sClient,
+) -> Iterator[V1PersistentVolumeClaim]:
     return k8s_paginate(
         client.core.list_persistent_volume_claim_for_all_namespaces,
     )
 
 
 def transform_storage_classes(
-    storage_classes: list[V1StorageClass], cluster_name: str
+    storage_classes: Iterable[V1StorageClass], cluster_name: str
 ) -> list[dict[str, Any]]:
     return [
         {
@@ -70,7 +71,7 @@ def transform_storage_classes(
 
 
 def transform_persistent_volumes(
-    volumes: list[V1PersistentVolume], cluster_name: str
+    volumes: Iterable[V1PersistentVolume], cluster_name: str
 ) -> list[dict[str, Any]]:
     transformed = []
     for volume in volumes:
@@ -127,7 +128,7 @@ def transform_persistent_volumes(
 
 
 def transform_persistent_volume_claims(
-    claims: list[V1PersistentVolumeClaim], cluster_name: str
+    claims: Iterable[V1PersistentVolumeClaim], cluster_name: str
 ) -> list[dict[str, Any]]:
     transformed = []
     for claim in claims:
