@@ -14,6 +14,7 @@ from okta.models.user_factor import UserFactor
 import cartography.intel.okta.common  # noqa: F401
 from cartography.intel.okta.common import collect_paginated
 from cartography.intel.okta.common import collect_raw_paginated
+from cartography.intel.okta.common import is_missing_scope_error
 from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
@@ -266,12 +267,42 @@ def test_collect_raw_paginated_raises_okta_api_error() -> None:
     assert exc_info.value.error_code == "E0000006"
 
 
-def _http_error(status: int) -> HTTPError:
+def _http_error(status: int, headers: dict[str, str] | None = None) -> HTTPError:
     return HTTPError(
         "https://example.okta.com/api/v1/devices",
-        MagicMock(status=status, headers={}),
+        MagicMock(status=status, headers=headers or {}),
         "<html>bad gateway</html>",
     )
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "error, expected",
+    [
+        (MagicMock(error_code="E0000006"), True),
+        (
+            _http_error(
+                403,
+                {
+                    "WWW-Authenticate": (
+                        'DPoP scope="okta.agentPools.read", '
+                        'error="insufficient_scope"'
+                    ),
+                },
+            ),
+            True,
+        ),
+        (_http_error(403), False),
+        (MagicMock(error_code="E0000011"), False),
+    ],
+    ids=[
+        "permission-denied-error-code",
+        "oauth-token-lacks-scope",
+        "forbidden-for-another-reason",
+        "invalid-token",
+    ],
+)
+def test_is_missing_scope_error(error: Any, expected: bool) -> None:
+    assert is_missing_scope_error(OktaApiError("/api/v1/devices", error)) is expected
 
 
 def _okta_api_error(status: int) -> OktaAPIError:

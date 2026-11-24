@@ -23,6 +23,8 @@ from cartography.intel.okta import policies
 from cartography.intel.okta import users
 from cartography.intel.okta.common import is_oauth_token_error
 from cartography.intel.okta.common import OKTA_OAUTH_DEFAULT_SCOPES
+from cartography.intel.okta.common import OKTA_OAUTH_INVALID_SCOPE_ERROR_CODE
+from cartography.intel.okta.common import OKTA_OAUTH_OPTIONAL_SCOPES
 from cartography.intel.okta.common import OktaApiError
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -67,7 +69,10 @@ def _has_oauth_credentials(config: Config) -> bool:
     return bool(config.okta_client_id and config.okta_private_key)
 
 
-def create_okta_client(config: Config) -> OktaClient:
+def create_okta_client(
+    config: Config,
+    request_optional_scopes: bool = True,
+) -> OktaClient:
     """
     Build an Okta SDK client that authenticates with an OAuth service app when
     one is configured, and with an API token otherwise.
@@ -92,7 +97,10 @@ def create_okta_client(config: Config) -> OktaClient:
             # A PEM string or a JWK; the SDK also accepts a path to a PEM file.
             "privateKey": config.okta_private_key,
             "scopes": (config.okta_scopes or "").replace(",", " ").split()
-            or list(OKTA_OAUTH_DEFAULT_SCOPES),
+            or [
+                *OKTA_OAUTH_DEFAULT_SCOPES,
+                *(OKTA_OAUTH_OPTIONAL_SCOPES if request_optional_scopes else ()),
+            ],
             # Okta requires DPoP on new service apps by default. The SDK uses
             # whichever token type Okta returns, DPoP or Bearer.
             "dpopEnabled": config.okta_dpop_enabled,
@@ -101,6 +109,24 @@ def create_okta_client(config: Config) -> OktaClient:
     if config.okta_private_key_id:
         client_config["kid"] = config.okta_private_key_id
     return OktaClient(client_config)
+
+
+def _can_retry_without_optional_scopes(config: Config, exc: OktaApiError) -> bool:
+    return (
+        exc.error_code == OKTA_OAUTH_INVALID_SCOPE_ERROR_CODE
+        and _has_oauth_credentials(config)
+        and not config.okta_scopes
+    )
+
+
+def _log_oauth_token_error(exc: OktaApiError) -> None:
+    if is_oauth_token_error(exc):
+        logger.error(
+            "Okta refused to issue an OAuth access token (%s). Check the "
+            "service app's client ID, private key, and key ID, and that it "
+            "is granted every requested scope.",
+            exc.error_code,
+        )
 
 
 @timeit
@@ -137,14 +163,25 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             okta_client,
         )
     except OktaApiError as exc:
-        if is_oauth_token_error(exc):
-            logger.error(
-                "Okta refused to issue an OAuth access token (%s). Check the "
-                "service app's client ID, private key, and key ID, and that it "
-                "is granted every requested scope.",
-                exc.error_code,
+        if not _can_retry_without_optional_scopes(config, exc):
+            _log_oauth_token_error(exc)
+            raise
+        logger.warning(
+            "Okta refused a token request that included %s. Retrying with the "
+            "required scopes only. To sync the resources that need the refused "
+            "scopes, grant them to the service app.",
+            ", ".join(OKTA_OAUTH_OPTIONAL_SCOPES),
+        )
+        okta_client = create_okta_client(config, request_optional_scopes=False)
+        try:
+            org_properties = organization.sync_okta_organization(
+                neo4j_session,
+                common_job_parameters,
+                okta_client,
             )
-        raise
+        except OktaApiError as retry_exc:
+            _log_oauth_token_error(retry_exc)
+            raise
     user_ids, user_roles_synced = users.sync_okta_users(
         okta_client,
         neo4j_session,
