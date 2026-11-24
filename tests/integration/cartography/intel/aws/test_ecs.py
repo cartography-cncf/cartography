@@ -1181,9 +1181,9 @@ def test_ecs_direct_exposure_skipped_when_security_group_not_synced(neo4j_sessio
 @pytest.mark.parametrize(
     ("registered_container_name", "sidecar_exposure"),
     [
-        pytest.param("web", (None, None, False), id="registration-names-the-container"),
+        pytest.param("web", (None, None, []), id="registration-names-the-container"),
         pytest.param(
-            None, (True, ["elbv2"], True), id="registration-names-no-container"
+            None, (True, ["elbv2"], ["lb-bridge"]), id="registration-names-no-container"
         ),
     ],
 )
@@ -1274,12 +1274,12 @@ def test_ecs_exposure_through_service_target_group(
         for record in neo4j_session.run(
             "MATCH (c:AWSECSContainer) WHERE c.id STARTS WITH $task_id "
             "RETURN c.id AS id, c.exposed_internet AS exposed, c.exposed_internet_type AS types, "
-            "EXISTS { (:AWSLoadBalancerV2)-[:EXPOSE]->(c) } AS routed",
+            "[(lb:AWSLoadBalancerV2)-[:EXPOSE]->(c) | lb.id] AS routed",
             task_id=task_id,
         )
     } == {
-        f"{task_id}/web": (True, ["elbv2"], True),
+        f"{task_id}/web": (True, ["elbv2"], ["lb-bridge"]),
         f"{task_id}/sidecar": sidecar_exposure,
-        f"{task_id}-shared/web": (True, ["elbv2"], True),
-        f"{task_id}-neighbor/web": (None, None, False),
+        f"{task_id}-shared/web": (True, ["elbv2"], ["lb-bridge"]),
+        f"{task_id}-neighbor/web": (None, None, []),
     }
