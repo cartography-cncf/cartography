@@ -70,6 +70,9 @@ the granted ones with `--okta-scopes`. The Okta sync fails without
 `okta.userTypes.read`. It skips the resources under
 [Permissions](#permissions) whose scope is missing.
 
+To include agent pools and agents, grant the service app `okta.agentPools.read`
+and pass it alongside your other granted scopes in `--okta-scopes`.
+
 ### API token
 
 Generate an API token by following Okta's [Create an API Token guide](https://developer.okta.com/docs/guides/create-an-api-token/overview/). Store the token in an environment variable.
@@ -92,6 +95,7 @@ resource, and continues the rest of the Okta sync:
 | Resource | OAuth scope |
 | --- | --- |
 | Admin role assignments (`OktaUserRole`, `OktaGroupRole`) | `okta.roles.read` |
+| Agent pools and agents (`OktaAgentPool`, `OktaAgent`) | `okta.agentPools.read` |
 | Devices (`OktaDevice`) | `okta.devices.read` |
 | API token metadata (`OktaApiToken`) | `okta.apiTokens.read` |
 | Log streams (`OktaLogStream`) | `okta.logStreams.read` |
