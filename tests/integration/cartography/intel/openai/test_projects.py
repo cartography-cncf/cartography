@@ -122,24 +122,65 @@ def test_load_openai_projects(mock_api, mock_api_members, neo4j_session):
     )
 
 
-@patch.object(cartography.intel.openai.projects, "get", return_value=[])
+REMOVED_PROJECT = {
+    "id": "proj_removed",
+    "object": "organization.project",
+    "name": "Shelbyville Nuclear Power Plant",
+    "created_at": 1745477978,
+    "status": "active",
+}
+REMOVED_PROJECT_SERVICE_ACCOUNT = {
+    "object": "organization.project.service_account",
+    "id": "user-removed-sa",
+    "name": "Shelbyville SA",
+    "role": "member",
+    "created_at": 1743941099,
+}
+REMOVED_PROJECT_API_KEY = {
+    "object": "organization.project.api_key",
+    "name": "Shelbyville Script",
+    "created_at": 1743941100,
+    "last_used_at": 1743941100,
+    "id": "key_removed",
+    "owner_sa_id": "user-removed-sa",
+}
+
+
+@patch.object(
+    cartography.intel.openai.projects,
+    "get_project_users",
+    return_value=tests.data.openai.projects.OPENAI_PROJECTS_MEMBERS,
+)
+@patch.object(
+    cartography.intel.openai.projects,
+    "get",
+    return_value=tests.data.openai.projects.OPENAI_PROJECTS,
+)
 def test_project_cleanup_removes_keys_and_service_accounts_of_removed_project(
     mock_api,
+    mock_api_members,
     neo4j_session,
 ):
     """
     Ensure a project the API no longer returns takes its API keys and service
-    accounts with it. Their own cleanups are scoped to a project and never run
+    accounts with it, and that a project the API still returns keeps its own.
+    Key and service account cleanups are scoped to a project and never run
     again for a project that is gone.
     """
-    # Arrange: a project with a service account and two keys from an earlier sync
-    project_id = tests.data.openai.projects.OPENAI_PROJECTS[0]["id"]
+    # Arrange: two projects from an earlier sync, each with a service account
+    # and API keys.
+    kept_project_id = tests.data.openai.projects.OPENAI_PROJECTS[0]["id"]
     _ensure_local_neo4j_has_test_users(neo4j_session)
-    _ensure_local_neo4j_has_test_projects(neo4j_session)
+    cartography.intel.openai.projects.load_projects(
+        neo4j_session,
+        [*tests.data.openai.projects.OPENAI_PROJECTS, REMOVED_PROJECT],
+        TEST_ORG_ID,
+        TEST_UPDATE_TAG,
+    )
     cartography.intel.openai.serviceaccounts.load_serviceaccounts(
         neo4j_session,
         tests.data.openai.serviceaccounts.OPENAI_SERVICEACCOUNTS,
-        project_id,
+        kept_project_id,
         TEST_UPDATE_TAG,
     )
     cartography.intel.openai.apikeys.load_apikeys(
@@ -147,11 +188,23 @@ def test_project_cleanup_removes_keys_and_service_accounts_of_removed_project(
         cartography.intel.openai.apikeys.transform(
             tests.data.openai.apikeys.OPENAI_APIKEYS,
         ),
-        project_id,
+        kept_project_id,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.openai.serviceaccounts.load_serviceaccounts(
+        neo4j_session,
+        [REMOVED_PROJECT_SERVICE_ACCOUNT],
+        REMOVED_PROJECT["id"],
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.openai.apikeys.load_apikeys(
+        neo4j_session,
+        [REMOVED_PROJECT_API_KEY],
+        REMOVED_PROJECT["id"],
         TEST_UPDATE_TAG,
     )
 
-    # Act: the next sync finds no projects in the organization
+    # Act: the next sync finds only one of the two projects
     cartography.intel.openai.projects.sync(
         neo4j_session,
         requests.Session(),
@@ -164,9 +217,16 @@ def test_project_cleanup_removes_keys_and_service_accounts_of_removed_project(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "OpenAIProject", ["id"]) == set()
-    assert check_nodes(neo4j_session, "OpenAIApiKey", ["id"]) == set()
-    assert check_nodes(neo4j_session, "OpenAIServiceAccount", ["id"]) == set()
+    assert check_nodes(neo4j_session, "OpenAIProject", ["id"]) == {
+        ("proj_Eicie2Iid8ii4aiNg8va",),
+    }
+    assert check_nodes(neo4j_session, "OpenAIApiKey", ["id"]) == {
+        ("key_Eek1lae1au5Iepi2eeza",),
+        ("key_iegheiWieG2jupheeYin",),
+    }
+    assert check_nodes(neo4j_session, "OpenAIServiceAccount", ["id"]) == {
+        ("user-ohp0mahG0Aw5eevu6ain",),
+    }
 
 
 @patch.object(cartography.intel.openai.adminapikeys, "get", return_value=[])
