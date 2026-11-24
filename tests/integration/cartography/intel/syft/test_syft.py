@@ -10,6 +10,8 @@ import json
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 import cartography.intel.aws.ecr
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
@@ -17,6 +19,7 @@ from cartography.intel.syft import sync_syft_from_s3
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGE_DEPENDENCIES
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
 from tests.data.syft.syft_sample import SYFT_SAMPLE
+from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -576,6 +579,106 @@ def test_sync_syft_from_dir(
     ).single()
 
     assert result["count"] == 3
+
+
+@pytest.mark.parametrize(
+    "invalid_report", [TRIVY_SAMPLE, {}], ids=["trivy", "missing-artifacts"]
+)
+@pytest.mark.parametrize("include_valid_report", [False, True])
+def test_sync_syft_from_dir_preserves_inventory_for_wrong_report_format(
+    tmp_path,
+    neo4j_session,
+    invalid_report,
+    include_valid_report,
+    caplog,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+    sync_single_syft(neo4j_session, SYFT_SAMPLE, TEST_UPDATE_TAG)
+    (tmp_path / "invalid.json").write_text(json.dumps(invalid_report), encoding="utf-8")
+    next_update_tag = TEST_UPDATE_TAG + 1
+    if include_valid_report:
+        (tmp_path / "valid.json").write_text(
+            json.dumps({"artifacts": SYFT_SAMPLE["artifacts"][:1]}),
+            encoding="utf-8",
+        )
+
+    # Act
+    sync_syft_from_dir(
+        neo4j_session,
+        str(tmp_path),
+        next_update_tag,
+        {"UPDATE_TAG": next_update_tag},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "SyftPackage", ["id", "lastupdated"]) == {
+        (
+            package_id,
+            (
+                next_update_tag
+                if include_valid_report and package_id == "npm|express|4.18.2"
+                else TEST_UPDATE_TAG
+            ),
+        )
+        for package_id in EXPECTED_SYFT_PACKAGES
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "SyftPackage",
+            "id",
+            "SyftPackage",
+            "id",
+            "DEPENDS_ON",
+            rel_direction_right=True,
+        )
+        == EXPECTED_SYFT_PACKAGE_DEPENDENCIES
+    )
+    assert "invalid.json" in caplog.text
+    assert "Skipping Syft cleanup" in caplog.text
+
+
+@pytest.mark.parametrize("empty_report", [False, True])
+def test_sync_syft_from_dir_cleans_stale_inventory_for_valid_report(
+    tmp_path,
+    neo4j_session,
+    empty_report,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+    sync_single_syft(neo4j_session, SYFT_SAMPLE, TEST_UPDATE_TAG)
+    current_report = copy.deepcopy(SYFT_SAMPLE)
+    current_report["artifacts"] = (
+        [] if empty_report else current_report["artifacts"][:2]
+    )
+    (tmp_path / "syft.json").write_text(json.dumps(current_report), encoding="utf-8")
+    next_update_tag = TEST_UPDATE_TAG + 1
+
+    # Act
+    sync_syft_from_dir(
+        neo4j_session,
+        str(tmp_path),
+        next_update_tag,
+        {"UPDATE_TAG": next_update_tag},
+    )
+
+    # Assert
+    expected_packages = (
+        set() if empty_report else {"npm|express|4.18.2", "npm|body-parser|1.20.1"}
+    )
+    assert check_nodes(neo4j_session, "SyftPackage", ["id", "lastupdated"]) == {
+        (package_id, next_update_tag) for package_id in expected_packages
+    }
+    assert check_rels(
+        neo4j_session,
+        "SyftPackage",
+        "id",
+        "SyftPackage",
+        "id",
+        "DEPENDS_ON",
+        rel_direction_right=True,
+    ) == (set() if empty_report else {("npm|express|4.18.2", "npm|body-parser|1.20.1")})
 
 
 def test_sync_syft_from_s3(
