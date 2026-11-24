@@ -25,6 +25,8 @@ def _create_session(api_token: str) -> requests.Session:
         allowed_methods=["GET", "POST"],
         status_forcelist=_RETRY_STATUS_CODES,
         backoff_factor=1,
+        # Socket asks clients to back off exponentially with random jitter.
+        backoff_jitter=1,
         raise_on_status=False,
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))

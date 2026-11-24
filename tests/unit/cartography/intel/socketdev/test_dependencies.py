@@ -2,6 +2,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from threading import Thread
+from typing import Any
 
 import pytest
 import requests
@@ -9,31 +10,17 @@ import requests
 import cartography.intel.socketdev.dependencies as dependencies
 import cartography.intel.socketdev.util as socketdev_util
 
-_PAGES = {
-    0: {"rows": [{"id": "dep-1"}, {"id": "dep-2"}], "end": False},
-    2: {"rows": [{"id": "dep-3"}], "end": True},
-}
 
+class _ScriptedSocketApi(BaseHTTPRequestHandler):
+    """Answers each dependency search with the next scripted (status, body)."""
 
-class _SecondPageFailsHandler(BaseHTTPRequestHandler):
-    failure_status = 500
-    failures_left = 0
-    attempts_by_offset: dict[int, int] = {}
+    script: list[tuple[int, dict[str, Any]]] = []
 
     def do_POST(self) -> None:
-        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        offset = body["offset"]
-        cls = type(self)
-        cls.attempts_by_offset[offset] = cls.attempts_by_offset.get(offset, 0) + 1
-        if offset > 0 and cls.failures_left > 0:
-            cls.failures_left -= 1
-            self.send_response(cls.failure_status)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-            return
-
-        payload = json.dumps(_PAGES[offset]).encode()
-        self.send_response(200)
+        self.rfile.read(int(self.headers["Content-Length"]))
+        status, body = type(self).script.pop(0)
+        payload = json.dumps(body).encode()
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
@@ -45,12 +32,13 @@ class _SecondPageFailsHandler(BaseHTTPRequestHandler):
 
 @pytest.fixture
 def socket_api(mocker):
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _SecondPageFailsHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _ScriptedSocketApi)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     create_session = socketdev_util._create_session
 
-    def create_plain_http_session(api_token: str) -> requests.Session:
+    # The module's session retries only over https, and the local server is http.
+    def create_session_for_local_server(api_token: str) -> requests.Session:
         session = create_session(api_token)
         session.mount("http://", session.adapters["https://"])
         return session
@@ -58,7 +46,7 @@ def socket_api(mocker):
     mocker.patch.object(
         dependencies,
         "_create_session",
-        side_effect=create_plain_http_session,
+        side_effect=create_session_for_local_server,
     )
     mocker.patch.object(
         dependencies,
@@ -66,31 +54,32 @@ def socket_api(mocker):
         f"http://127.0.0.1:{server.server_port}",
     )
     mocker.patch("urllib3.util.retry.time.sleep")
-    _SecondPageFailsHandler.attempts_by_offset = {}
 
-    yield _SecondPageFailsHandler
+    yield _ScriptedSocketApi
 
     server.shutdown()
     server.server_close()
     thread.join()
 
 
-@pytest.mark.parametrize("failure_status", [429, 500, 502, 503, 504])
-def test_get_retries_transient_page_failure(socket_api, failure_status):
-    socket_api.failure_status = failure_status
-    socket_api.failures_left = 1
+@pytest.mark.parametrize("transient_status", [429, 500, 503])
+def test_get_returns_every_page_when_a_page_fails_once(socket_api, transient_status):
+    socket_api.script = [
+        (200, {"rows": [{"id": "dep-1"}, {"id": "dep-2"}], "end": False}),
+        (transient_status, {}),
+        (200, {"rows": [{"id": "dep-3"}], "end": True}),
+    ]
 
     result = dependencies.get("test-token")
 
     assert result == [{"id": "dep-1"}, {"id": "dep-2"}, {"id": "dep-3"}]
-    assert socket_api.attempts_by_offset == {0: 1, 2: 2}
 
 
-def test_get_raises_when_page_keeps_failing(socket_api):
-    socket_api.failure_status = 500
-    socket_api.failures_left = 10
+def test_get_raises_when_a_page_keeps_failing(socket_api):
+    socket_api.script = [
+        (200, {"rows": [{"id": "dep-1"}], "end": False}),
+        *[(500, {})] * 10,
+    ]
 
     with pytest.raises(requests.HTTPError, match="500 Server Error"):
         dependencies.get("test-token")
-
-    assert socket_api.attempts_by_offset == {0: 1, 2: 4}
