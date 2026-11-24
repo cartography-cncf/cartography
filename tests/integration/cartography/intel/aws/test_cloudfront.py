@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.cloudfront
+import cartography.intel.aws.ec2.load_balancer_v2s
+import tests.data.aws.ec2.load_balancers
 from cartography.intel.aws.cloudfront import sync
 from tests.data.aws import cloudfront as test_data
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -14,6 +16,7 @@ from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 123456789
+TEST_REGION = "us-east-1"
 
 
 def _cleanup_cloudfront(neo4j_session):
@@ -361,3 +364,217 @@ def test_sync_cloudfront_empty(mock_get_distributions, neo4j_session):
         check_nodes(neo4j_session, "AWSCloudFrontDistribution", ["distribution_id"])
         == set()
     )
+
+
+@patch.object(
+    cartography.intel.aws.cloudfront,
+    "get_cloudfront_distributions",
+    return_value=test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN,
+)
+def test_sync_cloudfront_alb_origin(mock_get_distributions, neo4j_session):
+    """Test that a distribution with an ALB custom origin links to the load balancer."""
+    # Arrange
+    _cleanup_cloudfront(neo4j_session)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    alb_dns_name = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA[0]["DNSName"]
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "AWSCloudFrontDistribution",
+        ["distribution_id"],
+    ) == {("E9Z8Y7X6W5V4U3",)}
+    # check_nodes() cannot return list-valued properties, so read the origin domain
+    # names directly.
+    records = neo4j_session.run(
+        "MATCH (n:AWSCloudFrontDistribution) RETURN n.origin_domain_names AS names",
+    )
+    assert [record["names"] for record in records] == [
+        sorted([alb_dns_name, "origin.backend.example.com"]),
+    ]
+    # Only the ALB origin gets a SERVES_FROM edge; the second custom origin has no
+    # matching load balancer.
+    assert check_rels(
+        neo4j_session,
+        "AWSCloudFrontDistribution",
+        "distribution_id",
+        "AWSLoadBalancerV2",
+        "dnsname",
+        "SERVES_FROM",
+        rel_direction_right=True,
+    ) == {("E9Z8Y7X6W5V4U3", alb_dns_name)}
+    # This distribution has no S3 origins.
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSCloudFrontDistribution",
+            "arn",
+            "AWSS3Bucket",
+            "name",
+            "SERVES_FROM",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+
+@patch.object(
+    cartography.intel.aws.cloudfront,
+    "get_cloudfront_distributions",
+    return_value=test_data.CLOUDFRONT_DISTRIBUTIONS,
+)
+def test_sync_cloudfront_s3_origin_no_load_balancer_edge(
+    mock_get_distributions, neo4j_session
+):
+    """Test that an S3-only distribution gets no SERVES_FROM edge to a load balancer."""
+    # Arrange
+    _cleanup_cloudfront(neo4j_session)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MERGE (:AWSS3Bucket {name: $name})",
+        name="my-test-bucket",
+    )
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSCloudFrontDistribution",
+        "arn",
+        "AWSS3Bucket",
+        "name",
+        "SERVES_FROM",
+        rel_direction_right=True,
+    ) == {
+        (
+            f"arn:aws:cloudfront::{TEST_ACCOUNT_ID}:distribution/E1A2B3C4D5E6F7",
+            "my-test-bucket",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSCloudFrontDistribution",
+            "distribution_id",
+            "AWSLoadBalancerV2",
+            "dnsname",
+            "SERVES_FROM",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+
+@patch.object(cartography.intel.aws.cloudfront, "get_cloudfront_distributions")
+def test_sync_cloudfront_alb_origin_removed_cleans_stale_edge(
+    mock_get_distributions, neo4j_session
+):
+    """Test that removing an ALB origin cleans up the stale SERVES_FROM edge."""
+    # Arrange
+    _cleanup_cloudfront(neo4j_session)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    alb_dns_name = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA[0]["DNSName"]
+    mock_get_distributions.return_value = test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSCloudFrontDistribution",
+        "distribution_id",
+        "AWSLoadBalancerV2",
+        "dnsname",
+        "SERVES_FROM",
+        rel_direction_right=True,
+    ) == {("E9Z8Y7X6W5V4U3", alb_dns_name)}
+
+    # Arrange: re-sync with the ALB origin removed under a new update tag.
+    new_update_tag = TEST_UPDATE_TAG + 1
+    mock_get_distributions.return_value = (
+        test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED
+    )
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        new_update_tag,
+        {"UPDATE_TAG": new_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSCloudFrontDistribution",
+            "distribution_id",
+            "AWSLoadBalancerV2",
+            "dnsname",
+            "SERVES_FROM",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert check_nodes(
+        neo4j_session,
+        "AWSCloudFrontDistribution",
+        ["distribution_id"],
+    ) == {("E9Z8Y7X6W5V4U3",)}
+    records = neo4j_session.run(
+        "MATCH (n:AWSCloudFrontDistribution) RETURN n.origin_domain_names AS names",
+    )
+    assert [record["names"] for record in records] == [["origin.backend.example.com"]]

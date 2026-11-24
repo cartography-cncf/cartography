@@ -2,8 +2,11 @@
 Unit tests for AWS CloudFront intel module.
 """
 
+import copy
+
 from cartography.intel.aws import cloudfront
 from tests.data.aws import cloudfront as test_data
+from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 
 
 def test_extract_s3_bucket_name_standard():
@@ -188,6 +191,63 @@ def test_transform_cloudfront_distributions_empty():
     """Test transformation with empty input."""
     result = cloudfront.transform_cloudfront_distributions([])
     assert result == []
+
+
+def test_transform_origin_domain_names_alb():
+    """Test that custom origin DomainNames are collected, including an ALB origin."""
+    # Act
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN,
+    )
+
+    # Assert
+    assert len(result) == 1
+    dist = result[0]
+    assert dist["origin_domain_names"] == sorted(
+        [LOAD_BALANCER_DATA[0]["DNSName"], "origin.backend.example.com"],
+    )
+    # S3 extraction is unchanged: this distribution has no S3 origins.
+    assert "s3_origin_bucket_names" not in dist
+
+
+def test_transform_origin_domain_names_s3_only():
+    """Test that S3 origin endpoint domains are collected alongside bucket names."""
+    # Act
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS,
+    )
+
+    # Assert
+    dist = result[0]
+    assert dist["origin_domain_names"] == ["my-test-bucket.s3.amazonaws.com"]
+    assert dist["s3_origin_bucket_names"] == ["my-test-bucket"]
+
+
+def test_transform_origin_domain_names_empty():
+    """Test that a distribution with no origins gets an empty domain name list."""
+    # Arrange
+    dist = copy.deepcopy(test_data.CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN[0])
+    dist["Origins"] = {"Quantity": 0, "Items": []}
+
+    # Act
+    result = cloudfront.transform_cloudfront_distributions([dist])
+
+    # Assert
+    assert result[0]["origin_domain_names"] == []
+
+
+def test_transform_origin_domain_names_deduplicated_and_sorted():
+    """Test that duplicate origin DomainNames are deduplicated and sorted."""
+    # Act
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS_VPC_ORIGIN,
+    )
+
+    # Assert
+    assert result[0]["origin_domain_names"] == [
+        "internal-app-1234567890.us-east-1.elb.amazonaws.com",
+        "www.example.com",
+    ]
 
 
 def test_extract_lambda_arns_from_cache_behavior():

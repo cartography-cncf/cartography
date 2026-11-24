@@ -111,6 +111,7 @@ def transform_cloudfront_distributions(
     Extracts:
     - Aliases from the Aliases structure
     - S3 bucket names from origin domain names for relationship creation
+    - Domain names of all origins, including custom origins such as load balancers
     - VPC origin IDs from origins that reach private targets through a VPC origin
     - Lambda function ARNs from cache behavior associations
     - ViewerCertificate configuration
@@ -179,6 +180,17 @@ def transform_cloudfront_distributions(
 
         if s3_bucket_names:
             item["s3_origin_bucket_names"] = s3_bucket_names
+
+        # Collect every origin's domain name, including custom origins such as load
+        # balancers, so relationships can be matched against them. Deduplicate and sort
+        # for deterministic output.
+        item["origin_domain_names"] = sorted(
+            {
+                origin["DomainName"]
+                for origin in origin_items
+                if origin.get("DomainName")
+            }
+        )
 
         vpc_origin_ids = sorted(
             {
