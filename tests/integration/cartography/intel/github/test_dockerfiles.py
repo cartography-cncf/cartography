@@ -309,6 +309,40 @@ def test_sync_no_unmatched_images(mock_get_unmatched_images, neo4j_session):
     )
 
 
+@pytest.mark.parametrize(
+    "api_url,rest_base",
+    [
+        ("https://api.github.com/graphql", "https://api.github.com"),
+        ("https://ghe.example.com/api/graphql", "https://ghe.example.com/api/v3"),
+    ],
+    ids=["github-com", "ghes"],
+)
+@patch(
+    "cartography.intel.github.supply_chain.get_dockerfiles_for_repos", return_value=[]
+)
+@patch(
+    "cartography.intel.github.supply_chain.get_unmatched_container_images_with_history"
+)
+def test_sync_searches_dockerfiles_on_the_rest_api(
+    mock_get_unmatched_images, mock_get_dockerfiles, neo4j_session, api_url, rest_base
+):
+    mock_get_unmatched_images.return_value = [MagicMock()]
+
+    cartography.intel.github.supply_chain.sync(
+        neo4j_session=neo4j_session,
+        token="test_token",
+        api_url=api_url,
+        organization="testorg",
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=TEST_JOB_PARAMS,
+        repos=TEST_REPOS,
+    )
+
+    mock_get_dockerfiles.assert_called_once_with(
+        "test_token", TEST_REPOS, "testorg", rest_base
+    )
+
+
 @patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_get_file_content_handles_not_found(mock_rest_api):
     """
