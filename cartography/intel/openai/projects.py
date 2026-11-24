@@ -89,6 +89,12 @@ def load_projects(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(OpenAIProjectSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    # cascade_delete is required: API key and service account cleanups are scoped
+    # to a project and only run for projects the API still returns. Without the
+    # cascade, a project that leaves the organization has its node removed and
+    # leaves its keys and service accounts behind where no cleanup can reach them.
+    GraphJob.from_node_schema(
+        OpenAIProjectSchema(),
+        common_job_parameters,
+        cascade_delete=True,
+    ).run(neo4j_session)
