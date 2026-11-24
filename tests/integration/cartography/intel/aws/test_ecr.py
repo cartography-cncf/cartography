@@ -502,8 +502,22 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
 
     # Mock describe_images paginator
     mock_describe_paginator = MagicMock()
+    # The ARM64 image also carries its own tag and is listed before the manifest
+    # list, as when CI pushes per-architecture tags and then assembles the list.
+    arm64_tagged_directly = {
+        "registryId": "000000000000",
+        "repositoryName": "multi-arch-repository",
+        "imageDigest": tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST,
+        "imageTags": ["v1.0-arm64"],
+        "imageManifestMediaType": "application/vnd.oci.image.manifest.v1+json",
+    }
     mock_describe_paginator.paginate.return_value = [
-        {"imageDetails": [tests.data.aws.ecr.MULTI_ARCH_IMAGE_DETAILS]}
+        {
+            "imageDetails": [
+                arm64_tagged_directly,
+                tests.data.aws.ecr.MULTI_ARCH_IMAGE_DETAILS,
+            ]
+        }
     ]
 
     # Configure get_paginator to return the appropriate paginator

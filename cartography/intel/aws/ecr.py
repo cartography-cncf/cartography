@@ -301,24 +301,26 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
                 # Create AWSECRImage nodes for each image in the manifest list
                 for manifest_img in manifest_images:
                     manifest_digest = manifest_img["digest"]
-                    if manifest_digest not in ecr_images_dict:
-                        ecr_images_dict[manifest_digest] = {
-                            "imageDigest": manifest_digest,
-                            "type": manifest_img.get("type"),
-                            "architecture": (
-                                normalize_architecture(manifest_img.get("architecture"))
-                                if manifest_img.get("architecture") is not None
-                                else None
-                            ),
-                            "os": manifest_img.get("os"),
-                            "variant": manifest_img.get("variant"),
-                            "attestation_type": manifest_img.get("attestation_type"),
-                            "attests_digest": manifest_img.get("attests_digest"),
-                            "media_type": manifest_img.get("media_type"),
-                            "artifact_media_type": manifest_img.get(
-                                "artifact_media_type"
-                            ),
-                        }
+                    # Only the manifest list knows a child's platform, so it replaces
+                    # the platform-less entry of a child that is also tagged directly.
+                    existing = ecr_images_dict.get(manifest_digest)
+                    if existing and existing["type"] == "manifest_list":
+                        continue
+                    ecr_images_dict[manifest_digest] = {
+                        "imageDigest": manifest_digest,
+                        "type": manifest_img.get("type"),
+                        "architecture": (
+                            normalize_architecture(manifest_img.get("architecture"))
+                            if manifest_img.get("architecture") is not None
+                            else None
+                        ),
+                        "os": manifest_img.get("os"),
+                        "variant": manifest_img.get("variant"),
+                        "attestation_type": manifest_img.get("attestation_type"),
+                        "attests_digest": manifest_img.get("attests_digest"),
+                        "media_type": manifest_img.get("media_type"),
+                        "artifact_media_type": manifest_img.get("artifact_media_type"),
+                    }
             else:
                 # Regular image: single digest
                 repo_image["imageDigests"] = [digest]
