@@ -25,10 +25,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_network_policies(client: K8sClient) -> list[V1NetworkPolicy]:
-    items = k8s_paginate(
-        client.networking.list_network_policy_for_all_namespaces,
-        raise_on_forbidden=True,
-    )
+    items = k8s_paginate(client.networking.list_network_policy_for_all_namespaces)
     return items
 
 

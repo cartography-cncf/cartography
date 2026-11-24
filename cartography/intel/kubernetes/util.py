@@ -406,33 +406,20 @@ def parse_rfc3339(value: str | None) -> datetime | None:
     return isoparse(value)
 
 
-def k8s_paginate(
-    list_func: Callable,
-    raise_on_forbidden: bool = False,
-    raise_on_error: bool = False,
-    **kwargs: Any,
-) -> list[dict[str, Any]]:
+DEFAULT_PAGE_SIZE = 500
+
+
+def k8s_paginate(list_func: Callable, **kwargs: Any) -> list[Any]:
     """
-    Handles pagination for a Kubernetes API call.
+    Return every resource of a paginated Kubernetes list call.
 
     :param list_func: The list function to call (e.g. client.core.list_pod_for_all_namespaces)
-    :param raise_on_forbidden: When True, re-raise ApiException with status 401/403 so the caller
-        can handle missing permissions (used for optional RBAC verbs). Other ApiExceptions are still
-        logged and swallowed.
-    :param raise_on_error: When True, re-raise *any* ApiException (after logging) instead of
-        swallowing it and returning a partial result. Use when a partial result must not be
-        mistaken for a complete one (e.g. the workload sync, where missing controller nodes would
-        leave pods with unmatched WORKLOAD_PARENT edges and trigger a destructive cleanup).
     :param kwargs: Keyword arguments to pass to the list function (e.g. limit=100)
-    :return: A list of all resources returned by the list function
+    :raises ApiException: When any page fails, so a partial list is never mistaken for a
+        complete one and cleanup never prunes the resources it did not reach.
     """
     all_resources = []
-    for page in k8s_paginate_pages(
-        list_func,
-        raise_on_forbidden=raise_on_forbidden,
-        raise_on_error=raise_on_error,
-        **kwargs,
-    ):
+    for page in k8s_paginate_pages(list_func, **kwargs):
         all_resources.extend(page)
 
     logger.debug(
@@ -443,12 +430,15 @@ def k8s_paginate(
     return all_resources
 
 
-def k8s_paginate_pages(
-    list_func: Callable,
-    raise_on_forbidden: bool = False,
-    raise_on_error: bool = False,
-    **kwargs: Any,
-) -> Iterator[list[Any]]:
+def _resume_token(error: ApiException) -> str | None:
+    """Return the continue token the API server sends with a 410 for an expired one."""
+    try:
+        return json.loads(error.body)["metadata"]["continue"] or None
+    except (TypeError, ValueError, KeyError):
+        return None
+
+
+def k8s_paginate_pages(list_func: Callable, **kwargs: Any) -> Iterator[list[Any]]:
     """
     Lazily yield each page of a paginated Kubernetes list call.
 
@@ -456,9 +446,19 @@ def k8s_paginate_pages(
     before the next one is fetched. Use this for high-cardinality resources (e.g. pods):
     the deserialized client models are an order of magnitude larger than the transformed
     dicts, so holding every page at once can exhaust memory on large clusters.
+
+    A continue token lives only until etcd compacts its revision (five minutes by
+    default), so a slow list of a large cluster can get 410 Gone partway through. The
+    API server then returns a token that resumes from the next key at the latest
+    revision, and this function continues with it. That remainder is read from a newer
+    snapshot than the pages before it, which is fine for an inventory sync: an object
+    deleted in between is absent from the remainder and cleaned up. When the 410 carries
+    no such token, the list restarts from the beginning once, so a caller can see the
+    resources of earlier pages twice. A second such 410 raises.
     """
     continue_token = None
-    limit = kwargs.pop("limit", 100)
+    restarted = False
+    limit = kwargs.pop("limit", DEFAULT_PAGE_SIZE)
     function_name = list_func.__name__
 
     logger.debug("Starting pagination for %s with limit %s.", function_name, limit)
@@ -470,22 +470,35 @@ def k8s_paginate_pages(
             else:
                 response = list_func(limit=limit, **kwargs)
         except ApiException as e:
-            is_forbidden = e.status in (401, 403)
-            # 401/403 re-raise quietly so the caller can log a permission-specific
-            # message; other errors are logged here before propagating (or being
-            # swallowed when neither raise flag is set).
-            if is_forbidden and (raise_on_forbidden or raise_on_error):
-                raise
-            logger.error(
-                "Kubernetes API error retrieving %s resources. %s: %s - %s",
-                function_name,
-                e,
-                e.status,
-                e.reason,
-            )
-            if raise_on_error:
-                raise
-            return
+            if e.status == 410 and continue_token:
+                resume_token = _resume_token(e)
+                if resume_token and resume_token != continue_token:
+                    logger.warning(
+                        "Continue token for %s expired; resuming the list from the "
+                        "latest snapshot.",
+                        function_name,
+                    )
+                    continue_token = resume_token
+                    continue
+                if not restarted:
+                    logger.warning(
+                        "Continue token for %s expired; restarting the list.",
+                        function_name,
+                    )
+                    restarted = True
+                    continue_token = None
+                    continue
+            # 401/403 propagate quietly so the caller can log a permission-specific
+            # message.
+            if e.status not in (401, 403):
+                logger.error(
+                    "Kubernetes API error retrieving %s resources. %s: %s - %s",
+                    function_name,
+                    e,
+                    e.status,
+                    e.reason,
+                )
+            raise
 
         # Check if items exists on the response
         if not hasattr(response, "items"):

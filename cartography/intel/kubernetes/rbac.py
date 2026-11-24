@@ -41,37 +41,31 @@ GKE_WORKLOAD_IDENTITY_ANNOTATION = "iam.gke.io/gcp-service-account"
 @timeit
 def get_service_accounts(k8s_client: K8sClient) -> List[V1ServiceAccount]:
 
-    return k8s_paginate(
-        k8s_client.core.list_service_account_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(k8s_client.core.list_service_account_for_all_namespaces)
 
 
 @timeit
 def get_roles(k8s_client: K8sClient) -> List[V1Role]:
 
-    return k8s_paginate(
-        k8s_client.rbac.list_role_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(k8s_client.rbac.list_role_for_all_namespaces)
 
 
 @timeit
 def get_role_bindings(k8s_client: K8sClient) -> List[V1RoleBinding]:
 
-    return k8s_paginate(
-        k8s_client.rbac.list_role_binding_for_all_namespaces, raise_on_error=True
-    )
+    return k8s_paginate(k8s_client.rbac.list_role_binding_for_all_namespaces)
 
 
 @timeit
 def get_cluster_roles(k8s_client: K8sClient) -> List[V1ClusterRole]:
 
-    return k8s_paginate(k8s_client.rbac.list_cluster_role, raise_on_error=True)
+    return k8s_paginate(k8s_client.rbac.list_cluster_role)
 
 
 @timeit
 def get_cluster_role_bindings(k8s_client: K8sClient) -> List[V1ClusterRoleBinding]:
 
-    return k8s_paginate(k8s_client.rbac.list_cluster_role_binding, raise_on_error=True)
+    return k8s_paginate(k8s_client.rbac.list_cluster_role_binding)
 
 
 def _serialize_rules(rules: List[V1PolicyRule] | None) -> str:
