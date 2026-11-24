@@ -11,6 +11,7 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.models.googleworkspace.apps_script import (
     GoogleWorkspaceAppsScriptProjectSchema,
@@ -147,18 +148,19 @@ def _list_project_deployments(script: Resource, script_id: str) -> list[dict[str
 def get_apps_script_projects(
     creds: ServiceAccountCredentials,
     users: list[dict[str, str]],
-) -> tuple[list[tuple[str, dict[str, Any], list[dict[str, Any]]]], bool]:
+) -> tuple[list[tuple[str, dict[str, Any], list[dict[str, Any]]]], list[str]]:
     """
     Fetch standalone Apps Script projects and their deployments for each user.
 
-    Returns (raw_projects, is_complete) where raw_projects is a list of
-    (owner_user_id, project, deployments) tuples and is_complete is True only
-    if every user and project was read without partial errors. A user who has not
-    turned on the Apps Script API user setting, and a project deleted after it was
-    listed, have nothing to read, so they do not make the result incomplete.
+    Returns (raw_projects, read_user_ids). raw_projects is a list of
+    (owner_user_id, project, deployments) tuples. read_user_ids lists the users
+    whose Drive listing and every listed project were read; only their stale
+    projects may be cleaned up. A project deleted between listing and reading does
+    not count against its owner. A user whose Apps Script API user setting is off,
+    or any other failed read, leaves that user out so their projects are kept.
     """
     raw_projects: list[tuple[str, dict[str, Any], list[dict[str, Any]]]] = []
-    is_complete = True
+    read_user_ids: list[str] = []
     any_user_authorized = False
     users_with_api_setting_off = 0
 
@@ -188,7 +190,6 @@ def get_apps_script_projects(
                 "Skipping Apps Script Drive list for user %s due to RefreshError",
                 user_id,
             )
-            is_complete = False
             continue
         except HttpError as e:
             _, reasons = _http_error_details(e)
@@ -200,10 +201,10 @@ def get_apps_script_projects(
                     user_id,
                     e.resp.status,
                 )
-                is_complete = False
                 continue
             raise
         any_user_authorized = True
+        user_fully_read = True
 
         for script_id in script_ids:
             try:
@@ -215,7 +216,7 @@ def get_apps_script_projects(
                     script_id,
                     user_id,
                 )
-                is_complete = False
+                user_fully_read = False
                 continue
             except HttpError as e:
                 message, reasons = _http_error_details(e)
@@ -227,6 +228,7 @@ def get_apps_script_projects(
                         user_id,
                     )
                     users_with_api_setting_off += 1
+                    user_fully_read = False
                     break
                 if e.resp.status == 404:
                     logger.debug(
@@ -242,18 +244,21 @@ def get_apps_script_projects(
                         user_id,
                         e.resp.status,
                     )
-                    is_complete = False
+                    user_fully_read = False
                     continue
                 raise
 
             raw_projects.append((user_id, project, deployments))
+
+        if user_fully_read:
+            read_user_ids.append(user_id)
 
     if users_with_api_setting_off:
         logger.info(
             "Apps Script projects of %s users were not read because their Apps Script API user setting is off",
             users_with_api_setting_off,
         )
-    return raw_projects, is_complete
+    return raw_projects, read_user_ids
 
 
 def transform_apps_script_project(
@@ -314,7 +319,7 @@ def transform_apps_script_project(
         "versioned_deployment_count": len(versioned_deployments),
         "webapp_access": webapp_access,
         "webapp_execute_as": webapp_execute_as,
-        "is_anonymous_webapp_running_as_owner": (
+        "is_anonymous_webapp_running_as_deployer": (
             webapp_access == "ANYONE_ANONYMOUS"
             and webapp_execute_as == "USER_DEPLOYING"
         ),
@@ -366,6 +371,40 @@ def cleanup_apps_script_projects(
 
 
 @timeit
+def cleanup_apps_script_projects_of_users(
+    neo4j_session: neo4j.Session,
+    user_ids: list[str],
+    update_tag: int,
+    customer_id: str,
+) -> None:
+    """
+    Remove stale projects owned by the given users only.
+
+    Used when some users could not be read: their projects are kept, while users
+    whose projects were all read still get deleted scripts removed.
+    """
+    logger.debug(
+        "Running Google Workspace Apps Script projects cleanup for %s users",
+        len(user_ids),
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:GoogleWorkspaceTenant {id: $CUSTOMER_ID})-[:RESOURCE]->(p:GoogleWorkspaceAppsScriptProject)
+        WHERE p.lastupdated <> $UPDATE_TAG
+          AND EXISTS {
+            MATCH (u:GoogleWorkspaceUser)-[:OWNS]->(p)
+            WHERE u.id IN $USER_IDS
+          }
+        DETACH DELETE p
+        """,
+        CUSTOMER_ID=customer_id,
+        UPDATE_TAG=update_tag,
+        USER_IDS=user_ids,
+    )
+
+
+@timeit
 def sync_googleworkspace_apps_script(
     neo4j_session: neo4j.Session,
     creds: BaseCredentials,
@@ -388,7 +427,7 @@ def sync_googleworkspace_apps_script(
         return
 
     try:
-        raw_projects, is_complete = get_apps_script_projects(creds, users)
+        raw_projects, read_user_ids = get_apps_script_projects(creds, users)
     except _UnauthorizedClientError:
         logger.info(
             "Skipping Apps Script sync - domain-wide delegation is missing scopes: %s",
@@ -411,9 +450,20 @@ def sync_googleworkspace_apps_script(
     transformed = transform_apps_script_projects(raw_projects)
     load_apps_script_projects(neo4j_session, transformed, update_tag, customer_id)
 
-    if is_complete:
+    if len(read_user_ids) == len(users):
         cleanup_apps_script_projects(neo4j_session, common_job_parameters)
-    else:
-        logger.warning(
-            "Skipping Apps Script cleanup job because one or more users or projects failed to sync completely",
+        return
+
+    logger.warning(
+        "Apps Script projects of %s of %s users could not be read completely; "
+        "limiting cleanup to the other users so those projects are kept",
+        len(users) - len(read_user_ids),
+        len(users),
+    )
+    if read_user_ids:
+        cleanup_apps_script_projects_of_users(
+            neo4j_session,
+            read_user_ids,
+            update_tag,
+            customer_id,
         )

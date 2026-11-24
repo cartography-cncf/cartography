@@ -58,11 +58,13 @@ class GoogleWorkspaceAppsScriptProjectNodeProperties(CartographyNodeProperties):
         "webapp_execute_as",
         description="Execution identity of the widest-access versioned web app entry point.",
     )
-    is_anonymous_webapp_running_as_owner: PropertyRef = PropertyRef(
-        "is_anonymous_webapp_running_as_owner",
+    is_anonymous_webapp_running_as_deployer: PropertyRef = PropertyRef(
+        "is_anonymous_webapp_running_as_deployer",
         description=(
-            "Whether the project has a versioned web app accessible to anyone "
-            "anonymously and executing as the deploying user."
+            "Whether the project has a versioned web app that anyone can open "
+            "anonymously and that executes as the user who deployed it "
+            "(executeAs USER_DEPLOYING). The deployer is usually, but not "
+            "necessarily, the owner: any editor can deploy."
         ),
     )
     api_executable_access: PropertyRef = PropertyRef(

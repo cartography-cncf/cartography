@@ -143,20 +143,24 @@ delegation:
 - `https://www.googleapis.com/auth/script.projects.readonly`
 - `https://www.googleapis.com/auth/script.deployments.readonly`
 
-Apps Script sync runs only with `delegated` service account authentication.
-OAuth and default credentials skip it. If the three scopes aren't delegated,
-Cartography skips Apps Script sync without failing. When enabled, it makes one
-Drive `files.list` call for each active user and two Apps Script calls
-(`projects.get` and `projects.deployments.list`) for each standalone project.
+Apps Script sync runs only with service account credentials that can impersonate
+users through domain-wide delegation: `delegated` authentication, or `default`
+credentials that load such a service account key. OAuth user credentials skip
+it. If the three scopes aren't delegated, Cartography skips Apps Script sync
+without failing. When enabled, it makes at least one Drive `files.list` call for
+each active user and two Apps Script calls (`projects.get` and
+`projects.deployments.list`) for each standalone project, plus one more call
+for each further page of scripts or deployments.
 
 Each user must also turn on the Apps Script API in their own
 [Apps Script settings](https://script.google.com/home/usersettings). Until they
-do, Cartography can't read that user's projects, records none for that user,
-and removes that user's previously synced projects. If the Drive API or Apps
-Script API is disabled in the Google Cloud project, or a Google API returns an
-unexpected error, Cartography skips Apps Script sync and continues with the
-other Google Workspace syncs. Stale projects are removed only when every user
-was read or skipped for one of the reasons above.
+do, Cartography can't read that user's projects and keeps the projects it
+synced for that user earlier. Cleanup removes stale projects only of users whose
+projects were all read; a project deleted between listing and reading does not
+count against its owner. If the Drive API or Apps Script API is disabled in the
+Google Cloud project, or a Google API returns an unexpected error, Cartography
+skips Apps Script sync. Apps Script sync runs after the other Google Workspace
+syncs, so an error in it does not skip them.
 
 Cartography lists only scripts that a user owns in My Drive. Scripts in shared
 drives and scripts bound to a Google Doc, Sheet, Slides, or Form aren't synced.

@@ -99,7 +99,7 @@ def test_sync_googleworkspace_apps_script_nodes_rels_and_cleanup(
             "versioned_deployment_count",
             "webapp_access",
             "webapp_execute_as",
-            "is_anonymous_webapp_running_as_owner",
+            "is_anonymous_webapp_running_as_deployer",
         ],
     ) == {
         ("script-head-only-1", "Head Only Script", 0, None, None, False),
@@ -205,4 +205,50 @@ def test_sync_googleworkspace_apps_script_nodes_rels_and_cleanup(
     assert check_nodes(neo4j_session, "GoogleWorkspaceAppsScriptProject", ["id"]) == {
         ("script-anon-owner-2",),
         ("script-domain-user-3",),
+    }
+
+
+@patch("cartography.intel.googleworkspace.apps_script.googleapiclient.discovery.build")
+def test_partial_sync_cleans_up_only_users_read_completely(mock_build, neo4j_session):
+    _ensure_local_neo4j_has_test_tenant(neo4j_session)
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+    creds = _make_service_account_creds()
+
+    # Arrange: user-1 owns script-anon-owner-2, user-2 owns script-domain-user-3
+    drive_u1, script_u1 = _make_user_services(
+        {"script-anon-owner-2": (PROJECT_ANON_OWNER, DEPLOYMENTS_ANON_OWNER)}
+    )
+    drive_u2, script_u2 = _make_user_services(
+        {"script-domain-user-3": (PROJECT_DOMAIN_USER, DEPLOYMENTS_DOMAIN_USER)}
+    )
+    mock_build.side_effect = [drive_u1, script_u1, drive_u2, script_u2]
+    sync_googleworkspace_apps_script(
+        neo4j_session,
+        creds,
+        TEST_UPDATE_TAG + 10,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 10, "CUSTOMER_ID": TEST_CUSTOMER_ID},
+    )
+
+    # Act: user-1 cannot be read; user-2 is read and has deleted its only script
+    drive_u1_403 = MagicMock()
+    drive_u1_403.files.return_value.list.return_value.execute.side_effect = (
+        _make_http_error(403)
+    )
+    drive_u2_empty, script_u2_empty = _make_user_services({})
+    mock_build.side_effect = [
+        drive_u1_403,
+        MagicMock(),
+        drive_u2_empty,
+        script_u2_empty,
+    ]
+    sync_googleworkspace_apps_script(
+        neo4j_session,
+        creds,
+        TEST_UPDATE_TAG + 11,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 11, "CUSTOMER_ID": TEST_CUSTOMER_ID},
+    )
+
+    # Assert: user-1's unread project is kept, user-2's deleted project is removed
+    assert check_nodes(neo4j_session, "GoogleWorkspaceAppsScriptProject", ["id"]) == {
+        ("script-anon-owner-2",),
     }

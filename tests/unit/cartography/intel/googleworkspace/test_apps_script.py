@@ -54,19 +54,19 @@ def test_transform_head_only_excluded():
         "versioned_deployment_count": 0,
         "webapp_access": None,
         "webapp_execute_as": None,
-        "is_anonymous_webapp_running_as_owner": False,
+        "is_anonymous_webapp_running_as_deployer": False,
         "api_executable_access": None,
     }
 
 
-def test_transform_anonymous_webapp_running_as_owner():
+def test_transform_anonymous_webapp_running_as_deployer():
     result = transform_apps_script_project(
         "user-1", PROJECT_ANON_OWNER, DEPLOYMENTS_ANON_OWNER
     )
     assert result["versioned_deployment_count"] == 1
     assert result["webapp_access"] == "ANYONE_ANONYMOUS"
     assert result["webapp_execute_as"] == "USER_DEPLOYING"
-    assert result["is_anonymous_webapp_running_as_owner"] is True
+    assert result["is_anonymous_webapp_running_as_deployer"] is True
     assert result["api_executable_access"] is None
     assert result["parent_id"] is None
     assert FAKE_DEPLOYMENT_ID not in repr(result)
@@ -79,7 +79,7 @@ def test_transform_domain_user_accessing():
     assert result["versioned_deployment_count"] == 1
     assert result["webapp_access"] == "DOMAIN"
     assert result["webapp_execute_as"] == "USER_ACCESSING"
-    assert result["is_anonymous_webapp_running_as_owner"] is False
+    assert result["is_anonymous_webapp_running_as_deployer"] is False
 
 
 def test_transform_widest_access_and_api_executable():
@@ -89,7 +89,7 @@ def test_transform_widest_access_and_api_executable():
     assert result["versioned_deployment_count"] == 2
     assert result["webapp_access"] == "ANYONE"
     assert result["webapp_execute_as"] == "USER_ACCESSING"
-    assert result["is_anonymous_webapp_running_as_owner"] is False
+    assert result["is_anonymous_webapp_running_as_deployer"] is False
     assert result["api_executable_access"] == "DOMAIN"
 
 
@@ -131,7 +131,7 @@ def test_transform_tie_prefers_user_deploying():
     result = transform_apps_script_project("user-1", PROJECT_ANON_OWNER, deployments)
     assert result["webapp_access"] == "ANYONE_ANONYMOUS"
     assert result["webapp_execute_as"] == "USER_DEPLOYING"
-    assert result["is_anonymous_webapp_running_as_owner"] is True
+    assert result["is_anonymous_webapp_running_as_deployer"] is True
 
 
 def test_transform_no_deployments():
@@ -141,7 +141,7 @@ def test_transform_no_deployments():
     assert result["versioned_deployment_count"] == 0
     assert result["webapp_access"] is None
     assert result["webapp_execute_as"] is None
-    assert result["is_anonymous_webapp_running_as_owner"] is False
+    assert result["is_anonymous_webapp_running_as_deployer"] is False
     assert result["api_executable_access"] is None
 
 
@@ -234,8 +234,13 @@ def test_sync_one_user_403_loads_others_and_skips_cleanup(
 
     mock_build.side_effect = [drive_user1, script_user1, drive_user2, script_user2]
 
-    with caplog.at_level(
-        logging.DEBUG, logger="cartography.intel.googleworkspace.apps_script"
+    with (
+        caplog.at_level(
+            logging.DEBUG, logger="cartography.intel.googleworkspace.apps_script"
+        ),
+        patch(
+            "cartography.intel.googleworkspace.apps_script.cleanup_apps_script_projects_of_users"
+        ) as mock_scoped_cleanup,
     ):
         sync_googleworkspace_apps_script(
             MagicMock(),
@@ -243,6 +248,10 @@ def test_sync_one_user_403_loads_others_and_skips_cleanup(
             123,
             {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
         )
+
+    # Only user-2 was read completely, so only user-2's stale projects may be removed
+    mock_scoped_cleanup.assert_called_once()
+    assert mock_scoped_cleanup.call_args[0][1] == ["user-2"]
 
     mock_load.assert_called_once()
     loaded_data = mock_load.call_args[0][1]
@@ -360,7 +369,7 @@ _TWO_USERS = [
     "cartography.intel.googleworkspace.apps_script._get_active_users_for_tenant",
     return_value=_TWO_USERS,
 )
-def test_sync_user_without_apps_script_api_setting_still_allows_cleanup(
+def test_sync_user_without_apps_script_api_setting_keeps_that_users_projects(
     _mock_get_users, mock_build, mock_load, mock_cleanup
 ):
     # Arrange: user-1 never turned on the per-user Apps Script API setting
@@ -376,18 +385,24 @@ def test_sync_user_without_apps_script_api_setting_still_allows_cleanup(
     ]
 
     # Act
-    sync_googleworkspace_apps_script(
-        MagicMock(),
-        _make_service_account_creds(),
-        123,
-        {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
-    )
+    with patch(
+        "cartography.intel.googleworkspace.apps_script.cleanup_apps_script_projects_of_users"
+    ) as mock_scoped_cleanup:
+        sync_googleworkspace_apps_script(
+            MagicMock(),
+            _make_service_account_creds(),
+            123,
+            {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
+        )
 
     # Assert: the setting blocks every project of user-1, so only one call is made
     assert script_user1.projects.return_value.get.return_value.execute.call_count == 1
     loaded_data = mock_load.call_args[0][1]
     assert [item["id"] for item in loaded_data] == ["script-domain-user-3"]
-    mock_cleanup.assert_called_once()
+    # user-1's projects could not be read, so they must not be cleaned up
+    mock_cleanup.assert_not_called()
+    mock_scoped_cleanup.assert_called_once()
+    assert mock_scoped_cleanup.call_args[0][1] == ["user-2"]
 
 
 @patch("cartography.intel.googleworkspace.apps_script.cleanup_apps_script_projects")
@@ -562,14 +577,55 @@ def test_sync_project_401_skips_project_and_cleanup(
     ]
 
     # Act
-    sync_googleworkspace_apps_script(
-        MagicMock(),
-        _make_service_account_creds(),
-        123,
-        {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
-    )
+    with patch(
+        "cartography.intel.googleworkspace.apps_script.cleanup_apps_script_projects_of_users"
+    ) as mock_scoped_cleanup:
+        sync_googleworkspace_apps_script(
+            MagicMock(),
+            _make_service_account_creds(),
+            123,
+            {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
+        )
 
-    # Assert
+    # Assert: no user was read completely, so nothing is cleaned up
     loaded_data = mock_load.call_args[0][1]
     assert [item["id"] for item in loaded_data] == ["script-domain-user-3"]
     mock_cleanup.assert_not_called()
+    mock_scoped_cleanup.assert_not_called()
+
+
+@patch("cartography.intel.googleworkspace.apps_script.cleanup_apps_script_projects")
+@patch("cartography.intel.googleworkspace.apps_script.load_apps_script_projects")
+@patch("cartography.intel.googleworkspace.apps_script.googleapiclient.discovery.build")
+@patch(
+    "cartography.intel.googleworkspace.apps_script._get_active_users_for_tenant",
+    return_value=_TWO_USERS,
+)
+def test_sync_drive_api_disabled_in_cloud_project_skips_all(
+    _mock_get_users, mock_build, mock_load, mock_cleanup, caplog
+):
+    # Arrange: the Drive listing of the first user reports the API as disabled
+    drive = MagicMock()
+    drive.files.return_value.list.return_value.execute.side_effect = _make_google_error(
+        403,
+        "Google Drive API has not been used in project 123 before or it is disabled.",
+        reason="SERVICE_DISABLED",
+    )
+    mock_build.side_effect = [drive, MagicMock()]
+
+    # Act
+    with caplog.at_level(
+        logging.WARNING, logger="cartography.intel.googleworkspace.apps_script"
+    ):
+        sync_googleworkspace_apps_script(
+            MagicMock(),
+            _make_service_account_creds(),
+            123,
+            {"UPDATE_TAG": 123, "CUSTOMER_ID": "ABC123CD"},
+        )
+
+    # Assert: no second user is tried, nothing is loaded or cleaned up
+    assert mock_build.call_count == 2
+    mock_load.assert_not_called()
+    mock_cleanup.assert_not_called()
+    assert any("Drive API" in r.getMessage() for r in caplog.records)
