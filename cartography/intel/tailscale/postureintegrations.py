@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -12,6 +13,7 @@ from cartography.models.tailscale.postureintegration import (
 )
 from cartography.util import timeit
 
+logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 
@@ -28,6 +30,8 @@ def sync(
         common_job_parameters["BASE_URL"],
         org,
     )
+    if postureintegrations is None:
+        return
     load_postureintegrations(
         neo4j_session,
         postureintegrations,
@@ -42,15 +46,26 @@ def get(
     api_session: requests.Session,
     base_url: str,
     org: str,
-) -> List[Dict[str, Any]]:
-    results: List[Dict[str, Any]] = []
+) -> List[Dict[str, Any]] | None:
+    """
+    Return None when the integrations cannot be read, so the caller keeps the
+    existing nodes instead of cleaning them up as if none existed.
+    """
     req = api_session.get(
         f"{base_url}/tailnet/{org}/posture/integrations",
         timeout=_TIMEOUT,
     )
+    # Tailscale answers 404, not 403, when the credential lacks the
+    # feature_settings:read scope this endpoint requires.
+    if req.status_code == 404:
+        logger.warning(
+            "Tailscale posture integrations endpoint returned 404 for tailnet %s; "
+            "skipping. Grant the feature_settings:read scope to sync them.",
+            org,
+        )
+        return None
     req.raise_for_status()
-    results = req.json()["integrations"]
-    return results
+    return req.json()["integrations"]
 
 
 @timeit

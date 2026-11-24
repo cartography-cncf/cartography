@@ -265,3 +265,41 @@ class GCPArtifactRegistryRepositoryImageSchema(CartographyNodeSchema):
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_TAG])
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryRepositoryImageProvenanceNodeProperties(
+    CartographyNodeProperties
+):
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Tag-scoped pull URI used as the node ID; untagged API records use "
+            "their digest-pinned URI."
+        ),
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    provenance_version: PropertyRef = PropertyRef(
+        "provenance_version",
+        description="Version of the provenance pass (config labels, referrers and SBOMs) that last completed for this repository's copy of the image without a fetch failure. Unset after a failed pass, so the image is read again.",
+    )
+    provenance_digest: PropertyRef = PropertyRef(
+        "provenance_digest",
+        description="Digest the provenance_version stamp was written for. A tag can move to another digest, so the stamp only counts while this matches the node's digest.",
+    )
+    layer_graph_digest: PropertyRef = PropertyRef(
+        "layer_graph_digest",
+        description="Digest whose layer graph this project had saved when the provenance stamp was written. While it matches the node's digest, the sync skips the image's layer closure check.",
+    )
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryRepositoryImageProvenanceSchema(CartographyNodeSchema):
+    """Provenance lookup state of an Artifact Registry repository image."""
+
+    label: str = "GCPArtifactRegistryRepositoryImage"
+    properties: GCPArtifactRegistryRepositoryImageProvenanceNodeProperties = (
+        GCPArtifactRegistryRepositoryImageProvenanceNodeProperties()
+    )
+    scoped_cleanup: bool = True
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_TAG])

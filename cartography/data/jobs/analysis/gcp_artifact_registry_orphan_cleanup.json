@@ -1,0 +1,24 @@
+{
+  "name": "GCP Artifact Registry orphaned image and layer cleanup",
+  "__comment__": "GAR images and layers are keyed by digest and shared across projects, so whether one is orphaned is a question about the whole graph. Run once per sync, after every project has removed its own stale repository-image, manifest and layer links. Each statement deletes up to $SCAN_LIMIT_SIZE orphans per scan, committing every $LIMIT_SIZE, rather than rescanning the label after every $LIMIT_SIZE deletions.",
+  "statements": [
+    {
+      "__comment__": "Delete stale images that no relationship still uses. The image's own outgoing HAS_LAYER, HEAD and TAIL edges do not count, because their layers can outlive the image when another image shares them. Keep images written in the current sync.",
+      "query": "MATCH (img:GCPArtifactRegistryImage) WHERE (img.lastupdated IS NULL OR img.lastupdated <> $UPDATE_TAG) AND NOT exists { MATCH (img)-[r]-() WHERE NOT (startNode(r) = img AND type(r) IN ['HAS_LAYER', 'HEAD', 'TAIL']) } WITH img LIMIT $SCAN_LIMIT_SIZE CALL (img) { DETACH DELETE img } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 1000,
+      "batched_transactions": true
+    },
+    {
+      "__comment__": "Delete the relationships of stale layers that no project links to, a bounded batch per transaction, before the layers themselves. A layer shared by many images, such as Docker's empty layer, can have millions of relationships, more than one transaction can delete within its memory limit. NEXT between two such layers is seen from both ends, hence DISTINCT. The scan hint keeps the planner from scanning every relationship in the graph instead.",
+      "query": "MATCH (layer:GCPArtifactRegistryImageLayer) USING SCAN layer:GCPArtifactRegistryImageLayer WHERE (layer.lastupdated IS NULL OR layer.lastupdated <> $UPDATE_TAG) AND NOT exists((:GCPProject)-[:RESOURCE]->(layer)) MATCH (layer)-[r]-() WITH DISTINCT r LIMIT $SCAN_LIMIT_SIZE CALL (r) { DELETE r } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 1000,
+      "batched_transactions": true
+    },
+    {
+      "__comment__": "Delete stale layers that no project links to any more. Keep layers written in the current sync.",
+      "query": "MATCH (layer:GCPArtifactRegistryImageLayer) WHERE (layer.lastupdated IS NULL OR layer.lastupdated <> $UPDATE_TAG) AND NOT exists((:GCPProject)-[:RESOURCE]->(layer)) WITH layer LIMIT $SCAN_LIMIT_SIZE CALL (layer) { DETACH DELETE layer } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 1000,
+      "batched_transactions": true
+    }
+  ]
+}

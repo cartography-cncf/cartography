@@ -64,7 +64,12 @@ def test_ontology_rel_constraints():
             primary = getattr(element, "label", None)
             if isinstance(primary, str):
                 labels = node_schema_labels(element)
-                label_index[primary] = labels
+                # Several schemas can write to the same node label, for example
+                # the S3 bucket schema and the schemas that enrich the bucket with
+                # its policy or encryption. Only some of them declare the ontology
+                # label, but the node carries every label any of them adds, so
+                # merge the labels instead of keeping the last schema's set.
+                label_index.setdefault(primary, set()).update(labels)
                 extra_labels_seen.update(labels - {primary})
                 node_classes.append(element)
         elif is_rel_schema(element):

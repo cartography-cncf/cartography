@@ -546,6 +546,69 @@ PACKAGE_AFFECTS_SEMGREP_SCA_LINKING = AnalysisJob(
         ),
     ),
 )
+PACKAGE_AFFECTS_ORCA_LINKING = AnalysisJob(
+    name="Ontology - OrcaVulnerabilityFinding AFFECTS PackageVersion linking",
+    short_name="ontology_packages_orca_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (f:OrcaVulnerabilityFinding)-[:AFFECTS]->(:OrcaPackage)<-[:DETECTED_AS]-(p:PackageVersion)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "p",
+                    source_label="OrcaVulnerabilityFinding",
+                    target_label="PackageVersion",
+                ),
+            ),
+            batched_transactions=True,
+            iterationsize=10000,
+        ),
+    ),
+)
+PACKAGE_AFFECTS_CROWDSTRIKE_LINKING = AnalysisJob(
+    name="Ontology - CrowdstrikeFinding AFFECTS PackageVersion linking",
+    short_name="ontology_packages_crowdstrike_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (f:CrowdstrikeFinding)-[:AFFECTS]->(:CrowdstrikeApplication)<-[:DETECTED_AS]-(p:PackageVersion)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "p",
+                    source_label="CrowdstrikeFinding",
+                    target_label="PackageVersion",
+                ),
+            ),
+            batched_transactions=True,
+            iterationsize=10000,
+        ),
+    ),
+)
+PACKAGE_DEPLOYED_DEVICE_CROWDSTRIKE = AnalysisJob(
+    name="Ontology - PackageVersion DEPLOYED Device linking via CrowdStrike",
+    short_name="ontology_packages_crowdstrike_deployed_device",
+    statements=(
+        AnalysisStatement(
+            match=(
+                "MATCH (p:PackageVersion)-[:DETECTED_AS]->(:CrowdstrikeApplication)"
+                "-[:DEPLOYED]->(:CrowdstrikeHost)<-[:OBSERVED_AS]-(d:Device)"
+            ),
+            effects=(
+                AddRelationship(
+                    "p",
+                    "DEPLOYED",
+                    "d",
+                    source_label="PackageVersion",
+                    target_label="Device",
+                ),
+            ),
+            batched_transactions=True,
+            iterationsize=10000,
+        ),
+    ),
+)
 PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
     name="Ontology - PackageVersion SHOULD_UPDATE_TO TrivyFix linking",
     short_name="ontology_packages_should_update_to",
@@ -587,6 +650,9 @@ PACKAGE_LINKING_JOBS = (
     PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT,
     PACKAGE_AFFECTS_LINKING,
     PACKAGE_AFFECTS_SEMGREP_SCA_LINKING,
+    PACKAGE_AFFECTS_ORCA_LINKING,
+    PACKAGE_AFFECTS_CROWDSTRIKE_LINKING,
+    PACKAGE_DEPLOYED_DEVICE_CROWDSTRIKE,
     PACKAGE_SHOULD_UPDATE_TO_LINKING,
     PACKAGE_DEPENDS_ON_LINKING,
 )
@@ -670,6 +736,36 @@ TAILSCALE_DEVICE_INSTANCE_LINKING = AnalysisJob(
                     "instance",
                     source_label="TailscaleDevice",
                     target_label="ComputeInstance",
+                ),
+            ),
+        ),
+    ),
+)
+# Providers disagree on email case for the same person, so the exact-match
+# HAS_ACCOUNT relationship in UserSchema misses those accounts.
+# GitHubUser is excluded: its profile email is self-asserted, and
+# USER_HAS_GITHUB_ACCOUNT weighs it against verified-domain and SAML evidence.
+USER_HAS_ACCOUNT_BY_NORMALIZED_EMAIL = AnalysisJob(
+    name="Ontology - UserAccount HAS_ACCOUNT User linking by normalized email",
+    short_name="ontology_users_normalized_email",
+    statements=(
+        AnalysisStatement(
+            match=(
+                "MATCH (a:UserAccount) "
+                "WHERE a._ont_email IS NOT NULL AND NOT a:GitHubUser "
+                "MATCH (u:User {normalized_email: toLower(trim(a._ont_email))})"
+            ),
+            effects=(
+                AddRelationship(
+                    "u",
+                    "HAS_ACCOUNT",
+                    "a",
+                    source_label="User",
+                    target_label="UserAccount",
+                    # UserSchema cleanup removes stale HAS_ACCOUNT links at the
+                    # end of the sync. Cleaning up here would delete the links
+                    # that the later linking jobs refresh.
+                    cleanup_where="false",
                 ),
             ),
         ),
@@ -782,6 +878,7 @@ USER_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
     ),
 )
 USER_LINKING_JOBS = (
+    USER_HAS_ACCOUNT_BY_NORMALIZED_EMAIL,
     USER_HAS_AWS_SSO_ACCOUNT,
     USER_HAS_GITHUB_ACCOUNT,
     USER_OWNS_API_KEY,

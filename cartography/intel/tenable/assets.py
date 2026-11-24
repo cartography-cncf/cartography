@@ -21,7 +21,12 @@ logger = logging.getLogger(__name__)
 
 _ASSET_EXPORT_PATH = "assets/v2/export"
 _ASSET_RESULT_BASE = "assets/export"
-_ASSET_EXPORT_PARAMS: dict[str, Any] = {"chunk_size": 1000}
+# Tenable's asset export returns only `host` assets unless `types` says otherwise. Web App
+# Scanning assets are type `webapp`; without them WAS findings cannot link to their asset.
+_ASSET_EXPORT_PARAMS: dict[str, Any] = {
+    "chunk_size": 1000,
+    "filters": {"types": ["host", "webapp"]},
+}
 
 
 @timeit

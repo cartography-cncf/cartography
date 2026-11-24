@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import requests
@@ -68,3 +69,41 @@ def test_load_tailscale_postureintegrations(mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+
+def test_sync_keeps_postureintegrations_when_endpoint_returns_404(neo4j_session):
+    """
+    A credential without feature_settings:read gets a 404 from this endpoint. The
+    sync must not fail, and must not clean up integrations it could not read.
+    """
+    # Arrange
+    _ensure_local_neo4j_has_test_tailnets(neo4j_session)
+    cartography.intel.tailscale.postureintegrations.load_postureintegrations(
+        neo4j_session,
+        tests.data.tailscale.postureintegrations.TAILSCALE_POSTUREINTEGRATIONS,
+        TEST_ORG,
+        TEST_UPDATE_TAG,
+    )
+    not_found = requests.Response()
+    not_found.status_code = 404
+    api_session = MagicMock(spec=requests.Session)
+    api_session.get.return_value = not_found
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+        "BASE_URL": "https://fake.tailscale.com",
+        "org": TEST_ORG,
+    }
+
+    # Act
+    cartography.intel.tailscale.postureintegrations.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+        TEST_ORG,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "TailscalePostureIntegration", ["id"]) == {
+        ("pcBEPQVMpki7DEVEL",),
+        ("pcBEPQVMpki7S1",),
+    }

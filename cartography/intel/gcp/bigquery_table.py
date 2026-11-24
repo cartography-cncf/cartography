@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import GCP_EXPECTED_SKIP_CATEGORIES
 from cartography.intel.gcp.util import is_gcp_http_error_category
 from cartography.models.gcp.bigquery.table import GCPBigQueryTableSchema
 from cartography.util import timeit
@@ -92,10 +93,12 @@ def get_bigquery_table_detail(
 
     Returns:
         dict: The full table resource
-        None: If the table could not be retrieved
+        None: If the table is gone, the request is invalid for this table, or
+            the quota is still exhausted after retries
 
     Raises:
-        HttpError: For errors other than API disabled or permission denied
+        HttpError: For any other error, including access-denied 403s, which
+            the caller handles once per dataset
     """
     try:
         request = client.tables().get(
@@ -107,7 +110,7 @@ def get_bigquery_table_detail(
     except HttpError as e:
         if is_gcp_http_error_category(
             e,
-            ("api_disabled", "billing_disabled", "forbidden", "invalid", "not_found"),
+            ("invalid", "not_found"),
             include_transient_403=True,
         ):
             logger.warning(
@@ -202,7 +205,24 @@ def sync_bigquery_tables(
             for i, table in enumerate(tables_raw):
                 table_ref = table["tableReference"]
                 tid = table_ref["tableId"]
-                detail = get_bigquery_table_detail(client, project_id, dataset_id, tid)
+                try:
+                    detail = get_bigquery_table_detail(
+                        client, project_id, dataset_id, tid
+                    )
+                except HttpError as e:
+                    if not is_gcp_http_error_category(e, GCP_EXPECTED_SKIP_CATEGORIES):
+                        raise
+                    # The rest of the dataset would fail the same way. Its tables
+                    # still load with the fields tables.list returned.
+                    logger.warning(
+                        "Could not retrieve BigQuery table details for dataset "
+                        "%s:%s - %s. Skipping details for its %d remaining tables.",
+                        project_id,
+                        dataset_id,
+                        e,
+                        len(tables_raw) - i,
+                    )
+                    break
                 if detail is not None:
                     table.update(detail)
                 if (i + 1) % 100 == 0:

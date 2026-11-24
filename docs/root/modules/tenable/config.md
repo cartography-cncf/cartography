@@ -20,6 +20,14 @@ See Tenable's API documentation for
 [asset exports](https://developer.tenable.com/reference/export-assets-v2) and
 [vulnerability exports](https://developer.tenable.com/reference/exports-vulns-request-export).
 
+Web App Scanning findings use the separate
+[WAS findings export](https://developer.tenable.com/reference/was-export-findings). It
+needs the Basic [16] role or a custom role with the `WAS.SCAN_WAS.MANAGE` privilege,
+plus Can View access to the assets being exported (Administrator users do not need
+it). Without that access Tenable answers 403 and the WAS part of the sync is skipped
+with a warning. A request that duplicates an export still running is refused with 409,
+which fails the WAS sync; the next run retries.
+
 ## Configure Cartography
 
 | Option | Default | Purpose |
@@ -63,6 +71,7 @@ existing graph identifiers in place.
 ### Findings lookback
 
 `--tenable-findings-lookback-days` controls how many days of findings each sync
-requests. It defaults to `180` and must be at least `1`. The export is filtered
-by the finding's last-seen time, and cleanup removes stale findings that are no
-longer returned within the configured window.
+requests, for vulnerability management and Web App Scanning findings alike. It
+defaults to `180` and must be at least `1`. The export is filtered by the finding's
+last-seen time, and cleanup removes stale findings that are no longer returned within
+the configured window.

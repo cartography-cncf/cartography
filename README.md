@@ -118,6 +118,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [CVE Metadata](https://docs.cartography.dev/modules/cve_metadata/index.html) - CVE enrichment with CVSS scores from NVD, EPSS scores from FIRST.org, known exploited vulnerabilities from the CISA KEV catalog, and SSVC decisions from CISA Vulnrichment
 - [NIST CVE](https://docs.cartography.dev/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database (deprecated - use CVE Metadata instead)
 - [Netlify](https://docs.cartography.dev/modules/netlify/index.html) - Accounts, Users, Invites, Sites, Deploys, Functions, Dev Servers, Agent Runners, Database Branches, Database Snapshots, Environment Variables, Build Hooks, Notification Hooks, Deploy Keys, Snippets, Service Instances, DNS Zones, DNS Records, Certificates, Forms
+- [1Password](https://docs.cartography.dev/modules/onepassword/index.html) - Accounts, Users, Service Accounts, Groups, Vaults, Vault Grants, Item metadata (from collector snapshots)
 - [Okta](https://docs.cartography.dev/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs, federation to AWS roles, federation to AWS Identity Center
 - [OpenAI](https://docs.cartography.dev/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
 - [Oracle Cloud Infrastructure](https://docs.cartography.dev/modules/oci/index.html) - IAM
@@ -126,12 +127,14 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Railway](https://docs.cartography.dev/modules/railway/index.html) - Workspaces, Projects, Environments, Services, Service Instances, Deployments, Domains, TCP Proxies, Volumes, Variables, Tokens
 - [Scaleway](https://docs.cartography.dev/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances
 - [SentinelOne](https://docs.cartography.dev/modules/sentinelone/index.html) - Accounts, Agents, Applications, Application Versions, CVEs
+- [Sentra](https://docs.cartography.dev/modules/sentra/index.html) - Data stores, data classes, policies, alerts
 - [Slack](https://docs.cartography.dev/modules/slack/index.html) - Teams, Users, UserGroups, Channels
 - [SnipeIT](https://docs.cartography.dev/modules/snipeit/index.html) - Users, Assets
 - [Snowflake](https://docs.cartography.dev/modules/snowflake/index.html) - Accounts, Users, Service Users, Roles, Database Roles, Grants, Role Hierarchy, Ownership, Programmatic Access Tokens, Credentials, Warehouses, Compute Pools, Resource Monitors, Databases, Schemas, Tables, Views, Iceberg Tables, Dynamic Tables, Streams, Tasks, Pipes, Stages, External Volumes, Secrets, Network Policies, Network Rules, Policies, Integrations (Security, Storage, API, Catalog, Notification, External Access), Services, Image Repositories, Notebooks, Streamlits, Shares, Listings, Replication Groups
 - [Socket.dev](https://docs.cartography.dev/modules/socketdev/index.html) - Organizations, Repositories, Dependencies, Security Alerts (CVE, malware, supply chain risks), Fixes
 - [Spacelift](https://docs.cartography.dev/modules/spacelift/index.html) - Accounts, Spaces,Users, Stacks, WorkerPools, Workers, Runs, GitCommits
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework
+- [Sweet Security](https://docs.cartography.dev/modules/sweet/index.html) - AWS account and organization connections, runtime vulnerabilities with whether the vulnerable package is loaded or executed, attack chains
 - [Tailscale](https://docs.cartography.dev/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations, DevicePostures, DevicePostureConditions, device posture compliance relationships
 - [Trivy Scanner](https://docs.cartography.dev/modules/trivy/index.html) - AWS ECR Images
 - [Zoom](https://docs.cartography.dev/modules/zoom/index.html) - Accounts, users, plan types, groups, roles, security settings, Marketplace apps, meetings, recordings, and client versions

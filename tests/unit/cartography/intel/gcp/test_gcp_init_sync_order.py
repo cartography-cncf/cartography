@@ -9,6 +9,12 @@ from cartography.analysis.gcp.analysis import GCP_COMPUTE_FIREWALL_INGRESS
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_FORWARDING_RULE_EXPOSURE
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_INSTANCE_EXPOSURE
 from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
+from cartography.intel.gcp.artifact_registry.artifact import (
+    ArtifactRegistryArtifactSyncResult,
+)
+from cartography.intel.gcp.artifact_registry.repository import (
+    ArtifactRegistryRepositorySyncResult,
+)
 
 
 def _make_serviceusage_client(enabled_services: list[str]) -> MagicMock:
@@ -123,3 +129,63 @@ def test_exposure_jobs_follow_the_sync_that_feeds_them(requested_syncs, expected
         )
 
     assert [call.args[0] for call in run_job.call_args_list] == expected_jobs
+
+
+@pytest.mark.parametrize(
+    "requested_syncs, layer_graph",
+    [
+        pytest.param(
+            {"artifact_registry", "artifact_registry_image_layers"},
+            True,
+            id="layers_requested",
+        ),
+        pytest.param({"artifact_registry"}, False, id="layers_not_requested"),
+    ],
+)
+@pytest.mark.parametrize(
+    "docker_images",
+    [
+        [{"name": "image", "uri": "us-docker.pkg.dev/p/r/i@sha256:abc"}],
+        # A project whose last image is gone still cleans up its layer links.
+        [],
+    ],
+    ids=["images", "no_images"],
+)
+def test_artifact_registry_layer_graph_follows_requested_syncs(
+    requested_syncs, layer_graph, docker_images
+):
+    """
+    The layer graph costs far more than the Artifact Registry inventory on large
+    registries, so it loads only when artifact_registry_image_layers is requested.
+    Build provenance and parent images load either way.
+    """
+    gar = cartography.intel.gcp.artifact_registry
+    serviceusage_client = _make_serviceusage_client(["artifactregistry.googleapis.com"])
+
+    with (
+        patch("cartography.intel.gcp.build_client", return_value=serviceusage_client),
+        patch.object(gar, "build_artifact_registry_client"),
+        patch.object(
+            gar,
+            "sync_artifact_registry_repositories",
+            return_value=ArtifactRegistryRepositorySyncResult([], True),
+        ),
+        patch.object(
+            gar,
+            "sync_artifact_registry_artifacts",
+            return_value=ArtifactRegistryArtifactSyncResult([], docker_images, True),
+        ),
+        patch.object(gar, "sync_manifests"),
+        patch.object(gar, "run_scoped_analysis_job"),
+        patch.object(gar, "sync_supply_chain") as sync_supply_chain,
+    ):
+        cartography.intel.gcp._sync_project_resources(
+            MagicMock(),
+            [{"projectId": "test-project"}],
+            123,
+            {"UPDATE_TAG": 123},
+            MagicMock(),
+            requested_syncs=requested_syncs,
+        )
+
+    assert sync_supply_chain.call_args.kwargs["sync_layer_graph"] is layer_graph

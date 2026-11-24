@@ -5,7 +5,7 @@ Every intel module must document its setup in
 omit optional sections that do not apply. Never add empty sections.
 
 ```markdown
-# <Module> Configuration
+# <Module> configuration
 
 <!-- Briefly state what must be configured before this module can run. -->
 
@@ -21,11 +21,11 @@ omit optional sections that do not apply. Never add empty sections.
 
 <!-- Optional. Use subsections only when the module supports multiple methods. -->
 
-## Required Permissions
+## Required permissions
 
 <!-- Optional. Prefer a table for permissions. -->
 
-## Optional Permissions
+## Optional permissions
 
 <!-- Optional. State which feature each permission enables. -->
 
@@ -37,19 +37,19 @@ omit optional sections that do not apply. Never add empty sections.
 
 <!-- Required. Include at least one directly runnable command. -->
 
-## Input Artifacts
+## Input artifacts
 
 <!-- Optional for report- or file-backed modules. -->
 
-### Generate Input Artifacts
+### Generate input artifacts
 
 <!-- Optional. Explain how to create the artifacts Cartography consumes. -->
 
-### Input Format
+### Input format
 
 <!-- Optional. Document only setup-relevant format requirements. -->
 
-## Advanced Configuration
+## Advanced configuration
 
 <!-- Optional. Cover multi-account, multi-tenant, filtering, or alternate modes. -->
 
@@ -64,7 +64,7 @@ omit optional sections that do not apply. Never add empty sections.
 
 ## Conventions
 
-- Use exactly one H1 page title: `# <Provider> Configuration`.
+- Use exactly one H1 page title: `# <Provider> configuration`.
 - Start sections at H2 and authentication methods at H3.
 - Order setup as prerequisites, authentication, permissions, Cartography
   configuration, and a runnable command.
@@ -82,16 +82,33 @@ omit optional sections that do not apply. Never add empty sections.
 
 ## Content placement
 
-Keep `config.md` focused on making the module run:
+A module's `index.md` contains only the page title and a toctree. Don't add
+prose to it. The one exception is a deprecated module: its `index.md` keeps the
+deprecation notice and the link to the replacement module above the toctree.
+A current module's `index.md` looks like this:
 
-- Put module purpose, feature inventories, architecture, graph-model
-  narratives, broad ingestion behavior, and ontology integration in
-  `index.md`.
+````markdown
+# <Module>
+
+```{toctree}
+config
+schema
+```
+````
+
+Put every other piece of content on the page where it belongs:
+
+- Put node, relationship, and property documentation in schema docstrings and
+  `PropertyRef.description`. This includes graph-model narratives, ingestion
+  scope, and cleanup behavior. Sphinx renders these into generated `schema.md`,
+  together with the ontology mappings from `extra_node_labels`.
+- Put everything needed to make the module run, such as modules that must sync
+  first, in `config.md`.
 - Put Cypher investigations and query walkthroughs in `queries.md` or
   `examples.md`.
 - Put post-ingestion logic, risk derivation, and materialized relationship
   behavior in `analysis.md`.
-- Put node, relationship, and property documentation in schema docstrings and
-  `PropertyRef.description`; Sphinx renders these into generated `schema.md`.
+- Put any other topic, such as architecture or a cross-platform integration, on
+  its own page, and list that page in the toctree.
 - Delete content only when it is stale or duplicated after preserving any
   necessary migration or compatibility notice.

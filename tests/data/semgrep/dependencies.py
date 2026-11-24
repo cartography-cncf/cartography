@@ -53,6 +53,37 @@ DEPENDENCIES_RESPONSE_GOMOD = {
 
 RAW_DEPS_GOMOD = DEPENDENCIES_RESPONSE_GOMOD["dependencies"]
 
+DEPENDENCIES_RESPONSE_MAVEN = {
+    "dependencies": [
+        {
+            "repositoryId": REPO_ID,
+            "definedAt": {
+                "path": "pom.xml",
+                "startLine": "12",
+                "endLine": "12",
+                "url": "https://github.com/simpsoncorp/sample_repo/blob/00000000000000000000000000000000/pom.xml#L12",
+                "committedAt": "1970-01-01T00:00:00Z",
+                "startCol": "0",
+                "endCol": "0",
+            },
+            "transitivity": "DIRECT",
+            "package": {
+                "name": "org.springframework:spring-core",
+                "versionSpecifier": "6.1.5",
+            },
+            "ecosystem": "maven",
+            "licenses": [
+                "Apache-2.0",
+            ],
+            "pathToTransitivity": [],
+        },
+    ],
+    "hasMore": True,
+    "cursor": "123456789",
+}
+
+RAW_DEPS_MAVEN = DEPENDENCIES_RESPONSE_MAVEN["dependencies"]
+
 DEPENDENCIES_RESPONSE_NPM = {
     "dependencies": [
         {

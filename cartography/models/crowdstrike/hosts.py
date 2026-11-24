@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -170,6 +171,26 @@ class CrowdstrikeHostToCrowdstrikeTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CrowdstrikeHostToEC2InstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CrowdstrikeHostToEC2InstanceRel(CartographyRelSchema):
+    """The EC2 instance that this host runs on, matched on its instance ID."""
+
+    target_node_label: str = "AWSEC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("aws_ec2_instance_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_INSTANCE"
+    properties: CrowdstrikeHostToEC2InstanceRelProperties = (
+        CrowdstrikeHostToEC2InstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class CrowdstrikeHostSchema(CartographyNodeSchema):
     """An endpoint device observed by CrowdStrike Falcon."""
 
@@ -177,4 +198,7 @@ class CrowdstrikeHostSchema(CartographyNodeSchema):
     properties: CrowdstrikeHostNodeProperties = CrowdstrikeHostNodeProperties()
     sub_resource_relationship: CrowdstrikeHostToCrowdstrikeTenantRel = (
         CrowdstrikeHostToCrowdstrikeTenantRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [CrowdstrikeHostToEC2InstanceRel()],
     )

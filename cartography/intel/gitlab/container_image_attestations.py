@@ -25,6 +25,9 @@ from cartography.models.gitlab.container_image_attestations import (
     GitLabContainerImageAttestationSchema,
 )
 from cartography.models.gitlab.container_images import (
+    GitLabContainerImageParentProvenanceSchema,
+)
+from cartography.models.gitlab.container_images import (
     GitLabContainerImageProvenanceSchema,
 )
 from cartography.util import timeit
@@ -404,7 +407,13 @@ def load_image_provenance(
     load(
         neo4j_session,
         GitLabContainerImageProvenanceSchema(),
-        provenance_records,
+        [record for record in provenance_records if record.get("source_uri")],
+        lastupdated=update_tag,
+    )
+    load(
+        neo4j_session,
+        GitLabContainerImageParentProvenanceSchema(),
+        [record for record in provenance_records if not record.get("source_uri")],
         lastupdated=update_tag,
     )
 

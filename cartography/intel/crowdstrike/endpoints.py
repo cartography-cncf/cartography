@@ -30,6 +30,13 @@ def sync_hosts(
         load_host_data(neo4j_session, host_data, update_tag)
 
 
+def _ec2_instance_id(host: Dict) -> str | None:
+    # Fargate and EKS Fargate hosts also report an instance_id, but it names a task.
+    if str(host.get("service_provider") or "").startswith("AWS_EC2"):
+        return host.get("instance_id")
+    return None
+
+
 @timeit
 def load_host_data(
     neo4j_session: neo4j.Session,
@@ -47,7 +54,7 @@ def load_host_data(
         if not cid:
             missing_cid.append(host.get("device_id") or "<unknown>")
             continue
-        hosts_by_cid[cid].append(host)
+        hosts_by_cid[cid].append(host | {"aws_ec2_instance_id": _ec2_instance_id(host)})
     if missing_cid:
         raise ValueError(
             "CrowdStrike returned host records with no `cid`; refusing to load "

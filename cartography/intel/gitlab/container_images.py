@@ -16,12 +16,21 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.helpers import batch
+from cartography.intel.container_image_layers import build_next_layer_rows
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
 from cartography.intel.container_image_layers import get_complete_layer_digests
 from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
+from cartography.intel.supply_chain import image_config_label_provenance
+from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerNextRelSchema,
+)
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerNodeSchema,
+)
 from cartography.models.gitlab.container_image_layers import (
     GitLabContainerImageLayerSchema,
 )
@@ -51,6 +60,7 @@ MANIFEST_LIST_MEDIA_TYPES = {
 # single org. Use conservative load batch sizes so Neo4j transactions stay
 # shorter and retries replay less work when a transient connection issue occurs.
 GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE = 200
+GITLAB_CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE = 1000
 GITLAB_CONTAINER_IMAGE_BATCH_SIZE = 500
 
 # Fetch and write repositories in chunks so long-running org syncs do not spend
@@ -441,7 +451,7 @@ def transform_container_images(
         head_layer_diff_id = None
         tail_layer_diff_id = None
         if not is_manifest_list:
-            rootfs = config.get("rootfs", {})
+            rootfs = config.get("rootfs") or {}
             diff_ids = rootfs.get("diff_ids")
             if isinstance(diff_ids, list):
                 layer_diff_ids = diff_ids
@@ -474,6 +484,7 @@ def transform_container_images(
                 "layer_diff_ids": layer_diff_ids,
                 "head_layer_diff_id": head_layer_diff_id,
                 "tail_layer_diff_id": tail_layer_diff_id,
+                **({} if is_manifest_list else image_config_label_provenance(config)),
             }
         )
 
@@ -508,7 +519,7 @@ def transform_container_image_layers(
         image_digest = manifest.get("_digest")
         layers = manifest.get("layers", [])
         config = manifest.get("_config", {})
-        diff_ids_raw = config.get("rootfs", {}).get("diff_ids", [])
+        diff_ids_raw = (config.get("rootfs") or {}).get("diff_ids", [])
         history_raw = config.get("history", [])
 
         # Ensure diff_ids is a list for type checking
@@ -654,12 +665,19 @@ def load_container_image_layers(
     """
     load(
         neo4j_session,
-        GitLabContainerImageLayerSchema(),
+        GitLabContainerImageLayerNodeSchema(),
         layers,
         batch_size=GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE,
         lastupdated=update_tag,
         org_id=org_id,
         gitlab_url=gitlab_url,
+    )
+    load(
+        neo4j_session,
+        GitLabContainerImageLayerNextRelSchema(),
+        build_next_layer_rows(layers),
+        batch_size=GITLAB_CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE,
+        lastupdated=update_tag,
     )
 
 
@@ -740,6 +758,7 @@ def sync_container_images(
         GITLAB_LAYER_GRAPH,
         None,
         {"id": org_id, "gitlab_url": gitlab_url},
+        min_label_provenance_version=LABEL_PROVENANCE_VERSION,
     )
     manifest_list_digests = _get_manifest_list_digests(
         neo4j_session,

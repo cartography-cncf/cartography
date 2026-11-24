@@ -250,6 +250,34 @@ DESCRIBE_SGS = [
                 "ToPort": 80,
                 "UserIdGroupPairs": [],
             },
+            # The next two rules differ, yet their ports and protocol read
+            # "222222tcp" when written without separators.
+            {
+                "FromPort": 22,
+                "IpProtocol": "tcp",
+                "IpRanges": [
+                    {
+                        "CidrIp": "192.0.2.0/24",
+                    },
+                ],
+                "Ipv6Ranges": [],
+                "PrefixListIds": [],
+                "ToPort": 2222,
+                "UserIdGroupPairs": [],
+            },
+            {
+                "FromPort": 222,
+                "IpProtocol": "tcp",
+                "IpRanges": [
+                    {
+                        "CidrIp": "198.51.100.0/24",
+                    },
+                ],
+                "Ipv6Ranges": [],
+                "PrefixListIds": [],
+                "ToPort": 222,
+                "UserIdGroupPairs": [],
+            },
         ],
         "OwnerId": "000000000000",
         "GroupId": "sg-web-server-12345",

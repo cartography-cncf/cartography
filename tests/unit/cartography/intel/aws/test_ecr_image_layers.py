@@ -1,4 +1,6 @@
 import asyncio
+import contextlib
+import json
 import logging
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
@@ -102,44 +104,13 @@ def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
     assert has_layer_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
 
 
-def test_cleanup_runs_layer_cleanup_job(monkeypatch):
-    from_node_schema_mock = MagicMock(return_value=MagicMock())
-    run_write_query_mock = MagicMock()
-    monkeypatch.setattr(
-        ecr_layers.GraphJob,
-        "from_node_schema",
-        from_node_schema_mock,
-    )
-    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
-
-    neo4j_session = MagicMock()
-    ecr_layers.cleanup(
-        neo4j_session,
-        {
-            "UPDATE_TAG": 123,
-            "AWS_ID": "123456789012",
-        },
-    )
-
-    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
-        "ECRImageLayerSchema"
-    )
-    assert from_node_schema_mock.return_value.run.call_count == 1
-    relationship_cleanup_query = run_write_query_mock.call_args.args[1]
-    assert "HAS_LAYER|BUILT_FROM" in relationship_cleanup_query
-    assert "DELETE relationship" in relationship_cleanup_query
-    assert "DETACH DELETE" not in relationship_cleanup_query
-
-
 def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
-    from_node_schema_mock = MagicMock()
-    run_write_query_mock = MagicMock()
+    run_scoped_analysis_job_mock = MagicMock()
     monkeypatch.setattr(
-        ecr_layers.GraphJob,
-        "from_node_schema",
-        from_node_schema_mock,
+        ecr_layers,
+        "run_scoped_analysis_job",
+        run_scoped_analysis_job_mock,
     )
-    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
 
     ecr_layers.cleanup(
         MagicMock(),
@@ -147,8 +118,7 @@ def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
         fetch_complete=False,
     )
 
-    run_write_query_mock.assert_not_called()
-    from_node_schema_mock.assert_not_called()
+    run_scoped_analysis_job_mock.assert_not_called()
 
 
 def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
@@ -169,7 +139,7 @@ def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
     }
 
 
-def test_extract_ci_label_provenance_reads_codebuild_variables():
+def test_extract_config_label_provenance_reads_codebuild_variables():
     config_json = {
         "config": {
             "Labels": {
@@ -179,13 +149,13 @@ def test_extract_ci_label_provenance_reads_codebuild_variables():
         }
     }
 
-    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+    assert ecr_layers._extract_config_label_provenance(config_json) == {
         "source_uri": "https://github.com/ExampleOrg/service",
         "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
     }
 
 
-def test_extract_ci_label_provenance_prefers_circleci_labels():
+def test_extract_config_label_provenance_prefers_circleci_labels():
     config_json = {
         "config": {
             "Labels": {
@@ -195,8 +165,24 @@ def test_extract_ci_label_provenance_prefers_circleci_labels():
         }
     }
 
-    assert ecr_layers._extract_ci_label_provenance(config_json) == {
+    assert ecr_layers._extract_config_label_provenance(config_json) == {
         "source_uri": "https://github.com/ExampleOrg/service",
+    }
+
+
+def test_extract_config_label_provenance_reads_oci_source_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "org.opencontainers.image.source": "https://github.com/ExampleOrg/service.git",
+                "org.opencontainers.image.revision": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_config_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
     }
 
 
@@ -419,6 +405,59 @@ def test_batch_get_manifest_access_denied_returns_empty_result(error_code):
     assert media_type == ""
 
 
+@pytest.mark.parametrize(
+    "failure_code",
+    ["UpstreamTooManyRequests", "UpstreamUnavailable"],
+)
+def test_batch_get_manifest_transient_image_failure_raises_skip_signal(failure_code):
+    mock_ecr_client = AsyncMock()
+    mock_ecr_client.batch_get_image.return_value = {
+        "images": [],
+        "failures": [
+            {
+                "imageId": {"imageDigest": "sha256:12345"},
+                "failureCode": failure_code,
+                "failureReason": "Upstream registry is unavailable",
+            },
+        ],
+    }
+
+    with pytest.raises(ECRLayerFetchTransientError):
+        asyncio.run(
+            batch_get_manifest(
+                mock_ecr_client,
+                "example/repository",
+                "sha256:12345",
+                ["application/vnd.oci.image.manifest.v1+json"],
+            )
+        )
+
+
+def test_read_manifest_lists_skips_only_lists_whose_children_are_complete_here():
+    stamped = {"label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION}
+    existing_properties = {
+        "sha256:complete-list": {
+            "type": "manifest_list",
+            "child_image_digests": ["sha256:amd64", "sha256:arm64"],
+            **stamped,
+        },
+        "sha256:list-with-child-new-to-account": {
+            "type": "manifest_list",
+            "child_image_digests": ["sha256:amd64", "sha256:other"],
+            **stamped,
+        },
+        "sha256:unstamped-list": {
+            "type": "manifest_list",
+            "child_image_digests": ["sha256:amd64"],
+        },
+    }
+
+    assert ecr_layers._read_manifest_lists(
+        existing_properties,
+        {"sha256:amd64", "sha256:arm64"},
+    ) == {"sha256:complete-list"}
+
+
 def test_batch_get_manifest_transient_aws_error_raises_skip_signal():
     mock_ecr_client = AsyncMock()
     mock_ecr_client.batch_get_image.side_effect = ClientError(
@@ -583,6 +622,7 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
         history_by_diff_id,
         image_attestation_map,
         fetch_complete,
+        _,
     ) = asyncio.run(
         fetch_image_layers_async(
             AsyncMock(),
@@ -600,7 +640,109 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
 
 
 @pytest.mark.asyncio
-async def test_fetch_image_layers_async_cancels_siblings_on_unexpected_failure(mocker):
+async def test_fetch_image_layers_async_downloads_blobs_on_one_connection_per_slot(
+    mocker,
+):
+    """
+    Every download URL gets a connection right away, and child manifests share the
+    max_concurrent limit. Downloads that queued for a connection used to time out
+    and fail as if the registry had.
+    """
+    # Arrange
+    max_concurrent = 101  # above httpx's default pool of 100 connections
+    outstanding = 0  # download URL issued, blob not yet served
+    peak_outstanding = 0
+    in_flight = 0  # request received, blob not yet served
+    peak_in_flight = 0
+    all_slots_busy = asyncio.Event()
+    blob = json.dumps(test_data.SAMPLE_CONFIG_BLOB).encode()
+
+    async def serve_blobs(reader, writer):
+        nonlocal outstanding, in_flight, peak_in_flight
+        try:
+            while True:
+                await reader.readuntil(b"\r\n\r\n")
+                in_flight += 1
+                peak_in_flight = max(peak_in_flight, in_flight)
+                if in_flight == max_concurrent:
+                    all_slots_busy.set()
+                # Hold each download until every slot is busy, so the peak shows
+                # how many downloads the fetch can run at once.
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(all_slots_busy.wait(), timeout=1)
+                in_flight -= 1
+                outstanding -= 1
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s"
+                    % (len(blob), blob),
+                )
+                await writer.drain()
+        except (asyncio.IncompleteReadError, ConnectionError):
+            writer.close()
+
+    server = await asyncio.start_server(
+        serve_blobs, "127.0.0.1", 0, backlog=2 * max_concurrent
+    )
+    port = server.sockets[0].getsockname()[1]
+
+    async def issue_download_url(**_kwargs):
+        nonlocal outstanding, peak_outstanding
+        outstanding += 1
+        peak_outstanding = max(peak_outstanding, outstanding)
+        return {"downloadUrl": f"http://127.0.0.1:{port}/blob"}
+
+    ecr_client = AsyncMock()
+    ecr_client.get_download_url_for_layer.side_effect = issue_download_url
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref.startswith("sha256:list"):
+            return (
+                test_data.SAMPLE_MANIFEST_LIST,
+                "application/vnd.docker.distribution.manifest.list.v2+json",
+            )
+        return (
+            test_data.SAMPLE_MANIFEST,
+            "application/vnd.docker.distribution.manifest.v2+json",
+        )
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    repo_images_list = [
+        {
+            "uri": f"{repo_uri}@sha256:list{i}",
+            "imageDigest": f"sha256:list{i}",
+            "repo_uri": repo_uri,
+        }
+        for i in range(max_concurrent)
+    ]
+
+    # Act
+    async with server:
+        image_layers_data, _, _, _, fetch_complete, _ = await fetch_image_layers_async(
+            ecr_client,
+            repo_images_list,
+            max_concurrent=max_concurrent,
+        )
+
+    # Assert
+    assert peak_outstanding == max_concurrent
+    assert peak_in_flight == max_concurrent
+    assert len(image_layers_data) == max_concurrent
+    assert fetch_complete is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "fetch",
+    [
+        fetch_image_layers_async,
+        ecr_layers.fetch_config_label_provenance_async,
+    ],
+)
+async def test_fetch_cancels_siblings_on_unexpected_failure(mocker, fetch):
     repo_uri = "111122223333.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
         {
@@ -642,7 +784,7 @@ async def test_fetch_image_layers_async_cancels_siblings_on_unexpected_failure(m
     )
 
     with pytest.raises(ClientError):
-        await fetch_image_layers_async(
+        await fetch(
             AsyncMock(),
             repo_images_list,
             max_concurrent=2,
@@ -695,6 +837,7 @@ def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_tr
         history_by_diff_id,
         image_attestation_map,
         fetch_complete,
+        read_digests,
     ) = asyncio.run(
         fetch_image_layers_async(
             AsyncMock(),
@@ -708,6 +851,51 @@ def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_tr
     assert history_by_diff_id == {}
     assert image_attestation_map == {}
     assert fetch_complete is False
+    assert read_digests == set()
+
+
+def test_fetch_image_layers_async_raises_unexpected_child_failure_over_transient(
+    mocker,
+):
+    """An unexpected child error must fail the sync even if a sibling failed transiently."""
+    # Arrange
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    unexpected_error = ClientError(
+        {"Error": {"Code": "ValidationException", "Message": "Synthetic error"}},
+        "BatchGetImage",
+    )
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref == "sha256:manifest-list":
+            return (
+                test_data.SAMPLE_MANIFEST_LIST,
+                "application/vnd.docker.distribution.manifest.list.v2+json",
+            )
+        if image_ref.endswith("1"):
+            raise ECRLayerFetchTransientError("temporary child failure")
+        raise unexpected_error
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+
+    # Act and assert
+    with pytest.raises(ClientError) as raised:
+        asyncio.run(
+            fetch_image_layers_async(
+                AsyncMock(),
+                [
+                    {
+                        "uri": f"{repo_uri}:manifest-list",
+                        "imageDigest": "sha256:manifest-list",
+                        "repo_uri": repo_uri,
+                    },
+                ],
+                max_concurrent=4,
+            )
+        )
+    assert raised.value is unexpected_error
 
 
 @pytest.mark.asyncio
@@ -993,6 +1181,7 @@ def test_transform_ecr_image_layers_marks_source_only_attestation_provenance():
             "layer_diff_ids": [
                 "sha256:1111111111111111111111111111111111111111111111111111111111111111"
             ],
+            "label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION,
             "source_uri": "https://github.com/exampleorg/service",
             "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
             "from_attestation": True,
@@ -1299,7 +1488,7 @@ def test_sync_retries_with_fresh_session_on_credential_error(mocker, error_code)
         "fetch_image_layers_async",
         side_effect=[
             _credential_error(error_code),
-            ({}, {}, {}, {}, True),
+            ({}, {}, {}, {}, True, set()),
         ],
     )
     factory = MagicMock(return_value="session-refreshed")
@@ -1368,3 +1557,76 @@ def test_sync_does_not_retry_non_credential_client_error(mocker):
     assert excinfo.value.response["Error"]["Code"] == "AccessDeniedException"
     assert fetch_mock.call_count == 1
     factory.assert_not_called()
+
+
+def test_label_provenance_backfill_candidates_reads_each_stale_digest_once():
+    source = "https://github.com/exampleorg/app"
+    skipped_images = [
+        {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-a"},
+        {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-b"},
+        {"imageDigest": "sha256:source-read-at-v1", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:no-source-read-at-v1", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:has-source-path", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:already-read", "repo_uri": "r.example/app"},
+        {"imageDigest": "sha256:index", "repo_uri": "r.example/app"},
+    ]
+    existing_properties = {
+        "sha256:unread": {"type": "image"},
+        "sha256:source-read-at-v1": {
+            "type": "image",
+            "source_uri": source,
+            "label_provenance_version": 1,
+        },
+        "sha256:no-source-read-at-v1": {
+            "type": "image",
+            "label_provenance_version": 1,
+        },
+        "sha256:has-source-path": {
+            "type": "image",
+            "source_uri": source,
+            "source_path_uri": f"{source}/tree/main/services/api",
+            "label_provenance_version": 1,
+        },
+        "sha256:already-read": {
+            "type": "image",
+            "source_uri": source,
+            "label_provenance_version": ecr_layers.LABEL_PROVENANCE_VERSION,
+        },
+        "sha256:index": {"type": "manifest_list"},
+    }
+
+    candidates = ecr_layers._label_provenance_backfill_candidates(
+        skipped_images,
+        existing_properties,
+    )
+
+    assert candidates == [
+        {"imageDigest": "sha256:unread", "repo_uri": "r.example/app-a"},
+        {"imageDigest": "sha256:source-read-at-v1", "repo_uri": "r.example/app"},
+    ]
+
+
+def test_diff_ids_for_manifest_reads_null_history_entry_as_unknown(monkeypatch):
+    monkeypatch.setattr(
+        ecr_layers,
+        "get_blob_json_via_presigned",
+        AsyncMock(
+            return_value={
+                "rootfs": {"diff_ids": ["sha256:base", "sha256:app"]},
+                "history": [None, {"created_by": "COPY app /app"}],
+            },
+        ),
+    )
+
+    diff_ids, history_by_diff_id, _ = asyncio.run(
+        ecr_layers._diff_ids_for_manifest(
+            MagicMock(),
+            "repo",
+            {"config": {"digest": "sha256:config"}},
+            MagicMock(),
+            "linux/amd64",
+        ),
+    )
+
+    assert diff_ids == {"linux/amd64": ["sha256:base", "sha256:app"]}
+    assert history_by_diff_id == {"sha256:app": "COPY app /app"}

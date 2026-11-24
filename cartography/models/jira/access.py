@@ -195,7 +195,7 @@ class JiraGroupProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name", description="group/bulk name.")
     admin_access_types: PropertyRef = PropertyRef(
         "admin_access_types",
-        description="Experimental group/bulk accessType filters matching this group: admin or site-admin; not exhaustive effective privileges.",
+        description="Experimental group/bulk accessType filters matching this group: admin or site-admin; not exhaustive effective privileges. site-admin is omitted on every group when Jira cannot list that filter.",
     )
     tenant_id: PropertyRef = PropertyRef(
         "TENANT_ID", set_in_kwargs=True, description="Jira Cloud ID."

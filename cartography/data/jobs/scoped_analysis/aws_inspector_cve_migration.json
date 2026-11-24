@@ -1,0 +1,22 @@
+{
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. CVEMetadata enriched every :CVE AWSInspectorFinding. The next statement removes that label, after which CVEMetadata cleanup, which matches :CVE targets, can no longer reach these edges, so delete them first. Scoped to the findings of the account that just completed its sync, whose findings all link to their AWSInspectorVulnerability. Idempotent: findings no longer get ENRICHES edges. Each run deletes up to $SCAN_LIMIT_SIZE edges from one scan of the account, committing every $LIMIT_SIZE; rerunning a LIMIT $LIMIT_SIZE statement would walk every already-migrated finding again on each pass, which is quadratic in the account's finding count.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(f:AWSInspectorFinding:CVE)<-[r:ENRICHES]-(:CVEMetadata) WITH r LIMIT $SCAN_LIMIT_SIZE CALL (r) { DELETE r } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 10000,
+      "batched_transactions": true
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. Earlier releases put the :CVE ontology label, with its _ont_* fields, on every PACKAGE_VULNERABILITY AWSInspectorFinding. The CVE is now the AWSInspectorVulnerability the finding links to, and nothing updates these any more, so strip them: left stale, :CVE queries count each Inspector CVE once per affected resource. Idempotent: once stripped, no AWSInspectorFinding carries :CVE. Batched like the statement above, for the same reason.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(f:AWSInspectorFinding:CVE) WITH f LIMIT $SCAN_LIMIT_SIZE CALL (f) { REMOVE f:CVE, f._ont_source, f._ont_cve_id, f._ont_base_score, f._ont_base_severity, f._ont_description, f._ont_references } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 10000,
+      "batched_transactions": true
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. Earlier releases also wrote the CVE _ont_* fields on network reachability and code findings, which never carried :CVE. Those are few, so one pass removes them.",
+      "query": "MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(f:AWSInspectorFinding) WHERE f.type <> 'PACKAGE_VULNERABILITY' AND f._ont_source IS NOT NULL REMOVE f._ont_source, f._ont_cve_id, f._ont_base_score, f._ont_base_severity, f._ont_description, f._ont_references",
+      "iterative": false
+    }
+  ],
+  "name": "AWS Inspector - migrate CVE labels written by earlier versions"
+}

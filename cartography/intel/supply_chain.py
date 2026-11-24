@@ -13,8 +13,31 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.util import run_analysis_job
 
 logger = logging.getLogger(__name__)
+
+
+# Generic final layers such as `COPY . /app` appear in many unrelated Dockerfiles,
+# so one similar command cannot tell repositories apart.
+MIN_DOCKERFILE_MATCHED_COMMANDS = 2
+
+# An image whose provenance names a repository in the graph is linked exactly by
+# the provenance matchlink of the organization that owns the repository, which may
+# sync later in the same run. Dockerfile similarity must neither race that link nor
+# keep re-matching an image another organization already claimed by provenance.
+# A source_uri that names an unknown repository is often a label inherited from a
+# public base image, so those images stay eligible for Dockerfile matching.
+DOCKERFILE_MATCH_ELIGIBILITY = """
+          AND NOT exists((img)-[:PACKAGED_FROM {match_method: 'provenance'}]->())
+          AND NOT (
+              img.source_uri IS NOT NULL
+              AND (
+                  EXISTS { MATCH (:GitHubRepository {id: img.source_uri}) }
+                  OR EXISTS { MATCH (:GitLabProject {web_url: img.source_uri}) }
+              )
+          )
+"""
 
 
 @dataclass
@@ -633,45 +656,70 @@ def match_images_to_dockerfiles(
                 )
                 continue
 
-        df_matches = find_best_dockerfile_matches(
-            image_commands,
-            [parsed for parsed, _ in candidate_dockerfiles],
-            min_confidence,
-        )
-
-        if df_matches:
-            best_match = df_matches[0]
-            df_info = next(
-                (
-                    candidate_info
-                    for parsed, candidate_info in candidate_dockerfiles
-                    if parsed is best_match.dockerfile
-                ),
-                {},
-            )
-
-            matches.append(
-                ImageDockerfileMatch(
-                    image_digest=image.digest,
-                    source_repo_id=df_info.get("source_repo_id", ""),
-                    dockerfile_path=df_info.get("path"),
-                    confidence=best_match.confidence,
-                    matched_commands=best_match.matched_commands,
-                    total_commands=best_match.total_commands,
-                    command_similarity=best_match.command_similarity,
+        info_by_dockerfile = {
+            id(parsed): candidate_info
+            for parsed, candidate_info in candidate_dockerfiles
+        }
+        # Confidence is bucketed, so rank and detect ties on raw similarity and on
+        # how many commands agree.
+        df_matches = sorted(
+            (
+                match
+                for match in find_best_dockerfile_matches(
+                    image_commands,
+                    [parsed for parsed, _ in candidate_dockerfiles],
+                    min_confidence,
                 )
-            )
-            logger.debug(
-                "Matched %s:%s -> %s (confidence: %.2f)",
-                image.display_name,
-                image.tag,
-                df_info.get("path"),
-                best_match.confidence,
-            )
-        else:
+                if match.matched_commands >= MIN_DOCKERFILE_MATCHED_COMMANDS
+            ),
+            key=lambda match: (
+                -match.confidence,
+                -match.command_similarity,
+                -match.matched_commands,
+            ),
+        )
+        if not df_matches:
             logger.debug(
                 "No match found for image %s:%s", image.display_name, image.tag
             )
+            continue
+
+        best_match = df_matches[0]
+        df_info = info_by_dockerfile[id(best_match.dockerfile)]
+        tied_repos = {
+            info_by_dockerfile[id(match.dockerfile)].get("source_repo_id")
+            for match in df_matches
+            if match.confidence == best_match.confidence
+            and match.command_similarity == best_match.command_similarity
+            and match.matched_commands == best_match.matched_commands
+        }
+        if len(tied_repos) > 1:
+            logger.debug(
+                "Ambiguous match for image %s:%s across %d repositories",
+                image.display_name,
+                image.tag,
+                len(tied_repos),
+            )
+            continue
+
+        matches.append(
+            ImageDockerfileMatch(
+                image_digest=image.digest,
+                source_repo_id=df_info.get("source_repo_id", ""),
+                dockerfile_path=df_info.get("path"),
+                confidence=best_match.confidence,
+                matched_commands=best_match.matched_commands,
+                total_commands=best_match.total_commands,
+                command_similarity=best_match.command_similarity,
+            )
+        )
+        logger.debug(
+            "Matched %s:%s -> %s (confidence: %.2f)",
+            image.display_name,
+            image.tag,
+            df_info.get("path"),
+            best_match.confidence,
+        )
 
     logger.info(
         "Matched %d images to Dockerfiles (out of %d images, %d Dockerfiles)",
@@ -770,6 +818,24 @@ def convert_layer_history_records(
     ]
 
 
+# A GitHub folder URL follows the owner/repo pair directly. A GitLab one has a
+# /-/ separator after the project path, which can be nested in subgroups. The
+# GitHub form is tried first so a folder named "-" inside a GitHub repository
+# is not mistaken for the GitLab separator.
+_FORGE_FOLDER_URLS = (
+    re.compile(r"^(?P<repo>https?://[^/]+/[^/]+/[^/]+)/(?:tree|blob)/"),
+    re.compile(r"^(?P<repo>https?://[^/]+/.+?)/-/(?:tree|blob)/"),
+)
+
+
+def _ssh_to_https(url: str) -> str:
+    ssh_match = re.match(r"git@([^:]+):(.+)", url)
+    if ssh_match:
+        host, path = ssh_match.groups()
+        return f"https://{host}/{path}"
+    return url
+
+
 def normalize_vcs_url(url: str) -> str:
     """
     Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
@@ -778,6 +844,7 @@ def normalize_vcs_url(url: str) -> str:
     - https://github.com/org/repo.git
     - git@github.com:org/repo.git
     - https://github.com/org/repo
+    - https://github.com/org/repo/tree/main/services/api (a monorepo folder)
 
     Downstream matching compares source_uri against GitHubRepository.id / GitLabProject.id,
     which use the canonical HTTPS URL without .git suffix (e.g., https://github.com/org/repo).
@@ -785,17 +852,58 @@ def normalize_vcs_url(url: str) -> str:
     :param url: The raw VCS URL from provenance
     :return: Normalized HTTPS URL without .git suffix
     """
-    normalized = url.strip()
+    normalized = _ssh_to_https(url.strip())
 
-    ssh_match = re.match(r"git@([^:]+):(.+)", normalized)
-    if ssh_match:
-        host, path = ssh_match.groups()
-        normalized = f"https://{host}/{path}"
+    # Monorepo builds often label an image with the component's folder URL.
+    for folder_url in _FORGE_FOLDER_URLS:
+        folder_match = folder_url.match(normalized)
+        if folder_match:
+            normalized = folder_match.group("repo")
+            break
 
+    normalized = normalized.rstrip("/")
     if normalized.endswith(".git"):
         normalized = normalized[:-4]
 
     return normalized
+
+
+def source_path_uri(url: str) -> str | None:
+    """
+    Return the branch, folder or file URL a source label names inside a
+    repository, or None when the label is the repository URL itself. The
+    repository part is normalized as in normalize_vcs_url, so the result starts
+    with the image's source_uri.
+
+    The path is kept as a URL because the ref and the path cannot be told apart
+    from the URL alone: `/tree/release/1.2/api` has either `release` or
+    `release/1.2` as its ref. For the same reason a branch root such as
+    `/tree/main` is kept.
+    """
+    https_url = _ssh_to_https(url.strip())
+    for folder_url in _FORGE_FOLDER_URLS:
+        folder_match = folder_url.match(https_url)
+        if folder_match:
+            repo = folder_match.group("repo")
+            return normalize_vcs_url(repo) + https_url[len(repo) :].rstrip("/")
+    return None
+
+
+def migrate_source_folder_urls(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    DEPRECATED: trim monorepo folder URLs that earlier versions stored as an
+    image's source_uri, so provenance matching sees the repository URL. Images
+    already enriched are not read again, so their stored value never changes on
+    its own. Run once per ingestion, before provenance matching. Remove in v1.0.0.
+    """
+    run_analysis_job(
+        "supply_chain_source_folder_url_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 def unwrap_attestation_predicate(predicate: Any) -> dict[str, Any] | None:
@@ -989,6 +1097,30 @@ def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     return None
 
 
+# Bump when image-config label provenance learns a new field, so registries re-read
+# the config of images ingested before the change once. Version 1 read the source
+# labels. Version 2 also keeps the folder URL a source label names.
+LABEL_PROVENANCE_VERSION = 2
+SOURCE_LABELS_READ_VERSION = 1
+
+
+def label_provenance_is_current(
+    version: int | None,
+    source_uri: str | None,
+    source_path_uri: str | None,
+) -> bool:
+    """
+    Whether an image's config labels need no further read. An image without a
+    source that was read at version 1 has no source label, so it has no folder
+    either. An image with a source may have taken it from a folder label that
+    version 1 trimmed, so it is read once more.
+    """
+    version = version or 0
+    if version >= LABEL_PROVENANCE_VERSION or source_path_uri:
+        return True
+    return not source_uri and version >= SOURCE_LABELS_READ_VERSION
+
+
 # Standard OCI annotation keys for source provenance
 _OCI_SOURCE_LABELS = [
     "org.opencontainers.image.source",
@@ -998,6 +1130,19 @@ _OCI_REVISION_LABELS = [
     "org.opencontainers.image.revision",
     "vcs.revision",
 ]
+
+
+def image_config_label_provenance(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    Label provenance and the version stamp for a platform image whose config blob
+    was read. An empty config was not read, so it gets no stamp and is retried.
+    """
+    if not config:
+        return {}
+    return {
+        **extract_provenance_from_oci_config(config),
+        "label_provenance_version": LABEL_PROVENANCE_VERSION,
+    }
 
 
 def extract_provenance_from_oci_config(
@@ -1010,16 +1155,19 @@ def extract_provenance_from_oci_config(
     BuildKit VCS metadata (vcs.source, vcs.revision).
 
     :param config: The parsed OCI image config JSON
-    :return: Dict with any of: source_uri, source_revision
+    :return: Dict with any of: source_uri, source_path_uri, source_revision
     """
     result: dict[str, str] = {}
 
-    labels = config.get("config", {}).get("Labels") or {}
+    labels = (config.get("config") or {}).get("Labels") or {}
 
     for key in _OCI_SOURCE_LABELS:
         value = labels.get(key)
         if value:
             result["source_uri"] = normalize_vcs_url(value)
+            path_uri = source_path_uri(value)
+            if path_uri:
+                result["source_path_uri"] = path_uri
             break
 
     for key in _OCI_REVISION_LABELS:
@@ -1041,13 +1189,14 @@ def extract_layers_from_oci_config(
     :return: Tuple of (layer_diff_ids, layer_history) where layer_history
              entries have 'created_by' and 'empty_layer' keys.
     """
-    diff_ids: list[str] = config.get("rootfs", {}).get("diff_ids", [])
+    # Some builders write explicit nulls for rootfs.diff_ids and history.
+    diff_ids: list[str] = (config.get("rootfs") or {}).get("diff_ids") or []
 
-    raw_history: list[dict[str, Any]] = config.get("history", [])
+    raw_history: list[dict[str, Any] | None] = config.get("history") or []
     layer_history: list[dict[str, Any]] = [
         {
-            "created_by": entry.get("created_by", ""),
-            "empty_layer": entry.get("empty_layer", False),
+            "created_by": (entry or {}).get("created_by", ""),
+            "empty_layer": (entry or {}).get("empty_layer", False),
         }
         for entry in raw_history
     ]
@@ -1075,11 +1224,15 @@ def get_unmatched_gcp_images_with_history(
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
-    query = """
+    query = (
+        """
         MATCH (img:Image:GCPArtifactRegistryImage)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+"""
+        + DOCKERFILE_MATCH_ELIGIBILITY
+        + """
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
@@ -1100,6 +1253,7 @@ def get_unmatched_gcp_images_with_history(
         ]) AS selected
         WITH selected[3] AS img, selected[4] AS repo_img
     """
+    )
 
     if limit is not None:
         query += f"        ORDER BY coalesce(repo_img.uri, img.digest)\n        LIMIT {int(limit)}\n"
@@ -1186,11 +1340,15 @@ def get_unmatched_scaleway_images_with_history(
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
-    query = """
+    query = (
+        """
         MATCH (img:Image:ScalewayContainerRegistryImage)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+"""
+        + DOCKERFILE_MATCH_ELIGIBILITY
+        + """
           AND (
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
@@ -1209,6 +1367,7 @@ def get_unmatched_scaleway_images_with_history(
         ]) AS selected
         WITH selected[3] AS img, selected[4] AS t
     """
+    )
 
     if limit is not None:
         query += f"        ORDER BY coalesce(t.uri, img.digest)\n        LIMIT {int(limit)}\n"

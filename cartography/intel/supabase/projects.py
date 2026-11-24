@@ -39,13 +39,23 @@ DATABASE_POSTURE_FIELDS: dict[str, tuple[str, ...]] = {
         "network_restrictions_status",
         "db_allowed_cidrs",
         "db_allowed_cidrs_v6",
-        # Derived from the same read, so it has to be restored with it: the empty-config
-        # fallback would otherwise compute "unrestricted" and overwrite a stored verdict.
+        # Derived from the same read, so it is restored with it, or left unknown, rather
+        # than computed from an unread allowlist, which would mean "unrestricted".
         "exposed_internet",
         "exposed_internet_type",
     ),
     "backups": ("pitr_enabled", "walg_enabled", "latest_backup_at"),
 }
+
+# Only a running project can answer its project-scoped endpoints. A paused one
+# (INACTIVE) answers HTTP 500 on /ssl-enforcement, and once the retries give up the
+# whole sync aborts, so no project listed after it is ever synced. An allowlist keeps
+# a status nobody has seen yet from doing the same: skipping costs one stale project.
+_RUNNING_STATUSES = frozenset({"ACTIVE_HEALTHY", "ACTIVE_UNHEALTHY"})
+
+
+def is_running(project: dict[str, Any]) -> bool:
+    return project["status"] in _RUNNING_STATUSES
 
 
 @timeit
@@ -70,8 +80,11 @@ def sync(
     base_url = common_job_parameters["BASE_URL"]
     org_slug = common_job_parameters["ORG_SLUG"]
 
+    # A project that is not running gets no settings, so its posture is carried forward.
     settings = {
-        p["ref"]: get_settings(api_session, base_url, p["ref"]) for p in projects
+        p["ref"]: get_settings(api_session, base_url, p["ref"])
+        for p in projects
+        if is_running(p)
     }
     stored = get_stored_properties(
         neo4j_session,
@@ -141,7 +154,8 @@ def _carry_forward(
 ) -> None:
     """
     For each configuration group whose endpoint was unreadable, restore the values
-    already in the graph instead of leaving the freshly-computed ``None``.
+    already in the graph, or ``None`` when there are none, instead of keeping values
+    computed from the missing response.
 
     Overwriting real posture with null on a transient 403 or a lost entitlement
     would silently downgrade security-relevant fields (``ssl_enforced``,
@@ -156,8 +170,7 @@ def _carry_forward(
         if responses.get(group) is not None:
             continue
         for field in fields:
-            if field in stored:
-                record[field] = stored[field]
+            record[field] = stored.get(field)
 
 
 _ORG_PROJECTS_PAGE_SIZE = 100

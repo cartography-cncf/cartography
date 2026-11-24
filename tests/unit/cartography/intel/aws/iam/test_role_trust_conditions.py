@@ -1276,3 +1276,23 @@ def test_has_external_id_ignores_conditional_deny():
     assert json.loads(trust["conditions"]) == [
         {"StringEquals": {"sts:ExternalId": "customer-1234"}},
     ]
+
+
+def test_single_statement_object_is_read_like_a_one_item_list():
+    """IAM accepts "Statement" as one object instead of a list; both forms mean the same."""
+    statement = {
+        "Effect": "Allow",
+        "Principal": {"AWS": ATTACKER_ARN},
+        "Action": "sts:AssumeRole",
+    }
+
+    from_object = transform_role_trust_policies(
+        [_role_with_statements("single-statement", statement)], TEST_ACCOUNT_ID
+    )
+    from_list = transform_role_trust_policies(
+        [_role_with_statements("single-statement", [statement])], TEST_ACCOUNT_ID
+    )
+
+    (trust,) = from_object.trust_relationships
+    assert trust["target_principal_arn"] == ATTACKER_ARN
+    assert from_object == from_list

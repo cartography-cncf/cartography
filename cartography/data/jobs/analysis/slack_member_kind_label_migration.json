@@ -1,0 +1,15 @@
+{
+  "name": "Slack member kind label migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. load() merges on the primary label, and a SlackBot also carries the SlackUser compatibility label, so a member that changes kind between two syncs does not map onto its existing node. A former user gets a second node as a bot, and graphs written before SlackBot existed hold every bot as a SlackUser. Relabel the existing node as a bot so the bot load reuses it. A bot that an older version refreshed as a user still carries UserAccount, so the match includes it. The property reset drops the properties that only the user schema sets. Idempotent. Remove in v1.0.0 with the SlackUser compatibility label on SlackBot.",
+      "query": "MATCH (member:SlackUser) WHERE member.id IN $bot_ids AND (NOT member:SlackBot OR member:UserAccount) SET member = {id: member.id, firstseen: member.firstseen} SET member:SlackBot REMOVE member:UserAccount",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. load() merges on the primary label, and a SlackBot also carries the SlackUser compatibility label, so a member that changes kind between two syncs does not map onto its existing node. A former bot matches the user merge through the compatibility label and keeps its bot labels. Remove them so the user load reuses the node as a user. The property reset drops the properties that only the bot schema sets. Idempotent. Remove in v1.0.0 with the SlackUser compatibility label on SlackBot.",
+      "query": "MATCH (member:SlackBot) WHERE member.id IN $user_ids SET member = {id: member.id, firstseen: member.firstseen} REMOVE member:SlackBot:ThirdPartyApp",
+      "iterative": false
+    }
+  ]
+}

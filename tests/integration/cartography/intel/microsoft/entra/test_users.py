@@ -438,6 +438,7 @@ async def test_sync_entra_users(
             "hjsimpson@simpson.corp",
             "Operations",
             "11dca63b-cb03-4e53-bb75-fa8060285550",
+            "hjsimpson@simpson.corp",
         ),
         (
             "11dca63b-cb03-4e53-bb75-fa8060285550",
@@ -445,13 +446,21 @@ async def test_sync_entra_users(
             "entra-test-user-1@mycompany.onmicrosoft.com",
             "Engineering",
             None,
+            "entra-test-user-1@mycompany.onmicrosoft.com",
         ),
     }
     assert (
         check_nodes(
             neo4j_session,
             "EntraUser",
-            ["id", "display_name", "user_principal_name", "department", "manager_id"],
+            [
+                "id",
+                "display_name",
+                "user_principal_name",
+                "department",
+                "manager_id",
+                "_ont_email",
+            ],
         )
         == expected_nodes
     )

@@ -1,8 +1,10 @@
 import logging
 from copy import deepcopy
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
+import requests
 
 import cartography.intel.github.repos
 import cartography.intel.github.util
@@ -1250,6 +1252,54 @@ def test_transform_includes_branch_protection_rules():
     assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
 
 
+def _with_truncated_branch_protection_rules(repo):
+    repo = deepcopy(repo)
+    repo["branchProtectionRules"]["totalCount"] = 51
+    return repo
+
+
+@pytest.mark.parametrize(
+    "repo,branch_protection_rules_visible,rulesets_visible",
+    [
+        (GET_REPOS[2], True, True),
+        # Without administration access GitHub returns null for both connections.
+        (GET_REPOS[0], False, False),
+        # A page that left rules out cannot show which rule protects the branch.
+        (_with_truncated_branch_protection_rules(GET_REPOS[2]), False, True),
+    ],
+)
+def test_transform_records_whether_protection_was_visible(
+    repo, branch_protection_rules_visible, rulesets_visible
+):
+    result = transform([repo], {repo["url"]: []}, {repo["url"]: []})
+
+    assert (
+        result["repos"][0]["branch_protection_rules_visible"]
+        is branch_protection_rules_visible
+    )
+    assert result["repos"][0]["rulesets_visible"] is rulesets_visible
+
+
+@pytest.mark.parametrize(
+    "default_branch_rule,default_branch_ruleset_ids,applies",
+    [
+        ({"id": "BPR_kwDOAbc123=="}, [5351760], True),
+        (None, [], False),
+    ],
+)
+def test_transform_marks_controls_github_applies_to_the_default_branch(
+    default_branch_rule, default_branch_ruleset_ids, applies
+):
+    repo = deepcopy(GET_REPOS[2])
+    repo["defaultBranchProtectionRule"] = default_branch_rule
+    repo["rulesets"]["defaultBranchRulesetIds"] = default_branch_ruleset_ids
+
+    result = transform([repo], {repo["url"]: []}, {repo["url"]: []})
+
+    assert result["branch_protection_rules"][0]["protects_default_branch"] is applies
+    assert result["rulesets"][0]["applies_to_default_branch"] is applies
+
+
 def test_transform_includes_rulesets():
     """
     Test that the transform function includes rulesets in the output.
@@ -1316,10 +1366,17 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
         {
             "name": "repo-one",
             "url": "https://github.com/simpsoncorp/repo-one",
+            "defaultBranchRef": {"name": "release/v1"},
         },
         {
             "name": "repo-two",
             "url": "https://github.com/simpsoncorp/repo-two",
+            "defaultBranchRef": None,
+        },
+        {
+            "name": "repo-three",
+            "url": "https://github.com/simpsoncorp/repo-three",
+            "defaultBranchRef": {"name": "main"},
         },
     ]
     ruleset_summary = {
@@ -1330,7 +1387,14 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
     }
     mock_fetch_all_rest_api_pages.side_effect = [
         [ruleset_summary],
+        # Rules GitHub applies to repo-one's default branch.
+        [
+            {"type": "deletion", "ruleset_id": 5351760},
+            {"type": "pull_request", "ruleset_id": 5351760},
+        ],
         [ruleset_summary],
+        # repo-three has no rulesets, so its default branch is not queried.
+        [],
     ]
     mock_call_github_rest_api.return_value = REST_RULESET_PRODUCTION
 
@@ -1344,12 +1408,27 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
     assert set(result) == {
         "https://github.com/simpsoncorp/repo-one",
         "https://github.com/simpsoncorp/repo-two",
+        "https://github.com/simpsoncorp/repo-three",
     }
     assert result["https://github.com/simpsoncorp/repo-one"]["totalCount"] == 1
     assert result["https://github.com/simpsoncorp/repo-two"]["nodes"][0]["id"] == (
         "RRS_lACkVXNlcs4AXenizgBRqVA"
     )
-    assert mock_fetch_all_rest_api_pages.call_count == 2
+    assert result["https://github.com/simpsoncorp/repo-one"][
+        "defaultBranchRulesetIds"
+    ] == [5351760]
+    assert (
+        result["https://github.com/simpsoncorp/repo-two"]["defaultBranchRulesetIds"]
+        == []
+    )
+    assert (
+        result["https://github.com/simpsoncorp/repo-three"]["defaultBranchRulesetIds"]
+        == []
+    )
+    assert mock_fetch_all_rest_api_pages.call_count == 4
+    assert mock_fetch_all_rest_api_pages.call_args_list[1].args[2] == (
+        "/repos/simpsoncorp/repo-one/rules/branches/release%2Fv1"
+    )
     assert mock_fetch_all_rest_api_pages.call_args_list[0].args == (
         "token",
         "https://api.github.com",
@@ -1371,6 +1450,30 @@ def test_get_repo_rulesets_by_url_fetches_rest_ruleset_details_and_reuses_cache(
         "https://api.github.com",
         params={"includes_parents": "true"},
     )
+
+
+@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
+def test_get_repo_rulesets_by_url_skips_only_the_repo_github_refuses(
+    mock_fetch_all_rest_api_pages,
+):
+    forbidden = requests.exceptions.HTTPError(response=Mock(status_code=403))
+    mock_fetch_all_rest_api_pages.side_effect = [forbidden, [], []]
+
+    result = _get_repo_rulesets_by_url(
+        "token",
+        "https://api.github.com/graphql",
+        "simpsoncorp",
+        [
+            {"name": "locked", "url": "https://github.com/simpsoncorp/locked"},
+            {
+                "name": "open",
+                "url": "https://github.com/simpsoncorp/open",
+                "defaultBranchRef": {"name": "main"},
+            },
+        ],
+    )
+
+    assert set(result) == {"https://github.com/simpsoncorp/open"}
 
 
 def test_transform_rulesets_requires_ruleset_id():
@@ -1755,7 +1858,8 @@ def test_sync_continues_when_privileged_fetch_fails(
     # sync cycle), not from per-org sync(); see GitHubDependencySchema.
     mock_cleanup_github_dependencies.assert_not_called()
     mock_cleanup_github_manifests.assert_called_once()
-    mock_cleanup_branch_protection_rules.assert_called_once()
+    # The failed fetch returned no rules, so cleaning up would delete them all.
+    mock_cleanup_branch_protection_rules.assert_not_called()
     mock_cleanup_rulesets.assert_not_called()
     mock_migrate_dependency_graph_manifest_label.assert_called_once_with(
         None,

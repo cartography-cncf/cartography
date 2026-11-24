@@ -15,6 +15,21 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# A project whose plan includes custom domains, but that has none set up, answers
+# /custom-hostname with HTTP 400 and this message, without an error code. Unlike
+# entitlement_required, it means that no custom hostname exists.
+_NO_CUSTOM_HOSTNAME_MESSAGE = "No custom hostname configuration found."
+
+
+def _is_no_custom_hostname(response: requests.Response | None) -> bool:
+    if response is None or response.status_code != 400:
+        return False
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("message") == _NO_CUSTOM_HOSTNAME_MESSAGE
+
 
 @timeit
 def sync(
@@ -75,12 +90,17 @@ def get_custom_hostname(
     api_session: requests.Session,
     base_url: str,
     project_ref: str,
-) -> dict[str, Any]:
-    return get_json(
-        api_session,
-        f"{base_url}/v1/projects/{project_ref}/custom-hostname",
-        tolerate=TOLERATED_STATUSES,
-    )
+) -> dict[str, Any] | None:
+    try:
+        return get_json(
+            api_session,
+            f"{base_url}/v1/projects/{project_ref}/custom-hostname",
+            tolerate=TOLERATED_STATUSES,
+        )
+    except requests.HTTPError as exc:
+        if _is_no_custom_hostname(exc.response):
+            return {}
+        raise
 
 
 def transform_poolers(

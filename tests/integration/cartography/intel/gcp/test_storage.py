@@ -15,18 +15,10 @@ def _ensure_local_neo4j_has_test_storage_bucket_data(neo4j_session):
     _create_test_project(neo4j_session)
 
     bucket_res = tests.data.gcp.storage.STORAGE_RESPONSE
-    buckets, bucket_labels = (
-        cartography.intel.gcp.storage.transform_gcp_buckets_and_labels(bucket_res)
-    )
+    buckets = cartography.intel.gcp.storage.transform_gcp_buckets(bucket_res)
     cartography.intel.gcp.storage.load_gcp_buckets(
         neo4j_session,
         buckets,
-        "project-abc",  # project_id parameter
-        TEST_UPDATE_TAG,
-    )
-    cartography.intel.gcp.storage.load_gcp_bucket_labels(
-        neo4j_session,
-        bucket_labels,
         "project-abc",  # project_id parameter
         TEST_UPDATE_TAG,
     )
@@ -53,31 +45,6 @@ def test_transform_and_load_storage_buckets(neo4j_session):
     }
     expected_nodes = {
         (expected_id, expected_project_num, expected_kind),
-    }
-    assert actual_nodes == expected_nodes
-
-
-def test_attach_storage_bucket_labels(neo4j_session):
-    """
-    Test that we can attach GCP storage bucket labels
-    """
-    _ensure_local_neo4j_has_test_storage_bucket_data(neo4j_session)
-    query = """
-    MATCH(bucket:GCPBucket{id:$BucketId})-[r:LABELED]->(label:GCPBucketLabel)
-    RETURN bucket.id, label.key, label.value
-    ORDER BY label.key
-    LIMIT 1
-    """
-    expected_id = "bucket_name"
-    expected_label_key = "label_key_1"
-    expected_label_value = "label_value_1"
-    nodes = neo4j_session.run(
-        query,
-        BucketId=expected_id,
-    )
-    actual_nodes = {(n["bucket.id"], n["label.key"], n["label.value"]) for n in nodes}
-    expected_nodes = {
-        (expected_id, expected_label_key, expected_label_value),
     }
     assert actual_nodes == expected_nodes
 
@@ -128,6 +95,12 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
             "storage#bucket",
             "inherited",
         ),
+        (
+            "bucket_name_2",
+            123456789012,
+            "storage#bucket",
+            None,
+        ),
     }
     # ACL-driven public exposure is captured at sync time as `acl_public` and
     # later promoted to `_ont_public` by the bucket projection analysis job.
@@ -135,15 +108,7 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
         neo4j_session,
         "GCPBucket",
         ["id", "acl_public"],
-    ) == {("bucket_name", True)}
-    assert check_nodes(
-        neo4j_session,
-        "GCPBucketLabel",
-        ["key", "value"],
-    ) == {
-        ("label_key_1", "label_value_1"),
-        ("label_key_2", "label_value_2"),
-    }
+    ) == {("bucket_name", True), ("bucket_name_2", False)}
     assert check_rels(
         neo4j_session,
         "GCPProject",
@@ -154,22 +119,21 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
         rel_direction_right=True,
     ) == {
         ("project-abc", "bucket_name"),
+        ("project-abc", "bucket_name_2"),
     }
-    # GCPBucketLabel nodes include both legacy (GCPBucketLabelSchema) and
-    # unified (GCPBucketGCPLabelSchema) nodes since both carry the GCPBucketLabel label.
+    # Both buckets use label_key_1, and each one keeps its own value.
     assert check_rels(
         neo4j_session,
         "GCPBucket",
         "id",
         "GCPBucketLabel",
-        "id",
+        "value",
         "LABELED",
         rel_direction_right=True,
     ) == {
-        ("bucket_name", "GCPBucket_label_key_1"),
-        ("bucket_name", "GCPBucket_label_key_2"),
-        ("bucket_name", "bucket_name:label_key_1:label_value_1"),
-        ("bucket_name", "bucket_name:label_key_2:label_value_2"),
+        ("bucket_name", "label_value_1"),
+        ("bucket_name", "label_value_2"),
+        ("bucket_name_2", "label_value_3"),
     }
     assert check_rels(
         neo4j_session,
@@ -180,10 +144,9 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        ("project-abc", "GCPBucket_label_key_1"),
-        ("project-abc", "GCPBucket_label_key_2"),
         ("project-abc", "bucket_name:label_key_1:label_value_1"),
         ("project-abc", "bucket_name:label_key_2:label_value_2"),
+        ("project-abc", "bucket_name_2:label_key_1:label_value_3"),
     }
 
     # Assert - unified GCPLabel nodes created by sync_labels
@@ -204,6 +167,12 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
             "label_value_2",
             "GCPBucket",
         ),
+        (
+            "bucket_name_2:label_key_1:label_value_3",
+            "label_key_1",
+            "label_value_3",
+            "GCPBucket",
+        ),
     }
     # Assert - LABELED relationships from bucket to GCPLabel
     assert check_rels(
@@ -217,6 +186,7 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     ) == {
         ("bucket_name", "bucket_name:label_key_1:label_value_1"),
         ("bucket_name", "bucket_name:label_key_2:label_value_2"),
+        ("bucket_name_2", "bucket_name_2:label_key_1:label_value_3"),
     }
     # Assert - TAGGED relationships from bucket to GCPLabel (parallel to LABELED)
     assert check_rels(
@@ -230,6 +200,44 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     ) == {
         ("bucket_name", "bucket_name:label_key_1:label_value_1"),
         ("bucket_name", "bucket_name:label_key_2:label_value_2"),
+        ("bucket_name_2", "bucket_name_2:label_key_1:label_value_3"),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.storage,
+    "get_gcp_buckets",
+    return_value=tests.data.gcp.storage.STORAGE_RESPONSE,
+)
+def test_sync_gcp_buckets_removes_legacy_shared_labels(mock_get_buckets, neo4j_session):
+    """
+    Earlier versions keyed a bucket label node only by label key, so buckets shared it.
+    """
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (p:GCPProject {id: $project_id})
+        MERGE (l:GCPBucketLabel {id: 'GCPBucket_label_key_1'})
+        SET l.lastupdated = $stale_tag
+        MERGE (p)-[r:RESOURCE]->(l)
+        SET r.lastupdated = $stale_tag
+        """,
+        project_id="project-abc",
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    cartography.intel.gcp.storage.sync_gcp_buckets(
+        neo4j_session,
+        MagicMock(),
+        "project-abc",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"},
+    )
+
+    assert check_nodes(neo4j_session, "GCPBucketLabel", ["id"]) == {
+        ("bucket_name:label_key_1:label_value_1",),
+        ("bucket_name:label_key_2:label_value_2",),
+        ("bucket_name_2:label_key_1:label_value_3",),
     }
 
 

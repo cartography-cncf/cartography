@@ -10,8 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.gcp.extra_labels import GCP_BUCKET_LABEL
 from cartography.models.gcp.extra_labels import LABEL
+from cartography.models.gcp.extra_labels import LEGACY_GCP_BUCKET_LABEL
 from cartography.models.ontology.labels import TAG
 
 # --- Shared properties ---
@@ -105,7 +105,9 @@ class GCPBucketGCPLabelSchema(CartographyNodeSchema):
     """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, GCP_BUCKET_LABEL, TAG])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LABEL, LEGACY_GCP_BUCKET_LABEL, TAG]
+    )
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

@@ -28,10 +28,11 @@ In the Okta Admin Console:
       Private key**, click **Save**, and confirm. Okta deletes the unused client
       secret.
 1. On the **Okta API Scopes** tab, click **Grant** for each of these scopes:
-   `okta.apiTokens.read`, `okta.apps.read`, `okta.authenticators.read`,
-   `okta.devices.read`, `okta.groups.read`, `okta.logStreams.read`,
-   `okta.networkZones.read`, `okta.policies.read`, `okta.roles.read`,
-   `okta.trustedOrigins.read`, `okta.userTypes.read`, `okta.users.read`.
+   `okta.agentPools.read`, `okta.apiTokens.read`, `okta.apps.read`,
+   `okta.authenticators.read`, `okta.devices.read`, `okta.groups.read`,
+   `okta.logStreams.read`, `okta.networkZones.read`, `okta.policies.read`,
+   `okta.roles.read`, `okta.trustedOrigins.read`, `okta.userTypes.read`,
+   `okta.users.read`.
    To script this step, use the `okta_app_oauth_api_scope` resource of the
    Okta Terraform provider or the
    [application grants API](https://developer.okta.com/docs/api/openapi/okta-management/management/tag/ApplicationGrants/).
@@ -62,13 +63,21 @@ Cartography sends DPoP proofs by default, which works whether or not the app
 requires them. `--okta-disable-dpop` stops sending them; an app that requires
 DPoP then rejects the token request with `invalid_dpop_proof`.
 
-Okta refuses to issue an access token (`invalid_scope`) when Cartography
-requests a scope that the app was not granted. To run with fewer scopes, list
-the granted ones with `--okta-scopes`. The Okta sync fails without
-`okta.users.read`, `okta.groups.read`, `okta.apps.read`,
+By default, Cartography requests the scopes in the preceding list. The Okta
+sync fails without `okta.users.read`, `okta.groups.read`, `okta.apps.read`,
 `okta.authenticators.read`, `okta.trustedOrigins.read`, and
 `okta.userTypes.read`. It skips the resources under
 [Permissions](#permissions) whose scope is missing.
+
+`okta.agentPools.read` is optional, so a service app that was set up before
+Cartography synced agent pools keeps working. Without the scope, Cartography
+logs a warning, skips agent pools and agents, and syncs everything else. After
+you grant the scope, the next sync includes them. No Cartography option
+changes.
+
+To request a different set of scopes, list them with `--okta-scopes`.
+Cartography then requests exactly those scopes. If Okta rejects the token
+request with `invalid_scope`, the app is not granted one of them.
 
 ### API token
 
@@ -92,12 +101,18 @@ resource, and continues the rest of the Okta sync:
 | Resource | OAuth scope |
 | --- | --- |
 | Admin role assignments (`OktaUserRole`, `OktaGroupRole`) | `okta.roles.read` |
+| Agent pools and agents (`OktaAgentPool`, `OktaAgent`) | `okta.agentPools.read` |
 | Devices (`OktaDevice`) | `okta.devices.read` |
 | API token metadata (`OktaApiToken`) | `okta.apiTokens.read` |
 | Log streams (`OktaLogStream`) | `okta.logStreams.read` |
 | Network zones (`OktaNetworkZone`) | `okta.networkZones.read` |
 | Policies and policy rules (`OktaPolicy`, `OktaPolicyRule`) | `okta.policies.read` |
 | Okta Admin Console session settings on `OktaOrganization` | `okta.apps.read` |
+
+The warning names the resource and the scope to grant. The
+`agents_synced`, `log_streams_synced`, and `admin_roles_synced` properties on
+`OktaOrganization` record whether the last sync could read those resources, so
+you can tell a skipped resource from one that the org does not have.
 
 Authentication and profile enrollment policies, and the Admin Console session
 settings, exist only in Okta Identity Engine orgs. Classic Engine orgs sync the

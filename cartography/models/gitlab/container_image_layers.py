@@ -136,3 +136,48 @@ class GitLabContainerImageLayerSchema(CartographyNodeSchema):
         ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageLayerNodeSchema(CartographyNodeSchema):
+    """An uncompressed container image layer identified by its diff ID."""
+
+    # Implementation note:
+    # Load layer nodes without the high-fanout NEXT relationship.
+    # GitLabContainerImageLayerSchema keeps NEXT so cleanup still removes stale edges.
+
+    label: str = "GitLabContainerImageLayer"
+    properties: GitLabContainerImageLayerNodeProperties = (
+        GitLabContainerImageLayerNodeProperties()
+    )
+    sub_resource_relationship: GitLabContainerImageLayerToOrgRel = (
+        GitLabContainerImageLayerToOrgRel()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageLayerRelLoadProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description="Uncompressed layer digest from the image config.",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageLayerNextRelSchema(CartographyNodeSchema):
+    """An uncompressed container image layer identified by its diff ID."""
+
+    # Implementation note:
+    # Load NEXT one (layer, next layer) pair per row. A shared base layer can
+    # precede a different layer in every image built on it, and one row with
+    # that whole list exceeds Neo4j's per-transaction memory cap.
+
+    label: str = "GitLabContainerImageLayer"
+    properties: GitLabContainerImageLayerRelLoadProperties = (
+        GitLabContainerImageLayerRelLoadProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitLabContainerImageLayerToNextRel()],
+    )

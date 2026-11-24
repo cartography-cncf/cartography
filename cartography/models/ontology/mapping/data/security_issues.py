@@ -113,6 +113,22 @@ _WIZ_STATUS = {
     "REJECTED": "ignored",
 }
 
+# Sentra alert severity and status. Cartography imports only active alerts, but the
+# map covers every Sentra status so a status added to the sync still maps.
+_SENTRA_SEVERITY = {
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "critical": "critical",
+}
+_SENTRA_STATUS = {
+    "pending": "open",
+    "opened": "open",
+    "in_progress": "open",
+    "resolved": "fixed",
+    "ignored": "ignored",
+}
+
 # Orca alert severity and workflow status. Unknown severities intentionally stay
 # unmapped rather than being presented as informational findings.
 _ORCA_ALERT_SEVERITY = {
@@ -601,6 +617,85 @@ microsoft_mapping = OntologyMapping(
     ],
 )
 
+sentra_mapping = OntologyMapping(
+    module_name="sentra",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentraAlert",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _SENTRA_SEVERITY},
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="alert_type"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SENTRA_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="created_at"
+                ),
+            ],
+        ),
+    ],
+)
+
+# Sweet attack chain severity is already lowercase CVSS-style banding.
+_SWEET_ATTACK_CHAIN_SEVERITY = {
+    "critical": "critical",
+    "high": "high",
+    "medium": "medium",
+    "low": "low",
+}
+# Resolved and Closed chains are not ingested.
+_SWEET_ATTACK_CHAIN_STATUS = {
+    "Open": "open",
+    "In Progress": "open",
+}
+
+sweet_mapping = OntologyMapping(
+    module_name="sweet",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SweetAttackChain",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _SWEET_ATTACK_CHAIN_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "attack_chain"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SWEET_ATTACK_CHAIN_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="first_detected_at",
+                ),
+            ],
+        ),
+    ],
+)
+
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bbot": bbot_mapping,
     "huntress": huntress_mapping,
@@ -610,6 +705,8 @@ SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "socketdev": socketdev_mapping,
     "wiz": wiz_mapping,
     "orca": orca_mapping,
+    "sentra": sentra_mapping,
     "azure": azure_mapping,
     "supabase": supabase_mapping,
+    "sweet": sweet_mapping,
 }

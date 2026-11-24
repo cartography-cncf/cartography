@@ -449,10 +449,7 @@ def test_uppercase_provider_cve_severities_are_canonicalized():
         "HIGH": "high",
         "CRITICAL": "critical",
     }
-    # AWS Inspector additionally emits INFORMATIONAL (and UNTRIAGED, which is left
-    # unmapped on purpose); Semgrep SCA only emits the CVSS bands.
     provider_expectations = {
-        "aws": ("AWSInspectorFinding", {**cvss_map, "INFORMATIONAL": "info"}),
         "semgrep": ("SemgrepSCAFinding", cvss_map),
     }
 

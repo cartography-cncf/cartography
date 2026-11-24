@@ -153,3 +153,12 @@ SLACK_MEMBERS = {
 
 # Backward compatibility alias
 SLACK_USERS = SLACK_MEMBERS
+
+# SLACKUSER2 and SLACKBOT1 as a later users.list call returns them once Slack
+# reports each as the other kind.
+SLACK_USER_TURNED_BOT = {
+    "members": [{**SLACK_MEMBERS["members"][1], "is_bot": True}],
+}
+SLACK_BOT_TURNED_USER = {
+    "members": [{**SLACK_MEMBERS["members"][2], "is_bot": False}],
+}

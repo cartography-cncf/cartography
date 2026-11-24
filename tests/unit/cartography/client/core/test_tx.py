@@ -59,6 +59,15 @@ def _create_client_error(
     return exc
 
 
+def _create_database_error(message: str) -> neo4j.exceptions.DatabaseError:
+    exc = neo4j.exceptions.DatabaseError(message)
+    object.__setattr__(
+        exc, "_neo4j_code", "Neo.DatabaseError.Statement.ExecutionFailed"
+    )
+    object.__setattr__(exc, "_message", message)
+    return exc
+
+
 def _cartesian_product_rel_schema() -> PrincipalToS3BucketCartesianProductRel:
     return PrincipalToS3BucketCartesianProductRel()
 
@@ -200,14 +209,22 @@ def test_retries_entity_not_found_error(mock_sleep, mock_logger):
     assert len(success_logs) == 1
 
 
-def test_raises_non_retryable_client_error_immediately():
-    """Should raise non-retryable ClientErrors immediately without retry."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        _create_client_error("Neo.ClientError.Statement.SyntaxError"),
+        _create_database_error(
+            "The database neo4j is in read-only mode on this Neo4j server"
+        ),
+    ],
+    ids=["syntax-error", "read-only-database"],
+)
+def test_raises_non_retryable_error_immediately(error):
+    """Should raise errors that a retry cannot fix without retrying."""
     operation = MagicMock()
-    operation.side_effect = _create_client_error(
-        "Neo.ClientError.Statement.SyntaxError"
-    )
+    operation.side_effect = error
 
-    with pytest.raises(neo4j.exceptions.ClientError):
+    with pytest.raises(type(error)):
         _run_with_retry(operation, "test_target")
 
     # Should only be called once (no retries)
@@ -230,15 +247,22 @@ def test_raises_after_max_entity_not_found_retries(mock_sleep):
     assert operation.call_count == 5
 
 
-@patch("cartography.client.core.tx.time.sleep")
-def test_retries_network_errors(mock_sleep):
-    """Should retry network errors (ServiceUnavailable, ConnectionResetError, etc)."""
-    operation = MagicMock()
-    # Fail once with network error, then succeed
-    operation.side_effect = [
+@pytest.mark.parametrize(
+    "error",
+    [
         neo4j.exceptions.ServiceUnavailable("Connection lost"),
-        "success",
-    ]
+        _create_database_error(
+            "org.neo4j.io.pagecache.impl.FileIsNotMappedException: "
+            "File has been unmapped: /data/databases/neo4j/schema/index/range-1.0/1/index-1"
+        ),
+    ],
+    ids=["service-unavailable", "store-file-unmapped"],
+)
+@patch("cartography.client.core.tx.time.sleep")
+def test_retries_network_errors(mock_sleep, error):
+    """Should retry errors raised while the database is briefly unreachable."""
+    operation = MagicMock()
+    operation.side_effect = [error, "success"]
 
     result = _run_with_retry(operation, "test_target")
 

@@ -23,13 +23,6 @@ _CVSS_SEVERITY = {
     "CRITICAL": "critical",
 }
 
-# AWS Inspector severity: CVSS bands plus INFORMATIONAL. UNTRIAGED is left
-# unmapped so unscored findings keep a null base_severity instead of a fake band.
-_INSPECTOR_SEVERITY = {
-    **_CVSS_SEVERITY,
-    "INFORMATIONAL": "info",
-}
-
 # Orca's VulnerabilityV2 query emits uppercase CVSS severity names. Include
 # lowercase variants so normalized results remain stable across API casing.
 _ORCA_CVSS_SEVERITY = {
@@ -397,12 +390,15 @@ sentinelone_mapping = OntologyMapping(
 # and state describe a detection rather than a CVE and stay on :TenableFinding,
 # reachable from the CVE through the plugin that names it.
 #
-# Note the shape differs from most scanners. Trivy, Inspector, SentinelOne, Orca and
-# Wiz put :CVE on the finding; of those, only Trivy maps _ont_vuln_status, as a
-# detection status. Tenable puts :CVE on the vulnerability record, like the NVD
-# (`cve`), Ubuntu and CrowdStrike mappings. Those feeds score each CVE; Tenable's
-# does not, so it contributes no _ont_base_severity or _ont_vuln_status. Queries
-# filtering :CVE on those fields will not return Tenable data.
+# Note the shape differs from most scanners. Trivy, SentinelOne, Orca, Wiz and
+# Sweet put :CVE on the finding; of those, only Trivy and Sweet map
+# _ont_vuln_status, as a detection status. Tenable puts :CVE on the vulnerability
+# record, like the NVD (`cve`), Ubuntu, CrowdStrike and AWS Inspector mappings.
+# Tenable and Inspector map none of _ont_base_score, _ont_base_severity or
+# _ont_vuln_status. Tenable scores each detection. Inspector rates severity on each finding, and its vulnerability node
+# keeps CVSS scores as a per-source list (vendorcvssscores) with no single base
+# score to map. Queries filtering :CVE on those fields will not return Tenable or
+# Inspector data.
 tenable_mapping = OntologyMapping(
     module_name="tenable",
     nodes=[
@@ -479,7 +475,7 @@ aws_inspector_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="AWSInspectorFinding",
+            node_label="AWSInspectorVulnerability",
             fields=[
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
                 OntologyFieldMapping(
@@ -491,16 +487,6 @@ aws_inspector_mapping = OntologyMapping(
                     ontology_field="references",
                     node_field="referenceurls",
                     indexed=False,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_score",
-                    node_field="cvssscore",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_severity",
-                    node_field="severity",
-                    special_handling="mapping",
-                    extra={"map": _INSPECTOR_SEVERITY},
                 ),
             ],
         ),
@@ -582,6 +568,55 @@ orca_mapping = OntologyMapping(
     ],
 )
 
+# Sweet reports lowercase CVSS severity bands.
+_SWEET_CVSS_SEVERITY = {
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "critical": "critical",
+}
+
+# Sweet vulnerability status, a detection status like Trivy's. Resolved
+# vulnerabilities are not ingested. Ignored is a triage decision, not a fix or a
+# not-affected verdict, so it stays unmapped.
+_SWEET_VULN_STATUS = {
+    "open": "open",
+    "in_progress": "open",
+}
+
+# Sweet puts :CVE on a runtime vulnerability only when its identifier is a CVE.
+sweet_mapping = OntologyMapping(
+    module_name="sweet",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SweetVulnerability",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="cve_id",
+                    node_field="cve_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _SWEET_CVSS_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="published_date",
+                    node_field="published_date",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="vuln_status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SWEET_VULN_STATUS},
+                ),
+            ],
+        ),
+    ],
+)
+
 CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cve": cve_mapping,
     "trivy": trivy_mapping,
@@ -594,4 +629,5 @@ CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_inspector_mapping,
     "wiz": wiz_mapping,
     "orca": orca_mapping,
+    "sweet": sweet_mapping,
 }

@@ -10,12 +10,10 @@ from tests.data.gcp.storage import STORAGE_RESPONSE
 
 
 def test_transform_gcp_buckets():
-    buckets, labels = cartography.intel.gcp.storage.transform_gcp_buckets_and_labels(
-        STORAGE_RESPONSE
-    )
+    buckets = cartography.intel.gcp.storage.transform_gcp_buckets(STORAGE_RESPONSE)
 
     # Test buckets
-    assert len(buckets) == 1
+    assert len(buckets) == 2
     bucket = buckets[0]
     assert bucket["project_number"] == 123456789012
     assert bucket["id"] == "bucket_name"
@@ -27,20 +25,6 @@ def test_transform_gcp_buckets():
     assert bucket["storage_class"] == "STANDARD"
     # `allUsers` reader in `acl` -> ACL-based public exposure
     assert bucket["acl_public"] is True
-
-    # Test labels
-    assert len(labels) == 2
-    label_keys = [label["key"] for label in labels]
-    label_values = [label["value"] for label in labels]
-    assert "label_key_1" in label_keys
-    assert "label_key_2" in label_keys
-    assert "label_value_1" in label_values
-    assert "label_value_2" in label_values
-
-    # Check that all labels have the correct bucket_id
-    for label in labels:
-        assert label["bucket_id"] == "bucket_name"
-        assert label["id"].startswith("GCPBucket_")
 
 
 def test_get_gcp_buckets_permission_denied_logs_concisely(monkeypatch, caplog):

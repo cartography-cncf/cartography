@@ -51,3 +51,9 @@ SUPABASE_CUSTOM_HOSTNAME_UNSET = {
     "custom_hostname": None,
     "data": None,
 }
+
+# A project whose plan includes custom domains but that has none set up. Captured
+# from the live Management API, which answers HTTP 400 with this body.
+SUPABASE_CUSTOM_HOSTNAME_NOT_FOUND = {
+    "message": "No custom hostname configuration found.",
+}

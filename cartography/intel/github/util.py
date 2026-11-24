@@ -138,16 +138,39 @@ def get_retry_sleep_seconds_for_http_error(
     return None
 
 
-def handle_rate_limit_sleep(token: Any, api_url: str) -> None:
-    """Wait for the configured instance's GraphQL budget to reset when low."""
+# Servers seen answering /rate_limit with 404. The check runs before every page,
+# and without this a server with rate limiting off gets one extra request per page.
+_RATE_LIMITING_OFF: set[str] = set()
+
+
+def _get_rate_limit(token: Any, base_url: str, resource: str) -> dict[str, Any] | None:
+    """
+    Return one resource of the instance's rate limit, or None when it has none.
+
+    GitHub Enterprise Server has API rate limiting off by default, and then
+    answers /rate_limit with 404: there is no budget to wait for.
+    """
+    if base_url in _RATE_LIMITING_OFF:
+        return None
     response = requests.get(
-        f"{rest_api_base_url(api_url)}/rate_limit",
+        f"{base_url}/rate_limit",
         headers={"Authorization": f"Bearer {_resolve_token(token)}"},
         timeout=_TIMEOUT,
     )
+    if response.status_code == 404 and urlsplit(base_url).netloc != "api.github.com":
+        logger.info("GitHub at %s has API rate limiting turned off", base_url)
+        _RATE_LIMITING_OFF.add(base_url)
+        return None
     response.raise_for_status()
-    response_json = response.json()
-    rate_limit_obj = response_json["resources"]["graphql"]
+    rate_limit: dict[str, Any] = response.json()["resources"][resource]
+    return rate_limit
+
+
+def handle_rate_limit_sleep(token: Any, api_url: str) -> None:
+    """Wait for the configured instance's GraphQL budget to reset when low."""
+    rate_limit_obj = _get_rate_limit(token, rest_api_base_url(api_url), "graphql")
+    if rate_limit_obj is None:
+        return
     remaining = rate_limit_obj["remaining"]
     threshold = _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
     if remaining > threshold:
@@ -467,15 +490,9 @@ def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
     :param token: The GitHub API token as string.
     :param base_url: The REST API base URL.
     """
-    rate_limit_url = f"{base_url}/rate_limit"
-    response = requests.get(
-        rate_limit_url,
-        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
-        timeout=_TIMEOUT,
-    )
-    response.raise_for_status()
-    response_json = response.json()
-    rate_limit_obj = response_json["resources"]["core"]
+    rate_limit_obj = _get_rate_limit(token, base_url, "core")
+    if rate_limit_obj is None:
+        return
     remaining = rate_limit_obj["remaining"]
     threshold = _REST_RATE_LIMIT_REMAINING_THRESHOLD
     if remaining > threshold:

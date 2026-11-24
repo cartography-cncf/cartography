@@ -1,7 +1,11 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
+
+from cartography.client.http import CappedRetry
 
 logger = logging.getLogger(__name__)
 
@@ -9,6 +13,28 @@ _TIMEOUT = (60, 60)
 _DEFAULT_PAGE_SIZE = 100
 _PROGRESS_PAGE_INTERVAL = 10
 WIZ_AUTH_AUDIENCE = "wiz-api"
+_RETRY_STATUSES = (429, 500, 502, 503, 504)
+
+
+def build_session() -> requests.Session:
+    # Wiz throttles each service account per second, so a short backoff clears a 429.
+    # Every Wiz call is a POST (token exchange and read-only GraphQL queries), and
+    # both are safe to repeat. A stalled read gets one more attempt, so a hung request
+    # fails within two read timeouts instead of seven.
+    retry_policy = CappedRetry(
+        total=6,
+        read=1,
+        backoff_factor=1,
+        status_forcelist=_RETRY_STATUSES,
+        allowed_methods=["POST"],
+        respect_retry_after_header=True,
+        raise_on_status=False,
+    )
+    session = requests.Session()
+    adapter = HTTPAdapter(max_retries=retry_policy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
 
 def get_access_token(
@@ -66,8 +92,8 @@ def get_paginated(
     order_by: dict[str, Any] | None = None,
     page_size: int = _DEFAULT_PAGE_SIZE,
     progress_label: str | None = None,
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
+) -> Iterator[list[dict[str, Any]]]:
+    fetched = 0
     after = None
     page_count = 0
     seen_cursors: set[str] = set()
@@ -86,13 +112,14 @@ def get_paginated(
         nodes = connection.get("nodes")
         if nodes is None:
             raise RuntimeError(f"Wiz {connection_name} response omitted nodes")
-        results.extend(nodes)
+        yield nodes
+        fetched += len(nodes)
         page_count += 1
 
         if progress_label and page_count % _PROGRESS_PAGE_INTERVAL == 0:
             logger.info(
                 "Fetched %d Wiz %s across %d page(s) so far.",
-                len(results),
+                fetched,
                 progress_label,
                 page_count,
             )
@@ -113,4 +140,5 @@ def get_paginated(
             )
         seen_cursors.add(after)
 
-    return results
+    if progress_label:
+        logger.info("Fetched %d Wiz %s in total.", fetched, progress_label)

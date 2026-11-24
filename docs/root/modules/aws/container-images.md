@@ -153,6 +153,30 @@ LIMIT 1
 Layer-prefix inference is a heuristic. Restrict the candidate repository and
 prefer explicit provenance when available.
 
+### Build provenance from OCI labels
+
+The ECR layer sync reads the standard OCI labels `org.opencontainers.image.source`
+and `org.opencontainers.image.revision` (and BuildKit's `vcs.source` and
+`vcs.revision`) from the image config. The GitHub and GitLab supply-chain syncs
+then create `PACKAGED_FROM` with `match_method` `provenance`. SLSA provenance
+attestations and CI labels take precedence when they are present. Images
+inherit labels from their base image, so set the source and revision labels on
+every build (for example with `docker/metadata-action`); otherwise an application
+image built from an in-house base image is linked to the base image's repository
+and commit.
+
+```bash
+docker build \
+  --label org.opencontainers.image.source="https://github.com/example-org/service" \
+  --label org.opencontainers.image.revision="$(git rev-parse HEAD)" \
+  -t "$REPOSITORY_URI:$IMAGE_TAG" .
+```
+
+A monorepo build can set the source label to the component's folder, for
+example `https://github.com/example-org/monorepo/tree/main/services/api`.
+Cartography stores the repository URL in `source_uri`, so the image still
+links to the repository, and keeps the folder URL in `source_path_uri`.
+
 ### Build provenance from CodeBuild
 
 CodeBuild does not write provenance onto the images it builds: no attestations,

@@ -8,10 +8,14 @@ entra_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="EntraUser",
             fields=[
+                # Entra leaves `mail` empty for accounts without a mailbox, such
+                # as admin and service accounts. The UPN is their sign-in name.
                 OntologyFieldMapping(
                     ontology_field="email",
                     node_field="email",
                     required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["user_principal_name"]},
                 ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="given_name"
@@ -27,6 +31,27 @@ entra_mapping = OntologyMapping(
                     ontology_field="lastactivity",
                     node_field="last_successful_sign_in_date_time",
                 ),
+            ],
+        ),
+    ],
+)
+onepassword_mapping = OntologyMapping(
+    module_name="onepassword",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OnePasswordUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="state",
+                    extra={"values": ["SUSPENDED", "PROVISION_SUSPENDED", "DELETED"]},
+                    special_handling="equal_boolean",
+                ),
+                # has_mfa, lastactivity: Not available in collector snapshots
             ],
         ),
     ],
@@ -216,9 +241,9 @@ github_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="fullname"),
-                OntologyFieldMapping(
-                    ontology_field="has_mfa", node_field="has_2fa_enabled"
-                ),
+                # has_mfa: GitHub reports 2FA per organization, so the GitHub user
+                # organization facts analysis jobs project `_ont_has_mfa` together
+                # with `has_2fa_enabled` from all of the user's organizations.
             ],
         ),
     ],
@@ -863,6 +888,29 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonOrganizationMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="has_mfa", node_field="has_mfa"),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="deactivated_at",
+                    special_handling="to_boolean",
+                ),
+                # username: Not available. Neon identifies users by email.
+                # lastactivity: Not available.
+            ],
+        ),
+    ],
+)
+
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -916,6 +964,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
     "lastpass": lastpass_mapping,
+    "onepassword": onepassword_mapping,
     "gsuite": gsuite_mapping,
     "anthropic": anthropic_mapping,
     "airbyte": airbyte_mapping,
@@ -977,6 +1026,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "modal": modal_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",

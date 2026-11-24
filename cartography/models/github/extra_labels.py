@@ -7,12 +7,6 @@ GIT_HUB_CLASSIC_PERSONAL_ACCESS_TOKEN = ExtraNodeLabel(
 )
 
 
-GIT_HUB_DEPENDENCY = ExtraNodeLabel(
-    label="GitHubDependency",
-    description="A github node participating in the shared GitHubDependency graph interface.",
-)
-
-
 GIT_HUB_FINE_GRAINED_PERSONAL_ACCESS_TOKEN = ExtraNodeLabel(
     label="GitHubFineGrainedPersonalAccessToken",
     description="A github node participating in the shared GitHubFineGrainedPersonalAccessToken graph interface.",

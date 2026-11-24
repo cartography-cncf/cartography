@@ -14,7 +14,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AWSInspectorPackageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="Uses the format of `name|epoch:version-release.arch` to uniquely identify packages",
+        description=(
+            "Uses the format `packageManager|name|epoch:version-release.arch` to uniquely "
+            "identify packages, with the distribution after the manager for operating "
+            "system packages, such as `OS|amazon|openssl|...`. The manager and its "
+            "separator are left out when Inspector reports none."
+        ),
     )
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="The package name"
@@ -31,6 +36,29 @@ class AWSInspectorPackageNodeProperties(CartographyNodeProperties):
     )
     manager: PropertyRef = PropertyRef(
         "packageManager", description="Related package manager"
+    )
+    purl: PropertyRef = PropertyRef(
+        "purl",
+        description=(
+            "Package URL of the package. Unset when Inspector reports no package manager "
+            "Cartography recognizes, or an operating system package on an unrecognized "
+            "platform."
+        ),
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Package URL type, such as `rpm`, `deb`, or `pypi`."
+    )
+    purl_version: PropertyRef = PropertyRef(
+        "purl_version",
+        description="Version in the package URL: the version and release, without the epoch.",
+    )
+    normalized_id: PropertyRef = PropertyRef(
+        "normalized_id",
+        extra_index=True,
+        description=(
+            "Normalized package version ID, shared with the `PackageVersion` that the "
+            "package is `DETECTED_AS`."
+        ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

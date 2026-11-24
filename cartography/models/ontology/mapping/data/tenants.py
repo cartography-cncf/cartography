@@ -323,6 +323,8 @@ keycloak_mapping = OntologyMapping(
 
 # LastPass: No field to map in LastpassTenant (minimal properties)
 
+# 1Password: No field to map in OnePasswordAccount (snapshots carry no account name or domain)
+
 
 # Okta
 okta_mapping = OntologyMapping(
@@ -505,6 +507,24 @@ jumpcloud_mapping = OntologyMapping(
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
 
+# Sentra
+sentra_mapping = OntologyMapping(
+    module_name="sentra",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentraTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Sentra exposes no organization lifecycle state.
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
+
 # Tenable
 tenable_mapping = OntologyMapping(
     module_name="tenable",
@@ -552,6 +572,15 @@ crowdstrike_mapping = OntologyMapping(
     module_name="crowdstrike",
     nodes=[
         OntologyNodeMapping(node_label="CrowdstrikeTenant", fields=[]),
+    ],
+)
+
+# Sweet: the API returns no tenant name or domain, so SweetTenant has no mappable
+# Tenant fields; the entry exists only so _ont_source is written on the node.
+sweet_mapping = OntologyMapping(
+    module_name="sweet",
+    nodes=[
+        OntologyNodeMapping(node_label="SweetTenant", fields=[]),
     ],
 )
 
@@ -877,6 +906,36 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available; the organization endpoints expose a plan
+                # but no lifecycle state.
+                # domain: Not available
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="NeonProject",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available. Projects have no lifecycle state; a
+                # deleted project disappears from the listing.
+                # domain: Not available. Connection hostnames are modelled on
+                # NeonEndpoint.host.
+            ],
+        ),
+    ],
+)
+
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -912,6 +971,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "azure": azure_mapping,
     "cloudflare": cloudflare_mapping,
     "crowdstrike": crowdstrike_mapping,
+    "sweet": sweet_mapping,
     "huntress": huntress_mapping,
     "digitalocean": digitalocean_mapping,
     "netlify": netlify_mapping,
@@ -935,6 +995,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,
     "socketdev": socketdev_mapping,
+    "sentra": sentra_mapping,
     "tenable": tenable_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
@@ -963,6 +1024,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "modal": modal_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",

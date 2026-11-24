@@ -24,6 +24,7 @@ from cartography.intel.gcp.artifact_registry.util import get_artifact_registry_l
 from cartography.intel.gcp.artifact_registry.util import (
     list_artifact_registry_resources,
 )
+from cartography.intel.gcp.artifact_registry.util import list_request
 from cartography.intel.gcp.util import proto_message_to_dict
 from cartography.models.gcp.artifact_registry.repository import (
     GCPArtifactRegistryRepositorySchema,
@@ -56,7 +57,9 @@ def _list_repositories_for_location(
         repositories = [
             proto_message_to_dict(repository)
             for repository in list_artifact_registry_resources(
-                lambda **kwargs: client.list_repositories(parent=parent, **kwargs)
+                lambda **kwargs: client.list_repositories(
+                    request=list_request(parent), **kwargs
+                )
             )
         ]
         return LocationRepositoryFetchResult(location, repositories, True)

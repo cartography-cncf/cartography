@@ -236,14 +236,24 @@ def sync(
 
         all_versions = []
         for secret in secrets:
-            logger.info(
-                f"Getting versions for secret {secret.get('Name', 'unnamed')} ({secret['ARN']})"
+            logger.debug(
+                "Getting versions for secret %s (%s)",
+                secret.get("Name", "unnamed"),
+                secret["ARN"],
             )
             versions = get_secret_versions(boto3_session, region, secret["ARN"])
-            logger.info(
-                f"Found {len(versions)} versions for secret {secret.get('Name', 'unnamed')}"
+            logger.debug(
+                "Found %d versions for secret %s",
+                len(versions),
+                secret.get("Name", "unnamed"),
             )
             all_versions.extend(versions)
+        logger.info(
+            "Found %d versions for %d secrets in region '%s'.",
+            len(all_versions),
+            len(secrets),
+            region,
+        )
 
         transformed_data = transform_secret_versions(all_versions)
 

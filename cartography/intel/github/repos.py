@@ -35,6 +35,7 @@ from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import get_file_content
+from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.intel.github.util import rest_api_base_url
@@ -172,7 +173,14 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                     outsideCollaborators: collaborators(first: 100, affiliation: OUTSIDE) {
                         totalCount
                     }
+                    defaultBranchRef {
+                        name
+                        branchProtectionRule {
+                            id
+                        }
+                    }
                     branchProtectionRules(first: 50) {
+                        totalCount
                         nodes {
                             id
                             pattern
@@ -922,6 +930,38 @@ def _rest_ruleset_cache_key(ruleset: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def _get_default_branch_ruleset_ids(
+    token: str,
+    base_url: str,
+    repo_endpoint: str,
+    default_branch_ref: dict[str, Any] | None,
+) -> list[int]:
+    """
+    Return the IDs of the active rulesets GitHub applies to the default branch.
+
+    GitHub evaluates every ruleset's ref include and exclude conditions itself, so
+    this avoids reimplementing its fnmatch semantics.
+    """
+    default_branch = (default_branch_ref or {}).get("name")
+    if not default_branch:
+        return []
+    branch_rules = fetch_all_rest_api_pages(
+        token,
+        base_url,
+        f"{repo_endpoint}/rules/branches/{quote(default_branch, safe='')}",
+        result_key="",
+        raise_on_status=(403, 404),
+        params={"per_page": 100},
+    )
+    return sorted(
+        {
+            rule["ruleset_id"]
+            for rule in branch_rules
+            if isinstance(rule.get("ruleset_id"), int)
+        }
+    )
+
+
 def _get_repo_rulesets_by_url(
     token: str,
     api_url: str,
@@ -943,33 +983,57 @@ def _get_repo_rulesets_by_url(
         repo_url = repo.get("url")
         if not repo_name or not repo_url:
             continue
-        encoded_repo_name = quote(repo_name, safe="")
-        endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
-        ruleset_summaries = fetch_all_rest_api_pages(
-            token,
-            base_url,
-            endpoint,
-            result_key="rulesets",
-            raise_on_status=(403, 404),
-            params={"per_page": 100, "includes_parents": "true"},
-        )
-        normalized_rulesets = []
-        for ruleset_summary in ruleset_summaries:
-            cache_key = _rest_ruleset_cache_key(ruleset_summary)
-            ruleset_detail = ruleset_detail_cache.get(cache_key)
-            if ruleset_detail is None:
-                ruleset_detail = call_github_rest_api(
-                    f"{endpoint}/{ruleset_summary['id']}",
-                    token,
-                    base_url,
-                    params={"includes_parents": "true"},
-                )
-                ruleset_detail_cache[cache_key] = ruleset_detail
-            normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
-        rulesets_by_url[repo_url] = {
-            "nodes": normalized_rulesets,
-            "totalCount": len(normalized_rulesets),
-        }
+        try:
+            encoded_repo_name = quote(repo_name, safe="")
+            endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
+            ruleset_summaries = fetch_all_rest_api_pages(
+                token,
+                base_url,
+                endpoint,
+                result_key="rulesets",
+                raise_on_status=(403, 404),
+                params={"per_page": 100, "includes_parents": "true"},
+            )
+            normalized_rulesets = []
+            for ruleset_summary in ruleset_summaries:
+                cache_key = _rest_ruleset_cache_key(ruleset_summary)
+                ruleset_detail = ruleset_detail_cache.get(cache_key)
+                if ruleset_detail is None:
+                    ruleset_detail = call_github_rest_api(
+                        f"{endpoint}/{ruleset_summary['id']}",
+                        token,
+                        base_url,
+                        params={"includes_parents": "true"},
+                    )
+                    ruleset_detail_cache[cache_key] = ruleset_detail
+                normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
+            rulesets_by_url[repo_url] = {
+                "nodes": normalized_rulesets,
+                "totalCount": len(normalized_rulesets),
+                # With no ruleset in scope there is nothing to apply, so skip the
+                # call: most repositories in large organizations have none.
+                "defaultBranchRulesetIds": (
+                    _get_default_branch_ruleset_ids(
+                        token,
+                        base_url,
+                        f"/repos/{owner}/{encoded_repo_name}",
+                        repo.get("defaultBranchRef"),
+                    )
+                    if normalized_rulesets
+                    else []
+                ),
+            }
+        except requests.exceptions.HTTPError as err:
+            status = err.response.status_code if err.response is not None else None
+            if status not in (403, 404):
+                raise
+            # One repository the credential cannot read must not discard every
+            # other repository's rulesets; leave this one out so it reads as unknown.
+            logger.warning(
+                "Skipping rulesets for GitHub repo %s due to HTTP %s.",
+                repo_url,
+                status,
+            )
 
     return rulesets_by_url
 
@@ -1063,6 +1127,9 @@ def get_repo_privileged_details_by_url(
             "directCollaborators": repo.get("directCollaborators"),
             "outsideCollaborators": repo.get("outsideCollaborators"),
             "branchProtectionRules": repo.get("branchProtectionRules"),
+            "defaultBranchProtectionRule": (repo.get("defaultBranchRef") or {}).get(
+                "branchProtectionRule"
+            ),
             "rulesets": rulesets_by_url.get(repo_url),
         }
     return privileged_repo_data
@@ -1097,6 +1164,7 @@ def _merge_repos_with_privileged_details(
             "directCollaborators",
             "outsideCollaborators",
             "branchProtectionRules",
+            "defaultBranchProtectionRule",
             "rulesets",
         ):
             if merged_repo.get(field_name) is None and field_name in privileged_data:
@@ -1277,10 +1345,15 @@ def transform(
             repo_url,
             transformed_dependencies,
         )
+        branch_protection_rules = repo_object.get("branchProtectionRules") or {}
+        _warn_if_github_connection_truncated(
+            branch_protection_rules, "branch protection rules", repo_url
+        )
         _transform_branch_protection_rules(
-            (repo_object.get("branchProtectionRules") or {}).get("nodes", []),
+            branch_protection_rules.get("nodes", []),
             repo_url,
             transformed_branch_protection_rules,
+            (repo_object.get("defaultBranchProtectionRule") or {}).get("id"),
         )
         rulesets = repo_object.get("rulesets") or {}
         _warn_if_github_connection_truncated(rulesets, "rulesets", repo_url)
@@ -1289,6 +1362,7 @@ def transform(
             repo_url,
             transformed_rulesets,
             transformed_ruleset_rules,
+            set(rulesets.get("defaultBranchRulesetIds") or []),
         )
     results = {
         "repos": transformed_repo_list,
@@ -1305,6 +1379,18 @@ def transform(
     }
 
     return results
+
+
+def _connection_complete(connection: Optional[Dict[str, Any]]) -> bool:
+    """
+    Whether a GraphQL connection was readable and returned every node, so a missing
+    node means absent rather than unread or cut off.
+    """
+    if connection is None:
+        return False
+    total_count = connection.get("totalCount")
+    nodes = connection.get("nodes") or []
+    return not isinstance(total_count, int) or len(nodes) >= total_count
 
 
 def _create_default_branch_id(repo_url: str, default_branch_ref_id: str) -> str:
@@ -1376,6 +1462,12 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "disabled": input_repo_object["isDisabled"],
             "archived": input_repo_object["isArchived"],
             "locked": input_repo_object["isLocked"],
+            # GitHub returns null for these connections, rather than an empty
+            # one, when the credential cannot read them.
+            "branch_protection_rules_visible": _connection_complete(
+                input_repo_object.get("branchProtectionRules")
+            ),
+            "rulesets_visible": input_repo_object.get("rulesets") is not None,
             "fork": input_repo_object.get("isFork", False),
             "parent": parent["url"] if parent else None,
             "visibility": (
@@ -2043,6 +2135,7 @@ def _transform_branch_protection_rules(
     branch_protection_rules_data: List[Dict[str, Any]],
     repo_url: str,
     out_branch_protection_rules: List[Dict],
+    default_branch_rule_id: Optional[str] = None,
 ) -> None:
     """
     Transforms GitHub branch protection rule data from API format to Cartography format.
@@ -2070,6 +2163,7 @@ def _transform_branch_protection_rules(
                 "requires_strict_status_checks": rule["requiresStrictStatusChecks"],
                 "restricts_pushes": rule["restrictsPushes"],
                 "restricts_review_dismissals": rule["restrictsReviewDismissals"],
+                "protects_default_branch": rule["id"] == default_branch_rule_id,
                 "repo_url": repo_url,
             }
         )
@@ -2080,6 +2174,7 @@ def _transform_rulesets(
     repo_url: str,
     out_rulesets: List[Dict],
     out_rules: List[Dict],
+    default_branch_ruleset_ids: Optional[set[int]] = None,
 ) -> None:
     """
     Transforms GitHub repository ruleset data from API format to Cartography format.
@@ -2129,6 +2224,8 @@ def _transform_rulesets(
                 "conditions_organization_property_exclude": _json_dumps_or_none(
                     organization_property.get("exclude")
                 ),
+                "applies_to_default_branch": ruleset.get("databaseId")
+                in (default_branch_ruleset_ids or set()),
                 "repo_url": repo_url,
             }
         )
@@ -2742,6 +2839,7 @@ def sync(
     base_repo_count = sum(1 for repo in repos_json if repo is not None)
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    branch_protection_cleanup_safe = True
     rulesets_cleanup_safe = True
     if _repos_need_privileged_details(repos_json):
         try:
@@ -2751,12 +2849,13 @@ def sync(
                 organization,
             )
         except (requests.exceptions.RequestException, ValueError):
+            branch_protection_cleanup_safe = False
             rulesets_cleanup_safe = False
             logger.warning(
                 "Failed to fetch privileged GitHub repo details for org %s; "
                 "continuing without collaborator-count, branch-protection, and "
-                "ruleset enrichment. GitHub ruleset cleanup will be skipped to "
-                "preserve previously synced rulesets.",
+                "ruleset enrichment. Branch protection rule and ruleset cleanup "
+                "will be skipped to preserve previously synced data.",
                 organization,
                 exc_info=True,
             )
@@ -2829,9 +2928,18 @@ def sync(
             for repo in repo_data["repos"]
             if repo.get("owner_org_id")
         ),
-        f"https://github.com/{organization}",
+        github_org_url(github_url, organization),
     )
     migrate_dependency_graph_manifest_label(neo4j_session, owner_org_id)
+    # DEPRECATED: detaches PythonLibrary nodes that the dependency graph loader
+    # labeled GitHubDependency when it merged on the shared Dependency label.
+    # It runs before the load so the loader no longer matches them. Remove in
+    # v1.0.0.
+    run_analysis_job(
+        "github_python_library_dependency_label_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
     load(neo4j_session, common_job_parameters, repo_data)
     cleanup_github_branches(neo4j_session, common_job_parameters, owner_org_id)
 
@@ -2859,7 +2967,16 @@ def sync(
             "GitHub returned incomplete dependency manifest data.",
             organization,
         )
-    cleanup_branch_protection_rules(neo4j_session, common_job_parameters, owner_org_id)
+    if branch_protection_cleanup_safe:
+        cleanup_branch_protection_rules(
+            neo4j_session, common_job_parameters, owner_org_id
+        )
+    else:
+        logger.warning(
+            "Skipping GitHub branch protection rule cleanup for org %s because the "
+            "privileged repo fetch failed.",
+            organization,
+        )
     if rulesets_cleanup_safe:
         cleanup_rulesets(neo4j_session, common_job_parameters, owner_org_id)
     else:

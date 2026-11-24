@@ -2,12 +2,12 @@ import logging
 from urllib.parse import urlparse
 
 import neo4j
-import requests
 
 import cartography.intel.wiz.findings
 import cartography.intel.wiz.issues
 from cartography.client.core.tx import load
 from cartography.config import Config
+from cartography.intel.wiz.api import build_session
 from cartography.intel.wiz.api import get_access_token
 from cartography.models.wiz.tenant import WizTenantSchema
 from cartography.stats import get_stats_client
@@ -72,6 +72,10 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             tenant_id,
         )
 
+    # A full sync skips closed records because cleanup deletes the closed records
+    # that earlier syncs stored. Lookback and project-filtered syncs don't run
+    # cleanup, so they fetch closed records too. Otherwise, a record that Wiz
+    # closed stays open in the graph.
     do_cleanup = config.wiz_lookback_days is None and not config.wiz_project_ids
     if config.wiz_lookback_days is not None:
         logger.warning(
@@ -89,7 +93,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "WIZ_TENANT_ID": tenant_id,
     }
 
-    session = requests.Session()
+    session = build_session()
     token = get_access_token(
         session,
         auth_url,
@@ -113,6 +117,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.wiz_lookback_days,
         config.wiz_project_ids,
+        active_only=do_cleanup,
         do_cleanup=False,
     )
     cartography.intel.wiz.findings.sync(
@@ -125,6 +130,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.wiz_lookback_days,
         config.wiz_project_ids,
+        active_only=do_cleanup,
         do_cleanup=False,
     )
 

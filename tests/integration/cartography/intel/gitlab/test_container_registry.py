@@ -4,13 +4,18 @@ import base64
 import json
 from unittest.mock import patch
 
+import pytest
+
 from cartography.intel.gitlab.container_image_attestations import (
     AttestationDiscoverySummary,
 )
+from cartography.intel.gitlab.container_image_attestations import load_image_provenance
 from cartography.intel.gitlab.container_image_attestations import (
     sync_container_image_attestations,
 )
+from cartography.intel.gitlab.container_images import load_container_images
 from cartography.intel.gitlab.container_images import sync_container_images
+from cartography.intel.gitlab.container_images import transform_container_images
 from cartography.intel.gitlab.container_repositories import sync_container_repositories
 from cartography.intel.gitlab.container_repository_tags import (
     sync_container_repository_tags,
@@ -782,3 +787,107 @@ def test_sync_container_images_skips_manifest_fetch_on_second_run(
         "RESOURCE",
         rel_direction_right=True,
     ) == {(TEST_ORG_ID, DEDUP_IMAGE_DIGEST)}
+
+
+LABEL_SOURCE = "https://gitlab.example.com/myorg/awesome-project"
+ATTESTED_SOURCE = "https://gitlab.example.com/myorg/other-project"
+LABEL_REVISION = "3333333333333333333333333333333333333333"
+
+
+@pytest.mark.parametrize(
+    "attested_source, expected_source, expected_source_path, expected_revision",
+    [
+        (
+            None,
+            LABEL_SOURCE,
+            f"{LABEL_SOURCE}/-/tree/main/services/api",
+            LABEL_REVISION,
+        ),
+        # The label's folder and revision describe the label's repository.
+        (ATTESTED_SOURCE, ATTESTED_SOURCE, None, None),
+    ],
+    ids=["parent-only-keeps-label-source", "attested-source-clears-label-folder"],
+)
+def test_attestation_and_label_source(
+    neo4j_session,
+    attested_source,
+    expected_source,
+    expected_source_path,
+    expected_revision,
+):
+    # Arrange: the image config names a folder of its source through OCI labels.
+    # The attestation names a parent image, and in one case another source.
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    _create_test_org(neo4j_session)
+    _create_test_parent_image(neo4j_session)
+    manifest = {
+        **GET_CONTAINER_IMAGES_RESPONSE[0],
+        "_config": {
+            **GET_CONTAINER_IMAGES_RESPONSE[0]["_config"],
+            "config": {
+                "Labels": {
+                    "org.opencontainers.image.source": (
+                        f"{LABEL_SOURCE}.git/-/tree/main/services/api"
+                    ),
+                    "org.opencontainers.image.revision": LABEL_REVISION,
+                },
+            },
+        },
+    }
+    digest = manifest["_digest"]
+    parent_digest = (
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    )
+
+    # Act
+    load_container_images(
+        neo4j_session,
+        transform_container_images([manifest]),
+        TEST_ORG_ID,
+        TEST_GITLAB_URL,
+        TEST_UPDATE_TAG,
+    )
+    load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": digest,
+                "source_uri": attested_source,
+                "parent_image_uri": "registry.gitlab.example.com/myorg/base:1",
+                "parent_image_digest": parent_digest,
+                "from_attestation": True,
+                "confidence": 1.0,
+            },
+        ],
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (img:GitLabContainerImage {digest: $digest})
+        RETURN img.source_uri AS source_uri,
+               img.source_path_uri AS source_path_uri,
+               img.source_revision AS source_revision,
+               img._ont_source_uri AS ont_source_uri
+        """,
+            digest=digest,
+        ).data()
+        == [
+            {
+                "source_uri": expected_source,
+                "source_path_uri": expected_source_path,
+                "source_revision": expected_revision,
+                "ont_source_uri": expected_source,
+            },
+        ]
+    )
+    assert check_rels(
+        neo4j_session,
+        "GitLabContainerImage",
+        "digest",
+        "GitLabContainerImage",
+        "digest",
+        "BUILT_FROM",
+    ) == {(digest, parent_digest)}

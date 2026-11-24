@@ -1,17 +1,26 @@
 import json
 import logging
 from typing import Any
+from typing import NamedTuple
 from urllib.parse import quote
 
 import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import parse_github_timestamp
 from cartography.intel.github.util import rest_api_base_url
+from cartography.models.github.personal_access_tokens import (
+    GitHubClassicPersonalAccessTokenSchema,
+)
+from cartography.models.github.personal_access_tokens import (
+    GitHubOrganizationAuthorizedCredentialMatchLink,
+)
 from cartography.models.github.personal_access_tokens import (
     GitHubPersonalAccessTokenSchema,
 )
@@ -37,13 +46,14 @@ def get_fine_grained_personal_access_tokens(
     token: Any,
     api_url: str,
     organization: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
     Fetch approved fine-grained PATs that can access organization resources.
 
     GitHub exposes this inventory only to GitHub Apps with the
     "Personal access tokens" organization read permission. A missing
-    permission returns an empty list and no PATs are persisted for this run.
+    permission returns None, so the caller can tell an unavailable inventory
+    from an empty one.
     """
     base_url = rest_api_base_url(api_url)
     endpoint = f"/orgs/{quote(organization, safe='')}/personal-access-tokens"
@@ -67,7 +77,7 @@ def get_fine_grained_personal_access_tokens(
                 organization,
                 status,
             )
-            return []
+            return None
         raise
 
 
@@ -111,12 +121,12 @@ def get_saml_credential_authorizations(
     token: Any,
     api_url: str,
     organization: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
     Fetch classic PAT metadata exposed via SAML SSO credential authorizations.
 
-    Only available for SAML SSO-enabled organizations. Returns an empty list
-    when the endpoint is unavailable.
+    Only available for SAML SSO-enabled organizations. Returns None when the
+    endpoint is unavailable.
     """
     base_url = rest_api_base_url(api_url)
     endpoint = f"/orgs/{quote(organization, safe='')}/credential-authorizations"
@@ -139,7 +149,7 @@ def get_saml_credential_authorizations(
                 organization,
                 status,
             )
-            return []
+            return None
         raise
 
 
@@ -189,12 +199,24 @@ def _transform_saml_credential_authorization(
         return None
     owner_login = raw_credential.get("login")
     owner_user_id = _owner_user_url(org_url, None, owner_login)
+    # credential_id identifies one organization's SAML authorization;
+    # authorized_credential_id is the token's own ID and is the same in every
+    # organization that authorized it.
+    authorized_credential_id = raw_credential.get("authorized_credential_id")
+    if authorized_credential_id is not None:
+        token_node_id = (
+            f"{org_url.rsplit('/', 1)[0]}/classic-personal-access-tokens/"
+            f"{authorized_credential_id}"
+        )
+    else:
+        token_node_id = f"{org_url}/credential-authorizations/{credential_id}"
     # GitHub's SAML credential authorization endpoint reports credential_accessed_at
     # (auth events), which is not semantically equivalent to the fine-grained
     # token_last_used_at (API calls). Leave last_used_at unset for classic PATs;
     # credential_accessed_at remains available on its own property.
     return {
-        "id": f"{org_url}/credential-authorizations/{credential_id}",
+        "id": token_node_id,
+        "credential_id": credential_id,
         "token_kind": "classic",
         "token_id": None,
         "token_name": f"{owner_login} (classic PAT)" if owner_login else None,
@@ -218,18 +240,25 @@ def _transform_saml_credential_authorization(
     }
 
 
+class PersonalAccessTokenInventory(NamedTuple):
+    tokens: list[dict[str, Any]]
+    fine_grained_available: bool
+    classic_available: bool
+
+
 @timeit
 def get(
     token: Any,
     api_url: str,
     organization: str,
-) -> list[dict[str, Any]]:
+) -> PersonalAccessTokenInventory:
     org_url = github_org_url(api_url, organization)
     transformed_tokens: list[dict[str, Any]] = []
 
-    for raw_pat in get_fine_grained_personal_access_tokens(
+    fine_grained_tokens = get_fine_grained_personal_access_tokens(
         token, api_url, organization
-    ):
+    )
+    for raw_pat in fine_grained_tokens or []:
         pat_id = raw_pat.get("id")
         if pat_id is None:
             continue
@@ -248,14 +277,19 @@ def get(
         if transformed:
             transformed_tokens.append(transformed)
 
-    for raw_credential in get_saml_credential_authorizations(
+    credential_authorizations = get_saml_credential_authorizations(
         token, api_url, organization
-    ):
+    )
+    for raw_credential in credential_authorizations or []:
         transformed = _transform_saml_credential_authorization(raw_credential, org_url)
         if transformed:
             transformed_tokens.append(transformed)
 
-    return transformed_tokens
+    return PersonalAccessTokenInventory(
+        transformed_tokens,
+        fine_grained_available=fine_grained_tokens is not None,
+        classic_available=credential_authorizations is not None,
+    )
 
 
 @timeit
@@ -268,9 +302,26 @@ def load_personal_access_tokens(
     load(
         neo4j_session,
         GitHubPersonalAccessTokenSchema(),
-        tokens,
+        [t for t in tokens if t["token_kind"] == "fine_grained"],
         lastupdated=update_tag,
         org_url=org_url,
+    )
+    classic_tokens = [
+        {**t, "org_url": org_url} for t in tokens if t["token_kind"] == "classic"
+    ]
+    load(
+        neo4j_session,
+        GitHubClassicPersonalAccessTokenSchema(),
+        classic_tokens,
+        lastupdated=update_tag,
+    )
+    load_matchlinks(
+        neo4j_session,
+        GitHubOrganizationAuthorizedCredentialMatchLink(),
+        classic_tokens,
+        lastupdated=update_tag,
+        _sub_resource_label="GitHubOrganization",
+        _sub_resource_id=org_url,
     )
 
 
@@ -279,10 +330,50 @@ def cleanup_personal_access_tokens(
     neo4j_session: neo4j.Session,
     org_url: str,
     update_tag: int,
+    fine_grained_available: bool = True,
+    classic_available: bool = True,
 ) -> None:
-    GraphJob.from_node_schema(
-        GitHubPersonalAccessTokenSchema(),
-        {"UPDATE_TAG": update_tag, "org_url": org_url},
+    # An inventory GitHub refused to return is unknown, not empty, so its
+    # previously synced tokens are kept.
+    if fine_grained_available:
+        GraphJob.from_node_schema(
+            GitHubPersonalAccessTokenSchema(),
+            {"UPDATE_TAG": update_tag, "org_url": org_url},
+        ).run(neo4j_session)
+    if classic_available:
+        GraphJob.from_matchlink(
+            GitHubOrganizationAuthorizedCredentialMatchLink(),
+            "GitHubOrganization",
+            org_url,
+            update_tag,
+        ).run(neo4j_session)
+
+
+@timeit
+def cleanup_orphaned_classic_personal_access_tokens(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Delete classic tokens that no organization authorizes any more.
+
+    A classic token is shared by every organization that authorized it, so this
+    runs once after all organizations have synced, not inside one organization's
+    sync. A token refreshed in this run is kept even before its authorization edge
+    is loaded, so organizations synced in parallel cannot delete each other's.
+    """
+    GraphStatement(
+        """
+        MATCH (t:GitHubClassicPersonalAccessToken)
+        WHERE NOT (t)<-[:AUTHORIZED_CREDENTIAL]-(:GitHubOrganization)
+            AND t.lastupdated <> $UPDATE_TAG
+        WITH t LIMIT $LIMIT_SIZE
+        DETACH DELETE t;
+        """,
+        {"UPDATE_TAG": common_job_parameters["UPDATE_TAG"]},
+        iterative=True,
+        iterationsize=100,
+        parent_job_name="GitHubClassicPersonalAccessToken",
     ).run(neo4j_session)
 
 
@@ -295,10 +386,10 @@ def sync(
     organization: str,
 ) -> None:
     org_url = github_org_url(api_url, organization)
-    tokens = get(token, api_url, organization)
+    inventory = get(token, api_url, organization)
     load_personal_access_tokens(
         neo4j_session,
-        tokens,
+        inventory.tokens,
         org_url,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -306,4 +397,6 @@ def sync(
         neo4j_session,
         org_url,
         common_job_parameters["UPDATE_TAG"],
+        fine_grained_available=inventory.fine_grained_available,
+        classic_available=inventory.classic_available,
     )

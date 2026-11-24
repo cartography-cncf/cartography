@@ -331,6 +331,19 @@ class Config:
     :param gitlab_organization_id: GitLab organization (top-level group) ID to sync. Optional.
     :type gitlab_commits_since_days: int
     :param gitlab_commits_since_days: Number of days of commit history to fetch. Defaults to 90.
+    :type bitbucket_workspaces: str
+    :param bitbucket_workspaces: Comma-separated Bitbucket workspace slugs to sync. Required for the
+        bitbucket module to run - Bitbucket has no endpoint to discover workspaces by credential alone.
+    :type bitbucket_auth_method: str
+    :param bitbucket_auth_method: Either "token" or "oauth". Defaults to "token".
+    :type bitbucket_token: str
+    :param bitbucket_token: Bitbucket API token or Access token for API authentication. Optional.
+    :type bitbucket_oauth_client_id: str
+    :param bitbucket_oauth_client_id: Bitbucket OAuth consumer key. Optional.
+    :type bitbucket_oauth_client_secret: str
+    :param bitbucket_oauth_client_secret: Bitbucket OAuth consumer secret. Optional.
+    :type bitbucket_oauth_refresh_token: str
+    :param bitbucket_oauth_refresh_token: Bitbucket OAuth refresh token obtained out-of-band. Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
@@ -348,7 +361,7 @@ class Config:
     :type tailscale_token: str
     :param tailscale_token: Tailscale API token. Optional.
     :type tailscale_org: str
-    :param tailscale_org: Tailscale organization name. Optional.
+    :param tailscale_org: Tailnet ID, or the legacy ID of a tailnet created before Oct 2025. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
     :type tailscale_oauth_client_id: str
@@ -408,6 +421,16 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type anthropic_identity_token_file: string
+    :param anthropic_identity_token_file: Path to an OIDC token file for Anthropic workload identity federation. Optional.
+    :type anthropic_federation_rule_id: string
+    :param anthropic_federation_rule_id: Anthropic federation rule ID (fdrl_...). Optional.
+    :type anthropic_organization_id: string
+    :param anthropic_organization_id: Anthropic organization UUID used for workload identity federation. Optional.
+    :type anthropic_service_account_id: string
+    :param anthropic_service_account_id: Anthropic service account ID (svac_...). Optional.
+    :type anthropic_workspace_id: string
+    :param anthropic_workspace_id: Anthropic workspace ID, needed when the federation rule covers several workspaces. Optional.
     :type socketdev_token: str
     :param socketdev_token: Socket.dev API token. Optional.
     :type airbyte_client_id: str
@@ -424,6 +447,15 @@ class Config:
     :param langsmith_host_api_url: LangGraph Platform (api-host) base URL. Optional.
     :type langsmith_org_id: str
     :param langsmith_org_id: Restrict the LangSmith sync to a single organization UUID. Optional.
+    :type neon_api_key: str
+    :param neon_api_key: Neon API key, either personal or organization-scoped.
+        Optional.
+    :type neon_org_ids: str
+    :param neon_org_ids: Comma-separated list of Neon organization IDs to sync.
+        Required with an organization API key. When unset, every organization the
+        key's user belongs to is synced. Optional.
+    :type neon_base_url: str
+    :param neon_base_url: Neon API base URL. Optional.
     :type databricks_workspace_url: str
     :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
     :type databricks_token: str
@@ -505,6 +537,10 @@ class Config:
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     :type sentinelone_site_ids: list[str]
     :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
+    :type sentra_api_key: str
+    :param sentra_api_key: Sentra API key. Optional.
+    :type sentra_api_url: str
+    :param sentra_api_url: Sentra API base URL. Optional.
     :type wiz_graphql_url: str
     :param wiz_graphql_url: Wiz GraphQL API endpoint. Optional.
     :type wiz_auth_url: str
@@ -592,6 +628,20 @@ class Config:
     :param zizmor_source: Report source locator for the Zizmor repository mapping file.
         Accepts a local file, s3://bucket/key, gs://bucket/object, or
         azblob://account/container/blob. Optional.
+    :type onepassword_source: str
+    :param onepassword_source: Report source locator for 1Password collector snapshots.
+        Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or
+        azblob://account/container/prefix. Optional.
+    :type sweet_api_key: str
+    :param sweet_api_key: Sweet Security API key. Optional.
+    :type sweet_api_secret: str
+    :param sweet_api_secret: Secret paired with the Sweet Security API key. Optional.
+    :type sweet_tenant_id: str
+    :param sweet_tenant_id: Stable identifier for the Sweet Security tenant, used as the
+        SweetTenant node ID. Optional.
+    :type sweet_api_url: str
+    :param sweet_api_url: Sweet Security API origin. Defaults to
+        https://eapi.sweet.security. Optional.
     :type zoom_account_id: str
     :param zoom_account_id: Zoom account ID for server-to-server OAuth. Optional.
     :type zoom_client_id: str
@@ -884,6 +934,27 @@ class Config:
         langsmith_api_url: str | None = None,
         langsmith_host_api_url: str | None = None,
         langsmith_org_id: str | None = None,
+        anthropic_identity_token_file: str | None = None,
+        anthropic_federation_rule_id: str | None = None,
+        anthropic_organization_id: str | None = None,
+        anthropic_service_account_id: str | None = None,
+        anthropic_workspace_id: str | None = None,
+        onepassword_source: str | None = None,
+        sentra_api_key: str | None = None,
+        sentra_api_url: str | None = None,
+        sweet_api_key: str | None = None,
+        sweet_api_secret: str | None = None,
+        sweet_tenant_id: str | None = None,
+        sweet_api_url: str | None = None,
+        bitbucket_workspaces: str | None = None,
+        bitbucket_auth_method: str | None = None,
+        bitbucket_token: str | None = None,
+        bitbucket_oauth_client_id: str | None = None,
+        bitbucket_oauth_client_secret: str | None = None,
+        bitbucket_oauth_refresh_token: str | None = None,
+        neon_api_key: str | None = None,
+        neon_org_ids: str | None = None,
+        neon_base_url: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1040,6 +1111,12 @@ class Config:
         self.gitlab_token = gitlab_token
         self.gitlab_organization_id = gitlab_organization_id
         self.gitlab_commits_since_days = gitlab_commits_since_days
+        self.bitbucket_workspaces = bitbucket_workspaces
+        self.bitbucket_auth_method = bitbucket_auth_method
+        self.bitbucket_token = bitbucket_token
+        self.bitbucket_oauth_client_id = bitbucket_oauth_client_id
+        self.bitbucket_oauth_client_secret = bitbucket_oauth_client_secret
+        self.bitbucket_oauth_refresh_token = bitbucket_oauth_refresh_token
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.semgrep_oss_source = semgrep_oss_source
@@ -1074,6 +1151,11 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.anthropic_identity_token_file = anthropic_identity_token_file
+        self.anthropic_federation_rule_id = anthropic_federation_rule_id
+        self.anthropic_organization_id = anthropic_organization_id
+        self.anthropic_service_account_id = anthropic_service_account_id
+        self.anthropic_workspace_id = anthropic_workspace_id
         self.subimage_client_id = subimage_client_id
         self.subimage_client_secret = subimage_client_secret
         self.subimage_tenant_url = subimage_tenant_url
@@ -1085,6 +1167,9 @@ class Config:
         self.langsmith_api_url = langsmith_api_url
         self.langsmith_host_api_url = langsmith_host_api_url
         self.langsmith_org_id = langsmith_org_id
+        self.neon_api_key = neon_api_key
+        self.neon_org_ids = neon_org_ids
+        self.neon_base_url = neon_base_url
         self.databricks_workspace_url = databricks_workspace_url
         self.databricks_token = databricks_token
         self.databricks_client_id = databricks_client_id
@@ -1137,6 +1222,8 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.sentra_api_key = sentra_api_key
+        self.sentra_api_url = sentra_api_url
         self.wiz_graphql_url = wiz_graphql_url
         self.wiz_auth_url = wiz_auth_url
         self.wiz_client_id = wiz_client_id
@@ -1196,6 +1283,11 @@ class Config:
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix
         self.zizmor_source = zizmor_source
+        self.onepassword_source = onepassword_source
+        self.sweet_api_key = sweet_api_key
+        self.sweet_api_secret = sweet_api_secret
+        self.sweet_tenant_id = sweet_tenant_id
+        self.sweet_api_url = sweet_api_url
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.zoom_account_id = zoom_account_id

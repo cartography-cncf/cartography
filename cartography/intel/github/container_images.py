@@ -20,12 +20,21 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.container_image_layers import build_next_layer_rows
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
 from cartography.intel.container_image_layers import get_complete_layer_digests
 from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.github.packages import get_package_versions
 from cartography.intel.github.util import fetch_ghcr_blob
 from cartography.intel.github.util import fetch_ghcr_manifest
+from cartography.intel.supply_chain import image_config_label_provenance
+from cartography.intel.supply_chain import LABEL_PROVENANCE_VERSION
+from cartography.models.github.container_image_layers import (
+    GitHubContainerImageLayerNextRelSchema,
+)
+from cartography.models.github.container_image_layers import (
+    GitHubContainerImageLayerNodeSchema,
+)
 from cartography.models.github.container_image_layers import (
     GitHubContainerImageLayerSchema,
 )
@@ -37,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 CONTAINER_IMAGE_BATCH_SIZE = 500
 CONTAINER_IMAGE_LAYER_BATCH_SIZE = 200
+CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE = 1000
 
 MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.list.v2+json",
@@ -303,6 +313,7 @@ def transform_container_images(
                 "head_layer_diff_id": head_layer_diff_id,
                 "tail_layer_diff_id": tail_layer_diff_id,
                 "package_id": manifest.get("_package_id"),
+                **({} if is_manifest_list else image_config_label_provenance(config)),
             },
         )
     return transformed
@@ -414,11 +425,18 @@ def load_container_image_layers(
 ) -> None:
     load(
         neo4j_session,
-        GitHubContainerImageLayerSchema(),
+        GitHubContainerImageLayerNodeSchema(),
         layers,
         batch_size=CONTAINER_IMAGE_LAYER_BATCH_SIZE,
         lastupdated=update_tag,
         org_url=org_url,
+    )
+    load(
+        neo4j_session,
+        GitHubContainerImageLayerNextRelSchema(),
+        build_next_layer_rows(layers),
+        batch_size=CONTAINER_IMAGE_LAYER_REL_BATCH_SIZE,
+        lastupdated=update_tag,
     )
 
 
@@ -492,6 +510,7 @@ def sync_container_images(
         GHCR_LAYER_GRAPH,
         None,
         {"id": org_url},
+        min_label_provenance_version=LABEL_PROVENANCE_VERSION,
     )
     if skip_digests:
         logger.info(

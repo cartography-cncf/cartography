@@ -1,13 +1,18 @@
 import asyncio
 import json
 import logging
+from dataclasses import asdict
+from dataclasses import dataclass
+from typing import Any
 
 import httpx
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -20,11 +25,21 @@ from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageContainsImageMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageManifestChildNodeProperties,
+)
+from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageManifestChildSchema,
 )
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PlatformImageChanges:
+    to_write: list[dict]
+    unchanged_digests: list[str]
+    gone_links: list[dict[str, str]]
 
 
 def parse_docker_image_uri(uri: str) -> tuple[str, str, str] | None:
@@ -282,6 +297,185 @@ def load_manifests(
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
+
+
+# Every platform image property load_manifests writes besides the id, as
+# (node property, transformed field). Read from the schema so that a property
+# added there is compared too.
+_PLATFORM_IMAGE_FIELDS = sorted(
+    (node_property, ref.name)
+    for node_property, ref in asdict(
+        GCPArtifactRegistryImageManifestChildNodeProperties()
+    ).items()
+    if node_property != "id" and not ref.set_in_kwargs and not ref.set_by_analysis
+)
+_PLATFORM_IMAGE_LABELS = GCPArtifactRegistryImageManifestChildSchema().extra_node_labels
+
+# Only this project's links. A manifest list has one CONTAINS_IMAGE link per
+# platform image however many projects list it, scoped to the project that wrote
+# it last. A link another project wrote last is written again, as before.
+_SAVED_PLATFORM_IMAGES_QUERY = """
+MATCH (parent:GCPArtifactRegistryImage)-[r:CONTAINS_IMAGE]->
+      (child:GCPArtifactRegistryImage)
+WHERE r._sub_resource_label = 'GCPProject' AND r._sub_resource_id = $project_id
+RETURN
+    parent.digest AS parent_digest,
+    child.digest AS child_digest,
+    [node_property IN $node_properties | child[node_property]] AS saved,
+    labels(child) AS labels
+"""
+
+PLATFORM_IMAGE_REFRESH_BATCH_SIZE = 10_000
+
+
+def _has_loaded_labels(labels: list[str], properties: dict[str, Any]) -> bool:
+    """Whether a platform image has exactly the extra labels load_manifests gives it."""
+    for label in {extra.label for extra in _PLATFORM_IMAGE_LABELS.labels}:
+        wanted = any(
+            all(properties.get(name) == value for name, value in extra.conditions)
+            for extra in _PLATFORM_IMAGE_LABELS.labels
+            if extra.label == label
+        )
+        if wanted != (label in labels):
+            return False
+    return True
+
+
+@timeit
+def get_platform_image_changes(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+) -> PlatformImageChanges:
+    """
+    Compares the project's listed platform images with the ones its graph holds.
+
+    A platform image is unchanged when its manifest list links to it for this
+    project and every property and label load_manifests writes already matches.
+    """
+    listed = {(row["parent_digest"], row["child_digest"]): row for row in data}
+    node_properties = [node_property for node_property, _ in _PLATFORM_IMAGE_FIELDS]
+    fields = [field for _, field in _PLATFORM_IMAGE_FIELDS]
+
+    def _read_changes(
+        tx: neo4j.Transaction,
+    ) -> tuple[set[tuple[str, str]], list[dict[str, str]]]:
+        unchanged: set[tuple[str, str]] = set()
+        gone_links: list[dict[str, str]] = []
+        result = tx.run(
+            _SAVED_PLATFORM_IMAGES_QUERY,
+            project_id=project_id,
+            node_properties=node_properties,
+        )
+        for record in result:
+            link = (record["parent_digest"], record["child_digest"])
+            row = listed.get(link)
+            if row is None:
+                gone_links.append(
+                    {"parent_digest": link[0], "child_digest": link[1]},
+                )
+            elif record["saved"] == [
+                row.get(field) for field in fields
+            ] and _has_loaded_labels(
+                record["labels"], dict(zip(node_properties, record["saved"]))
+            ):
+                unchanged.add(link)
+        return unchanged, gone_links
+
+    unchanged, gone_links = neo4j_session.execute_read(_read_changes)
+    to_write = [row for link, row in listed.items() if link not in unchanged]
+    rewritten_digests = {row["child_digest"] for row in to_write}
+    return PlatformImageChanges(
+        to_write=to_write,
+        unchanged_digests=sorted(
+            {child for _, child in unchanged} - rewritten_digests,
+        ),
+        gone_links=gone_links,
+    )
+
+
+@timeit
+def refresh_platform_images(
+    neo4j_session: neo4j.Session,
+    digests: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Marks unchanged platform images as seen by this sync without writing them
+    again. Their CONTAINS_IMAGE links keep the update tag of the sync that wrote
+    them: cleanup is a set difference, so nothing reads it (see sync_manifests).
+    """
+    for digest_batch in batch(digests, size=PLATFORM_IMAGE_REFRESH_BATCH_SIZE):
+        run_write_query(
+            neo4j_session,
+            """
+            UNWIND $digests AS digest
+            MATCH (child:GCPArtifactRegistryImage {digest: digest})
+            SET child.lastupdated = $update_tag
+            """,
+            digests=digest_batch,
+            update_tag=update_tag,
+        )
+
+
+@timeit
+def delete_platform_image_links(
+    neo4j_session: neo4j.Session,
+    links: list[dict[str, str]],
+    project_id: str,
+) -> None:
+    """
+    Deletes the project's CONTAINS_IMAGE links that the listing no longer has.
+    """
+    for link_batch in batch(links, size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE):
+        run_write_query(
+            neo4j_session,
+            """
+            UNWIND $links AS link
+            MATCH (:GCPArtifactRegistryImage {digest: link.parent_digest})
+                  -[r:CONTAINS_IMAGE]->
+                  (:GCPArtifactRegistryImage {digest: link.child_digest})
+            WHERE r._sub_resource_label = 'GCPProject'
+              AND r._sub_resource_id = $project_id
+            DELETE r
+            """,
+            links=link_batch,
+            project_id=project_id,
+        )
+
+
+@timeit
+def sync_manifests(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+    update_tag: int,
+    cleanup_safe: bool,
+) -> None:
+    """
+    Writes the project's platform images, rewriting only those that changed.
+
+    A manifest list's platform images are fixed by its digest, so from one sync to
+    the next almost none change. As with tags (see artifact.sync_docker_images),
+    each listed manifest list and platform image pair is compared with the graph
+    first. New and changed pairs go through load_manifests; unchanged platform
+    images only get their lastupdated refreshed. Cleanup is a set difference: a
+    link the listing no longer has is deleted. A platform image left with no
+    link is then deleted by gcp_artifact_registry_orphan_cleanup.json.
+    """
+    changes = get_platform_image_changes(neo4j_session, data, project_id)
+    logger.info(
+        "Artifact Registry platform images for project %s: %d to write, "
+        "%d unchanged, %d links gone.",
+        project_id,
+        len(changes.to_write),
+        len(changes.unchanged_digests),
+        len(changes.gone_links),
+    )
+    load_manifests(neo4j_session, changes.to_write, project_id, update_tag)
+    refresh_platform_images(neo4j_session, changes.unchanged_digests, update_tag)
+    if cleanup_safe:
+        delete_platform_image_links(neo4j_session, changes.gone_links, project_id)
 
 
 @timeit

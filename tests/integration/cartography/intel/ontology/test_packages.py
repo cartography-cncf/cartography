@@ -50,6 +50,18 @@ def _setup_trivy_graph(neo4j_session):
     )
 
 
+def _setup_orca_graph(neo4j_session):
+    """Create an OrcaPackage with a finding so AFFECTS can propagate to the PackageVersion."""
+    neo4j_session.run(
+        """
+        MERGE (p:OrcaPackage {id: 'orca-package-1'})
+        SET p.normalized_id = 'pypi|django|4.2.0'
+        MERGE (f:OrcaVulnerabilityFinding {id: 'orca-finding-1'})
+        MERGE (f)-[:AFFECTS]->(p)
+        """,
+    )
+
+
 def _setup_gitlab_graph(neo4j_session):
     """Create a GitLabDependency node so the Package ontology link can resolve."""
     neo4j_session.run(
@@ -137,6 +149,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     _setup_syft_graph(neo4j_session)
     _setup_gitlab_graph(neo4j_session)
     _setup_github_graph(neo4j_session)
+    _setup_orca_graph(neo4j_session)
 
     # Act
     cartography.intel.ontology.packages.sync(
@@ -269,6 +282,16 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_affects == expected_affects
+
+    assert check_rels(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        "id",
+        "PackageVersion",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("orca-finding-1", "pypi|django|4.2.0")}
 
     # Assert - Check SHOULD_UPDATE_TO propagated from TrivyPackage to Package -> TrivyFix
     expected_should_update_to = {

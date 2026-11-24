@@ -74,9 +74,17 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
         "source_revision",
         description="Source revision extracted from image provenance.",
     )
+    source_path_uri: PropertyRef = PropertyRef(
+        "source_path_uri",
+        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself. Cleared when an attestation supplies the source, because the label may name another repository.",
+    )
     source_file: PropertyRef = PropertyRef(
         "source_file",
         description="Source definition file extracted from image provenance.",
+    )
+    label_provenance_version: PropertyRef = PropertyRef(
+        "label_provenance_version",
+        description="Version of the image-config label provenance extraction last applied to this image. Images below the current version have their config re-read once.",
     )
     parent_image_uri: PropertyRef = PropertyRef(
         "parent_image_uri",
@@ -307,6 +315,11 @@ class GitLabContainerImageProvenanceNodeProperties(CartographyNodeProperties):
         "source_revision",
         description="Source revision extracted from image provenance.",
     )
+    # Attestation rows never carry this key, so loading them clears the property.
+    source_path_uri: PropertyRef = PropertyRef(
+        "source_path_uri",
+        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself. Cleared when an attestation supplies the source, because the label may name another repository.",
+    )
     source_file: PropertyRef = PropertyRef(
         "source_file",
         description="Source definition file extracted from image provenance.",
@@ -329,6 +342,43 @@ class GitLabContainerImageProvenanceSchema(CartographyNodeSchema):
     label: str = "GitLabContainerImage"
     properties: GitLabContainerImageProvenanceNodeProperties = (
         GitLabContainerImageProvenanceNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitLabContainerImageToParentImageRel(),
+        ],
+    )
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageParentProvenanceNodeProperties(CartographyNodeProperties):
+    """
+    Parent-image provenance for an attestation that names no source, so the image's
+    label-derived source fields are left in place.
+    """
+
+    id: PropertyRef = PropertyRef(
+        "digest",
+        description="Content-addressable container image digest.",
+    )
+    parent_image_uri: PropertyRef = PropertyRef(
+        "parent_image_uri",
+        description="Parent image reference extracted from image provenance.",
+    )
+    parent_image_digest: PropertyRef = PropertyRef(
+        "parent_image_digest",
+        description="Parent image digest extracted from image provenance.",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageParentProvenanceSchema(CartographyNodeSchema):
+    """Parent-image provenance attached to an image already present in the graph."""
+
+    label: str = "GitLabContainerImage"
+    properties: GitLabContainerImageParentProvenanceNodeProperties = (
+        GitLabContainerImageParentProvenanceNodeProperties()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -2,10 +2,10 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.socketdev.util import _create_session
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.socketdev.dependency import SocketDevDependencySchema
 from cartography.util import timeit
@@ -25,29 +25,25 @@ def get(api_token: str) -> list[dict[str, Any]]:
     all_deps: list[dict[str, Any]] = []
     offset = 0
 
-    while True:
-        response = requests.post(
-            f"{_BASE_URL}/dependencies/search",
-            headers={
-                "Authorization": f"Bearer {api_token}",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            json={
-                "limit": _PAGE_SIZE,
-                "offset": offset,
-            },
-            timeout=_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
+    with _create_session(api_token) as api_session:
+        while True:
+            response = api_session.post(
+                f"{_BASE_URL}/dependencies/search",
+                json={
+                    "limit": _PAGE_SIZE,
+                    "offset": offset,
+                },
+                timeout=_TIMEOUT,
+            )
+            response.raise_for_status()
+            data = response.json()
 
-        rows = data.get("rows", [])
-        all_deps.extend(rows)
+            rows = data.get("rows", [])
+            all_deps.extend(rows)
 
-        if data.get("end", True) or not rows:
-            break
-        offset += len(rows)
+            if data.get("end", True) or not rows:
+                break
+            offset += len(rows)
 
     logger.debug("Fetched %d Socket.dev dependencies", len(all_deps))
     return all_deps

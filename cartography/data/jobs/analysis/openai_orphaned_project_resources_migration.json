@@ -1,0 +1,17 @@
+{
+  "name": "OpenAI orphaned project resources migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions removed an OpenAIProject that the API stopped returning without removing its API keys, and the per-project key cleanup never ran for that project again. Those OpenAIApiKey nodes carry no incoming RESOURCE edge from a project, so no scoped cleanup can reach them. Project cleanup now cascades to its children, so new orphans cannot appear; this sweeps the existing ones. Only nodes that the current sync did not write are swept, so a key loaded in this run is never a candidate. Idempotent. Remove in v1.0.0.",
+      "query": "MATCH (k:OpenAIApiKey) WHERE k.lastupdated <> $UPDATE_TAG AND NOT (k)<-[:RESOURCE]-(:OpenAIProject) WITH k LIMIT $LIMIT_SIZE DETACH DELETE k RETURN count(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: same migration for OpenAIServiceAccount nodes, which are scoped to a project the same way. Idempotent. Remove in v1.0.0.",
+      "query": "MATCH (sa:OpenAIServiceAccount) WHERE sa.lastupdated <> $UPDATE_TAG AND NOT (sa)<-[:RESOURCE]-(:OpenAIProject) WITH sa LIMIT $LIMIT_SIZE DETACH DELETE sa RETURN count(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

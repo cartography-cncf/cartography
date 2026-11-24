@@ -87,9 +87,10 @@ data while continuing ingestion.
 | Repository variables | Repository **Variables: Read** | Included in `repo` |
 | Organization secret metadata | Organization **Secrets: Read** | Included in `read:org` |
 | Organization variables | Organization **Variables: Read** | Included in `read:org` |
-| GHCR packages, image manifests, layers, tags, and SLSA attestations | GitHub App permissions; fine-grained PATs cannot access GitHub Packages | `read:packages` |
+| GHCR packages, image manifests, layers, and tags | Not available: GitHub Packages and `ghcr.io` refuse App installation tokens and fine-grained PATs, so GHCR is skipped for such organizations | `read:packages` |
+| SLSA attestations | Repository **Attestations: Read** | Included in `repo` |
 | Fine-grained PAT inventory | GitHub App with organization **Personal access tokens: Read**; PAT authentication is not supported | Not available |
-| Classic PAT inventory | Not available | SAML SSO credential authorizations on SAML-enabled organizations, organization owner access, and `read:org` |
+| Classic PAT inventory | SAML SSO credential authorizations on SAML-enabled organizations; a GitHub App installation token needs organization **Administration: Read** | SAML SSO credential authorizations on SAML-enabled organizations, organization owner access, and `read:org` |
 | Two-factor authentication status | Organization owner access | Organization owner access |
 | Organization settings: base repository permission, repository creation and forking restrictions, 2FA requirement, and legacy security defaults for new repositories | Organization owner access | Organization owner access and `admin:org` |
 | Verified and approved domains, IP allow list status, and email notification restriction | Organization owner access with organization **Administration: Read** | Organization owner access and `admin:org` |
@@ -163,8 +164,9 @@ single canonical user across the account's organization identities, and skips
 accounts whose public or organization verified-domain emails identify a different
 canonical user, even when no email-based account link exists. A personal email
 or alias without a competing canonical owner does not contradict the SAML link. These
-emails are normalized during ingestion into `GitHubUser.normalized_emails`;
-raw email properties are preserved. Existing GitHub users need a GitHub resync
+emails are normalized during ingestion and combined across the user's synced
+organizations into `GitHubUser.normalized_emails`; raw email properties are
+preserved. Existing GitHub users need a GitHub resync
 before SAML linking uses this conflict check. The GitHub and ontology syncs use
 the same Python normalization for
 `GitHubExternalIdentity.saml_name_id_normalized` and the indexed
@@ -288,6 +290,9 @@ them against the graph with `cartography-rules run <rule>`:
 | `github_actions_permissive_policy` | With Actions enabled: any action allowed, a write `GITHUB_TOKEN` by default, workflows that can approve pull requests | Actions policy |
 | `github_app_sensitive_permissions` | Active GitHub Apps with write access to code, workflows, secrets, webhooks, runners, members, or administration | Installed GitHub Apps |
 | `github_webhook_insecure_delivery` | Active webhooks without a signing secret, without TLS certificate verification, or over plain HTTP | Organization and repository webhooks |
+| `github_default_branch_protection` | Default branches with no branch protection rule or active ruleset, no required approving review, force pushes allowed, or, where no active ruleset covers the default branch, classic protection that does not apply to administrators | Branch protection rules and rulesets |
+| `github_codeowners_coverage` | Repositories without CODEOWNERS rules, or whose default branch does not require code owner review | CODEOWNERS files, branch protection rules and rulesets |
+| `github_personal_access_token_hygiene` | Unexpired classic PATs with organization access, and PATs without an expiration date | Personal access token inventory |
 
 Unknown values are skipped, so a check that evaluated no assets had nothing to
 test, which does not mean the organization is secure. Grant the matching
@@ -299,8 +304,8 @@ optional permissions above for full coverage. See
 | Issue | Solution |
 |-------|----------|
 | `FORBIDDEN` warnings for collaborators or branch protection rules | Ensure a fine-grained PAT includes repository **Administration: Read** and the token owner has organization owner or repository administrator rights. |
-| `403 Forbidden` for `/orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires `read:packages` on a classic PAT or a GitHub App. Fine-grained PATs cannot access GitHub Packages. |
-| No `GitHubPersonalAccessToken` nodes | Fine-grained PAT inventory requires GitHub App authentication with **Personal access tokens: Read**. Classic PAT metadata is limited to SAML SSO credential authorizations on SAML-enabled organizations. |
+| `403 Forbidden` or `400 Bad Request` for `/orgs/{org}/packages` and no `GitHubPackage` nodes | GHCR ingestion requires a classic PAT with `read:packages`. Fine-grained PATs (403) and GitHub App installation tokens (400) cannot access GitHub Packages. Use a classic PAT for that organization, or run `cartography.intel.github.sync_ghcr()` with one. |
+| No `GitHubPersonalAccessToken` nodes | Fine-grained PAT inventory requires GitHub App authentication with **Personal access tokens: Read**. Classic PAT metadata is limited to SAML SSO credential authorizations on SAML-enabled organizations, and needs organization **Administration: Read** for a GitHub App or organization owner access with `read:org` for a classic PAT. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled. |
 | Missing two-factor authentication status | This status is visible only to organization owners. |
 | Null organization settings, such as `default_repository_permission` or `actions_allowed_actions` | These settings are visible only to organization owners. Classic PATs also need `admin:org`. |

@@ -1,5 +1,8 @@
+import json
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 import requests
 
 import cartography.intel.supabase.network
@@ -199,10 +202,13 @@ def test_load_supabase_custom_hostname(mock_get, mock_get_hostname, neo4j_sessio
     ) == {(f"{TEST_PROJECT_REF}/api.simpson.corp", TEST_PROJECT_REF)}
 
 
-@patch.object(
-    cartography.intel.supabase.network,
-    "get_custom_hostname",
-    return_value=tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME_UNSET,
+@pytest.mark.parametrize(
+    ("status_code", "body"),
+    [
+        (200, tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME_UNSET),
+        (400, tests.data.supabase.network.SUPABASE_CUSTOM_HOSTNAME_NOT_FOUND),
+    ],
+    ids=["empty-config", "no-config-400"],
 )
 @patch.object(
     cartography.intel.supabase.network,
@@ -211,14 +217,21 @@ def test_load_supabase_custom_hostname(mock_get, mock_get_hostname, neo4j_sessio
 )
 def test_supabase_custom_hostname_not_configured(
     mock_get,
-    mock_get_hostname,
+    status_code,
+    body,
     neo4j_session,
 ):
     """
-    Ensure a 200 response with an empty custom hostname config produces no node.
+    Ensure a project without a custom hostname produces no node, whether the API
+    answers 200 with an empty config or 400 with "No custom hostname configuration
+    found." on a plan that includes custom domains.
     """
     # Arrange
-    api_session = requests.Session()
+    response = requests.Response()
+    response.status_code = status_code
+    response._content = json.dumps(body).encode()
+    api_session = MagicMock(spec=requests.Session)
+    api_session.get.return_value = response
     _arrange(neo4j_session)
 
     # Act

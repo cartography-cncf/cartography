@@ -68,6 +68,51 @@ providers' records of the same CVE, including the NVD data from the
 `TenableCve.id` is `TNB|<tenant id>|<CVE ID>`, for example
 `TNB|cloud.tenable.com|CVE-2026-12345`. Match on `cve_id` for the bare identifier.
 
+## Web App Scanning
+
+When the API key can export Web App Scanning (WAS) data, the module also syncs the
+findings of web application scans from the
+[WAS findings export](https://developer.tenable.com/reference/was-export-findings).
+WAS has its own export API, separate from vulnerability management, so its findings are
+separate nodes:
+
+    (:TenableTenant)-[:RESOURCE]->(:TenableWASFinding)-[:DETECTED_BY]->(:TenableWASPlugin)
+    (:TenableWASFinding)-[:AFFECTS]->(:TenableAsset)
+    (:TenableWASPlugin)-[:HAS_CVE]->(:TenableCve:CVE)
+
+A CVE named by both a vulnerability management plugin and a WAS plugin is one
+`TenableCve` node.
+
+`TenableWASFinding.asset_fqdn` holds the scanned application's lowercase FQDN, so
+findings can be grouped by application without a join. To list unresolved critical and
+high findings per application:
+
+    MATCH (f:TenableWASFinding)
+    WHERE f.state IN ['OPEN', 'REOPENED'] AND f.severity IN ['CRITICAL', 'HIGH']
+    RETURN f.asset_fqdn AS application, f.severity, count(f) AS findings
+    ORDER BY application
+
+The export includes findings of assets that have no WAS license (`include_unlicensed`),
+so they are not deleted when a license lapses. Such assets are not rescanned, so check a
+finding's `last_found` before trusting its `state`.
+
+The `AFFECTS` edge exists only when the WAS asset UUID is also the ID of a
+`TenableAsset` that the asset sync loaded. Tenable's asset export returns only `host`
+assets by default, so the asset sync asks for `host` and `webapp` assets; the `webapp`
+ones are the targets of web application scans. Findings whose asset is not in the asset
+sync still load, without the edge, and remain reachable through `asset_fqdn`.
+
+The WAS sync runs last, after the vulnerability data is loaded and recorded as synced.
+If the key lacks WAS permission (HTTP 403) the sync is skipped with a warning. Any other
+failure, including a finding that lacks its ID, asset UUID or plugin ID, fails the sync
+like it would elsewhere in the module. Neither case deletes WAS data from an earlier
+run, because cleanup only runs after a successful load.
+
+`TenableCve` is shared with the vulnerability management sync, whose cleanup runs first.
+Before it runs, the module refreshes the CVEs that WAS plugins still name, so a CVE only
+WAS names is not deleted while WAS is skipped or failing. Like plugins, `TenableWASPlugin`
+IDs are not tenant-qualified.
+
 ## Upgrading from an earlier version
 
 Earlier versions put the `CVE` label on `TenableFinding` and kept each finding's CVE IDs

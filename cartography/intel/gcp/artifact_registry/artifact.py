@@ -1,5 +1,6 @@
 import logging
 from collections import Counter
+from dataclasses import asdict
 from dataclasses import dataclass
 from functools import partial
 from urllib.parse import unquote
@@ -13,7 +14,9 @@ from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from google.cloud.artifactregistry_v1.types import Package
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.gcp.artifact_registry.util import (
     ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
 )
@@ -26,6 +29,7 @@ from cartography.intel.gcp.artifact_registry.util import (
 from cartography.intel.gcp.artifact_registry.util import (
     list_artifact_registry_resources,
 )
+from cartography.intel.gcp.artifact_registry.util import list_request
 from cartography.intel.gcp.artifact_registry.util import load_matchlinks_with_progress
 from cartography.intel.gcp.artifact_registry.util import (
     load_nodes_without_relationships,
@@ -46,6 +50,9 @@ from cartography.models.gcp.artifact_registry.language_package import (
 )
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryProjectToRepositoryImageRel,
+)
+from cartography.models.gcp.artifact_registry.repository_image import (
+    GCPArtifactRegistryRepositoryImageNodeProperties,
 )
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
@@ -79,6 +86,13 @@ class ArtifactRegistryArtifactSyncResult:
     cleanup_safe: bool
 
 
+@dataclass(frozen=True)
+class RepositoryImageChanges:
+    to_write: list[dict]
+    unchanged_ids: list[str]
+    gone_ids: list[str]
+
+
 def _extract_package_name(package: Package) -> str:
     package_data = proto_message_to_dict(package)
     raw_name = package_data.get("displayName") or package_data.get("name", "")
@@ -91,13 +105,17 @@ def _list_package_versions(
 ) -> list[dict]:
     artifacts: list[dict] = []
     packages = list_artifact_registry_resources(
-        lambda **kwargs: client.list_packages(parent=repository_name, **kwargs)
+        lambda **kwargs: client.list_packages(
+            request=list_request(repository_name), **kwargs
+        )
     )
     for package in packages:
         package_name = _extract_package_name(package)
         try:
             versions = list_artifact_registry_resources(
-                lambda **kwargs: client.list_versions(parent=package.name, **kwargs)
+                lambda **kwargs: client.list_versions(
+                    request=list_request(package.name), **kwargs
+                )
             )
         except NotFound:
             logger.debug(
@@ -131,7 +149,7 @@ def get_docker_images(
             proto_message_to_dict(image)
             for image in list_artifact_registry_resources(
                 lambda **kwargs: client.list_docker_images(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
@@ -169,7 +187,7 @@ def get_maven_artifacts(
             proto_message_to_dict(artifact)
             for artifact in list_artifact_registry_resources(
                 lambda **kwargs: client.list_maven_artifacts(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
@@ -207,7 +225,7 @@ def get_npm_packages(
             proto_message_to_dict(package)
             for package in list_artifact_registry_resources(
                 lambda **kwargs: client.list_npm_packages(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
@@ -244,7 +262,7 @@ def get_python_packages(
             proto_message_to_dict(package)
             for package in list_artifact_registry_resources(
                 lambda **kwargs: client.list_python_packages(
-                    parent=repository_name, **kwargs
+                    request=list_request(repository_name), **kwargs
                 )
             )
         ]
@@ -353,6 +371,20 @@ def get_yum_artifacts(
         return None
 
 
+def repository_image_refs(image: dict) -> list[tuple[str | None, str]]:
+    """Return (tag, node id) for each repository image node of a DockerImage record.
+
+    A tagged record has one node per tag, keyed by its tagged pull URI. An untagged
+    record has one node keyed by its digest-pinned URI.
+    """
+    digest_uri = image.get("uri", "")
+    base_uri = digest_uri.rsplit("@", 1)[0] if "@" in digest_uri else digest_uri
+    tags = image.get("tags") or []
+    if not tags:
+        return [(None, digest_uri)]
+    return [(tag, f"{base_uri}:{tag}") for tag in tags]
+
+
 def transform_docker_images(
     images_data: list[dict],
     repository_id: str,
@@ -366,12 +398,9 @@ def transform_docker_images(
         name = image.get("name", "")
         digest_uri = image.get("uri", "")
         digest = digest_uri.split("@")[-1] if "@" in digest_uri else None
-        base_uri = digest_uri.rsplit("@", 1)[0] if "@" in digest_uri else digest_uri
         tags = image.get("tags") or []
-        refs = tags or [None]
 
-        for tag in refs:
-            uri = f"{base_uri}:{tag}" if tag else digest_uri
+        for tag, uri in repository_image_refs(image):
             transformed.append(
                 {
                     "id": uri,
@@ -786,43 +815,232 @@ def load_docker_images(
     )
 
 
+# Every node property load_docker_images writes besides the id, as
+# (node property, transformed field). Read from the schema so that a property
+# added there is compared too.
+_REPOSITORY_IMAGE_FIELDS = sorted(
+    (node_property, ref.name)
+    for node_property, ref in asdict(
+        GCPArtifactRegistryRepositoryImageNodeProperties()
+    ).items()
+    if node_property != "id" and not ref.set_in_kwargs and not ref.set_by_analysis
+)
+_REPOSITORY_IMAGE_LABELS = ":".join(
+    [GCPArtifactRegistryRepositoryImageSchema().label]
+    + [
+        label.label
+        for label in GCPArtifactRegistryRepositoryImageSchema().extra_node_labels.labels
+        if not label.conditions
+    ]
+)
+
+# The saved values come back as a list, which the driver decodes faster than a
+# map. A saved tag counts as written only with its labels and exactly the links
+# load_docker_images gives it, so a sync stopped between the node and link
+# loads, or a tag that kept an old digest's IMAGE link, is written again. Links
+# are matched by type, direction and the label of the other end, so an edge some
+# other writer adds to a tag is neither counted nor deleted here.
+_SAVED_REPOSITORY_IMAGES_QUERY = f"""
+MATCH (:GCPProject {{id: $project_id}})-[:RESOURCE]->
+      (ri:GCPArtifactRegistryRepositoryImage)
+RETURN
+    ri.id AS id,
+    [node_property IN $node_properties | ri[node_property]] AS saved,
+    ri:{_REPOSITORY_IMAGE_LABELS}
+    AND COUNT {{ (ri)<-[:RESOURCE]-(:GCPProject) }} = 1
+    AND COUNT {{ (ri)<-[:CONTAINS]-(:GCPArtifactRegistryRepository) }} = 1
+    AND COUNT {{ (ri)<-[:REPO_IMAGE]-(:GCPArtifactRegistryRepository) }} = 1
+    AND EXISTS {{
+        (ri)<-[:CONTAINS]-(:GCPArtifactRegistryRepository {{id: ri.repository_id}})
+    }}
+    AND EXISTS {{
+        (ri)<-[:REPO_IMAGE]-(:GCPArtifactRegistryRepository {{id: ri.repository_id}})
+    }}
+    AND COUNT {{ (ri)-[:IMAGE]->(:GCPArtifactRegistryImage) }}
+        = CASE WHEN ri.digest IS NULL THEN 0 ELSE 1 END
+    AND (
+        ri.digest IS NULL
+        OR EXISTS {{ (ri)-[:IMAGE]->(:GCPArtifactRegistryImage {{digest: ri.digest}}) }}
+    ) AS linked
+"""
+
+REPOSITORY_IMAGE_REFRESH_BATCH_SIZE = 10_000
+
+
 @timeit
-def cleanup_docker_images(
-    neo4j_session: neo4j.Session, common_job_parameters: dict
+def get_repository_image_changes(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+) -> RepositoryImageChanges:
+    """
+    Compares the project's listed tags with the tags its graph already holds.
+
+    A tag is unchanged when every property load_docker_images writes already has
+    the listed value and the tag has its links; the rest are written again.
+    """
+    listed = {row["id"]: row for row in data}
+    node_properties = [node_property for node_property, _ in _REPOSITORY_IMAGE_FIELDS]
+    fields = [field for _, field in _REPOSITORY_IMAGE_FIELDS]
+
+    def _read_changes(tx: neo4j.Transaction) -> tuple[list[str], list[str]]:
+        unchanged_ids: list[str] = []
+        gone_ids: list[str] = []
+        result = tx.run(
+            _SAVED_REPOSITORY_IMAGES_QUERY,
+            project_id=project_id,
+            node_properties=node_properties,
+        )
+        for record in result:
+            row = listed.get(record["id"])
+            if row is None:
+                gone_ids.append(record["id"])
+            elif record["linked"] and record["saved"] == [
+                row.get(field) for field in fields
+            ]:
+                unchanged_ids.append(record["id"])
+        return unchanged_ids, gone_ids
+
+    unchanged_ids, gone_ids = neo4j_session.execute_read(_read_changes)
+    unchanged = set(unchanged_ids)
+    return RepositoryImageChanges(
+        to_write=[row for row_id, row in listed.items() if row_id not in unchanged],
+        unchanged_ids=unchanged_ids,
+        gone_ids=gone_ids,
+    )
+
+
+@timeit
+def refresh_repository_images(
+    neo4j_session: neo4j.Session,
+    ids: list[str],
+    update_tag: int,
 ) -> None:
     """
-    Cleans up stale Docker repository image nodes and relationships.
+    Marks unchanged tags, and the images they point to, as seen by this sync
+    without writing them again.
+
+    Only node lastupdated moves. The links keep the update tag of the sync that
+    wrote them: cleanup is a set difference, so nothing reads it (see
+    sync_docker_images).
     """
-    GraphJob.from_node_schema(
-        GCPArtifactRegistryRepositoryImageSchema(), common_job_parameters
-    ).run(neo4j_session)
-    # The split write path attaches these relationships with MatchLinks, so
-    # clean them explicitly after node cleanup has used the project RESOURCE
-    # edge to scope stale repository-image deletion.
-    GraphJob.from_matchlink(
-        GCPArtifactRegistryProjectToRepositoryImageRel(),
-        "GCPProject",
-        common_job_parameters["PROJECT_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
-    GraphJob.from_matchlink(
-        GCPArtifactRegistryRepositoryToRepositoryImageRel(),
-        "GCPProject",
-        common_job_parameters["PROJECT_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
-    GraphJob.from_matchlink(
-        GCPArtifactRegistryRepositoryToRepositoryImageRepoImageRel(),
-        "GCPProject",
-        common_job_parameters["PROJECT_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
-    GraphJob.from_matchlink(
-        GCPArtifactRegistryRepositoryImageToImageMatchLink(),
-        "GCPProject",
-        common_job_parameters["PROJECT_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
+    for id_batch in batch(ids, size=REPOSITORY_IMAGE_REFRESH_BATCH_SIZE):
+        run_write_query(
+            neo4j_session,
+            """
+            UNWIND $ids AS id
+            MATCH (ri:GCPArtifactRegistryRepositoryImage {id: id})
+            SET ri.lastupdated = $update_tag
+            WITH ri
+            MATCH (ri)-[:IMAGE]->(image:GCPArtifactRegistryImage)
+            WITH DISTINCT image
+            SET image.lastupdated = $update_tag
+            """,
+            ids=id_batch,
+            update_tag=update_tag,
+        )
+
+
+@timeit
+def cleanup_rewritten_repository_image_links(
+    neo4j_session: neo4j.Session,
+    ids: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Removes the links a rewritten tag had before this sync, such as the IMAGE
+    link to the digest a moved tag used to point to.
+    """
+    for id_batch in batch(ids, size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE):
+        run_write_query(
+            neo4j_session,
+            """
+            UNWIND $ids AS id
+            MATCH (ri:GCPArtifactRegistryRepositoryImage {id: id})
+            CALL (ri) {
+                MATCH (ri)<-[r:RESOURCE]-(:GCPProject)
+                WHERE r.lastupdated IS NULL OR r.lastupdated <> $update_tag
+                DELETE r
+            }
+            CALL (ri) {
+                MATCH (ri)<-[r:CONTAINS|REPO_IMAGE]-(:GCPArtifactRegistryRepository)
+                WHERE r.lastupdated IS NULL OR r.lastupdated <> $update_tag
+                DELETE r
+            }
+            CALL (ri) {
+                MATCH (ri)-[r:IMAGE]->(:GCPArtifactRegistryImage)
+                WHERE r.lastupdated IS NULL OR r.lastupdated <> $update_tag
+                DELETE r
+            }
+            """,
+            ids=id_batch,
+            update_tag=update_tag,
+        )
+
+
+@timeit
+def delete_repository_images(
+    neo4j_session: neo4j.Session,
+    ids: list[str],
+    project_id: str,
+) -> None:
+    """
+    Deletes the project's tags that the listing no longer has, with their links.
+    """
+    for id_batch in batch(ids, size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE):
+        run_write_query(
+            neo4j_session,
+            """
+            UNWIND $ids AS id
+            MATCH (:GCPProject {id: $project_id})-[:RESOURCE]->
+                  (ri:GCPArtifactRegistryRepositoryImage {id: id})
+            DETACH DELETE ri
+            """,
+            ids=id_batch,
+            project_id=project_id,
+        )
+
+
+@timeit
+def sync_docker_images(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+    update_tag: int,
+    cleanup_safe: bool,
+) -> None:
+    """
+    Writes the project's tag inventory, rewriting only tags that changed.
+
+    Most of a large registry is the same from one sync to the next, so each tag
+    is compared with the graph first. New and changed tags go through
+    load_docker_images; unchanged tags only get their lastupdated refreshed.
+    Cleanup is a set difference against the listing rather than an update-tag
+    scan: a tag the listing no longer has is deleted with its links, and a
+    rewritten tag loses the links it no longer has. Every other link was checked
+    by get_repository_image_changes, so none of them can be stale.
+
+    Canonical images are digest-keyed and shared across projects. One loses its
+    last tag link when its tags are deleted, and gcp_artifact_registry_orphan_cleanup.json
+    then deletes it.
+    """
+    changes = get_repository_image_changes(neo4j_session, data, project_id)
+    logger.info(
+        "Artifact Registry tags for project %s: %d to write, %d unchanged, %d gone.",
+        project_id,
+        len(changes.to_write),
+        len(changes.unchanged_ids),
+        len(changes.gone_ids),
+    )
+    load_docker_images(neo4j_session, changes.to_write, project_id, update_tag)
+    cleanup_rewritten_repository_image_links(
+        neo4j_session,
+        [row["id"] for row in changes.to_write],
+        update_tag,
+    )
+    refresh_repository_images(neo4j_session, changes.unchanged_ids, update_tag)
+    if cleanup_safe:
+        delete_repository_images(neo4j_session, changes.gone_ids, project_id)
 
 
 @timeit
@@ -1063,10 +1281,13 @@ def sync_artifact_registry_artifacts(
         len(other_artifacts_transformed),
     )
 
-    if docker_images_transformed:
-        load_docker_images(
-            neo4j_session, docker_images_transformed, project_id, update_tag
-        )
+    sync_docker_images(
+        neo4j_session,
+        docker_images_transformed,
+        project_id,
+        update_tag,
+        cleanup_safe=artifact_cleanup_safe,
+    )
 
     if helm_charts_transformed:
         load_helm_charts(neo4j_session, helm_charts_transformed, project_id, update_tag)
@@ -1084,7 +1305,6 @@ def sync_artifact_registry_artifacts(
     if artifact_cleanup_safe:
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["PROJECT_ID"] = project_id
-        cleanup_docker_images(neo4j_session, cleanup_job_params)
         cleanup_helm_charts(neo4j_session, cleanup_job_params)
         cleanup_language_packages(neo4j_session, cleanup_job_params)
         cleanup_generic_artifacts(neo4j_session, cleanup_job_params)

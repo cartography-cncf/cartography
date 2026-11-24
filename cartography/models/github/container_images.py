@@ -63,8 +63,16 @@ class GitHubContainerImageNodeProperties(CartographyNodeProperties):
         "source_revision",
         description="Source commit revision extracted from provenance.",
     )
+    source_path_uri: PropertyRef = PropertyRef(
+        "source_path_uri",
+        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself. Cleared when an attestation supplies the source, because the label may name another repository.",
+    )
     source_file: PropertyRef = PropertyRef(
         "source_file", description="Source definition file extracted from provenance."
+    )
+    label_provenance_version: PropertyRef = PropertyRef(
+        "label_provenance_version",
+        description="Version of the image-config label provenance extraction last applied to this image. Images below the current version have their config re-read once.",
     )
     parent_image_uri: PropertyRef = PropertyRef(
         "parent_image_uri",
@@ -267,6 +275,11 @@ class GitHubContainerImageProvenanceNodeProperties(CartographyNodeProperties):
     source_revision: PropertyRef = PropertyRef(
         "source_revision",
         description="Source commit revision extracted from provenance.",
+    )
+    # Attestation rows never carry this key, so loading them clears the property.
+    source_path_uri: PropertyRef = PropertyRef(
+        "source_path_uri",
+        description="URL of the branch, folder or file inside the source repository that the image's `org.opencontainers.image.source` label names, e.g. `https://github.com/owner/repo/tree/main/services/api`. Set only when the label is not the repository URL itself. Cleared when an attestation supplies the source, because the label may name another repository.",
     )
     source_file: PropertyRef = PropertyRef(
         "source_file", description="Source definition file extracted from provenance."

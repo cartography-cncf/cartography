@@ -36,10 +36,13 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         return
 
     api_session = build_session(config.supabase_access_token)
+    # Every endpoint is built as f"{base_url}/v1/...", so a configured trailing
+    # slash would otherwise double it on every request.
+    base_url = config.supabase_base_url.rstrip("/")
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
-        "BASE_URL": config.supabase_base_url,
+        "BASE_URL": base_url,
     }
 
     org_allowlist = None
@@ -64,7 +67,7 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         project["ref"]: project
         for project in cartography.intel.supabase.projects.get(
             api_session,
-            config.supabase_base_url,
+            base_url,
         )
     }
 
@@ -88,7 +91,7 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             )
             for org_project in cartography.intel.supabase.projects.get_org_projects(
                 api_session,
-                config.supabase_base_url,
+                base_url,
                 org_slug,
             )
         ]
@@ -101,6 +104,16 @@ def start_supabase_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
         for project in projects:
             common_job_parameters["PROJECT_REF"] = project["ref"]
+            # Skipping the child syncs also skips their cleanups, so the nodes a
+            # project had while it ran stay in place until it runs again.
+            if not cartography.intel.supabase.projects.is_running(project):
+                logger.info(
+                    "Supabase project %s is %s - skipping its project-scoped "
+                    "resources and keeping the existing nodes.",
+                    project["ref"],
+                    project["status"],
+                )
+                continue
             cartography.intel.supabase.projects.sync_database(
                 neo4j_session,
                 api_session,

@@ -753,7 +753,11 @@ def transform_access_keys(
                     "createdate": str(access_key["CreateDate"]),
                     "createdate_dt": access_key["CreateDate"],
                     "status": access_key["Status"],
-                    "lastuseddate": str(access_key.get("LastUsedDate", "")),
+                    "lastuseddate": (
+                        str(access_key["LastUsedDate"])
+                        if access_key.get("LastUsedDate") is not None
+                        else None
+                    ),
                     "lastuseddate_dt": access_key.get("LastUsedDate"),
                     "lastusedservice": access_key.get("LastUsedService", ""),
                     "lastusedregion": access_key.get("LastUsedRegion", ""),
@@ -997,8 +1001,9 @@ def transform_role_trust_policies(
         # The allowed principals of type AWS, i.e. IAM users, roles and accounts.
         aws_principal_arns: set[str] = set()
 
+        # A policy's "Statement" may be a single object instead of a list.
         for statement_index, statement in enumerate(
-            role["AssumeRolePolicyDocument"]["Statement"]
+            ensure_list(role["AssumeRolePolicyDocument"]["Statement"])
         ):
             actions = _statement_assume_role_actions(statement)
             if not actions:

@@ -149,6 +149,27 @@ AWS_EC2_ASSET_EXPOSURE_INSTANCE = AnalysisJob(
 
 The match clauses only identify the rows to update. The effects describe the graph changes, and the framework generates both the write statements and the corresponding cleanup statements.
 
+### Large matches
+
+By default a statement writes every matched row in one transaction, and Neo4j holds each change in memory until the transaction commits. When the match grows with the number of findings or assets in the graph, set `batched_transactions=True` and an `iterationsize` on the `AnalysisStatement`. The compiler then commits the effects every `iterationsize` rows and skips rows that this run has already linked, so the statement stops when nothing is left to write. Batching supports `AddRelationship` effects that do not specify `properties` or `firstseen`.
+
+```python
+AnalysisStatement(
+    match="MATCH (f:OrcaVulnerabilityFinding)-[:AFFECTS]->(:OrcaPackage)<-[:DETECTED_AS]-(p:PackageVersion)",
+    effects=(
+        AddRelationship(
+            "f",
+            "AFFECTS",
+            "p",
+            source_label="OrcaVulnerabilityFinding",
+            target_label="PackageVersion",
+        ),
+    ),
+    batched_transactions=True,
+    iterationsize=10000,
+)
+```
+
 ### Cleanup ordering
 
 The compiler determines cleanup ordering from the effect type:
