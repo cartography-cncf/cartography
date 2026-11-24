@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.intel.aws import AWS_ECS_ASSET_EXPOSURE_DEPS
 from cartography.util import run_typed_analysis_and_ensure_deps
 from cartography.util import run_typed_analysis_job
@@ -1173,3 +1174,82 @@ def test_ecs_direct_exposure_skipped_when_security_group_not_synced(neo4j_sessio
     ran = _get_container_exposure(neo4j_session, container_id)
     assert ran["exposed"] is True
     assert "direct" in ran["types"]
+
+
+def test_ecs_exposure_through_service_target_group(neo4j_session):
+    """
+    A bridge-mode task has no network interface, so an internet-facing load balancer reaches it
+    through its container instance. The target group registered on the service names the container
+    it routes to. The sidecar in the same task stays unmarked, and so does a task on the same
+    instance whose service is registered on a target group that does not route to that instance.
+    """
+    cluster_arn = "arn:aws:ecs:us-east-1:000000000000:cluster/bridge"
+    task_id = "arn:aws:ecs:us-east-1:000000000000:task/bridge/task-bridge"
+    neo4j_session.run(
+        """
+        MERGE (lb:AWSLoadBalancerV2{id: 'lb-bridge'}) SET lb.lastupdated = $tag, lb.exposed_internet = true
+        MERGE (tg:AWSELBV2TargetGroup{id: 'tg-bridge'}) SET tg.lastupdated = $tag
+        MERGE (service:AWSECSService{id: 'svc-bridge'})
+            SET service.lastupdated = $tag, service.name = 'bridge-service', service.cluster_arn = $cluster_arn
+        MERGE (task:AWSECSTask{id: $task_id})
+            SET task.lastupdated = $tag, task.service_name = 'bridge-service', task.cluster_arn = $cluster_arn
+        MERGE (web:AWSECSContainer{id: $task_id + '/web'}) SET web.lastupdated = $tag, web.name = 'web'
+        MERGE (sidecar:AWSECSContainer{id: $task_id + '/sidecar'})
+            SET sidecar.lastupdated = $tag, sidecar.name = 'sidecar'
+        MERGE (instance:AWSEC2Instance{id: 'i-bridge'}) SET instance.lastupdated = $tag
+        MERGE (host:AWSECSContainerInstance{id: 'ci-bridge'}) SET host.lastupdated = $tag
+        MERGE (neighbor_task:AWSECSTask{id: $task_id + '-neighbor'})
+            SET neighbor_task.lastupdated = $tag, neighbor_task.service_name = 'other-service',
+                neighbor_task.cluster_arn = $cluster_arn
+        MERGE (neighbor:AWSECSContainer{id: $task_id + '-neighbor/web'})
+            SET neighbor.lastupdated = $tag, neighbor.name = 'web'
+        MERGE (other_tg:AWSELBV2TargetGroup{id: 'tg-other'}) SET other_tg.lastupdated = $tag
+        MERGE (other_service:AWSECSService{id: 'svc-other'})
+            SET other_service.lastupdated = $tag, other_service.name = 'other-service',
+                other_service.cluster_arn = $cluster_arn
+        MERGE (lb)-[:ELBV2_TARGET_GROUP]->(tg)
+        MERGE (lb)-[:ELBV2_TARGET_GROUP]->(other_tg)
+        MERGE (lb)-[:EXPOSE{target_group_arn: 'tg-bridge'}]->(instance)
+        MERGE (tg)-[:TARGETS{container_name: 'web', container_port: 8080}]->(service)
+        MERGE (other_tg)-[:TARGETS{container_name: 'web', container_port: 8080}]->(other_service)
+        MERGE (host)-[:IS_INSTANCE]->(instance)
+        MERGE (host)-[:HAS_TASK]->(task)
+        MERGE (host)-[:HAS_TASK]->(neighbor_task)
+        MERGE (task)-[:HAS_CONTAINER]->(web)
+        MERGE (task)-[:HAS_CONTAINER]->(sidecar)
+        MERGE (neighbor_task)-[:HAS_CONTAINER]->(neighbor)
+        """,
+        tag=TEST_UPDATE_TAG,
+        cluster_arn=cluster_arn,
+        task_id=task_id,
+    )
+
+    run_typed_analysis_job(
+        AWS_ECS_ASSET_EXPOSURE,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    run_typed_analysis_job(
+        AWS_LB_CONTAINER_EXPOSURE,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert {
+        record["id"]: (record["exposed"], record["types"])
+        for record in neo4j_session.run(
+            "MATCH (c:AWSECSContainer) WHERE c.id STARTS WITH $task_id "
+            "RETURN c.id AS id, c.exposed_internet AS exposed, c.exposed_internet_type AS types",
+            task_id=task_id,
+        )
+    } == {
+        f"{task_id}/web": (True, ["elbv2"]),
+        f"{task_id}/sidecar": (None, None),
+        f"{task_id}-neighbor/web": (None, None),
+    }
+    assert {
+        record["id"]
+        for record in neo4j_session.run(
+            "MATCH (:AWSLoadBalancerV2{id: 'lb-bridge'})-[:EXPOSE]->(c:AWSECSContainer) RETURN c.id AS id"
+        )
+    } == {f"{task_id}/web"}
