@@ -1,8 +1,11 @@
+import copy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.apigateway
+import cartography.intel.aws.lambda_function
 import tests.data.aws.apigateway
+import tests.data.aws.lambda_function
 from cartography.client.core.tx import load
 from cartography.models.aws.apigateway.apigatewaycertificate import (
     APIGatewayClientCertificateSchema,
@@ -485,4 +488,76 @@ def test_sync_apigateway(
         rel_direction_right=True,
     ) == {
         ("3kzxbg5sa2", "test-001/3kzxbg5sa2/GET"),
+    }
+
+
+def test_apigateway_integration_to_lambda(neo4j_session):
+    """A Lambda-backed REST integration links to the AWSLambda it invokes."""
+    # Arrange
+    # The session is module-scoped; reset so this test does not depend on
+    # leftovers from earlier tests in the module.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    lambda_region = "us-west-2"
+    lambda_arn = "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1"
+
+    # Load the Lambda function whose ARN is embedded in the integration uri.
+    lambda_data = copy.deepcopy(
+        tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS[:1],
+    )
+    transformed_lambda = (
+        cartography.intel.aws.lambda_function.transform_lambda_functions(
+            lambda_data,
+            tests.data.aws.lambda_function.LIST_LAMBDA_PERMISSIONS,
+            {},
+            lambda_region,
+        )
+    )
+    cartography.intel.aws.lambda_function.load_lambda_functions(
+        neo4j_session,
+        transformed_lambda,
+        lambda_region,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # REST API details with one Lambda-backed and one HTTP-backed integration.
+    # Deep-copy because transform_rest_api_details mutates rows in place.
+    details = [
+        (
+            "test-001",
+            [],
+            None,
+            copy.deepcopy(tests.data.aws.apigateway.GET_RESOURCES),
+            copy.deepcopy(tests.data.aws.apigateway.GET_METHODS),
+            [
+                copy.deepcopy(tests.data.aws.apigateway.GET_INTEGRATION_LAMBDA),
+                copy.deepcopy(tests.data.aws.apigateway.GET_INTEGRATION_HTTP),
+            ],
+            None,
+        ),
+    ]
+
+    # Act
+    cartography.intel.aws.apigateway.load_rest_api_details(
+        neo4j_session,
+        details,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    # Only the Lambda-backed integration gets an INTEGRATES_WITH edge; the HTTP
+    # integration (null lambda_function_arn) must not produce one.
+    assert check_rels(
+        neo4j_session,
+        "AWSAPIGatewayIntegration",
+        "id",
+        "AWSLambda",
+        "arn",
+        "INTEGRATES_WITH",
+        rel_direction_right=True,
+    ) == {
+        ("test-001/3kzxbg5sa2/GET", lambda_arn),
     }

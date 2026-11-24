@@ -170,6 +170,32 @@ GET_INTEGRATIONS = [
     },
 ]
 
+# A Lambda-backed (AWS_PROXY) integration. The uri embeds the function ARN of
+# tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS[0] (sample-function-1),
+# so the integration can be linked to that AWSLambda node.
+GET_INTEGRATION_LAMBDA = {
+    "type": "AWS_PROXY",
+    "uri": (
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/"
+        "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1/invocations"
+    ),
+    "resourceId": "3kzxbg5sa2",
+    "apiId": "test-001",
+    "httpMethod": "GET",
+    "integrationHttpMethod": "POST",
+}
+
+# An HTTP-backed integration. Its uri is not a Lambda ARN, so it must not produce
+# an INTEGRATES_WITH relationship.
+GET_INTEGRATION_HTTP = {
+    "type": "HTTP_PROXY",
+    "uri": "https://backend.example.com/api",
+    "resourceId": "3kzxbg5sa2",
+    "apiId": "test-001",
+    "httpMethod": "POST",
+    "integrationHttpMethod": "POST",
+}
+
 
 # This represents the tuple of (api_id, stage, certificate, resource, policy) that get_rest_api_details returns
 GET_REST_API_DETAILS = [
