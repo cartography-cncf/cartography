@@ -54,7 +54,7 @@ def _transform_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "alias3": user["alias3"],
             "alias4": user["alias4"],
             "created": user["created"],
-            "email": user["email"],
+            "email": user["email"] if (user["email"] or "").strip() else None,
             "firstname": user["firstname"],
             "is_enrolled": user["is_enrolled"],
             "last_directory_sync": user["last_directory_sync"],

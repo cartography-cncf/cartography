@@ -61,7 +61,7 @@ def _transform_endpoints(endpoints: List[Dict[str, Any]]) -> List[Dict[str, Any]
             "device_username_type": endpoint["device_username_type"],
             "disk_encryption_status": endpoint["disk_encryption_status"],
             "domain_sid": endpoint["domain_sid"],
-            "email": endpoint["email"],
+            "email": endpoint["email"] if (endpoint["email"] or "").strip() else None,
             "epkey": endpoint["epkey"],
             "firewall_status": endpoint["firewall_status"],
             "hardware_uuid": endpoint["hardware_uuid"],
