@@ -790,6 +790,16 @@ def _not_found() -> Response:
     return response
 
 
+@patch("cartography.intel.github.util._RATE_LIMITING_OFF", new_callable=set)
+@patch("cartography.intel.github.util.requests.get", return_value=_not_found())
+def test_a_server_with_rate_limiting_off_is_asked_once(mock_requests_get, _off):
+    handle_rate_limit_sleep("my-token", "https://ghe.example.com/api/graphql")
+    handle_rest_rate_limit_sleep("my-token", "https://ghe.example.com/api/v3")
+    handle_rest_rate_limit_sleep("my-token", "https://ghe.example.com/api/v3")
+
+    assert mock_requests_get.call_count == 1
+
+
 @pytest.mark.parametrize(
     "check_rate_limit,url,rate_limiting_off",
     [
@@ -800,10 +810,11 @@ def _not_found() -> Response:
     ],
     ids=["ghes-graphql", "ghes-rest", "github-com-graphql", "github-com-rest"],
 )
+@patch("cartography.intel.github.util._RATE_LIMITING_OFF", new_callable=set)
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.get", return_value=_not_found())
 def test_rate_limit_404_means_rate_limiting_is_off_only_on_ghes(
-    mock_requests_get, mock_sleep, check_rate_limit, url, rate_limiting_off
+    mock_requests_get, mock_sleep, _off, check_rate_limit, url, rate_limiting_off
 ):
     if rate_limiting_off:
         check_rate_limit("my-token", url)
