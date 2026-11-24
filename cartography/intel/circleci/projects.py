@@ -53,15 +53,12 @@ def discover_project_slugs(
 
     try:
         names = get_insights_project_names(api_session, base_url, org_slug)
-    except requests.exceptions.HTTPError as exc:
-        status = exc.response.status_code if exc.response is not None else None
-        if status not in (403, 404):
-            raise
+    except requests.exceptions.RequestException as exc:
         logger.warning(
-            "CircleCI Insights summary for org %s not accessible (%s); "
+            "CircleCI Insights summary for org %s not available (%s); "
             "discovering projects from the pipeline feed only.",
             org_slug,
-            status,
+            exc,
         )
         return slugs
     return slugs | {f"{org_slug}/{name}" for name in names}
@@ -76,16 +73,15 @@ def sync(
 ) -> list[dict[str, Any]]:
     projects: list[dict[str, Any]] = []
     for slug in project_slugs:
+        # One project's failure must not drop the others: with org-wide discovery
+        # a sync fetches hundreds of projects, and an exhausted retry on any of
+        # them would otherwise skip the load for all. Projects are never cleaned
+        # up org-wide, so a skipped project keeps its previously ingested data.
         try:
             raw = get(api_session, common_job_parameters["BASE_URL"], slug)
-        except requests.exceptions.HTTPError as exc:
-            status = exc.response.status_code if exc.response is not None else None
-            if status in (403, 404):
-                logger.warning(
-                    "CircleCI project %s not accessible (%s); skipping.", slug, status
-                )
-                continue
-            raise
+        except requests.exceptions.RequestException as exc:
+            logger.warning("Skipping CircleCI project %s: %s", slug, exc)
+            continue
         projects.append(transform(raw))
 
     # NOTE: projects are upserted but never cleaned up org-wide. The input set is
