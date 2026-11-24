@@ -49,15 +49,15 @@ def test_k8s_paginate_pages_fetches_lazily():
     assert list(pages) == []
 
 
-def test_k8s_paginate_flattens_pages():
+def test_k8s_paginate_yields_one_page_at_a_time():
     calls: list[tuple[int, str | None]] = []
-    assert k8s_paginate(
-        _scripted_list([_page(["a", "b"], "1"), _page(["c"])], calls)
-    ) == [
-        "a",
-        "b",
-        "c",
-    ]
+    items = k8s_paginate(_scripted_list([_page(["a", "b"], "1"), _page(["c"])], calls))
+
+    assert next(items) == "a"
+    assert next(items) == "b"
+    assert calls == [(500, None)]
+    assert list(items) == ["c"]
+    assert calls == [(500, None), (500, "1")]
 
 
 @pytest.mark.parametrize(
@@ -88,7 +88,7 @@ def test_k8s_paginate_pages_resumes_an_expired_continue_token(
 ):
     calls: list[tuple[int, str | None]] = []
 
-    items = k8s_paginate(_scripted_list(responses, calls))
+    items = list(k8s_paginate(_scripted_list(responses, calls)))
 
     assert items == expected_items
     assert [token for _, token in calls] == expected_tokens

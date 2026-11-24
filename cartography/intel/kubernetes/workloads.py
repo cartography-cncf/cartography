@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -32,37 +34,31 @@ def _format_labels(labels: dict[str, str] | None) -> str:
     return json.dumps(labels or {})
 
 
-@timeit
-def get_deployments(client: K8sClient) -> list[V1Deployment]:
+def get_deployments(client: K8sClient) -> Iterator[V1Deployment]:
     return k8s_paginate(client.apps.list_deployment_for_all_namespaces)
 
 
-@timeit
-def get_replicasets(client: K8sClient) -> list[V1ReplicaSet]:
+def get_replicasets(client: K8sClient) -> Iterator[V1ReplicaSet]:
     return k8s_paginate(client.apps.list_replica_set_for_all_namespaces)
 
 
-@timeit
-def get_statefulsets(client: K8sClient) -> list[V1StatefulSet]:
+def get_statefulsets(client: K8sClient) -> Iterator[V1StatefulSet]:
     return k8s_paginate(client.apps.list_stateful_set_for_all_namespaces)
 
 
-@timeit
-def get_daemonsets(client: K8sClient) -> list[V1DaemonSet]:
+def get_daemonsets(client: K8sClient) -> Iterator[V1DaemonSet]:
     return k8s_paginate(client.apps.list_daemon_set_for_all_namespaces)
 
 
-@timeit
-def get_jobs(client: K8sClient) -> list[V1Job]:
+def get_jobs(client: K8sClient) -> Iterator[V1Job]:
     return k8s_paginate(client.batch.list_job_for_all_namespaces)
 
 
-@timeit
-def get_cronjobs(client: K8sClient) -> list[V1CronJob]:
+def get_cronjobs(client: K8sClient) -> Iterator[V1CronJob]:
     return k8s_paginate(client.batch.list_cron_job_for_all_namespaces)
 
 
-def transform_deployments(deployments: list[V1Deployment]) -> list[dict[str, Any]]:
+def transform_deployments(deployments: Iterable[V1Deployment]) -> list[dict[str, Any]]:
     out = []
     for deployment in deployments:
         status = deployment.status
@@ -82,7 +78,9 @@ def transform_deployments(deployments: list[V1Deployment]) -> list[dict[str, Any
     return out
 
 
-def transform_statefulsets(statefulsets: list[V1StatefulSet]) -> list[dict[str, Any]]:
+def transform_statefulsets(
+    statefulsets: Iterable[V1StatefulSet],
+) -> list[dict[str, Any]]:
     out = []
     for statefulset in statefulsets:
         spec = statefulset.spec
@@ -107,7 +105,7 @@ def transform_statefulsets(statefulsets: list[V1StatefulSet]) -> list[dict[str, 
     return out
 
 
-def transform_daemonsets(daemonsets: list[V1DaemonSet]) -> list[dict[str, Any]]:
+def transform_daemonsets(daemonsets: Iterable[V1DaemonSet]) -> list[dict[str, Any]]:
     out = []
     for daemonset in daemonsets:
         status = daemonset.status
@@ -128,7 +126,7 @@ def transform_daemonsets(daemonsets: list[V1DaemonSet]) -> list[dict[str, Any]]:
     return out
 
 
-def transform_cronjobs(cronjobs: list[V1CronJob]) -> list[dict[str, Any]]:
+def transform_cronjobs(cronjobs: Iterable[V1CronJob]) -> list[dict[str, Any]]:
     out = []
     for cronjob in cronjobs:
         spec = cronjob.spec
@@ -148,7 +146,7 @@ def transform_cronjobs(cronjobs: list[V1CronJob]) -> list[dict[str, Any]]:
 
 
 def transform_replicasets(
-    replicasets: list[V1ReplicaSet],
+    replicasets: Iterable[V1ReplicaSet],
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Transform ReplicaSets and build the ``replicaset_uid -> deployment_uid`` map.
 
@@ -180,7 +178,7 @@ def transform_replicasets(
     return out, replicaset_to_deployment
 
 
-def transform_jobs(jobs: list[V1Job]) -> list[dict[str, Any]]:
+def transform_jobs(jobs: Iterable[V1Job]) -> list[dict[str, Any]]:
     out = []
     for job in jobs:
         spec = job.spec

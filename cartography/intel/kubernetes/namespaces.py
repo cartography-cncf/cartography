@@ -1,4 +1,6 @@
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -15,13 +17,11 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-@timeit
-def get_namespaces(client: K8sClient) -> list[V1Namespace]:
-    items = k8s_paginate(client.core.list_namespace)
-    return items
+def get_namespaces(client: K8sClient) -> Iterator[V1Namespace]:
+    return k8s_paginate(client.core.list_namespace)
 
 
-def transform_namespaces(namespaces: list[V1Namespace]) -> list[dict[str, Any]]:
+def transform_namespaces(namespaces: Iterable[V1Namespace]) -> list[dict[str, Any]]:
     transformed_namespaces = []
     for namespace in namespaces:
         transformed_namespaces.append(
@@ -70,8 +70,7 @@ def sync_namespaces(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    namespaces = get_namespaces(client)
-    transformed_namespaces = transform_namespaces(namespaces)
+    transformed_namespaces = transform_namespaces(get_namespaces(client))
     cluster_id: str = common_job_parameters["CLUSTER_ID"]
     load_namespaces(
         session,
