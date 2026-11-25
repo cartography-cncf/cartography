@@ -35,12 +35,12 @@ def start_pylon_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     api_session = build_session(config.pylon_api_token)
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
-        "BASE_URL": base_url,
     }
 
     org_id = cartography.intel.pylon.organization.sync(
         neo4j_session,
         api_session,
+        base_url,
         common_job_parameters,
     )
     common_job_parameters["ORG_ID"] = org_id
@@ -50,15 +50,18 @@ def start_pylon_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     cartography.intel.pylon.roles.sync(
         neo4j_session,
         api_session,
+        base_url,
         common_job_parameters,
     )
     cartography.intel.pylon.users.sync(
         neo4j_session,
         api_session,
+        base_url,
         common_job_parameters,
     )
     cartography.intel.pylon.teams.sync(
         neo4j_session,
         api_session,
+        base_url,
         common_job_parameters,
     )

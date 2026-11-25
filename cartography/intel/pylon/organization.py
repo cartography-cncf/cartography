@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
+    base_url: str,
     common_job_parameters: dict[str, Any],
 ) -> str:
-    me = get(api_session, common_job_parameters["BASE_URL"])
-    organization = transform(me, common_job_parameters["BASE_URL"])
+    me = get(api_session, base_url)
+    organization = transform(me, base_url)
     load_organization(
         neo4j_session,
         organization,

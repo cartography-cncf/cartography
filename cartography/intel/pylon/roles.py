@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
+    base_url: str,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    raw_roles = get(api_session, common_job_parameters["BASE_URL"])
+    raw_roles = get(api_session, base_url)
     roles = transform(raw_roles)
     load_roles(
         neo4j_session,
