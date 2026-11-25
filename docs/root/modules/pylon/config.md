@@ -1,8 +1,9 @@
 # Pylon configuration
 
 To sync a Pylon organization, give Cartography a Pylon API token. Cartography
-reads the organization, its users, its roles, and its teams. It doesn't read
-customer data such as accounts, contacts, or issues.
+reads the organization, its users, its API token identities and bots, its
+roles, and its teams. It doesn't read customer data such as accounts, contacts,
+or issues.
 
 ## Authentication
 
@@ -30,7 +31,7 @@ Cartography only reads data. It calls these endpoints:
 | --- | --- | --- |
 | `GET /me` | `PylonOrganization` | Any valid token |
 | `GET /user-roles` | `PylonRole` | **Users**: View |
-| `GET /users?include_deactivated=true` | `PylonUser` | **Users**: View |
+| `GET /users?include_deactivated=true` | `PylonUser`, `PylonServiceAccount` | **Users**: View |
 | `GET /teams` | `PylonTeam` | **Teams**: View |
 
 The Pylon API reference doesn't list the permission that each endpoint needs,
@@ -39,6 +40,12 @@ categories. A token with the Admin role can read every endpoint. To follow
 least privilege on the Enterprise plan, create a custom role with view access
 to **Users** and **Teams** and no other access, and check that a sync
 succeeds.
+
+`GET /users` also returns API tokens that have their own identity and bots.
+These have no email address, so Cartography loads them as
+`PylonServiceAccount` nodes with their roles. The API doesn't return a token's
+value, creator, last use, or IP allowlist; check those in
+**Settings > Integrations & dev > API**.
 
 ## Configure Cartography
 

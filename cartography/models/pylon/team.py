@@ -60,11 +60,32 @@ class PylonUserToTeamRel(CartographyRelSchema):
 
     target_node_label: str = "PylonUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("member_user_ids", one_to_many=True)},
+        {"id": PropertyRef("member_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
     properties: PylonUserToTeamRelProperties = PylonUserToTeamRelProperties()
+
+
+@dataclass(frozen=True)
+class PylonServiceAccountToTeamRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:PylonServiceAccount)-[:MEMBER_OF]->(:PylonTeam)
+class PylonServiceAccountToTeamRel(CartographyRelSchema):
+    """The service account is a member of the team."""
+
+    target_node_label: str = "PylonServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("member_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: PylonServiceAccountToTeamRelProperties = (
+        PylonServiceAccountToTeamRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -80,5 +101,5 @@ class PylonTeamSchema(CartographyNodeSchema):
     properties: PylonTeamNodeProperties = PylonTeamNodeProperties()
     sub_resource_relationship: PylonTeamToOrganizationRel = PylonTeamToOrganizationRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [PylonUserToTeamRel()],
+        [PylonUserToTeamRel(), PylonServiceAccountToTeamRel()],
     )

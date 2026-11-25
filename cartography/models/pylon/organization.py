@@ -26,7 +26,8 @@ class PylonOrganizationSchema(CartographyNodeSchema):
     """A Pylon organization (workspace), read from the `GET /me` endpoint.
 
     The organization is the tenant for every other Pylon node. Cartography
-    reads only workspace identity and access data: users, roles, and teams.
+    reads only workspace identity and access data: users, API token
+    identities and bots, roles, and teams.
     It doesn't read customer data such as accounts, contacts, or issues.
     """
 

@@ -171,7 +171,11 @@ pylon_mapping = OntologyMapping(
                     ontology_field="email", node_field="email", required=True
                 ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
-                OntologyFieldMapping(ontology_field="active", node_field="active"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="is_deactivated",
+                    special_handling="invert_boolean",
+                ),
                 # has_mfa: Not available; sign-in happens through Slack, Google,
                 # Microsoft, or SAML.
                 # lastactivity: Not available

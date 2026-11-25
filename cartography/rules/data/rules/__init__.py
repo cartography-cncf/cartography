@@ -359,6 +359,9 @@ from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
 from cartography.rules.data.rules.public_snapshots import public_snapshots
+from cartography.rules.data.rules.pylon_admin_service_accounts import (
+    pylon_admin_service_accounts,
+)
 from cartography.rules.data.rules.security_monitoring_gaps import (
     aws_security_hub_configuration_gaps,
 )
@@ -468,6 +471,7 @@ RULES = {
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
     public_snapshots.id: public_snapshots,
+    pylon_admin_service_accounts.id: pylon_admin_service_accounts,
     tailscale_tailnet_approval_disabled.id: tailscale_tailnet_approval_disabled,
     tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
     tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,

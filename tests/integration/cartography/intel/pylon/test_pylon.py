@@ -20,6 +20,9 @@ from tests.data.pylon.teams import SUPPORT_TEAM_ID
 from tests.data.pylon.users import FRANK_ID
 from tests.data.pylon.users import HOMER_ID
 from tests.data.pylon.users import MARGE_ID
+from tests.data.pylon.users import OLD_TOKEN_ID
+from tests.data.pylon.users import TRIAGE_BOT_ID
+from tests.data.pylon.users import ZAPIER_TOKEN_ID
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -113,16 +116,30 @@ def test_sync_pylon(mock_me, mock_roles, mock_users, mock_teams, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "PylonUser",
-        ["id", "email", "is_deactivated", "active"],
+        ["id", "email", "is_deactivated", "_ont_active"],
     ) == {
         (MARGE_ID, "mbsimpson@simpson.corp", False, True),
         (HOMER_ID, "hjsimpson@simpson.corp", False, True),
         (FRANK_ID, "fgrimes@simpson.corp", True, False),
     }
-    assert check_nodes(neo4j_session, "UserAccount", ["id"]) >= {
+    assert check_nodes(
+        neo4j_session,
+        "PylonServiceAccount",
+        ["id", "name", "is_deactivated", "_ont_active"],
+    ) == {
+        (ZAPIER_TOKEN_ID, "Zapier - Write Back", False, True),
+        (TRIAGE_BOT_ID, "Triage Bot", False, True),
+        (OLD_TOKEN_ID, "Old Admin Token", True, False),
+    }
+    assert check_nodes(neo4j_session, "UserAccount", ["id"]) == {
         (MARGE_ID,),
         (HOMER_ID,),
         (FRANK_ID,),
+    }
+    assert check_nodes(neo4j_session, "ServiceAccount", ["id"]) == {
+        (ZAPIER_TOKEN_ID,),
+        (TRIAGE_BOT_ID,),
+        (OLD_TOKEN_ID,),
     }
 
     assert check_nodes(
@@ -134,7 +151,7 @@ def test_sync_pylon(mock_me, mock_roles, mock_users, mock_teams, neo4j_session):
         (SECURITY_TEAM_ID, "Security", "manual"),
     }
 
-    for label in ("PylonRole", "PylonUser", "PylonTeam"):
+    for label in ("PylonRole", "PylonUser", "PylonServiceAccount", "PylonTeam"):
         assert check_rels(
             neo4j_session,
             "PylonOrganization",
@@ -160,6 +177,18 @@ def test_sync_pylon(mock_me, mock_roles, mock_users, mock_teams, neo4j_session):
         (HOMER_ID, MEMBER_ROLE_ID),
         (FRANK_ID, MEMBER_ROLE_ID),
     }
+    assert check_rels(
+        neo4j_session,
+        "PylonServiceAccount",
+        "id",
+        "PylonRole",
+        "id",
+        "HAS_ROLE",
+    ) == {
+        (ZAPIER_TOKEN_ID, ADMIN_ROLE_ID),
+        (TRIAGE_BOT_ID, MEMBER_ROLE_ID),
+        (OLD_TOKEN_ID, ADMIN_ROLE_ID),
+    }
 
     assert check_rels(
         neo4j_session,
@@ -173,6 +202,14 @@ def test_sync_pylon(mock_me, mock_roles, mock_users, mock_teams, neo4j_session):
         (FRANK_ID, SUPPORT_TEAM_ID),
         (MARGE_ID, SECURITY_TEAM_ID),
     }
+    assert check_rels(
+        neo4j_session,
+        "PylonServiceAccount",
+        "id",
+        "PylonTeam",
+        "id",
+        "MEMBER_OF",
+    ) == {(TRIAGE_BOT_ID, SUPPORT_TEAM_ID)}
 
 
 @patch.object(cartography.intel.pylon.teams, "get")
@@ -209,12 +246,17 @@ def test_sync_pylon_cleans_up_stale_data(
 
     # Assert
     assert len(check_nodes(neo4j_session, "PylonUser", ["id"])) == 3
+    assert len(check_nodes(neo4j_session, "PylonServiceAccount", ["id"])) == 3
 
-    # Arrange: Frank leaves Pylon, Marge loses the Security role, and the
-    # Security team is deleted.
+    # Arrange: Frank leaves Pylon, Marge loses the Security role, two tokens are
+    # deleted, and the Security team is deleted.
     marge = dict(tests.data.pylon.users.PYLON_USERS[0])
     marge["role_ids"] = [ADMIN_ROLE_ID]
-    mock_users.return_value = [marge, tests.data.pylon.users.PYLON_USERS[1]]
+    mock_users.return_value = [
+        marge,
+        tests.data.pylon.users.PYLON_USERS[1],
+        tests.data.pylon.users.PYLON_USERS[3],
+    ]
     support = dict(tests.data.pylon.teams.PYLON_TEAMS[0])
     support["users"] = [{"id": HOMER_ID, "email": "hjsimpson@simpson.corp"}]
     mock_teams.return_value = [support]
@@ -229,6 +271,9 @@ def test_sync_pylon_cleans_up_stale_data(
     assert check_nodes(neo4j_session, "PylonUser", ["id"]) == {
         (MARGE_ID,),
         (HOMER_ID,),
+    }
+    assert check_nodes(neo4j_session, "PylonServiceAccount", ["id"]) == {
+        (ZAPIER_TOKEN_ID,),
     }
     assert check_nodes(neo4j_session, "PylonTeam", ["id"]) == {
         (SUPPORT_TEAM_ID,),

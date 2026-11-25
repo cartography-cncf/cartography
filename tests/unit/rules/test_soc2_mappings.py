@@ -26,6 +26,7 @@ EXPECTED_SOC2_REQUIREMENTS = {
     "aibom_coverage_gaps": {"CC6.1"},
     "aws_access_keys_not_rotated": {"CC6.1"},
     "aws_admin_users_with_access_keys": {"CC6.1"},
+    "pylon_admin_service_accounts": {"CC6.3"},
     "aws_cifs_access_restricted_to_trusted_networks": {"CC6.6"},
     "aws_cloudtrail_kms_encryption": {"CC6.1"},
     "aws_cloudtrail_log_file_validation": {"CC7.2"},

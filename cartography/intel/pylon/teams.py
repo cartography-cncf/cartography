@@ -44,7 +44,7 @@ def transform(raw_teams: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "id": team["id"],
                 "name": team.get("name"),
                 "assignment_method": assignment.get("assignment_method"),
-                "member_user_ids": sorted(
+                "member_ids": sorted(
                     {member["id"] for member in team.get("users") or []},
                 ),
             },

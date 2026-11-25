@@ -1,6 +1,7 @@
 from tests.data.pylon.users import FRANK_ID
 from tests.data.pylon.users import HOMER_ID
 from tests.data.pylon.users import MARGE_ID
+from tests.data.pylon.users import TRIAGE_BOT_ID
 
 SUPPORT_TEAM_ID = "c3d4e5f6-0000-4000-8000-000000000001"
 SECURITY_TEAM_ID = "c3d4e5f6-0000-4000-8000-000000000002"
@@ -12,6 +13,7 @@ PYLON_TEAMS = [
         "users": [
             {"id": HOMER_ID, "email": "hjsimpson@simpson.corp"},
             {"id": FRANK_ID, "email": "fgrimes@simpson.corp"},
+            {"id": TRIAGE_BOT_ID, "email": ""},
         ],
         "assignment_configuration": {
             "assignment_method": "routing",

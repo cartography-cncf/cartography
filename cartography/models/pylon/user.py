@@ -33,10 +33,6 @@ class PylonUserNodeProperties(CartographyNodeProperties):
             "and Pylon deletes the API tokens that the user created."
         ),
     )
-    active: PropertyRef = PropertyRef(
-        "active",
-        description="Whether the user is active, the inverse of `is_deactivated`.",
-    )
     role_ids: PropertyRef = PropertyRef(
         "role_ids",
         description=(
@@ -89,11 +85,12 @@ class PylonUserToRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PylonUserSchema(CartographyNodeSchema):
-    """A user in a Pylon organization, read from `GET /users`.
+    """A person's account in a Pylon organization, read from `GET /users`.
 
     Cartography includes deactivated users so that stale access stays visible.
-    The `UserAccount` label links the user to the canonical `User` node by
-    email address.
+    Entries without an email address are API tokens or bots, which Cartography
+    loads as `PylonServiceAccount` instead. The `UserAccount` label links the
+    user to the canonical `User` node by email address.
     """
 
     label: str = "PylonUser"
