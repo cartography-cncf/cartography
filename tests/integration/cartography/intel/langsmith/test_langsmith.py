@@ -748,7 +748,7 @@ def test_resync_preserves_what_could_not_be_read(
     assert node_id in _ids(neo4j_session, label)
 
 
-@pytest.mark.parametrize("status", [403, None], ids=["403", "timeout"])
+@pytest.mark.parametrize("status", [401, 403, None], ids=["401", "403", "timeout"])
 def test_resync_keeps_tags_when_taggings_cannot_be_read(neo4j_session, status):
     # Arrange
     _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)

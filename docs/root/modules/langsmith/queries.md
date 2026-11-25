@@ -68,9 +68,13 @@ user group's policies apply only in its own workspace.
 
 ```cypher
 MATCH (p:LangSmithAccessPolicy)-[a:ATTACHED_TO]->(g:LangSmithUserGroup)
-OPTIONAL MATCH (u:LangSmithUser)-[:MEMBER_OF]->(g)
-RETURN g.name, g.workspace_id, p.name, p.effect, a.all_workspaces, a.workspace_ids,
-       collect(u.email)
+MATCH (u:LangSmithUser)-[:MEMBER_OF]->(g)
+MATCH (u)-[:MEMBER_OF]->(w:LangSmithWorkspace)
+WHERE (a.all_workspaces OR w.id IN a.workspace_ids)
+  AND (g.workspace_id = w.id OR (g.workspace_id IS NULL AND EXISTS {
+    MATCH (g)-[:HAS_GRANT]->(:LangSmithUserGroupGrant)-[:IN_WORKSPACE]->(w)
+  }))
+RETURN g.name, w.name, p.name, p.effect, collect(DISTINCT u.email) AS members
 ```
 
 ## Find the tags on each deployment and its tracing project
@@ -87,18 +91,26 @@ RETURN d.name, proj.name,
        collect(DISTINCT pt.key + '=' + pt.value) AS project_tags
 ```
 
-## Find tracing projects that a tag-based access policy can apply to
+## Find tracing project candidates for tag-based policies
 
-Lists each policy that matches on a resource tag, with the projects carrying a tag under
-that key. Read `p.condition_summary` for the operator and value. Only `*_if_exists` conditions also
-apply to projects without the tag.
+For each tag key referenced by a policy, list projects in the attachment scope and
+their value for that key. A null value means the project lacks that key, even if it
+has other tags. Only `*_if_exists` conditions match a missing key. To evaluate a
+candidate, check the operator, value, permissions, and condition groups in
+`condition_summary`.
 
 ```cypher
-MATCH (p:LangSmithAccessPolicy)-[:ATTACHED_TO]->(r:LangSmithRole)
+MATCH (org:LangSmithOrganization)-[:RESOURCE]->(p:LangSmithAccessPolicy)
+      -[a:ATTACHED_TO]->(target)
+MATCH (org)-[:RESOURCE]->(w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)
+WHERE target:LangSmithRole OR (target:LangSmithUserGroup
+  AND (a.all_workspaces OR w.id IN a.workspace_ids)
+  AND (target.workspace_id = w.id OR (target.workspace_id IS NULL AND EXISTS {
+    MATCH (target)-[:HAS_GRANT]->(:LangSmithUserGroupGrant)-[:IN_WORKSPACE]->(w)
+  })))
 UNWIND p.condition_tag_keys AS tag_key
-MATCH (w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)
-      -[:TAGGED]->(t:LangSmithResourceTag {key: tag_key})
-RETURN p.name, p.effect, p.condition_summary, r.name, w.name, proj.name, t.key, t.value
+OPTIONAL MATCH (proj)-[:TAGGED]->(t:LangSmithResourceTag {key: tag_key})
+RETURN p.name, p.effect, p.condition_summary, target.name, w.name, proj.name, tag_key, t.value
 ```
 
 ## Find untagged tracing projects
