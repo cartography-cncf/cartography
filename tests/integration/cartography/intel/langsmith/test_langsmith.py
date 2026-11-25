@@ -533,12 +533,10 @@ def test_sync_links_user_groups_to_their_workspace_roles(neo4j_session):
         RETURN g.id AS group, w.id AS workspace, r.id AS role, grant.role_name AS name
         """
     ).data()
-    # The workspace-scoped user group's role isn't in the role catalog, so it has no
-    # HAS_ROLE edge, only the role name.
+    # The workspace-scoped user group holds no role of its own, so it has no grant.
     assert {tuple(row.values()) for row in grants} == {
         (SUPPORT_GROUP_ID, WORKSPACE_PROD_ID, CUSTOM_ROLE, "Deployment Auditor"),
         (SUPPORT_GROUP_ID, WORKSPACE_DEV_ID, CUSTOM_ROLE, "Deployment Auditor"),
-        (SUPPORT_PROD_GROUP_ID, WORKSPACE_PROD_ID, None, "WORKSPACE_MEMBER_ONLY"),
     }
 
 

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from cartography.intel.langsmith.user_groups import get_user_groups
+from cartography.intel.langsmith.user_groups import sync
 from cartography.intel.langsmith.user_groups import transform_grants
 from cartography.intel.langsmith.user_groups import transform_policy_attachments
 from cartography.intel.langsmith.user_groups import transform_user_groups
@@ -89,3 +90,26 @@ def test_get_user_groups_reports_failures(status, expected_complete):
     # Assert
     assert groups == []
     assert complete is expected_complete
+
+
+def test_sync_skips_grants_of_workspace_scoped_user_groups(mocker):
+    # Arrange
+    client = MagicMock()
+    client.get_cursor_paginated.side_effect = lambda path, **_: (
+        [{"id": "org-group"}, {"id": "ws-group", "workspace_id": "ws-1"}]
+        if path.endswith("/user-groups")
+        else []
+    )
+    load = mocker.patch("cartography.intel.langsmith.user_groups.load_user_groups")
+    cleanup = mocker.patch("cartography.intel.langsmith.user_groups.cleanup")
+
+    # Act
+    sync(MagicMock(), client, "org-1", {}, {"UPDATE_TAG": 1})
+
+    # Assert
+    # LangSmith answers 400 for a workspace-scoped user group's workspaces listing.
+    requested = [call.args[0] for call in client.get_cursor_paginated.call_args_list]
+    assert not any(path.endswith("/ws-group/workspaces") for path in requested)
+    assert any(path.endswith("/org-group/workspaces") for path in requested)
+    load.assert_called_once()
+    assert cleanup.call_args.args[2:] == (True, True, True)

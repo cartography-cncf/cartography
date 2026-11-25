@@ -47,10 +47,15 @@ def sync(
         group_id = group["id"]
         members[group_id], ok = _get_group_listing(client, org_id, group_id, "members")
         members_complete = members_complete and ok
-        grants[group_id], ok = _get_group_listing(
-            client, org_id, group_id, "workspaces"
-        )
-        grants_complete = grants_complete and ok
+        if group.get("workspace_id"):
+            # A workspace-scoped user group's only grant is the member-only access to its
+            # own workspace that it was created with. LangSmith rejects listing it with 400.
+            grants[group_id] = []
+        else:
+            grants[group_id], ok = _get_group_listing(
+                client, org_id, group_id, "workspaces"
+            )
+            grants_complete = grants_complete and ok
         policies[group_id], ok = _get_group_listing(
             client, org_id, group_id, "access-policies"
         )

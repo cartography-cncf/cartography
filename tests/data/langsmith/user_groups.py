@@ -9,9 +9,6 @@ from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 SUPPORT_GROUP_ID = "ca11ca11-0001-4001-8001-ca11ca11ca11"
 # Granting Support into the production workspace created this workspace-scoped user group.
 SUPPORT_PROD_GROUP_ID = "ca11ca11-0002-4002-8002-ca11ca11ca11"
-# The built-in role a workspace-scoped user group's own grant holds. It is not in the
-# organization's role catalog.
-WORKSPACE_MEMBER_ONLY_ROLE_ID = "44444444-4444-4444-8444-444444444444"
 
 LANGSMITH_USER_GROUPS = [
     {
@@ -66,15 +63,6 @@ LANGSMITH_USER_GROUP_GRANTS = {
             "workspace_id": WORKSPACE_DEV_ID,
             "role_id": CUSTOM_ROLE_ID,
             "role_name": "Deployment Auditor",
-            "created_at": "2026-03-01T09:00:00Z",
-            "updated_at": "2026-03-01T09:00:00Z",
-        },
-    ],
-    SUPPORT_PROD_GROUP_ID: [
-        {
-            "workspace_id": WORKSPACE_PROD_ID,
-            "role_id": WORKSPACE_MEMBER_ONLY_ROLE_ID,
-            "role_name": "WORKSPACE_MEMBER_ONLY",
             "created_at": "2026-03-01T09:00:00Z",
             "updated_at": "2026-03-01T09:00:00Z",
         },

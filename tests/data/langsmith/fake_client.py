@@ -1,6 +1,8 @@
 import copy
 from typing import Any
 
+import requests
+
 from cartography.intel.langsmith.util import LangSmithFetchError
 from tests.data.langsmith import agent_auth
 from tests.data.langsmith import apikeys
@@ -40,6 +42,16 @@ def _user_group_routes() -> dict[Route, Any]:
         for group_id, payload in payloads.items():
             routes[(f"{prefix}/{group_id}/{listing}", None)] = payload
     return routes
+
+
+# LangSmith rejects listing a workspace-scoped user group's workspace grants.
+USER_GROUP_FAILURES: dict[Route, int | None] = {
+    (
+        f"/api/v1/platform/orgs/current/user-groups/{user_groups.SUPPORT_PROD_GROUP_ID}"
+        "/workspaces",
+        None,
+    ): 400,
+}
 
 
 TAG_KEY_ID = workspace_resources.LANGSMITH_TAG_KEYS[WORKSPACE_PROD_ID][0]["id"]
@@ -114,6 +126,12 @@ SIMPSON_CORP_ROUTES: dict[Route, Any] = {
 }
 
 
+def _http_error(status: int) -> requests.HTTPError:
+    response = requests.Response()
+    response.status_code = status
+    return requests.HTTPError(f"{status} Client Error", response=response)
+
+
 class FakeLangSmithClient:
     """
     Stands in for LangSmithClient at the HTTP boundary.
@@ -131,13 +149,16 @@ class FakeLangSmithClient:
         cold_deployment_urls: frozenset[str] = frozenset(),
     ) -> None:
         self.routes = SIMPSON_CORP_ROUTES if routes is None else routes
-        self.failures = failures or {}
+        self.failures = {**USER_GROUP_FAILURES, **(failures or {})}
         self.cold_deployment_urls = cold_deployment_urls
 
     def get(self, path: str, *, tenant_id: str | None = None, **_: Any) -> Any:
         route = (path, tenant_id)
         if route in self.failures:
             status = self.failures[route]
+            if status == 400:
+                # The real client raises other client errors as they are.
+                raise _http_error(status)
             raise LangSmithFetchError(path, status, f"HTTP {status or 'timeout'}")
         if route not in self.routes:
             raise LangSmithFetchError(path, 404, "HTTP 404")

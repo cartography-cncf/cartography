@@ -294,9 +294,9 @@ class LangSmithUserGroupGrantSchema(CartographyNodeSchema):
     A user group's access to one workspace, together with the role its members get there.
 
     Modeled as a node for the same reason as LangSmithWorkspaceMembership: the grant is a
-    (user group, workspace, role) triple, and roles can be organization-defined. A
-    workspace-scoped user group's own grant holds the WORKSPACE_MEMBER_ONLY role, which
-    gives no permissions.
+    (user group, workspace, role) triple, and roles can be organization-defined. Only
+    organization-wide user groups have grants. A workspace-scoped user group's access to
+    its workspace gives no permissions, and LangSmith doesn't list it.
     """
 
     label: str = "LangSmithUserGroupGrant"
