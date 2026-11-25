@@ -453,7 +453,11 @@ def test_ip_range_cleanup_is_scoped_to_the_synced_account(neo4j_session):
 
 
 def test_legacy_account_to_ip_range_edges_are_removed(neo4j_session):
-    """Graphs written before the fix still hold RESOURCE edges that no schema draws."""
+    """
+    Graphs written before the fix still hold RESOURCE edges that no schema draws.
+    Each account's sync removes only its own; another account's legacy edge keeps its
+    range until that account syncs, even when no rule references the range.
+    """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _sync_account(
         neo4j_session,
@@ -469,6 +473,14 @@ def test_legacy_account_to_ip_range_edges_are_removed(neo4j_session):
         account_id=ACCOUNT_A,
         cidr=SHARED_CIDR,
     )
+    create_test_account(neo4j_session, ACCOUNT_B, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (b:AWSAccount {id: $account_id})
+        MERGE (b)-[:RESOURCE]->(:AWSIpRange {id: '203.0.113.0/24'})
+        """,
+        account_id=ACCOUNT_B,
+    )
 
     _sync_account(
         neo4j_session,
@@ -476,6 +488,14 @@ def test_legacy_account_to_ip_range_edges_are_removed(neo4j_session):
         [_sg_with_cidrs("sg-aaaa", ACCOUNT_A, [SHARED_CIDR])],
         TEST_UPDATE_TAG + 1,
     )
+
+    assert _account_to_range_rels(neo4j_session) == {(ACCOUNT_B, "203.0.113.0/24")}
+    assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {
+        (SHARED_CIDR,),
+        ("203.0.113.0/24",),
+    }
+
+    _sync_account(neo4j_session, ACCOUNT_B, [], TEST_UPDATE_TAG + 1)
 
     assert _account_to_range_rels(neo4j_session) == set()
     assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {(SHARED_CIDR,)}

@@ -254,6 +254,7 @@ def cleanup_ip_ranges(
                 """
                 MATCH (n:AWSIpRange)
                 WHERE NOT (n)-[:MEMBER_OF_IP_RULE]->()
+                AND NOT (n)<-[:RESOURCE]-(:AWSAccount)
                 WITH n LIMIT $LIMIT_SIZE
                 DETACH DELETE n
                 """,
