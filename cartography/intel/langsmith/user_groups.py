@@ -248,18 +248,18 @@ def cleanup(
     grants_complete: bool,
     policies_complete: bool,
 ) -> None:
+    cleanup_if_complete(
+        neo4j_session,
+        LangSmithUserGroupGrantSchema(),
+        grants_complete,
+        common_job_parameters,
+    )
     # The user group cleanup also prunes MEMBER_OF edges, so it needs every member
     # listing to have been read.
     cleanup_if_complete(
         neo4j_session,
         LangSmithUserGroupSchema(),
         members_complete,
-        common_job_parameters,
-    )
-    cleanup_if_complete(
-        neo4j_session,
-        LangSmithUserGroupGrantSchema(),
-        grants_complete,
         common_job_parameters,
     )
     if not policies_complete:

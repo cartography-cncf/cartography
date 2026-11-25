@@ -2,12 +2,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cartography.intel.langsmith.user_groups import cleanup
 from cartography.intel.langsmith.user_groups import get_user_groups
 from cartography.intel.langsmith.user_groups import sync
 from cartography.intel.langsmith.user_groups import transform_grants
 from cartography.intel.langsmith.user_groups import transform_policy_attachments
 from cartography.intel.langsmith.user_groups import transform_user_groups
 from cartography.intel.langsmith.util import LangSmithFetchError
+from cartography.models.langsmith.usergroup import LangSmithUserGroupGrantSchema
 
 
 def test_transform_user_groups_resolves_members_to_ls_user_ids():
@@ -113,3 +115,28 @@ def test_sync_skips_grants_of_workspace_scoped_user_groups(mocker):
     assert any(path.endswith("/org-group/workspaces") for path in requested)
     load.assert_called_once()
     assert cleanup.call_args.args[2:] == (True, True, True)
+
+
+def test_failed_grant_cleanup_stops_before_group_cleanup(mocker):
+    # Arrange
+    session = MagicMock()
+    parameters = {"ORG_ID": "org-1", "UPDATE_TAG": 2}
+    cleanup_job = mocker.patch(
+        "cartography.intel.langsmith.user_groups.cleanup_if_complete",
+        side_effect=RuntimeError("cleanup failed"),
+    )
+
+    # Act
+    with pytest.raises(RuntimeError, match="cleanup failed"):
+        cleanup(
+            session,
+            parameters,
+            members_complete=True,
+            grants_complete=True,
+            policies_complete=True,
+        )
+
+    # Assert
+    cleanup_job.assert_called_once_with(
+        session, LangSmithUserGroupGrantSchema(), True, parameters
+    )
