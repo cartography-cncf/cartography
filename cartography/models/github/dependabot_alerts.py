@@ -333,7 +333,7 @@ class GitHubDependabotAlertSchema(CartographyNodeSchema):
 
     An alert is not labeled [`CVE`](#ontology-cve). The `GitHubSecurityAdvisory` it
     links to through `HAS_VULNERABILITY` carries that label, so each CVE is one node
-    rather than one node per affected repository. The alert still writes its
+    in each organization rather than one node per alert. The alert still writes its
     advisory-level fields, which are deprecated and will be removed in v1.0.0.
     """
 
