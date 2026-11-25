@@ -295,7 +295,7 @@ class SemgrepSCAFindingToAssistantRel(CartographyRelSchema):
 class SemgrepSCAFindingSchema(CartographyNodeSchema):
     """A dependency vulnerability that Semgrep Supply Chain found in one repository.
 
-    Advisory-only findings, whose identifier is not a CVE, are labeled `:SecurityIssue`. A CVE-backed finding is not itself labeled [`CVE`](#ontology-cve): the `SemgrepSCAVulnerability` it links to through `HAS_VULNERABILITY` carries that label, so each CVE is one node.
+    Advisory-only findings, whose identifier is not a CVE, are labeled `:SecurityIssue`. A CVE-backed finding is not itself labeled [`CVE`](#ontology-cve): the `SemgrepSCAVulnerability` it links to through `HAS_VULNERABILITY` carries that label, so each CVE is one node per deployment.
     """
 
     label: str = "SemgrepSCAFinding"
@@ -324,9 +324,11 @@ class SemgrepSCAVulnerabilityNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
         description=(
-            "`SEMGREP|` followed by the advisory identifier, such as "
-            "`SEMGREP|CVE-2022-31129`. The prefix keeps the node apart from other "
-            "sources' `:CVE` nodes, which use the bare CVE identifier as their `id`."
+            "`SEMGREP|<deployment id>|<advisory identifier>`, such as "
+            "`SEMGREP|123456|CVE-2022-31129`. Each deployment has its own node per "
+            "advisory, so cleanup of one deployment never deletes another's. The "
+            "prefix keeps the node apart from other sources' `:CVE` nodes, which use "
+            "the bare CVE identifier as their `id`."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -377,9 +379,9 @@ class SemgrepSCAVulnerabilityToSemgrepDeploymentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SemgrepSCAVulnerabilitySchema(CartographyNodeSchema):
-    """An advisory, a CVE or a GHSA, that Semgrep Supply Chain reports in SCA findings.
+    """An advisory, a CVE or a GHSA, that Semgrep Supply Chain reports in a deployment's SCA findings.
 
-    Holds the advisory data that is the same for every finding of the advisory, so `CVEMetadata` enriches one node per CVE rather than every finding. Labeled [`CVE`](#ontology-cve) when the advisory is a CVE. Semgrep can report one advisory through several rules whose messages differ, so the rule message stays on each `SemgrepSCAFinding` as its `description`.
+    Holds the advisory data that is the same for every finding of the advisory, so `CVEMetadata` enriches one node per CVE and deployment rather than every finding. Labeled [`CVE`](#ontology-cve) when the advisory is a CVE. Semgrep can report one advisory through several rules whose messages differ, so the rule message stays on each `SemgrepSCAFinding` as its `description`.
     """
 
     label: str = "SemgrepSCAVulnerability"

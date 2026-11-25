@@ -162,8 +162,16 @@ def _build_vuln_url(vuln: str) -> str | None:
     return None
 
 
+def _vulnerability_id(deployment_id: str, advisory_id: str) -> str:
+    # Each deployment owns its vulnerability nodes: cleanup is scoped to one
+    # deployment, so a node shared with another would be deleted while the other
+    # deployment still reports it.
+    return f"SEMGREP|{deployment_id}|{advisory_id}"
+
+
 def transform_sca_vulns(
     raw_vulns: List[Dict[str, Any]],
+    deployment_id: str,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
     """
     Transforms the raw SCA vulns response from Semgrep API into a list of dicts
@@ -221,10 +229,10 @@ def transform_sca_vulns(
             if vuln_id.startswith("CVE-"):
                 sca_vuln["cveId"] = vuln_id
                 sca_vuln["has_cve"] = "true"
-                sca_vuln["vulnerabilityId"] = f"SEMGREP|{vuln_id}"
+                sca_vuln["vulnerabilityId"] = _vulnerability_id(deployment_id, vuln_id)
             elif vuln_id.startswith("GHSA"):
                 sca_vuln["ghsaId"] = vuln_id
-                sca_vuln["vulnerabilityId"] = f"SEMGREP|{vuln_id}"
+                sca_vuln["vulnerabilityId"] = _vulnerability_id(deployment_id, vuln_id)
             ref_url = _build_vuln_url(vuln_id)
             sca_vuln["ref_urls"] = [ref_url] if ref_url is not None else []
         if vuln.get("fix_recommendations") and len(vuln["fix_recommendations"]) > 0:
@@ -616,7 +624,7 @@ def sync_sca_findings(
                 deployment_id,
                 update_tag,
             )
-            vulns, usages = transform_sca_vulns(raw_vulns)
+            vulns, usages = transform_sca_vulns(raw_vulns, deployment_id)
             # Findings link to their vulnerability on load, so it must exist first.
             load_semgrep_sca_vulnerabilities(
                 neo4j_session,

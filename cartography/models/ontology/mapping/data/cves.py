@@ -416,10 +416,10 @@ tenable_mapping = OntologyMapping(
 )
 
 
-# SemgrepSCAVulnerability is one node per Semgrep advisory and carries :CVE when the
-# advisory is a CVE. Each SemgrepSCAFinding links to it through HAS_VULNERABILITY, so
-# each Semgrep CVE is one node. Semgrep can report one advisory through several rules
-# whose messages differ, so the node maps no description.
+# SemgrepSCAVulnerability is one node per Semgrep advisory and deployment, and carries
+# :CVE when the advisory is a CVE. Each SemgrepSCAFinding links to it through
+# HAS_VULNERABILITY rather than carrying :CVE. Semgrep can report one advisory through
+# several rules whose messages differ, so the node maps no description.
 semgrep_mapping = OntologyMapping(
     module_name="semgrep",
     nodes=[

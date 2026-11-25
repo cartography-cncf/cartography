@@ -103,7 +103,7 @@ def test_get_findings_retries_rate_limit_then_succeeds(mock_get):
 def test_transform_sca_vulns_uppercases_reachability():
     raw_vulns = copy.deepcopy(SCA_RESPONSE["findings"])
 
-    vulns, _ = transform_sca_vulns(raw_vulns)
+    vulns, _ = transform_sca_vulns(raw_vulns, "123456")
 
     assert vulns[0]["reachability"] == "REACHABLE"
     assert vulns[1]["reachability"] == "UNREACHABLE"
@@ -116,7 +116,7 @@ def test_transform_sca_vulns_handles_null_reachability():
     raw_vulns = copy.deepcopy(SCA_RESPONSE["findings"])
     raw_vulns[0]["reachability"] = None
 
-    vulns, _ = transform_sca_vulns(raw_vulns)
+    vulns, _ = transform_sca_vulns(raw_vulns, "123456")
 
     assert vulns[0]["reachability"] is None
 
@@ -128,7 +128,7 @@ def test_transform_sca_vulns_handles_null_reachability():
             "cve-2022-31129",
             [
                 {
-                    "id": "SEMGREP|CVE-2022-31129",
+                    "id": "SEMGREP|123456|CVE-2022-31129",
                     "cveId": "CVE-2022-31129",
                     "ghsaId": None,
                     "has_cve": "true",
@@ -141,7 +141,7 @@ def test_transform_sca_vulns_handles_null_reachability():
             "GHSA-8hfj-j24r-96c4",
             [
                 {
-                    "id": "SEMGREP|GHSA-8HFJ-J24R-96C4",
+                    "id": "SEMGREP|123456|GHSA-8HFJ-J24R-96C4",
                     "cveId": None,
                     "ghsaId": "GHSA-8HFJ-J24R-96C4",
                     "has_cve": "false",
@@ -161,7 +161,7 @@ def test_transform_sca_vulnerabilities_one_node_per_advisory(identifier, expecte
     for raw_vuln in raw_vulns:
         raw_vuln["vulnerability_identifier"] = identifier
     raw_vulns[1]["repository"]["name"] = "simpsoncorp/other_repo"
-    vulns, _ = transform_sca_vulns(raw_vulns)
+    vulns, _ = transform_sca_vulns(raw_vulns, "123456")
 
     # Act
     vulnerabilities = transform_sca_vulnerabilities(vulns)

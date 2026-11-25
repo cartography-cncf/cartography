@@ -619,7 +619,7 @@ def test_sync_findings(
             "_ont_base_severity",
         ],
     ) == [
-        "SEMGREP|CVE-2022-31129",
+        "SEMGREP|123456|CVE-2022-31129",
         "CVE-2022-31129",
         None,
         "true",
@@ -630,7 +630,7 @@ def test_sync_findings(
     ]
     assert neo4j_session.run(
         "MATCH (n:SemgrepSCAVulnerability:CVE) RETURN n.id AS id",
-    ).value("id") == ["SEMGREP|CVE-2022-31129"]
+    ).value("id") == ["SEMGREP|123456|CVE-2022-31129"]
     assert check_rels(
         neo4j_session,
         "SemgrepDeployment",
@@ -638,7 +638,7 @@ def test_sync_findings(
         "SemgrepSCAVulnerability",
         "id",
         "RESOURCE",
-    ) == {("123456", "SEMGREP|CVE-2022-31129")}
+    ) == {("123456", "SEMGREP|123456|CVE-2022-31129")}
     assert check_rels(
         neo4j_session,
         "SemgrepSCAFinding",
@@ -646,7 +646,7 @@ def test_sync_findings(
         "SemgrepSCAVulnerability",
         "id",
         "HAS_VULNERABILITY",
-    ) == {(tests.data.semgrep.sca.VULN_ID, "SEMGREP|CVE-2022-31129")}
+    ) == {(tests.data.semgrep.sca.VULN_ID, "SEMGREP|123456|CVE-2022-31129")}
 
     assert check_nodes_as_list(
         neo4j_session,
@@ -979,7 +979,7 @@ def test_sync_findings_migrates_only_the_synced_deployments_cve_findings(
     # Assert: the other deployment's finding keeps :CVE until that deployment
     # syncs and its findings link to their vulnerability.
     assert check_nodes(neo4j_session, "CVE", ["id"]) == {
-        ("SEMGREP|CVE-2022-31129",),
+        ("SEMGREP|123456|CVE-2022-31129",),
         ("other-finding",),
     }
 
