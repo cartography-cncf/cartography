@@ -24,10 +24,18 @@ def get_apprunner_services(
     region: str,
 ) -> list[dict[str, Any]]:
     client = create_boto3_client(boto3_session, "apprunner", region_name=region)
-    paginator = client.get_paginator("list_services")
+    # botocore has no paginator for list_services, so page with NextToken.
     services: list[dict[str, Any]] = []
-    for page in paginator.paginate():
+    next_token = None
+    while True:
+        params: dict[str, Any] = {}
+        if next_token:
+            params["NextToken"] = next_token
+        page = client.list_services(**params)
         services.extend(page.get("ServiceSummaryList", []))
+        next_token = page.get("NextToken")
+        if not next_token:
+            break
 
     described_services: list[dict[str, Any]] = []
     for service in services:
