@@ -359,6 +359,8 @@ GLOBAL_NODE_LABELS: Set[str] = {
     "User",
     # AWS-owned / cross-account resources.
     "AWSCidrBlock",
+    # Keyed on the CIDR alone, so security group rules in many accounts share one node.
+    "AWSIpRange",
     "AWSManagedPolicy",
     # AWS-managed public SSM parameters are regional catalog data shared by
     # every account, so they must not be owned or cleaned up per AWSAccount.
