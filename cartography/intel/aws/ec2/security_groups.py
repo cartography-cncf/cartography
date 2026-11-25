@@ -214,7 +214,7 @@ def cleanup_ip_ranges(
     """Remove this account's stale range edges, then ranges no rule references
 
     AWSIpRange nodes are shared across accounts, the cleanup generated from
-    IpRangeSchema would delete every account's stale edges. 
+    IpRangeSchema would delete every account's stale edges.
     Must run after the AWSIpRule cleanup, which detaches the ranges of deleted rules
     """
     parameters = {
@@ -224,6 +224,19 @@ def cleanup_ip_ranges(
     GraphJob(
         "Cleanup AWSIpRange",
         [
+            # DEPRECATED: RESOURCE edges drawn before AWSIpRange stopped being an
+            # account resource; no schema cleans them up. Will be removed in v1.0.0
+            GraphStatement(
+                """
+                MATCH (:AWSAccount {id: $AWS_ID})-[r:RESOURCE]->(:AWSIpRange)
+                WITH r LIMIT $LIMIT_SIZE
+                DELETE r
+                """,
+                parameters=parameters,
+                iterative=True,
+                iterationsize=10000,
+                parent_job_name="aws_ip_range_cleanup",
+            ),
             GraphStatement(
                 """
                 MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(:AWSIpRule)<-[r:MEMBER_OF_IP_RULE]-(:AWSIpRange)
