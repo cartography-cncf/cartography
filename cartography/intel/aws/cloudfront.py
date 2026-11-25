@@ -86,6 +86,17 @@ def _extract_s3_bucket_name(domain_name: str) -> str | None:
     return None
 
 
+def _path_pattern_to_regex(pattern: str) -> str:
+    """
+    Translate a CloudFront cache behavior path pattern to an anchored regex.
+
+    CloudFront wildcards: '*' matches any sequence of characters (including '/'),
+    '?' matches exactly one character. All other characters are literal and
+    matching is case-sensitive.
+    """
+    return "^" + re.escape(pattern).replace(r"\*", ".*").replace(r"\?", ".") + "$"
+
+
 def _extract_lambda_arns_from_cache_behavior(
     cache_behavior: dict[str, Any],
 ) -> list[str]:
@@ -114,6 +125,8 @@ def transform_cloudfront_distributions(
     - Domain names of all origins, including custom origins such as load balancers
     - VPC origin IDs from origins that reach private targets through a VPC origin
     - Lambda function ARNs from cache behavior associations
+    - Cache behavior path patterns, regexes and target origin ids in evaluation
+      order, plus the default behavior's origin id and origin id|domain pairs
     - ViewerCertificate configuration
     - GeoRestriction configuration
     - DefaultCacheBehavior viewer protocol policy
@@ -203,6 +216,52 @@ def transform_cloudfront_distributions(
         )
         item["vpc_origin_ids"] = vpc_origin_ids or None
 
+        # Paired "domain|path" origin endpoints, so consumers can match what
+        # the distribution fronts (e.g. an API Gateway execute endpoint).
+        # An empty path segment means requests reach the origin as-is.
+        # Domain lowercased for consistency with origin_domain_names and with
+        # AWSLoadBalancerV2.dnsname, both of which are lowercase matching keys.
+        item["origin_endpoints"] = (
+            sorted(
+                {
+                    f"{origin.get('DomainName', '').lower()}|{origin.get('OriginPath', '')}"
+                    for origin in origin_items
+                }
+            )
+            or None
+        )
+
+        # Cache behaviors in evaluation order: CloudFront routes a request to the
+        # origin of the first behavior whose path pattern matches, falling back to
+        # the default behavior. Aligned lists let queries resolve the origin for a
+        # request path without APOC.
+        cache_behaviors = dist.get("CacheBehaviors", {})
+        cache_behavior_items = cache_behaviors.get("Items", [])
+        item["behavior_path_patterns"] = [
+            behavior.get("PathPattern", "") for behavior in cache_behavior_items
+        ] or None
+        item["behavior_path_regexes"] = [
+            _path_pattern_to_regex(behavior.get("PathPattern", ""))
+            for behavior in cache_behavior_items
+        ] or None
+        item["behavior_target_origin_ids"] = [
+            behavior.get("TargetOriginId", "") for behavior in cache_behavior_items
+        ] or None
+        item["default_target_origin_id"] = default_cache_behavior.get("TargetOriginId")
+        # OriginId|DomainName pairs: behaviors reference origins by id, which the
+        # flat origin_domain_names list loses. Domain lowercased to match
+        # origin_domain_names.
+        item["origin_id_domain_pairs"] = (
+            sorted(
+                {
+                    f"{origin.get('Id')}|{origin.get('DomainName').lower()}"
+                    for origin in origin_items
+                    if origin.get("Id") and origin.get("DomainName")
+                },
+            )
+            or None
+        )
+
         # Extract Lambda function ARNs from cache behaviors
         lambda_arns: list[str] = []
 
@@ -212,8 +271,6 @@ def transform_cloudfront_distributions(
         )
 
         # From additional cache behaviors
-        cache_behaviors = dist.get("CacheBehaviors", {})
-        cache_behavior_items = cache_behaviors.get("Items", [])
         for cache_behavior in cache_behavior_items:
             lambda_arns.extend(_extract_lambda_arns_from_cache_behavior(cache_behavior))
 

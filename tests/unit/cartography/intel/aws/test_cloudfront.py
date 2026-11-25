@@ -3,6 +3,7 @@ Unit tests for AWS CloudFront intel module.
 """
 
 import copy
+import re
 
 from cartography.intel.aws import cloudfront
 from tests.data.aws import cloudfront as test_data
@@ -314,3 +315,70 @@ def test_extract_lambda_arns_from_cache_behavior_missing():
 
     arns = cloudfront._extract_lambda_arns_from_cache_behavior(cache_behavior)
     assert arns == []
+
+
+def test_path_pattern_to_regex():
+    """CloudFront glob semantics: '*' crosses '/', '?' is one char, rest literal."""
+    rx = cloudfront._path_pattern_to_regex("/basket*")
+    assert re.match(rx, "/basket")
+    assert re.match(rx, "/basket/items/1")
+    assert not re.match(rx, "/Basket")  # case-sensitive
+    assert not re.match(rx, "/shop/basket")  # anchored
+
+    rx = cloudfront._path_pattern_to_regex("/api/v?/users")
+    assert re.match(rx, "/api/v2/users")
+    assert not re.match(rx, "/api/v22/users")
+
+    rx = cloudfront._path_pattern_to_regex("*.jpg")
+    assert re.match(rx, "/img/a.jpg")
+    assert not re.match(rx, "/img/a.jpeg")
+
+    # Regex metacharacters in patterns stay literal
+    rx = cloudfront._path_pattern_to_regex("/a.b+c")
+    assert re.match(rx, "/a.b+c")
+    assert not re.match(rx, "/axbbc")
+
+
+def test_transform_cloudfront_distributions_behaviors():
+    """Behaviors keep evaluation order, with aligned regexes and origin ids."""
+    dist = copy.deepcopy(test_data.CLOUDFRONT_DISTRIBUTIONS_MULTI_ORIGIN[0])
+    # Prepend a behavior to prove list order is preserved, not sorted.
+    dist["CacheBehaviors"]["Items"].insert(
+        0,
+        {
+            "PathPattern": "/api/*",
+            "TargetOriginId": "S3-primary",
+            "ViewerProtocolPolicy": "redirect-to-https",
+        },
+    )
+
+    result = cloudfront.transform_cloudfront_distributions([dist])
+    d = result[0]
+
+    assert d["behavior_path_patterns"] == ["/api/*", "/backup/*"]
+    assert d["behavior_target_origin_ids"] == ["S3-primary", "S3-backup"]
+    assert d["behavior_path_regexes"] == [
+        cloudfront._path_pattern_to_regex("/api/*"),
+        cloudfront._path_pattern_to_regex("/backup/*"),
+    ]
+    assert d["default_target_origin_id"] == "S3-primary"
+    assert d["origin_id_domain_pairs"] == [
+        "S3-backup|backup-bucket.s3-website-us-west-2.amazonaws.com",
+        "S3-primary|primary-bucket.s3.amazonaws.com",
+    ]
+
+
+def test_transform_cloudfront_distributions_no_behaviors():
+    """Default-only distributions get null behavior lists but keep the default origin."""
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS,
+    )
+    d = result[0]
+
+    assert d["behavior_path_patterns"] is None
+    assert d["behavior_path_regexes"] is None
+    assert d["behavior_target_origin_ids"] is None
+    assert d["default_target_origin_id"] == "S3-my-bucket"
+    assert d["origin_id_domain_pairs"] == [
+        "S3-my-bucket|my-test-bucket.s3.amazonaws.com",
+    ]

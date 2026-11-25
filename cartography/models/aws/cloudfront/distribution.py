@@ -133,6 +133,37 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
         description="Domain names of all origins configured on this distribution, including custom origins such as load balancers",
     )
 
+    origin_domain_names: PropertyRef = PropertyRef(
+        "origin_domain_names",
+        extra_index=True,
+        description="Domain names of all origins configured on this distribution, including custom origins such as load balancers",
+    )
+
+    # Request routing: CloudFront picks the origin of the first cache behavior
+    # whose path pattern matches the request path (evaluation order), falling
+    # back to the default behavior. The three behavior lists are aligned by
+    # index so a query can resolve the serving origin for a given path.
+    behavior_path_patterns: PropertyRef = PropertyRef(
+        "behavior_path_patterns",
+        description="Cache behavior path patterns in evaluation order, e.g. '/api/*'. Unset when the distribution has only a default behavior.",
+    )
+    behavior_path_regexes: PropertyRef = PropertyRef(
+        "behavior_path_regexes",
+        description="Anchored regex translation of each behavior_path_patterns entry ('*' matches any characters including '/', '?' exactly one), aligned by index, for request-path matching in queries.",
+    )
+    behavior_target_origin_ids: PropertyRef = PropertyRef(
+        "behavior_target_origin_ids",
+        description="Origin id each cache behavior forwards to, aligned by index with behavior_path_patterns.",
+    )
+    default_target_origin_id: PropertyRef = PropertyRef(
+        "default_target_origin_id",
+        description="Origin id used when no cache behavior path pattern matches the request.",
+    )
+    origin_id_domain_pairs: PropertyRef = PropertyRef(
+        "origin_id_domain_pairs",
+        description="Paired 'origin_id|domain_name' entries mapping behavior target origin ids to origin domains.",
+    )
+
     # WAF integration
     web_acl_id: PropertyRef = PropertyRef(
         "WebACLId",
