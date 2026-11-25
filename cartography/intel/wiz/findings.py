@@ -712,9 +712,11 @@ def _transformed_batches(
         page_findings, page_vulnerabilities = transform(page, tenant_id)
         findings.extend(page_findings)
         vulnerabilities.update((v["id"], v) for v in page_vulnerabilities)
-        if len(findings) >= LOAD_BATCH_SIZE:
-            yield findings, list(vulnerabilities.values())
-            findings, vulnerabilities = [], {}
+        while len(findings) >= LOAD_BATCH_SIZE:
+            # Findings carried into the next batch link to vulnerabilities that
+            # this batch loads first.
+            yield findings[:LOAD_BATCH_SIZE], list(vulnerabilities.values())
+            findings, vulnerabilities = findings[LOAD_BATCH_SIZE:], {}
     if findings:
         yield findings, list(vulnerabilities.values())
 

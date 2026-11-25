@@ -1,5 +1,6 @@
 import pytest
 
+import cartography.intel.wiz.findings as wiz_findings
 from cartography.intel.wiz.findings import get_finding_id
 from cartography.intel.wiz.findings import transform as transform_findings
 from cartography.intel.wiz.issues import transform as transform_issues
@@ -175,6 +176,30 @@ def test_transform_findings_labels_non_cve_vulnerabilities_as_security_issues():
         None,
         "false",
     )
+
+
+def test_transformed_batches_cap_each_load_and_load_vulnerabilities_first(
+    monkeypatch,
+):
+    # Arrange: pages of three findings, one CVE each, that cross a batch of four.
+    monkeypatch.setattr(wiz_findings, "LOAD_BATCH_SIZE", 4)
+    pages = [
+        [
+            {**VULNERABILITY_FINDINGS[0], "id": f"f{i}", "name": f"CVE-2024-{i:05d}"}
+            for i in range(start, start + 3)
+        ]
+        for start in (0, 3, 6)
+    ]
+
+    # Act
+    batches = list(wiz_findings._transformed_batches(pages, TENANT_ID))
+
+    # Assert: every finding's vulnerability loads in its batch or an earlier one.
+    assert [len(findings) for findings, _ in batches] == [4, 4, 1]
+    loaded: set[str] = set()
+    for findings, vulnerabilities in batches:
+        loaded.update(v["id"] for v in vulnerabilities)
+        assert {f["vulnerability_id"] for f in findings} <= loaded
 
 
 def test_transform_findings_extracts_configuration_metadata():

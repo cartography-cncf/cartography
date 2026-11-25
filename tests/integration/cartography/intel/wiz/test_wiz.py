@@ -37,11 +37,11 @@ def cleanup_wiz_test_data(neo4j_session):
            OR n:WizIssue
            OR n:WizFinding
            OR n:WizVulnerability
-           OR n:CVEMetadata
         DETACH DELETE n
         """,
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
+    neo4j_session.run("MATCH (n:CVEMetadata {id: $id}) DETACH DELETE n", id=CVE_ID_1)
     neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
     neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
     yield
@@ -52,11 +52,11 @@ def cleanup_wiz_test_data(neo4j_session):
            OR n:WizIssue
            OR n:WizFinding
            OR n:WizVulnerability
-           OR n:CVEMetadata
         DETACH DELETE n
         """,
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
+    neo4j_session.run("MATCH (n:CVEMetadata {id: $id}) DETACH DELETE n", id=CVE_ID_1)
     neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
     neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
 
