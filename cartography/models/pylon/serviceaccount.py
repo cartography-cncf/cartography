@@ -24,10 +24,6 @@ class PylonServiceAccountNodeProperties(CartographyNodeProperties):
         "is_deactivated",
         description="Whether the identity is deactivated.",
     )
-    role_ids: PropertyRef = PropertyRef(
-        "role_ids",
-        description="IDs of every role assigned to the identity.",
-    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

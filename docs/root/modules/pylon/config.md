@@ -51,7 +51,7 @@ value, creator, last use, or IP allowlist; check those in
 
 | CLI option | Description |
 | --- | --- |
-| `--pylon-api-token-env-var` | Name of the environment variable that holds the Pylon API token. Required. |
+| `--pylon-api-token-env-var` | Name of the environment variable that holds the Pylon API token. If you omit this option or the variable is unset or empty, Cartography logs an info message and skips Pylon. |
 | `--pylon-base-url` | Pylon API base URL. Optional. By default, tokens that start with `pylon_api_eu_` use `https://api.eu.usepylon.com`, and every other token uses `https://api.usepylon.com`. |
 
 ## Run Cartography

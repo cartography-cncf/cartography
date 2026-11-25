@@ -33,13 +33,6 @@ class PylonUserNodeProperties(CartographyNodeProperties):
             "and Pylon deletes the API tokens that the user created."
         ),
     )
-    role_ids: PropertyRef = PropertyRef(
-        "role_ids",
-        description=(
-            "IDs of every role assigned to the user, including roles derived "
-            "from SCIM group mappings."
-        ),
-    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
