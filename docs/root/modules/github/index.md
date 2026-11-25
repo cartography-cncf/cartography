@@ -90,8 +90,8 @@ Dependency and `PythonLibrary` nodes are shared globally across repositories and
 organizations. Their cleanup therefore runs once after all configured GitHub
 organizations have synced. Each Dependabot alert links through
 `HAS_VULNERABILITY` to the `GitHubSecurityAdvisory` it reports, one node per GHSA
-identifier, which carries the `CVE` label when the advisory has a CVE
-identifier. Dependabot package, CWE, and reference identifiers remain
+identifier in each organization, which carries the `CVE` label when the
+advisory has a CVE identifier. Dependabot package, CWE, and reference identifiers remain
 properties. Cartography does not create package relationships from those
 identifiers until identity can be normalized safely.
 

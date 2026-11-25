@@ -118,6 +118,7 @@ def _dedupe_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def transform(
     alerts: list[dict[str, Any]],
+    org_url: str,
 ) -> dict[str, list[dict[str, Any]]]:
     """
     Transform Dependabot alert payloads into alert, security advisory, and
@@ -196,7 +197,9 @@ def transform(
                 reference["url"] for reference in references if reference.get("url")
             ],
         }
-        advisory_id = f"GHSA|{advisory_ghsa_id}" if advisory_ghsa_id else None
+        # Keyed per organization, so each organization's cleanup deletes only its
+        # own advisories and never one that another organization's alerts link to.
+        advisory_id = f"GHSA|{org_url}|{advisory_ghsa_id}" if advisory_ghsa_id else None
         if advisory_id and advisory_id not in advisories_by_id:
             advisories_by_id[advisory_id] = {
                 "id": advisory_id,
@@ -356,7 +359,7 @@ def sync(
         )
         return
 
-    transformed = transform(fetch_result.alerts)
+    transformed = transform(fetch_result.alerts, org_url)
     load_users(neo4j_session, transformed["users"], update_tag)
     # Alerts link to their advisory on load, so it must exist first.
     load_advisories(neo4j_session, transformed["advisories"], update_tag, org_url)

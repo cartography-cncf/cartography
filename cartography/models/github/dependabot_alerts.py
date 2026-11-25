@@ -364,7 +364,10 @@ class GitHubDependabotAlertSchema(CartographyNodeSchema):
 class GitHubSecurityAdvisoryNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="The advisory's GHSA identifier, prefixed with `GHSA|`.",
+        description=(
+            "`GHSA|<organization URL>|<GHSA identifier>`: the advisory as reported "
+            "to one organization."
+        ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     advisory_ghsa_id: PropertyRef = PropertyRef(
@@ -443,7 +446,7 @@ class GitHubSecurityAdvisoryNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class GitHubSecurityAdvisoryToOrgRel(CartographyRelSchema):
-    """Scopes a security advisory to each organization whose alerts report it."""
+    """Scopes a security advisory to the organization whose alerts report it."""
 
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -462,9 +465,11 @@ class GitHubSecurityAdvisorySchema(CartographyNodeSchema):
 
     Holds the advisory data that is the same for every alert of the advisory, so each
     `GitHubDependabotAlert` adds only what is specific to one repository dependency.
-    There is one node per GHSA identifier, shared by every organization whose alerts
-    report it. Labeled [`CVE`](#ontology-cve) when the advisory has a CVE identifier,
-    so `CVEMetadata` enriches one node per CVE.
+    There is one node per GHSA identifier in each organization, so an organization's
+    cleanup never deletes an advisory that another organization's alerts link to.
+    Labeled [`CVE`](#ontology-cve) when the advisory has a CVE identifier, so
+    `CVEMetadata` enriches one node per CVE in each organization rather than one per
+    alert.
     """
 
     label: str = "GitHubSecurityAdvisory"

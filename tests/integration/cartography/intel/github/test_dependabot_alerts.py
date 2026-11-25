@@ -80,6 +80,7 @@ def _seed_alerts_from_earlier_versions(neo4j_session):
         MERGE (other)-[:RESOURCE]->(other_alert:GitHubDependabotAlert:CVE {
             id: "https://github.com/otherorg/repo/security/dependabot/1"
         })
+        SET other_alert._ont_source = "github"
         MERGE (metadata:CVEMetadata {id: "CVE-2018-6188"})
         MERGE (metadata)-[:ENRICHES]->(cve_alert)
         MERGE (metadata)-[:ENRICHES]->(other_alert)
@@ -197,7 +198,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
 
     assert {
         (
-            "GHSA|GHSA-rf4j-j272-fj86",
+            "GHSA|https://github.com/simpsoncorp|GHSA-rf4j-j272-fj86",
             "CVE-2018-6188",
             7.5,
             "high",
@@ -208,7 +209,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             "github",
         ),
         (
-            "GHSA|GHSA-35jh-r3h4-6jhm",
+            "GHSA|https://github.com/simpsoncorp|GHSA-35jh-r3h4-6jhm",
             "CVE-2019-10744",
             9.8,
             "critical",
@@ -219,7 +220,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             "github",
         ),
         (
-            "GHSA|GHSA-8f4m-hccc-8qph",
+            "GHSA|https://github.com/simpsoncorp|GHSA-8f4m-hccc-8qph",
             "CVE-2021-20191",
             None,
             "medium",
@@ -255,7 +256,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
     )
     ghsa_only_has_cve_label = neo4j_session.run(
         """
-        MATCH (advisory:GitHubSecurityAdvisory {id: "GHSA|GHSA-test-auto"})
+        MATCH (advisory:GitHubSecurityAdvisory {id: "GHSA|https://github.com/simpsoncorp|GHSA-test-auto"})
         RETURN "CVE" IN labels(advisory) AS has_cve_label
         """,
     ).single()
@@ -274,19 +275,19 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
     ) == {
         (
             "https://github.com/simpsoncorp/sample_repo/security/dependabot/1",
-            "GHSA|GHSA-rf4j-j272-fj86",
+            "GHSA|https://github.com/simpsoncorp|GHSA-rf4j-j272-fj86",
         ),
         (
             "https://github.com/simpsoncorp/sample_repo/security/dependabot/2",
-            "GHSA|GHSA-35jh-r3h4-6jhm",
+            "GHSA|https://github.com/simpsoncorp|GHSA-35jh-r3h4-6jhm",
         ),
         (
             "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/3",
-            "GHSA|GHSA-8f4m-hccc-8qph",
+            "GHSA|https://github.com/simpsoncorp|GHSA-8f4m-hccc-8qph",
         ),
         (
             "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/4",
-            "GHSA|GHSA-test-auto",
+            "GHSA|https://github.com/simpsoncorp|GHSA-test-auto",
         ),
     }
     assert check_rels(
@@ -298,10 +299,22 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ("GHSA|GHSA-rf4j-j272-fj86", "https://github.com/simpsoncorp"),
-        ("GHSA|GHSA-35jh-r3h4-6jhm", "https://github.com/simpsoncorp"),
-        ("GHSA|GHSA-8f4m-hccc-8qph", "https://github.com/simpsoncorp"),
-        ("GHSA|GHSA-test-auto", "https://github.com/simpsoncorp"),
+        (
+            "GHSA|https://github.com/simpsoncorp|GHSA-rf4j-j272-fj86",
+            "https://github.com/simpsoncorp",
+        ),
+        (
+            "GHSA|https://github.com/simpsoncorp|GHSA-35jh-r3h4-6jhm",
+            "https://github.com/simpsoncorp",
+        ),
+        (
+            "GHSA|https://github.com/simpsoncorp|GHSA-8f4m-hccc-8qph",
+            "https://github.com/simpsoncorp",
+        ),
+        (
+            "GHSA|https://github.com/simpsoncorp|GHSA-test-auto",
+            "https://github.com/simpsoncorp",
+        ),
     }
 
     # The sync strips the CVE label, its _ont_* fields, and its enrichment edges
@@ -321,7 +334,7 @@ def test_sync_github_dependabot_alerts(mock_get, neo4j_session):
             {
                 "id": "https://github.com/otherorg/repo/security/dependabot/1",
                 "has_cve_label": True,
-                "ont_fields": [],
+                "ont_fields": ["_ont_source"],
                 "enrichments": 1,
             },
             {
@@ -488,6 +501,65 @@ def test_sync_github_dependabot_alerts_uses_enterprise_org_url(mock_get, neo4j_s
         (
             "https://github.com/simpsoncorp/SampleRepo2/security/dependabot/4",
             "https://fake.github.net/simpsoncorp",
+        ),
+    }
+
+
+def test_sync_github_dependabot_alerts_keeps_advisory_another_org_reports(
+    neo4j_session,
+):
+    # Arrange: two organizations report the same advisory, then the first one's
+    # alert goes away while the second organization has not synced again.
+    _ensure_org_and_repos_exist(neo4j_session)
+    neo4j_session.run('MERGE (:GitHubOrganization {id: "https://github.com/otherorg"})')
+    other_org_alert = {
+        **GET_DEPENDABOT_ALERTS[0],
+        "html_url": "https://github.com/otherorg/repo/security/dependabot/1",
+    }
+    alerts_by_org = {
+        TEST_ORGANIZATION: [GET_DEPENDABOT_ALERTS[0]],
+        "otherorg": [other_org_alert],
+    }
+
+    def fetch(_token, _api_url, organization):
+        return DependabotAlertsFetchResult(
+            alerts=alerts_by_org[organization],
+            cleanup_safe=True,
+        )
+
+    with patch.object(cartography.intel.github.dependabot_alerts, "get", fetch):
+        for organization in (TEST_ORGANIZATION, "otherorg"):
+            cartography.intel.github.dependabot_alerts.sync(
+                neo4j_session,
+                TEST_JOB_PARAMS,
+                FAKE_API_KEY,
+                TEST_GITHUB_URL,
+                organization,
+            )
+        alerts_by_org[TEST_ORGANIZATION] = []
+
+        # Act
+        cartography.intel.github.dependabot_alerts.sync(
+            neo4j_session,
+            {"UPDATE_TAG": TEST_UPDATE_TAG + 1},
+            FAKE_API_KEY,
+            TEST_GITHUB_URL,
+            TEST_ORGANIZATION,
+        )
+
+    # Assert: the first organization's cleanup leaves the second one's advisory.
+    assert check_rels(
+        neo4j_session,
+        "GitHubDependabotAlert",
+        "id",
+        "GitHubSecurityAdvisory",
+        "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "https://github.com/otherorg/repo/security/dependabot/1",
+            "GHSA|https://github.com/otherorg|GHSA-rf4j-j272-fj86",
         ),
     }
 
