@@ -21,14 +21,16 @@ from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.intel.trivy.util import parse_purl
 from cartography.models.orca import OrcaPackageSchema
 from cartography.models.orca import OrcaVulnerabilityFindingSchema
+from cartography.models.orca import OrcaVulnerabilitySchema
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
 VULNERABILITY_MODEL = "VulnerabilityV2"
-# Each deleted finding removes ~23 index entries plus its RESOURCE and ENRICHES
-# edges. At the 10,000-node default, cleanup transactions commit long enough to
+# Each deleted finding removes ~23 index entries plus its RESOURCE and
+# HAS_VULNERABILITY edges. At the 10,000-node default, cleanup transactions commit long enough to
 # delay other sessions waiting on causal bookmarks.
 CLEANUP_ITERATION_SIZE = 2000
 
@@ -161,6 +163,38 @@ def transform_packages(
     return list(packages.values())
 
 
+def _cve_node_id(organization_id: str, cve_id: str) -> str:
+    return f"orca:{organization_id}:cve:{cve_id}"
+
+
+def transform_cves(
+    raw_vulnerabilities: list[dict[str, Any]],
+    organization_id: str,
+) -> list[dict[str, Any]]:
+    """Return one OrcaVulnerability per CVE that the rows report."""
+    cves: dict[str, dict[str, Any]] = {}
+    for vulnerability in raw_vulnerabilities:
+        cve_ids = canonical_cve_ids(vulnerability.get("CveId"))
+        if not cve_ids:
+            continue
+        # Orca repeats these on every finding of a CVE, unlike its CVSS and source
+        # link, which come from the affected package's distribution.
+        fields = {
+            "has_cve": "true",
+            "description": optional_string(
+                vulnerability.get("Description"),
+                "Orca vulnerability.Description",
+            ),
+            "has_exploit": _optional_bool(vulnerability.get("HasExploit")),
+            "cisa_kev": _optional_bool(vulnerability.get("CisaKev")),
+            "trending": _optional_bool(vulnerability.get("Trending")),
+        }
+        for cve_id in cve_ids:
+            node_id = _cve_node_id(organization_id, cve_id)
+            cves.setdefault(node_id, {"id": node_id, "cve_id": cve_id, **fields})
+    return list(cves.values())
+
+
 def _vulnerability_id(
     organization_id: str,
     target_orca_asset_unique_id: str,
@@ -234,10 +268,6 @@ def transform(
         )
         common_fields = {
             "orca_id": orca_id,
-            "description": optional_string(
-                vulnerability.get("Description"),
-                "Orca vulnerability.Description",
-            ),
             "references": [source_link] if source_link else [],
             "cvss_source": optional_string(
                 vulnerability.get("CvssSource"),
@@ -263,12 +293,9 @@ def transform(
                 vulnerability.get("EpssProbability"),
                 "Orca vulnerability.EpssProbability",
             ),
-            "has_exploit": _optional_bool(vulnerability.get("HasExploit")),
-            "cisa_kev": _optional_bool(vulnerability.get("CisaKev")),
             "patch_available": _patch_available(
                 vulnerability.get("PatchAvailable"),
             ),
-            "trending": _optional_bool(vulnerability.get("Trending")),
             "upstream_disposition": optional_string(
                 vulnerability.get("UpstreamDisposition"),
                 "Orca vulnerability.UpstreamDisposition",
@@ -294,6 +321,7 @@ def transform(
                 finding = {
                     "id": finding_id,
                     "cve_id": cve_id,
+                    "vulnerability_id": _cve_node_id(organization_id, cve_id),
                     **common_fields,
                     **package_properties,
                     "package_node_id": _package_node_id(
@@ -322,6 +350,7 @@ def transform(
 def load_vulnerabilities(
     neo4j_session: neo4j.Session,
     vulnerabilities: list[dict[str, Any]],
+    cves: list[dict[str, Any]],
     organization_id: str,
     update_tag: int,
 ) -> None:
@@ -329,6 +358,14 @@ def load_vulnerabilities(
         neo4j_session,
         OrcaPackageSchema(),
         transform_packages(vulnerabilities),
+        lastupdated=update_tag,
+        ORCA_ORGANIZATION_ID=organization_id,
+    )
+    # Findings link to their vulnerability on load, so it must exist first.
+    load(
+        neo4j_session,
+        OrcaVulnerabilitySchema(),
+        cves,
         lastupdated=update_tag,
         ORCA_ORGANIZATION_ID=organization_id,
     )
@@ -351,6 +388,7 @@ def sync(
 ) -> bool:
     """Load Orca vulnerabilities and return whether the fetch is safe to clean up."""
     seen_ids: set[str] = set()
+    seen_cve_ids: set[str] = set()
     row_count = 0
     cross_page_duplicates = 0
     progress = api.PaginationProgress()
@@ -377,10 +415,17 @@ def sync(
                 duplicate_count,
             )
         seen_ids.update(vulnerability["id"] for vulnerability in new_vulnerabilities)
+        new_cves = [
+            cve
+            for cve in transform_cves(page, organization_id)
+            if cve["id"] not in seen_cve_ids
+        ]
+        seen_cve_ids.update(cve["id"] for cve in new_cves)
         if new_vulnerabilities:
             load_vulnerabilities(
                 neo4j_session,
                 new_vulnerabilities,
+                new_cves,
                 organization_id,
                 update_tag,
             )
@@ -406,7 +451,21 @@ def cleanup(
         iterationsize=CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)
     GraphJob.from_node_schema(
+        OrcaVulnerabilitySchema(),
+        common_job_parameters,
+        iterationsize=CLEANUP_ITERATION_SIZE,
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
         OrcaPackageSchema(),
         common_job_parameters,
         iterationsize=CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)
+
+
+# DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
+@timeit
+def migrate_legacy_cve_labels(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    run_analysis_job("orca_cve_migration.json", neo4j_session, common_job_parameters)

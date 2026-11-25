@@ -158,7 +158,11 @@ class OrcaAlertToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OrcaAlertSchema(CartographyNodeSchema):
-    """A security issue reported by Orca, excluding closed and dismissed alerts."""
+    """A security issue reported by Orca, excluding closed and dismissed alerts.
+
+    After a complete sync, cleanup removes alerts that were closed or dismissed since
+    the previous sync. A reopened alert returns on the next sync.
+    """
 
     label: str = "OrcaAlert"
     properties: OrcaAlertNodeProperties = OrcaAlertNodeProperties()

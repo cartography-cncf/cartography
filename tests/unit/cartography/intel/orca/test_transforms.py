@@ -301,11 +301,20 @@ def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
     # Act
     first = vulnerabilities.transform([raw], ORGANIZATION_ID)
     second = vulnerabilities.transform([raw], ORGANIZATION_ID)
+    cves = vulnerabilities.transform_cves([raw], ORGANIZATION_ID)
 
     # Assert
     assert [item["id"] for item in first] == [item["id"] for item in second]
     assert len(first) == 2
     assert {item["cve_id"] for item in first} == {CVE_ID_1, "CVE-2026-99999"}
+    assert {(item["cve_id"], item["vulnerability_id"]) for item in first} == {
+        (cve["cve_id"], cve["id"]) for cve in cves
+    }
+    assert {cve["id"] for cve in cves} == {
+        f"orca:{ORGANIZATION_ID}:cve:{CVE_ID_1}",
+        f"orca:{ORGANIZATION_ID}:cve:CVE-2026-99999",
+    }
+    assert all(cve["trending"] is False for cve in cves)
     assert {item["target_orca_asset_unique_id"] for item in first} == {
         ASSET_UNIQUE_ID_1
     }
@@ -314,7 +323,6 @@ def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
     assert {item["target_arn"] for item in first} == {TARGET_ARN_1}
     assert {item["target_name"] for item in first} == {"synthetic-app-server"}
     assert all(item["patch_available"] is True for item in first)
-    assert all(item["trending"] is False for item in first)
     assert all(
         item["first_seen"] == datetime.fromisoformat("2026-08-04T12:00:00+00:00")
         for item in first
@@ -521,9 +529,11 @@ def test_vulnerability_transform_skips_rows_without_canonical_cve(
 
     # Act
     result = vulnerabilities.transform(raw, ORGANIZATION_ID)
+    cves = vulnerabilities.transform_cves(raw, ORGANIZATION_ID)
 
     # Assert
     assert {item["cve_id"] for item in result} == {CVE_ID_1}
+    assert [cve["cve_id"] for cve in cves] == [CVE_ID_1]
     assert "Skipped 1 Orca vulnerability rows without a canonical CVE id" in (
         caplog.text
     )
@@ -556,17 +566,18 @@ def test_vulnerability_transform_patch_availability(
 
 
 @pytest.mark.parametrize(
-    ("field", "value"),
+    ("transform", "field", "value"),
     [
-        ("PatchAvailable", "perhaps"),
-        ("PatchAvailable", ["Extended"]),
-        ("PatchAvailable", {"value": "Extended"}),
-        ("HasExploit", "Extended"),
-        ("CisaKev", "Extended"),
-        ("Trending", "Extended"),
+        (vulnerabilities.transform, "PatchAvailable", "perhaps"),
+        (vulnerabilities.transform, "PatchAvailable", ["Extended"]),
+        (vulnerabilities.transform, "PatchAvailable", {"value": "Extended"}),
+        (vulnerabilities.transform_cves, "HasExploit", "Extended"),
+        (vulnerabilities.transform_cves, "CisaKev", "Extended"),
+        (vulnerabilities.transform_cves, "Trending", "Extended"),
     ],
 )  # type: ignore[misc]
 def test_vulnerability_transform_rejects_unknown_boolean_values(
+    transform: Any,
     field: str,
     value: Any,
 ) -> None:
@@ -575,23 +586,24 @@ def test_vulnerability_transform_rejects_unknown_boolean_values(
 
     # Act and assert
     with pytest.raises(ValueError, match="Unexpected Orca boolean"):
-        vulnerabilities.transform([raw], ORGANIZATION_ID)
+        transform([raw], ORGANIZATION_ID)
 
 
 @pytest.mark.parametrize(
-    ("field", "expected_type"),
+    ("transform", "field", "expected_type"),
     [
-        ("Description", "string"),
-        ("CvssSource", "string"),
-        ("CvssScore", "number"),
-        ("CvssSeverity", "string"),
-        ("CvssVector", "string"),
-        ("EpssPercentile", "number"),
-        ("EpssProbability", "number"),
-        ("UpstreamDisposition", "string"),
+        (vulnerabilities.transform_cves, "Description", "string"),
+        (vulnerabilities.transform, "CvssSource", "string"),
+        (vulnerabilities.transform, "CvssScore", "number"),
+        (vulnerabilities.transform, "CvssSeverity", "string"),
+        (vulnerabilities.transform, "CvssVector", "string"),
+        (vulnerabilities.transform, "EpssPercentile", "number"),
+        (vulnerabilities.transform, "EpssProbability", "number"),
+        (vulnerabilities.transform, "UpstreamDisposition", "string"),
     ],
 )  # type: ignore[misc]
 def test_vulnerability_transform_rejects_malformed_scalars(
+    transform: Any,
     field: str,
     expected_type: str,
 ) -> None:
@@ -604,7 +616,7 @@ def test_vulnerability_transform_rejects_malformed_scalars(
         ValueError,
         match=rf"Orca vulnerability.{field} must be a {expected_type}",
     ):
-        vulnerabilities.transform([raw], ORGANIZATION_ID)
+        transform([raw], ORGANIZATION_ID)
 
 
 def test_vulnerability_transform_rejects_non_string_package_identity() -> None:
@@ -677,11 +689,11 @@ def test_vulnerability_cleanup_uses_bounded_iteration_size(mocker) -> None:
     # Assert
     assert [
         call.kwargs["iterationsize"] for call in from_node_schema.call_args_list
-    ] == [
-        vulnerabilities.CLEANUP_ITERATION_SIZE,
-        vulnerabilities.CLEANUP_ITERATION_SIZE,
-    ]
-    assert from_node_schema.return_value.run.call_args_list == [
-        mocker.call(neo4j_session),
-        mocker.call(neo4j_session),
-    ]
+    ] == [vulnerabilities.CLEANUP_ITERATION_SIZE] * 3
+    assert (
+        from_node_schema.return_value.run.call_args_list
+        == [
+            mocker.call(neo4j_session),
+        ]
+        * 3
+    )

@@ -33,6 +33,7 @@ OTHER_ORGANIZATION_ID = "other-orca-organization"
 
 AMI_ID = "ami-0abc|us-west-2"
 PACKAGE_ID = "deb|example/synthetic-lib"
+VULNERABILITY_ID = f"orca:{ORGANIZATION_ID}:cve:{CVE_ID_1}"
 
 
 def _sync_metadata_id(organization_id: str) -> str:
@@ -328,10 +329,9 @@ def test_start_orca_ingestion_loads_findings_and_links_affected_assets(
             "target_region",
             "target_name",
             "target_type",
-            "_ont_cve_id",
-            "_ont_base_score",
-            "_ont_base_severity",
-            "_ont_source",
+            "base_score",
+            "base_severity",
+            "description",
         ],
     ) == {
         (
@@ -345,12 +345,48 @@ def test_start_orca_ingestion_loads_findings_and_links_affected_assets(
             "us-west-2",
             "synthetic-app-server",
             "AwsEc2Instance",
-            CVE_ID_1,
             9.8,
-            "critical",
+            "CRITICAL",
+            None,
+        ),
+    }
+    # The vulnerability, not each of its findings, is the :CVE node, and the
+    # ontology reads its description from it.
+    assert check_nodes(
+        neo4j_session,
+        "OrcaVulnerability",
+        [
+            "id",
+            "cve_id",
+            "description",
+            "has_exploit",
+            "cisa_kev",
+            "trending",
+            "_ont_cve_id",
+            "_ont_description",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            VULNERABILITY_ID,
+            CVE_ID_1,
+            "Synthetic package vulnerability.",
+            True,
+            True,
+            False,
+            CVE_ID_1,
+            "Synthetic package vulnerability.",
             "orca",
         ),
     }
+    assert check_rels(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        "cve_id",
+        "OrcaVulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+    ) == {(CVE_ID_1, VULNERABILITY_ID)}
     assert check_rels(
         neo4j_session,
         "OrcaOrganization",
@@ -382,6 +418,7 @@ def test_start_orca_ingestion_loads_findings_and_links_affected_assets(
         """
         MATCH (n)
         WHERE (n:OrcaAlert AND n:CVE)
+           OR (n:OrcaVulnerabilityFinding AND n:CVE)
            OR (n:OrcaVulnerabilityFinding AND n:SecurityIssue)
         RETURN count(n) AS count
         """,
@@ -539,7 +576,7 @@ def test_same_target_identifiers_remain_scoped_by_organization(
     }
 
 
-def test_cve_metadata_enriches_orca_vulnerability_finding(
+def test_cve_metadata_enriches_orca_vulnerability(
     neo4j_session,
     mocker,
 ):
@@ -564,10 +601,82 @@ def test_cve_metadata_enriches_orca_vulnerability_finding(
         neo4j_session,
         "CVEMetadata",
         "id",
-        "OrcaVulnerabilityFinding",
-        "cve_id",
+        "OrcaVulnerability",
+        "id",
         "ENRICHES",
-    ) == {(CVE_ID_1, CVE_ID_1)}
+    ) == {(CVE_ID_1, VULNERABILITY_ID)}
+
+
+def test_sync_migrates_cve_labels_from_earlier_versions_in_its_organization(
+    neo4j_session,
+    mocker,
+):
+    # Arrange: this organization's finding and another organization's finding,
+    # as an earlier version stored them.
+    _patch_orca_api(mocker)
+    cartography.intel.orca.start_orca_ingestion(neo4j_session, _config())
+    neo4j_session.run(
+        """
+        MATCH (f:OrcaVulnerabilityFinding)
+        SET f:CVE, f.description = 'old description', f.trending = false,
+            f._ont_cve_id = f.cve_id, f._ont_description = 'old description',
+            f._ont_base_severity = 'critical', f._ont_source = 'orca'
+        MERGE (:CVEMetadata {id: f.cve_id})-[:ENRICHES]->(f)
+        """,
+    )
+    neo4j_session.run(
+        """
+        MERGE (o:OrcaOrganization {id: $organization_id})
+        MERGE (o)-[:RESOURCE]->(:OrcaVulnerabilityFinding:CVE {id: 'other-finding'})
+        """,
+        organization_id=OTHER_ORGANIZATION_ID,
+    )
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert: the synced organization's finding loses the label, its ontology
+    # fields, its moved properties and the enrichment edge the label brought. The
+    # other organization's finding keeps its label until that organization syncs.
+    assert (
+        {
+            record["id"]
+            for record in neo4j_session.run(
+                """
+            MATCH (n:CVE)
+            WHERE n:OrcaVulnerability OR n:OrcaVulnerabilityFinding
+            RETURN n.id AS id
+            """,
+            )
+        }
+        == {VULNERABILITY_ID, "other-finding"}
+    )
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (:OrcaOrganization {id: $organization_id})
+              -[:RESOURCE]->(f:OrcaVulnerabilityFinding)
+        RETURN f.description AS description, f.trending AS trending,
+               [k IN keys(f) WHERE k STARTS WITH '_ont_'] AS ont_fields
+        """,
+            organization_id=ORGANIZATION_ID,
+        ).data()
+        == [{"description": None, "trending": None, "ont_fields": []}]
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "CVEMetadata",
+            "id",
+            "OrcaVulnerabilityFinding",
+            "id",
+            "ENRICHES",
+        )
+        == set()
+    )
 
 
 def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
@@ -801,6 +910,18 @@ def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
     ) == {(ORGANIZATION_ID, "CVE-2024-1000")} | {
         (OTHER_ORGANIZATION_ID, f"CVE-2024-{1000 + index}") for index in range(5)
     }
+    # Each organization has its own node for a CVE they share, so cleaning up
+    # one organization's stale vulnerabilities leaves the other's in place.
+    assert check_rels(
+        neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaVulnerability",
+        "cve_id",
+        "RESOURCE",
+    ) == {(ORGANIZATION_ID, "CVE-2024-1000")} | {
+        (OTHER_ORGANIZATION_ID, f"CVE-2024-{1000 + index}") for index in range(5)
+    }
 
 
 def test_vulnerability_target_change_replaces_the_occurrence(
@@ -1015,6 +1136,7 @@ def test_identical_sync_is_idempotent_with_exact_counts(neo4j_session, mocker):
     for label in (
         "OrcaOrganization",
         "OrcaAlert",
+        "OrcaVulnerability",
         "OrcaVulnerabilityFinding",
         "OrcaAsset",
     ):
@@ -1024,6 +1146,7 @@ def test_identical_sync_is_idempotent_with_exact_counts(neo4j_session, mocker):
     assert node_counts == {
         "OrcaOrganization": 1,
         "OrcaAlert": 2,
+        "OrcaVulnerability": 1,
         "OrcaVulnerabilityFinding": 1,
         "OrcaAsset": 0,
     }

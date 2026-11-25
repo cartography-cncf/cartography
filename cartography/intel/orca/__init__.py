@@ -73,6 +73,13 @@ def start_orca_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 neo4j_session,
                 common_job_parameters,
             )
+            # Only after a complete fetch, so every surviving finding already links
+            # to the vulnerability that now carries :CVE, and only after cleanup, so
+            # the findings it deletes are not migrated first.
+            cartography.intel.orca.vulnerabilities.migrate_legacy_cve_labels(
+                neo4j_session,
+                common_job_parameters,
+            )
         if not (alerts_complete and vulnerabilities_complete):
             logger.warning(
                 "Orca fetch for organization %s was incomplete; skipped stale "

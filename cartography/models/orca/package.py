@@ -62,7 +62,12 @@ class OrcaPackageToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OrcaPackageSchema(CartographyNodeSchema):
-    """A package version that Orca reports as installed on a vulnerable asset."""
+    """A package version that Orca reports as installed on a vulnerable asset.
+
+    Each vulnerable package with a package URL becomes an `OrcaPackage`. The ontology
+    packages sync maps it to a `PackageVersion`, so the finding also `AFFECTS` the
+    canonical package version that other scanners report.
+    """
 
     label: str = "OrcaPackage"
     properties: OrcaPackageNodeProperties = OrcaPackageNodeProperties()

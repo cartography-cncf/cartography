@@ -12,6 +12,7 @@ from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.orca import OrcaAlertSchema
 from cartography.models.orca import OrcaOrganizationSchema
 from cartography.models.orca import OrcaVulnerabilityFindingSchema
+from cartography.models.orca import OrcaVulnerabilitySchema
 
 TARGET_CONTEXT_PROPERTIES = {
     "target_orca_inventory_id",
@@ -43,12 +44,13 @@ def test_orca_schemas_use_supported_ontology_labels() -> None:
     # Arrange
     organization = OrcaOrganizationSchema()
     alert = OrcaAlertSchema()
-    vulnerability = OrcaVulnerabilityFindingSchema()
+    vulnerability = OrcaVulnerabilitySchema()
 
     # Assert
     assert _extra_labels(organization) == {"Tenant"}
     assert _extra_labels(alert) == {"SecurityIssue"}
     assert _extra_labels(vulnerability) == {"CVE"}
+    assert OrcaVulnerabilityFindingSchema().extra_node_labels is None
     assert "Risk" not in {
         *_extra_labels(organization),
         *_extra_labels(alert),
@@ -113,6 +115,7 @@ def test_orca_node_properties_are_documented() -> None:
     for schema in (
         OrcaOrganizationSchema(),
         OrcaAlertSchema(),
+        OrcaVulnerabilitySchema(),
         OrcaVulnerabilityFindingSchema(),
     ):
         undocumented = [
@@ -136,7 +139,7 @@ def test_orca_ontology_mappings_use_provider_semantics() -> None:
     )
     vulnerability_fields = _mapping_fields(
         CVES_ONTOLOGY_MAPPING["orca"],
-        "OrcaVulnerabilityFinding",
+        "OrcaVulnerability",
     )
 
     # Assert
@@ -156,15 +159,6 @@ def test_orca_ontology_mappings_use_provider_semantics() -> None:
         "IN_PROGRESS": "open",
     }
 
-    assert set(vulnerability_fields) == {
-        "cve_id",
-        "description",
-        "references",
-        "vector_string",
-        "base_score",
-        "base_severity",
-    }
+    assert set(vulnerability_fields) == {"cve_id", "description"}
     assert vulnerability_fields["cve_id"].node_field == "cve_id"
     assert vulnerability_fields["description"].indexed is False
-    assert vulnerability_fields["references"].indexed is False
-    assert vulnerability_fields["base_severity"].extra["map"]["LOW"] == "low"
