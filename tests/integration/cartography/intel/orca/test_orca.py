@@ -627,9 +627,12 @@ def test_sync_migrates_cve_labels_from_earlier_versions_in_its_organization(
     neo4j_session.run(
         """
         MERGE (o:OrcaOrganization {id: $organization_id})
-        MERGE (o)-[:RESOURCE]->(:OrcaVulnerabilityFinding:CVE {id: 'other-finding'})
+        MERGE (o)-[:RESOURCE]->(f:OrcaVulnerabilityFinding:CVE {id: 'other-finding'})
+        SET f.cve_id = $cve_id, f._ont_cve_id = $cve_id
+        MERGE (:CVEMetadata {id: $cve_id})-[:ENRICHES]->(f)
         """,
         organization_id=OTHER_ORGANIZATION_ID,
+        cve_id=CVE_ID_1,
     )
 
     # Act
@@ -640,7 +643,7 @@ def test_sync_migrates_cve_labels_from_earlier_versions_in_its_organization(
 
     # Assert: the synced organization's finding loses the label, its ontology
     # fields, its moved properties and the enrichment edge the label brought. The
-    # other organization's finding keeps its label until that organization syncs.
+    # other organization's finding keeps all of them until that organization syncs.
     assert (
         {
             record["id"]
@@ -666,17 +669,19 @@ def test_sync_migrates_cve_labels_from_earlier_versions_in_its_organization(
         ).data()
         == [{"description": None, "trending": None, "ont_fields": []}]
     )
-    assert (
-        check_rels(
-            neo4j_session,
-            "CVEMetadata",
-            "id",
-            "OrcaVulnerabilityFinding",
-            "id",
-            "ENRICHES",
-        )
-        == set()
-    )
+    assert check_rels(
+        neo4j_session,
+        "CVEMetadata",
+        "id",
+        "OrcaVulnerabilityFinding",
+        "id",
+        "ENRICHES",
+    ) == {(CVE_ID_1, "other-finding")}
+    assert check_nodes(
+        neo4j_session,
+        "OrcaVulnerabilityFinding",
+        ["organization_id", "_ont_cve_id"],
+    ) == {(ORGANIZATION_ID, None), (None, CVE_ID_1)}
 
 
 def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
@@ -917,10 +922,14 @@ def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
         "OrcaOrganization",
         "id",
         "OrcaVulnerability",
-        "cve_id",
+        "id",
         "RESOURCE",
-    ) == {(ORGANIZATION_ID, "CVE-2024-1000")} | {
-        (OTHER_ORGANIZATION_ID, f"CVE-2024-{1000 + index}") for index in range(5)
+    ) == {(ORGANIZATION_ID, f"orca:{ORGANIZATION_ID}:cve:CVE-2024-1000")} | {
+        (
+            OTHER_ORGANIZATION_ID,
+            f"orca:{OTHER_ORGANIZATION_ID}:cve:CVE-2024-{1000 + index}",
+        )
+        for index in range(5)
     }
 
 

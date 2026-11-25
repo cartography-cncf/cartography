@@ -22,6 +22,7 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
         "PROJECT_ID": "my_gcp_project_id",
         "TENANT_ID": "my_tenant_id",
         "owner_org_id": "my_owner_org_id",
+        "ORCA_ORGANIZATION_ID": "my_orca_organization_id",
         "org_url": "my_org_url",
         "account_id": "my_account_id",
         "user_ids": [],
