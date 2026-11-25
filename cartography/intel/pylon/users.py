@@ -61,7 +61,11 @@ def transform(
         # `role_id` is deprecated and returns only one of the user's roles.
         role_ids = user.get("role_ids")
         if role_ids is None:
-            role_ids = [role["id"] for role in user.get("roles") or []]
+            roles = user.get("roles")
+            if roles is not None:
+                role_ids = [role["id"] for role in roles]
+            else:
+                role_ids = [user["role_id"]] if user.get("role_id") else []
         identity = {
             "id": user["id"],
             "name": user.get("name"),
