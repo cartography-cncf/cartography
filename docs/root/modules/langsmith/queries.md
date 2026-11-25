@@ -103,7 +103,12 @@ candidate, check the operator, value, permissions, and condition groups in
 MATCH (org:LangSmithOrganization)-[:RESOURCE]->(p:LangSmithAccessPolicy)
       -[a:ATTACHED_TO]->(target)
 MATCH (org)-[:RESOURCE]->(w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)
-WHERE target:LangSmithRole OR (target:LangSmithUserGroup
+WHERE (target:LangSmithRole AND (target.access_scope = 'organization' OR
+  (target.access_scope = 'workspace' AND EXISTS {
+    MATCH (target)<-[:HAS_ROLE]-(assignment)-[:IN_WORKSPACE]->(w)
+    WHERE assignment:LangSmithWorkspaceMembership OR assignment:LangSmithUserGroupGrant
+  })))
+  OR (target:LangSmithUserGroup
   AND (a.all_workspaces OR w.id IN a.workspace_ids)
   AND (target.workspace_id = w.id OR (target.workspace_id IS NULL AND EXISTS {
     MATCH (target)-[:HAS_GRANT]->(:LangSmithUserGroupGrant)-[:IN_WORKSPACE]->(w)
