@@ -15,7 +15,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
@@ -101,17 +100,6 @@ def sync(
         )
         taggings_complete = taggings_complete and taggings_ok
 
-    # Deleted workspaces no longer have a CONTAINS edge to scope a cleanup job.
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (:LangSmithOrganization {id: $ORG_ID})-[:RESOURCE]->(p:LangSmithProject)
-        WHERE NOT p.workspace_id IN $workspace_ids
-        DETACH DELETE p
-        """,
-        ORG_ID=org_id,
-        workspace_ids=[workspace["id"] for workspace in workspaces],
-    )
     load_workspace_resources(
         neo4j_session,
         secrets,

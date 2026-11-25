@@ -62,7 +62,7 @@ class LangSmithProjectToWorkspaceRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:LangSmithWorkspace)-[:CONTAINS]->(:LangSmithProject)
+# (:LangSmithWorkspace)-[:RESOURCE]->(:LangSmithProject)
 class LangSmithProjectToWorkspaceRel(CartographyRelSchema):
     """Links a tracing project to the workspace it belongs to."""
 
@@ -71,7 +71,7 @@ class LangSmithProjectToWorkspaceRel(CartographyRelSchema):
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: LangSmithProjectToWorkspaceRelProperties = (
         LangSmithProjectToWorkspaceRelProperties()
     )

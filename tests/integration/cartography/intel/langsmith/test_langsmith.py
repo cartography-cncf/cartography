@@ -385,7 +385,7 @@ def test_sync_loads_workspace_resources(neo4j_session):
         "id",
         "LangSmithProject",
         "name",
-        "CONTAINS",
+        "RESOURCE",
     ) == {
         (WORKSPACE_PROD_ID, "checkout-agent"),
         (WORKSPACE_PROD_ID, "scratch"),

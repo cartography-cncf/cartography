@@ -102,7 +102,7 @@ candidate, check the operator, value, permissions, and condition groups in
 ```cypher
 MATCH (org:LangSmithOrganization)-[:RESOURCE]->(p:LangSmithAccessPolicy)
       -[a:ATTACHED_TO]->(target)
-MATCH (org)-[:RESOURCE]->(w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)
+MATCH (org)-[:RESOURCE]->(w:LangSmithWorkspace)-[:RESOURCE]->(proj:LangSmithProject)
 WHERE (target:LangSmithRole AND (target.access_scope = 'organization' OR
   (target.access_scope = 'workspace' AND EXISTS {
     MATCH (target)<-[:HAS_ROLE]-(assignment)-[:IN_WORKSPACE]->(w)
@@ -123,7 +123,7 @@ RETURN p.name, p.effect, p.condition_summary, target.name, w.name, proj.name, ta
 Tag-based conditions without `_if_exists` don't match these projects.
 
 ```cypher
-MATCH (w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)
+MATCH (w:LangSmithWorkspace)-[:RESOURCE]->(proj:LangSmithProject)
 WHERE NOT (proj)-[:TAGGED]->(:LangSmithResourceTag)
 RETURN w.name, proj.name
 ```
