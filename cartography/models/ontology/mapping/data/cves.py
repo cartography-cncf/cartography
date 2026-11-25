@@ -493,6 +493,8 @@ aws_inspector_mapping = OntologyMapping(
     ],
 )
 
+# Wiz can report a different score for findings of one CVE, so the score stays on
+# WizFinding and WizVulnerability maps no _ont_base_score.
 wiz_mapping = OntologyMapping(
     module_name="wiz",
     nodes=[
@@ -505,7 +507,6 @@ wiz_mapping = OntologyMapping(
                     node_field="cve_description",
                     indexed=False,
                 ),
-                OntologyFieldMapping(ontology_field="base_score", node_field="score"),
                 OntologyFieldMapping(
                     ontology_field="base_severity",
                     node_field="cvss_severity",

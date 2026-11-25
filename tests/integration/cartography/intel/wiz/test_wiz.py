@@ -116,11 +116,11 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         """
         MERGE (t:WizTenant {id: $tenant})
         MERGE (t)-[:RESOURCE]->(f:WizFinding:CVE {id: $cve_finding})
-        SET f.score = 8.1, f.has_cve = 'true', f._ont_cve_id = $cve,
+        SET f.cvss_severity = 'HIGH', f.has_cve = 'true', f._ont_cve_id = $cve,
             f._ont_description = 'old description', f._ont_base_score = 8.1
         MERGE (:CVEMetadata {id: $cve})-[:ENRICHES]->(f)
         MERGE (t)-[:RESOURCE]->(n:WizFinding {id: $non_cve_finding})
-        SET n.score = 5.0, n._ont_base_score = 5.0
+        SET n.cvss_severity = 'MEDIUM', n._ont_base_score = 5.0
         """,
         tenant=TENANT_ID,
         cve=CVE_ID_1,
@@ -206,10 +206,10 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
     assert check_nodes(
         neo4j_session,
         "WizVulnerability",
-        ["id", "cve_id", "has_cve", "cve_description", "score", "has_exploit"],
+        ["id", "cve_id", "has_cve", "cve_description", "cvss_severity", "has_exploit"],
     ) == {
-        (WIZ_VULNERABILITY_ID, CVE_ID_1, "true", "Test vulnerability", 8.1, True),
-        (NON_CVE_WIZ_VULNERABILITY_ID, None, "false", None, 5.0, False),
+        (WIZ_VULNERABILITY_ID, CVE_ID_1, "true", "Test vulnerability", "HIGH", True),
+        (NON_CVE_WIZ_VULNERABILITY_ID, None, "false", None, "MEDIUM", False),
     }
     assert check_nodes(neo4j_session, "CVE", ["id"]) == {
         (CVE_ID_1,),
@@ -247,7 +247,7 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
             """
         MATCH (f:WizFinding {finding_type: 'VULNERABILITY'})
         RETURN f.id AS id,
-               [k IN keys(f) WHERE k IN ['has_cve', 'score', '_ont_cve_id',
+               [k IN keys(f) WHERE k IN ['has_cve', 'cvss_severity', '_ont_cve_id',
                                          '_ont_description', '_ont_base_score']]
                    AS legacy_fields
         ORDER BY id

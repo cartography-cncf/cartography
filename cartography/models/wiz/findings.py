@@ -93,6 +93,12 @@ class WizFindingNodeProperties(CartographyNodeProperties):
         "is_security_issue",
         description="Whether the finding is a non-CVE security issue.",
     )
+    # Wiz can report a different score for findings of one vulnerability, such as
+    # a lower score on a VM image finding, so the score stays on the finding.
+    score: PropertyRef = PropertyRef(
+        "score",
+        description="Score that Wiz reports for the finding.",
+    )
     detailed_name: PropertyRef = PropertyRef(
         "detailed_name",
         description="Detailed vulnerability or finding name from Wiz.",
@@ -264,10 +270,6 @@ class WizFindingNodeProperties(CartographyNodeProperties):
     cvss_severity: PropertyRef = PropertyRef(
         "cvss_severity",
         description="Deprecated and always unset. Read `cvss_severity` on the finding's `WizVulnerability`.",
-    )
-    score: PropertyRef = PropertyRef(
-        "score",
-        description="Deprecated and always unset. Read `score` on the finding's `WizVulnerability`.",
     )
     exploitability_score: PropertyRef = PropertyRef(
         "exploitability_score",
@@ -483,10 +485,6 @@ class WizVulnerabilityNodeProperties(CartographyNodeProperties):
         "cvss_severity",
         extra_index=True,
         description="CVSS severity of the vulnerability.",
-    )
-    score: PropertyRef = PropertyRef(
-        "score",
-        description="CVSS base score of the vulnerability.",
     )
     exploitability_score: PropertyRef = PropertyRef(
         "exploitability_score",

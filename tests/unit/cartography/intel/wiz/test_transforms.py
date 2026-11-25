@@ -52,7 +52,6 @@ def test_transform_findings_extracts_vulnerability_cve_and_resource_metadata():
             "has_cve": "true",
             "cve_description": "Test vulnerability",
             "cvss_severity": "HIGH",
-            "score": 8.1,
             "exploitability_score": 2.8,
             "impact_score": 5.9,
             "has_exploit": True,
@@ -66,6 +65,7 @@ def test_transform_findings_extracts_vulnerability_cve_and_resource_metadata():
     assert findings[0]["finding_type"] == "VULNERABILITY"
     assert findings[0]["cve_id"] == CVE_ID_1
     assert findings[0]["is_security_issue"] == "false"
+    assert findings[0]["score"] == 8.1
     assert findings[0]["resource_id"] == RESOURCE_ID_1
     assert findings[0]["resource_external_id"] == (
         "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
@@ -74,7 +74,6 @@ def test_transform_findings_extracts_vulnerability_cve_and_resource_metadata():
         "has_cve",
         "cve_description",
         "cvss_severity",
-        "score",
         "exploitability_score",
         "impact_score",
         "has_exploit",
