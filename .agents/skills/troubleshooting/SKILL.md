@@ -155,8 +155,9 @@ load_items(
 
 # Problem: Neo.TransientError.General.MemoryPoolOutOfMemoryError from Neo4j.
 # Solution: one write transaction covers too many rows. Write through load() or
-# load_matchlinks(), which batch, or set batched_transactions=True on the
-# AnalysisStatement whose match grows with the data.
+# load_matchlinks(), which batch, or give the AnalysisStatement whose match
+# grows with the data match/effects (not query), batched_transactions=True, and
+# a positive iterationsize.
 ```
 
 See the streaming rules in the `create-module` skill's `references/sync-pattern.md`.

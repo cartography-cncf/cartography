@@ -216,15 +216,20 @@ proportion to the tenant and runs out of memory before its first write. Write an
 getter whose result grows with the tenant so that memory stays flat:
 
 1. **Yield pages from paginated getters.** Return `Iterator[list[dict]]`, one
-   page at a time, instead of a list that holds every page.
+   page at a time, instead of a list that holds every page. Don't put
+   `@aws_handle_regions` on a generator: the decorator handles errors only while
+   the function runs, and a generator's body runs later, inside `load()`.
+   Decorate a helper that fetches one page, and call it from the generator.
 2. **Transform one page at a time, and pass a generator to `load()`.** `load()`
    and `load_matchlinks()` accept any iterable and write it in transactions of
    `batch_size` rows (10,000 by default). A sync then holds one page of raw
    records and one batch of rows at a time.
 3. **Fetch only the records you keep.** Use the API's server-side filters, such
    as an active status, instead of fetching everything and dropping records in
-   `transform()`. Cleanup removes the nodes that a filtered sync no longer
-   returns.
+   `transform()`. Cleanup removes every node that a sync no longer returns, so
+   filter only on what defines the collection you keep. A lookback window or a
+   partial scope, such as some of a tenant's projects, makes cleanup delete
+   nodes that still exist.
 4. **Raise on any page error, and clean up only after the whole stream loads.**
    A generator that fails partway raises out of `load()`, so `sync()` never
    reaches cleanup. Never catch a page error and return the pages fetched so far:
@@ -242,7 +247,8 @@ getter whose result grows with the tenant so that memory stays flat:
 8. **Batch handwritten writes whose matches grow with the data.** One write
    transaction over millions of rows exceeds Neo4j's transaction memory limit
    (`dbms.memory.transaction.total.max`). Use `load()` or `load_matchlinks()`,
-   or set `batched_transactions=True` on an `AnalysisStatement`, instead of one
+   or an `AnalysisStatement` with `match` and `effects` (not `query`),
+   `batched_transactions=True`, and a positive `iterationsize`, instead of one
    `run_write_query()` over every row.
 
 Collecting a list is fine when its size is bounded by configuration rather than

@@ -46,7 +46,7 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 **Essential Imports:**
 ```python
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import (

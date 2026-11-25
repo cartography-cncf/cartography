@@ -87,7 +87,7 @@ def sync(
     cleanup(neo4j_session, common_job_parameters)  # CLEANUP — only after every page loaded
 ```
 
-`get()` should be minimal: set timeouts, call `response.raise_for_status()`, and let errors propagate. When the API paginates, `get()` yields each page instead of returning one list. AWS get-functions wrap with `@aws_handle_regions`. See `references/sync-pattern.md` for the long-form template, error-handling rules, transform examples, and the streaming rules.
+`get()` should be minimal: set timeouts, call `response.raise_for_status()`, and let errors propagate. When the API paginates, `get()` yields each page instead of returning one list. AWS get-functions wrap with `@aws_handle_regions`. The decorator handles errors only while the function runs, and a generator's body runs later, inside `load()`, so a paginated AWS getter decorates a helper that fetches one page and yields from it. See `references/sync-pattern.md` for the long-form template, error-handling rules, transform examples, and the streaming rules.
 
 ### Step 5 — Define the data model
 
