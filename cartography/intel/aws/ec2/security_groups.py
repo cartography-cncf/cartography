@@ -248,6 +248,7 @@ def cleanup_ip_ranges(
                 iterative=True,
                 iterationsize=10000,
                 parent_job_name="aws_ip_range_cleanup",
+                parent_job_sequence_num=2,
             ),
             GraphStatement(
                 """
@@ -260,6 +261,7 @@ def cleanup_ip_ranges(
                 iterative=True,
                 iterationsize=10000,
                 parent_job_name="aws_ip_range_cleanup",
+                parent_job_sequence_num=3,
             ),
         ],
         "aws_ip_range_cleanup",
