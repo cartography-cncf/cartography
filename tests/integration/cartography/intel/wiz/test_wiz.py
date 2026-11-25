@@ -230,7 +230,8 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
     )
     # CVEMetadata cleanup only reaches :CVE nodes, so the sync also removes the
     # enrichment edge the old label brought, and it clears the moved fields and
-    # their ontology fields from findings stored before the move.
+    # their ontology fields from findings stored before the move. Each finding
+    # keeps its own score.
     assert (
         check_rels(
             neo4j_session,
@@ -246,7 +247,7 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         neo4j_session.run(
             """
         MATCH (f:WizFinding {finding_type: 'VULNERABILITY'})
-        RETURN f.id AS id,
+        RETURN f.id AS id, f.score AS score,
                [k IN keys(f) WHERE k IN ['has_cve', 'cvss_severity', '_ont_cve_id',
                                          '_ont_description', '_ont_base_score']]
                    AS legacy_fields
@@ -254,8 +255,8 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         """,
         ).data()
         == [
-            {"id": VULNERABILITY_ID_1, "legacy_fields": []},
-            {"id": NON_CVE_VULNERABILITY_ID, "legacy_fields": []},
+            {"id": VULNERABILITY_ID_1, "score": 8.1, "legacy_fields": []},
+            {"id": NON_CVE_VULNERABILITY_ID, "score": 5.0, "legacy_fields": []},
         ]
     )
 
