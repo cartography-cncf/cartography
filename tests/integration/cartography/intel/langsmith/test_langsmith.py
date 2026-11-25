@@ -788,6 +788,28 @@ def test_resync_keeps_tags_when_taggings_cannot_be_read(neo4j_session, status):
     ) == {(SUPPORT_DEPLOYMENT_ID, "prod")}
 
 
+@pytest.mark.parametrize("workspace_deleted", [False, True])
+def test_project_cleanup_skips_only_unreadable_workspaces(
+    neo4j_session, workspace_deleted
+):
+    # Arrange
+    dev = ("/api/v1/sessions", WORKSPACE_DEV_ID)
+    prod = ("/api/v1/sessions", WORKSPACE_PROD_ID)
+    routes = {**SIMPSON_CORP_ROUTES, dev: [{"id": "dev-project"}]}
+    _sync(neo4j_session, FakeLangSmithClient(routes=routes))
+    routes[prod] = []
+    if workspace_deleted:
+        listing = ("/api/v1/workspaces", None)
+        routes[listing] = [w for w in routes[listing] if w["id"] != WORKSPACE_PROD_ID]
+    client = FakeLangSmithClient(routes=routes, failures={dev: 403})
+
+    # Act
+    _sync(neo4j_session, client, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert _ids(neo4j_session, "LangSmithProject") == {"dev-project"}
+
+
 def test_resync_removes_tags_removed_upstream(neo4j_session):
     # Arrange
     _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)

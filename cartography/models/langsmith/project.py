@@ -68,7 +68,7 @@ class LangSmithProjectToWorkspaceRel(CartographyRelSchema):
 
     target_node_label: str = "LangSmithWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("workspace_id")},
+        {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
@@ -142,12 +142,12 @@ class LangSmithProjectSchema(CartographyNodeSchema):
 
     label: str = "LangSmithProject"
     properties: LangSmithProjectNodeProperties = LangSmithProjectNodeProperties()
-    sub_resource_relationship: LangSmithProjectToOrganizationRel = (
-        LangSmithProjectToOrganizationRel()
+    sub_resource_relationship: LangSmithProjectToWorkspaceRel = (
+        LangSmithProjectToWorkspaceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            LangSmithProjectToWorkspaceRel(),
+            LangSmithProjectToOrganizationRel(),
             LangSmithProjectToDeploymentRel(),
         ],
     )

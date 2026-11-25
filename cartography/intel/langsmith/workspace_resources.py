@@ -15,6 +15,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import cleanup_if_complete
 from cartography.intel.langsmith.util import LangSmithClient
@@ -49,12 +50,11 @@ def sync(
 ) -> None:
     secrets: list[dict[str, Any]] = []
     tags: list[dict[str, Any]] = []
-    projects: list[dict[str, Any]] = []
     oauth_clients: list[dict[str, Any]] = []
     mcp_servers: list[dict[str, Any]] = []
     project_tags: list[dict[str, Any]] = []
     deployment_tags: list[dict[str, Any]] = []
-    secrets_complete = tags_complete = projects_complete = True
+    secrets_complete = tags_complete = True
     oauth_clients_complete = mcp_servers_complete = taggings_complete = True
 
     for workspace in workspaces:
@@ -73,8 +73,19 @@ def sync(
         taggings, taggings_ok = get_taggings(client, org_id, workspace_id)
 
         rows, ok = get_projects(client, org_id, workspace_id)
-        projects.extend(rows)
-        projects_complete = projects_complete and ok
+        load(
+            neo4j_session,
+            LangSmithProjectSchema(),
+            rows,
+            ORG_ID=org_id,
+            WORKSPACE_ID=workspace_id,
+            lastupdated=common_job_parameters["UPDATE_TAG"],
+        )
+        if ok:
+            GraphJob.from_node_schema(
+                LangSmithProjectSchema(),
+                {**common_job_parameters, "WORKSPACE_ID": workspace_id},
+            ).run(neo4j_session)
 
         rows, ok = get_oauth_clients(client, org_id, workspace_id)
         oauth_clients.extend(rows)
@@ -90,11 +101,21 @@ def sync(
         )
         taggings_complete = taggings_complete and taggings_ok
 
+    # Deleted workspaces no longer have a CONTAINS edge to scope a cleanup job.
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:LangSmithOrganization {id: $ORG_ID})-[:RESOURCE]->(p:LangSmithProject)
+        WHERE NOT p.workspace_id IN $workspace_ids
+        DETACH DELETE p
+        """,
+        ORG_ID=org_id,
+        workspace_ids=[workspace["id"] for workspace in workspaces],
+    )
     load_workspace_resources(
         neo4j_session,
         secrets,
         tags,
-        projects,
         oauth_clients,
         mcp_servers,
         project_tags,
@@ -108,7 +129,6 @@ def sync(
         [
             (LangSmithSecretSchema(), secrets_complete),
             (LangSmithResourceTagSchema(), tags_complete),
-            (LangSmithProjectSchema(), projects_complete),
             (LangSmithOAuthClientSchema(), oauth_clients_complete),
             (LangSmithMcpServerSchema(), mcp_servers_complete),
         ],
@@ -402,7 +422,6 @@ def load_workspace_resources(
     neo4j_session: neo4j.Session,
     secrets: list[dict[str, Any]],
     tags: list[dict[str, Any]],
-    projects: list[dict[str, Any]],
     oauth_clients: list[dict[str, Any]],
     mcp_servers: list[dict[str, Any]],
     project_tags: list[dict[str, Any]],
@@ -413,7 +432,6 @@ def load_workspace_resources(
     for schema, data in (
         (LangSmithSecretSchema(), secrets),
         (LangSmithResourceTagSchema(), tags),
-        (LangSmithProjectSchema(), projects),
         (LangSmithOAuthClientSchema(), oauth_clients),
         (LangSmithMcpServerSchema(), mcp_servers),
     ):
