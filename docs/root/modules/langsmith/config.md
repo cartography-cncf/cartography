@@ -46,10 +46,16 @@ expires and the sync fails with `401`. Rotate the token before it expires.
 | --- | --- | --- |
 | `organization:pats:read` | The organization-wide personal access token inventory | Cartography logs a warning and skips other members' tokens. |
 | `deployments:read` | Deployments, agents, OAuth providers, and agent credentials | Cartography logs a warning and skips the agent-to-user OAuth graph for that workspace. |
+| `projects:read` | Tracing projects and the resource tags applied to them | Cartography logs a warning and skips tracing projects for that workspace. |
+| `organization:user-groups:read` | User groups, their members, their roles in each workspace, and the access policies attached to them | Cartography logs a warning and skips user groups. LangSmith also answers this way when the organization doesn't have user groups. |
+| `workspaces:user-groups:read` | Workspace-scoped user groups, which hold workspace-only members and policies | LangSmith omits the workspace-scoped user groups in that workspace from the listing. |
 
 LangSmith evaluates permissions per workspace. If the token holds `workspaces:read` in
 only some workspaces, the graph covers only those workspaces, and Cartography logs a
 warning for each workspace that it skips.
+
+Access policies attached to the token's own role also apply to the sync. A project that a
+deny policy hides from the token is missing from the graph.
 
 Cartography keeps nodes that the token could read before but can't read now. If you
 narrow the token's access, stale data stays in the graph until you restore access.

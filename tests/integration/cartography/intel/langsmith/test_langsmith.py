@@ -8,6 +8,7 @@ from tests.data.langsmith.agent_auth import GITHUB_PROVIDER_ID
 from tests.data.langsmith.agent_auth import GOOGLE_PROVIDER_ID
 from tests.data.langsmith.deployments import SUPPORT_AGENT_ID
 from tests.data.langsmith.deployments import SUPPORT_DEPLOYMENT_ID
+from tests.data.langsmith.deployments import SUPPORT_TRACING_PROJECT_ID
 from tests.data.langsmith.deployments import TRIAGE_AGENT_ID
 from tests.data.langsmith.deployments import TRIAGE_DEPLOYMENT_ID
 from tests.data.langsmith.fake_client import FakeLangSmithClient
@@ -16,9 +17,14 @@ from tests.data.langsmith.organizations import LANGSMITH_ORG_ID
 from tests.data.langsmith.roles import CUSTOM_ROLE_ID
 from tests.data.langsmith.roles import ORG_ADMIN_ROLE_ID
 from tests.data.langsmith.roles import WORKSPACE_VIEWER_ROLE_ID
+from tests.data.langsmith.user_groups import SUPPORT_GROUP_ID
+from tests.data.langsmith.user_groups import SUPPORT_PROD_GROUP_ID
 from tests.data.langsmith.users import BART_LS_USER_ID
 from tests.data.langsmith.users import HOMER_LS_USER_ID
 from tests.data.langsmith.users import MARGE_LS_USER_ID
+from tests.data.langsmith.workspace_resources import ACCESS_POLICY_ID
+from tests.data.langsmith.workspace_resources import CHECKOUT_PROJECT_ID
+from tests.data.langsmith.workspace_resources import SCRATCH_PROJECT_ID
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 from tests.integration.util import check_nodes
@@ -34,6 +40,7 @@ CUSTOM_ROLE = f"{LANGSMITH_ORG_ID}|{CUSTOM_ROLE_ID}"
 SUPPORT_AGENT = f"{LANGSMITH_ORG_ID}|{SUPPORT_AGENT_ID}"
 TRIAGE_AGENT = f"{LANGSMITH_ORG_ID}|{TRIAGE_AGENT_ID}"
 TRIAGE_CREDENTIAL_ID = "cc11cc11-0003-4003-8003-cc11cc11cc11"
+USER_GROUPS_PATH = "/api/v1/platform/orgs/current/user-groups"
 
 
 def _sync(
@@ -232,6 +239,14 @@ def test_sync_links_sso_and_access_policies_to_roles(neo4j_session):
         "id",
         "ATTACHED_TO",
     ) == {("Production projects only", CUSTOM_ROLE)}
+    policy = neo4j_session.run(
+        "MATCH (p:LangSmithAccessPolicy) "
+        "RETURN p.condition_summary AS summary, p.condition_tag_keys AS tag_keys"
+    ).single()
+    assert policy["summary"] == (
+        "(runs:read on project: resource_tag_key:environment equals prod)"
+    )
+    assert policy["tag_keys"] == ["environment"]
 
 
 def test_sync_links_deployments_to_the_agents_they_run(neo4j_session):
@@ -368,6 +383,26 @@ def test_sync_loads_workspace_resources(neo4j_session):
         neo4j_session,
         "LangSmithWorkspace",
         "id",
+        "LangSmithProject",
+        "name",
+        "RESOURCE",
+    ) == {
+        (WORKSPACE_PROD_ID, "checkout-agent"),
+        (WORKSPACE_PROD_ID, "scratch"),
+        (WORKSPACE_PROD_ID, "support-bot"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "LangSmithProject",
+        "name",
+        "LangSmithResourceTag",
+        "value",
+        "TAGGED",
+    ) == {("checkout-agent", "prod")}
+    assert check_rels(
+        neo4j_session,
+        "LangSmithWorkspace",
+        "id",
         "LangSmithOAuthClient",
         "id",
         "CONTAINS",
@@ -383,6 +418,208 @@ def test_sync_loads_workspace_resources(neo4j_session):
     assert check_nodes(neo4j_session, "LangSmithMcpServer", ["name", "vendor"]) == {
         ("Internal Docs", "arcade"),
     }
+
+
+def test_sync_links_tags_to_deployments(neo4j_session):
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "LangSmithDeployment",
+        "id",
+        "LangSmithResourceTag",
+        "value",
+        "TAGGED",
+    ) == {(SUPPORT_DEPLOYMENT_ID, "prod")}
+
+
+def test_sync_links_deployments_to_their_tracing_projects(neo4j_session):
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    # The triage deployment has no tracing project, so it gets no edge.
+    assert check_rels(
+        neo4j_session,
+        "LangSmithDeployment",
+        "id",
+        "LangSmithProject",
+        "id",
+        "TRACES_TO",
+    ) == {(SUPPORT_DEPLOYMENT_ID, SUPPORT_TRACING_PROJECT_ID)}
+
+
+def test_sync_loads_user_groups(neo4j_session):
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "LangSmithUserGroup",
+        ["id", "name", "workspace_id", "idp_group_name"],
+    ) == {
+        (SUPPORT_GROUP_ID, "Support", None, "okta-support"),
+        (SUPPORT_PROD_GROUP_ID, "Support", WORKSPACE_PROD_ID, None),
+    }
+    assert check_rels(
+        neo4j_session,
+        "LangSmithOrganization",
+        "id",
+        "LangSmithUserGroup",
+        "id",
+        "RESOURCE",
+    ) == {
+        (LANGSMITH_ORG_ID, SUPPORT_GROUP_ID),
+        (LANGSMITH_ORG_ID, SUPPORT_PROD_GROUP_ID),
+    }
+    # The member that isn't an organization member is skipped.
+    assert check_rels(
+        neo4j_session, "LangSmithUser", "id", "LangSmithUserGroup", "id", "MEMBER_OF"
+    ) == {
+        (HOMER_LS_USER_ID, SUPPORT_GROUP_ID),
+        (MARGE_LS_USER_ID, SUPPORT_GROUP_ID),
+        (BART_LS_USER_ID, SUPPORT_PROD_GROUP_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "LangSmithUserGroup",
+        "id",
+        "LangSmithUserGroup",
+        "id",
+        "EXTENDS",
+    ) == {(SUPPORT_PROD_GROUP_ID, SUPPORT_GROUP_ID)}
+    assert check_rels(
+        neo4j_session,
+        "LangSmithUserGroup",
+        "id",
+        "LangSmithWorkspace",
+        "id",
+        "IN_WORKSPACE",
+    ) == {(SUPPORT_PROD_GROUP_ID, WORKSPACE_PROD_ID)}
+    assert _ontology_group_names(neo4j_session) == {"Support"}
+
+
+def _ontology_group_names(neo4j_session) -> set[str]:
+    return {
+        record["name"]
+        for record in neo4j_session.run(
+            "MATCH (g:LangSmithUserGroup:UserGroup) RETURN g._ont_name AS name"
+        )
+    }
+
+
+def test_sync_links_user_groups_to_their_workspace_roles(neo4j_session):
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    grants = neo4j_session.run(
+        """
+        MATCH (g:LangSmithUserGroup)-[:HAS_GRANT]->(grant:LangSmithUserGroupGrant)
+              -[:IN_WORKSPACE]->(w:LangSmithWorkspace)
+        OPTIONAL MATCH (grant)-[:HAS_ROLE]->(r:LangSmithRole)
+        RETURN g.id AS group, w.id AS workspace, r.id AS role, grant.role_name AS name
+        """
+    ).data()
+    # The workspace-scoped user group holds no role of its own, so it has no grant.
+    assert {tuple(row.values()) for row in grants} == {
+        (SUPPORT_GROUP_ID, WORKSPACE_PROD_ID, CUSTOM_ROLE, "Deployment Auditor"),
+        (SUPPORT_GROUP_ID, WORKSPACE_DEV_ID, CUSTOM_ROLE, "Deployment Auditor"),
+    }
+
+
+def test_sync_attaches_access_policies_to_user_groups(neo4j_session):
+    # Act
+    _sync(neo4j_session, FakeLangSmithClient())
+
+    # Assert
+    # The policy is attached both for all workspaces and for production only, which
+    # collapses into one edge.
+    attachments = neo4j_session.run(
+        """
+        MATCH (p:LangSmithAccessPolicy)-[a:ATTACHED_TO]->(g:LangSmithUserGroup)
+        RETURN p.id AS policy, g.id AS group, a.all_workspaces AS all_workspaces,
+               a.workspace_ids AS workspace_ids
+        """
+    ).data()
+    assert attachments == [
+        {
+            "policy": ACCESS_POLICY_ID,
+            "group": SUPPORT_GROUP_ID,
+            "all_workspaces": True,
+            "workspace_ids": [WORKSPACE_PROD_ID],
+        },
+    ]
+
+
+@pytest.mark.parametrize("status", [403, None], ids=["403", "timeout"])
+def test_resync_keeps_user_group_members_and_policies_that_cannot_be_read(
+    neo4j_session, status
+):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    unreadable = FakeLangSmithClient(
+        failures={
+            (f"{USER_GROUPS_PATH}/{SUPPORT_GROUP_ID}/members", None): status,
+            (f"{USER_GROUPS_PATH}/{SUPPORT_GROUP_ID}/access-policies", None): status,
+        }
+    )
+
+    # Act
+    _sync(neo4j_session, unreadable, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert check_rels(
+        neo4j_session, "LangSmithUser", "id", "LangSmithUserGroup", "id", "MEMBER_OF"
+    ) == {
+        (HOMER_LS_USER_ID, SUPPORT_GROUP_ID),
+        (MARGE_LS_USER_ID, SUPPORT_GROUP_ID),
+        (BART_LS_USER_ID, SUPPORT_PROD_GROUP_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "LangSmithAccessPolicy",
+        "id",
+        "LangSmithUserGroup",
+        "id",
+        "ATTACHED_TO",
+    ) == {(ACCESS_POLICY_ID, SUPPORT_GROUP_ID)}
+
+
+def test_resync_removes_user_group_members_and_policies_removed_upstream(
+    neo4j_session,
+):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    removed = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            (f"{USER_GROUPS_PATH}/{SUPPORT_GROUP_ID}/members", None): [],
+            (f"{USER_GROUPS_PATH}/{SUPPORT_GROUP_ID}/access-policies", None): [],
+        }
+    )
+
+    # Act
+    _sync(neo4j_session, removed, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert check_rels(
+        neo4j_session, "LangSmithUser", "id", "LangSmithUserGroup", "id", "MEMBER_OF"
+    ) == {(BART_LS_USER_ID, SUPPORT_PROD_GROUP_ID)}
+    assert (
+        check_rels(
+            neo4j_session,
+            "LangSmithAccessPolicy",
+            "id",
+            "LangSmithUserGroup",
+            "id",
+            "ATTACHED_TO",
+        )
+        == set()
+    )
 
 
 # Each case names a route, what it returns once the resource is deleted upstream, and a
@@ -420,8 +657,22 @@ STALE_CASES = [
         ("/api/v1/platform/orgs/current/access-policies", None),
         {"access_policies": []},
         "LangSmithAccessPolicy",
-        "ab11ab11-0001-4001-8001-ab11ab11ab11",
+        ACCESS_POLICY_ID,
         id="access-policy",
+    ),
+    pytest.param(
+        (USER_GROUPS_PATH, None),
+        [],
+        "LangSmithUserGroup",
+        SUPPORT_GROUP_ID,
+        id="user-group",
+    ),
+    pytest.param(
+        (f"{USER_GROUPS_PATH}/{SUPPORT_GROUP_ID}/workspaces", None),
+        [],
+        "LangSmithUserGroupGrant",
+        f"{SUPPORT_GROUP_ID}|{WORKSPACE_DEV_ID}",
+        id="user-group-grant",
     ),
     pytest.param(
         ("/v2/deployments", WORKSPACE_DEV_ID),
@@ -436,6 +687,13 @@ STALE_CASES = [
         "LangSmithAgentCredential",
         TRIAGE_CREDENTIAL_ID,
         id="agent-credential",
+    ),
+    pytest.param(
+        ("/api/v1/sessions", WORKSPACE_PROD_ID),
+        [],
+        "LangSmithProject",
+        SCRATCH_PROJECT_ID,
+        id="project",
     ),
     pytest.param(
         ("/api/v1/platform/oauth/clients", WORKSPACE_PROD_ID),
@@ -488,6 +746,89 @@ def test_resync_preserves_what_could_not_be_read(
     # Assert
     # The data may still exist, so a failed read must not be treated as a deletion.
     assert node_id in _ids(neo4j_session, label)
+
+
+@pytest.mark.parametrize("status", [401, 403, None], ids=["401", "403", "timeout"])
+def test_resync_keeps_tags_when_taggings_cannot_be_read(neo4j_session, status):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    route = ("/api/v1/sessions", WORKSPACE_PROD_ID)
+    assert SCRATCH_PROJECT_ID in _ids(neo4j_session, "LangSmithProject")
+    unreadable = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            route: [
+                p for p in SIMPSON_CORP_ROUTES[route] if p["id"] != SCRATCH_PROJECT_ID
+            ],
+        },
+        failures={("/api/v1/workspaces/current/taggings", WORKSPACE_PROD_ID): status},
+    )
+
+    # Act
+    _sync(neo4j_session, unreadable, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert SCRATCH_PROJECT_ID not in _ids(neo4j_session, "LangSmithProject")
+    # A missing tag could hide a deny policy, so an unread tagging must not be dropped.
+    assert check_rels(
+        neo4j_session,
+        "LangSmithProject",
+        "id",
+        "LangSmithResourceTag",
+        "value",
+        "TAGGED",
+    ) == {(CHECKOUT_PROJECT_ID, "prod")}
+    assert check_rels(
+        neo4j_session,
+        "LangSmithDeployment",
+        "id",
+        "LangSmithResourceTag",
+        "value",
+        "TAGGED",
+    ) == {(SUPPORT_DEPLOYMENT_ID, "prod")}
+
+
+@pytest.mark.parametrize("workspace_deleted", [False, True])
+def test_project_cleanup_skips_only_unreadable_workspaces(
+    neo4j_session, workspace_deleted
+):
+    # Arrange
+    dev = ("/api/v1/sessions", WORKSPACE_DEV_ID)
+    prod = ("/api/v1/sessions", WORKSPACE_PROD_ID)
+    routes = {**SIMPSON_CORP_ROUTES, dev: [{"id": "dev-project"}]}
+    _sync(neo4j_session, FakeLangSmithClient(routes=routes))
+    routes[prod] = []
+    if workspace_deleted:
+        listing = ("/api/v1/workspaces", None)
+        routes[listing] = [w for w in routes[listing] if w["id"] != WORKSPACE_PROD_ID]
+    client = FakeLangSmithClient(routes=routes, failures={dev: 403})
+
+    # Act
+    _sync(neo4j_session, client, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert _ids(neo4j_session, "LangSmithProject") == {"dev-project"}
+
+
+def test_resync_removes_tags_removed_upstream(neo4j_session):
+    # Arrange
+    _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    untagged = FakeLangSmithClient(
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            ("/api/v1/workspaces/current/taggings", WORKSPACE_PROD_ID): [],
+        }
+    )
+
+    # Act
+    _sync(neo4j_session, untagged, NEXT_UPDATE_TAG)
+
+    # Assert
+    assert CHECKOUT_PROJECT_ID in _ids(neo4j_session, "LangSmithProject")
+    tagged = neo4j_session.run(
+        "MATCH (n)-[:TAGGED]->(:LangSmithResourceTag) RETURN count(n) AS count"
+    ).single()
+    assert tagged["count"] == 0
 
 
 def test_resync_keeps_agents_on_a_deployment_that_did_not_answer(neo4j_session):

@@ -142,21 +142,36 @@ def transform_providers(
 
 def _summarize_conditions(condition_groups: list[dict[str, Any]] | None) -> str | None:
     """
-    Render a policy's nested attribute condition groups as one readable line.
+    Render a policy's condition groups as one readable line.
 
-    The raw structure is arbitrarily nested JSON, which Neo4j cannot store as a property, so
-    it is flattened into a summary rather than dropped entirely.
+    Groups are ORed and the conditions within a group are ANDed, so the summary reads, for
+    example, ``(runs:read on project: resource_tag_key:env equals prod) OR (...)``. The raw
+    structure is nested JSON, which Neo4j cannot store as a property.
     """
-    if not condition_groups:
-        return None
-    parts: list[str] = []
-    for group in condition_groups:
-        for condition in group.get("conditions") or []:
-            attribute = condition.get("attribute") or condition.get("key")
-            operator = condition.get("operator") or "="
-            value = condition.get("value") or condition.get("values")
-            parts.append(f"{attribute} {operator} {value}")
-    return " AND ".join(parts) if parts else None
+    groups: list[str] = []
+    for group in condition_groups or []:
+        conditions = " AND ".join(
+            f"{condition.get('attribute_name')}:{condition.get('attribute_key')} "
+            f"{condition.get('operator')} {condition.get('attribute_value')}"
+            for condition in group.get("conditions") or []
+        )
+        groups.append(
+            f"({group.get('permission')} on {group.get('resource_type')}: {conditions})"
+        )
+    return " OR ".join(groups) or None
+
+
+def _condition_tag_keys(condition_groups: list[dict[str, Any]] | None) -> list[str]:
+    """List the resource tag keys a policy's conditions match on."""
+    return sorted(
+        {
+            condition["attribute_key"]
+            for group in condition_groups or []
+            for condition in group.get("conditions") or []
+            if condition.get("attribute_name") == "resource_tag_key"
+            and condition.get("attribute_key")
+        }
+    )
 
 
 def transform_policies(
@@ -171,6 +186,9 @@ def transform_policies(
                 "description": policy.get("description"),
                 "effect": policy.get("effect"),
                 "condition_summary": _summarize_conditions(
+                    policy.get("condition_groups")
+                ),
+                "condition_tag_keys": _condition_tag_keys(
                     policy.get("condition_groups")
                 ),
                 "role_ids": [

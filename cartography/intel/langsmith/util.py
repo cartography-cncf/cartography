@@ -19,6 +19,8 @@ _TIMEOUT = (60, 60)
 # LangSmith's member endpoints cap `limit` at 500. Deployments cap it at 100.
 _MEMBER_PAGE_SIZE = 500
 _DEPLOYMENT_PAGE_SIZE = 100
+# Cursor-paginated listings, such as user groups, cap `page_size` at 100.
+_CURSOR_PAGE_SIZE = 100
 # Assistant searches run concurrently across deployments, so one scaled-to-zero
 # deployment waking slowly no longer holds up the rest. That makes a tighter read
 # timeout safe, and it bounds the worst case for a workspace full of idle deployments.
@@ -217,6 +219,36 @@ class LangSmithClient:
             if len(page) < page_size:
                 return results
             offset += len(page)
+
+    def get_cursor_paginated(
+        self,
+        path: str,
+        *,
+        org_id: str | None = None,
+        tenant_id: str | None = None,
+        page_size: int = _CURSOR_PAGE_SIZE,
+    ) -> list[dict[str, Any]]:
+        """
+        Page through an endpoint that returns ``{"items": [...], "next_cursor": ...}``,
+        such as the user group listings.
+        """
+        results: list[dict[str, Any]] = []
+        cursor: str | None = None
+        seen: set[str] = set()
+        while True:
+            params: dict[str, Any] = {"page_size": page_size}
+            if cursor:
+                params["cursor"] = cursor
+            payload = self.get(path, params=params, org_id=org_id, tenant_id=tenant_id)
+            # Indexed rather than defaulted, for the same reason as the envelope listing.
+            results.extend(payload["items"])
+            cursor = payload.get("next_cursor")
+            if not cursor:
+                return results
+            if cursor in seen:
+                # A repeated cursor would loop forever, so treat the listing as unread.
+                raise LangSmithFetchError(path, None, "repeated pagination cursor")
+            seen.add(cursor)
 
     def search_assistants(
         self,

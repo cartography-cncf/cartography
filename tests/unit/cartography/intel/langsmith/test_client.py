@@ -55,3 +55,38 @@ def test_envelope_without_its_rows_fails_rather_than_reading_empty():
     with patch.object(requests.Session, "get", return_value=malformed):
         with pytest.raises(KeyError):
             client.get_paginated_envelope("/v2/deployments", key="resources")
+
+
+def test_cursor_listing_follows_next_cursor_until_it_is_null():
+    # Arrange
+    client = _client()
+    pages = [
+        _response(200, {"items": [{"id": "a"}], "next_cursor": "c1"}),
+        _response(200, {"items": [{"id": "b"}], "next_cursor": None}),
+    ]
+
+    # Act
+    with patch.object(requests.Session, "get", side_effect=pages) as get:
+        rows = client.get_cursor_paginated("/user-groups", org_id="org-1")
+
+    # Assert
+    assert rows == [{"id": "a"}, {"id": "b"}]
+    assert [call.kwargs["params"] for call in get.call_args_list] == [
+        {"page_size": 100},
+        {"page_size": 100, "cursor": "c1"},
+    ]
+
+
+def test_cursor_listing_fails_on_a_repeated_cursor():
+    # Arrange
+    client = _client()
+    pages = [
+        _response(200, {"items": [{"id": "a"}], "next_cursor": "c1"}),
+        _response(200, {"items": [{"id": "a"}], "next_cursor": "c1"}),
+    ]
+
+    # Act and assert
+    with patch.object(requests.Session, "get", side_effect=pages):
+        with pytest.raises(LangSmithFetchError) as raised:
+            client.get_cursor_paginated("/user-groups")
+    assert raised.value.not_found is False

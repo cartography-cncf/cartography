@@ -52,6 +52,6 @@ def load_workspaces(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(LangSmithWorkspaceSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        LangSmithWorkspaceSchema(), common_job_parameters, cascade_delete=True
+    ).run(neo4j_session)
