@@ -23,9 +23,10 @@ current role instead, and Pylon deletes the token when that user is
 deactivated. To keep the sync running when people leave, give the token its
 own identity or have it act as a [bot](https://docs.usepylon.com/pylon-docs/developer/api/authentication#bots).
 
-The `pylon_admin_service_accounts` rule misses tokens acting as users because
-they have no separate identity, but detects access through active Admin bots
-because bots have no email address.
+The `pylon_admin_service_accounts` rule flags active token identities and bots
+with the built-in Admin role because both appear as service accounts without
+email addresses. A token acting as a user escapes detection because Pylon
+returns only the user's identity and email.
 
 ## Required permissions
 
