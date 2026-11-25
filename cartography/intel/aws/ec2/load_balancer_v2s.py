@@ -1,4 +1,6 @@
 import logging
+import re
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -106,6 +108,120 @@ def get_load_balancer_v2_listeners(
 
 
 @timeit
+@aws_handle_regions
+def get_load_balancer_v2_listener_rules(
+    client: botocore.client.BaseClient,
+    listener_arn: str,
+) -> List[Dict]:
+    """Fetch an ELBv2 listener's routing rules (describe_rules).
+
+    Rules carry the path-pattern / host-header conditions and the forward target
+    group that decide which backend serves a given host+path. Without them the
+    graph can only link a load balancer to every target group it owns.
+    """
+    paginator = client.get_paginator("describe_rules")
+    rules: List[Dict] = []
+    try:
+        for page in paginator.paginate(ListenerArn=listener_arn):
+            rules.extend(page["Rules"])
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        raise ELBV2TransientRegionFailure(
+            f"Encountered a transient regional ELBV2 endpoint failure while calling DescribeRules on listener {listener_arn}"
+        ) from error
+
+    return rules
+
+
+def _wildcard_to_regex_body(pattern: str) -> str:
+    """Translate an ALB wildcard pattern to a regex body (no anchors).
+
+    '*' matches any sequence of characters (including '/'), '?' exactly one.
+    Mirrors the CloudFront behavior path-pattern translation.
+    """
+    return re.escape(pattern).replace(r"\*", ".*").replace(r"\?", ".")
+
+
+def _condition_values_to_regex(values: List[str], lowercase: bool = False) -> str:
+    """Combine condition values into one anchored alternation regex.
+
+    Returns '' when there are no values, meaning the condition matches anything.
+    """
+    if not values:
+        return ""
+    bodies = [_wildcard_to_regex_body(v.lower() if lowercase else v) for v in values]
+    return "^(?:" + "|".join(bodies) + ")$"
+
+
+def _rule_condition_values(
+    rule: Dict, field: str, config_key: str
+) -> List[str]:
+    """Collect the Values of every condition of the given field on a rule."""
+    values: List[str] = []
+    for cond in rule.get("Conditions") or []:
+        if cond.get("Field") != field:
+            continue
+        config = cond.get(config_key) or {}
+        values.extend(config.get("Values") or [])
+        # Legacy rule shape stores Values directly on the condition.
+        values.extend(cond.get("Values") or [])
+    return values
+
+
+def _rule_forward_target_group_arn(rule: Dict) -> str:
+    """Return the target group ARN a rule forwards to (first weighted target)."""
+    for action in rule.get("Actions") or []:
+        if action.get("Type") != "forward":
+            continue
+        if action.get("TargetGroupArn"):
+            return action["TargetGroupArn"]
+        forward_config = action.get("ForwardConfig") or {}
+        targets = forward_config.get("TargetGroups") or []
+        if targets:
+            return targets[0].get("TargetGroupArn", "")
+    return ""
+
+
+def _listener_rule_sort_key(rule: Dict) -> Tuple[int, int]:
+    """Priority order: numeric priorities ascending, default rule last."""
+    if rule.get("IsDefault"):
+        return (1, 0)
+    try:
+        return (0, int(rule.get("Priority", "0")))
+    except (TypeError, ValueError):
+        return (0, 0)
+
+
+def _transform_listener_rules(listener: Dict) -> Dict:
+    """Build index-aligned rule-routing lists for a listener (priority order)."""
+    rules = sorted(listener.get("Rules") or [], key=_listener_rule_sort_key)
+    path_patterns: List[str] = []
+    path_regexes: List[str] = []
+    host_regexes: List[str] = []
+    target_group_arns: List[str] = []
+    priorities: List[str] = []
+    is_default: List[bool] = []
+    for rule in rules:
+        path_values = _rule_condition_values(rule, "path-pattern", "PathPatternConfig")
+        host_values = _rule_condition_values(rule, "host-header", "HostHeaderConfig")
+        path_patterns.append("|".join(path_values))
+        path_regexes.append(_condition_values_to_regex(path_values))
+        host_regexes.append(_condition_values_to_regex(host_values, lowercase=True))
+        target_group_arns.append(_rule_forward_target_group_arn(rule))
+        priorities.append(
+            "default" if rule.get("IsDefault") else str(rule.get("Priority", ""))
+        )
+        is_default.append(bool(rule.get("IsDefault")))
+    return {
+        "rule_path_patterns": path_patterns or None,
+        "rule_path_regexes": path_regexes or None,
+        "rule_host_regexes": host_regexes or None,
+        "rule_target_group_arns": target_group_arns or None,
+        "rule_priorities": priorities or None,
+        "rule_is_default": is_default or None,
+    }
+
+
+@timeit
 def get_load_balancer_v2_target_groups(
     client: botocore.client.BaseClient,
     load_balancer_arn: str,
@@ -162,6 +278,12 @@ def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[
             client,
             elbv2["LoadBalancerArn"],
         )
+        # Routing rules decide which target group serves a host+path.
+        for listener in elbv2["Listeners"]:
+            listener["Rules"] = get_load_balancer_v2_listener_rules(
+                client,
+                listener["ListenerArn"],
+            )
         elbv2["TargetGroups"] = get_load_balancer_v2_target_groups(
             client,
             elbv2["LoadBalancerArn"],
@@ -172,7 +294,7 @@ def get_loadbalancer_v2_data(boto3_session: boto3.Session, region: str) -> List[
 def _transform_listener(listener: Dict, load_balancer_id: str) -> Dict:
     """Build the listener dict consumed by ELBV2ListenerSchema."""
     mutual_auth = listener.get("MutualAuthentication") or {}
-    return {
+    transformed = {
         "ListenerArn": listener["ListenerArn"],
         "Port": listener.get("Port"),
         "Protocol": listener.get("Protocol"),
@@ -187,6 +309,8 @@ def _transform_listener(listener: Dict, load_balancer_id: str) -> Dict:
         "TrustStoreAssociationStatus": mutual_auth.get("TrustStoreAssociationStatus"),
         "AdvertiseTrustStoreCaNames": mutual_auth.get("AdvertiseTrustStoreCaNames"),
     }
+    transformed.update(_transform_listener_rules(listener))
+    return transformed
 
 
 def _transform_load_balancer_v2_data(
