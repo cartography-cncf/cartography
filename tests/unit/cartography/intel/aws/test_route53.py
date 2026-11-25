@@ -1,7 +1,7 @@
 import pytest
 
 from cartography.intel.aws.route53 import _decode_route53_escapes
-from cartography.intel.aws.route53 import _normalize_alias_target
+from cartography.intel.aws.route53 import _normalize_record_target
 from cartography.intel.aws.route53 import _normalize_dns_target
 from cartography.intel.aws.route53 import transform_record_set
 
@@ -56,8 +56,8 @@ def test_normalize_dns_target(value, expected):
         (f"host.dualstack.{LB_DNS_NAME}.", f"host.dualstack.{LB_DNS_NAME}"),
     ],
 )
-def test_normalize_alias_target(value, expected):
-    assert _normalize_alias_target(value) == expected
+def test_normalize_record_target(value, expected):
+    assert _normalize_record_target(value) == expected
 
 
 def test_transform_record_set_keeps_dualstack_on_ordinary_cname():
@@ -74,6 +74,22 @@ def test_transform_record_set_keeps_dualstack_on_ordinary_cname():
 
     assert transformed is not None
     assert transformed["value"] == "dualstack.internal.example.com"
+
+
+def test_transform_record_set_strips_dualstack_from_ordinary_cname_to_elb():
+    # An operator-written CNAME to an ELB's dualstack name denotes the same load
+    # balancer the ELB API reports without the prefix, so it must match the LB node.
+    record_set = {
+        "Name": "app.example.com.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": f"dualstack.{LB_DNS_NAME}."}],
+    }
+
+    transformed = transform_record_set(record_set, "/hostedzone/ZONE", "app.example.com")
+
+    assert transformed is not None
+    assert transformed["value"] == LB_DNS_NAME
 
 
 @pytest.mark.parametrize(

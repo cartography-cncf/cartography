@@ -50,11 +50,12 @@ class AWSDNSRecordNodeProperties(CartographyNodeProperties):
         description=(
             "If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. "
             "For CNAME or ALIAS records, this is the target hostname or AWS resource name, "
-            "lowercased and with the trailing root dot removed. Alias targets pointing at a "
-            "load balancer additionally have Route53's `dualstack.` prefix removed, since the "
-            "ELB APIs report the same load balancer without it. Everywhere else a leading "
-            "`dualstack.` is kept, because on an ordinary CNAME or an alias to another record "
-            "in the same hosted zone it is part of a genuinely different hostname. If it is an "
+            "lowercased and with the trailing root dot removed. Targets pointing at a "
+            "load balancer (ALIAS or CNAME) additionally have the `dualstack.` prefix "
+            "removed, since the ELB APIs report the same load balancer without it. "
+            "Everywhere else a leading `dualstack.` is kept, because on an alias to "
+            "another record in the same hosted zone or a CNAME to a non-ELB hostname it "
+            "is part of a genuinely different hostname. If it is an "
             "NS record, the `name` is used here. For an Elasticsearch domain endpoint record, "
             "this is the comma-separated list of IP addresses that the endpoint resolved to."
         ),
