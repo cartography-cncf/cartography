@@ -87,44 +87,11 @@ class WizFindingNodeProperties(CartographyNodeProperties):
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
         extra_index=True,
-        description="CVE ID associated with the finding.",
-    )
-    has_cve: PropertyRef = PropertyRef(
-        "has_cve",
-        description="Whether the finding has a CVE identifier.",
+        description="CVE ID of the finding's vulnerability. Unset when the vulnerability has no CVE.",
     )
     is_security_issue: PropertyRef = PropertyRef(
         "is_security_issue",
         description="Whether the finding is a non-CVE security issue.",
-    )
-    cve_description: PropertyRef = PropertyRef(
-        "cve_description",
-        description="CVE description associated with the finding.",
-    )
-    cvss_severity: PropertyRef = PropertyRef(
-        "cvss_severity",
-        extra_index=True,
-        description="CVSS severity associated with the finding.",
-    )
-    score: PropertyRef = PropertyRef(
-        "score",
-        description="CVSS score associated with the finding.",
-    )
-    exploitability_score: PropertyRef = PropertyRef(
-        "exploitability_score",
-        description="CVSS exploitability score for the finding.",
-    )
-    impact_score: PropertyRef = PropertyRef(
-        "impact_score",
-        description="CVSS impact score for the finding.",
-    )
-    has_exploit: PropertyRef = PropertyRef(
-        "has_exploit",
-        description="Whether Wiz reports a known exploit.",
-    )
-    has_cisa_kev_exploit: PropertyRef = PropertyRef(
-        "has_cisa_kev_exploit",
-        description="Whether Wiz reports the CVE in the CISA KEV catalog.",
     )
     detailed_name: PropertyRef = PropertyRef(
         "detailed_name",
@@ -283,6 +250,41 @@ class WizFindingNodeProperties(CartographyNodeProperties):
         "project_names",
         description="Wiz project names associated with the finding.",
     )
+    # DEPRECATED: these properties moved to WizVulnerability. The transform never
+    # sets them, so each load writes null and removes the value that findings synced
+    # before the move still carry. Will be removed in v1.0.0.
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="Deprecated and always unset. Read `has_cve` on the finding's `WizVulnerability`.",
+    )
+    cve_description: PropertyRef = PropertyRef(
+        "cve_description",
+        description="Deprecated and always unset. Read `cve_description` on the finding's `WizVulnerability`.",
+    )
+    cvss_severity: PropertyRef = PropertyRef(
+        "cvss_severity",
+        description="Deprecated and always unset. Read `cvss_severity` on the finding's `WizVulnerability`.",
+    )
+    score: PropertyRef = PropertyRef(
+        "score",
+        description="Deprecated and always unset. Read `score` on the finding's `WizVulnerability`.",
+    )
+    exploitability_score: PropertyRef = PropertyRef(
+        "exploitability_score",
+        description="Deprecated and always unset. Read `exploitability_score` on the finding's `WizVulnerability`.",
+    )
+    impact_score: PropertyRef = PropertyRef(
+        "impact_score",
+        description="Deprecated and always unset. Read `impact_score` on the finding's `WizVulnerability`.",
+    )
+    has_exploit: PropertyRef = PropertyRef(
+        "has_exploit",
+        description="Deprecated and always unset. Read `has_exploit` on the finding's `WizVulnerability`.",
+    )
+    has_cisa_kev_exploit: PropertyRef = PropertyRef(
+        "has_cisa_kev_exploit",
+        description="Deprecated and always unset. Read `has_cisa_kev_exploit` on the finding's `WizVulnerability`.",
+    )
 
 
 @dataclass(frozen=True)
@@ -307,9 +309,13 @@ class WizFindingToCVERelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: HAS_VULNERABILITY to the finding's WizVulnerability replaces this
+# edge; will be removed in v1.0.0.
 # (:WizFinding)-[:LINKED_TO]->(:CVE)
 @dataclass(frozen=True)
 class WizFindingToCVERel(CartographyRelSchema):
+    """Deprecated: use `HAS_VULNERABILITY`. Links a CVE finding to the `:CVE` node whose `id` is the bare CVE ID, such as a `CVE` node from the NVD module."""
+
     target_node_label: str = "CVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("cve_id")},
@@ -317,6 +323,26 @@ class WizFindingToCVERel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "LINKED_TO"
     properties: WizFindingToCVERelProperties = WizFindingToCVERelProperties()
+
+
+@dataclass(frozen=True)
+class WizFindingToVulnerabilityRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class WizFindingToVulnerabilityRel(CartographyRelSchema):
+    """Links a vulnerability finding to the vulnerability it reports."""
+
+    target_node_label: str = "WizVulnerability"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("vulnerability_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_VULNERABILITY"
+    properties: WizFindingToVulnerabilityRelProperties = (
+        WizFindingToVulnerabilityRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -396,12 +422,18 @@ class WizFindingToOntologyImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WizFindingSchema(CartographyNodeSchema):
+    """A Wiz vulnerability finding, configuration finding, or detection.
+
+    Configuration findings, detections, and vulnerability findings without a CVE are labeled `:SecurityIssue`. A vulnerability finding is not itself labeled [`CVE`](#ontology-cve): the `WizVulnerability` it links to carries that label, so each CVE is one node. Earlier versions labeled CVE findings `:CVE`; the next complete, unfiltered sync of the tenant removes that label.
+    """
+
     label: str = "WizFinding"
     properties: WizFindingNodeProperties = WizFindingNodeProperties()
     sub_resource_relationship: WizFindingToTenantRel = WizFindingToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             WizFindingToCVERel(),
+            WizFindingToVulnerabilityRel(),
             WizFindingToEC2InstanceRel(),
             WizFindingToEC2ImageRel(),
             WizFindingToLambdaRel(),
@@ -410,8 +442,102 @@ class WizFindingSchema(CartographyNodeSchema):
         ],
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [
-            SECURITY_ISSUE.when(is_security_issue="true"),
-            CVE.when(has_cve="true"),
-        ],
+        [SECURITY_ISSUE.when(is_security_issue="true")],
     )
+
+
+@dataclass(frozen=True)
+class WizVulnerabilityNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "`WIZ|<Wiz tenant ID>|<vulnerability>`, where the vulnerability is its "
+            "CVE ID, or its Wiz name when it has no CVE. The prefix keeps this node "
+            "apart from other sources' `:CVE` nodes, which share the bare CVE ID."
+        ),
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp when this Wiz vulnerability was last seen.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Wiz name of the vulnerability, such as a CVE ID or an advisory ID.",
+    )
+    cve_id: PropertyRef = PropertyRef(
+        "cve_id",
+        extra_index=True,
+        description="CVE ID of the vulnerability. Unset when the vulnerability has no CVE.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="`true` when the vulnerability has a CVE ID, so the node is labeled `:CVE`.",
+    )
+    cve_description: PropertyRef = PropertyRef(
+        "cve_description",
+        description="Description of the vulnerability.",
+    )
+    cvss_severity: PropertyRef = PropertyRef(
+        "cvss_severity",
+        extra_index=True,
+        description="CVSS severity of the vulnerability.",
+    )
+    score: PropertyRef = PropertyRef(
+        "score",
+        description="CVSS base score of the vulnerability.",
+    )
+    exploitability_score: PropertyRef = PropertyRef(
+        "exploitability_score",
+        description="CVSS exploitability subscore of the vulnerability.",
+    )
+    impact_score: PropertyRef = PropertyRef(
+        "impact_score",
+        description="CVSS impact subscore of the vulnerability.",
+    )
+    has_exploit: PropertyRef = PropertyRef(
+        "has_exploit",
+        description="Whether Wiz reports a known exploit for the vulnerability.",
+    )
+    has_cisa_kev_exploit: PropertyRef = PropertyRef(
+        "has_cisa_kev_exploit",
+        description="Whether Wiz reports the vulnerability in the CISA KEV catalog.",
+    )
+
+
+@dataclass(frozen=True)
+class WizVulnerabilityToTenantRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class WizVulnerabilityToTenantRel(CartographyRelSchema):
+    """Scopes each vulnerability to the Wiz tenant that synced it."""
+
+    target_node_label: str = "WizTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("WIZ_TENANT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: WizVulnerabilityToTenantRelProperties = (
+        WizVulnerabilityToTenantRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class WizVulnerabilitySchema(CartographyNodeSchema):
+    """A vulnerability that Wiz reports in vulnerability findings.
+
+    Holds the advisory data that is the same for every finding of the vulnerability, so
+    each `WizFinding` stores only what is specific to one affected resource.
+    Labeled [`CVE`](#ontology-cve) when it has a CVE ID, so `CVEMetadata` enriches one node per CVE.
+    """
+
+    label: str = "WizVulnerability"
+    properties: WizVulnerabilityNodeProperties = WizVulnerabilityNodeProperties()
+    sub_resource_relationship: WizVulnerabilityToTenantRel = (
+        WizVulnerabilityToTenantRel()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE.when(has_cve="true")])

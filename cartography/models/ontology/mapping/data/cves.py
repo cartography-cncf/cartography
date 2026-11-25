@@ -493,15 +493,11 @@ aws_inspector_mapping = OntologyMapping(
     ],
 )
 
-# Wiz findings are either CVE-backed vulnerabilities or non-CVE security issues.
-# The ingestion resolver selects the security-issues mapping first, so that mapping
-# owns the normalized fields; this entry registers the conditional :CVE label for
-# ontology documentation and validation.
 wiz_mapping = OntologyMapping(
     module_name="wiz",
     nodes=[
         OntologyNodeMapping(
-            node_label="WizFinding",
+            node_label="WizVulnerability",
             fields=[
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
                 OntologyFieldMapping(
