@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.security_group_rules import IpPermissionInboundSchema
@@ -198,10 +199,57 @@ def cleanup_ec2_security_groupinfo(
         neo4j_session,
     )
     GraphJob.from_node_schema(IpRuleSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(IpRangeSchema(), common_job_parameters).run(neo4j_session)
+    cleanup_ip_ranges(neo4j_session, common_job_parameters)
     GraphJob.from_node_schema(
         EC2SecurityGroupInstanceSchema(),
         common_job_parameters,
+    ).run(neo4j_session)
+
+
+@timeit
+def cleanup_ip_ranges(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """Remove this account's stale range edges, then ranges no rule references
+
+    AWSIpRange nodes are shared across accounts, the cleanup generated from
+    IpRangeSchema would delete every account's stale edges. 
+    Must run after the AWSIpRule cleanup, which detaches the ranges of deleted rules
+    """
+    parameters = {
+        "AWS_ID": common_job_parameters["AWS_ID"],
+        "UPDATE_TAG": common_job_parameters["UPDATE_TAG"],
+    }
+    GraphJob(
+        "Cleanup AWSIpRange",
+        [
+            GraphStatement(
+                """
+                MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(:AWSIpRule)<-[r:MEMBER_OF_IP_RULE]-(:AWSIpRange)
+                WHERE r.lastupdated <> $UPDATE_TAG
+                WITH r LIMIT $LIMIT_SIZE
+                DELETE r
+                """,
+                parameters=parameters,
+                iterative=True,
+                iterationsize=10000,
+                parent_job_name="aws_ip_range_cleanup",
+            ),
+            GraphStatement(
+                """
+                MATCH (n:AWSIpRange)
+                WHERE NOT (n)-[:MEMBER_OF_IP_RULE]->()
+                WITH n LIMIT $LIMIT_SIZE
+                DETACH DELETE n
+                """,
+                parameters=parameters,
+                iterative=True,
+                iterationsize=10000,
+                parent_job_name="aws_ip_range_cleanup",
+            ),
+        ],
+        "aws_ip_range_cleanup",
     ).run(neo4j_session)
 
 
