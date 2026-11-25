@@ -314,7 +314,9 @@ def test_sync_stores_each_finding_once_for_workloads_that_share_it(
                r.finding_ids AS finding_ids, r.last_loaded_ms AS last_loaded_ms
         """,
     )
-    rows = {row["workload"]: row for row in result}
+    records = list(result)
+    assert len(records) == 3
+    rows = {row["workload"]: row for row in records}
     assert rows["api"]["set_id"] == rows["api-2"]["set_id"]
     assert rows["worker"]["set_id"] != rows["api"]["set_id"]
     assert {(w, row["finding_ids"][0], row["status"]) for w, row in rows.items()} == {
@@ -331,6 +333,29 @@ def test_sync_stores_each_finding_once_for_workloads_that_share_it(
         "workload",
         "RESOURCE",
     ) == {(TENANT_ID, "api"), (TENANT_ID, "api-2"), (TENANT_ID, "worker")}
+
+
+def test_sync_stores_only_the_latest_content_of_a_detection_returned_twice(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    rescored_earlier = {
+        **VULNERABILITIES[0],
+        "sweetScore": 7.0,
+        "lastDetected": "2026-11-14T00:00:00Z",
+    }
+    _patch_sweet_api(mocker, vulnerabilities=[rescored_earlier, *VULNERABILITIES])
+
+    # Act
+    cartography.intel.sweet.start_sweet_ingestion(neo4j_session, _config())
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "SweetFindingContent",
+        ["package_name", "sweet_score"],
+    ) == {("xz-utils", 9.1), ("example-lib", None)}
 
 
 def test_sync_labels_only_cve_backed_vulnerabilities_as_cve(neo4j_session, mocker):
@@ -406,6 +431,14 @@ def test_sync_removes_findings_missing_from_a_later_sync(neo4j_session, mocker):
         ("xz-utils",),
     }
     assert len(check_nodes(neo4j_session, "SweetFindingSet", ["id"])) == 1
+    assert check_rels(
+        neo4j_session,
+        "SweetWorkloadFindings",
+        "workload",
+        "SweetFindingSet",
+        "lastupdated",
+        "HAS_FINDING_SET",
+    ) == {("api", TEST_UPDATE_TAG + 1)}
     assert check_nodes(neo4j_session, "SweetAttackChain", ["id"]) == set()
 
 

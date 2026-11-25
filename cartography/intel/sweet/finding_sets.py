@@ -11,6 +11,8 @@ from datetime import timedelta
 from datetime import timezone
 from typing import Any
 
+from dateutil.parser import isoparse
+
 _ID_LENGTH = 32
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _BARE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -96,7 +98,7 @@ def transform_content(vulnerability: dict[str, Any], tenant_id: str) -> dict[str
 def _epoch_ms(value: str | None) -> int:
     if not value:
         return 0
-    timestamp = datetime.fromisoformat(value)
+    timestamp = isoparse(value)
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
     return (timestamp - _EPOCH) // timedelta(milliseconds=1)
@@ -105,7 +107,7 @@ def _epoch_ms(value: str | None) -> int:
 @dataclass
 class _WorkloadDetections:
     workload: str
-    cloud_account: str
+    cloud_account: str | None
     # Parallel columns keep a large tenant's detections compact until every page has loaded.
     content_indexes: array = field(default_factory=lambda: array("I"))
     finding_ids: list[str] = field(default_factory=list)
@@ -136,7 +138,7 @@ class WorkloadFindingSets:
         if detections is None:
             detections = _WorkloadDetections(
                 workload=workload,
-                cloud_account=cloud_account,
+                cloud_account=cloud_account or None,
             )
             self._workloads[workload_id] = detections
         index = self._content_indexes.get(content_id)

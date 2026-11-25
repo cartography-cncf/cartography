@@ -268,7 +268,7 @@ class SweetWorkloadFindingsNodeProperties(CartographyNodeProperties):
     )
     cloud_account: PropertyRef = PropertyRef(
         "cloud_account",
-        description="Name of the cloud account that runs the workload. Empty when Sweet reports none.",
+        description="Name of the cloud account that runs the workload. Not set when Sweet reports none.",
     )
     finding_set_id: PropertyRef = PropertyRef(
         "finding_set_id",

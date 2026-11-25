@@ -71,7 +71,9 @@ def transform_vulnerability(
 @dataclass
 class _SyncState:
     finding_sets: WorkloadFindingSets
-    loaded_content_ids: set[str] = field(default_factory=set)
+    # Contents wait for the sets: a detection that Sweet returns twice keeps only its
+    # latest version, and loading the other one would leave a content no set contains.
+    contents: dict[str, dict[str, Any]] = field(default_factory=dict)
     loaded_epss_scores: dict[str, float] = field(default_factory=dict)
 
     def is_new_or_higher_epss(self, vulnerability: dict[str, Any]) -> bool:
@@ -189,19 +191,14 @@ def _load_page(
     update_tag: int,
 ) -> None:
     vulnerabilities: list[dict[str, Any]] = []
-    contents: list[dict[str, Any]] = []
     for raw in page:
         vulnerability = transform_vulnerability(raw, tenant_id)
         if vulnerability and state.is_new_or_higher_epss(vulnerability):
             vulnerabilities.append(vulnerability)
         content = transform_content(raw, tenant_id)
-        if content["id"] not in state.loaded_content_ids:
-            state.loaded_content_ids.add(content["id"])
-            contents.append(content)
+        state.contents.setdefault(content["id"], content)
         state.finding_sets.add(raw, content["id"])
-    # Vulnerabilities go first so that new contents can link to them.
     load_vulnerabilities(neo4j_session, vulnerabilities, tenant_id, update_tag)
-    load_finding_contents(neo4j_session, contents, tenant_id, update_tag)
 
 
 def _load_finding_sets(
@@ -211,11 +208,16 @@ def _load_finding_sets(
     update_tag: int,
 ) -> None:
     finding_sets, finding_set_slots, workload_findings = state.finding_sets.build()
+    contained = {slot["contentid"] for slot in finding_set_slots}
+    contents = [state.contents[content_id] for content_id in contained]
+    state.contents.clear()
     logger.info(
-        "Loading %d Sweet finding sets for %d workloads.",
+        "Loading %d Sweet finding contents in %d sets for %d workloads.",
+        len(contents),
         len(finding_sets),
         len(workload_findings),
     )
+    load_finding_contents(neo4j_session, contents, tenant_id, update_tag)
     for batch in _batches_of_detections(finding_sets, "content_ids"):
         load_finding_sets(neo4j_session, batch, tenant_id, update_tag)
     load_finding_set_contents(neo4j_session, finding_set_slots, tenant_id, update_tag)
@@ -258,8 +260,8 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     # A large tenant reports hundreds of millions of detections, mostly the same
-    # findings on workloads that run the same images. Vulnerabilities and contents
-    # load as each page arrives; workload sets load once every page has, since a
+    # findings on workloads that run the same images. Vulnerabilities load as each
+    # page arrives; contents and workload sets load once every page has, since a
     # workload's detections are spread across pages.
     state = _SyncState(finding_sets=WorkloadFindingSets(tenant_id))
     for page in get(session, api_url):
