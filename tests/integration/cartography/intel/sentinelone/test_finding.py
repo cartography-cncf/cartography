@@ -62,6 +62,19 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
             update_tag=TEST_UPDATE_TAG,
         )
 
+    # A finding synced before the :CVE label moved to S1Vulnerability.
+    neo4j_session.run(
+        """
+        MATCH (a:S1Account {id: $account_id})
+        MERGE (a)-[:RESOURCE]->(f:S1AppFinding:CVE {id: $id})
+        SET f._ont_source = 'sentinelone', f._ont_cve_id = 'CVE-2023-1234',
+            f._ont_base_severity = 'high'
+        MERGE (:CVEMetadata {id: 'CVE-2023-1234'})-[:ENRICHES]->(f)
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        id=CVE_ID_1,
+    )
+
     # Create prerequisite CVE nodes for the relationships
     for cve in CVES_DATA:
         neo4j_session.run(
@@ -124,12 +137,87 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
 
     assert actual_nodes == expected_nodes
 
-    # S1AppFinding is CVE-shaped (carries a cve_id) and is labeled :CVE.
-    labels = neo4j_session.run(
-        "MATCH (f:S1AppFinding {id: $id}) RETURN labels(f) AS labels",
-        id=CVE_ID_1,
-    ).single()["labels"]
-    assert "CVE" in labels
+    # The vulnerability, not each of its findings, is the :CVE node, and it holds
+    # the fields SentinelOne reports per CVE.
+    assert check_nodes(
+        neo4j_session,
+        "S1Vulnerability:CVE",
+        ["id", "cve_id", "severity", "risk_score", "remediation_level"],
+    ) == {
+        (
+            "S1|test-s1-account-123|CVE-2023-1234",
+            "CVE-2023-1234",
+            "High",
+            8.2,
+            "Official Fix",
+        ),
+        (
+            "S1|test-s1-account-123|CVE-2023-5678",
+            "CVE-2023-5678",
+            "Critical",
+            None,
+            None,
+        ),
+        ("S1|test-s1-account-123|CVE-2023-9012", "CVE-2023-9012", "Medium", None, None),
+    }
+    assert check_rels(
+        neo4j_session,
+        "S1AppFinding",
+        "id",
+        "S1Vulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == {
+        (CVE_ID_1, "S1|test-s1-account-123|CVE-2023-1234"),
+        (CVE_ID_2, "S1|test-s1-account-123|CVE-2023-5678"),
+        (CVE_ID_3, "S1|test-s1-account-123|CVE-2023-9012"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "S1Account",
+        "id",
+        "S1Vulnerability",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "S1|test-s1-account-123|CVE-2023-1234"),
+        (TEST_ACCOUNT_ID, "S1|test-s1-account-123|CVE-2023-5678"),
+        (TEST_ACCOUNT_ID, "S1|test-s1-account-123|CVE-2023-9012"),
+    }
+    # Findings keep their deprecated copies of the per-CVE fields until v1.0.0.
+    assert check_nodes(
+        neo4j_session, "S1AppFinding", ["id", "severity", "report_confidence"]
+    ) == {
+        (CVE_ID_1, "High", "Confirmed"),
+        (CVE_ID_2, "Critical", None),
+        (CVE_ID_3, "Medium", None),
+    }
+    # The sync strips :CVE and its ontology fields from the finding stored before
+    # the move. CVEMetadata cleanup only reaches :CVE nodes, so the sync also
+    # removes the enrichment edge the old label brought.
+    assert check_nodes(neo4j_session, "S1AppFinding:CVE", ["id"]) == set()
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (f:S1AppFinding)
+            RETURN collect(DISTINCT [k IN keys(f) WHERE k STARTS WITH '_ont_']) AS ont
+            """,
+        ).single()["ont"]
+        == [[]]
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "CVEMetadata",
+            "id",
+            "S1AppFinding",
+            "id",
+            "ENRICHES",
+        )
+        == set()
+    )
 
     # Verify that relationships to the account were created
     expected_rels = {
@@ -259,3 +347,73 @@ def test_sync_cves_cleanup(mock_get_paginated_results, neo4j_session):
 
     assert "old-cve-123" not in existing_cves
     assert CVE_ID_1 in existing_cves
+
+
+@patch.object(
+    cartography.intel.sentinelone.finding,
+    "get_paginated_results",
+)
+def test_migration_without_cleanup_strips_only_findings_it_read(
+    mock_get_paginated_results, neo4j_session
+):
+    # Arrange: two findings that an earlier version labeled :CVE. A site-scoped sync
+    # skips cleanup and reads only one of them, together with a second finding of
+    # the same CVE on another endpoint.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (a:S1Account {id: $account_id})
+        CREATE (a)-[:RESOURCE]->(:S1AppFinding:CVE {id: $id, _ont_cve_id: 'CVE-2023-1234'})
+        CREATE (a)-[:RESOURCE]->(sibling:S1AppFinding:CVE {id: 'sibling-site-finding', _ont_cve_id: 'CVE-2023-1234'})
+        CREATE (:CVEMetadata {id: 'CVE-2023-1234'})-[:ENRICHES]->(sibling)
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        id=CVE_ID_1,
+    )
+    mock_get_paginated_results.return_value = [
+        CVES_DATA[0],
+        {
+            **CVES_DATA[0],
+            "id": "cve-test-123-other-endpoint",
+            "endpointId": "agent-456",
+        },
+    ]
+
+    # Act
+    cartography.intel.sentinelone.finding.sync(
+        neo4j_session,
+        TEST_COMMON_JOB_PARAMETERS,
+        do_cleanup=False,
+    )
+    cartography.intel.sentinelone.finding.migrate_legacy_cve_labels(
+        neo4j_session,
+        TEST_COMMON_JOB_PARAMETERS,
+    )
+
+    # Assert: both findings of the CVE share one vulnerability node, and the
+    # finding the sync did not read keeps :CVE and its enrichment until a sync
+    # links it to its vulnerability.
+    assert check_rels(
+        neo4j_session,
+        "S1AppFinding",
+        "id",
+        "S1Vulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+        rel_direction_right=True,
+    ) == {
+        (CVE_ID_1, "S1|test-s1-account-123|CVE-2023-1234"),
+        ("cve-test-123-other-endpoint", "S1|test-s1-account-123|CVE-2023-1234"),
+    }
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
+        ("S1|test-s1-account-123|CVE-2023-1234",),
+        ("sibling-site-finding",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "CVEMetadata",
+        "id",
+        "S1AppFinding",
+        "id",
+        "ENRICHES",
+    ) == {("CVE-2023-1234", "sibling-site-finding")}

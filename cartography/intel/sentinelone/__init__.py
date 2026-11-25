@@ -64,6 +64,13 @@ def _sync_scope(
             common_job_parameters,
             do_cleanup=False,
         )
+    # Once per scope rather than per site, because each run reads the account's
+    # findings. It only changes findings that already link to their S1Vulnerability,
+    # so it is safe when cleanup is skipped.
+    cartography.intel.sentinelone.finding.migrate_legacy_cve_labels(
+        neo4j_session,
+        common_job_parameters,
+    )
 
     if not do_cleanup:
         common_job_parameters.pop("S1_SITE_ID", None)
