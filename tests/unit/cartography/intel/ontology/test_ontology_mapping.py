@@ -450,7 +450,7 @@ def test_uppercase_provider_cve_severities_are_canonicalized():
         "CRITICAL": "critical",
     }
     provider_expectations = {
-        "semgrep": ("SemgrepSCAFinding", cvss_map),
+        "semgrep": ("SemgrepSCAVulnerability", cvss_map),
     }
 
     for provider, (node_label, expected_map) in provider_expectations.items():

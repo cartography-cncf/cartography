@@ -562,6 +562,21 @@ def test_sync_findings(
     create_github_repos(neo4j_session)
     create_dependency_nodes(neo4j_session)
     create_cve_nodes(neo4j_session)
+    # Findings synced before the :CVE label moved to SemgrepSCAVulnerability. The
+    # earlier ontology mapping wrote the CVE _ont_* fields on every finding.
+    neo4j_session.run(
+        """
+        MERGE (f:SemgrepSCAFinding:CVE {id: $cve_finding})
+        SET f._ont_cve_id = 'CVE-2022-31129', f._ont_description = 'description',
+            f._ont_references = ['https://nvd.nist.gov/vuln/detail/CVE-2022-31129'],
+            f._ont_base_severity = 'high'
+        MERGE (:CVEMetadata {id: 'CVE-2022-31129'})-[:ENRICHES]->(f)
+        MERGE (g:SemgrepSCAFinding {id: $advisory_finding})
+        SET g._ont_description = 'description', g._ont_base_severity = 'high'
+        """,
+        cve_finding=tests.data.semgrep.sca.VULN_ID,
+        advisory_finding=tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+    )
     semgrep_app_token = "your_semgrep_app_token"
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -587,6 +602,51 @@ def test_sync_findings(
         "SemgrepDeployment",
         ["id", "name", "slug"],
     ) == {("123456", "Org", "org")}
+
+    # One vulnerability per advisory holds the :CVE label. UNKNOWN-* is neither a
+    # CVE nor a GHSA, so its finding reports no vulnerability.
+    assert check_nodes_as_list(
+        neo4j_session,
+        "SemgrepSCAVulnerability",
+        [
+            "id",
+            "cve_id",
+            "ghsa_id",
+            "has_cve",
+            "severity",
+            "ref_urls",
+            "_ont_cve_id",
+            "_ont_base_severity",
+        ],
+    ) == [
+        "SEMGREP|CVE-2022-31129",
+        "CVE-2022-31129",
+        None,
+        "true",
+        "HIGH",
+        ["https://nvd.nist.gov/vuln/detail/CVE-2022-31129"],
+        "CVE-2022-31129",
+        "high",
+    ]
+    assert neo4j_session.run(
+        "MATCH (n:SemgrepSCAVulnerability:CVE) RETURN n.id AS id",
+    ).value("id") == ["SEMGREP|CVE-2022-31129"]
+    assert check_rels(
+        neo4j_session,
+        "SemgrepDeployment",
+        "id",
+        "SemgrepSCAVulnerability",
+        "id",
+        "RESOURCE",
+    ) == {("123456", "SEMGREP|CVE-2022-31129")}
+    assert check_rels(
+        neo4j_session,
+        "SemgrepSCAFinding",
+        "id",
+        "SemgrepSCAVulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+    ) == {(tests.data.semgrep.sca.VULN_ID, "SEMGREP|CVE-2022-31129")}
 
     assert check_nodes_as_list(
         neo4j_session,
@@ -781,7 +841,8 @@ def test_sync_findings(
         ),
     }
 
-    # Assert - has_cve drives the mutually-exclusive :CVE / :SecurityIssue labels
+    # Assert - has_cve labels advisory-only findings :SecurityIssue, and no finding
+    # carries :CVE, including the one an earlier version labeled.
     assert check_nodes(
         neo4j_session,
         "SemgrepSCAFinding",
@@ -790,33 +851,57 @@ def test_sync_findings(
         (tests.data.semgrep.sca.VULN_ID, "true"),
         (tests.data.semgrep.sca.VULN_ID_UNKNOWN, "false"),
     }
-    assert neo4j_session.run(
-        "MATCH (n:SemgrepSCAFinding:CVE) RETURN n.id AS id ORDER BY id",
-    ).value("id") == [tests.data.semgrep.sca.VULN_ID]
+    assert (
+        neo4j_session.run(
+            "MATCH (n:SemgrepSCAFinding:CVE) RETURN n.id AS id",
+        ).value("id")
+        == []
+    )
     assert neo4j_session.run(
         "MATCH (n:SemgrepSCAFinding:SecurityIssue) RETURN n.id AS id ORDER BY id",
     ).value("id") == [tests.data.semgrep.sca.VULN_ID_UNKNOWN]
+    # CVEMetadata cleanup only reaches :CVE nodes, so the sync also removes the
+    # enrichment edge the old label brought.
+    assert (
+        check_rels(
+            neo4j_session,
+            "CVEMetadata",
+            "id",
+            "SemgrepSCAFinding",
+            "id",
+            "ENRICHES",
+        )
+        == set()
+    )
 
-    # Advisory-only (:SecurityIssue) findings keep their SecurityIssue ontology
-    # normalization, while the CVE-backed finding also carries _ont_cve_id.
+    # Findings keep their SecurityIssue normalization and lose the CVE fields.
     assert check_nodes(
         neo4j_session,
         "SemgrepSCAFinding",
-        ["id", "_ont_title", "_ont_severity", "_ont_cve_id"],
+        [
+            "id",
+            "_ont_title",
+            "_ont_severity",
+            "_ont_cve_id",
+            "_ont_description",
+            "_ont_base_severity",
+        ],
     ) == {
         (
             tests.data.semgrep.sca.VULN_ID,
             "moment:Denial-of-Service (DoS)",
             # _ont_severity is normalized to a canonical band (HIGH -> high).
             "high",
-            "CVE-2022-31129",
+            None,
+            None,
+            None,
         ),
         (
-            # Advisory-only finding keeps its SecurityIssue normalization, and
-            # _ont_cve_id is null because UNKNOWN-* is not a real CVE.
             tests.data.semgrep.sca.VULN_ID_UNKNOWN,
             "moment:Denial-of-Service (DoS)",
             "high",
+            None,
+            None,
             None,
         ),
     }
@@ -846,6 +931,56 @@ def test_sync_findings(
             "HIGH",
             "INFO",
         ),
+    }
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sast_findings",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sca_vulns",
+    return_value=[tests.data.semgrep.sca.RAW_VULNS],
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_ai_sast_findings",
+    return_value=[],
+)
+def test_sync_findings_migrates_only_the_synced_deployments_cve_findings(
+    mock_get_ai_sast_findings,
+    mock_get_sca_vulns,
+    mock_get_sast_findings,
+    mock_get_deployment,
+    neo4j_session,
+):
+    # Arrange: another deployment holds a finding that an earlier version labeled
+    # :CVE. Only deployment 123456 syncs.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (:SemgrepDeployment {id: 'other-deployment'})
+              -[:RESOURCE]->(:SemgrepSCAFinding:CVE {id: 'other-finding'})
+        """,
+    )
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+
+    # Act
+    sync_deployment(neo4j_session, "token", TEST_UPDATE_TAG, common_job_parameters)
+    sync_findings(neo4j_session, "token", TEST_UPDATE_TAG, common_job_parameters)
+
+    # Assert: the other deployment's finding keeps :CVE until that deployment
+    # syncs and its findings link to their vulnerability.
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
+        ("SEMGREP|CVE-2022-31129",),
+        ("other-finding",),
     }
 
 

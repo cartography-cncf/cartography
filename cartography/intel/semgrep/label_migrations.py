@@ -1,6 +1,10 @@
+from typing import Any
+from typing import Dict
+
 import neo4j
 
 from cartography.client.core.tx import run_write_query
+from cartography.util import run_analysis_job
 
 
 # DEPRECATED: GoLibrary and NpmLibrary compatibility support will be removed in v1.0.0.
@@ -24,4 +28,16 @@ def migrate_dependency_labels(
         )
         """,
         DEPLOYMENT_ID=deployment_id,
+    )
+
+
+# DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
+def migrate_sca_cve_labels(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    run_analysis_job(
+        "semgrep_sca_cve_migration.json",
+        neo4j_session,
+        common_job_parameters,
     )

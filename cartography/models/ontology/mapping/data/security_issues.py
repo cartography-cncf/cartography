@@ -12,9 +12,7 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 #
 # Pure CVE nodes are intentionally excluded: they are covered by the `CVE`
 # extra label and CVE semantic mapping, which plays the ontology role for
-# CVE-linked detections. The one exception is SemgrepSCAFinding, a hybrid that is
-# :SecurityIssue when advisory-only and :CVE when CVE-backed; its single mapping
-# lives here and additionally carries the CVE fields (see its node mapping below).
+# CVE-linked detections.
 
 # Semgrep severity (transform upper-cases the raw value; supports both the
 # low/medium/high/critical and info/warning/error vocabularies).
@@ -235,16 +233,11 @@ semgrep_mapping = OntologyMapping(
                 ),
             ],
         ),
-        # SemgrepSCAFinding is a hybrid dependency-vulnerability finding: it carries
-        # :CVE when CVE-backed and :SecurityIssue when advisory-only. The resolver
-        # returns a single mapping per primary label regardless of which conditional
-        # label is applied, so this one mapping carries BOTH the SecurityIssue fields
-        # and the CVE fields. Label-gated queries only read the fields relevant to the
-        # label actually present, so the other set is inert.
+        # SemgrepSCAFinding is :SecurityIssue when advisory-only. A CVE-backed
+        # finding reaches the :CVE family through its SemgrepSCAVulnerability.
         OntologyNodeMapping(
             node_label="SemgrepSCAFinding",
             fields=[
-                # SecurityIssue fields (advisory-only findings)
                 OntologyFieldMapping(
                     ontology_field="title",
                     node_field="summary",
@@ -265,24 +258,6 @@ semgrep_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="first_seen",
                     node_field="scan_time",
-                ),
-                # CVE fields (CVE-backed findings)
-                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
-                OntologyFieldMapping(
-                    ontology_field="description",
-                    node_field="description",
-                    indexed=False,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="references",
-                    node_field="ref_urls",
-                    indexed=False,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_severity",
-                    node_field="severity",
-                    special_handling="mapping",
-                    extra={"map": _SEMGREP_SEVERITY},
                 ),
             ],
         ),
