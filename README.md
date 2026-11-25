@@ -124,6 +124,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Oracle Cloud Infrastructure](https://docs.cartography.dev/modules/oci/index.html) - IAM
 - [Orca Security](https://docs.cartography.dev/modules/orca/index.html) - Organizations, security alerts, per-target CVE findings
 - [PagerDuty](https://docs.cartography.dev/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
+- [Pylon](https://docs.cartography.dev/modules/pylon/index.html) - Organization, users, service accounts (API tokens and bots), roles, teams
 - [Railway](https://docs.cartography.dev/modules/railway/index.html) - Workspaces, Projects, Environments, Services, Service Instances, Deployments, Domains, TCP Proxies, Volumes, Variables, Tokens
 - [Scaleway](https://docs.cartography.dev/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances
 - [SentinelOne](https://docs.cartography.dev/modules/sentinelone/index.html) - Accounts, Agents, Applications, Application Versions, CVEs

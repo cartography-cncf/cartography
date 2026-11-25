@@ -161,6 +161,28 @@ anthropic_mapping = OntologyMapping(
         ),
     ],
 )
+pylon_mapping = OntologyMapping(
+    module_name="pylon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PylonUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="is_deactivated",
+                    special_handling="invert_boolean",
+                ),
+                # has_mfa: Not available; sign-in happens through Slack, Google,
+                # Microsoft, or SAML.
+                # lastactivity: Not available
+            ],
+        ),
+    ],
+)
 airbyte_mapping = OntologyMapping(
     module_name="airbyte",
     nodes=[
@@ -967,6 +989,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "onepassword": onepassword_mapping,
     "gsuite": gsuite_mapping,
     "anthropic": anthropic_mapping,
+    "pylon": pylon_mapping,
     "airbyte": airbyte_mapping,
     "cloudflare": cloudflare_mapping,
     "duo": duo_mapping,

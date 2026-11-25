@@ -92,6 +92,7 @@ EXPECTED_ISO27001_REQUIREMENTS = {
     "iam_role_external_account_trust": {"5.18", "8.2"},
     "aws_admin_users_with_access_keys": {"5.17", "8.2"},
     "identity_administration_privileges": {"5.18", "8.2"},
+    "pylon_admin_service_accounts": {"5.18", "8.2"},
     "identity_mfa_gaps": {"8.5"},
     "inactive-user-active-accounts": {"5.18"},
     "kubernetes_control_plane_exposed": {"8.20"},

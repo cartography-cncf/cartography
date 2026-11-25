@@ -77,6 +77,7 @@ PANEL_CLOUDFLARE = "Cloudflare Options"
 PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
+PANEL_PYLON = "Pylon Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_LANGSMITH = "LangSmith Options"
 PANEL_DATABRICKS = "Databricks Options"
@@ -158,6 +159,7 @@ MODULE_PANELS = {
     "tailscale": PANEL_TAILSCALE,
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
+    "pylon": PANEL_PYLON,
     "airbyte": PANEL_AIRBYTE,
     "langsmith": PANEL_LANGSMITH,
     "databricks": PANEL_DATABRICKS,
@@ -2048,6 +2050,31 @@ class CLI:
                     help="Anthropic workspace ID, required when the federation rule covers several workspaces.",
                     rich_help_panel=PANEL_ANTHROPIC,
                     hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Pylon Options
+            # =================================================================
+            pylon_api_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--pylon-api-token-env-var",
+                    help="Environment variable name containing a Pylon API token.",
+                    rich_help_panel=PANEL_PYLON,
+                    hidden=PANEL_PYLON not in visible_panels,
+                ),
+            ] = None,
+            pylon_base_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--pylon-base-url",
+                    help=(
+                        "Pylon API base URL. Defaults to the region in the token "
+                        "prefix: https://api.eu.usepylon.com for pylon_api_eu_ "
+                        "tokens, https://api.usepylon.com otherwise."
+                    ),
+                    rich_help_panel=PANEL_PYLON,
+                    hidden=PANEL_PYLON not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -4027,6 +4054,15 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read Pylon API token
+            pylon_api_token = None
+            if pylon_api_token_env_var:
+                logger.debug(
+                    "Reading Pylon API token from environment variable %s",
+                    pylon_api_token_env_var,
+                )
+                pylon_api_token = os.environ.get(pylon_api_token_env_var)
+
             # Read Sentry token
             sentry_token = None
             if sentry_token_env_var:
@@ -4574,6 +4610,8 @@ class CLI:
                 anthropic_organization_id=anthropic_organization_id,
                 anthropic_service_account_id=anthropic_service_account_id,
                 anthropic_workspace_id=anthropic_workspace_id,
+                pylon_api_token=pylon_api_token,
+                pylon_base_url=pylon_base_url,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,

@@ -172,10 +172,32 @@ onepassword_mapping = OntologyMapping(
 )
 
 
+# Pylon
+pylon_mapping = OntologyMapping(
+    module_name="pylon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PylonServiceAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="is_deactivated",
+                    special_handling="invert_boolean",
+                ),
+                # email: Not available; API tokens and bots have no email.
+            ],
+        ),
+    ],
+)
+
 SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "kubernetes": kubernetes_mapping,
     "openai": openai_mapping,
+    "pylon": pylon_mapping,
     "scaleway": scaleway_mapping,
     "aws": aws_mapping,
     "microsoft": microsoft_mapping,
