@@ -1,5 +1,7 @@
 import logging
 import re
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -20,9 +22,11 @@ ACTIVE_STATUSES = "Open,In Progress,Ignored"
 _BARE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
-@timeit
-def get(session: requests.Session, api_url: str) -> list[dict[str, Any]]:
-    return api.get_paginated(
+def get(
+    session: requests.Session,
+    api_url: str,
+) -> Iterator[list[dict[str, Any]]]:
+    return api.iter_pages(
         session,
         api_url,
         "/v1/vulnerability",
@@ -103,7 +107,7 @@ def transform(raw_vulnerabilities: list[dict[str, Any]]) -> list[dict[str, Any]]
 @timeit
 def load_vulnerabilities(
     neo4j_session: neo4j.Session,
-    vulnerabilities: list[dict[str, Any]],
+    vulnerabilities: Iterable[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -136,10 +140,16 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    raw_vulnerabilities = get(session, api_url)
+    # A large tenant has hundreds of thousands of active vulnerabilities, so each
+    # page is transformed as it arrives and load batches them, instead of holding
+    # every raw and transformed record at once.
     load_vulnerabilities(
         neo4j_session,
-        transform(raw_vulnerabilities),
+        (
+            vulnerability
+            for page in get(session, api_url)
+            for vulnerability in transform(page)
+        ),
         tenant_id,
         update_tag,
     )

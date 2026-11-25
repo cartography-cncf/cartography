@@ -140,8 +140,8 @@ def test_vulnerability_status_is_normalized_from_sweet_title_case():
 
 def test_vulnerability_status_filter_uses_sweet_title_case(mocker):
     # Arrange
-    get_paginated = mocker.patch(
-        "cartography.intel.sweet.api.get_paginated",
+    iter_pages = mocker.patch(
+        "cartography.intel.sweet.api.iter_pages",
         return_value=[],
     )
 
@@ -149,4 +149,4 @@ def test_vulnerability_status_filter_uses_sweet_title_case(mocker):
     vulnerabilities.get(mocker.MagicMock(), "https://eapi.sweet.security")
 
     # Assert
-    assert get_paginated.call_args.args[3] == {"status": "Open,In Progress,Ignored"}
+    assert iter_pages.call_args.args[3] == {"status": "Open,In Progress,Ignored"}
