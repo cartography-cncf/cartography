@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 from urllib.parse import urlparse
 
@@ -89,18 +90,18 @@ def get_list(
     return payload
 
 
-def get_paginated(
+def iter_pages(
     session: requests.Session,
     api_url: str,
     path: str,
     params: dict[str, Any],
     label: str,
-) -> list[dict[str, Any]]:
-    """Fetch every page of a keyset-paginated list endpoint."""
-    results: list[dict[str, Any]] = []
+) -> Iterator[list[dict[str, Any]]]:
+    """Yield each page of a keyset-paginated list endpoint as it arrives."""
     keyset: str | None = None
     seen_keysets: set[str] = set()
     page_count = 0
+    item_count = 0
 
     while True:
         page_params = {**params, "limit": _PAGE_SIZE}
@@ -115,17 +116,18 @@ def get_paginated(
         page = response.json()
         if not isinstance(page, list):
             raise RuntimeError(f"Sweet GET {path} returned a non-list response")
-        results.extend(page)
+        keyset = response.headers.get(_NEXT_KEYSET_HEADER)
         page_count += 1
+        item_count += len(page)
         if page_count % _PROGRESS_PAGE_INTERVAL == 0:
             logger.info(
                 "Fetched %d Sweet %s across %d page(s) so far.",
-                len(results),
+                item_count,
                 label,
                 page_count,
             )
+        yield page
 
-        keyset = response.headers.get(_NEXT_KEYSET_HEADER)
         if not keyset:
             break
         if keyset in seen_keysets:
@@ -134,5 +136,4 @@ def get_paginated(
             )
         seen_keysets.add(keyset)
 
-    logger.info("Fetched %d Sweet %s in total.", len(results), label)
-    return results
+    logger.info("Fetched %d Sweet %s in total.", item_count, label)

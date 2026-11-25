@@ -12,7 +12,7 @@ def _response(body, next_keyset=None):
     return response
 
 
-def test_get_paginated_follows_keyset_header_until_last_page():
+def test_iter_pages_follows_keyset_header_one_page_at_a_time():
     # Arrange
     session = MagicMock()
     session.get.side_effect = [
@@ -21,16 +21,19 @@ def test_get_paginated_follows_keyset_header_until_last_page():
     ]
 
     # Act
-    result = api.get_paginated(
+    pages = api.iter_pages(
         session,
         "https://eapi.sweet.security",
         "/v1/vulnerability",
         {"status": "open"},
         "vulnerabilities",
     )
+    first_page = next(pages)
+    calls_before_second_page = session.get.call_count
 
     # Assert
-    assert result == [{"id": "1"}, {"id": "2"}, {"id": "3"}]
+    assert calls_before_second_page == 1
+    assert [first_page, *pages] == [[{"id": "1"}, {"id": "2"}], [{"id": "3"}]]
     assert session.get.call_args_list[1].kwargs["params"] == {
         "status": "open",
         "limit": 200,
@@ -38,7 +41,7 @@ def test_get_paginated_follows_keyset_header_until_last_page():
     }
 
 
-def test_get_paginated_raises_when_keyset_repeats():
+def test_iter_pages_raises_when_keyset_repeats():
     # Arrange
     session = MagicMock()
     session.get.side_effect = [
@@ -48,28 +51,32 @@ def test_get_paginated_raises_when_keyset_repeats():
 
     # Act and assert
     with pytest.raises(RuntimeError, match="repeated pagination keyset"):
-        api.get_paginated(
-            session,
-            "https://eapi.sweet.security",
-            "/v1/attack",
-            {},
-            "attack chains",
+        list(
+            api.iter_pages(
+                session,
+                "https://eapi.sweet.security",
+                "/v1/attack",
+                {},
+                "attack chains",
+            ),
         )
 
 
-def test_get_paginated_raises_on_non_list_response():
+def test_iter_pages_raises_on_non_list_response():
     # Arrange
     session = MagicMock()
     session.get.return_value = _response({"message": "unexpected"})
 
     # Act and assert
     with pytest.raises(RuntimeError, match="non-list response"):
-        api.get_paginated(
-            session,
-            "https://eapi.sweet.security",
-            "/v1/attack",
-            {},
-            "attack chains",
+        list(
+            api.iter_pages(
+                session,
+                "https://eapi.sweet.security",
+                "/v1/attack",
+                {},
+                "attack chains",
+            ),
         )
 
 

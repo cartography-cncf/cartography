@@ -1,4 +1,6 @@
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -17,9 +19,11 @@ logger = logging.getLogger(__name__)
 ACTIVE_STATUSES = "Open,In Progress"
 
 
-@timeit
-def get(session: requests.Session, api_url: str) -> list[dict[str, Any]]:
-    return api.get_paginated(
+def get(
+    session: requests.Session,
+    api_url: str,
+) -> Iterator[list[dict[str, Any]]]:
+    return api.iter_pages(
         session,
         api_url,
         "/v1/attack",
@@ -84,7 +88,7 @@ def transform(raw_chains: list[dict[str, Any]]) -> list[dict[str, Any]]:
 @timeit
 def load_attack_chains(
     neo4j_session: neo4j.Session,
-    chains: list[dict[str, Any]],
+    chains: Iterable[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -116,10 +120,9 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    raw_chains = get(session, api_url)
     load_attack_chains(
         neo4j_session,
-        transform(raw_chains),
+        (chain for page in get(session, api_url) for chain in transform(page)),
         tenant_id,
         update_tag,
     )

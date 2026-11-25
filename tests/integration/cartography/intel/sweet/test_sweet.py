@@ -92,11 +92,11 @@ def _patch_sweet_api(
     )
     mocker.patch(
         "cartography.intel.sweet.vulnerabilities.get",
-        return_value=vulnerabilities,
+        return_value=[vulnerabilities],
     )
     mocker.patch(
         "cartography.intel.sweet.attack_chains.get",
-        return_value=attack_chains,
+        return_value=[attack_chains],
     )
 
 
