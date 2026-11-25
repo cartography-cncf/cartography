@@ -9,6 +9,7 @@ IMAGE_DIGEST = "sha256:" + "a" * 64
 
 CVE_VULNERABILITY_ID = "vuln-instance-1"
 GHSA_VULNERABILITY_ID = "vuln-instance-2"
+SECOND_API_VULNERABILITY_ID = "vuln-instance-3"
 CVE_ID = "CVE-2024-3094"
 GHSA_ID = "GHSA-xxxx-yyyy-zzzz"
 
@@ -90,6 +91,35 @@ VULNERABILITIES = [
         "package": {"name": "example-lib", "version": "0.1.0", "manager": "npm"},
         "image": None,
         "workload": "worker",
+        "cloudAccount": "example-production",
+    },
+    {
+        "id": SECOND_API_VULNERABILITY_ID,
+        "cve": CVE_ID,
+        "severity": "critical",
+        "status": "Open",
+        "sweetScore": 9.1,
+        "sweetSeverity": "critical",
+        "epssScore": 0.9,
+        "epssPercentile": 99.1,
+        "riskIndicators": ["loaded_in_memory", "internet_facing"],
+        "attackLabels": ["remote_code_execution"],
+        "publishedDate": "2024-03-29T17:15:00Z",
+        "firstDetected": "2026-10-05T00:00:00Z",
+        "lastDetected": "2026-11-15T06:00:00Z",
+        "lastExecuted": "2026-11-15T05:00:00Z",
+        "lastLoaded": "2026-11-15T05:00:00Z",
+        "hasFix": True,
+        "fixedInVersions": ["5.6.1"],
+        "codeOwner": {"name": "Example Team", "email": "team@example.com"},
+        "package": {"name": "xz-utils", "version": "5.6.0", "manager": "deb"},
+        "image": {
+            "name": "example/api",
+            "tag": "1.2.3",
+            "digest": IMAGE_DIGEST,
+            "registry": f"{ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com",
+        },
+        "workload": "api-2",
         "cloudAccount": "example-production",
     },
 ]
