@@ -16,7 +16,10 @@ _pylon_admin_service_account = Fact(
         "Detects active Pylon API token identities and bots that hold the "
         "built-in Admin role. Pylon tokens never expire and have no scopes, so "
         "anyone who obtains one of these tokens can manage users, delete "
-        "customer records, and change workspace settings until it is revoked."
+        "customer records, and change workspace settings until it is revoked. "
+        "The rule misses tokens acting as users because they have no separate "
+        "identity, but detects access through active Admin bots because bots "
+        "have no email address."
     ),
     cypher_query="""
     MATCH (org:PylonOrganization)-[:RESOURCE]->(sa:PylonServiceAccount)
