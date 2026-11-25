@@ -97,6 +97,8 @@ def transform_vulnerabilities(
     vulnerabilities: dict[str, dict[str, Any]] = {}
     for cve in cves_list:
         cve_id = cve["cveId"]
+        # SentinelOne reports these fields per CVE, so every finding of the CVE
+        # carries the same values and the first one stands for all of them.
         vulnerabilities.setdefault(
             cve_id,
             {
