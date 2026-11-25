@@ -89,30 +89,6 @@ class LangSmithMcpServerToWorkspaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class LangSmithMcpServerToResourceTagRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithMcpServer)-[:TAGGED]->(:LangSmithResourceTag)
-class LangSmithMcpServerToResourceTagRel(CartographyRelSchema):
-    """
-    A resource tag applied to the MCP server. Access policies for the mcp_server resource
-    type match on these tags.
-    """
-
-    target_node_label: str = "LangSmithResourceTag"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("tag_value_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "TAGGED"
-    properties: LangSmithMcpServerToResourceTagRelProperties = (
-        LangSmithMcpServerToResourceTagRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LangSmithMcpServerSchema(CartographyNodeSchema):
     """An MCP server a LangSmith workspace exposes to its agents."""
 
@@ -124,6 +100,5 @@ class LangSmithMcpServerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             LangSmithMcpServerToWorkspaceRel(),
-            LangSmithMcpServerToResourceTagRel(),
         ],
     )

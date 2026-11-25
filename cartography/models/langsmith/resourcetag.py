@@ -75,7 +75,7 @@ class LangSmithResourceTagSchema(CartographyNodeSchema):
     A workspace resource tag. Tags are the attributes that attribute-based access policies
     match on.
 
-    Tracing projects, deployments, and MCP servers link to the tags applied to them with
+    Tracing projects and deployments link to the tags applied to them with
     TAGGED edges. Taggings on other resource types, such as datasets and prompts, are not
     ingested.
     """

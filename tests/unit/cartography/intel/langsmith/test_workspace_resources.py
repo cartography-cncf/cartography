@@ -5,9 +5,9 @@ import requests
 
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.workspace_resources import get_mcp_servers
-from cartography.intel.langsmith.workspace_resources import get_projects
 from cartography.intel.langsmith.workspace_resources import get_taggings
 from cartography.intel.langsmith.workspace_resources import transform_deployment_tags
+from cartography.intel.langsmith.workspace_resources import transform_project_tags
 
 
 def _http_error(status_code: int) -> requests.HTTPError:
@@ -111,36 +111,15 @@ def test_get_taggings_reports_failures(status, expected_complete):
     assert complete is expected_complete
 
 
-def test_get_projects_attaches_tag_values_to_tagged_projects():
-    # Arrange
-    client = MagicMock()
-    client.get_paginated.return_value = [
-        {"id": "proj-1", "name": "checkout-agent"},
-        {"id": "proj-2", "name": "scratch"},
+def test_transform_project_tags_emits_one_record_per_tag_value():
+    # Act
+    records = transform_project_tags({"proj-1": ["tv-prod", "tv-team"]})
+
+    # Assert
+    assert records == [
+        {"project_id": "proj-1", "tag_value_id": "tv-prod"},
+        {"project_id": "proj-1", "tag_value_id": "tv-team"},
     ]
-
-    # Act
-    projects, complete = get_projects(
-        client, "org-1", "ws-1", {"proj-1": ["tv-prod"], "ds-1": ["tv-pii"]}
-    )
-
-    # Assert
-    assert {p["id"]: p["tag_value_ids"] for p in projects} == {
-        "proj-1": ["tv-prod"],
-        "proj-2": [],
-    }
-    assert complete is True
-
-
-def test_get_mcp_servers_attaches_tag_values():
-    # Arrange
-    client = _client([[{"id": "gw-1"}], []])
-
-    # Act
-    servers, _ = get_mcp_servers(client, "org-1", "ws-1", {"gw-1": ["tv-prod"]})
-
-    # Assert
-    assert [s["tag_value_ids"] for s in servers] == [["tv-prod"]]
 
 
 def test_transform_deployment_tags_emits_one_record_per_tag_value():

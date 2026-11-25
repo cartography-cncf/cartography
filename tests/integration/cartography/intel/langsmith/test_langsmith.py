@@ -24,7 +24,6 @@ from tests.data.langsmith.users import HOMER_LS_USER_ID
 from tests.data.langsmith.users import MARGE_LS_USER_ID
 from tests.data.langsmith.workspace_resources import ACCESS_POLICY_ID
 from tests.data.langsmith.workspace_resources import CHECKOUT_PROJECT_ID
-from tests.data.langsmith.workspace_resources import DOCS_MCP_SERVER_ID
 from tests.data.langsmith.workspace_resources import SCRATCH_PROJECT_ID
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
@@ -421,7 +420,7 @@ def test_sync_loads_workspace_resources(neo4j_session):
     }
 
 
-def test_sync_links_tags_to_deployments_and_mcp_servers(neo4j_session):
+def test_sync_links_tags_to_deployments(neo4j_session):
     # Act
     _sync(neo4j_session, FakeLangSmithClient())
 
@@ -434,14 +433,6 @@ def test_sync_links_tags_to_deployments_and_mcp_servers(neo4j_session):
         "value",
         "TAGGED",
     ) == {(SUPPORT_DEPLOYMENT_ID, "prod")}
-    assert check_rels(
-        neo4j_session,
-        "LangSmithMcpServer",
-        "id",
-        "LangSmithResourceTag",
-        "value",
-        "TAGGED",
-    ) == {(DOCS_MCP_SERVER_ID, "prod")}
 
 
 def test_sync_links_deployments_to_their_tracing_projects(neo4j_session):
@@ -761,14 +752,23 @@ def test_resync_preserves_what_could_not_be_read(
 def test_resync_keeps_tags_when_taggings_cannot_be_read(neo4j_session, status):
     # Arrange
     _sync(neo4j_session, FakeLangSmithClient(), TEST_UPDATE_TAG)
+    route = ("/api/v1/sessions", WORKSPACE_PROD_ID)
+    assert SCRATCH_PROJECT_ID in _ids(neo4j_session, "LangSmithProject")
     unreadable = FakeLangSmithClient(
-        failures={("/api/v1/workspaces/current/taggings", WORKSPACE_PROD_ID): status}
+        routes={
+            **SIMPSON_CORP_ROUTES,
+            route: [
+                p for p in SIMPSON_CORP_ROUTES[route] if p["id"] != SCRATCH_PROJECT_ID
+            ],
+        },
+        failures={("/api/v1/workspaces/current/taggings", WORKSPACE_PROD_ID): status},
     )
 
     # Act
     _sync(neo4j_session, unreadable, NEXT_UPDATE_TAG)
 
     # Assert
+    assert SCRATCH_PROJECT_ID not in _ids(neo4j_session, "LangSmithProject")
     # A missing tag could hide a deny policy, so an unread tagging must not be dropped.
     assert check_rels(
         neo4j_session,
@@ -786,14 +786,6 @@ def test_resync_keeps_tags_when_taggings_cannot_be_read(neo4j_session, status):
         "value",
         "TAGGED",
     ) == {(SUPPORT_DEPLOYMENT_ID, "prod")}
-    assert check_rels(
-        neo4j_session,
-        "LangSmithMcpServer",
-        "id",
-        "LangSmithResourceTag",
-        "value",
-        "TAGGED",
-    ) == {(DOCS_MCP_SERVER_ID, "prod")}
 
 
 def test_resync_removes_tags_removed_upstream(neo4j_session):
@@ -810,6 +802,7 @@ def test_resync_removes_tags_removed_upstream(neo4j_session):
     _sync(neo4j_session, untagged, NEXT_UPDATE_TAG)
 
     # Assert
+    assert CHECKOUT_PROJECT_ID in _ids(neo4j_session, "LangSmithProject")
     tagged = neo4j_session.run(
         "MATCH (n)-[:TAGGED]->(:LangSmithResourceTag) RETURN count(n) AS count"
     ).single()

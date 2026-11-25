@@ -1,6 +1,6 @@
 """
 Workspace-scoped resources: secrets, resource tags, tracing projects, OAuth clients and
-MCP servers, plus the resource tags applied to projects, MCP servers and deployments.
+MCP servers, plus the resource tags applied to projects and deployments.
 
 These all need an ``X-Tenant-Id`` header and are fetched per workspace. A credential
 commonly holds ``workspaces:read`` in only some workspaces, so each fetch degrades to a
@@ -24,6 +24,7 @@ from cartography.models.langsmith.deployment import LangSmithDeploymentToResourc
 from cartography.models.langsmith.mcpserver import LangSmithMcpServerSchema
 from cartography.models.langsmith.oauthclient import LangSmithOAuthClientSchema
 from cartography.models.langsmith.project import LangSmithProjectSchema
+from cartography.models.langsmith.project import LangSmithProjectToResourceTagRel
 from cartography.models.langsmith.resourcetag import LangSmithResourceTagSchema
 from cartography.models.langsmith.secret import LangSmithSecretSchema
 from cartography.util import timeit
@@ -51,9 +52,10 @@ def sync(
     projects: list[dict[str, Any]] = []
     oauth_clients: list[dict[str, Any]] = []
     mcp_servers: list[dict[str, Any]] = []
+    project_tags: list[dict[str, Any]] = []
     deployment_tags: list[dict[str, Any]] = []
     secrets_complete = tags_complete = projects_complete = True
-    oauth_clients_complete = mcp_servers_complete = deployment_tags_complete = True
+    oauth_clients_complete = mcp_servers_complete = taggings_complete = True
 
     for workspace in workspaces:
         workspace_id = workspace["id"]
@@ -70,26 +72,23 @@ def sync(
         # cleanup: a dropped tag could hide a deny policy.
         taggings, taggings_ok = get_taggings(client, org_id, workspace_id)
 
-        rows, ok = get_projects(
-            client, org_id, workspace_id, taggings.get("projects", {})
-        )
+        rows, ok = get_projects(client, org_id, workspace_id)
         projects.extend(rows)
-        projects_complete = projects_complete and ok and taggings_ok
+        projects_complete = projects_complete and ok
 
         rows, ok = get_oauth_clients(client, org_id, workspace_id)
         oauth_clients.extend(rows)
         oauth_clients_complete = oauth_clients_complete and ok
 
-        rows, ok = get_mcp_servers(
-            client, org_id, workspace_id, taggings.get("mcp_servers", {})
-        )
+        rows, ok = get_mcp_servers(client, org_id, workspace_id)
         mcp_servers.extend(rows)
-        mcp_servers_complete = mcp_servers_complete and ok and taggings_ok
+        mcp_servers_complete = mcp_servers_complete and ok
 
+        project_tags.extend(transform_project_tags(taggings.get("projects", {})))
         deployment_tags.extend(
             transform_deployment_tags(taggings.get("deployments", {}))
         )
-        deployment_tags_complete = deployment_tags_complete and taggings_ok
+        taggings_complete = taggings_complete and taggings_ok
 
     load_workspace_resources(
         neo4j_session,
@@ -98,6 +97,7 @@ def sync(
         projects,
         oauth_clients,
         mcp_servers,
+        project_tags,
         deployment_tags,
         org_id,
         common_job_parameters["UPDATE_TAG"],
@@ -112,7 +112,7 @@ def sync(
             (LangSmithOAuthClientSchema(), oauth_clients_complete),
             (LangSmithMcpServerSchema(), mcp_servers_complete),
         ],
-        deployment_tags_complete,
+        taggings_complete,
     )
 
 
@@ -207,8 +207,7 @@ def get_taggings(
     """
     Fetch the workspace's taggings: which tag values are applied to which resources.
 
-    The listing groups each tag value's resources by type, such as projects, deployments
-    and MCP servers. It's inverted here so each resource can look up its tag values.
+    The listing groups each tag value's resources by type, such as projects and deployments. It's inverted here so each resource can look up its tag values.
     """
     try:
         payload = client.get(
@@ -240,9 +239,8 @@ def get_projects(
     client: LangSmithClient,
     org_id: str,
     workspace_id: str,
-    tag_value_ids: dict[str, list[str]],
 ) -> tuple[list[dict[str, Any]], bool]:
-    """Fetch the workspace's tracing projects, each with the IDs of its tag values."""
+    """Fetch the workspace's tracing projects."""
     try:
         projects = client.get_paginated(
             "/api/v1/sessions",
@@ -265,10 +263,20 @@ def get_projects(
             "start_time": project.get("start_time"),
             "trace_tier": project.get("trace_tier"),
             "workspace_id": workspace_id,
-            "tag_value_ids": tag_value_ids.get(project["id"], []),
         }
         for project in projects
     ], True
+
+
+def transform_project_tags(
+    tag_value_ids: dict[str, list[str]],
+) -> list[dict[str, Any]]:
+    """Flatten the tag values applied to each project into one record per edge."""
+    return [
+        {"project_id": project_id, "tag_value_id": tag_value_id}
+        for project_id, values in tag_value_ids.items()
+        for tag_value_id in values
+    ]
 
 
 def transform_deployment_tags(
@@ -309,7 +317,6 @@ def get_mcp_servers(
     client: LangSmithClient,
     org_id: str,
     workspace_id: str,
-    tag_value_ids: dict[str, list[str]] | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch the vendor-managed MCP gateways a workspace exposes.
@@ -364,11 +371,7 @@ def get_mcp_servers(
                 continue
             raise
         for gateway in gateways:
-            servers.append(
-                _transform_mcp_server(
-                    gateway, workspace_id, vendor_slug, tag_value_ids or {}
-                )
-            )
+            servers.append(_transform_mcp_server(gateway, workspace_id, vendor_slug))
     return servers, complete
 
 
@@ -376,7 +379,6 @@ def _transform_mcp_server(
     server: dict[str, Any],
     workspace_id: str,
     vendor: str | None,
-    tag_value_ids: dict[str, list[str]],
 ) -> dict[str, Any]:
     tool_filter = server.get("tool_filter") or {}
     return {
@@ -392,7 +394,6 @@ def _transform_mcp_server(
         "created_at": server.get("created_at"),
         "updated_at": server.get("updated_at"),
         "workspace_id": workspace_id,
-        "tag_value_ids": tag_value_ids.get(server["id"], []),
     }
 
 
@@ -404,6 +405,7 @@ def load_workspace_resources(
     projects: list[dict[str, Any]],
     oauth_clients: list[dict[str, Any]],
     mcp_servers: list[dict[str, Any]],
+    project_tags: list[dict[str, Any]],
     deployment_tags: list[dict[str, Any]],
     org_id: str,
     update_tag: int,
@@ -416,14 +418,18 @@ def load_workspace_resources(
         (LangSmithMcpServerSchema(), mcp_servers),
     ):
         load(neo4j_session, schema, data, lastupdated=update_tag, ORG_ID=org_id)
-    load_matchlinks(
-        neo4j_session,
-        LangSmithDeploymentToResourceTagRel(),
-        deployment_tags,
-        lastupdated=update_tag,
-        _sub_resource_label="LangSmithOrganization",
-        _sub_resource_id=org_id,
-    )
+    for rel, records in (
+        (LangSmithProjectToResourceTagRel(), project_tags),
+        (LangSmithDeploymentToResourceTagRel(), deployment_tags),
+    ):
+        load_matchlinks(
+            neo4j_session,
+            rel,
+            records,
+            lastupdated=update_tag,
+            _sub_resource_label="LangSmithOrganization",
+            _sub_resource_id=org_id,
+        )
 
 
 @timeit
@@ -431,20 +437,24 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
     schemas: list[tuple[CartographyNodeSchema, bool]],
-    deployment_tags_complete: bool,
+    taggings_complete: bool,
 ) -> None:
     for schema, complete in schemas:
         cleanup_if_complete(neo4j_session, schema, complete, common_job_parameters)
-    if not deployment_tags_complete:
+    if not taggings_complete:
         logger.warning(
-            "Skipping LangSmith deployment tag cleanup for organization %s: "
+            "Skipping LangSmith project and deployment tag cleanup for organization %s: "
             "collection was incomplete.",
             common_job_parameters["ORG_ID"],
         )
         return
-    GraphJob.from_matchlink(
+    for rel in (
+        LangSmithProjectToResourceTagRel(),
         LangSmithDeploymentToResourceTagRel(),
-        "LangSmithOrganization",
-        common_job_parameters["ORG_ID"],
-        common_job_parameters["UPDATE_TAG"],
-    ).run(neo4j_session)
+    ):
+        GraphJob.from_matchlink(
+            rel,
+            "LangSmithOrganization",
+            common_job_parameters["ORG_ID"],
+            common_job_parameters["UPDATE_TAG"],
+        ).run(neo4j_session)

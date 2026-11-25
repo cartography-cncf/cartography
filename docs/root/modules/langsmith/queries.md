@@ -90,8 +90,8 @@ RETURN d.name, proj.name,
 ## Find tracing projects that a tag-based access policy can apply to
 
 Lists each policy that matches on a resource tag, with the projects carrying a tag under
-that key. Read `p.condition_summary` for the operator and value; a `not_equals` or
-`if_exists` condition also applies to projects without the tag.
+that key. Read `p.condition_summary` for the operator and value. Only `*_if_exists` conditions also
+apply to projects without the tag.
 
 ```cypher
 MATCH (p:LangSmithAccessPolicy)-[:ATTACHED_TO]->(r:LangSmithRole)
@@ -103,7 +103,7 @@ RETURN p.name, p.effect, p.condition_summary, r.name, w.name, proj.name, t.key, 
 
 ## Find untagged tracing projects
 
-Tag-based policies with plain `equals` conditions don't apply to these projects.
+Tag-based conditions without `_if_exists` don't match these projects.
 
 ```cypher
 MATCH (w:LangSmithWorkspace)-[:CONTAINS]->(proj:LangSmithProject)

@@ -6,8 +6,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -78,19 +80,27 @@ class LangSmithProjectToWorkspaceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithProjectToResourceTagRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:LangSmithProject)-[:TAGGED]->(:LangSmithResourceTag)
 class LangSmithProjectToResourceTagRel(CartographyRelSchema):
     """
-    A resource tag applied to the project. Attribute-based access policies with a
-    resource_tag_key condition match on these tags.
+    A resource tag applied to the project. Access policies for the project
+    resource type match on these tags.
     """
 
+    source_node_label: str = "LangSmithProject"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("project_id")},
+    )
     target_node_label: str = "LangSmithResourceTag"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("tag_value_ids", one_to_many=True)},
+        {"id": PropertyRef("tag_value_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "TAGGED"
@@ -138,7 +148,6 @@ class LangSmithProjectSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             LangSmithProjectToWorkspaceRel(),
-            LangSmithProjectToResourceTagRel(),
             LangSmithProjectToDeploymentRel(),
         ],
     )

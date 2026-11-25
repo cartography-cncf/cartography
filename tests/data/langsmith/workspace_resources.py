@@ -133,13 +133,6 @@ LANGSMITH_TAGGINGS = {
                         "resource_name": "support-bot",
                     },
                 ],
-                "mcp_servers": [
-                    {
-                        "tagging_id": "bb11bb11-0003-4003-8003-bb11bb11bb11",
-                        "resource_id": DOCS_MCP_SERVER_ID,
-                        "resource_name": "Internal Docs",
-                    },
-                ],
                 "datasets": [],
                 "prompts": [],
             },
