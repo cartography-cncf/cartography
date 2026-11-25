@@ -7,6 +7,7 @@ from tests.data.langsmith import apikeys
 from tests.data.langsmith import deployments
 from tests.data.langsmith import organizations
 from tests.data.langsmith import roles
+from tests.data.langsmith import user_groups
 from tests.data.langsmith import users
 from tests.data.langsmith import workspace_resources
 from tests.data.langsmith.workspaces import LANGSMITH_WORKSPACES
@@ -26,6 +27,19 @@ def _per_workspace(path: str, payloads: dict[str, Any]) -> dict[Route, Any]:
 
 def _same_in_every_workspace(path: str, payload: Any) -> dict[Route, Any]:
     return {(path, workspace_id): payload for workspace_id in WORKSPACE_IDS}
+
+
+def _user_group_routes() -> dict[Route, Any]:
+    prefix = "/api/v1/platform/orgs/current/user-groups"
+    routes: dict[Route, Any] = {(prefix, None): user_groups.LANGSMITH_USER_GROUPS}
+    for listing, payloads in (
+        ("members", user_groups.LANGSMITH_USER_GROUP_MEMBERS),
+        ("workspaces", user_groups.LANGSMITH_USER_GROUP_GRANTS),
+        ("access-policies", user_groups.LANGSMITH_USER_GROUP_POLICIES),
+    ):
+        for group_id, payload in payloads.items():
+            routes[(f"{prefix}/{group_id}/{listing}", None)] = payload
+    return routes
 
 
 TAG_KEY_ID = workspace_resources.LANGSMITH_TAG_KEYS[WORKSPACE_PROD_ID][0]["id"]
@@ -59,6 +73,7 @@ SIMPSON_CORP_ROUTES: dict[Route, Any] = {
         None,
     ): workspace_resources.LANGSMITH_ACCESS_POLICIES,
     ("/orgs/current/data-planes", None): workspace_resources.LANGSMITH_DATA_PLANES,
+    **_user_group_routes(),
     **_per_workspace("/v2/deployments", deployments.LANGSMITH_DEPLOYMENTS),
     **_same_in_every_workspace(
         "/v2/auth/providers", agent_auth.LANGSMITH_OAUTH_PROVIDERS
@@ -131,6 +146,7 @@ class FakeLangSmithClient:
 
     get_paginated = get
     get_paginated_envelope = get
+    get_cursor_paginated = get
 
     def search_assistants(
         self, deployment_url: str, tenant_id: str

@@ -3,6 +3,7 @@ from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 
 SUPPORT_DEPLOYMENT_ID = "aa11aa11-0001-4001-8001-aa11aa11aa11"
 TRIAGE_DEPLOYMENT_ID = "aa11aa11-0002-4002-8002-aa11aa11aa11"
+SUPPORT_TRACING_PROJECT_ID = "bb22bb22-0001-4001-8001-bb22bb22bb22"
 
 SUPPORT_AGENT_ID = "agent-support-bot"
 TRIAGE_AGENT_ID = "agent-triage-bot"
@@ -23,7 +24,7 @@ LANGSMITH_DEPLOYMENTS = {
             "route_through_gateway": True,
             "is_managed_deep_agent": False,
             "is_preview": False,
-            "tracer_session_id": "bb22bb22-0001-4001-8001-bb22bb22bb22",
+            "tracer_session_id": SUPPORT_TRACING_PROJECT_ID,
             "created_at": "2026-02-01T09:00:00Z",
             "updated_at": "2026-03-01T09:00:00Z",
             "agent": {"agent_id": SUPPORT_AGENT_ID, "environment": "production"},

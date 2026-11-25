@@ -100,6 +100,30 @@ class LangSmithProjectToResourceTagRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class LangSmithProjectToDeploymentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:LangSmithDeployment)-[:TRACES_TO]->(:LangSmithProject)
+class LangSmithProjectToDeploymentRel(CartographyRelSchema):
+    """
+    Links a deployment to the tracing project it writes runs to. Access policies on the
+    project decide who can read the deployment's traces.
+    """
+
+    target_node_label: str = "LangSmithDeployment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"tracer_session_id": PropertyRef("id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TRACES_TO"
+    properties: LangSmithProjectToDeploymentRelProperties = (
+        LangSmithProjectToDeploymentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class LangSmithProjectSchema(CartographyNodeSchema):
     """
     A tracing project. Attribute-based access policies restrict who can read the traces
@@ -115,5 +139,6 @@ class LangSmithProjectSchema(CartographyNodeSchema):
         [
             LangSmithProjectToWorkspaceRel(),
             LangSmithProjectToResourceTagRel(),
+            LangSmithProjectToDeploymentRel(),
         ],
     )

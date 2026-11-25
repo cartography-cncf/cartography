@@ -185,6 +185,7 @@ from cartography.models.kubernetes.statefulsets import (
     KubernetesStatefulSetToKubernetesClusterRel,
 )
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
+from cartography.models.langsmith.usergroup import LangSmithUserGroupToParentRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
 from cartography.models.okta.awssaml import OktaGroupToAWSRoleAllowedByMatchLink
@@ -280,6 +281,11 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # MAPS_TO is identity federation (an AWS role maps to a Kubernetes
         # group), not a group role grant. Distinct from HAS_ROLE.
         KubernetesGroupToAWSRoleRel,
+        # EXTENDS links a LangSmith workspace-scoped user group to the
+        # organization-wide user group it extends in one workspace. Its members
+        # don't inherit the parent's role or policies, so it isn't group nesting.
+        # Distinct from the UserGroup->UserGroup MEMBER_OF edge.
+        LangSmithUserGroupToParentRel,
         # OCI_POLICY_REFERENCE records that a policy statement textually
         # references a group, not that the group holds the policy. Distinct
         # from HAS_ROLE.

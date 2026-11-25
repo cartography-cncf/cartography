@@ -1,9 +1,13 @@
+from tests.data.langsmith.deployments import SUPPORT_DEPLOYMENT_ID
+from tests.data.langsmith.deployments import SUPPORT_TRACING_PROJECT_ID
 from tests.data.langsmith.organizations import LANGSMITH_ORG_ID
 from tests.data.langsmith.roles import CUSTOM_ROLE_ID
 from tests.data.langsmith.workspaces import WORKSPACE_DEV_ID
 from tests.data.langsmith.workspaces import WORKSPACE_PROD_ID
 
 PROD_TAG_VALUE_ID = "ad11ad11-0001-4001-8001-ad11ad11ad11"
+ACCESS_POLICY_ID = "ab11ab11-0001-4001-8001-ab11ab11ab11"
+DOCS_MCP_SERVER_ID = "af11af11-0001-4001-8001-af11af11af11"
 CHECKOUT_PROJECT_ID = "ba11ba11-0001-4001-8001-ba11ba11ba11"
 SCRATCH_PROJECT_ID = "ba11ba11-0002-4002-8002-ba11ba11ba11"
 
@@ -27,7 +31,7 @@ LANGSMITH_SSO_SETTINGS = [
 LANGSMITH_ACCESS_POLICIES = {
     "access_policies": [
         {
-            "id": "ab11ab11-0001-4001-8001-ab11ab11ab11",
+            "id": ACCESS_POLICY_ID,
             "name": "Production projects only",
             "description": "Restricts the auditor role to production-tagged projects.",
             "effect": "allow",
@@ -92,6 +96,16 @@ LANGSMITH_PROJECTS = {
             "trace_tier": "shortlived",
             "reference_dataset_id": None,
         },
+        {
+            # The tracing project the support-bot deployment writes runs to.
+            "id": SUPPORT_TRACING_PROJECT_ID,
+            "tenant_id": WORKSPACE_PROD_ID,
+            "name": "support-bot",
+            "description": None,
+            "start_time": "2026-02-01T09:00:00Z",
+            "trace_tier": "longlived",
+            "reference_dataset_id": None,
+        },
     ],
     WORKSPACE_DEV_ID: [],
 }
@@ -110,6 +124,20 @@ LANGSMITH_TAGGINGS = {
                         "tagging_id": "bb11bb11-0001-4001-8001-bb11bb11bb11",
                         "resource_id": CHECKOUT_PROJECT_ID,
                         "resource_name": "checkout-agent",
+                    },
+                ],
+                "deployments": [
+                    {
+                        "tagging_id": "bb11bb11-0002-4002-8002-bb11bb11bb11",
+                        "resource_id": SUPPORT_DEPLOYMENT_ID,
+                        "resource_name": "support-bot",
+                    },
+                ],
+                "mcp_servers": [
+                    {
+                        "tagging_id": "bb11bb11-0003-4003-8003-bb11bb11bb11",
+                        "resource_id": DOCS_MCP_SERVER_ID,
+                        "resource_name": "Internal Docs",
                     },
                 ],
                 "datasets": [],
@@ -153,7 +181,7 @@ LANGSMITH_MCP_VENDORS = {
 LANGSMITH_MCP_SERVERS = {
     "arcade": [
         {
-            "id": "af11af11-0001-4001-8001-af11af11af11",
+            "id": DOCS_MCP_SERVER_ID,
             "name": "Internal Docs",
             "slug": "internal-docs",
             "description": "Company documentation search.",

@@ -6,8 +6,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -59,6 +61,7 @@ class LangSmithDeploymentNodeProperties(CartographyNodeProperties):
     )
     tracer_session_id: PropertyRef = PropertyRef(
         "tracer_session_id",
+        extra_index=True,
         description="UUID of the LangSmith tracing project the deployment writes runs to.",
     )
     created_at: PropertyRef = PropertyRef(
@@ -109,6 +112,40 @@ class LangSmithDeploymentToWorkspaceRel(CartographyRelSchema):
     rel_label: str = "CONTAINS"
     properties: LangSmithDeploymentToWorkspaceRelProperties = (
         LangSmithDeploymentToWorkspaceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class LangSmithDeploymentToResourceTagRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+# Deployments load before resource tags and taggings, so this edge is a matchlink loaded
+# with the workspace resources rather than a relationship on the deployment schema.
+@dataclass(frozen=True)
+# (:LangSmithDeployment)-[:TAGGED]->(:LangSmithResourceTag)
+class LangSmithDeploymentToResourceTagRel(CartographyRelSchema):
+    """
+    A resource tag applied to the deployment. Access policies for the deployment
+    resource type match on these tags.
+    """
+
+    source_node_label: str = "LangSmithDeployment"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("deployment_id")},
+    )
+    target_node_label: str = "LangSmithResourceTag"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("tag_value_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TAGGED"
+    properties: LangSmithDeploymentToResourceTagRelProperties = (
+        LangSmithDeploymentToResourceTagRelProperties()
     )
 
 

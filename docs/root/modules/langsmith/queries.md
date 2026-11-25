@@ -47,6 +47,46 @@ MATCH (m)-[:IN_WORKSPACE]->(w:LangSmithWorkspace)
 RETURN w.name, r.name, collect(u.email)
 ```
 
+## Find who holds a permission through a user group
+
+A user group's role applies to members who also belong to the workspace. Combine this
+with the previous query to cover both direct and user group roles.
+
+```cypher
+MATCH (u:LangSmithUser)-[:MEMBER_OF]->(g:LangSmithUserGroup)
+      -[:HAS_GRANT]->(grant:LangSmithUserGroupGrant)-[:HAS_ROLE]->(r:LangSmithRole)
+      -[:GRANTS]->(:LangSmithPermission {name: 'deployments:read'})
+MATCH (grant)-[:IN_WORKSPACE]->(w:LangSmithWorkspace)<-[:MEMBER_OF]-(u)
+RETURN w.name, g.name, r.name, collect(u.email)
+```
+
+## Find access policies that apply through user groups
+
+Lists each policy attached to a user group, with the members it applies to. When
+`all_workspaces` is false, the policy applies only in `workspace_ids`. A workspace-scoped
+user group's policies apply only in its own workspace.
+
+```cypher
+MATCH (p:LangSmithAccessPolicy)-[a:ATTACHED_TO]->(g:LangSmithUserGroup)
+OPTIONAL MATCH (u:LangSmithUser)-[:MEMBER_OF]->(g)
+RETURN g.name, g.workspace_id, p.name, p.effect, a.all_workspaces, a.workspace_ids,
+       collect(u.email)
+```
+
+## Find the tags on each deployment and its tracing project
+
+Access policies on the deployment control who can manage it. Policies on its tracing
+project control who can read its traces.
+
+```cypher
+MATCH (d:LangSmithDeployment)-[:TRACES_TO]->(proj:LangSmithProject)
+OPTIONAL MATCH (d)-[:TAGGED]->(dt:LangSmithResourceTag)
+OPTIONAL MATCH (proj)-[:TAGGED]->(pt:LangSmithResourceTag)
+RETURN d.name, proj.name,
+       collect(DISTINCT dt.key + '=' + dt.value) AS deployment_tags,
+       collect(DISTINCT pt.key + '=' + pt.value) AS project_tags
+```
+
 ## Find tracing projects that a tag-based access policy can apply to
 
 Lists each policy that matches on a resource tag, with the projects carrying a tag under

@@ -357,6 +357,27 @@ tailscale_mapping = OntologyMapping(
     ],
 )
 
+# LangSmith
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithUserGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 # Kubernetes
 kubernetes_mapping = OntologyMapping(
     module_name="kubernetes",
@@ -461,6 +482,7 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "tailscale": tailscale_mapping,
     "onepassword": onepassword_mapping,
     "kubernetes": kubernetes_mapping,
+    "langsmith": langsmith_mapping,
     "vercel": vercel_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",

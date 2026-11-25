@@ -6,6 +6,8 @@ import requests
 from cartography.intel.langsmith.util import LangSmithFetchError
 from cartography.intel.langsmith.workspace_resources import get_mcp_servers
 from cartography.intel.langsmith.workspace_resources import get_projects
+from cartography.intel.langsmith.workspace_resources import get_taggings
+from cartography.intel.langsmith.workspace_resources import transform_deployment_tags
 
 
 def _http_error(status_code: int) -> requests.HTTPError:
@@ -60,32 +62,67 @@ def test_get_mcp_servers_reraises_other_http_errors():
         get_mcp_servers(client, "org-1", "ws-1")
 
 
-def _projects_client(taggings):
+def test_get_taggings_indexes_tag_values_by_resource_type_and_id():
+    # Arrange
+    client = MagicMock()
+    client.get.return_value = [
+        {
+            "tag_value_id": "tv-prod",
+            "resources": {
+                "projects": [{"resource_id": "proj-1"}],
+                "deployments": [{"resource_id": "dep-1"}],
+                "datasets": [],
+            },
+        },
+        {
+            "tag_value_id": "tv-team",
+            "resources": {"projects": [{"resource_id": "proj-1"}]},
+        },
+    ]
+
+    # Act
+    taggings, complete = get_taggings(client, "org-1", "ws-1")
+
+    # Assert
+    assert taggings == {
+        "projects": {"proj-1": ["tv-prod", "tv-team"]},
+        "deployments": {"dep-1": ["tv-prod"]},
+        "datasets": {},
+    }
+    assert complete is True
+
+
+@pytest.mark.parametrize(
+    "status, expected_complete",
+    [(404, True), (403, False), (None, False)],
+)
+def test_get_taggings_reports_failures(status, expected_complete):
+    # Arrange
+    client = MagicMock()
+    client.get.side_effect = LangSmithFetchError(
+        "/api/v1/workspaces/current/taggings", status, "failed"
+    )
+
+    # Act
+    taggings, complete = get_taggings(client, "org-1", "ws-1")
+
+    # Assert
+    assert taggings == {}
+    assert complete is expected_complete
+
+
+def test_get_projects_attaches_tag_values_to_tagged_projects():
+    # Arrange
     client = MagicMock()
     client.get_paginated.return_value = [
         {"id": "proj-1", "name": "checkout-agent"},
         {"id": "proj-2", "name": "scratch"},
     ]
-    client.get.side_effect = [taggings]
-    return client
-
-
-def test_get_projects_attaches_tag_values_to_tagged_projects():
-    # Arrange
-    client = _projects_client(
-        [
-            {
-                "tag_value_id": "tv-prod",
-                "resources": {
-                    "projects": [{"resource_id": "proj-1"}],
-                    "datasets": [{"resource_id": "ds-1"}],
-                },
-            },
-        ]
-    )
 
     # Act
-    projects, complete = get_projects(client, "org-1", "ws-1")
+    projects, complete = get_projects(
+        client, "org-1", "ws-1", {"proj-1": ["tv-prod"], "ds-1": ["tv-pii"]}
+    )
 
     # Assert
     assert {p["id"]: p["tag_value_ids"] for p in projects} == {
@@ -95,19 +132,23 @@ def test_get_projects_attaches_tag_values_to_tagged_projects():
     assert complete is True
 
 
-@pytest.mark.parametrize(
-    "status, expected_complete",
-    [(404, True), (403, False), (None, False)],
-)
-def test_get_projects_keeps_projects_when_taggings_fail(status, expected_complete):
+def test_get_mcp_servers_attaches_tag_values():
     # Arrange
-    client = _projects_client(
-        LangSmithFetchError("/api/v1/workspaces/current/taggings", status, "failed")
-    )
+    client = _client([[{"id": "gw-1"}], []])
 
     # Act
-    projects, complete = get_projects(client, "org-1", "ws-1")
+    servers, _ = get_mcp_servers(client, "org-1", "ws-1", {"gw-1": ["tv-prod"]})
 
     # Assert
-    assert [p["id"] for p in projects] == ["proj-1", "proj-2"]
-    assert complete is expected_complete
+    assert [s["tag_value_ids"] for s in servers] == [["tv-prod"]]
+
+
+def test_transform_deployment_tags_emits_one_record_per_tag_value():
+    # Act
+    records = transform_deployment_tags({"dep-1": ["tv-prod", "tv-team"]})
+
+    # Assert
+    assert records == [
+        {"deployment_id": "dep-1", "tag_value_id": "tv-prod"},
+        {"deployment_id": "dep-1", "tag_value_id": "tv-team"},
+    ]

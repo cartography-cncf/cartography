@@ -8,6 +8,7 @@ import cartography.intel.langsmith.deployments
 import cartography.intel.langsmith.organizations
 import cartography.intel.langsmith.roles
 import cartography.intel.langsmith.sso
+import cartography.intel.langsmith.user_groups
 import cartography.intel.langsmith.users
 import cartography.intel.langsmith.workspace_resources
 import cartography.intel.langsmith.workspaces
@@ -89,6 +90,11 @@ def start_langsmith_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 
         cartography.intel.langsmith.sso.sync(
             neo4j_session, client, org_id, org_common_job_parameters
+        )
+
+        # After SSO: user group policy attachments point at the access policies.
+        cartography.intel.langsmith.user_groups.sync(
+            neo4j_session, client, org_id, user_lookup, org_common_job_parameters
         )
 
         agents, workspace_by_deployment, agents_complete = (

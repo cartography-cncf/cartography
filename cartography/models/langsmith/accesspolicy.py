@@ -36,7 +36,7 @@ class LangSmithAccessPolicyNodeProperties(CartographyNodeProperties):
         "condition_tag_keys",
         description=(
             "Resource tag keys the policy's conditions match on. Match them against "
-            "LangSmithResourceTag.key to find the tagged projects a policy can apply to."
+            "LangSmithResourceTag.key to find the tagged resources a policy can apply to."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -87,8 +87,8 @@ class LangSmithAccessPolicyToRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LangSmithAccessPolicySchema(CartographyNodeSchema):
     """
-    An attribute-based access control policy. Policies attach to roles and restrict which
-    tagged resources the role's permissions apply to.
+    An attribute-based access control policy. Policies attach to roles and user groups
+    and restrict or extend which tagged resources their permissions apply to.
     """
 
     label: str = "LangSmithAccessPolicy"
