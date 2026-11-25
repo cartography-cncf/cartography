@@ -51,6 +51,7 @@ modules/openai/index
 modules/orca/index
 modules/opsgenie/index
 modules/pagerduty/index
+modules/pylon/index
 modules/railway/index
 modules/salesforce/index
 modules/scaleway/index

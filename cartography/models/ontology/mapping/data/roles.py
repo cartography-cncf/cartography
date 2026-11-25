@@ -445,6 +445,27 @@ zoom_mapping = OntologyMapping(
     ],
 )
 
+pylon_mapping = OntologyMapping(
+    module_name="pylon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PylonRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+                # _ont_type: The API does not say whether a role is built in or custom.
+            ],
+        ),
+    ],
+)
+
 langsmith_mapping = OntologyMapping(
     module_name="langsmith",
     nodes=[
@@ -539,4 +560,5 @@ ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "langsmith": langsmith_mapping,
+    "pylon": pylon_mapping,
 }

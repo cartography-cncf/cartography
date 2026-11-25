@@ -936,6 +936,23 @@ neon_mapping = OntologyMapping(
 )
 
 
+pylon_mapping = OntologyMapping(
+    module_name="pylon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PylonOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available; the API doesn't expose sign-in domains.
+            ],
+        ),
+    ],
+)
+
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -986,6 +1003,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
     "sentry": sentry_mapping,
+    "pylon": pylon_mapping,
     "sentinelone": sentinelone_mapping,
     "jumpcloud": jumpcloud_mapping,
     "miradore": miradore_mapping,

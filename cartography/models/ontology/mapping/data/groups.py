@@ -425,6 +425,23 @@ salesforce_mapping = OntologyMapping(
     ],
 )
 
+# Pylon
+pylon_mapping = OntologyMapping(
+    module_name="pylon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PylonTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description: Not available
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 zoom_mapping = OntologyMapping(
     module_name="zoom",
     nodes=[
@@ -457,6 +474,7 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "opsgenie": opsgenie_mapping,
     "scaleway": scaleway_mapping,
     "sentry": sentry_mapping,
+    "pylon": pylon_mapping,
     "slack": slack_mapping,
     "tailscale": tailscale_mapping,
     "onepassword": onepassword_mapping,

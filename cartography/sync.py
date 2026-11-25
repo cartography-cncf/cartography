@@ -134,6 +134,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.tailscale", "start_tailscale_ingestion"
         ),
         "jamf": _LazyStage("cartography.intel.jamf", "start_jamf_ingestion"),
+        "pylon": _LazyStage("cartography.intel.pylon", "start_pylon_ingestion"),
         "pagerduty": _LazyStage(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
         ),
