@@ -228,6 +228,14 @@ def _expo_wait(max_value: float | None = None) -> Iterator[float]:
     return wait
 
 
+# What the driver raises for a transaction that already failed: reading one of its
+# results, or running another query in it.
+_FAILED_TRANSACTION_ERRORS = (
+    neo4j.exceptions.ResultFailedError,
+    neo4j.exceptions.TransactionError,
+)
+
+
 def _hidden_server_failure(
     exc: neo4j.exceptions.ResultFailedError,
 ) -> neo4j.exceptions.Neo4jError | None:
@@ -248,7 +256,7 @@ def _hidden_server_failure(
     while failing_for is not None and failing_for is not cause:
         if (
             id(failing_for) in seen
-            or not isinstance(failing_for, neo4j.exceptions.DriverError)
+            or not isinstance(failing_for, _FAILED_TRANSACTION_ERRORS)
             or failing_for.__cause__ is not cause
         ):
             return None

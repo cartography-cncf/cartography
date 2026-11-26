@@ -399,14 +399,17 @@ def _cleanup_reads_the_failed_result(server_failure):
     return _rolling_back(transaction_function, server_failure)
 
 
-def _transaction_function_raises_its_own_error_from_the_failure(server_failure):
-    def transaction_function():
-        try:
-            raise server_failure
-        except neo4j.exceptions.Neo4jError as failure:
-            raise ValueError("abort this operation") from failure
+def _transaction_function_raises_from_the_failure(own_error):
+    def hidden_by(server_failure):
+        def transaction_function():
+            try:
+                raise server_failure
+            except neo4j.exceptions.Neo4jError as failure:
+                raise own_error from failure
 
-    return _rolling_back(transaction_function, server_failure)
+        return _rolling_back(transaction_function, server_failure)
+
+    return hidden_by
 
 
 def _cleanup_runs_another_query(server_failure):
@@ -510,9 +513,15 @@ def test_retries_server_failure_the_driver_raises_as_a_failed_result(
             neo4j.exceptions.ResultFailedError,
         ),
         (
-            _transaction_function_raises_its_own_error_from_the_failure(
-                _create_deadlock_error()
-            ),
+            _transaction_function_raises_from_the_failure(
+                ValueError("abort this operation")
+            )(_create_deadlock_error()),
+            neo4j.exceptions.ResultFailedError,
+        ),
+        (
+            _transaction_function_raises_from_the_failure(
+                neo4j.exceptions.ConfigurationError("ingestion aborted")
+            )(_create_deadlock_error()),
             neo4j.exceptions.ResultFailedError,
         ),
         (
@@ -532,6 +541,7 @@ def test_retries_server_failure_the_driver_raises_as_a_failed_result(
         "failure-outside-the-server",
         "transaction-function-raised-its-own-error",
         "transaction-function-raised-its-own-error-from-the-failure",
+        "transaction-function-raised-a-driver-error-from-the-failure",
         "cleanup-read-a-result-that-failed-for-another-reason",
         "failed-result-is-its-own-context",
     ],
