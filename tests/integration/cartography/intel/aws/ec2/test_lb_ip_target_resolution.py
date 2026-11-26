@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 from botocore.exceptions import ReadTimeoutError
 
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_INSTANCE
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
@@ -620,3 +621,64 @@ def test_ip_target_batches_preserve_each_balancers_targets(neo4j_session):
         (f"lb-{i % 2}.example.invalid", f"eni-{i}:{address}")
         for i, address in enumerate(addresses)
     }
+
+
+def _attach_instance(session, name, instance_id):
+    session.run(
+        """
+        MATCH (eni:AWSNetworkInterface {id: $eni})
+        MERGE (i:AWSEC2Instance {id: $instance})
+        SET i.instanceid = $instance, i.lastupdated = 1
+        MERGE (i)-[r:NETWORK_INTERFACE]->(eni)
+        SET r.lastupdated = 1
+        """,
+        eni=f"eni-{name}",
+        instance=instance_id,
+    )
+
+
+@pytest.mark.parametrize("instance_attached", [True, False])
+def test_ip_target_exposure_reaches_the_ec2_instance(neo4j_session, instance_attached):
+    # Arrange: an internet-facing ALB whose ip target is a private IP on an ENI.
+    # With instance_attached, an EC2 instance owns that ENI, as an EKS node does
+    # for a pod IP registered by the AWS Load Balancer Controller.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, ACCOUNT, 1)
+    lb_session = MagicMock()
+    lb_session.client.return_value = _elb_client()
+    data = elbv2.get_loadbalancer_v2_data(lb_session, REGION)
+    elbv2.load_load_balancer_v2s(neo4j_session, data, REGION, ACCOUNT, 1)
+    _load_workload(neo4j_session, "node", ACCOUNT, "vpc-local")
+    if instance_attached:
+        _attach_instance(neo4j_session, "node", "i-node")
+    neo4j_session.run(
+        "MATCH (lb:AWSLoadBalancerV2 {id: $lb}) SET lb.exposed_internet = true", lb=LB
+    )
+
+    # Act: the IP sync resolves the target, then the instance analysis runs.
+    elbv2.sync_load_balancer_v2_expose(
+        neo4j_session,
+        lb_session,
+        [REGION],
+        ACCOUNT,
+        1,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 1},
+    )
+    run_typed_analysis_job(
+        AWS_EC2_ASSET_EXPOSURE_INSTANCE, neo4j_session, {"UPDATE_TAG": 1}
+    )
+
+    # Assert: the target resolved to the ENI IP, and the owning instance is exposed.
+    assert check_rels(
+        neo4j_session, "AWSLoadBalancerV2", "id", "AWSEC2PrivateIp", "id", "EXPOSE"
+    ) == {(LB, f"eni-node:{IP}")}
+    if instance_attached:
+        assert check_nodes(
+            neo4j_session, "AWSEC2Instance", ["id", "exposed_internet"]
+        ) == {("i-node", True)}
+        record = neo4j_session.run(
+            "MATCH (i:AWSEC2Instance {id: 'i-node'}) RETURN i.exposed_internet_type AS t"
+        ).single()
+        assert record["t"] == ["elbv2"]
+    else:
+        assert check_nodes(neo4j_session, "AWSEC2Instance", ["id"]) == set()

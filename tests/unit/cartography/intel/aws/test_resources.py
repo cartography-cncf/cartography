@@ -1,4 +1,5 @@
 from cartography.intel.aws import AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS
+from cartography.intel.aws import AWS_EC2_ASSET_EXPOSURE_INSTANCE_DEPS
 from cartography.intel.aws import AWS_EC2_IAM_INSTANCE_PROFILE_DEPS
 from cartography.intel.aws import AWS_LAMBDA_ECR_DEPS
 from cartography.intel.aws import AWS_LB_NACL_DIRECT_DEPS
@@ -61,3 +62,16 @@ def test_analysis_dependency_sets_include_all_required_producers():
     # Assert
     assert actual_dependencies == expected_dependencies
     assert "ec2:autoscalinggroup" in AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS
+
+
+def test_instance_exposure_requires_ip_target_producers():
+    # Arrange
+    ip_target_producers = {"ec2:network_interface", "ec2:load_balancer_v2:expose"}
+
+    # Act
+    instance_dependencies = AWS_EC2_ASSET_EXPOSURE_INSTANCE_DEPS
+    auto_scaling_group_dependencies = AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS
+
+    # Assert
+    assert ip_target_producers <= instance_dependencies
+    assert instance_dependencies <= auto_scaling_group_dependencies

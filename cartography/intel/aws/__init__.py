@@ -17,6 +17,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_INSTANCE
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
 from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
 from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
@@ -815,9 +816,17 @@ AWS_EC2_ASSET_EXPOSURE_DEPS = {
     "ec2:load_balancer",
     "ec2:load_balancer_v2",
 }
-AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
-    "ec2:autoscalinggroup"
+# The instance job also follows ip-target exposure from an AWSEC2PrivateIp to the instance that owns
+# its ENI, so it needs the ENI sync and the IP-target EXPOSE edges too. Without them, a partial sync
+# would clear an instance's elbv2 flag and never restore it.
+AWS_EC2_ASSET_EXPOSURE_INSTANCE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
 }
+# The Auto Scaling group job copies the instance flags, so it needs everything the instance job does.
+AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS = (
+    AWS_EC2_ASSET_EXPOSURE_INSTANCE_DEPS | {"ec2:autoscalinggroup"}
+)
 # Both the ECS internet-exposure property and the LB->container edge gate on lb.exposed_internet, so
 # they must require the full producer dependency set above: otherwise a partial sync that skips the
 # producer would leave a stale exposed_internet flag and let these consumers label/link containers
@@ -897,7 +906,9 @@ def _perform_aws_analysis(
 
     for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
         dependencies = AWS_EC2_ASSET_EXPOSURE_DEPS
-        if job is AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP:
+        if job is AWS_EC2_ASSET_EXPOSURE_INSTANCE:
+            dependencies = AWS_EC2_ASSET_EXPOSURE_INSTANCE_DEPS
+        elif job is AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP:
             dependencies = AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS
         run_typed_analysis_and_ensure_deps(
             job,

@@ -263,6 +263,17 @@ AWS_EC2_ASSET_EXPOSURE_INSTANCE = AnalysisJob(
                 AddToSet("e", "exposed_internet_type", "elbv2", label="AWSEC2Instance"),
             ),
         ),
+        AnalysisStatement(
+            comment="An ip target resolves to an ENI private IP. Expose the instance that owns that ENI, such as an EKS node behind a pod IP target.",
+            match="""
+            MATCH (:AWSLoadBalancerV2{exposed_internet: true})-[:EXPOSE]->(:AWSEC2PrivateIp)
+                  <-[:PRIVATE_IP_ADDRESS]-(:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(e:AWSEC2Instance)
+            """,
+            effects=(
+                SetProperty("e", "exposed_internet", True, label="AWSEC2Instance"),
+                AddToSet("e", "exposed_internet_type", "elbv2", label="AWSEC2Instance"),
+            ),
+        ),
     ),
 )
 AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP = AnalysisJob(
