@@ -118,6 +118,31 @@ from a resource provider API, which is GCP in this particular example.
 `get` should be "dumb" in the sense that it should not handle retry logic or data
 manipulation. It should also raise an exception if it's not able to complete successfully.
 
+#### Stream large collections
+
+When the API paginates and the result grows with the tenant, such as findings,
+vulnerabilities, or Kubernetes objects, `get` yields one page at a time instead of
+returning one list. `sync` transforms each page as it arrives and passes the
+resulting generator to `load()`, which writes it in batches of 10,000 rows:
+
+```python
+def sync(neo4j_session, api_key, tenant_id, update_tag, common_job_parameters):
+    load_users(
+        neo4j_session,
+        (user for page in get(api_key, tenant_id) for user in transform(page)),
+        tenant_id,
+        update_tag,
+    )
+    cleanup(neo4j_session, common_job_parameters)
+```
+
+A sync that holds every raw record, and then a transformed copy of each, needs
+memory in proportion to the tenant, and a large tenant runs it out of memory before
+the first write. Raise on any page error rather than returning the pages fetched so
+far: an error stops `sync` before cleanup, while a partial list lets cleanup delete
+every node on the pages that were never read. The `create-module` agent skill lists
+the full rules in `references/sync-pattern.md`.
+
 ### Transform
 
 The `transform` function [manipulates the list of dicts](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L193)

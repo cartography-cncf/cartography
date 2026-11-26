@@ -31,6 +31,7 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 **Key Cartography Concepts:**
 - **Intel Module**: Component that fetches data from external APIs and loads into Neo4j
 - **Sync Pattern**: `get()` -> `transform()` -> `load()` -> `cleanup()` -> `analysis` (optional)
+- **Memory**: Stream any collection that grows with the tenant. A paginated `get()` yields pages, `transform()` runs on one page, and `load()` takes the generator and writes it in batches. Holding every record in a list runs large tenants out of memory. See the `create-module` skill's `references/sync-pattern.md`.
 - **Data Model**: Declarative schema using `CartographyNodeSchema` and `CartographyRelSchema`
 - **Update Tag**: Timestamp used for cleanup jobs to remove stale data
 - **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance). When a job manages relationships, put `MERGE` statements before the stale-edge `DELETE`; iterative deletion exposes a window where concurrent readers see those edges missing. See the `analysis-jobs` skill.
@@ -45,6 +46,7 @@ Procedures for building and extending Cartography intel modules ship as Claude s
 **Essential Imports:**
 ```python
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import (
@@ -161,18 +163,16 @@ def sync(neo4j_session: neo4j.Session, api_key: str, tenant_id: str,
     """
     logger.info("Starting MyResource sync")
 
-    # 1. GET - Fetch data from API
-    logger.debug("Fetching MyResource data from API")
-    raw_data = get(api_key, tenant_id)
+    # 1-3. GET yields pages, TRANSFORM shapes one page at a time, and LOAD
+    # writes the stream in batches, so memory does not grow with the tenant.
+    load_entities(
+        neo4j_session,
+        (item for page in get(api_key, tenant_id) for item in transform(page)),
+        tenant_id,
+        update_tag,
+    )
 
-    # 2. TRANSFORM - Shape data for ingestion
-    logger.debug("Transforming %d MyResource items", len(raw_data))
-    transformed = transform(raw_data)
-
-    # 3. LOAD - Ingest to Neo4j
-    load_entities(neo4j_session, transformed, tenant_id, update_tag)
-
-    # 4. CLEANUP - Remove stale data
+    # 4. CLEANUP - Remove stale data, only after every page loaded
     logger.debug("Running MyResource cleanup job")
     cleanup(neo4j_session, common_job_parameters)
 
@@ -182,7 +182,7 @@ def sync(neo4j_session: neo4j.Session, api_key: str, tenant_id: str,
 ### Standard Load and Cleanup Patterns
 
 ```python
-def load_entities(neo4j_session: neo4j.Session, data: list[dict],
+def load_entities(neo4j_session: neo4j.Session, data: Iterable[dict],
                  tenant_id: str, update_tag: int) -> None:
     load(neo4j_session, YourSchema(), data,
          lastupdated=update_tag, TENANT_ID=tenant_id)

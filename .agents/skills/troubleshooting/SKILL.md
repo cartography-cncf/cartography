@@ -137,6 +137,31 @@ MATCH (u:User {name: $name})   # bad — name might not be indexed
 
 Fields used inside a `target_node_matcher` are indexed automatically.
 
+### Out-of-memory failures
+
+```python
+# Problem: the sync process is killed for running out of memory, usually partway
+# through fetching a large collection and before anything is written.
+# Solution: stream the collection instead of collecting it.
+def get(...) -> Iterator[list[dict[str, Any]]]:
+    ...
+    yield page  # not results.extend(page)
+
+load_items(
+    neo4j_session,
+    (row for page in get(...) for row in transform(page)),
+    ...
+)
+
+# Problem: Neo.TransientError.General.MemoryPoolOutOfMemoryError from Neo4j.
+# Solution: one write transaction covers too many rows. Write through load() or
+# load_matchlinks(), which batch, or give the AnalysisStatement whose match
+# grows with the data match/effects (not query), batched_transactions=True, and
+# a positive iterationsize.
+```
+
+See the streaming rules in the `create-module` skill's `references/sync-pattern.md`.
+
 ### MatchLink issues
 
 ```python

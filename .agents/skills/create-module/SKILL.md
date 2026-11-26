@@ -14,7 +14,8 @@ Build a brand new Cartography intel module from scratch using the modern declara
 3. **Required fields use direct dict access**, optional fields use `.get()` with `None` default. Do not silently swallow exceptions in `get()`.
 4. **Only standard schema fields**: any custom field added to a `CartographyNodeSchema` / `CartographyRelSchema` subclass is ignored. See the `add-node-type` and `add-relationship` skills.
 5. **Integration tests must call `sync()`**, not individual `load()` calls. Mock only external boundaries (API clients, credentials).
-6. **All commits use `git commit -s`** (DCO).
+6. **Stream collections that grow with the tenant.** A paginated getter yields one page at a time, `transform()` runs on each page, and `sync()` passes the resulting generator to `load()`, which writes it in batches. Never hold every raw record and a transformed copy at once: a large tenant runs the sync out of memory before its first write. See `references/sync-pattern.md#streaming-large-collections`.
+7. **All commits use `git commit -s`** (DCO).
 
 ## Instructions
 
@@ -76,13 +77,17 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    raw = get(api_key, tenant_id)               # 1. GET — dumb, raises on failure
-    data = transform(raw)                       # 2. TRANSFORM — shape for ingest
-    load_users(neo4j_session, data, tenant_id, update_tag)  # 3. LOAD — data model
-    cleanup(neo4j_session, common_job_parameters)           # 4. CLEANUP — GraphJob
+    # GET yields pages, TRANSFORM shapes one page at a time, LOAD writes in batches.
+    load_users(
+        neo4j_session,
+        (user for page in get(api_key, tenant_id) for user in transform(page)),
+        tenant_id,
+        update_tag,
+    )
+    cleanup(neo4j_session, common_job_parameters)  # CLEANUP — only after every page loaded
 ```
 
-`get()` should be minimal: set timeouts, call `response.raise_for_status()`, and let errors propagate. AWS get-functions wrap with `@aws_handle_regions`. See `references/sync-pattern.md` for the long-form template, error-handling rules, and transform examples.
+`get()` should be minimal: set timeouts, call `response.raise_for_status()`, and let errors propagate. When the API paginates, `get()` yields each page instead of returning one list. AWS get-functions wrap with `@aws_handle_regions`. The decorator handles errors only while the function runs, and a generator's body runs later, inside `load()`, so a paginated AWS getter decorates a helper that fetches one page and yields from it. See `references/sync-pattern.md` for the long-form template, error-handling rules, transform examples, and the streaming rules.
 
 ### Step 5 — Define the data model
 
@@ -167,6 +172,7 @@ Sign every commit: `git commit -s -m "..."`. Update the PR description to match 
 - [ ] CLI panel + `Config` fields wired, secrets resolved from env vars
 - [ ] Module registered in `cartography/sync.py:TOP_LEVEL_MODULES` via `_LazyStage`, with no top-level `import cartography.intel.<service>` added to `sync.py`
 - [ ] Sync follows GET -> TRANSFORM -> LOAD -> CLEANUP
+- [ ] Paginated getters yield pages, `sync()` passes `load()` a generator, and no step holds every record the tenant returns
 - [ ] All schemas use only standard fields (`label`, `properties`, `sub_resource_relationship`, `other_relationships`, `extra_node_labels`, `scoped_cleanup`)
 - [ ] Sub-resource relationship targets a tenant-like node
 - [ ] Required fields use `data["x"]`, optional use `data.get("x")` with `None` default
