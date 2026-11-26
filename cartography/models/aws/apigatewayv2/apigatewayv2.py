@@ -10,6 +10,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_GATEWAY
 
 
 @dataclass(frozen=True)
@@ -70,7 +71,9 @@ class APIGatewayV2APISchema(CartographyNodeSchema):
 
     label: str = "AWSAPIGatewayV2API"
     # DEPRECATED: legacy APIGatewayV2API node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_V2_API])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_API_GATEWAY_V2_API, API_GATEWAY]
+    )
     properties: APIGatewayV2APINodeProperties = APIGatewayV2APINodeProperties()
     sub_resource_relationship: APIGatewayV2APIToAWSAccountRel = (
         APIGatewayV2APIToAWSAccountRel()

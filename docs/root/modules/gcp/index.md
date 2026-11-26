@@ -14,6 +14,7 @@ Cartography supports ingesting Google Cloud Platform resources, including:
 - **BigQuery**: Datasets, Tables, Routines, Connections
 - **Secret Manager**: Secrets, Secret Versions
 - **Cloud Run**: Services, Revisions, Jobs, Executions
+- **API Gateway**: APIs, API Configs, Gateways
 
 ## VPC peerings and VPN tunnels
 
