@@ -298,3 +298,204 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         # Test cross-security group relationships
         ("sg-web-server-12345", "sg-028e2522c72719996"),
     }
+
+
+ACCOUNT_A = "111111111111"
+ACCOUNT_B = "222222222222"
+SHARED_CIDR = "10.215.0.0/16"
+
+
+def _sg_with_cidrs(group_id: str, owner_id: str, cidrs: list[str]) -> dict:
+    """A minimal security group with an inbound and an egress TCP/443 rule on `cidrs`."""
+    rule = {
+        "IpProtocol": "tcp",
+        "FromPort": 443,
+        "ToPort": 443,
+        "IpRanges": [{"CidrIp": cidr} for cidr in cidrs],
+        "Ipv6Ranges": [],
+        "PrefixListIds": [],
+        "UserIdGroupPairs": [],
+    }
+    return {
+        "GroupId": group_id,
+        "GroupName": group_id,
+        "Description": group_id,
+        "OwnerId": owner_id,
+        "VpcId": f"vpc-{owner_id}",
+        "IpPermissions": [rule],
+        "IpPermissionsEgress": [rule],
+    }
+
+
+def _sync_account(neo4j_session, account_id: str, groups: list, update_tag: int):
+    create_test_account(neo4j_session, account_id, update_tag)
+    with patch.object(
+        cartography.intel.aws.ec2.security_groups,
+        "get_ec2_security_group_data",
+        return_value=groups,
+    ):
+        cartography.intel.aws.ec2.security_groups.sync_ec2_security_groupinfo(
+            neo4j_session,
+            MagicMock(),
+            [TEST_REGION],
+            account_id,
+            update_tag,
+            {"UPDATE_TAG": update_tag, "AWS_ID": account_id},
+        )
+
+
+def _range_to_rule_rels(neo4j_session) -> set:
+    return check_rels(
+        neo4j_session,
+        "AWSIpRange",
+        "id",
+        "AWSIpRule",
+        "ruleid",
+        "MEMBER_OF_IP_RULE",
+        rel_direction_right=True,
+    )
+
+
+def _account_to_range_rels(neo4j_session) -> set:
+    return check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSIpRange",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+
+
+def test_ip_range_shared_across_accounts_is_not_owned(neo4j_session):
+    """
+    Regression test for https://github.com/cartography-cncf/cartography/issues/2928.
+
+    A CIDR referenced by security group rules in two accounts is one AWSIpRange node.
+    It is a reference, not something either account owns, so it must not get a
+    (:AWSAccount)-[:RESOURCE]->(:AWSIpRange) edge from either of them.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_A,
+        [_sg_with_cidrs("sg-aaaa", ACCOUNT_A, [SHARED_CIDR])],
+        TEST_UPDATE_TAG,
+    )
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_B,
+        [_sg_with_cidrs("sg-bbbb", ACCOUNT_B, [SHARED_CIDR])],
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {(SHARED_CIDR,)}
+    assert _account_to_range_rels(neo4j_session) == set()
+    assert _range_to_rule_rels(neo4j_session) == {
+        (SHARED_CIDR, "sg-aaaa/IpPermissions/443/443/tcp"),
+        (SHARED_CIDR, "sg-aaaa/IpPermissionsEgress/443/443/tcp"),
+        (SHARED_CIDR, "sg-bbbb/IpPermissions/443/443/tcp"),
+        (SHARED_CIDR, "sg-bbbb/IpPermissionsEgress/443/443/tcp"),
+    }
+
+
+def test_ip_range_cleanup_is_scoped_to_the_synced_account(neo4j_session):
+    """
+    Without an account to scope it, a generated cleanup would delete every stale
+    MEMBER_OF_IP_RULE edge in the graph. Re-syncing account A must leave account B's
+    edges alone even though B has not been re-synced with the new update tag.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_A,
+        [_sg_with_cidrs("sg-aaaa", ACCOUNT_A, [SHARED_CIDR, "192.0.2.0/24"])],
+        TEST_UPDATE_TAG,
+    )
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_B,
+        [_sg_with_cidrs("sg-bbbb", ACCOUNT_B, [SHARED_CIDR])],
+        TEST_UPDATE_TAG,
+    )
+
+    # Account A's rules stop referencing both CIDRs; only A is re-synced.
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_A,
+        [_sg_with_cidrs("sg-aaaa", ACCOUNT_A, ["198.51.100.0/24"])],
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert _range_to_rule_rels(neo4j_session) == {
+        ("198.51.100.0/24", "sg-aaaa/IpPermissions/443/443/tcp"),
+        ("198.51.100.0/24", "sg-aaaa/IpPermissionsEgress/443/443/tcp"),
+        # Still referenced by account B, so it keeps the edges and the node survives.
+        (SHARED_CIDR, "sg-bbbb/IpPermissions/443/443/tcp"),
+        (SHARED_CIDR, "sg-bbbb/IpPermissionsEgress/443/443/tcp"),
+    }
+    # 192.0.2.0/24 is no longer referenced by any rule, so the node is removed.
+    assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {
+        ("198.51.100.0/24",),
+        (SHARED_CIDR,),
+    }
+
+    # Once account B stops referencing the shared CIDR too, its node is removed.
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_B,
+        [_sg_with_cidrs("sg-bbbb", ACCOUNT_B, [])],
+        TEST_UPDATE_TAG + 1,
+    )
+    assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {("198.51.100.0/24",)}
+
+
+def test_legacy_account_to_ip_range_edges_are_removed(neo4j_session):
+    """
+    Graphs written before the fix still hold RESOURCE edges that no schema draws.
+    Each account's sync removes only its own; another account's legacy edge keeps its
+    range until that account syncs, even when no rule references the range.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_A,
+        [_sg_with_cidrs("sg-aaaa", ACCOUNT_A, [SHARED_CIDR])],
+        TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        """
+        MATCH (a:AWSAccount {id: $account_id}), (r:AWSIpRange {id: $cidr})
+        MERGE (a)-[:RESOURCE]->(r)
+        """,
+        account_id=ACCOUNT_A,
+        cidr=SHARED_CIDR,
+    )
+    create_test_account(neo4j_session, ACCOUNT_B, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (b:AWSAccount {id: $account_id})
+        MERGE (b)-[:RESOURCE]->(:AWSIpRange {id: '203.0.113.0/24'})
+        """,
+        account_id=ACCOUNT_B,
+    )
+
+    _sync_account(
+        neo4j_session,
+        ACCOUNT_A,
+        [_sg_with_cidrs("sg-aaaa", ACCOUNT_A, [SHARED_CIDR])],
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert _account_to_range_rels(neo4j_session) == {(ACCOUNT_B, "203.0.113.0/24")}
+    assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {
+        (SHARED_CIDR,),
+        ("203.0.113.0/24",),
+    }
+
+    _sync_account(neo4j_session, ACCOUNT_B, [], TEST_UPDATE_TAG + 1)
+
+    assert _account_to_range_rels(neo4j_session) == set()
+    assert check_nodes(neo4j_session, "AWSIpRange", ["id"]) == {(SHARED_CIDR,)}

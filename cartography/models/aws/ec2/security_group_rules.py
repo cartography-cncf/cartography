@@ -139,10 +139,14 @@ class IpPermissionInboundSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
-    """Represents an IP address range (CIDR block) associated with an EC2 Security Group rule. IpRange nodes define the source or destination IP addresses that a security group rule applies to."""
+    """Represents an IP address range (CIDR block) associated with an EC2 Security Group rule. IpRange nodes define the source or destination IP addresses that a security group rule applies to.
+
+    An `AWSIpRange` is keyed on the CIDR string alone, so rules in several accounts that reference the same CIDR share one node. It is a reference, not a resource an account owns,
+    so it has no `(:AWSAccount)-[:RESOURCE]->(:AWSIpRange)` edge; the owning account is reachable through the rule: `(:AWSAccount)-[:RESOURCE]->(:AWSIpRule)<-[:MEMBER_OF_IP_RULE]-(:AWSIpRange)`.
+    Ownership of a VPC's own CIDRs is modeled by `AWSCidrBlock`.
+    """
 
     label: str = "AWSIpRange"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IP_RANGE])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()
-    sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([IpRangeToIpRuleRel()])
