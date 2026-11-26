@@ -1,0 +1,17 @@
+{
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. CVEMetadata enriched every OrcaVulnerabilityFinding, which earlier releases labeled :CVE. The next statement removes that label, after which CVEMetadata cleanup, which matches :CVE targets, can no longer reach these edges, so delete them first. Scoped to the organization that just completed its sync, whose findings all link to their OrcaVulnerability. Idempotent: findings no longer get ENRICHES edges. Each run deletes up to $SCAN_LIMIT_SIZE edges from one scan of the organization, committing every $LIMIT_SIZE; rerunning a LIMIT $LIMIT_SIZE statement would walk every already-migrated finding again on each pass, which is quadratic in the organization's finding count.",
+      "query": "MATCH (:OrcaOrganization {id: $ORCA_ORGANIZATION_ID})-[:RESOURCE]->(f:OrcaVulnerabilityFinding:CVE)<-[r:ENRICHES]-(:CVEMetadata) WITH r LIMIT $SCAN_LIMIT_SIZE CALL (r) { DELETE r } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 10000,
+      "batched_transactions": true
+    },
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration; remove in v1.0.0. Earlier releases put the :CVE ontology label, with its _ont_* fields, on every OrcaVulnerabilityFinding. The CVE is now the OrcaVulnerability the finding links to, and nothing updates these any more, so strip them: left stale, :CVE queries count each Orca CVE once per affected asset and package. Idempotent: once stripped, no OrcaVulnerabilityFinding carries :CVE. Batched like the statement above, for the same reason, and committed in the module's cleanup batch size because each finding also drops the index entries of its indexed _ont_* fields.",
+      "query": "MATCH (:OrcaOrganization {id: $ORCA_ORGANIZATION_ID})-[:RESOURCE]->(f:OrcaVulnerabilityFinding:CVE) WITH f LIMIT $SCAN_LIMIT_SIZE CALL (f) { REMOVE f:CVE, f._ont_source, f._ont_cve_id, f._ont_description, f._ont_references, f._ont_vector_string, f._ont_base_score, f._ont_base_severity } IN TRANSACTIONS OF $LIMIT_SIZE ROWS",
+      "iterationsize": 2000,
+      "batched_transactions": true
+    }
+  ],
+  "name": "Orca - migrate CVE labels written by earlier versions"
+}

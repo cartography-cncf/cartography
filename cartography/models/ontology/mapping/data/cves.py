@@ -23,17 +23,6 @@ _CVSS_SEVERITY = {
     "CRITICAL": "critical",
 }
 
-# Orca's VulnerabilityV2 query emits uppercase CVSS severity names. Include
-# lowercase variants so normalized results remain stable across API casing.
-_ORCA_CVSS_SEVERITY = {
-    **_CVSS_SEVERITY,
-    "none": "info",
-    "low": "low",
-    "medium": "medium",
-    "high": "high",
-    "critical": "critical",
-}
-
 # GitHub GraphQL severity (uppercase API + lowercase fixture variants)
 _GITHUB_SEVERITY = {
     "LOW": "low",
@@ -528,11 +517,14 @@ wiz_mapping = OntologyMapping(
     ],
 )
 
+# Orca scores each finding with the CVSS of the affected package's distribution
+# and links that distribution's advisory, so the vulnerability maps no
+# _ont_references, _ont_vector_string, _ont_base_score or _ont_base_severity.
 orca_mapping = OntologyMapping(
     module_name="orca",
     nodes=[
         OntologyNodeMapping(
-            node_label="OrcaVulnerabilityFinding",
+            node_label="OrcaVulnerability",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="cve_id",
@@ -543,25 +535,6 @@ orca_mapping = OntologyMapping(
                     ontology_field="description",
                     node_field="description",
                     indexed=False,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="references",
-                    node_field="references",
-                    indexed=False,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="vector_string",
-                    node_field="vector_string",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_score",
-                    node_field="base_score",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_severity",
-                    node_field="base_severity",
-                    special_handling="mapping",
-                    extra={"map": _ORCA_CVSS_SEVERITY},
                 ),
             ],
         ),
