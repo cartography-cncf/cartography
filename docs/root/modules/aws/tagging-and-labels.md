@@ -42,7 +42,8 @@ The authoritative mapping is `AWS_TAGGABLE_RESOURCES` in
   `AWSLoadBalancer`, `AWSLoadBalancerV2`, `AWSNetworkInterface`,
   `AWSTransitGateway`, `AWSTransitGatewayAttachment`, and `AWSVpc`.
 - Containers: `AWSECRRepository`, `AWSECSCluster`, `AWSECSContainer`,
-  `AWSECSContainerInstance`, `AWSECSTask`, `AWSECSTaskDefinition`, and
+  `AWSECSContainerInstance`, `AWSECSService`, `AWSECSTask`,
+  `AWSECSTaskDefinition`, and
   `AWSEKSCluster`.
 - Data and storage: `AWSDBSubnetGroup`, `AWSDynamoDBTable`, `AWSEBSVolume`,
   `AWSElasticacheCluster`, `AWSEMRCluster`, `AWSESDomain`,

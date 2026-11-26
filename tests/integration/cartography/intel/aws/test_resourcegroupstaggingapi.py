@@ -181,6 +181,48 @@ def test_sync_tags_scopes_to_correct_region(neo4j_session):
     }
 
 
+def test_sync_tags_attaches_ecs_service_tags(neo4j_session):
+    service_arn = "arn:aws:ecs:us-east-1:1234:service/web-cluster/web"
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        "MATCH (account:AWSAccount{id: $account_id}) "
+        "MERGE (service:AWSECSService{id: $arn}) SET service.lastupdated = $tag "
+        "MERGE (account)-[:RESOURCE]->(service)",
+        account_id=TEST_ACCOUNT_ID,
+        arn=service_arn,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    with patch.object(
+        rgta,
+        "get_tags",
+        return_value=[
+            {
+                "ResourceARN": service_arn,
+                "Tags": [{"Key": "team", "Value": "web"}],
+            },
+        ],
+    ):
+        sync(
+            neo4j_session,
+            MagicMock(),
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        )
+
+    assert check_rels(
+        neo4j_session,
+        "AWSECSService",
+        "id",
+        "AWSTag",
+        "id",
+        "TAGGED",
+        rel_direction_right=True,
+    ) == {(service_arn, "team:web")}
+
+
 @patch.object(cartography.intel.aws.redshift, "get_redshift_cluster_data")
 @patch.object(cartography.intel.aws.rds, "get_rds_event_subscription_data")
 @patch.object(cartography.intel.aws.rds, "get_rds_snapshot_data", return_value=[])
