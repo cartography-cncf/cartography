@@ -290,6 +290,68 @@ def test_sync_aws_accounts(neo4j_session):
     }
 
 
+def test_sync_aws_accounts_preserves_organizations_name(neo4j_session):
+    """
+    Ensure a per-account scan does not overwrite an Organizations account name.
+
+    Accounts discovered by the Organizations sync carry an org_id and a
+    maintainer-assigned name. Later per-account scans load accounts from the
+    AWS profile config, where the "name" is just the profile name; without a
+    guard the last writer wins and the graph shows profile names instead of
+    account names.
+    """
+    # Arrange: the Organizations sync has already named this account.
+    account_name = "test-account-1"
+    account_id = TEST_ACCOUNTS[account_name]
+    org_name = "Example Production Account"
+    run_write_query(
+        neo4j_session,
+        """
+        MERGE (a:AWSAccount {id: $account_id})
+        SET a.name = $org_name, a.org_id = "o-exampleorgid"
+        """,
+        account_id=account_id,
+        org_name=org_name,
+    )
+
+    # Act: a per-account scan runs with only the profile name known locally.
+    cartography.intel.aws.organizations.load_aws_accounts(
+        neo4j_session,
+        {account_name: account_id},
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws"},
+    )
+
+    # Assert: the Organizations name survives.
+    assert check_nodes(neo4j_session, "AWSAccount", ["id", "name"]) == {
+        (account_id, org_name),
+    }
+
+
+def test_sync_aws_accounts_uses_profile_name_without_org_id(neo4j_session):
+    """
+    Ensure a config-only account still falls back to the profile name.
+    """
+    # Arrange: an account with no org_id (added by hand to the config).
+    account_name = "test-account-2"
+    account_id = TEST_ACCOUNTS[account_name]
+
+    # Act
+    cartography.intel.aws.organizations.load_aws_accounts(
+        neo4j_session,
+        {account_name: account_id},
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws"},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSAccount", ["id", "name"]) == {
+        (account_id, account_name),
+    }
+
+
 def test_sync_aws_accounts_removes_stale_foreign_flag(neo4j_session):
     """
     Ensure configured AWS accounts are removed from foreign account classification.
