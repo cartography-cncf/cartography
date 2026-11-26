@@ -68,6 +68,22 @@ def _create_database_error(message: str) -> neo4j.exceptions.DatabaseError:
     return exc
 
 
+def _create_deadlock_error() -> neo4j.exceptions.TransientError:
+    exc = neo4j.exceptions.TransientError("deadlock detected")
+    object.__setattr__(
+        exc, "_neo4j_code", "Neo.TransientError.Transaction.DeadlockDetected"
+    )
+    return exc
+
+
+def _result_failed_by(
+    cause: BaseException | None,
+) -> neo4j.exceptions.ResultFailedError:
+    exc = neo4j.exceptions.ResultFailedError(MagicMock(), "The result has failed.")
+    exc.__cause__ = cause
+    return exc
+
+
 def _cartesian_product_rel_schema() -> PrincipalToS3BucketCartesianProductRel:
     return PrincipalToS3BucketCartesianProductRel()
 
@@ -269,6 +285,78 @@ def test_retries_network_errors(mock_sleep, error):
     assert result == "success"
     assert operation.call_count == 2
     mock_sleep.assert_called_once()
+
+
+@patch("cartography.client.core.tx.backoff.full_jitter", side_effect=lambda v: v / 2)
+@patch("cartography.client.core.tx.time.sleep")
+def test_retries_deadlock_more_times_than_a_network_error(mock_sleep, _):
+    operation = MagicMock()
+    operation.side_effect = [_create_deadlock_error()] * 9 + ["success"]
+
+    assert _run_with_retry(operation, "test_target") == "success"
+
+    # Each wait is drawn below an exponential ceiling that stops growing at 30 seconds.
+    assert [call.args[0] for call in mock_sleep.call_args_list] == [
+        0.5,
+        1,
+        2,
+        4,
+        8,
+        15,
+        15,
+        15,
+        15,
+    ]
+
+
+@patch("cartography.client.core.tx.time.sleep")
+def test_deadlock_max_retries(mock_sleep):
+    operation = MagicMock()
+    operation.side_effect = _create_deadlock_error()
+
+    with pytest.raises(neo4j.exceptions.TransientError):
+        _run_with_retry(operation, "test_target")
+
+    assert operation.call_count == 10
+
+
+@pytest.mark.parametrize(
+    "cause",
+    [
+        _create_deadlock_error(),
+        _create_client_error("Neo.ClientError.Statement.EntityNotFound"),
+    ],
+    ids=["deadlock", "entity-not-found"],
+)
+@patch("cartography.client.core.tx.time.sleep")
+def test_retries_server_failure_the_driver_raises_as_a_failed_result(mock_sleep, cause):
+    """The driver raises ResultFailedError when it rolls back a query that failed as it started."""
+    operation = MagicMock()
+    operation.side_effect = [_result_failed_by(cause), "success"]
+
+    assert _run_with_retry(operation, "test_target") == "success"
+    assert operation.call_count == 2
+
+
+@pytest.mark.parametrize(
+    ("cause", "raised"),
+    [
+        (
+            _create_client_error("Neo.ClientError.Statement.SyntaxError"),
+            neo4j.exceptions.ClientError,
+        ),
+        (None, neo4j.exceptions.ResultFailedError),
+    ],
+    ids=["non-retryable-server-failure", "no-server-failure"],
+)
+def test_raises_failed_result_that_a_retry_cannot_fix(cause, raised):
+    operation = MagicMock()
+    operation.side_effect = _result_failed_by(cause)
+
+    with pytest.raises(raised):
+        _run_with_retry(operation, "test_target")
+
+    operation.assert_called_once()
 
 
 # Tests for execute_write_with_retry
