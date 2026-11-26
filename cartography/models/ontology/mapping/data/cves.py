@@ -390,12 +390,11 @@ sentinelone_mapping = OntologyMapping(
 # and state describe a detection rather than a CVE and stay on :TenableFinding,
 # reachable from the CVE through the plugin that names it.
 #
-# Note the shape differs from most scanners. Trivy, SentinelOne, Orca, Wiz and
-# Sweet put :CVE on the finding; of those, only Trivy and Sweet map
-# _ont_vuln_status, as a detection status. Tenable puts :CVE on the vulnerability
-# record, like the NVD (`cve`), Ubuntu, CrowdStrike and AWS Inspector mappings.
-# Tenable and Inspector map none of _ont_base_score, _ont_base_severity or
-# _ont_vuln_status. Tenable scores each detection. Inspector rates severity on each finding, and its vulnerability node
+# Note the shape differs from most scanners. Trivy, SentinelOne, Orca and Wiz put
+# :CVE on the finding; of those, only Trivy maps _ont_vuln_status, as a detection
+# status. Tenable puts :CVE on the vulnerability record, like the NVD (`cve`),
+# Ubuntu, CrowdStrike, AWS Inspector and Sweet mappings. Tenable and Inspector map
+# none of _ont_base_score, _ont_base_severity or _ont_vuln_status. Tenable scores each detection. Inspector rates severity on each finding, and its vulnerability node
 # keeps CVSS scores as a per-source list (vendorcvssscores) with no single base
 # score to map. Queries filtering :CVE on those fields will not return Tenable or
 # Inspector data.
@@ -576,15 +575,8 @@ _SWEET_CVSS_SEVERITY = {
     "critical": "critical",
 }
 
-# Sweet vulnerability status, a detection status like Trivy's. Resolved
-# vulnerabilities are not ingested. Ignored is a triage decision, not a fix or a
-# not-affected verdict, so it stays unmapped.
-_SWEET_VULN_STATUS = {
-    "open": "open",
-    "in_progress": "open",
-}
-
-# Sweet puts :CVE on a runtime vulnerability only when its identifier is a CVE.
+# Sweet puts :CVE on a vulnerability only when its identifier is a CVE. Status
+# describes a detection, so it stays on SweetFindingContent.
 sweet_mapping = OntologyMapping(
     module_name="sweet",
     nodes=[
@@ -605,12 +597,6 @@ sweet_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="published_date",
                     node_field="published_date",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="vuln_status",
-                    node_field="status",
-                    special_handling="mapping",
-                    extra={"map": _SWEET_VULN_STATUS},
                 ),
             ],
         ),

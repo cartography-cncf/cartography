@@ -1,15 +1,25 @@
 import logging
-import re
 from collections.abc import Iterable
 from collections.abc import Iterator
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 
 import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.sweet import api
+from cartography.intel.sweet.finding_sets import sweet_vulnerability_id
+from cartography.intel.sweet.finding_sets import transform_content
+from cartography.intel.sweet.finding_sets import vulnerability_ids
+from cartography.intel.sweet.finding_sets import WorkloadFindingSets
+from cartography.models.sweet.finding_sets import SweetFindingContentSchema
+from cartography.models.sweet.finding_sets import SweetFindingSetSchema
+from cartography.models.sweet.finding_sets import SweetFindingSetToContentMatchLink
+from cartography.models.sweet.finding_sets import SweetWorkloadFindingsSchema
 from cartography.models.sweet.vulnerability import SweetVulnerabilitySchema
 from cartography.util import timeit
 
@@ -19,7 +29,11 @@ logger = logging.getLogger(__name__)
 # resolved since the previous sync. The API's status filter is case-sensitive and
 # takes the title-case values it returns, so a lowercase filter matches nothing.
 ACTIVE_STATUSES = "Open,In Progress,Ignored"
-_BARE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+# Sets carry their content IDs and workloads their detections, so writes are bounded
+# by detections rather than rows: a few large workloads would otherwise send millions
+# of detections in one transaction.
+DETECTIONS_PER_WRITE = 10_000
 
 
 def get(
@@ -35,79 +49,47 @@ def get(
     )
 
 
-def _normalize_status(status: str | None) -> str | None:
-    """Turn Sweet's title-case status, such as `In Progress`, into `in_progress`."""
-    if not status:
+def transform_vulnerability(
+    vulnerability: dict[str, Any],
+    tenant_id: str,
+) -> dict[str, Any] | None:
+    vulnerability_id, cve_id = vulnerability_ids(vulnerability.get("cve"))
+    if not vulnerability_id:
         return None
-    return "_".join(status.strip().lower().split()) or None
+    return {
+        "id": sweet_vulnerability_id(tenant_id, vulnerability_id),
+        "vulnerability_id": vulnerability_id,
+        "cve_id": cve_id,
+        "has_cve": str(cve_id is not None).lower(),
+        "severity": vulnerability.get("severity"),
+        "epss_score": vulnerability.get("epssScore"),
+        "epss_percentile": vulnerability.get("epssPercentile"),
+        "published_date": vulnerability.get("publishedDate"),
+    }
 
 
-def _image_digest_for_match(digest: str | None) -> str | None:
-    """Return the digest in the `sha256:<hex>` form that `Image._ont_digest` uses."""
-    if not digest:
-        return None
-    normalized = digest.strip().lower()
-    if normalized.startswith("sha256:"):
-        return normalized
-    if _BARE_SHA256.match(normalized):
-        return f"sha256:{normalized}"
-    return None
+@dataclass
+class _SyncState:
+    finding_sets: WorkloadFindingSets
+    # Contents wait for the sets: a detection that Sweet returns twice keeps only its
+    # latest version, and loading the other one would leave a content no set contains.
+    contents: dict[str, dict[str, Any]] = field(default_factory=dict)
+    loaded_epss_scores: dict[str, float] = field(default_factory=dict)
 
-
-def transform(raw_vulnerabilities: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    result: list[dict[str, Any]] = []
-    for vulnerability in raw_vulnerabilities:
-        vulnerability_id = vulnerability.get("cve")
-        cve_id = (
-            vulnerability_id.upper()
-            if vulnerability_id and vulnerability_id.upper().startswith("CVE-")
-            else None
-        )
-        package = vulnerability.get("package") or {}
-        image = vulnerability.get("image") or {}
-        code_owner = vulnerability.get("codeOwner") or {}
-        result.append(
-            {
-                "id": vulnerability["id"],
-                "vulnerability_id": vulnerability_id,
-                "cve_id": cve_id,
-                "has_cve": str(cve_id is not None).lower(),
-                "severity": vulnerability.get("severity"),
-                "status": _normalize_status(vulnerability.get("status")),
-                "sweet_score": vulnerability.get("sweetScore"),
-                "sweet_severity": vulnerability.get("sweetSeverity"),
-                "epss_score": vulnerability.get("epssScore"),
-                "epss_percentile": vulnerability.get("epssPercentile"),
-                "risk_indicators": vulnerability.get("riskIndicators"),
-                "attack_labels": vulnerability.get("attackLabels"),
-                "published_date": vulnerability.get("publishedDate"),
-                "first_detected": vulnerability.get("firstDetected"),
-                "last_detected": vulnerability.get("lastDetected"),
-                "last_loaded": vulnerability.get("lastLoaded"),
-                "last_executed": vulnerability.get("lastExecuted"),
-                "has_fix": vulnerability.get("hasFix"),
-                "fixed_in_versions": vulnerability.get("fixedInVersions"),
-                "package_name": package.get("name"),
-                "package_version": package.get("version"),
-                "package_manager": package.get("manager"),
-                "image_name": image.get("name"),
-                "image_tag": image.get("tag"),
-                "image_digest": image.get("digest"),
-                "image_registry": image.get("registry"),
-                "affected_image_digest": _image_digest_for_match(image.get("digest")),
-                "workload": vulnerability.get("workload"),
-                "cloud_account": vulnerability.get("cloudAccount"),
-                "code_owner_name": code_owner.get("name"),
-                "code_owner_email": code_owner.get("email"),
-            },
-        )
-    return result
+    def is_new_or_higher_epss(self, vulnerability: dict[str, Any]) -> bool:
+        epss_score = vulnerability["epss_score"]
+        score = -1.0 if epss_score is None else epss_score
+        loaded = self.loaded_epss_scores.get(vulnerability["id"])
+        if loaded is not None and score <= loaded:
+            return False
+        self.loaded_epss_scores[vulnerability["id"]] = score
+        return True
 
 
 @timeit
 def load_vulnerabilities(
     neo4j_session: neo4j.Session,
-    vulnerabilities: Iterable[dict[str, Any]],
+    vulnerabilities: list[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
@@ -121,10 +103,147 @@ def load_vulnerabilities(
 
 
 @timeit
+def load_finding_contents(
+    neo4j_session: neo4j.Session,
+    contents: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        SweetFindingContentSchema(),
+        contents,
+        lastupdated=update_tag,
+        SWEET_TENANT_ID=tenant_id,
+    )
+
+
+@timeit
+def load_finding_sets(
+    neo4j_session: neo4j.Session,
+    finding_sets: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        SweetFindingSetSchema(),
+        finding_sets,
+        lastupdated=update_tag,
+        SWEET_TENANT_ID=tenant_id,
+    )
+
+
+@timeit
+def load_finding_set_contents(
+    neo4j_session: neo4j.Session,
+    finding_set_slots: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    load_matchlinks(
+        neo4j_session,
+        SweetFindingSetToContentMatchLink(),
+        finding_set_slots,
+        lastupdated=update_tag,
+        _sub_resource_label="SweetTenant",
+        _sub_resource_id=tenant_id,
+    )
+
+
+@timeit
+def load_workload_findings(
+    neo4j_session: neo4j.Session,
+    workload_findings: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        SweetWorkloadFindingsSchema(),
+        workload_findings,
+        lastupdated=update_tag,
+        SWEET_TENANT_ID=tenant_id,
+    )
+
+
+def _batches_of_detections(
+    rows: Iterable[dict[str, Any]],
+    detections_key: str,
+) -> Iterator[list[dict[str, Any]]]:
+    batch: list[dict[str, Any]] = []
+    batch_detections = 0
+    for row in rows:
+        if batch and batch_detections + len(row[detections_key]) > DETECTIONS_PER_WRITE:
+            yield batch
+            batch, batch_detections = [], 0
+        batch.append(row)
+        batch_detections += len(row[detections_key])
+    if batch:
+        yield batch
+
+
+def _load_page(
+    neo4j_session: neo4j.Session,
+    page: list[dict[str, Any]],
+    state: _SyncState,
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    vulnerabilities: list[dict[str, Any]] = []
+    for raw in page:
+        vulnerability = transform_vulnerability(raw, tenant_id)
+        if vulnerability and state.is_new_or_higher_epss(vulnerability):
+            vulnerabilities.append(vulnerability)
+        content = transform_content(raw, tenant_id)
+        state.contents.setdefault(content["id"], content)
+        state.finding_sets.add(raw, content["id"])
+    load_vulnerabilities(neo4j_session, vulnerabilities, tenant_id, update_tag)
+
+
+def _load_finding_sets(
+    neo4j_session: neo4j.Session,
+    state: _SyncState,
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    finding_sets, finding_set_slots, workload_findings = state.finding_sets.build()
+    contained = {slot["contentid"] for slot in finding_set_slots}
+    contents = [state.contents[content_id] for content_id in contained]
+    state.contents.clear()
+    logger.info(
+        "Loading %d Sweet finding contents in %d sets for %d workloads.",
+        len(contents),
+        len(finding_sets),
+        len(workload_findings),
+    )
+    load_finding_contents(neo4j_session, contents, tenant_id, update_tag)
+    for batch in _batches_of_detections(finding_sets, "content_ids"):
+        load_finding_sets(neo4j_session, batch, tenant_id, update_tag)
+    load_finding_set_contents(neo4j_session, finding_set_slots, tenant_id, update_tag)
+    for batch in _batches_of_detections(workload_findings, "finding_ids"):
+        load_workload_findings(neo4j_session, batch, tenant_id, update_tag)
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
+    # A workload that Sweet stopped reporting takes only its own node with it; its set
+    # and contents go once no workload reports them.
+    for schema in (
+        SweetWorkloadFindingsSchema(),
+        SweetFindingSetSchema(),
+        SweetFindingContentSchema(),
+    ):
+        GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
+    GraphJob.from_matchlink(
+        SweetFindingSetToContentMatchLink(),
+        "SweetTenant",
+        common_job_parameters["SWEET_TENANT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
     GraphJob.from_node_schema(
         SweetVulnerabilitySchema(),
         common_job_parameters,
@@ -140,17 +259,12 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    # A large tenant has hundreds of thousands of active vulnerabilities, so each
-    # page is transformed as it arrives and load batches them, instead of holding
-    # every raw and transformed record at once.
-    load_vulnerabilities(
-        neo4j_session,
-        (
-            vulnerability
-            for page in get(session, api_url)
-            for vulnerability in transform(page)
-        ),
-        tenant_id,
-        update_tag,
-    )
+    # A large tenant reports hundreds of millions of detections, mostly the same
+    # findings on workloads that run the same images. Vulnerabilities load as each
+    # page arrives; contents and workload sets load once every page has, since a
+    # workload's detections are spread across pages.
+    state = _SyncState(finding_sets=WorkloadFindingSets(tenant_id))
+    for page in get(session, api_url):
+        _load_page(neo4j_session, page, state, tenant_id, update_tag)
+    _load_finding_sets(neo4j_session, state, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)

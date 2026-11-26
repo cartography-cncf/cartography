@@ -20,6 +20,7 @@ from tests.data.sweet import GHSA_ID
 from tests.data.sweet import GHSA_VULNERABILITY_ID
 from tests.data.sweet import IMAGE_DIGEST
 from tests.data.sweet import ORG_MANAGEMENT_ACCOUNT_ID
+from tests.data.sweet import SECOND_API_VULNERABILITY_ID
 from tests.data.sweet import TENANT_ID
 from tests.data.sweet import VULNERABILITIES
 from tests.integration.util import check_nodes
@@ -38,17 +39,18 @@ def _delete_test_data(neo4j_session) -> None:
            OR n:SweetAWSAccount
            OR n:SweetAWSOrganization
            OR n:SweetVulnerability
+           OR n:SweetFindingContent
+           OR n:SweetFindingSet
+           OR n:SweetWorkloadFindings
            OR n:SweetAttackChain
            OR (n:AWSAccount AND n.id IN $account_ids)
            OR (n:AWSECRImage AND n.id = $image_id)
            OR (n:AWSDNSRecord AND n.id = $dns_record_id)
-           OR (n:CVE AND n.id = $cve_id)
         DETACH DELETE n
         """,
         account_ids=[ACCOUNT_ID, ORG_MANAGEMENT_ACCOUNT_ID],
         image_id=IMAGE_DIGEST,
         dns_record_id=DNS_RECORD_ID,
-        cve_id=CVE_ID,
     )
     neo4j_session.run(
         "MATCH (n:ModuleSyncMetadata) WHERE n.id IN $ids DETACH DELETE n",
@@ -108,14 +110,6 @@ def _seed_aws_accounts(neo4j_session) -> None:
             {"id": ORG_MANAGEMENT_ACCOUNT_ID, "name": "management", "foreign": None},
         ],
         TEST_UPDATE_TAG,
-    )
-
-
-def _seed_cve(neo4j_session) -> None:
-    neo4j_session.run(
-        "MERGE (c:CVE {id: $id}) SET c.lastupdated = $update_tag",
-        id=CVE_ID,
-        update_tag=TEST_UPDATE_TAG,
     )
 
 
@@ -274,10 +268,12 @@ def test_sync_does_not_store_aws_external_id(neo4j_session, mocker):
     assert result["connections_with_external_id"] == 0
 
 
-def test_sync_links_vulnerabilities_to_cve_and_image(neo4j_session, mocker):
+def test_sync_stores_each_finding_once_for_workloads_that_share_it(
+    neo4j_session,
+    mocker,
+):
     # Arrange
     _seed_aws_accounts(neo4j_session)
-    _seed_cve(neo4j_session)
     _seed_ecr_image(neo4j_session)
     _patch_sweet_api(mocker)
 
@@ -288,38 +284,78 @@ def test_sync_links_vulnerabilities_to_cve_and_image(neo4j_session, mocker):
     assert check_nodes(
         neo4j_session,
         "SweetVulnerability",
-        ["id", "vulnerability_id", "cve_id", "status", "last_loaded"],
+        ["id", "cve_id", "severity", "epss_score"],
     ) == {
-        (CVE_VULNERABILITY_ID, CVE_ID, CVE_ID, "open", "2026-11-14T12:00:00Z"),
-        (GHSA_VULNERABILITY_ID, GHSA_ID, None, "ignored", None),
+        (f"{TENANT_ID}:{CVE_ID}", CVE_ID, "critical", 0.9),
+        (f"{TENANT_ID}:{GHSA_ID}", None, "medium", None),
     }
     assert check_rels(
         neo4j_session,
+        "SweetFindingContent",
+        "package_name",
         "SweetVulnerability",
-        "id",
-        "CVE",
-        "id",
-        "LINKED_TO",
-    ) == {(CVE_VULNERABILITY_ID, CVE_ID)}
+        "vulnerability_id",
+        "HAS_VULNERABILITY",
+    ) == {("xz-utils", CVE_ID), ("example-lib", GHSA_ID)}
     assert check_rels(
         neo4j_session,
-        "SweetVulnerability",
-        "id",
+        "SweetFindingContent",
+        "cve_id",
         "AWSECRImage",
         "id",
         "AFFECTS",
-    ) == {(CVE_VULNERABILITY_ID, IMAGE_DIGEST)}
+    ) == {(CVE_ID, IMAGE_DIGEST)}
+    result = neo4j_session.run(
+        """
+        MATCH (w:SweetWorkloadFindings)-[r:HAS_FINDING_SET]->(s:SweetFindingSet)
+              -[:CONTAINS]->(c:SweetFindingContent)
+        WHERE s.id = w.finding_set_id
+        RETURN w.workload AS workload, s.id AS set_id, c.status AS status,
+               r.finding_ids AS finding_ids, r.last_loaded_ms AS last_loaded_ms
+        """,
+    )
+    records = list(result)
+    assert len(records) == 3
+    rows = {row["workload"]: row for row in records}
+    assert rows["api"]["set_id"] == rows["api-2"]["set_id"]
+    assert rows["worker"]["set_id"] != rows["api"]["set_id"]
+    assert {(w, row["finding_ids"][0], row["status"]) for w, row in rows.items()} == {
+        ("api", CVE_VULNERABILITY_ID, "open"),
+        ("api-2", SECOND_API_VULNERABILITY_ID, "open"),
+        ("worker", GHSA_VULNERABILITY_ID, "ignored"),
+    }
+    assert rows["api"]["last_loaded_ms"] == [1794657600000]
     assert check_rels(
         neo4j_session,
         "SweetTenant",
         "id",
-        "SweetVulnerability",
-        "id",
+        "SweetWorkloadFindings",
+        "workload",
         "RESOURCE",
-    ) == {
-        (TENANT_ID, CVE_VULNERABILITY_ID),
-        (TENANT_ID, GHSA_VULNERABILITY_ID),
+    ) == {(TENANT_ID, "api"), (TENANT_ID, "api-2"), (TENANT_ID, "worker")}
+
+
+def test_sync_stores_only_the_latest_content_of_a_detection_returned_twice(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    rescored_earlier = {
+        **VULNERABILITIES[0],
+        "sweetScore": 7.0,
+        "lastDetected": "2026-11-14T00:00:00Z",
     }
+    _patch_sweet_api(mocker, vulnerabilities=[rescored_earlier, *VULNERABILITIES])
+
+    # Act
+    cartography.intel.sweet.start_sweet_ingestion(neo4j_session, _config())
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "SweetFindingContent",
+        ["package_name", "sweet_score"],
+    ) == {("xz-utils", 9.1), ("example-lib", None)}
 
 
 def test_sync_labels_only_cve_backed_vulnerabilities_as_cve(neo4j_session, mocker):
@@ -333,10 +369,11 @@ def test_sync_labels_only_cve_backed_vulnerabilities_as_cve(neo4j_session, mocke
     assert check_nodes(
         neo4j_session,
         "SweetVulnerability:CVE",
-        ["id", "_ont_cve_id", "_ont_base_severity", "_ont_vuln_status"],
+        ["id", "_ont_cve_id", "_ont_base_severity"],
     ) == {
-        (CVE_VULNERABILITY_ID, CVE_ID, "critical", "open"),
+        (f"{TENANT_ID}:{CVE_ID}", CVE_ID, "critical"),
     }
+    assert check_nodes(neo4j_session, "SweetFindingContent:CVE", ["id"]) == set()
 
 
 def test_sync_links_attack_chains_to_dns_records(neo4j_session, mocker):
@@ -384,9 +421,24 @@ def test_sync_removes_findings_missing_from_a_later_sync(neo4j_session, mocker):
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "SweetVulnerability", ["id"]) == {
-        (CVE_VULNERABILITY_ID,),
+    assert check_nodes(neo4j_session, "SweetVulnerability", ["cve_id"]) == {
+        (CVE_ID,),
     }
+    assert check_nodes(neo4j_session, "SweetWorkloadFindings", ["workload"]) == {
+        ("api",),
+    }
+    assert check_nodes(neo4j_session, "SweetFindingContent", ["package_name"]) == {
+        ("xz-utils",),
+    }
+    assert len(check_nodes(neo4j_session, "SweetFindingSet", ["id"])) == 1
+    assert check_rels(
+        neo4j_session,
+        "SweetWorkloadFindings",
+        "workload",
+        "SweetFindingSet",
+        "lastupdated",
+        "HAS_FINDING_SET",
+    ) == {("api", TEST_UPDATE_TAG + 1)}
     assert check_nodes(neo4j_session, "SweetAttackChain", ["id"]) == set()
 
 
