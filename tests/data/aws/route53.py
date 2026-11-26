@@ -346,6 +346,44 @@ GET_ZONES_MIXED_CASE_ALIAS_RESPONSE = [
     ),
 ]
 
+# ALIAS and CNAME records targeting the CloudFront distribution in
+# tests.data.aws.cloudfront.CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN
+# (domain d5555555555555.cloudfront.net). Z2FDTNDATAQYW2 is the hosted zone ID
+# that Route53 reports for CloudFront alias targets.
+GET_ZONES_CLOUDFRONT_RELATIONSHIP_TEST_RECORDS = [
+    (
+        {
+            "CallerReference": "cloudfront-test-ref-123",
+            "Config": {
+                "PrivateZone": False,
+            },
+            "Id": "/hostedzone/CLOUDFRONT_TEST_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 2,
+        },
+        [
+            {
+                "Name": "cdn.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "Z2FDTNDATAQYW2",
+                    "DNSName": "d5555555555555.cloudfront.net.",
+                    "EvaluateTargetHealth": False,
+                },
+                "TTL": 60,
+                "Type": "A",
+            },
+            {
+                "Name": "cdn2.example.com.",
+                "ResourceRecords": [
+                    {"Value": "d5555555555555.cloudfront.net"},
+                ],
+                "TTL": 300,
+                "Type": "CNAME",
+            },
+        ],
+    ),
+]
+
 # Route53 returns `*` and other special characters in record names as `\ddd` octal escapes.
 GET_ZONES_WILDCARD_RESPONSE = [
     (
