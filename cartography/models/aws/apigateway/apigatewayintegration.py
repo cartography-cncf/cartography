@@ -38,6 +38,15 @@ class APIGatewayIntegrationNodeProperties(CartographyNodeProperties):
         "uri",
         description="Specifies Uniform Resource Identifier (URI) of the integration endpoint",
     )
+    lambda_function_arn: PropertyRef = PropertyRef(
+        "lambda_function_arn",
+        extra_index=True,
+        description=(
+            "ARN of the Lambda function this integration invokes, parsed from the"
+            " integration uri. Null for non-Lambda integrations (HTTP backends or"
+            " direct AWS service integrations)."
+        ),
+    )
     connection_type: PropertyRef = PropertyRef(
         "connectionType",
         description="The type of the network connection to the integration endpoint",
@@ -70,6 +79,25 @@ class APIGatewayIntegrationToAPIGatewayResourceRel(CartographyRelSchema):
     rel_label: str = "HAS_INTEGRATION"
     properties: APIGatewayIntegrationToAPIGatewayResourceRelRelProperties = (
         APIGatewayIntegrationToAPIGatewayResourceRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class APIGatewayIntegrationToLambdaRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:AWSAPIGatewayIntegration)-[:INTEGRATES_WITH]->(:AWSLambda)
+class APIGatewayIntegrationToLambdaRel(CartographyRelSchema):
+    target_node_label: str = "AWSLambda"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("lambda_function_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INTEGRATES_WITH"
+    properties: APIGatewayIntegrationToLambdaRelRelProperties = (
+        APIGatewayIntegrationToLambdaRelRelProperties()
     )
 
 
@@ -108,5 +136,8 @@ class APIGatewayIntegrationSchema(CartographyNodeSchema):
         APIGatewayIntegrationToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [APIGatewayIntegrationToAPIGatewayResourceRel()],
+        [
+            APIGatewayIntegrationToAPIGatewayResourceRel(),
+            APIGatewayIntegrationToLambdaRel(),
+        ],
     )

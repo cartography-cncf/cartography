@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from botocore.exceptions import ClientError
 
 import tests.data.aws.apigateway as test_data
@@ -100,3 +101,32 @@ def test_get_rest_api_client_certificate_no_cert_stages():
 
     assert response is None
     mock_client.get_client_certificate.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "uri,expected",
+    [
+        (
+            "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:123456789012:function:my-func/invocations",
+            "arn:aws:lambda:us-east-1:123456789012:function:my-func",
+        ),
+        (
+            "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:123456789012:function:my-func:PROD/invocations",
+            "arn:aws:lambda:us-east-1:123456789012:function:my-func",
+        ),
+        (
+            "arn:aws-us-gov:apigateway:us-gov-west-1:lambda:path/2015-03-31/functions/arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:f/invocations",
+            "arn:aws-us-gov:lambda:us-gov-west-1:123456789012:function:f",
+        ),
+        ("https://backend.example.com/api", None),
+        ("arn:aws:apigateway:us-east-1:dynamodb:action/PutItem", None),
+        (None, None),
+        ("", None),
+    ],
+)
+def test_extract_lambda_arn_from_integration_uri(uri, expected):
+    from cartography.intel.aws.apigateway import (
+        _extract_lambda_arn_from_integration_uri,
+    )
+
+    assert _extract_lambda_arn_from_integration_uri(uri) == expected

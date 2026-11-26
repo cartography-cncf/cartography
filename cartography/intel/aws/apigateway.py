@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 from typing import Dict
 from typing import List
@@ -320,6 +321,26 @@ def transform_apigateway_certificates(
     return cert_data
 
 
+_LAMBDA_ARN_IN_URI = re.compile(
+    r"(arn:[^:\s]+:lambda:[^:\s]+:\d{12}:function:[^/:\s]+)",
+)
+
+
+def _extract_lambda_arn_from_integration_uri(uri: str | None) -> str | None:
+    """Return the Lambda function ARN embedded in an API Gateway integration uri.
+
+    Lambda integration uris look like
+    ``arn:aws:apigateway:REGION:lambda:path/2015-03-31/functions/<function-arn>/invocations``.
+    Any qualifier suffix (alias/version) on the function ARN is dropped so the
+    result matches ``AWSLambda.arn`` (the unqualified ``FunctionArn``). Non-Lambda
+    uris (HTTP backends, direct AWS service integrations) return ``None``.
+    """
+    if not uri:
+        return None
+    match = _LAMBDA_ARN_IN_URI.search(uri)
+    return match.group(1) if match else None
+
+
 def transform_rest_api_details(
     stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any, Any, Any]],
 ) -> Tuple[List[Dict], List[Dict], List[Dict], List[Dict], List[Dict]]:
@@ -383,6 +404,9 @@ def transform_rest_api_details(
                     )
                 integration["type"] = integration.get("type")
                 integration["uri"] = integration.get("uri")
+                integration["lambda_function_arn"] = (
+                    _extract_lambda_arn_from_integration_uri(integration["uri"])
+                )
                 integration["connectionType"] = integration.get("connectionType")
                 integration["connectionId"] = integration.get("connectionId")
                 integration["credentials"] = integration.get("credentials")
