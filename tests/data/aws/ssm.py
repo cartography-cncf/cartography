@@ -1,6 +1,9 @@
 import datetime
 from datetime import timezone as tz
 
+SSM_PARAMETER_TAGS = [{"Key": "Purpose", "Value": "cartography-test"}]
+
+
 INSTANCE_INFORMATION = [
     {
         "InstanceId": "i-01",

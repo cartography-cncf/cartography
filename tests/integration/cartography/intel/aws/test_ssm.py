@@ -192,11 +192,20 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
 @patch.object(cartography.intel.aws.ssm, "get_instance_patches", return_value=[])
 @patch.object(
     cartography.intel.aws.ssm,
+    "get_ssm_parameter_tags",
+    return_value=[
+        {**parameter, "Tags": tests.data.aws.ssm.SSM_PARAMETER_TAGS}
+        for parameter in tests.data.aws.ssm.SSM_PARAMETERS_DATA
+    ],
+)
+@patch.object(
+    cartography.intel.aws.ssm,
     "get_ssm_parameters",
     return_value=tests.data.aws.ssm.SSM_PARAMETERS_DATA,
 )
 def test_load_ssm_parameters(
     mock_get_ssm_parameters,
+    mock_get_ssm_parameter_tags,
     mock_get_instance_patches,
     mock_get_instance_information,
     mock_get_instance_ids,
@@ -240,6 +249,7 @@ def test_load_ssm_parameters(
                     },
                 ]
             ),
+            json.dumps(tests.data.aws.ssm.SSM_PARAMETER_TAGS),
             TEST_REGION_FOR_KMS,
             TEST_UPDATE_TAG,
         ),
@@ -259,6 +269,7 @@ def test_load_ssm_parameters(
                     }
                 ]
             ),
+            json.dumps(tests.data.aws.ssm.SSM_PARAMETER_TAGS),
             TEST_REGION_FOR_KMS,
             TEST_UPDATE_TAG,
         ),
@@ -275,6 +286,7 @@ def test_load_ssm_parameters(
             "description",
             "allowedpattern",
             "policies_json",
+            "tags",
             "region",
             "lastupdated",
         ],
