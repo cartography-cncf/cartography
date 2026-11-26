@@ -399,6 +399,51 @@ def _cleanup_reads_the_failed_result(server_failure):
     return _rolling_back(transaction_function, server_failure)
 
 
+def _transaction_function_raises_its_own_error_from_the_failure(server_failure):
+    def transaction_function():
+        try:
+            raise server_failure
+        except neo4j.exceptions.Neo4jError as failure:
+            raise ValueError("abort this operation") from failure
+
+    return _rolling_back(transaction_function, server_failure)
+
+
+def _cleanup_runs_another_query(server_failure):
+    def transaction_function():
+        try:
+            raise server_failure
+        finally:
+            raise neo4j.exceptions.TransactionError(
+                MagicMock(), "Transaction failed"
+            ) from server_failure
+
+    return _rolling_back(transaction_function, server_failure)
+
+
+def _cleanup_reads_a_result_that_failed_for_another_reason(server_failure):
+    def transaction_function():
+        try:
+            raise server_failure
+        finally:
+            raise _failed_result() from _create_client_error(
+                "Neo.ClientError.Statement.SyntaxError"
+            )
+
+    return _rolling_back(transaction_function, server_failure)
+
+
+def _failed_result_that_is_its_own_context(server_failure):
+    failed_result = _failed_result()
+    failed_result.__cause__ = server_failure
+    failed_result.__context__ = failed_result
+
+    def operation():
+        raise failed_result
+
+    return operation
+
+
 def _failed_result_read_later(server_failure):
     def operation():
         raise _failed_result() from server_failure
@@ -425,12 +470,14 @@ def _transaction_function_raises_its_own_error(server_failure):
             _create_client_error("Neo.ClientError.Statement.EntityNotFound"),
         ),
         (_cleanup_reads_the_failed_result, _create_deadlock_error()),
+        (_cleanup_runs_another_query, _create_deadlock_error()),
         (_failed_result_read_later, _create_deadlock_error()),
     ],
     ids=[
         "deadlock-as-the-query-starts",
         "entity-not-found-as-the-query-starts",
         "cleanup-reads-the-failed-result",
+        "cleanup-runs-another-query",
         "failed-result-read-later",
     ],
 )
@@ -462,12 +509,31 @@ def test_retries_server_failure_the_driver_raises_as_a_failed_result(
             _transaction_function_raises_its_own_error(_create_deadlock_error()),
             neo4j.exceptions.ResultFailedError,
         ),
+        (
+            _transaction_function_raises_its_own_error_from_the_failure(
+                _create_deadlock_error()
+            ),
+            neo4j.exceptions.ResultFailedError,
+        ),
+        (
+            _cleanup_reads_a_result_that_failed_for_another_reason(
+                _create_deadlock_error()
+            ),
+            neo4j.exceptions.ResultFailedError,
+        ),
+        (
+            _failed_result_that_is_its_own_context(_create_deadlock_error()),
+            neo4j.exceptions.ResultFailedError,
+        ),
     ],
     ids=[
         "non-retryable-server-failure",
         "no-server-failure",
         "failure-outside-the-server",
         "transaction-function-raised-its-own-error",
+        "transaction-function-raised-its-own-error-from-the-failure",
+        "cleanup-read-a-result-that-failed-for-another-reason",
+        "failed-result-is-its-own-context",
     ],
 )
 def test_raises_failed_result_that_a_retry_cannot_fix(failing_operation, raised):

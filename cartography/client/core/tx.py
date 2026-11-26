@@ -234,20 +234,27 @@ def _hidden_server_failure(
     """
     Return the server's failure that the driver raised this failed result in place of.
 
-    None when the transaction was already failing for another reason: a transaction
-    function that caught the server's failure and raised its own error made a decision
-    that a retry must not overrule. Failed results raised on the way, such as by cleanup
-    that reads an earlier result of the same transaction, are not another reason.
+    None unless every error the transaction was failing for leads back to that one
+    failure. A transaction function that caught it and raised its own error made a
+    decision that a retry must not overrule, and so did a caller that was already
+    handling another error. Errors the driver raises on the way for the same failure,
+    such as when cleanup reads an earlier result or runs another query, do not count.
     """
     cause = exc.__cause__
     if not isinstance(cause, neo4j.exceptions.Neo4jError):
         return None
+    seen = {id(exc)}
     failing_for = exc.__context__
-    while isinstance(failing_for, neo4j.exceptions.ResultFailedError):
+    while failing_for is not None and failing_for is not cause:
+        if (
+            id(failing_for) in seen
+            or not isinstance(failing_for, neo4j.exceptions.DriverError)
+            or failing_for.__cause__ is not cause
+        ):
+            return None
+        seen.add(id(failing_for))
         failing_for = failing_for.__context__
-    if failing_for is None or failing_for is cause:
-        return cause
-    return None
+    return cause
 
 
 def _call_raising_server_failure(operation: Callable[[], T]) -> T:
