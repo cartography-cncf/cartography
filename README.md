@@ -100,7 +100,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Anthropic](https://docs.cartography.dev/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://docs.cartography.dev/modules/bigfix/index.html) - Computers
 - [Cloudflare](https://docs.cartography.dev/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
-- [Crowdstrike Falcon](https://docs.cartography.dev/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
+- [CrowdStrike Falcon](https://docs.cartography.dev/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
 - [DigitalOcean](https://docs.cartography.dev/modules/digitalocean/index.html)
 - [Duo](https://docs.cartography.dev/modules/duo/index.html) - Users, Groups, Endpoints
 - [GitHub](https://docs.cartography.dev/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies, organization and repository security settings, verified domains, installed GitHub Apps, webhooks
@@ -108,11 +108,11 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Google Workspace](https://docs.cartography.dev/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
 - [Huntress](https://docs.cartography.dev/modules/huntress/index.html) - accounts, organizations, agents, incident reports, console users and roles
 - [Jira Cloud](https://docs.cartography.dev/modules/jira/index.html) - users, groups, project roles, permission grants, and API-reported admin groups
-- [Jumpcloud](https://docs.cartography.dev/modules/jumpcloud/index.html)
+- [JumpCloud](https://docs.cartography.dev/modules/jumpcloud/index.html)
 - [Kandji](https://docs.cartography.dev/modules/kandji/index.html) - Devices
 - [Keycloak](https://docs.cartography.dev/modules/keycloak/index.html) - Realms, Users, Groups, Roles, Scopes, Clients, IdentityProviders, Authentication Flows, Authentication Executions, Organizations, Organization Domains
 - [Kubernetes](https://docs.cartography.dev/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container, ServiceAccount, Role, RoleBinding, ClusterRole, ClusterRoleBinding, OIDCProvider
-- [Lastpass](https://docs.cartography.dev/modules/lastpass/index.html) - users
+- [LastPass](https://docs.cartography.dev/modules/lastpass/index.html) - users
 - [Microsoft Azure](https://docs.cartography.dev/modules/azure/index.html) - App Service, Container Instance, CosmosDB, Data Factory, Event Grid, Firewall, Firewall Policy, Functions, Key Vault, Azure Kubernetes Service (AKS), Load Balancer, Logic Apps, Management Groups, Resource Group, SQL, Storage, Virtual Machine, Virtual Networks
 - [Microsoft](https://docs.cartography.dev/modules/microsoft/index.html) - Entra ID users, groups, applications and roles; Intune devices and policies; Office 365 licenses; Defender for Endpoint machines and unresolved alerts
 - [CVE Metadata](https://docs.cartography.dev/modules/cve_metadata/index.html) - CVE enrichment with CVSS scores from NVD, EPSS scores from FIRST.org, known exploited vulnerabilities from the CISA KEV catalog, and SSVC decisions from CISA Vulnrichment
@@ -133,7 +133,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [SnipeIT](https://docs.cartography.dev/modules/snipeit/index.html) - Users, Assets
 - [Snowflake](https://docs.cartography.dev/modules/snowflake/index.html) - Accounts, Users, Service Users, Roles, Database Roles, Grants, Role Hierarchy, Ownership, Programmatic Access Tokens, Credentials, Warehouses, Compute Pools, Resource Monitors, Databases, Schemas, Tables, Views, Iceberg Tables, Dynamic Tables, Streams, Tasks, Pipes, Stages, External Volumes, Secrets, Network Policies, Network Rules, Policies, Integrations (Security, Storage, API, Catalog, Notification, External Access), Services, Image Repositories, Notebooks, Streamlits, Shares, Listings, Replication Groups
 - [Socket.dev](https://docs.cartography.dev/modules/socketdev/index.html) - Organizations, Repositories, Dependencies, Security Alerts (CVE, malware, supply chain risks), Fixes
-- [Spacelift](https://docs.cartography.dev/modules/spacelift/index.html) - Accounts, Spaces,Users, Stacks, WorkerPools, Workers, Runs, GitCommits
+- [Spacelift](https://docs.cartography.dev/modules/spacelift/index.html) - Accounts, Spaces, Users, Stacks, WorkerPools, Workers, Runs, GitCommits
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework
 - [Sweet Security](https://docs.cartography.dev/modules/sweet/index.html) - AWS account and organization connections, runtime vulnerabilities with whether the vulnerable package is loaded or executed, attack chains
 - [Tailscale](https://docs.cartography.dev/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations, DevicePostures, DevicePostureConditions, device posture compliance relationships
