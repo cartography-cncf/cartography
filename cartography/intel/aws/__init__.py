@@ -181,7 +181,12 @@ def _sync_one_account(
         ],
         # `wafv2` creates PROTECTS edges by matching already-loaded load balancers,
         # API Gateway stages, and CloudFront distributions.
-        "wafv2": ["ec2:load_balancer_v2", "apigateway", "cloudfront"],
+        "wafv2": [
+            "ec2:load_balancer_v2",
+            "apigateway",
+            "apigatewayv2",
+            "cloudfront",
+        ],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:

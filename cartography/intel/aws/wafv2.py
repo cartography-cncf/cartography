@@ -49,11 +49,15 @@ def _list_web_acls(client: Any, scope: str) -> list[dict[str, Any]]:
     return web_acls
 
 
-def _get_alb_arns_for_web_acl(client: Any, web_acl_arn: str) -> list[str]:
+def _get_resource_arns_for_web_acl(
+    client: Any,
+    web_acl_arn: str,
+    resource_type: str,
+) -> list[str]:
     try:
         response = client.list_resources_for_web_acl(
             WebACLArn=web_acl_arn,
-            ResourceType="APPLICATION_LOAD_BALANCER",
+            ResourceType=resource_type,
         )
     except botocore.exceptions.ClientError as e:
         if e.response["Error"]["Code"] == "WAFNonexistentItemException":
@@ -76,13 +80,16 @@ def get_web_acls(
 ) -> list[dict[str, Any]]:
     """
     Get WAFv2 web ACLs for the given scope, including the ARNs of the
-    application load balancers each REGIONAL web ACL protects.
+    application load balancers and API Gateway v2 stages each REGIONAL web ACL
+    protects.
 
-    API Gateway stages and CloudFront distributions are not fetched here:
+    REST API Gateway stages and CloudFront distributions are not fetched here:
     their nodes already carry the associated web ACL ARN (webaclarn and
-    web_acl_id respectively), so those relationships are resolved at load
-    time by matching on existing node properties. Those edges are therefore
-    only as fresh as the last apigateway and cloudfront syncs.
+    web_acl_id respectively), so those relationships are resolved at load time
+    by matching on existing node properties, and are only as fresh as the last
+    apigateway and cloudfront syncs. API Gateway v2 stages cannot resolve that
+    way because the apigatewayv2 GetStages response carries no web ACL ARN,
+    so their associations are fetched here from the WAF side instead.
     """
     client = create_boto3_client(
         boto3_session,
@@ -93,7 +100,16 @@ def get_web_acls(
     web_acls = _list_web_acls(client, scope)
     if scope == "REGIONAL":
         for web_acl in web_acls:
-            web_acl["AlbArns"] = _get_alb_arns_for_web_acl(client, web_acl["ARN"])
+            web_acl["AlbArns"] = _get_resource_arns_for_web_acl(
+                client,
+                web_acl["ARN"],
+                "APPLICATION_LOAD_BALANCER",
+            )
+            web_acl["ApiGatewayStageArns"] = _get_resource_arns_for_web_acl(
+                client,
+                web_acl["ARN"],
+                "API_GATEWAY",
+            )
     return web_acls
 
 
@@ -111,6 +127,7 @@ def transform_web_acls(
                 "Description": web_acl.get("Description"),
                 "Scope": scope,
                 "AlbArns": web_acl.get("AlbArns", []),
+                "ApiGatewayStageArns": web_acl.get("ApiGatewayStageArns", []),
             }
         )
     return transformed
