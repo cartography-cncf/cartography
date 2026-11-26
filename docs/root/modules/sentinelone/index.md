@@ -5,10 +5,11 @@ inventory, installed application versions, and application vulnerability
 findings. Data can be synced by account or by site for site-scoped MSSP
 deployments.
 
-SentinelOne accounts participate in the ontology as tenants, and application
-findings participate in cross-tool vulnerability queries. Agent records can
-also contribute data to canonical ontology `Device` nodes by matching endpoint
-serial numbers.
+SentinelOne accounts participate in the ontology as tenants. Each CVE that an
+account's application findings report is one `S1Vulnerability` node labeled
+`CVE`, which places SentinelOne in cross-tool vulnerability queries; each
+finding links to its CVE through `HAS_VULNERABILITY`. Agent records can also contribute data to
+canonical ontology `Device` nodes by matching endpoint serial numbers.
 
 ## Site-scoped ingestion
 

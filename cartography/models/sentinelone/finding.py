@@ -11,7 +11,6 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RISK
-from cartography.models.ontology.labels import CVE
 from cartography.models.sentinelone.extra_labels import S1_FINDING
 
 
@@ -27,10 +26,6 @@ class S1AppFindingNodeProperties(CartographyNodeProperties):
         "cve_id",
         extra_index=True,
         description="CVE identifier associated with the finding.",
-    )
-    severity: PropertyRef = PropertyRef(
-        "severity",
-        description="Finding severity.",
     )
     days_detected: PropertyRef = PropertyRef(
         "days_detected",
@@ -84,17 +79,23 @@ class S1AppFindingNodeProperties(CartographyNodeProperties):
         "reason",
         description="Reason recorded for the finding.",
     )
+    # DEPRECATED: SentinelOne reports these per CVE, so they moved to S1Vulnerability.
+    # Findings keep a copy for existing queries; will be removed in v1.0.0.
+    severity: PropertyRef = PropertyRef(
+        "severity",
+        description="Deprecated. Read `severity` on the finding's `S1Vulnerability`.",
+    )
     remediation_level: PropertyRef = PropertyRef(
         "remediation_level",
-        description="Required remediation level.",
+        description="Deprecated. Read `remediation_level` on the finding's `S1Vulnerability`.",
     )
     risk_score: PropertyRef = PropertyRef(
         "risk_score",
-        description="SentinelOne risk score.",
+        description="Deprecated. Read `risk_score` on the finding's `S1Vulnerability`.",
     )
     report_confidence: PropertyRef = PropertyRef(
         "report_confidence",
-        description="Confidence level of the finding report.",
+        description="Deprecated. Read `report_confidence` on the finding's `S1Vulnerability`.",
     )
 
 
@@ -157,13 +158,34 @@ class S1AppFindingToAgentRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class S1AppFindingToCVERelProperties(CartographyRelProperties):
+class S1AppFindingToVulnerabilityRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
+class S1AppFindingToVulnerabilityRel(CartographyRelSchema):
+    """Links a finding to the CVE it reports."""
+
+    target_node_label: str = "S1Vulnerability"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("vulnerability_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_VULNERABILITY"
+    properties: S1AppFindingToVulnerabilityRelProperties = (
+        S1AppFindingToVulnerabilityRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class S1AppFindingToCVERelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# DEPRECATED: HAS_VULNERABILITY to S1Vulnerability replaces this edge; will be removed in v1.0.0.
+@dataclass(frozen=True)
 class S1AppFindingToCVERel(CartographyRelSchema):
-    """Links a SentinelOne finding to its generic CVE definition."""
+    """Deprecated. Links a SentinelOne finding to any `:CVE` node whose `id` is its CVE identifier. Use `HAS_VULNERABILITY` to `S1Vulnerability` instead."""
 
     target_node_label: str = "CVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -176,16 +198,21 @@ class S1AppFindingToCVERel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S1AppFindingSchema(CartographyNodeSchema):
-    """A vulnerability finding for software on a SentinelOne endpoint."""
+    """A vulnerability finding for software on a SentinelOne endpoint.
+
+    A finding is not itself labeled [`CVE`](#ontology-cve): the `S1Vulnerability` it
+    links to carries that label, so each CVE is one node.
+    """
 
     label: str = "S1AppFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([S1_FINDING, RISK, CVE])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([S1_FINDING, RISK])
     properties: S1AppFindingNodeProperties = S1AppFindingNodeProperties()
     sub_resource_relationship: S1AppFindingToAccountRel = S1AppFindingToAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             S1AppFindingToApplicationVersionRel(),
             S1AppFindingToAgentRel(),
+            S1AppFindingToVulnerabilityRel(),
             S1AppFindingToCVERel(),
         ]
     )

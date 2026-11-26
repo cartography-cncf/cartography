@@ -23,6 +23,7 @@ def _site_scope_http_error() -> requests.HTTPError:
     return requests.HTTPError(response=response)
 
 
+@patch("cartography.intel.sentinelone.finding.migrate_legacy_cve_labels")
 @patch("cartography.intel.sentinelone.merge_module_sync_metadata")
 @patch("cartography.intel.sentinelone.finding.cleanup")
 @patch("cartography.intel.sentinelone.application.cleanup")
@@ -42,6 +43,7 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
     mock_application_cleanup,
     mock_finding_cleanup,
     mock_merge_metadata,
+    mock_migrate_legacy_cve_labels,
     caplog,
 ):
     mock_sync_accounts.side_effect = _site_scope_http_error()
@@ -97,9 +99,12 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
     mock_agent_cleanup.assert_called_once()
     mock_application_cleanup.assert_called_once()
     mock_finding_cleanup.assert_called_once()
+    # Once for the account, not once per site.
+    mock_migrate_legacy_cve_labels.assert_called_once()
     mock_merge_metadata.assert_called_once()
 
 
+@patch("cartography.intel.sentinelone.finding.migrate_legacy_cve_labels")
 @patch("cartography.intel.sentinelone.merge_module_sync_metadata")
 @patch("cartography.intel.sentinelone.finding.cleanup")
 @patch("cartography.intel.sentinelone.application.cleanup")
@@ -119,6 +124,7 @@ def test_start_sentinelone_ingestion_prefers_explicit_site_ids(
     mock_application_cleanup,
     mock_finding_cleanup,
     mock_merge_metadata,
+    mock_migrate_legacy_cve_labels,
 ):
     sync_cleanup_args: list[bool] = []
 
@@ -148,4 +154,7 @@ def test_start_sentinelone_ingestion_prefers_explicit_site_ids(
     mock_agent_cleanup.assert_not_called()
     mock_application_cleanup.assert_not_called()
     mock_finding_cleanup.assert_not_called()
+    # The migration only changes findings this sync linked to their vulnerability,
+    # so it runs even though cleanup does not.
+    mock_migrate_legacy_cve_labels.assert_called_once()
     mock_merge_metadata.assert_called_once()

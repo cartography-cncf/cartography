@@ -371,7 +371,7 @@ sentinelone_mapping = OntologyMapping(
     module_name="sentinelone",
     nodes=[
         OntologyNodeMapping(
-            node_label="S1AppFinding",
+            node_label="S1Vulnerability",
             fields=[
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
                 OntologyFieldMapping(
