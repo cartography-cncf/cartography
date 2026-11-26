@@ -44,11 +44,33 @@ def test_transform_cves_extracts_cvss():
 
 
 def test_transform_cves_parses_dates():
+    # Arrange
     cve_ids_in_graph = {"CVE-2023-41782"}
+
+    # Act
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
     cve = result["CVE-2023-41782"]
-    assert cve["published"] == datetime.fromisoformat("2024-01-05T02:15:07.147")
-    assert cve["lastModified"] == datetime.fromisoformat("2024-01-05T11:54:11.040")
+
+    # Assert: NVD's offset-free timestamps represent UTC instants.
+    assert cve["published"] == datetime.fromisoformat("2024-01-05T02:15:07.147+00:00")
+    assert cve["lastModified"] == datetime.fromisoformat(
+        "2024-01-05T11:54:11.040+00:00"
+    )
+
+
+def test_transform_cves_preserves_explicit_date_offsets():
+    # Arrange
+    data = _fresh_data()
+    value = "2024-01-05T07:45:07.147+05:30"
+    data["vulnerabilities"][0]["cve"].update(published=value, lastModified=value)
+
+    # Act
+    cve = transform_cves(data, {"CVE-2023-41782"})["CVE-2023-41782"]
+
+    # Assert
+    expected = datetime.fromisoformat(value)
+    assert cve["published"] == cve["lastModified"] == expected
+    assert cve["published"].utcoffset() == expected.utcoffset()
 
 
 def test_transform_cves_extracts_kev_fields():
