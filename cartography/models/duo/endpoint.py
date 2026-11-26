@@ -52,7 +52,9 @@ class DuoEndpointNodeProperties(CartographyNodeProperties):
         "domain_sid", description="Active Directory domain security identifier."
     )
     email: PropertyRef = PropertyRef(
-        "email", extra_index=True, description="Associated user email address."
+        "email",
+        extra_index=True,
+        description="Associated user email address. Blank values are omitted.",
     )
     epkey: PropertyRef = PropertyRef(
         "epkey", extra_index=True, description="Duo endpoint key."

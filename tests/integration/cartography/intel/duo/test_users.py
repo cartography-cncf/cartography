@@ -11,12 +11,15 @@ from cartography.intel.duo.users import sync_duo_users
 from cartography.intel.duo.web_authn_credentials import (
     sync as sync_duo_web_authn_credentials,
 )
+from cartography.intel.workday.people import _load_people
+from cartography.intel.workday.people import _transform_people_data
 from tests.data.duo.endpoints import GET_ENDPOINTS_RESPONSE
 from tests.data.duo.groups import GET_GROUPS_RESPONSE
 from tests.data.duo.phones import GET_PHONES_RESPONSE
 from tests.data.duo.tokens import GET_TOKENS_RESPONSE
 from tests.data.duo.users import GET_USERS_RESPONSE
 from tests.data.duo.web_authn_credentials import GET_WEBAUTHNCREDENTIALS_RESPONSE
+from tests.data.workday.people import GET_WORKDAY_DIRECTORY_RESPONSE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -189,3 +192,62 @@ def test_sync_duo_users(neo4j_session):
         ("lmsimpson@simpson.corp", "lmsimpson@simpson.corp"),
         ("bjsimpson@simpson.corp", "bjsimpson@simpson.corp"),
     }
+
+
+def test_sync_duo_users_preserves_padded_human_identity(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
+    email = " Alice@Example.com "
+    people, _ = _transform_people_data(
+        {
+            "Report_Entry": [
+                {
+                    **GET_WORKDAY_DIRECTORY_RESPONSE["Report_Entry"][0],
+                    "Email_-_Work": email,
+                },
+            ],
+        },
+    )
+    _load_people(neo4j_session, people, TEST_UPDATE_TAG)
+    sync_duo_api_host(neo4j_session, COMMON_JOB_PARAMETERS)
+    mock_client = Mock(
+        get_users=Mock(return_value=[{**GET_USERS_RESPONSE[0], "email": email}]),
+    )
+
+    # Act
+    sync_duo_users(mock_client, neo4j_session, COMMON_JOB_PARAMETERS)
+
+    # Assert
+    assert check_nodes(neo4j_session, "Human", ["id", "email"]) == {
+        ("emp001", email),
+    }
+    assert check_nodes(neo4j_session, "DuoUser", ["id"]) == {
+        ("userid1",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "Human",
+        "email",
+        "DuoUser",
+        "email",
+        "IDENTITY_DUO",
+        rel_direction_right=True,
+    ) == {(email, email)}
+
+    # Act
+    sync_duo_users(
+        mock_client,
+        neo4j_session,
+        {**COMMON_JOB_PARAMETERS, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "Human",
+        "email",
+        "DuoUser",
+        "email",
+        "IDENTITY_DUO",
+        rel_direction_right=True,
+    ) == {(email, email)}

@@ -31,7 +31,9 @@ class DuoUserNodeProperties(CartographyNodeProperties):
         "desktoptokens", description="Desktop tokens available to the user."
     )
     email: PropertyRef = PropertyRef(
-        "email", extra_index=True, description="User email address."
+        "email",
+        extra_index=True,
+        description="User email address. Blank values are omitted.",
     )
     firstname: PropertyRef = PropertyRef("firstname", description="User given name.")
     is_enrolled: PropertyRef = PropertyRef(
