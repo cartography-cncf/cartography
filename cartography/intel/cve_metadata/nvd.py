@@ -4,11 +4,11 @@ import os
 import tempfile
 import time
 import zipfile
-from datetime import datetime
 from typing import Any
 
 from requests import Session
 
+from cartography.intel.cve_metadata.util import parse_utc_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -104,20 +104,14 @@ def _get_english_weaknesses(cve: dict[str, Any]) -> list[str]:
     ]
 
 
-def _parse_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    return datetime.fromisoformat(value)
-
-
 def _transform_cve(cve: dict[str, Any]) -> dict[str, Any]:
     transformed = {
         "id": cve["id"],
         "description_en": _get_english_descriptions(cve),
         "references_urls": [ref["url"] for ref in cve.get("references", [])],
         "weaknesses": _get_english_weaknesses(cve),
-        "published": _parse_datetime(cve.get("published")),
-        "lastModified": _parse_datetime(cve.get("lastModified")),
+        "published": parse_utc_datetime(cve.get("published")),
+        "lastModified": parse_utc_datetime(cve.get("lastModified")),
         "vulnStatus": cve.get("vulnStatus"),
         "is_kev": cve.get("cisaExploitAdd") is not None,
         "cisaExploitAdd": cve.get("cisaExploitAdd"),

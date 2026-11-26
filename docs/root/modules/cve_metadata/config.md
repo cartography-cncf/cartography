@@ -49,6 +49,14 @@ cartography \
   --cve-metadata-src epss
 ```
 
+## NVD timestamps
+
+NVD publication and modification timestamps without an explicit offset are
+stored as UTC zoned datetimes. Explicit offsets are preserved. This lets
+`published_date` and `last_modified_date` participate in date-range queries
+using Cypher `datetime(...)`. A normal resync also corrects values previously
+stored without a timezone.
+
 ## References
 
 - [NIST NVD API v2.0](https://nvd.nist.gov/developers/vulnerabilities)
