@@ -236,12 +236,17 @@ def _call_raising_server_failure(operation: Callable[[], T]) -> T:
     reading the failed result during that rollback raises a ResultFailedError in place
     of the server's error. The driver does not retry a ResultFailedError, so a deadlock
     that arrives this way would end the sync on its first occurrence.
+
+    The server's error is raised only when it is also the error the transaction was
+    rolling back for. A transaction function that caught it and raised something else
+    made its own decision, which a retry must not overrule.
     """
     try:
         return operation()
     except neo4j.exceptions.ResultFailedError as exc:
-        if isinstance(exc.__cause__, neo4j.exceptions.Neo4jError):
-            raise exc.__cause__
+        cause = exc.__cause__
+        if isinstance(cause, neo4j.exceptions.Neo4jError) and exc.__context__ is cause:
+            raise cause
         raise
 
 

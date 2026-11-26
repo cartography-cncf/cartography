@@ -78,9 +78,12 @@ def _create_deadlock_error() -> neo4j.exceptions.TransientError:
 
 def _result_failed_by(
     cause: BaseException | None,
+    rolled_back_for: BaseException | None = None,
 ) -> neo4j.exceptions.ResultFailedError:
+    """The error the driver raises while it rolls a transaction back for ``rolled_back_for``."""
     exc = neo4j.exceptions.ResultFailedError(MagicMock(), "The result has failed.")
     exc.__cause__ = cause
+    exc.__context__ = rolled_back_for or cause
     return exc
 
 
@@ -309,6 +312,37 @@ def test_retries_deadlock_more_times_than_a_network_error(mock_sleep, _):
     ]
 
 
+def _nine_deadlocks_around_four_network_errors() -> list[Exception]:
+    network_error = neo4j.exceptions.ServiceUnavailable("Connection lost")
+    return [
+        *[_create_deadlock_error()] * 5,
+        *[network_error] * 4,
+        *[_create_deadlock_error()] * 4,
+    ]
+
+
+@patch("cartography.client.core.tx.time.sleep")
+def test_deadlocks_do_not_spend_the_network_budget(mock_sleep):
+    operation = MagicMock()
+    operation.side_effect = [*_nine_deadlocks_around_four_network_errors(), "success"]
+
+    assert _run_with_retry(operation, "test_target") == "success"
+
+
+@patch("cartography.client.core.tx.time.sleep")
+def test_deadlocks_do_not_refill_the_network_budget(mock_sleep):
+    operation = MagicMock()
+    operation.side_effect = [
+        *_nine_deadlocks_around_four_network_errors(),
+        neo4j.exceptions.ServiceUnavailable("Connection lost"),
+    ]
+
+    with pytest.raises(neo4j.exceptions.ServiceUnavailable):
+        _run_with_retry(operation, "test_target")
+
+    assert operation.call_count == 14
+
+
 @patch("cartography.client.core.tx.time.sleep")
 def test_deadlock_max_retries(mock_sleep):
     operation = MagicMock()
@@ -339,19 +373,29 @@ def test_retries_server_failure_the_driver_raises_as_a_failed_result(mock_sleep,
 
 
 @pytest.mark.parametrize(
-    ("cause", "raised"),
+    ("cause", "rolled_back_for", "raised"),
     [
         (
             _create_client_error("Neo.ClientError.Statement.SyntaxError"),
+            None,
             neo4j.exceptions.ClientError,
         ),
-        (None, neo4j.exceptions.ResultFailedError),
+        (None, None, neo4j.exceptions.ResultFailedError),
+        (
+            _create_deadlock_error(),
+            ValueError("abort this operation"),
+            neo4j.exceptions.ResultFailedError,
+        ),
     ],
-    ids=["non-retryable-server-failure", "no-server-failure"],
+    ids=[
+        "non-retryable-server-failure",
+        "no-server-failure",
+        "transaction-function-raised-its-own-error",
+    ],
 )
-def test_raises_failed_result_that_a_retry_cannot_fix(cause, raised):
+def test_raises_failed_result_that_a_retry_cannot_fix(cause, rolled_back_for, raised):
     operation = MagicMock()
-    operation.side_effect = _result_failed_by(cause)
+    operation.side_effect = _result_failed_by(cause, rolled_back_for)
 
     with pytest.raises(raised):
         _run_with_retry(operation, "test_target")
