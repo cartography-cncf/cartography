@@ -228,6 +228,28 @@ def _expo_wait(max_value: float | None = None) -> Iterator[float]:
     return wait
 
 
+def _hidden_server_failure(
+    exc: neo4j.exceptions.ResultFailedError,
+) -> neo4j.exceptions.Neo4jError | None:
+    """
+    Return the server's failure that the driver raised this failed result in place of.
+
+    None when the transaction was already failing for another reason: a transaction
+    function that caught the server's failure and raised its own error made a decision
+    that a retry must not overrule. Failed results raised on the way, such as by cleanup
+    that reads an earlier result of the same transaction, are not another reason.
+    """
+    cause = exc.__cause__
+    if not isinstance(cause, neo4j.exceptions.Neo4jError):
+        return None
+    failing_for = exc.__context__
+    while isinstance(failing_for, neo4j.exceptions.ResultFailedError):
+        failing_for = failing_for.__context__
+    if failing_for is None or failing_for is cause:
+        return cause
+    return None
+
+
 def _call_raising_server_failure(operation: Callable[[], T]) -> T:
     """
     Call the operation and raise the server's failure when the driver hides it.
@@ -236,18 +258,14 @@ def _call_raising_server_failure(operation: Callable[[], T]) -> T:
     reading the failed result during that rollback raises a ResultFailedError in place
     of the server's error. The driver does not retry a ResultFailedError, so a deadlock
     that arrives this way would end the sync on its first occurrence.
-
-    The server's error is raised only when it is also the error the transaction was
-    rolling back for. A transaction function that caught it and raised something else
-    made its own decision, which a retry must not overrule.
     """
     try:
         return operation()
     except neo4j.exceptions.ResultFailedError as exc:
-        cause = exc.__cause__
-        if isinstance(cause, neo4j.exceptions.Neo4jError) and exc.__context__ is cause:
-            raise cause
-        raise
+        server_failure = _hidden_server_failure(exc)
+        if server_failure is None:
+            raise
+        raise server_failure
 
 
 def _run_with_retry(operation: Callable[[], T], target: str) -> T:
