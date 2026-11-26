@@ -51,6 +51,9 @@ def _nonempty_iterable(items: Iterable[T]) -> Iterator[T] | None:
 
 
 _MAX_NETWORK_RETRIES = 5
+_MAX_DEADLOCK_RETRIES = 10
+_MAX_DEADLOCK_WAIT_SECONDS = 30
+_DEADLOCK_CODE = "Neo.TransientError.Transaction.DeadlockDetected"
 _MAX_ENTITY_NOT_FOUND_RETRIES = 5
 _MAX_BUFFER_ERROR_RETRIES = 5
 _NETWORK_EXCEPTIONS: tuple[type[BaseException], ...] = (
@@ -78,6 +81,22 @@ def _is_retryable_network_error(exc: Exception) -> bool:
         return True
     return isinstance(exc, neo4j.exceptions.DatabaseError) and (
         "FileIsNotMappedException" in exc.message
+    )
+
+
+def _is_deadlock(exc: Exception) -> bool:
+    """
+    Determine if the database rolled the transaction back to break a deadlock.
+
+    Writers that take the same locks in a different order, such as two syncs that MERGE
+    the same nodes, cannot all proceed. The database picks one, rolls it back, and
+    expects it to run again once the others have finished.
+
+    :param exc: The exception to check
+    :return: True if the operation should be retried with the deadlock budget
+    """
+    return (
+        isinstance(exc, neo4j.exceptions.TransientError) and exc.code == _DEADLOCK_CODE
     )
 
 
@@ -201,34 +220,96 @@ def _buffer_error_backoff_handler(details: Dict) -> None:
         backoff_handler(details)
 
 
-def _expo_wait() -> Iterator[float]:
-    wait = backoff.expo()
+def _expo_wait(max_value: float | None = None) -> Iterator[float]:
+    wait = backoff.expo(max_value=max_value)
     # backoff's wait generators yield once before their first delay, to absorb the
     # send(None) its decorators prime them with. Advance past it ourselves.
     next(wait)
     return wait
 
 
+# What the driver raises for a transaction that already failed: reading one of its
+# results, or running another query in it.
+_FAILED_TRANSACTION_ERRORS = (
+    neo4j.exceptions.ResultFailedError,
+    neo4j.exceptions.TransactionError,
+)
+
+
+def _hidden_server_failure(
+    exc: neo4j.exceptions.ResultFailedError,
+) -> neo4j.exceptions.Neo4jError | None:
+    """
+    Return the server's failure that the driver raised this failed result in place of.
+
+    None unless every error the transaction was failing for leads back to that one
+    failure. A transaction function that caught it and raised its own error made a
+    decision that a retry must not overrule, and so did a caller that was already
+    handling another error. Errors the driver raises on the way for the same failure,
+    such as when cleanup reads an earlier result or runs another query, do not count.
+    """
+    cause = exc.__cause__
+    if not isinstance(cause, neo4j.exceptions.Neo4jError):
+        return None
+    seen = {id(exc)}
+    failing_for = exc.__context__
+    while failing_for is not None and failing_for is not cause:
+        if (
+            id(failing_for) in seen
+            or not isinstance(failing_for, _FAILED_TRANSACTION_ERRORS)
+            or failing_for.__cause__ is not cause
+        ):
+            return None
+        seen.add(id(failing_for))
+        failing_for = failing_for.__context__
+    return cause
+
+
+def _call_raising_server_failure(operation: Callable[[], T]) -> T:
+    """
+    Call the operation and raise the server's failure when the driver hides it.
+
+    When a query fails as it starts, the driver rolls the managed transaction back, and
+    reading the failed result during that rollback raises a ResultFailedError in place
+    of the server's error. The driver does not retry a ResultFailedError, so a deadlock
+    that arrives this way would end the sync on its first occurrence.
+    """
+    try:
+        return operation()
+    except neo4j.exceptions.ResultFailedError as exc:
+        server_failure = _hidden_server_failure(exc)
+        if server_failure is None:
+            raise
+        raise server_failure
+
+
 def _run_with_retry(operation: Callable[[], T], target: str) -> T:
     """
-    Execute the supplied callable with retry logic for transient network errors,
-    EntityNotFound ClientErrors, and BufferErrors.
+    Execute the supplied callable with retry logic for deadlocks, transient network
+    errors, EntityNotFound ClientErrors, and BufferErrors.
     """
     network_attempts = 0
+    deadlock_attempts = 0
     entity_attempts = 0
     buffer_attempts = 0
     network_wait = _expo_wait()
+    deadlock_wait = _expo_wait(max_value=_MAX_DEADLOCK_WAIT_SECONDS)
     entity_wait = _expo_wait()
     buffer_wait = _expo_wait()
 
     while True:
         try:
-            result = operation()
+            result = _call_raising_server_failure(operation)
             # Log success if we recovered from errors
             if network_attempts > 0:
                 logger.info(
                     f"Successfully recovered from network error after {network_attempts} "
                     f"{'retry' if network_attempts == 1 else 'retries'}. Function: {target}"
+                )
+            if deadlock_attempts > 0:
+                logger.info(
+                    f"Successfully recovered from deadlock after {deadlock_attempts} "
+                    f"{'retry' if deadlock_attempts == 1 else 'retries'}. Function: {target}"
                 )
             if entity_attempts > 0:
                 logger.info(
@@ -242,6 +323,24 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 )
             return result
         except (*_NETWORK_EXCEPTIONS, neo4j.exceptions.DatabaseError) as exc:
+            if _is_deadlock(exc):
+                # A deadlock clears once the other writer commits, so it gets more
+                # attempts than an unreachable database. The wait is random because
+                # writers that back off in step meet at the same locks again.
+                if deadlock_attempts >= _MAX_DEADLOCK_RETRIES - 1:
+                    raise
+                deadlock_attempts += 1
+                wait = backoff.full_jitter(next(deadlock_wait))
+                backoff_handler(
+                    {
+                        "exception": exc,
+                        "target": target,
+                        "tries": deadlock_attempts,
+                        "wait": wait,
+                    }
+                )
+                time.sleep(wait)
+                continue
             if not _is_retryable_network_error(exc):
                 raise
             if network_attempts >= _MAX_NETWORK_RETRIES - 1:
