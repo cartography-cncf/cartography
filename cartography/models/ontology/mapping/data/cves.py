@@ -322,7 +322,7 @@ github_mapping = OntologyMapping(
     module_name="github",
     nodes=[
         OntologyNodeMapping(
-            node_label="GitHubDependabotAlert",
+            node_label="GitHubSecurityAdvisory",
             fields=[
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
                 OntologyFieldMapping(

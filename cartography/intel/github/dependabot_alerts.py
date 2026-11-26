@@ -14,6 +14,8 @@ from cartography.intel.github.util import is_github_dotcom_api_url
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.dependabot_alerts import GitHubDependabotAlertSchema
 from cartography.models.github.dependabot_alerts import GitHubDependabotAlertUserSchema
+from cartography.models.github.dependabot_alerts import GitHubSecurityAdvisorySchema
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -116,12 +118,15 @@ def _dedupe_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def transform(
     alerts: list[dict[str, Any]],
+    org_url: str,
 ) -> dict[str, list[dict[str, Any]]]:
     """
-    Transform Dependabot alert payloads into alert and lightweight user rows.
+    Transform Dependabot alert payloads into alert, security advisory, and
+    lightweight user rows.
     """
     transformed_alerts: list[dict[str, Any]] = []
     transformed_users: list[dict[str, Any]] = []
+    advisories_by_id: dict[str, dict[str, Any]] = {}
 
     for alert in alerts:
         alert_id = alert.get("html_url") or alert.get("url")
@@ -162,9 +167,51 @@ def transform(
             "CVE",
         )
 
+        # `security_advisory` is GitHub's global advisory object, identical on every
+        # alert that reports it, so these fields belong to the advisory.
+        advisory_fields = {
+            "advisory_ghsa_id": advisory_ghsa_id,
+            "has_cve": "true" if advisory_cve_id else "false",
+            "advisory_summary": advisory.get("summary"),
+            "advisory_description": advisory.get("description"),
+            "advisory_published_at": advisory.get("published_at"),
+            "advisory_updated_at": advisory.get("updated_at"),
+            "advisory_withdrawn_at": advisory.get("withdrawn_at"),
+            "cvss_score": cvss.get("score"),
+            "cvss_vector_string": cvss.get("vector_string"),
+            "cvss_v3_score": cvss_v3.get("score"),
+            "cvss_v3_vector_string": cvss_v3.get("vector_string"),
+            "cvss_v4_score": cvss_v4.get("score"),
+            "cvss_v4_vector_string": cvss_v4.get("vector_string"),
+            "epss_percentage": epss.get("percentage"),
+            "epss_percentile": epss.get("percentile"),
+            "cwe_ids": [
+                cwe["cwe_id"] for cwe in advisory.get("cwes") or [] if cwe.get("cwe_id")
+            ],
+            "identifiers": [
+                identifier["value"]
+                for identifier in identifiers
+                if identifier.get("value")
+            ],
+            "references": [
+                reference["url"] for reference in references if reference.get("url")
+            ],
+        }
+        # Keyed per organization, so each organization's cleanup deletes only its
+        # own advisories and never one that another organization's alerts link to.
+        advisory_id = f"GHSA|{org_url}|{advisory_ghsa_id}" if advisory_ghsa_id else None
+        if advisory_id and advisory_id not in advisories_by_id:
+            advisories_by_id[advisory_id] = {
+                "id": advisory_id,
+                **advisory_fields,
+                "cve_id": advisory_cve_id,
+                "severity": advisory.get("severity"),
+            }
+
         transformed_alerts.append(
             {
                 "id": alert_id,
+                "advisory_id": advisory_id,
                 "number": alert.get("number"),
                 "state": alert.get("state"),
                 "url": alert.get("url"),
@@ -192,35 +239,10 @@ def transform(
                 ),
                 "first_patched_version": first_patched_version.get("identifier"),
                 "severity": vulnerability.get("severity") or advisory.get("severity"),
-                "advisory_ghsa_id": advisory_ghsa_id,
                 "advisory_cve_id": advisory_cve_id,
-                "has_cve": "true" if advisory_cve_id else "false",
-                "advisory_summary": advisory.get("summary"),
-                "advisory_description": advisory.get("description"),
-                "advisory_published_at": advisory.get("published_at"),
-                "advisory_updated_at": advisory.get("updated_at"),
-                "advisory_withdrawn_at": advisory.get("withdrawn_at"),
-                "cvss_score": cvss.get("score"),
-                "cvss_vector_string": cvss.get("vector_string"),
-                "cvss_v3_score": cvss_v3.get("score"),
-                "cvss_v3_vector_string": cvss_v3.get("vector_string"),
-                "cvss_v4_score": cvss_v4.get("score"),
-                "cvss_v4_vector_string": cvss_v4.get("vector_string"),
-                "epss_percentage": epss.get("percentage"),
-                "epss_percentile": epss.get("percentile"),
-                "cwe_ids": [
-                    cwe["cwe_id"]
-                    for cwe in advisory.get("cwes") or []
-                    if cwe.get("cwe_id")
-                ],
-                "identifiers": [
-                    identifier["value"]
-                    for identifier in identifiers
-                    if identifier.get("value")
-                ],
-                "references": [
-                    reference["url"] for reference in references if reference.get("url")
-                ],
+                # DEPRECATED: copies of the advisory fields, kept on the alert for
+                # existing queries; will be removed in v1.0.0.
+                **advisory_fields,
                 "repository_url": repository.get("html_url"),
                 "repository_name": repository.get("name"),
                 "repository_full_name": repository.get("full_name"),
@@ -229,6 +251,7 @@ def transform(
 
     return {
         "alerts": transformed_alerts,
+        "advisories": list(advisories_by_id.values()),
         "users": _dedupe_users(transformed_users),
     }
 
@@ -246,6 +269,24 @@ def load_users(
         GitHubDependabotAlertUserSchema(),
         users,
         lastupdated=update_tag,
+    )
+
+
+@timeit
+def load_advisories(
+    neo4j_session: neo4j.Session,
+    advisories: list[dict[str, Any]],
+    update_tag: int,
+    org_url: str,
+) -> None:
+    if not advisories:
+        return
+    load(
+        neo4j_session,
+        GitHubSecurityAdvisorySchema(),
+        advisories,
+        lastupdated=update_tag,
+        org_url=org_url,
     )
 
 
@@ -278,6 +319,24 @@ def cleanup(
         GitHubDependabotAlertSchema(),
         cleanup_params,
     ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        GitHubSecurityAdvisorySchema(),
+        cleanup_params,
+    ).run(neo4j_session)
+
+
+# DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
+@timeit
+def migrate_legacy_cve_labels(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    org_url: str,
+) -> None:
+    run_analysis_job(
+        "github_dependabot_alert_cve_migration.json",
+        neo4j_session,
+        {**common_job_parameters, "org_url": org_url},
+    )
 
 
 @timeit
@@ -300,7 +359,13 @@ def sync(
         )
         return
 
-    transformed = transform(fetch_result.alerts)
+    transformed = transform(fetch_result.alerts, org_url)
     load_users(neo4j_session, transformed["users"], update_tag)
+    # Alerts link to their advisory on load, so it must exist first.
+    load_advisories(neo4j_session, transformed["advisories"], update_tag, org_url)
     load_alerts(neo4j_session, transformed["alerts"], update_tag, org_url)
     cleanup(neo4j_session, common_job_parameters, org_url)
+    # Only after a complete read, so every surviving alert already links to the
+    # advisory that now carries :CVE, and only after cleanup, so the alerts it
+    # deletes are not migrated first.
+    migrate_legacy_cve_labels(neo4j_session, common_job_parameters, org_url)
