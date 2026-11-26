@@ -15,9 +15,11 @@ from cartography.analysis.semgrep.analysis import SEMGREP_SAST_RISK_ANALYSIS
 from cartography.analysis.semgrep.analysis import SEMGREP_SCA_RISK_ANALYSIS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.semgrep.label_migrations import migrate_sca_cve_labels
 from cartography.models.semgrep.aisast import SemgrepAISASTFindingSchema
 from cartography.models.semgrep.assistant import SemgrepFindingAssistantSchema
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
+from cartography.models.semgrep.findings import SemgrepSCAVulnerabilitySchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema
 from cartography.models.semgrep.sast import SemgrepSASTFindingSchema
 from cartography.stats import get_stats_client
@@ -160,8 +162,16 @@ def _build_vuln_url(vuln: str) -> str | None:
     return None
 
 
+def _vulnerability_id(deployment_id: str, advisory_id: str) -> str:
+    # Each deployment owns its vulnerability nodes: cleanup is scoped to one
+    # deployment, so a node shared with another would be deleted while the other
+    # deployment still reports it.
+    return f"SEMGREP|{deployment_id}|{advisory_id}"
+
+
 def transform_sca_vulns(
     raw_vulns: List[Dict[str, Any]],
+    deployment_id: str,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
     """
     Transforms the raw SCA vulns response from Semgrep API into a list of dicts
@@ -207,20 +217,22 @@ def transform_sca_vulns(
                     "file_path"
                 ]
         sca_vuln["transitivity"] = vuln["found_dependency"]["transitivity"].upper()
-        # SCA findings can be advisory-only (e.g. GHSA) with no CVE assigned, so the
-        # :CVE ontology label is applied conditionally on this flag. Default to false
-        # and only flip it for real CVE ids below.
+        # SCA findings can be advisory-only (e.g. GHSA) with no CVE assigned, and
+        # those are labeled :SecurityIssue. Default to false and only flip it for
+        # real CVE ids below.
         sca_vuln["has_cve"] = "false"
         if vuln.get("vulnerability_identifier"):
             vuln_id = vuln["vulnerability_identifier"].upper()
             # Route the identifier to a typed field so cve_id only ever holds a real
-            # CVE (feeding the :CVE label and _ont_cve_id) while GHSA advisories land
-            # in ghsa_id. Other schemes (e.g. MAL-, UNKNOWN-) populate neither.
+            # CVE while GHSA advisories land in ghsa_id. Other schemes (e.g. MAL-,
+            # UNKNOWN-) populate neither and get no SemgrepSCAVulnerability.
             if vuln_id.startswith("CVE-"):
                 sca_vuln["cveId"] = vuln_id
                 sca_vuln["has_cve"] = "true"
+                sca_vuln["vulnerabilityId"] = _vulnerability_id(deployment_id, vuln_id)
             elif vuln_id.startswith("GHSA"):
                 sca_vuln["ghsaId"] = vuln_id
+                sca_vuln["vulnerabilityId"] = _vulnerability_id(deployment_id, vuln_id)
             ref_url = _build_vuln_url(vuln_id)
             sca_vuln["ref_urls"] = [ref_url] if ref_url is not None else []
         if vuln.get("fix_recommendations") and len(vuln["fix_recommendations"]) > 0:
@@ -248,6 +260,50 @@ def transform_sca_vulns(
         vulns.append(sca_vuln)
 
     return vulns, usages
+
+
+def transform_sca_vulnerabilities(
+    vulns: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Derives one SemgrepSCAVulnerability per advisory from transformed SCA findings.
+    Only fields that are the same for every finding of an advisory are carried over:
+    the rule message and title can differ between rules that report one advisory.
+    """
+    vulnerabilities: Dict[str, Dict[str, Any]] = {}
+    for vuln in vulns:
+        vulnerability_id = vuln.get("vulnerabilityId")
+        if vulnerability_id is None or vulnerability_id in vulnerabilities:
+            continue
+        vulnerabilities[vulnerability_id] = {
+            "id": vulnerability_id,
+            "cveId": vuln.get("cveId"),
+            "ghsaId": vuln.get("ghsaId"),
+            "has_cve": vuln["has_cve"],
+            "severity": vuln["severity"],
+            "ref_urls": vuln["ref_urls"],
+        }
+    return list(vulnerabilities.values())
+
+
+@timeit
+def load_semgrep_sca_vulnerabilities(
+    neo4j_session: neo4j.Session,
+    vulnerabilities: List[Dict[str, Any]],
+    deployment_id: str,
+    update_tag: int,
+) -> None:
+    logger.debug(
+        "Loading %d SemgrepSCAVulnerability objects into the graph.",
+        len(vulnerabilities),
+    )
+    load(
+        neo4j_session,
+        SemgrepSCAVulnerabilitySchema(),
+        vulnerabilities,
+        lastupdated=update_tag,
+        DEPLOYMENT_ID=deployment_id,
+    )
 
 
 @timeit
@@ -568,7 +624,14 @@ def sync_sca_findings(
                 deployment_id,
                 update_tag,
             )
-            vulns, usages = transform_sca_vulns(raw_vulns)
+            vulns, usages = transform_sca_vulns(raw_vulns, deployment_id)
+            # Findings link to their vulnerability on load, so it must exist first.
+            load_semgrep_sca_vulnerabilities(
+                neo4j_session,
+                transform_sca_vulnerabilities(vulns),
+                deployment_id,
+                update_tag,
+            )
             load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
             load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
         run_typed_analysis_job(
@@ -594,6 +657,14 @@ def sync_sca_findings(
             SemgrepSCALocationSchema(),
             common_job_parameters,
         ).run(neo4j_session)
+        GraphJob.from_node_schema(
+            SemgrepSCAVulnerabilitySchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+        # Only after a complete read, so every surviving CVE-backed finding already
+        # links to the vulnerability that now carries :CVE, and only after cleanup,
+        # so the findings it deletes are not migrated first.
+        migrate_sca_cve_labels(neo4j_session, common_job_parameters)
         return True
     except (ReadTimeout, HTTPError) as e:
         logger.warning(

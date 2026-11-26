@@ -11,6 +11,7 @@ from requests.exceptions import HTTPError
 
 from cartography.intel.semgrep import findings as semgrep_findings
 from cartography.intel.semgrep.findings import transform_ai_sast_findings
+from cartography.intel.semgrep.findings import transform_sca_vulnerabilities
 from cartography.intel.semgrep.findings import transform_sca_vulns
 from tests.data.semgrep.aisast import AI_SAST_FINDING_ID
 from tests.data.semgrep.aisast import AI_SAST_RESPONSE
@@ -102,7 +103,7 @@ def test_get_findings_retries_rate_limit_then_succeeds(mock_get):
 def test_transform_sca_vulns_uppercases_reachability():
     raw_vulns = copy.deepcopy(SCA_RESPONSE["findings"])
 
-    vulns, _ = transform_sca_vulns(raw_vulns)
+    vulns, _ = transform_sca_vulns(raw_vulns, "123456")
 
     assert vulns[0]["reachability"] == "REACHABLE"
     assert vulns[1]["reachability"] == "UNREACHABLE"
@@ -115,9 +116,58 @@ def test_transform_sca_vulns_handles_null_reachability():
     raw_vulns = copy.deepcopy(SCA_RESPONSE["findings"])
     raw_vulns[0]["reachability"] = None
 
-    vulns, _ = transform_sca_vulns(raw_vulns)
+    vulns, _ = transform_sca_vulns(raw_vulns, "123456")
 
     assert vulns[0]["reachability"] is None
+
+
+@pytest.mark.parametrize(
+    ("identifier", "expected"),
+    [
+        (
+            "cve-2022-31129",
+            [
+                {
+                    "id": "SEMGREP|123456|CVE-2022-31129",
+                    "cveId": "CVE-2022-31129",
+                    "ghsaId": None,
+                    "has_cve": "true",
+                    "severity": "HIGH",
+                    "ref_urls": ["https://nvd.nist.gov/vuln/detail/CVE-2022-31129"],
+                },
+            ],
+        ),
+        (
+            "GHSA-8hfj-j24r-96c4",
+            [
+                {
+                    "id": "SEMGREP|123456|GHSA-8HFJ-J24R-96C4",
+                    "cveId": None,
+                    "ghsaId": "GHSA-8HFJ-J24R-96C4",
+                    "has_cve": "false",
+                    "severity": "HIGH",
+                    "ref_urls": [
+                        "https://github.com/advisories/GHSA-8HFJ-J24R-96C4",
+                    ],
+                },
+            ],
+        ),
+        ("UNKNOWN-2022-31129", []),
+    ],
+)
+def test_transform_sca_vulnerabilities_one_node_per_advisory(identifier, expected):
+    # Arrange: two findings, in different repositories, of one advisory.
+    raw_vulns = copy.deepcopy(SCA_RESPONSE["findings"])
+    for raw_vuln in raw_vulns:
+        raw_vuln["vulnerability_identifier"] = identifier
+    raw_vulns[1]["repository"]["name"] = "simpsoncorp/other_repo"
+    vulns, _ = transform_sca_vulns(raw_vulns, "123456")
+
+    # Act
+    vulnerabilities = transform_sca_vulnerabilities(vulns)
+
+    # Assert
+    assert vulnerabilities == expected
 
 
 def test_transform_ai_sast_findings():

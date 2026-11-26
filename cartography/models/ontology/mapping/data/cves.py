@@ -416,27 +416,17 @@ tenable_mapping = OntologyMapping(
 )
 
 
-# SemgrepSCAFinding is a hybrid finding: it carries :CVE when CVE-backed and
-# :SecurityIssue when advisory-only (see cartography/models/semgrep/findings.py).
-# The semantic-label resolver returns a single mapping per primary label regardless
-# of which conditional label is applied, so this one mapping must carry BOTH the CVE
-# fields (used by :CVE nodes) and the SecurityIssue fields (title/severity/status/
-# first_seen, used by advisory :SecurityIssue nodes). Label-gated queries only ever
-# read the fields relevant to the label actually present, so the extra properties on
-# the other kind of finding are inert.
+# SemgrepSCAVulnerability is one node per Semgrep advisory and deployment, and carries
+# :CVE when the advisory is a CVE. Each SemgrepSCAFinding links to it through
+# HAS_VULNERABILITY rather than carrying :CVE. Semgrep can report one advisory through
+# several rules whose messages differ, so the node maps no description.
 semgrep_mapping = OntologyMapping(
     module_name="semgrep",
     nodes=[
         OntologyNodeMapping(
-            node_label="SemgrepSCAFinding",
+            node_label="SemgrepSCAVulnerability",
             fields=[
-                # CVE fields (populated on CVE-backed findings)
                 OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
-                OntologyFieldMapping(
-                    ontology_field="description",
-                    node_field="description",
-                    indexed=False,
-                ),
                 OntologyFieldMapping(
                     ontology_field="references",
                     node_field="ref_urls",
@@ -447,24 +437,6 @@ semgrep_mapping = OntologyMapping(
                     node_field="severity",
                     special_handling="mapping",
                     extra={"map": _CVSS_SEVERITY},
-                ),
-                # SecurityIssue fields (preserved for advisory-only findings)
-                OntologyFieldMapping(
-                    ontology_field="title",
-                    node_field="summary",
-                    required=True,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="severity",
-                    node_field="severity",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="status",
-                    node_field="triage_status",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="first_seen",
-                    node_field="scan_time",
                 ),
             ],
         ),

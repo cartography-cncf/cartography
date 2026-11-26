@@ -54,21 +54,32 @@ class SemgrepSCAFindingNodeProperties(CartographyNodeProperties):
     )
     severity: PropertyRef = PropertyRef(
         "severity",
-        description="Severity assigned by Semgrep.",
+        description=(
+            "Severity assigned by Semgrep. The finding's `SemgrepSCAVulnerability` "
+            "carries the same value."
+        ),
     )
     cve_id: PropertyRef = PropertyRef(
         "cveId",
         extra_index=True,
         description="CVE identifier associated with the vulnerability.",
     )
+    # DEPRECATED: ghsa_id moved to SemgrepSCAVulnerability; the copy on the finding
+    # will be removed in v1.0.0.
     ghsa_id: PropertyRef = PropertyRef(
         "ghsaId",
         extra_index=True,
-        description="GHSA advisory identifier when the finding is not CVE-backed.",
+        description=(
+            "Deprecated: read `ghsa_id` on the finding's `SemgrepSCAVulnerability`. "
+            "GHSA advisory identifier when the finding is not CVE-backed."
+        ),
     )
     has_cve: PropertyRef = PropertyRef(
         "has_cve",
-        description="Whether cve_id contains a valid CVE identifier.",
+        description=(
+            "`true` when `cve_id` holds a CVE identifier. An advisory-only finding "
+            "(`false`) is labeled `:SecurityIssue`."
+        ),
     )
     reachability_check: PropertyRef = PropertyRef(
         "reachability",
@@ -94,9 +105,14 @@ class SemgrepSCAFindingNodeProperties(CartographyNodeProperties):
         "closestSafeDependency",
         description="Closest dependency version that fixes the vulnerability.",
     )
+    # DEPRECATED: ref_urls moved to SemgrepSCAVulnerability; the copy on the finding
+    # will be removed in v1.0.0.
     ref_urls: PropertyRef = PropertyRef(
         "ref_urls",
-        description="Reference URLs associated with the finding.",
+        description=(
+            "Deprecated: read `ref_urls` on the finding's `SemgrepSCAVulnerability`. "
+            "Reference URLs associated with the finding."
+        ),
     )
     dependency_file: PropertyRef = PropertyRef(
         "dependencyFileLocation_path",
@@ -211,14 +227,37 @@ class SemgrepSCAFindingToDependencyRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class SemgrepSCAFindingToCVERelProperties(CartographyRelProperties):
+class SemgrepSCAFindingToVulnerabilityRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
+# (:SemgrepSCAFinding)-[:HAS_VULNERABILITY]->(:SemgrepSCAVulnerability)
+class SemgrepSCAFindingToVulnerabilityRel(CartographyRelSchema):
+    """Links an SCA finding to the vulnerability it reports."""
+
+    target_node_label: str = "SemgrepSCAVulnerability"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("vulnerabilityId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_VULNERABILITY"
+    properties: SemgrepSCAFindingToVulnerabilityRelProperties = (
+        SemgrepSCAFindingToVulnerabilityRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class SemgrepSCAFindingToCVERelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# DEPRECATED: findings reach their CVE through HAS_VULNERABILITY; LINKED_TO will be
+# removed in v1.0.0.
+@dataclass(frozen=True)
 # (:SemgrepSCAFinding)<-[:LINKED_TO]-(:CVE)
 class SemgrepSCAFindingToCVERel(CartographyRelSchema):
-    """Links a CVE to the Semgrep SCA finding that identified it."""
+    """Deprecated: links any `:CVE` node whose `id` is the finding's `cve_id` to the finding. Follow `HAS_VULNERABILITY` to the finding's `SemgrepSCAVulnerability` instead."""
 
     target_node_label: str = "CVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -254,18 +293,15 @@ class SemgrepSCAFindingToAssistantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SemgrepSCAFindingSchema(CartographyNodeSchema):
-    """A dependency vulnerability discovered by Semgrep Supply Chain."""
+    """A dependency vulnerability that Semgrep Supply Chain found in one repository.
+
+    Advisory-only findings, whose identifier is not a CVE, are labeled `:SecurityIssue`. A CVE-backed finding is not itself labeled [`CVE`](#ontology-cve): the `SemgrepSCAVulnerability` it links to through `HAS_VULNERABILITY` carries that label, so each CVE is one node per deployment.
+    """
 
     label: str = "SemgrepSCAFinding"
-    # An SCA finding is either CVE-backed or an advisory-only security issue, never
-    # both, so both labels are conditional and mutually exclusive on has_cve. This
-    # mirrors AWSInspectorFinding (PACKAGE_VULNERABILITY -> CVE vs
-    # NETWORK_REACHABILITY -> SecurityIssue).
+    # The :CVE label lives on SemgrepSCAVulnerability, one node per advisory.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        [
-            SECURITY_ISSUE.when(has_cve="false"),
-            CVE.when(has_cve="true"),
-        ],
+        [SECURITY_ISSUE.when(has_cve="false")],
     )
     properties: SemgrepSCAFindingNodeProperties = SemgrepSCAFindingNodeProperties()
     sub_resource_relationship: SemgrepSCAFindingToSemgrepDeploymentRel = (
@@ -276,7 +312,83 @@ class SemgrepSCAFindingSchema(CartographyNodeSchema):
             SemgrepSCAFindingToGithubRepoRel(),
             SemgrepSCAFindingToGitLabProjectRel(),
             SemgrepSCAFindingToDependencyRel(),
+            SemgrepSCAFindingToVulnerabilityRel(),
             SemgrepSCAFindingToCVERel(),
             SemgrepSCAFindingToAssistantRel(),
         ],
+    )
+
+
+@dataclass(frozen=True)
+class SemgrepSCAVulnerabilityNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "`SEMGREP|<deployment id>|<advisory identifier>`, such as "
+            "`SEMGREP|123456|CVE-2022-31129`. Each deployment has its own node per "
+            "advisory, so cleanup of one deployment never deletes another's. The "
+            "prefix keeps the node apart from other sources' `:CVE` nodes, which use "
+            "the bare CVE identifier as their `id`."
+        ),
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    cve_id: PropertyRef = PropertyRef(
+        "cveId",
+        extra_index=True,
+        description="CVE identifier of the advisory. Unset for a GHSA advisory.",
+    )
+    ghsa_id: PropertyRef = PropertyRef(
+        "ghsaId",
+        extra_index=True,
+        description="GHSA identifier of the advisory. Unset for a CVE.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="`true` when the advisory is a CVE, so the node is labeled `:CVE`.",
+    )
+    severity: PropertyRef = PropertyRef(
+        "severity",
+        description="Severity that Semgrep assigns to the advisory.",
+    )
+    ref_urls: PropertyRef = PropertyRef(
+        "ref_urls",
+        description="Reference URLs for the advisory, such as its NVD or GitHub Advisory page.",
+    )
+
+
+@dataclass(frozen=True)
+class SemgrepSCAVulnerabilityToSemgrepDeploymentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSCAVulnerability)<-[:RESOURCE]-(:SemgrepDeployment)
+class SemgrepSCAVulnerabilityToSemgrepDeploymentRel(CartographyRelSchema):
+    """Scopes each vulnerability to the Semgrep deployment that reported it."""
+
+    target_node_label: str = "SemgrepDeployment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("DEPLOYMENT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: SemgrepSCAVulnerabilityToSemgrepDeploymentRelProperties = (
+        SemgrepSCAVulnerabilityToSemgrepDeploymentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class SemgrepSCAVulnerabilitySchema(CartographyNodeSchema):
+    """An advisory, a CVE or a GHSA, that Semgrep Supply Chain reports in a deployment's SCA findings.
+
+    Holds the advisory data that is the same for every finding of the advisory, so `CVEMetadata` enriches one node per CVE and deployment rather than every finding. Labeled [`CVE`](#ontology-cve) when the advisory is a CVE. Semgrep can report one advisory through several rules whose messages differ, so the rule message stays on each `SemgrepSCAFinding` as its `description`.
+    """
+
+    label: str = "SemgrepSCAVulnerability"
+    properties: SemgrepSCAVulnerabilityNodeProperties = (
+        SemgrepSCAVulnerabilityNodeProperties()
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE.when(has_cve="true")])
+    sub_resource_relationship: SemgrepSCAVulnerabilityToSemgrepDeploymentRel = (
+        SemgrepSCAVulnerabilityToSemgrepDeploymentRel()
     )
