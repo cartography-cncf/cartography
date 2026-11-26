@@ -1,0 +1,6 @@
+# Sentra
+
+```{toctree}
+config
+schema
+```

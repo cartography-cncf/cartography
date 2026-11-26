@@ -1,0 +1,6 @@
+# Neon
+
+```{toctree}
+config
+schema
+```

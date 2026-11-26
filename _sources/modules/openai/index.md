@@ -1,0 +1,6 @@
+# OpenAI
+
+```{toctree}
+config
+schema
+```
