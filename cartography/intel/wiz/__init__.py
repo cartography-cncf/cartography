@@ -140,6 +140,13 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters,
         )
         cartography.intel.wiz.issues.cleanup(neo4j_session, common_job_parameters)
+        # Only after a full sync, so every surviving finding already links to the
+        # vulnerability that now carries :CVE, and only after cleanup, so the
+        # findings it deletes are not migrated first.
+        cartography.intel.wiz.findings.migrate_legacy_cve_labels(
+            neo4j_session,
+            common_job_parameters,
+        )
 
     merge_module_sync_metadata(
         neo4j_session,

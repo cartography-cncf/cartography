@@ -24,6 +24,8 @@ TEST_UPDATE_TAG = 123456789
 EC2_ID = "i-123"
 EC2_ARN = "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
 AMI_ID = "ami-0abc|us-east-1"
+WIZ_VULNERABILITY_ID = f"WIZ|{TENANT_ID}|{CVE_ID_1}"
+NON_CVE_WIZ_VULNERABILITY_ID = f"WIZ|{TENANT_ID}|openssl advisory"
 
 
 @pytest.fixture(autouse=True)
@@ -34,10 +36,12 @@ def cleanup_wiz_test_data(neo4j_session):
         WHERE n:WizTenant
            OR n:WizIssue
            OR n:WizFinding
+           OR n:WizVulnerability
         DETACH DELETE n
         """,
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
+    neo4j_session.run("MATCH (n:CVEMetadata {id: $id}) DETACH DELETE n", id=CVE_ID_1)
     neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
     neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
     yield
@@ -47,10 +51,12 @@ def cleanup_wiz_test_data(neo4j_session):
         WHERE n:WizTenant
            OR n:WizIssue
            OR n:WizFinding
+           OR n:WizVulnerability
         DETACH DELETE n
         """,
     )
     neo4j_session.run("MATCH (n:CVE {id: $id}) DETACH DELETE n", id=CVE_ID_1)
+    neo4j_session.run("MATCH (n:CVEMetadata {id: $id}) DETACH DELETE n", id=CVE_ID_1)
     neo4j_session.run("MATCH (n:AWSEC2Instance {id: $id}) DETACH DELETE n", id=EC2_ID)
     neo4j_session.run("MATCH (n:AWSEC2Image {id: $id}) DETACH DELETE n", id=AMI_ID)
 
@@ -104,6 +110,23 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
     _seed_cve(neo4j_session)
     _seed_ec2_instance(neo4j_session)
     _patch_wiz_api(mocker)
+    # Findings synced before the CVE data and the :CVE label moved to
+    # WizVulnerability.
+    neo4j_session.run(
+        """
+        MERGE (t:WizTenant {id: $tenant})
+        MERGE (t)-[:RESOURCE]->(f:WizFinding:CVE {id: $cve_finding})
+        SET f.cvss_severity = 'HIGH', f.has_cve = 'true', f._ont_cve_id = $cve,
+            f._ont_description = 'old description', f._ont_base_score = 8.1
+        MERGE (:CVEMetadata {id: $cve})-[:ENRICHES]->(f)
+        MERGE (t)-[:RESOURCE]->(n:WizFinding {id: $non_cve_finding})
+        SET n.cvss_severity = 'MEDIUM', n._ont_base_score = 5.0
+        """,
+        tenant=TENANT_ID,
+        cve=CVE_ID_1,
+        cve_finding=VULNERABILITY_ID_1,
+        non_cve_finding=NON_CVE_VULNERABILITY_ID,
+    )
 
     # Act
     cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config())
@@ -177,17 +200,64 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
             "wiz",
         ),
     }
+    # The vulnerability, not each of its findings, carries the CVE data and the
+    # :CVE label, and the sync removes the label from findings stored before it
+    # moved.
+    assert check_nodes(
+        neo4j_session,
+        "WizVulnerability",
+        ["id", "cve_id", "has_cve", "cve_description", "cvss_severity", "has_exploit"],
+    ) == {
+        (WIZ_VULNERABILITY_ID, CVE_ID_1, "true", "Test vulnerability", "HIGH", True),
+        (NON_CVE_WIZ_VULNERABILITY_ID, None, "false", None, "MEDIUM", False),
+    }
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
+        (CVE_ID_1,),
+        (WIZ_VULNERABILITY_ID,),
+    }
     assert (
         {
             tuple(record.values())
             for record in neo4j_session.run(
                 """
-            MATCH (n:WizFinding:CVE)
-            RETURN n.id, n._ont_cve_id, n._ont_base_severity, n._ont_source
+            MATCH (n:WizVulnerability:CVE)
+            RETURN n.id, n._ont_cve_id, n._ont_base_severity, n._ont_description,
+                   n._ont_source
             """,
             )
         }
-        == {(VULNERABILITY_ID_1, CVE_ID_1, "high", "wiz")}
+        == {(WIZ_VULNERABILITY_ID, CVE_ID_1, "high", "Test vulnerability", "wiz")}
+    )
+    # CVEMetadata cleanup only reaches :CVE nodes, so the sync also removes the
+    # enrichment edge the old label brought, and it clears the moved fields and
+    # their ontology fields from findings stored before the move. Each finding
+    # keeps its own score.
+    assert (
+        check_rels(
+            neo4j_session,
+            "CVEMetadata",
+            "id",
+            "WizFinding",
+            "id",
+            "ENRICHES",
+        )
+        == set()
+    )
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (f:WizFinding {finding_type: 'VULNERABILITY'})
+        RETURN f.id AS id, f.score AS score,
+               [k IN keys(f) WHERE k IN ['has_cve', 'cvss_severity', '_ont_cve_id',
+                                         '_ont_description', '_ont_base_score']]
+                   AS legacy_fields
+        ORDER BY id
+        """,
+        ).data()
+        == [
+            {"id": VULNERABILITY_ID_1, "score": 8.1, "legacy_fields": []},
+            {"id": NON_CVE_VULNERABILITY_ID, "score": 5.0, "legacy_fields": []},
+        ]
     )
 
     assert check_rels(
@@ -213,6 +283,30 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
     }
     assert check_rels(
         neo4j_session,
+        "WizTenant",
+        "id",
+        "WizVulnerability",
+        "id",
+        "RESOURCE",
+    ) == {
+        (TENANT_ID, WIZ_VULNERABILITY_ID),
+        (TENANT_ID, NON_CVE_WIZ_VULNERABILITY_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "WizFinding",
+        "id",
+        "WizVulnerability",
+        "id",
+        "HAS_VULNERABILITY",
+    ) == {
+        (VULNERABILITY_ID_1, WIZ_VULNERABILITY_ID),
+        (NON_CVE_VULNERABILITY_ID, NON_CVE_WIZ_VULNERABILITY_ID),
+    }
+    # The vulnerability's prefixed id keeps the deprecated LINKED_TO edge on the
+    # CVE node it matched before.
+    assert check_rels(
+        neo4j_session,
         "WizFinding",
         "id",
         "CVE",
@@ -227,6 +321,35 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         "id",
         "AFFECTS",
     ) == {(VULNERABILITY_ID_1, EC2_ID), (NON_CVE_VULNERABILITY_ID, EC2_ID)}
+
+
+def test_start_wiz_ingestion_migrates_only_the_synced_tenants_cve_findings(
+    neo4j_session,
+    mocker,
+):
+    # Arrange: two tenants each hold a finding that an earlier version labeled
+    # :CVE. Only one of them syncs.
+    neo4j_session.run(
+        """
+        MERGE (:WizTenant {id: $tenant})
+              -[:RESOURCE]->(:WizFinding:CVE {id: $finding})
+        MERGE (:WizTenant {id: 'other-tenant'})
+              -[:RESOURCE]->(:WizFinding:CVE {id: 'other-tenant-finding'})
+        """,
+        tenant=TENANT_ID,
+        finding=VULNERABILITY_ID_1,
+    )
+    _patch_wiz_api(mocker, findings=VULNERABILITY_FINDINGS)
+
+    # Act
+    cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config())
+
+    # Assert: the other tenant's finding keeps :CVE until that tenant syncs and
+    # its findings link to their vulnerability.
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
+        (WIZ_VULNERABILITY_ID,),
+        ("other-tenant-finding",),
+    }
 
 
 def test_start_wiz_ingestion_links_ami_finding_to_regional_image(
@@ -283,6 +406,7 @@ def test_start_wiz_ingestion_removes_stale_records_on_second_sync(
     # Assert
     assert check_nodes(neo4j_session, "WizIssue", ["id"]) == set()
     assert check_nodes(neo4j_session, "WizFinding", ["id"]) == set()
+    assert check_nodes(neo4j_session, "WizVulnerability", ["id"]) == set()
 
 
 def test_start_wiz_ingestion_lookback_mode_preserves_older_records(

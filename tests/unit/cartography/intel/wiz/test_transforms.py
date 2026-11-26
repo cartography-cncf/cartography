@@ -1,5 +1,6 @@
 import pytest
 
+import cartography.intel.wiz.findings as wiz_findings
 from cartography.intel.wiz.findings import get_finding_id
 from cartography.intel.wiz.findings import transform as transform_findings
 from cartography.intel.wiz.issues import transform as transform_issues
@@ -28,17 +29,56 @@ def test_transform_issues_extracts_resource_and_project_metadata():
 
 
 def test_transform_findings_extracts_vulnerability_cve_and_resource_metadata():
-    findings = transform_findings(VULNERABILITY_FINDINGS, TENANT_ID)
+    # Arrange: two findings of one CVE on different resources.
+    second_finding = {
+        **VULNERABILITY_FINDINGS[0],
+        "id": "wiz-vuln-2",
+        "vulnerableAsset": {"id": "wiz-resource-2", "type": "CONTAINER_IMAGE"},
+    }
 
-    assert findings[0]["id"] == "wiz-vuln-1"
+    # Act
+    findings, vulnerabilities = transform_findings(
+        [VULNERABILITY_FINDINGS[0], second_finding],
+        TENANT_ID,
+    )
+
+    # Assert: the CVE's data is stored once, and each finding links to it.
+    vulnerability_id = f"WIZ|{TENANT_ID}|{CVE_ID_1}"
+    assert vulnerabilities == [
+        {
+            "id": vulnerability_id,
+            "name": CVE_ID_1,
+            "cve_id": CVE_ID_1,
+            "has_cve": "true",
+            "cve_description": "Test vulnerability",
+            "cvss_severity": "HIGH",
+            "exploitability_score": 2.8,
+            "impact_score": 5.9,
+            "has_exploit": True,
+            "has_cisa_kev_exploit": False,
+        },
+    ]
+    assert [(f["id"], f["vulnerability_id"]) for f in findings] == [
+        ("wiz-vuln-1", vulnerability_id),
+        ("wiz-vuln-2", vulnerability_id),
+    ]
     assert findings[0]["finding_type"] == "VULNERABILITY"
     assert findings[0]["cve_id"] == CVE_ID_1
-    assert findings[0]["has_cve"] == "true"
     assert findings[0]["is_security_issue"] == "false"
+    assert findings[0]["score"] == 8.1
     assert findings[0]["resource_id"] == RESOURCE_ID_1
     assert findings[0]["resource_external_id"] == (
         "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
     )
+    assert {
+        "has_cve",
+        "cve_description",
+        "cvss_severity",
+        "exploitability_score",
+        "impact_score",
+        "has_exploit",
+        "has_cisa_kev_exploit",
+    }.isdisjoint(findings[0])
 
 
 @pytest.mark.parametrize(
@@ -109,7 +149,7 @@ def test_transform_findings_extracts_affected_asset_id(
         },
     }
 
-    record = transform_findings([finding], TENANT_ID)[0]
+    record = transform_findings([finding], TENANT_ID)[0][0]
 
     assert {
         key: value
@@ -127,19 +167,47 @@ def test_transform_findings_labels_non_cve_vulnerabilities_as_security_issues():
         "link": None,
     }
 
-    transformed = transform_findings([finding], TENANT_ID)
+    findings, vulnerabilities = transform_findings([finding], TENANT_ID)
 
-    assert transformed[0]["has_cve"] == "false"
-    assert transformed[0]["is_security_issue"] == "true"
+    assert findings[0]["is_security_issue"] == "true"
+    assert findings[0]["vulnerability_id"] == (f"WIZ|{TENANT_ID}|openssl vulnerability")
+    assert (vulnerabilities[0]["cve_id"], vulnerabilities[0]["has_cve"]) == (
+        None,
+        "false",
+    )
+
+
+def test_transformed_batches_cap_each_load_and_load_vulnerabilities_first(
+    monkeypatch,
+):
+    # Arrange: pages of three findings, one CVE each, that cross a batch of four.
+    monkeypatch.setattr(wiz_findings, "LOAD_BATCH_SIZE", 4)
+    pages = [
+        [
+            {**VULNERABILITY_FINDINGS[0], "id": f"f{i}", "name": f"CVE-2024-{i:05d}"}
+            for i in range(start, start + 3)
+        ]
+        for start in (0, 3, 6)
+    ]
+
+    # Act
+    batches = list(wiz_findings._transformed_batches(pages, TENANT_ID))
+
+    # Assert: every finding's vulnerability loads in its batch or an earlier one.
+    assert [len(findings) for findings, _ in batches] == [4, 4, 1]
+    loaded: set[str] = set()
+    for findings, vulnerabilities in batches:
+        loaded.update(v["id"] for v in vulnerabilities)
+        assert {f["vulnerability_id"] for f in findings} <= loaded
 
 
 def test_transform_findings_extracts_configuration_metadata():
-    findings = transform_findings(CONFIGURATION_FINDINGS, TENANT_ID)
+    findings, vulnerabilities = transform_findings(CONFIGURATION_FINDINGS, TENANT_ID)
 
+    assert vulnerabilities == []
     assert findings[0]["id"] == CONFIGURATION_FINDING_ID_1
     assert findings[0]["finding_type"] == "CONFIGURATION"
     assert findings[0]["result"] == "FAIL"
-    assert findings[0]["has_cve"] == "false"
     assert findings[0]["is_security_issue"] == "true"
     assert findings[0]["updated_at"] == "2026-01-07T00:05:00Z"
     assert findings[0]["rule_id"] == "config-rule-1"
@@ -148,12 +216,12 @@ def test_transform_findings_extracts_configuration_metadata():
 
 
 def test_transform_findings_extracts_detection_metadata():
-    findings = transform_findings(DETECTIONS, TENANT_ID)
+    findings, vulnerabilities = transform_findings(DETECTIONS, TENANT_ID)
 
+    assert vulnerabilities == []
     assert findings[0]["id"] == DETECTION_ID_1
     assert findings[0]["finding_type"] == "DETECTION"
     assert findings[0]["rule_id"] == "detect-rule-1"
-    assert findings[0]["has_cve"] == "false"
     assert findings[0]["is_security_issue"] == "true"
     assert findings[0]["actor_ids"] == ["actor-1"]
     assert findings[0]["cloud_account_ids"] == ["cloud-account-1"]
@@ -166,13 +234,13 @@ def test_transform_findings_does_not_link_detection_description_cves():
         "description": "Suspicious process mentioned CVE-2024-12345",
     }
 
-    findings = transform_findings([detection], TENANT_ID)
+    findings, _vulnerabilities = transform_findings([detection], TENANT_ID)
 
     assert findings[0]["cve_id"] is None
 
 
 def test_transform_findings_preserves_all_supported_finding_types():
-    findings = transform_findings(FINDINGS, TENANT_ID)
+    findings, _vulnerabilities = transform_findings(FINDINGS, TENANT_ID)
 
     assert {finding["finding_type"] for finding in findings} == {
         "CONFIGURATION",

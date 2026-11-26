@@ -17,6 +17,8 @@ from cartography.intel.wiz.util import filter_by_project_ids
 from cartography.intel.wiz.util import project_ids
 from cartography.intel.wiz.util import project_names
 from cartography.models.wiz.findings import WizFindingSchema
+from cartography.models.wiz.findings import WizVulnerabilitySchema
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -25,6 +27,7 @@ FINDING_TYPE_VULNERABILITY = "VULNERABILITY"
 FINDING_TYPE_CONFIGURATION = "CONFIGURATION"
 FINDING_TYPE_DETECTION = "DETECTION"
 _FINDING_TYPE_KEY = "_wiz_finding_type"
+LOAD_BATCH_SIZE = 10000
 
 _VULNERABILITY_QUERY = """
 query WizVulnerabilityFindings($filterBy: VulnerabilityFindingFilters, $first: Int, $after: String, $orderBy: VulnerabilityFindingOrder) {
@@ -260,12 +263,17 @@ def get_finding_id(finding: dict[str, Any], tenant_id: str) -> str:
 def transform(
     raw_findings: list[dict[str, Any]],
     tenant_id: str,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     result: list[dict[str, Any]] = []
+    vulnerabilities: dict[str, dict[str, Any]] = {}
     for finding in raw_findings:
         finding_type = finding.get(_FINDING_TYPE_KEY)
         if finding_type == FINDING_TYPE_VULNERABILITY:
             record = _transform_vulnerability_finding(finding, tenant_id)
+            vulnerability = _transform_vulnerability(finding, tenant_id)
+            if vulnerability:
+                vulnerabilities[vulnerability["id"]] = vulnerability
+                record["vulnerability_id"] = vulnerability["id"]
         elif finding_type == FINDING_TYPE_CONFIGURATION:
             record = _transform_configuration_finding(finding, tenant_id)
         elif finding_type == FINDING_TYPE_DETECTION:
@@ -278,7 +286,41 @@ def transform(
             )
             continue
         result.append(record | _affected_asset_ids(record))
-    return result
+    return result, list(vulnerabilities.values())
+
+
+def _transform_vulnerability(
+    finding: dict[str, Any],
+    tenant_id: str,
+) -> dict[str, Any] | None:
+    cve_id = _vulnerability_cve_id(finding)
+    key = cve_id or finding.get("name")
+    if not key:
+        return None
+    return {
+        # The prefix keeps this node apart from other sources' :CVE nodes, which
+        # WizFindingToCVERel matches by bare CVE ID. The tenant keeps one tenant's
+        # cleanup from deleting a vulnerability that another tenant still reports.
+        "id": f"WIZ|{tenant_id}|{key}",
+        "name": finding.get("name"),
+        "cve_id": cve_id,
+        "has_cve": str(cve_id is not None).lower(),
+        "cve_description": finding.get("CVEDescription"),
+        "cvss_severity": finding.get("CVSSSeverity"),
+        "exploitability_score": finding.get("exploitabilityScore"),
+        "impact_score": finding.get("impactScore"),
+        "has_exploit": finding.get("hasExploit"),
+        "has_cisa_kev_exploit": finding.get("hasCisaKevExploit"),
+    }
+
+
+def _vulnerability_cve_id(finding: dict[str, Any]) -> str | None:
+    return extract_cve_id(
+        finding.get("name"),
+        finding.get("detailedName"),
+        finding.get("description"),
+        finding.get("link"),
+    )
 
 
 _EC2_INSTANCE_ARN = re.compile(r"^arn:aws[a-z-]*:ec2:[^:]*:\d*:instance/i-[0-9a-f]+$")
@@ -336,12 +378,7 @@ def _transform_vulnerability_finding(
 ) -> dict[str, Any]:
     asset = finding.get("vulnerableAsset") or {}
     projects = finding.get("projects") or asset.get("projects") or []
-    cve_id = extract_cve_id(
-        finding.get("name"),
-        finding.get("detailedName"),
-        finding.get("description"),
-        finding.get("link"),
-    )
+    cve_id = _vulnerability_cve_id(finding)
     return {
         "id": get_finding_id(finding, tenant_id),
         "finding_type": FINDING_TYPE_VULNERABILITY,
@@ -359,15 +396,8 @@ def _transform_vulnerability_finding(
         "description": finding.get("description"),
         "remediation": finding.get("remediation"),
         "cve_id": cve_id,
-        "has_cve": str(cve_id is not None).lower(),
         "is_security_issue": str(cve_id is None).lower(),
-        "cve_description": finding.get("CVEDescription"),
-        "cvss_severity": finding.get("CVSSSeverity"),
         "score": finding.get("score"),
-        "exploitability_score": finding.get("exploitabilityScore"),
-        "impact_score": finding.get("impactScore"),
-        "has_exploit": finding.get("hasExploit"),
-        "has_cisa_kev_exploit": finding.get("hasCisaKevExploit"),
         "detailed_name": finding.get("detailedName"),
         "version": finding.get("version"),
         "fixed_version": finding.get("fixedVersion"),
@@ -437,15 +467,8 @@ def _transform_configuration_finding(
         "remediation": finding.get("remediation")
         or rule.get("remediationInstructions"),
         "cve_id": None,
-        "has_cve": "false",
         "is_security_issue": "true",
-        "cve_description": None,
-        "cvss_severity": None,
         "score": None,
-        "exploitability_score": None,
-        "impact_score": None,
-        "has_exploit": None,
-        "has_cisa_kev_exploit": None,
         "detailed_name": None,
         "version": None,
         "fixed_version": None,
@@ -517,15 +540,8 @@ def _transform_detection(
         "description": finding.get("description"),
         "remediation": None,
         "cve_id": None,
-        "has_cve": "false",
         "is_security_issue": "true",
-        "cve_description": None,
-        "cvss_severity": None,
         "score": None,
-        "exploitability_score": None,
-        "impact_score": None,
-        "has_exploit": None,
-        "has_cisa_kev_exploit": None,
         "detailed_name": None,
         "version": None,
         "fixed_version": None,
@@ -647,6 +663,22 @@ def load_findings(
 
 
 @timeit
+def load_vulnerabilities(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        WizVulnerabilitySchema(),
+        data,
+        lastupdated=update_tag,
+        WIZ_TENANT_ID=tenant_id,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
@@ -654,6 +686,41 @@ def cleanup(
     GraphJob.from_node_schema(WizFindingSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    GraphJob.from_node_schema(WizVulnerabilitySchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
+# DEPRECATED: migrates graphs synced by earlier versions; will be removed in v1.0.0.
+@timeit
+def migrate_legacy_cve_labels(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    run_analysis_job(
+        "wiz_cve_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+
+def _transformed_batches(
+    pages: Iterable[list[dict[str, Any]]],
+    tenant_id: str,
+) -> Iterator[tuple[list[dict[str, Any]], list[dict[str, Any]]]]:
+    findings: list[dict[str, Any]] = []
+    vulnerabilities: dict[str, dict[str, Any]] = {}
+    for page in pages:
+        page_findings, page_vulnerabilities = transform(page, tenant_id)
+        findings.extend(page_findings)
+        vulnerabilities.update((v["id"], v) for v in page_vulnerabilities)
+        while len(findings) >= LOAD_BATCH_SIZE:
+            # Findings carried into the next batch link to vulnerabilities that
+            # this batch loads first.
+            yield findings[:LOAD_BATCH_SIZE], list(vulnerabilities.values())
+            findings, vulnerabilities = findings[LOAD_BATCH_SIZE:], {}
+    if findings:
+        yield findings, list(vulnerabilities.values())
 
 
 @timeit
@@ -685,7 +752,11 @@ def sync(
         project_id_filter,
         active_only=active_only,
     )
-    findings = (finding for page in pages for finding in transform(page, tenant_id))
-    load_findings(neo4j_session, findings, tenant_id, update_tag)
+    # Pages hold about 100 findings, so pages are grouped to keep each load one
+    # transaction of LOAD_BATCH_SIZE rows while holding no more than that in memory.
+    for findings, vulnerabilities in _transformed_batches(pages, tenant_id):
+        # Findings link to their vulnerability on load, so it must exist first.
+        load_vulnerabilities(neo4j_session, vulnerabilities, tenant_id, update_tag)
+        load_findings(neo4j_session, findings, tenant_id, update_tag)
     if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)
