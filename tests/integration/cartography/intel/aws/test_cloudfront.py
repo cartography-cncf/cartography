@@ -400,6 +400,9 @@ def test_sync_cloudfront_persists_origin_endpoints_and_behavior_routing(
         MATCH (n:AWSCloudFrontDistribution {distribution_id: $id})
         RETURN n.origin_endpoints AS endpoints,
                n.behavior_path_patterns AS patterns,
+               n.behavior_path_regexes AS path_regexes,
+               n.behavior_target_origin_ids AS target_origin_ids,
+               n.origin_id_domain_pairs AS id_domain_pairs,
                n.default_target_origin_id AS default_origin
         """,
         id="E3T2R1Q0P9O8N7",
@@ -410,6 +413,14 @@ def test_sync_cloudfront_persists_origin_endpoints_and_behavior_routing(
         "primary-bucket.s3.amazonaws.com|",
     ]
     assert node["patterns"] == ["/backup/*"]
+    assert node["path_regexes"] == [
+        cartography.intel.aws.cloudfront._path_pattern_to_regex("/backup/*")
+    ]
+    assert node["target_origin_ids"] == ["S3-backup"]
+    assert node["id_domain_pairs"] == [
+        "S3-backup|backup-bucket.s3-website-us-west-2.amazonaws.com",
+        "S3-primary|primary-bucket.s3.amazonaws.com",
+    ]
     assert node["default_origin"] == "S3-primary"
 
 
