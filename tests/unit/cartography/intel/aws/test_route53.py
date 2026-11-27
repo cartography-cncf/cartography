@@ -1,8 +1,8 @@
 import pytest
 
 from cartography.intel.aws.route53 import _decode_route53_escapes
-from cartography.intel.aws.route53 import _normalize_record_target
 from cartography.intel.aws.route53 import _normalize_dns_target
+from cartography.intel.aws.route53 import _normalize_record_target
 from cartography.intel.aws.route53 import transform_record_set
 
 LB_DNS_NAME = "myawesomeloadbalancer.us-east-1.elb.amazonaws.com"
