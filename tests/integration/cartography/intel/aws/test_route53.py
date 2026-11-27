@@ -362,7 +362,8 @@ def test_load_dnspointsto_redshift_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Assert: both the CNAME and the ALIAS record point at the cluster endpoint.
+    # Assert: both the CNAME and the ALIAS record point at the cluster endpoint,
+    # while the near-miss record in the same zone does not.
     endpoint_address = tests.data.aws.redshift.CLUSTERS[0]["Endpoint"]["Address"]
     assert check_rels(
         neo4j_session,
@@ -376,3 +377,11 @@ def test_load_dnspointsto_redshift_relationships(neo4j_session):
         ("warehouse.example.com", endpoint_address),
         ("warehouse-alias.example.com", endpoint_address),
     }
+    # The non-matching record exists but has no Redshift edge.
+    unmatched = neo4j_session.run("""
+        MATCH (d:AWSDNSRecord {name: 'replica.example.com'})
+        RETURN d.value AS value,
+               size([(d)-[:DNS_POINTS_TO]->(:AWSRedshiftCluster) | 1]) AS redshift_edges
+        """).single()
+    assert unmatched is not None
+    assert unmatched["redshift_edges"] == 0

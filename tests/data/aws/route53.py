@@ -232,7 +232,7 @@ GET_ZONES_REDSHIFT_RESPONSE = [
             },
             "Id": "/hostedzone/REDSHIFT_ZONE",
             "Name": "example.com.",
-            "ResourceRecordSetCount": 2,
+            "ResourceRecordSetCount": 3,
         },
         [
             {
@@ -254,6 +254,18 @@ GET_ZONES_REDSHIFT_RESPONSE = [
                 },
                 "TTL": 60,
                 "Type": "A",
+            },
+            {
+                # A near-miss: same zone, similar name, but not the cluster
+                # endpoint. Guards the exact-match contract against over-matching.
+                "Name": "replica.example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "other-cluster.abc.us-east-1.redshift.amazonaws.example.com",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "CNAME",
             },
         ],
     ),
