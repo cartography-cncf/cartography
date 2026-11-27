@@ -70,17 +70,21 @@ def _normalize_dns_target(value: str) -> str:
     return value.lower()
 
 
-def _normalize_alias_target(value: str) -> str:
+def _normalize_record_target(value: str) -> str:
     """
-    Normalize an AliasTarget's DNSName, additionally removing the `dualstack.` prefix that
-    Route53 puts on alias targets pointing at an ELB: the ELB APIs return the same load
-    balancer's DNSName without it, so leaving it in place means the alias never matches.
+    Normalize a hostname-valued record target (ALIAS or CNAME), additionally removing the
+    `dualstack.` prefix when the target is an ELB: the ELB APIs return the same load
+    balancer's DNSName without it, so leaving it in place means the record never matches.
+    Route53 puts the prefix on alias targets pointing at an ELB, and operators can also
+    write an ordinary CNAME to that same dualstack name; both denote the same load
+    balancer, so the stripped form is what resource matchers compare against.
 
     The prefix is only an ELB artifact, hence the suffix check against the AWS-owned ELB
-    domains. An alias may also point at another record in the same hosted zone, and an ordinary
-    CNAME's value is zone data written by the operator; in both of those a leading `dualstack.`
-    belongs to a genuinely different hostname and stripping it would rewrite the target. A
-    hostname in an arbitrary zone can contain `.elb.` too, so only the suffix is conclusive.
+    domains. An alias may also point at another record in the same hosted zone, and a
+    CNAME's value is zone data written by the operator; unless the remainder is an ELB
+    DNS name, a leading `dualstack.` belongs to a genuinely different hostname and
+    stripping it would rewrite the target. A hostname in an arbitrary zone can contain
+    `.elb.` too, so only the suffix is conclusive.
     """
     normalized = _normalize_dns_target(value)
     if not normalized.startswith("dualstack."):
@@ -171,7 +175,7 @@ def _transform_record_set(
     if record_set["Type"] == "CNAME":
         if "AliasTarget" in record_set:
             # this is a weighted CNAME record
-            value = _normalize_alias_target(record_set["AliasTarget"]["DNSName"])
+            value = _normalize_record_target(record_set["AliasTarget"]["DNSName"])
             return {
                 "name": name,
                 "type": "CNAME",
@@ -180,8 +184,9 @@ def _transform_record_set(
                 "id": _create_dns_record_id(zone_id, name, "WEIGHTED_CNAME"),
             }
         else:
-            # This is a normal CNAME record
-            value = _normalize_dns_target(record_set["ResourceRecords"][0]["Value"])
+            # This is a normal CNAME record. ELB-suffixed dualstack targets are
+            # normalized the same way as alias targets so they match the LB node.
+            value = _normalize_record_target(record_set["ResourceRecords"][0]["Value"])
             return {
                 "name": name,
                 "type": "CNAME",
@@ -198,7 +203,7 @@ def _transform_record_set(
                 "name": name,
                 "type": "ALIAS",
                 "zoneid": zone_id,
-                "value": _normalize_alias_target(record_set["AliasTarget"]["DNSName"]),
+                "value": _normalize_record_target(record_set["AliasTarget"]["DNSName"]),
                 "id": _create_dns_record_id(zone_id, name, "ALIAS"),
             }
         else:
@@ -220,7 +225,7 @@ def _transform_record_set(
     elif record_set["Type"] == "AAAA":
         if "AliasTarget" in record_set:
             # AAAA alias records follow the same pattern as A aliases but map to IPv6 targets
-            value = _normalize_alias_target(record_set["AliasTarget"]["DNSName"])
+            value = _normalize_record_target(record_set["AliasTarget"]["DNSName"])
             return {
                 "name": name,
                 "type": "ALIAS",
