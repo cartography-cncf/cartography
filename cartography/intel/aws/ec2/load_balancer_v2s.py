@@ -154,22 +154,24 @@ def _condition_values_to_regex(values: List[str], lowercase: bool = False) -> st
 def _regex_values_to_regex(
     glob_values: List[str],
     regex_values: List[str],
-    lowercase: bool = False,
+    case_insensitive: bool = False,
 ) -> str:
     """Combine glob `Values` and verbatim `RegexValues` into one anchored regex.
 
     Returns '' only when the rule carries no condition of this type at all, which
-    the consumer reads as "matches anything". Glob values are translated; regex
-    values are already Java regexes and are wrapped as-is.
+    the consumer reads as "matches anything". Glob values are glob-translated;
+    regex values are already Java regexes and are wrapped as-is.
+
+    Case folding uses an inline `(?i:...)` group rather than calling `.lower()`
+    on the pattern: lowercasing regex source also rewrites character classes such
+    as `\\S` into `\\s`, silently inverting their meaning.
     """
-    bodies = [
-        _wildcard_to_regex_body(v.lower() if lowercase else v) for v in glob_values
-    ]
-    for value in regex_values:
-        bodies.append(value.lower() if lowercase else value)
+    bodies = [_wildcard_to_regex_body(v) for v in glob_values]
+    bodies.extend(regex_values)
     if not bodies:
         return ""
-    return "^(?:" + "|".join(bodies) + ")$"
+    combined = "^(?:" + "|".join(bodies) + ")$"
+    return f"(?i:{combined})" if case_insensitive else combined
 
 
 def _rule_condition_values(rule: Dict, field: str, config_key: str) -> List[str]:
@@ -249,7 +251,9 @@ def _transform_listener_rules(listener: Dict) -> Dict:
         # the wrong target group.
         path_regexes.append(_regex_values_to_regex(path_values, path_regex_values))
         host_regexes.append(
-            _regex_values_to_regex(host_values, host_regex_values, lowercase=True)
+            _regex_values_to_regex(
+                host_values, host_regex_values, case_insensitive=True
+            )
         )
         target_group_arns.append(_rule_forward_target_group_arn(rule))
         priorities.append(

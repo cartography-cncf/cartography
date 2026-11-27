@@ -268,6 +268,36 @@ class TestRegexValues:
         out = load_balancer_v2s._transform_listener_rules(listener)
         assert re.match(out["rule_host_regexes"][0], "api.example.com")
 
+    def test_host_regex_values_preserve_character_classes(self):
+        r"""Case folding must not rewrite regex syntax such as \S into \s.
+
+        Lowercasing the pattern source would invert these classes: \S means
+        "not whitespace", \s means "whitespace". See the cubic-dev review on
+        PR #3725.
+        """
+        listener = {
+            "ListenerArn": LISTENER_ARN,
+            "Rules": [
+                {
+                    "RuleArn": f"{LISTENER_ARN}/rule/1",
+                    "Priority": "1",
+                    "Conditions": [
+                        {
+                            "Field": "host-header",
+                            "HostHeaderConfig": {"RegexValues": [r"^API\.\S+\.COM$"]},
+                        }
+                    ],
+                    "Actions": _forward_action(TG_BLUE),
+                }
+            ],
+        }
+        out = load_balancer_v2s._transform_listener_rules(listener)
+        regex = out["rule_host_regexes"][0]
+        # Matches a lowercased host with a non-space middle segment.
+        assert re.match(regex, "api.example.com")
+        # And still rejects whitespace, which \s would have allowed.
+        assert not re.match(regex, "api. .com")
+
 
 class TestTransformListenerRules:
     def test_lists_are_index_aligned_and_default_is_last(self):
