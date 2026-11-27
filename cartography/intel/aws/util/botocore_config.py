@@ -125,8 +125,13 @@ def get_lambda_botocore_config(
         read_timeout=(
             read_timeout if read_timeout is not None else LAMBDA_READ_TIMEOUT
         ),
+        # The pinned 2-attempt budget loses the whole region's Lambda sync to a
+        # single throttled per-function call, so let the shared env var raise
+        # it; LAMBDA_MAX_ATTEMPTS remains the default when the var is unset.
         max_attempts=(
-            max_attempts if max_attempts is not None else LAMBDA_MAX_ATTEMPTS
+            max_attempts
+            if max_attempts is not None
+            else _get_int_env(MAX_ATTEMPTS_ENV_VAR, LAMBDA_MAX_ATTEMPTS)
         ),
         retry_mode=retry_mode,
         max_pool_connections=max_pool_connections,
