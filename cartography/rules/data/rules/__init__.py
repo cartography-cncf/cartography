@@ -362,6 +362,30 @@ from cartography.rules.data.rules.public_snapshots import public_snapshots
 from cartography.rules.data.rules.pylon_admin_service_accounts import (
     pylon_admin_service_accounts,
 )
+from cartography.rules.data.rules.sagemaker_domain_and_registry import (
+    aws_sagemaker_domain_sso_auth,
+)
+from cartography.rules.data.rules.sagemaker_domain_and_registry import (
+    aws_sagemaker_model_registry_approved,
+)
+from cartography.rules.data.rules.sagemaker_notebook_hygiene import (
+    aws_sagemaker_notebook_kms_encryption,
+)
+from cartography.rules.data.rules.sagemaker_notebook_hygiene import (
+    aws_sagemaker_notebook_no_direct_internet,
+)
+from cartography.rules.data.rules.sagemaker_notebook_hygiene import (
+    aws_sagemaker_notebook_root_access_disabled,
+)
+from cartography.rules.data.rules.sagemaker_notebook_hygiene import (
+    aws_sagemaker_notebook_vpc_config,
+)
+from cartography.rules.data.rules.sagemaker_training_hygiene import (
+    aws_sagemaker_training_intercontainer_encryption,
+)
+from cartography.rules.data.rules.sagemaker_training_hygiene import (
+    aws_sagemaker_training_network_isolation,
+)
 from cartography.rules.data.rules.security_monitoring_gaps import (
     aws_security_hub_configuration_gaps,
 )
@@ -403,6 +427,15 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # SageMaker notebook, training, domain and registry hygiene
+    aws_sagemaker_notebook_kms_encryption.id: aws_sagemaker_notebook_kms_encryption,
+    aws_sagemaker_notebook_no_direct_internet.id: aws_sagemaker_notebook_no_direct_internet,
+    aws_sagemaker_notebook_root_access_disabled.id: aws_sagemaker_notebook_root_access_disabled,
+    aws_sagemaker_notebook_vpc_config.id: aws_sagemaker_notebook_vpc_config,
+    aws_sagemaker_training_intercontainer_encryption.id: aws_sagemaker_training_intercontainer_encryption,
+    aws_sagemaker_training_network_isolation.id: aws_sagemaker_training_network_isolation,
+    aws_sagemaker_domain_sso_auth.id: aws_sagemaker_domain_sso_auth,
+    aws_sagemaker_model_registry_approved.id: aws_sagemaker_model_registry_approved,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
