@@ -10,12 +10,36 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.models.aws.eventbridge.eventbus import EventBridgeEventBusSchema
 from cartography.models.aws.eventbridge.rule import EventBridgeRuleSchema
 from cartography.models.aws.eventbridge.target import EventBridgeTargetSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+@timeit
+@aws_handle_regions
+def get_eventbridge_event_buses(
+    boto3_session: boto3.Session, region: str
+) -> List[Dict[str, Any]]:
+    client = create_boto3_client(
+        boto3_session, "events", region_name=region, config=get_botocore_config()
+    )
+    # botocore has no paginator for list_event_buses. Page with NextToken.
+    event_buses: List[Dict[str, Any]] = []
+    next_token = None
+    while True:
+        params: Dict[str, Any] = {}
+        if next_token:
+            params["NextToken"] = next_token
+        page = client.list_event_buses(**params)
+        event_buses.extend(page.get("EventBuses", []))
+        next_token = page.get("NextToken")
+        if not next_token:
+            break
+    return event_buses
 
 
 @timeit
@@ -74,6 +98,27 @@ def transform_eventbridge_targets(
 
 
 @timeit
+def load_eventbridge_event_buses(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        f"Loading EventBridge {len(data)} event buses for region '{region}' into graph.",
+    )
+    load(
+        neo4j_session,
+        EventBridgeEventBusSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def load_eventbridge_rules(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -127,6 +172,9 @@ def cleanup(
     GraphJob.from_node_schema(EventBridgeTargetSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(EventBridgeEventBusSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -141,6 +189,15 @@ def sync(
     for region in regions:
         logger.info(
             f"Syncing EventBridge for region '{region}' in account '{current_aws_account_id}'.",
+        )
+
+        event_buses = get_eventbridge_event_buses(boto3_session, region)
+        load_eventbridge_event_buses(
+            neo4j_session,
+            event_buses,
+            region,
+            current_aws_account_id,
+            update_tag,
         )
 
         rules = get_eventbridge_rules(boto3_session, region)

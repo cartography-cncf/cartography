@@ -1,3 +1,16 @@
+GET_EVENTBRIDGE_EVENT_BUSES = [
+    {
+        "Name": "default",
+        "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/default",
+    },
+    {
+        "Name": "custom-bus",
+        "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/custom-bus",
+        "Policy": '{"Version":"2012-10-17","Statement":[]}',
+    },
+]
+
+
 GET_EVENTBRIDGE_RULES = [
     {
         "Name": "UserSignupRule",

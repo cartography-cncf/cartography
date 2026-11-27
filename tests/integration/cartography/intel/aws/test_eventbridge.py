@@ -5,6 +5,7 @@ import cartography.intel.aws.eventbridge
 from cartography.intel.aws.eventbridge import sync
 from cartography.intel.aws.iam import load_role_data
 from cartography.intel.aws.iam import transform_role_trust_policies
+from tests.data.aws.eventbridge import GET_EVENTBRIDGE_EVENT_BUSES
 from tests.data.aws.eventbridge import GET_EVENTBRIDGE_RULES
 from tests.data.aws.eventbridge import GET_EVENTBRIDGE_TARGETS
 from tests.data.aws.iam.roles import ROLES
@@ -19,6 +20,11 @@ TEST_UPDATE_TAG = 123456789
 
 @patch.object(
     cartography.intel.aws.eventbridge,
+    "get_eventbridge_event_buses",
+    return_value=GET_EVENTBRIDGE_EVENT_BUSES,
+)
+@patch.object(
+    cartography.intel.aws.eventbridge,
     "get_eventbridge_rules",
     return_value=GET_EVENTBRIDGE_RULES,
 )
@@ -31,7 +37,11 @@ TEST_UPDATE_TAG = 123456789
     return_value=GET_EVENTBRIDGE_TARGETS,
 )
 def test_sync_eventbridge(
-    mock_get_targets, mock_get_roles, mock_get_rules, neo4j_session
+    mock_get_targets,
+    mock_get_roles,
+    mock_get_rules,
+    mock_get_buses,
+    neo4j_session,
 ):
     # Arrange
     boto3_session = MagicMock()
@@ -143,4 +153,56 @@ def test_sync_eventbridge(
             "arn:aws:sns:us-east-1:123456789012:NotifyAdmin",
             "arn:aws:events:us-east-1:123456789012:rule/DailyCleanupRule",
         ),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "AWSEventBridgeEventBus",
+        ["id", "arn", "name", "policy"],
+    ) == {
+        (
+            "arn:aws:events:us-east-1:123456789012:event-bus/default",
+            "arn:aws:events:us-east-1:123456789012:event-bus/default",
+            "default",
+            None,
+        ),
+        (
+            "arn:aws:events:us-east-1:123456789012:event-bus/custom-bus",
+            "arn:aws:events:us-east-1:123456789012:event-bus/custom-bus",
+            "custom-bus",
+            '{"Version":"2012-10-17","Statement":[]}',
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSEventBridgeEventBus",
+        "arn",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:events:us-east-1:123456789012:event-bus/default",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:events:us-east-1:123456789012:event-bus/custom-bus",
+        ),
+    }
+
+    mock_get_buses.return_value = [GET_EVENTBRIDGE_EVENT_BUSES[0]]
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_nodes(neo4j_session, "AWSEventBridgeEventBus", ["arn"]) == {
+        ("arn:aws:events:us-east-1:123456789012:event-bus/default",),
     }
