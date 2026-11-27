@@ -89,3 +89,27 @@ LIST_WEB_ACLS_EMPTY_PAGE_WITH_MARKER = {
     "WebACLs": [],
     "NextMarker": "test-cli",
 }
+
+RULE_GROUP_ARN = (
+    "arn:aws:wafv2:us-east-1:000000000000:regional/rulegroup/"
+    "shared-rules/22222222-2222-2222-2222-222222222222"
+)
+RULE_GROUP_SUMMARY = {
+    "Name": "shared-rules",
+    "Id": "22222222-2222-2222-2222-222222222222",
+    "ARN": RULE_GROUP_ARN,
+}
+LIST_RULE_GROUPS = {"RuleGroups": [RULE_GROUP_SUMMARY]}
+GET_WEB_ACL_WITH_RULE_GROUP = {
+    "WebACL": {
+        "Rules": [
+            {
+                "Name": "use-shared-rules",
+                "Priority": 0,
+                "Statement": {
+                    "RuleGroupReferenceStatement": {"ARN": RULE_GROUP_ARN},
+                },
+            },
+        ],
+    },
+}

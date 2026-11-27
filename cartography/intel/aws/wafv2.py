@@ -11,6 +11,7 @@ from cartography.intel.aws.cloudfront import CLOUDFRONT_PARTITIONS
 from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
+from cartography.models.aws.wafv2 import AWSRuleGroupSchema
 from cartography.models.aws.wafv2 import AWSWebACLSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
@@ -67,6 +68,67 @@ def _get_alb_arns_for_web_acl(client: Any, web_acl_arn: str) -> list[str]:
     return response.get("ResourceArns", [])
 
 
+def _get_rule_group_arns_for_web_acl(
+    client: Any,
+    web_acl: dict[str, Any],
+    scope: str,
+) -> list[str]:
+    try:
+        response = client.get_web_acl(
+            Name=web_acl["Name"],
+            Scope=scope,
+            Id=web_acl["Id"],
+        )
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "WAFNonexistentItemException":
+            logger.warning(
+                "Web ACL %s was deleted between listing and fetching its "
+                "rules. Skipping.",
+                web_acl["ARN"],
+            )
+            return []
+        raise
+    arns = []
+    for rule in response["WebACL"].get("Rules", []):
+        ref = rule["Statement"].get("RuleGroupReferenceStatement")
+        if ref:
+            arns.append(ref["ARN"])
+    return arns
+
+
+@timeit
+@aws_handle_regions
+def get_rule_groups(
+    boto3_session: boto3.session.Session,
+    region: str,
+    scope: str,
+) -> list[dict[str, Any]]:
+    client = create_boto3_client(
+        boto3_session,
+        "wafv2",
+        region_name=region,
+        config=get_botocore_config(),
+    )
+    rule_groups: list[dict[str, Any]] = []
+    next_marker = None
+    while True:
+        params: dict[str, Any] = {"Scope": scope}
+        if next_marker:
+            params["NextMarker"] = next_marker
+        page = client.list_rule_groups(**params)
+        page_groups = page.get("RuleGroups", [])
+        for rule_group in page_groups:
+            rule_group["Scope"] = scope
+        rule_groups.extend(page_groups)
+        previous_marker = next_marker
+        next_marker = page.get("NextMarker")
+        # WAFv2 can return a NextMarker on the final page. Stop on an empty
+        # page or a marker that makes no progress to avoid looping forever.
+        if not next_marker or not page_groups or next_marker == previous_marker:
+            break
+    return rule_groups
+
+
 @timeit
 @aws_handle_regions
 def get_web_acls(
@@ -91,8 +153,13 @@ def get_web_acls(
         config=get_botocore_config(),
     )
     web_acls = _list_web_acls(client, scope)
-    if scope == "REGIONAL":
-        for web_acl in web_acls:
+    for web_acl in web_acls:
+        web_acl["RuleGroupArns"] = _get_rule_group_arns_for_web_acl(
+            client,
+            web_acl,
+            scope,
+        )
+        if scope == "REGIONAL":
             web_acl["AlbArns"] = _get_alb_arns_for_web_acl(client, web_acl["ARN"])
     return web_acls
 
@@ -111,9 +178,33 @@ def transform_web_acls(
                 "Description": web_acl.get("Description"),
                 "Scope": scope,
                 "AlbArns": web_acl.get("AlbArns", []),
+                "RuleGroupArns": web_acl["RuleGroupArns"],
             }
         )
     return transformed
+
+
+@timeit
+def load_rule_groups(
+    neo4j_session: neo4j.Session,
+    rule_group_data: list[dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        "Loading %d WAFv2 rule groups for region '%s' into graph.",
+        len(rule_group_data),
+        region,
+    )
+    load(
+        neo4j_session,
+        AWSRuleGroupSchema(),
+        rule_group_data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 @timeit
@@ -150,6 +241,9 @@ def cleanup(
         common_job_parameters,
     )
     cleanup_job.run(neo4j_session)
+    GraphJob.from_node_schema(AWSRuleGroupSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
 
 
 def _sync_scope(
@@ -160,6 +254,14 @@ def _sync_scope(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
+    load_rule_groups(
+        neo4j_session,
+        get_rule_groups(boto3_session, region, scope),
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+
     logger.info(
         "Syncing WAFv2 %s web ACLs for region '%s' in account '%s'.",
         scope,
