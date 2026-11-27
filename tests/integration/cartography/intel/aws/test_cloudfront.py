@@ -384,7 +384,11 @@ def test_sync_cloudfront_alb_origin(mock_get_distributions, neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    alb_dns_name = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA[0]["DNSName"]
+    # The fixture's CloudFront origin is mixed case on purpose; the stored
+    # AWSLoadBalancerV2.dnsname is lowercased, so compare against the lowered form.
+    alb_dns_name = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA[0][
+        "DNSName"
+    ].lower()
 
     # Act
     sync(
@@ -516,7 +520,11 @@ def test_sync_cloudfront_alb_origin_removed_cleans_stale_edge(
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    alb_dns_name = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA[0]["DNSName"]
+    # The fixture's CloudFront origin is mixed case on purpose; the stored
+    # AWSLoadBalancerV2.dnsname is lowercased, so compare against the lowered form.
+    alb_dns_name = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA[0][
+        "DNSName"
+    ].lower()
     mock_get_distributions.return_value = test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN
 
     # Act

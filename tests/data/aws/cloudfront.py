@@ -443,8 +443,11 @@ CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN: list[dict[str, Any]] = copy.deepcopy(
 CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0][
     "Comment"
 ] = "Distribution with an ALB custom origin"
+# Intentionally mixed case: CloudFront returns the origin DomainName as configured,
+# while AWSLoadBalancerV2.dnsname is lowercased at ingestion. The matcher compares
+# them directly, so a mixed-case origin only links if the transform lowercases it.
 CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0]["Origins"]["Items"][0]["DomainName"] = (
-    LOAD_BALANCER_DATA[0]["DNSName"]
+    LOAD_BALANCER_DATA[0]["DNSName"].upper()
 )
 _alb_backend_origin = copy.deepcopy(
     CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0]["Origins"]["Items"][0]
@@ -462,7 +465,7 @@ CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED: list[dict[str, Any]] = copy.deepcop
 CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED[0]["Origins"]["Items"] = [
     origin
     for origin in CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED[0]["Origins"]["Items"]
-    if origin["DomainName"] != LOAD_BALANCER_DATA[0]["DNSName"]
+    if origin["DomainName"].lower() != LOAD_BALANCER_DATA[0]["DNSName"].lower()
 ]
 CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED[0]["Origins"]["Quantity"] = 1
 
