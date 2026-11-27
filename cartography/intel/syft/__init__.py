@@ -99,6 +99,16 @@ def sync_syft_from_report_reader(
             failed_report_count += 1
             continue
 
+        if not isinstance(syft_data, dict) or not isinstance(
+            syft_data.get("artifacts"), list
+        ):
+            logger.error(
+                "Invalid Syft report from %s: expected an object with an artifacts array.",
+                ref.uri,
+            )
+            failed_report_count += 1
+            continue
+
         sync_single_syft(
             neo4j_session,
             syft_data,
@@ -108,7 +118,7 @@ def sync_syft_from_report_reader(
 
     if failed_report_count:
         logger.warning(
-            "Skipping Syft cleanup because %d report(s) failed to read or parse.",
+            "Skipping Syft cleanup because %d report(s) failed to read, parse, or validate.",
             failed_report_count,
         )
         return
