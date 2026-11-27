@@ -10,6 +10,7 @@ from cartography.intel.jamf.tenant import load_tenant
 from cartography.intel.jamf.util import get_http_status_code
 from cartography.intel.jamf.util import get_paginated_jamf_results
 from cartography.intel.jamf.util import normalize_group_id
+from cartography.models.jamf.application import JamfApplicationSchema
 from cartography.models.jamf.computer import JamfComputerSchema
 from cartography.util import timeit
 
@@ -24,6 +25,7 @@ _SECTION_PARAMS = {
         "DISK_ENCRYPTION",
         "GROUP_MEMBERSHIPS",
         "USER_AND_LOCATION",
+        "APPLICATIONS",
     ],
 }
 
@@ -41,7 +43,7 @@ def _get_nested(data: dict[str, Any], *keys: str) -> Any:
 def get(
     api_session: requests.Session,
     jamf_base_uri: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     try:
         return get_paginated_jamf_results(
             "/api/v1/computers-inventory",
@@ -55,7 +57,7 @@ def get(
         logger.info(
             "Jamf: /api/v1/computers-inventory unavailable; skipping computer inventory sync.",
         )
-        return []
+        return None
 
 
 def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -122,6 +124,36 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def transform_applications(
+    api_result: list[dict[str, Any]],
+    tenant_id: str,
+) -> list[dict[str, Any]]:
+    # One node per (tenant, bundle ID, version), shared by every computer in the
+    # tenant that has it. Without the tenant, one tenant's cleanup would delete an
+    # application node another tenant still references.
+    apps: dict[str, dict[str, Any]] = {}
+    for device in api_result:
+        for app in device.get("applications") or []:
+            key = app.get("bundleId") or app.get("name")
+            if not key:
+                continue
+            app_id = f"{tenant_id}#{key}@{app.get('version') or ''}"
+            if app_id not in apps:
+                apps[app_id] = {
+                    "id": app_id,
+                    "bundle_id": app.get("bundleId"),
+                    "name": app.get("name"),
+                    "version": app.get("version"),
+                    "mac_app_store": app.get("macAppStore"),
+                    "external_version_id": app.get("externalVersionId"),
+                    "computer_ids": set(),
+                }
+            apps[app_id]["computer_ids"].add(device["id"])
+    for app in apps.values():
+        app["computer_ids"] = sorted(app["computer_ids"])
+    return list(apps.values())
+
+
 def load_computers(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -140,9 +172,29 @@ def load_computers(
     )
 
 
+def load_applications(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    if not data:
+        return
+    load(
+        neo4j_session,
+        JamfApplicationSchema(),
+        data,
+        lastupdated=update_tag,
+        TENANT_ID=tenant_id,
+    )
+
+
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
+    GraphJob.from_node_schema(JamfApplicationSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
     GraphJob.from_node_schema(JamfComputerSchema(), common_job_parameters).run(
         neo4j_session,
     )
@@ -157,6 +209,12 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     raw_data = get(api_session, jamf_base_uri)
+    if raw_data is None:
+        # Nothing was fetched, so nothing is known to be stale: keep the last
+        # sync's computers and applications rather than cleaning them all up.
+        return
     computers = transform(raw_data)
     load_computers(neo4j_session, computers, jamf_base_uri, update_tag)
+    applications = transform_applications(raw_data, jamf_base_uri)
+    load_applications(neo4j_session, applications, jamf_base_uri, update_tag)
     cleanup(neo4j_session, common_job_parameters)
