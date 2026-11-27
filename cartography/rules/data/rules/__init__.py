@@ -396,6 +396,20 @@ from cartography.rules.data.rules.transport_encryption_gaps import (
 )
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.unpinned_github_actions import unpinned_github_actions
+from cartography.rules.data.rules.vpc_endpoint_coverage import (
+    aws_vpc_ec2_interface_endpoint_present,
+)
+from cartography.rules.data.rules.vpc_endpoint_coverage import aws_vpc_endpoint_multi_az
+from cartography.rules.data.rules.vpc_endpoint_coverage import (
+    aws_vpc_endpoint_policy_trusted_principals,
+)
+from cartography.rules.data.rules.vpc_network_hygiene import (
+    aws_vpc_peering_least_privilege_routes,
+)
+from cartography.rules.data.rules.vpc_network_hygiene import aws_vpc_subnet_multi_az
+from cartography.rules.data.rules.vpc_network_hygiene import (
+    aws_vpc_subnet_no_auto_public_ip,
+)
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
@@ -403,6 +417,13 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # VPC endpoint coverage and network placement hygiene
+    aws_vpc_ec2_interface_endpoint_present.id: aws_vpc_ec2_interface_endpoint_present,
+    aws_vpc_endpoint_multi_az.id: aws_vpc_endpoint_multi_az,
+    aws_vpc_endpoint_policy_trusted_principals.id: aws_vpc_endpoint_policy_trusted_principals,
+    aws_vpc_peering_least_privilege_routes.id: aws_vpc_peering_least_privilege_routes,
+    aws_vpc_subnet_multi_az.id: aws_vpc_subnet_multi_az,
+    aws_vpc_subnet_no_auto_public_ip.id: aws_vpc_subnet_no_auto_public_ip,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
