@@ -250,6 +250,30 @@ def test_transform_origin_domain_names_deduplicated_and_sorted():
     ]
 
 
+def test_transform_origin_domain_names_lowercased_for_matcher_compatibility():
+    """Origin domain names are lowercased to match AWSLoadBalancerV2.dnsname.
+
+    `dnsname` is lowercased at ingestion (DNSNameLower), and relationship matchers
+    compare by equality. AWS preserves the load balancer name's case in CloudFront's
+    origin DomainName, so an origin written as `My-ALB-1234...eu-west-1.elb.amazonaws.com`
+    would never match unless the origin list is lowercased too.
+    """
+    # Arrange: an origin whose DomainName carries uppercase, as AWS can return it.
+    dist = copy.deepcopy(test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0])
+    dist["Origins"]["Items"][0][
+        "DomainName"
+    ] = "My-ALB-1234567890.eu-west-1.elb.amazonaws.com"
+
+    # Act
+    result = cloudfront.transform_cloudfront_distributions([dist])
+
+    # Assert: lowercased, and therefore equal to the LB node's `dnsname`.
+    assert result[0]["origin_domain_names"] == [
+        "my-alb-1234567890.eu-west-1.elb.amazonaws.com",
+        "origin.backend.example.com",
+    ]
+
+
 def test_extract_lambda_arns_from_cache_behavior():
     """Test extracting Lambda ARNs from cache behavior."""
     cache_behavior = {

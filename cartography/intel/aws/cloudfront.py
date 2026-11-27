@@ -182,11 +182,13 @@ def transform_cloudfront_distributions(
             item["s3_origin_bucket_names"] = s3_bucket_names
 
         # Collect every origin's domain name, including custom origins such as load
-        # balancers, so relationships can be matched against them. Deduplicate and sort
-        # for deterministic output.
+        # balancers, so relationships can be matched against them. Lowercased because
+        # AWSLoadBalancerV2.dnsname is lowercased at ingestion and relationship
+        # matchers compare by equality. Deduplicated and sorted for deterministic
+        # output; sorting is case-insensitive-consistent since all values are lowercase.
         item["origin_domain_names"] = sorted(
             {
-                origin["DomainName"]
+                origin["DomainName"].lower()
                 for origin in origin_items
                 if origin.get("DomainName")
             }
