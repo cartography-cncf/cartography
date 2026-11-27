@@ -228,6 +228,66 @@ from cartography.rules.data.rules.cis_kubernetes_workloads import (
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
 )
+from cartography.rules.data.rules.cloudwatch_log_group_hygiene import (
+    aws_cloudwatch_agentcore_log_group_data_protection,
+)
+from cartography.rules.data.rules.cloudwatch_log_group_hygiene import (
+    aws_cloudwatch_cross_account_sharing_disabled,
+)
+from cartography.rules.data.rules.cloudwatch_log_group_hygiene import (
+    aws_cloudwatch_log_group_kms_encryption,
+)
+from cartography.rules.data.rules.cloudwatch_log_group_hygiene import (
+    aws_cloudwatch_log_group_retention,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_authentication_failures,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_cloudtrail_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_config_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_iam_policy_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_kms_cmk_deletion,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_network_acl_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_network_gateway_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_organizations_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_root_usage,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_route_table_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_s3_bucket_policy_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_security_group_changes,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_sign_in_without_mfa,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_unauthorized_api_calls,
+)
+from cartography.rules.data.rules.cloudwatch_log_metrics_filters import (
+    aws_cloudwatch_metric_filter_vpc_changes,
+)
+from cartography.rules.data.rules.cloudwatch_metrics_and_alarms import (
+    aws_cloudwatch_alarm_actions_enabled,
+)
 from cartography.rules.data.rules.compute_instance_exposed import (
     compute_instance_exposed,
 )
@@ -403,6 +463,27 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # CloudWatch log group hygiene and log metric filters
+    aws_cloudwatch_agentcore_log_group_data_protection.id: aws_cloudwatch_agentcore_log_group_data_protection,
+    aws_cloudwatch_cross_account_sharing_disabled.id: aws_cloudwatch_cross_account_sharing_disabled,
+    aws_cloudwatch_log_group_kms_encryption.id: aws_cloudwatch_log_group_kms_encryption,
+    aws_cloudwatch_log_group_retention.id: aws_cloudwatch_log_group_retention,
+    aws_cloudwatch_metric_filter_authentication_failures.id: aws_cloudwatch_metric_filter_authentication_failures,
+    aws_cloudwatch_metric_filter_cloudtrail_changes.id: aws_cloudwatch_metric_filter_cloudtrail_changes,
+    aws_cloudwatch_metric_filter_config_changes.id: aws_cloudwatch_metric_filter_config_changes,
+    aws_cloudwatch_metric_filter_iam_policy_changes.id: aws_cloudwatch_metric_filter_iam_policy_changes,
+    aws_cloudwatch_metric_filter_kms_cmk_deletion.id: aws_cloudwatch_metric_filter_kms_cmk_deletion,
+    aws_cloudwatch_metric_filter_network_acl_changes.id: aws_cloudwatch_metric_filter_network_acl_changes,
+    aws_cloudwatch_metric_filter_network_gateway_changes.id: aws_cloudwatch_metric_filter_network_gateway_changes,
+    aws_cloudwatch_metric_filter_organizations_changes.id: aws_cloudwatch_metric_filter_organizations_changes,
+    aws_cloudwatch_metric_filter_root_usage.id: aws_cloudwatch_metric_filter_root_usage,
+    aws_cloudwatch_metric_filter_route_table_changes.id: aws_cloudwatch_metric_filter_route_table_changes,
+    aws_cloudwatch_metric_filter_s3_bucket_policy_changes.id: aws_cloudwatch_metric_filter_s3_bucket_policy_changes,
+    aws_cloudwatch_metric_filter_security_group_changes.id: aws_cloudwatch_metric_filter_security_group_changes,
+    aws_cloudwatch_metric_filter_sign_in_without_mfa.id: aws_cloudwatch_metric_filter_sign_in_without_mfa,
+    aws_cloudwatch_metric_filter_unauthorized_api_calls.id: aws_cloudwatch_metric_filter_unauthorized_api_calls,
+    aws_cloudwatch_metric_filter_vpc_changes.id: aws_cloudwatch_metric_filter_vpc_changes,
+    aws_cloudwatch_alarm_actions_enabled.id: aws_cloudwatch_alarm_actions_enabled,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
