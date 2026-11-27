@@ -20,6 +20,10 @@ class AWSAccountSummaryNodeProperties(CartographyNodeProperties):
         "AccountMFAEnabled",
         description="1 if the root account has MFA enabled, 0 otherwise. From IAM GetAccountSummary.",
     )
+    account_password_present: PropertyRef = PropertyRef(
+        "AccountPasswordPresent",
+        description="1 if the root account has a console password, 0 otherwise. From IAM GetAccountSummary.",
+    )
     mfa_devices: PropertyRef = PropertyRef(
         "MFADevices",
         description="Number of MFA devices registered in the account. From IAM GetAccountSummary.",
