@@ -228,6 +228,27 @@ from cartography.rules.data.rules.cis_kubernetes_workloads import (
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
 )
+from cartography.rules.data.rules.cloudtrail_event_coverage import (
+    aws_cloudtrail_agentcore_data_events,
+)
+from cartography.rules.data.rules.cloudtrail_event_coverage import (
+    aws_cloudtrail_bedrock_logging,
+)
+from cartography.rules.data.rules.cloudtrail_event_coverage import (
+    aws_cloudtrail_cloudwatch_logs,
+)
+from cartography.rules.data.rules.cloudtrail_event_coverage import (
+    aws_cloudtrail_insights_enabled,
+)
+from cartography.rules.data.rules.cloudtrail_event_coverage import (
+    aws_cloudtrail_management_events_read_write,
+)
+from cartography.rules.data.rules.cloudtrail_event_coverage import (
+    aws_cloudtrail_s3_data_events_read,
+)
+from cartography.rules.data.rules.cloudtrail_event_coverage import (
+    aws_cloudtrail_s3_data_events_write,
+)
 from cartography.rules.data.rules.compute_instance_exposed import (
     compute_instance_exposed,
 )
@@ -404,6 +425,14 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 # Rule registry - all available rules
 RULES = {
     zoom_security_review.id: zoom_security_review,
+    # CloudTrail event coverage
+    aws_cloudtrail_cloudwatch_logs.id: aws_cloudtrail_cloudwatch_logs,
+    aws_cloudtrail_insights_enabled.id: aws_cloudtrail_insights_enabled,
+    aws_cloudtrail_management_events_read_write.id: aws_cloudtrail_management_events_read_write,
+    aws_cloudtrail_s3_data_events_read.id: aws_cloudtrail_s3_data_events_read,
+    aws_cloudtrail_s3_data_events_write.id: aws_cloudtrail_s3_data_events_write,
+    aws_cloudtrail_agentcore_data_events.id: aws_cloudtrail_agentcore_data_events,
+    aws_cloudtrail_bedrock_logging.id: aws_cloudtrail_bedrock_logging,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
     github_organization_security_settings.id: github_organization_security_settings,
