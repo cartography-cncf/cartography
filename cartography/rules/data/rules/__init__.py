@@ -362,6 +362,39 @@ from cartography.rules.data.rules.public_snapshots import public_snapshots
 from cartography.rules.data.rules.pylon_admin_service_accounts import (
     pylon_admin_service_accounts,
 )
+from cartography.rules.data.rules.s3_bucket_access_controls import (
+    aws_s3_bucket_acl_disabled,
+)
+from cartography.rules.data.rules.s3_bucket_access_controls import (
+    aws_s3_bucket_cross_account_access,
+)
+from cartography.rules.data.rules.s3_bucket_access_controls import (
+    aws_s3_bucket_public_list_acl,
+)
+from cartography.rules.data.rules.s3_bucket_access_controls import (
+    aws_s3_bucket_public_write_acl,
+)
+from cartography.rules.data.rules.s3_bucket_access_controls import (
+    aws_s3_bucket_public_write_policy,
+)
+from cartography.rules.data.rules.s3_bucket_access_controls import (
+    aws_s3_bucket_secure_transport_policy,
+)
+from cartography.rules.data.rules.s3_bucket_audit_and_resilience import (
+    aws_s3_account_public_access_block,
+)
+from cartography.rules.data.rules.s3_bucket_audit_and_resilience import (
+    aws_s3_bucket_access_logging,
+)
+from cartography.rules.data.rules.s3_bucket_audit_and_resilience import (
+    aws_s3_bucket_event_notifications,
+)
+from cartography.rules.data.rules.s3_bucket_encryption import (
+    aws_s3_bucket_default_encryption,
+)
+from cartography.rules.data.rules.s3_bucket_encryption import (
+    aws_s3_bucket_kms_encryption,
+)
 from cartography.rules.data.rules.security_monitoring_gaps import (
     aws_security_hub_configuration_gaps,
 )
@@ -403,6 +436,18 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # S3 bucket encryption, access controls, audit and BPA
+    aws_s3_bucket_default_encryption.id: aws_s3_bucket_default_encryption,
+    aws_s3_bucket_kms_encryption.id: aws_s3_bucket_kms_encryption,
+    aws_s3_bucket_acl_disabled.id: aws_s3_bucket_acl_disabled,
+    aws_s3_bucket_cross_account_access.id: aws_s3_bucket_cross_account_access,
+    aws_s3_bucket_public_list_acl.id: aws_s3_bucket_public_list_acl,
+    aws_s3_bucket_public_write_acl.id: aws_s3_bucket_public_write_acl,
+    aws_s3_bucket_public_write_policy.id: aws_s3_bucket_public_write_policy,
+    aws_s3_bucket_secure_transport_policy.id: aws_s3_bucket_secure_transport_policy,
+    aws_s3_account_public_access_block.id: aws_s3_account_public_access_block,
+    aws_s3_bucket_access_logging.id: aws_s3_bucket_access_logging,
+    aws_s3_bucket_event_notifications.id: aws_s3_bucket_event_notifications,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
