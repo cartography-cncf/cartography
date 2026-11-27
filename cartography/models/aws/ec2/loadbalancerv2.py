@@ -409,6 +409,36 @@ class ELBV2ListenerNodeProperties(CartographyNodeProperties):
         "AdvertiseTrustStoreCaNames",
         description="Whether the listener advertises certificate-authority names from its trust store.",
     )
+    # Request routing: an ALB listener evaluates its rules in priority order and
+    # forwards to the target group of the first rule whose path-pattern and
+    # host-header conditions match the request, falling back to the default rule.
+    # The lists below are aligned by index (priority order, default last) so a
+    # query can resolve the serving target group for a host+path without APOC,
+    # mirroring CloudFront cache-behavior routing on distributions.
+    rule_path_patterns: PropertyRef = PropertyRef(
+        "rule_path_patterns",
+        description="Per-rule path-pattern conditions joined by '|', in priority order (default last). Empty entry means no path condition (matches any path).",
+    )
+    rule_path_regexes: PropertyRef = PropertyRef(
+        "rule_path_regexes",
+        description="Anchored regex translation of each rule_path_patterns entry ('*' any chars incl '/', '?' exactly one), aligned by index. Empty entry matches any path.",
+    )
+    rule_host_regexes: PropertyRef = PropertyRef(
+        "rule_host_regexes",
+        description="Anchored lowercase regex of each rule's host-header conditions, aligned by index. Empty entry matches any host. Compare against toLower(hostname).",
+    )
+    rule_target_group_arns: PropertyRef = PropertyRef(
+        "rule_target_group_arns",
+        description="Target group ARN each rule forwards to (first weighted target), aligned by index. Empty entry means the rule does not forward to a target group.",
+    )
+    rule_priorities: PropertyRef = PropertyRef(
+        "rule_priorities",
+        description="Rule priority per entry, aligned by index; 'default' for the default rule.",
+    )
+    rule_is_default: PropertyRef = PropertyRef(
+        "rule_is_default",
+        description="Whether each rule is the listener default rule, aligned by index.",
+    )
 
 
 @dataclass(frozen=True)
