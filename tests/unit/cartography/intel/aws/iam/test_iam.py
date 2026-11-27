@@ -1,5 +1,6 @@
 import datetime
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 
@@ -8,6 +9,9 @@ from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
 from tests.data.aws.iam.mfa_devices import LIST_MFA_DEVICES
 from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
+from tests.data.aws.iam.service_specific_credentials import (
+    LIST_SERVICE_SPECIFIC_CREDENTIALS,
+)
 
 SINGLE_STATEMENT = {
     "Resource": "*",
@@ -324,6 +328,32 @@ def test_transform_mfa_devices_empty():
     raw_data = []
     result = iam.transform_mfa_devices(raw_data)
     assert result == []
+
+
+@patch.object(iam, "create_boto3_client")
+def test_get_service_specific_credentials(mock_create_client):
+    client = mock_create_client.return_value
+    client.list_service_specific_credentials.return_value = {
+        "ServiceSpecificCredentials": [{"ServiceSpecificCredentialId": "a"}],
+    }
+    user = {"UserName": "user-0", "Arn": "arn:aws:iam::000000000000:user/user-0"}
+
+    result = iam.get_service_specific_credentials(MagicMock(), [user])
+
+    assert result == [{"ServiceSpecificCredentialId": "a", "UserArn": user["Arn"]}]
+    client.list_service_specific_credentials.assert_called_once_with(UserName="user-0")
+
+
+def test_transform_service_specific_credentials():
+    result = iam.transform_service_specific_credentials(
+        LIST_SERVICE_SPECIFIC_CREDENTIALS
+    )
+    assert result[0]["servicename"] == "bedrock.amazonaws.com"
+    assert result[0]["serviceusername"] is None
+    assert result[0]["servicecredentialalias"] == "user-0-at-000000000000"
+    assert result[0]["expirationdate"] == datetime.datetime(2025, 10, 1, 12, 0, 0)
+    assert result[1]["serviceusername"] == "user-1-at-000000000000"
+    assert result[1]["expirationdate"] is None
 
 
 def test_get_saml_providers_access_denied_returns_empty_list():

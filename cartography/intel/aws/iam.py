@@ -51,6 +51,9 @@ from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
 from cartography.models.aws.iam.samlprovider import AWSSAMLProviderSchema
 from cartography.models.aws.iam.server_certificate import AWSServerCertificateSchema
 from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
+from cartography.models.aws.iam.service_specific_credential import (
+    AWSServiceSpecificCredentialSchema,
+)
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
@@ -1510,6 +1513,9 @@ def sync_users(
     sync_user_mfa_devices(
         boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
     )
+    sync_user_service_specific_credentials(
+        boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
+    )
 
 
 @timeit
@@ -1668,6 +1674,71 @@ def sync_user_mfa_devices(
         transformed_mfa_devices,
         aws_update_tag,
         current_aws_account_id,
+    )
+
+
+@timeit
+@aws_handle_regions
+def get_service_specific_credentials(
+    boto3_session: boto3.Session,
+    user_list: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    client = create_boto3_client(boto3_session, "iam")
+    credentials: list[dict[str, Any]] = []
+    for user in user_list:
+        name = user["UserName"]
+        # No paginator exists for this call. AWS allows two credentials per
+        # service per user, so one page always holds them all.
+        try:
+            response = client.list_service_specific_credentials(UserName=name)
+            for credential in response.get("ServiceSpecificCredentials", []):
+                credential["UserArn"] = user["Arn"]
+                credentials.append(credential)
+        except client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "Could not get service-specific credentials for user %s due to NoSuchEntityException; skipping.",
+                name,
+            )
+    return credentials
+
+
+def transform_service_specific_credentials(
+    credentials: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "servicespecificcredentialid": credential["ServiceSpecificCredentialId"],
+            "servicename": credential["ServiceName"],
+            "serviceusername": credential.get("ServiceUserName"),
+            "servicecredentialalias": credential.get("ServiceCredentialAlias"),
+            "status": credential["Status"],
+            "createdate": credential["CreateDate"],
+            "expirationdate": credential.get("ExpirationDate"),
+            "user_arn": credential["UserArn"],
+        }
+        for credential in credentials
+    ]
+
+
+@timeit
+def sync_user_service_specific_credentials(
+    boto3_session: boto3.Session,
+    data: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    logger.info(
+        "Syncing IAM service-specific credentials for account '%s'.",
+        current_aws_account_id,
+    )
+    credentials = get_service_specific_credentials(boto3_session, data["Users"])
+    load(
+        neo4j_session,
+        AWSServiceSpecificCredentialSchema(),
+        transform_service_specific_credentials(credentials),
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -2224,6 +2295,9 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     GraphJob.from_node_schema(AWSMfaDeviceSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(
+        AWSServiceSpecificCredentialSchema(), common_job_parameters
+    ).run(neo4j_session)
     GraphJob.from_node_schema(AWSUserSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(AWSGroupSchema(), common_job_parameters).run(
         neo4j_session
