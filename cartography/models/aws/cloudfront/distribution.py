@@ -133,10 +133,9 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
         description="Domain names of all origins configured on this distribution, including custom origins such as load balancers",
     )
 
-    origin_domain_names: PropertyRef = PropertyRef(
-        "origin_domain_names",
-        extra_index=True,
-        description="Domain names of all origins configured on this distribution, including custom origins such as load balancers",
+    origin_endpoints: PropertyRef = PropertyRef(
+        "origin_endpoints",
+        description="Paired 'domain|path' origin endpoints, so a behavior's target origin can be resolved to the path it serves. An empty path segment means requests reach the origin as-is. Unset when the distribution has none.",
     )
 
     # Request routing: CloudFront picks the origin of the first cache behavior

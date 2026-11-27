@@ -369,6 +369,53 @@ def test_sync_cloudfront_empty(mock_get_distributions, neo4j_session):
 @patch.object(
     cartography.intel.aws.cloudfront,
     "get_cloudfront_distributions",
+    return_value=test_data.CLOUDFRONT_DISTRIBUTIONS_MULTI_ORIGIN,
+)
+def test_sync_cloudfront_persists_origin_endpoints_and_behavior_routing(
+    mock_get_distributions, neo4j_session
+):
+    """origin_endpoints and the behavior lists must survive the schema loader.
+
+    These are declared only in the property schema; anything not declared there is
+    silently dropped on write, so a transform-level assertion cannot catch it.
+    """
+    # Arrange
+    _cleanup_cloudfront(neo4j_session)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    node = neo4j_session.run(
+        """
+        MATCH (n:AWSCloudFrontDistribution {distribution_id: $id})
+        RETURN n.origin_endpoints AS endpoints,
+               n.behavior_path_patterns AS patterns,
+               n.default_target_origin_id AS default_origin
+        """,
+        id="E3T2R1Q0P9O8N7",
+    ).single()
+    assert node is not None
+    assert node["endpoints"] == [
+        "backup-bucket.s3-website-us-west-2.amazonaws.com|/backup",
+        "primary-bucket.s3.amazonaws.com|",
+    ]
+    assert node["patterns"] == ["/backup/*"]
+    assert node["default_origin"] == "S3-primary"
+
+
+@patch.object(
+    cartography.intel.aws.cloudfront,
+    "get_cloudfront_distributions",
     return_value=test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN,
 )
 def test_sync_cloudfront_alb_origin(mock_get_distributions, neo4j_session):

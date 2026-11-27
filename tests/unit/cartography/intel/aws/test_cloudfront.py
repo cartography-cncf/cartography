@@ -366,6 +366,12 @@ def test_transform_cloudfront_distributions_behaviors():
         "S3-backup|backup-bucket.s3-website-us-west-2.amazonaws.com",
         "S3-primary|primary-bucket.s3.amazonaws.com",
     ]
+    # The domain|path contract: the backup origin carries an OriginPath, so the
+    # endpoint records which path each origin serves.
+    assert d["origin_endpoints"] == [
+        "backup-bucket.s3-website-us-west-2.amazonaws.com|/backup",
+        "primary-bucket.s3.amazonaws.com|",
+    ]
 
 
 def test_transform_cloudfront_distributions_no_behaviors():
