@@ -125,8 +125,13 @@ def get_computer_list(
     ]
     """
     xml_text = _get_computer_list_raw_xml(bigfix_api_url, headers)
-    as_dict = xmltodict.parse(xml_text)
-    return as_dict["BESAPI"]["Computer"]
+    response = xmltodict.parse(xml_text, force_list=("Computer",))["BESAPI"]
+    # An empty result may still have XML attributes on the BESAPI element.
+    if response is None or (
+        isinstance(response, dict) and all(key.startswith("@") for key in response)
+    ):
+        return []
+    return response["Computer"]
 
 
 def get_computer_details(
