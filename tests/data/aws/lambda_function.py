@@ -407,6 +407,36 @@ GET_FUNCTION_CONTAINER_IMAGE = {
 }
 
 
+# Mock GetFunctionUrlConfig responses. sample-function-1 has a function URL
+# with AWS_IAM auth, sample-function-2 has one with anonymous (NONE) auth, and
+# every other function has no function URL configured, for which
+# GetFunctionUrlConfig raises ResourceNotFoundException.
+GET_FUNCTION_URL_CONFIG_AWS_IAM = {
+    "FunctionUrl": "https://sample-function-1.lambda-url.us-west-2.on.aws/",
+    "AuthType": "AWS_IAM",
+    "CreationTime": "2026-01-02T03:04:05.000+0000",
+    "LastModifiedTime": "2026-01-02T03:04:05.000+0000",
+    "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
+    "InvokeMode": "BUFFERED",
+}
+
+GET_FUNCTION_URL_CONFIG_NONE = {
+    "FunctionUrl": "https://sample-function-2.lambda-url.us-west-2.on.aws/",
+    "AuthType": "NONE",
+    "CreationTime": "2026-01-03T04:05:06.000+0000",
+    "LastModifiedTime": "2026-01-03T04:05:06.000+0000",
+    "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+    "InvokeMode": "BUFFERED",
+}
+
+# Function URL configs keyed by function name. Functions absent from this map
+# have no function URL configured.
+FUNCTION_URL_CONFIGS_BY_NAME = {
+    "sample-function-1": GET_FUNCTION_URL_CONFIG_AWS_IAM,
+    "sample-function-2": GET_FUNCTION_URL_CONFIG_NONE,
+}
+
+
 LIST_LAMBDA_PERMISSIONS = {
     "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1": {
         "AnonymousAccess": False,
