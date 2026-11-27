@@ -41,7 +41,7 @@ redirects are rejected.
 | Permission | Purpose |
 |---|---|
 | Browse users and groups | List all users and groups, including group membership. |
-| Administer Jira | Enumerate all live projects and read every project's roles and scheme assignment. |
+| Administer Jira | Enumerate all live projects, read every project's roles and scheme assignment, and read Jira Automation rules (requires a classic, unscoped API token; scoped tokens are skipped on 401/403/404). |
 
 Both global permissions are checked before inventory begins. A less privileged
 account could receive a successful but filtered project listing, so this module
@@ -109,6 +109,17 @@ To link accounts to canonical users, select `jira,ontology` and add
   Exhausted retries abort the snapshot and preserve the previous graph. The
   connect timeout is 10 seconds and the socket read timeout is 60 seconds;
   these are not an overall request deadline.
+- **No Automation rules**: Reading Automation rules requires a classic,
+  unscoped API token that belongs to a Jira administrator. Scoped tokens, Forge
+  apps, and OAuth 2.0 tokens can't read the Automation API. When the rule
+  listing returns 401, 403, or 404, Cartography skips Automation rule sync and
+  keeps the previously synced rules. If a single rule returns 403 or 404,
+  Cartography skips that rule and keeps stale rules until the next complete
+  sync.
+- **Missing Slack links from Automation rules**: With the default module order,
+  GitHub syncs before Jira and Slack syncs after Jira. `SENDS_REQUESTS_TO`
+  relationships to `SlackTeam` nodes appear from the next sync after those nodes
+  exist.
 - **Missing emails**: Atlassian profile visibility may hide an email even from
   administrators. The account is still inventoried by account ID.
 - **Incomplete reads**: A failed or malformed required response aborts before

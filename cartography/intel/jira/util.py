@@ -33,6 +33,9 @@ class JiraClient:
         self.cloud_id = str(UUID(cloud_id))
         self.site_url = site_url
         self.base_url = f"https://api.atlassian.com/ex/jira/{self.cloud_id}"
+        self.automation_base_url = (
+            f"https://api.atlassian.com/automation/public/jira/{self.cloud_id}/rest/v1"
+        )
         if site_url:
             parsed = urlsplit(site_url)
             if (
@@ -68,6 +71,9 @@ class JiraClient:
 
     def get(self, path: str, **params: Any) -> Any:
         return self._get_json(f"{self.base_url}/rest/api/3/{path}", **params)
+
+    def get_automation(self, url: str, **params: Any) -> Any:
+        return self._get_json(url, **params)
 
     def validate_site(self) -> None:
         """Reject a site override that would write into another tenant's scope."""
