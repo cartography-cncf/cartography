@@ -259,6 +259,105 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
     device_security_posture_gaps,
 )
 from cartography.rules.data.rules.device_security_posture_gaps import device_update_gaps
+from cartography.rules.data.rules.ec2_compute_hygiene import (
+    aws_ec2_instance_detailed_monitoring,
+)
+from cartography.rules.data.rules.ec2_compute_hygiene import (
+    aws_ec2_instance_internal_ports_exposed,
+)
+from cartography.rules.data.rules.ec2_compute_hygiene import (
+    aws_ec2_instance_managed_by_ssm,
+)
+from cartography.rules.data.rules.ec2_compute_hygiene import aws_ec2_instance_max_age
+from cartography.rules.data.rules.ec2_compute_hygiene import (
+    aws_ec2_instance_multiple_enis,
+)
+from cartography.rules.data.rules.ec2_compute_hygiene import (
+    aws_ec2_instance_paravirtual,
+)
+from cartography.rules.data.rules.ec2_compute_hygiene import (
+    aws_ec2_instance_profile_attached,
+)
+from cartography.rules.data.rules.ec2_compute_hygiene import aws_ec2_instance_public_ip
+from cartography.rules.data.rules.ec2_compute_hygiene import (
+    aws_ec2_instance_public_with_profile,
+)
+from cartography.rules.data.rules.ec2_compute_hygiene import aws_launch_template_imdsv2
+from cartography.rules.data.rules.ec2_ebs_hygiene import aws_ec2_ebs_snapshot_encryption
+from cartography.rules.data.rules.ec2_ebs_hygiene import aws_ec2_ebs_volume_has_snapshot
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_elastic_ip_unassigned,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_networkacl_ingress_any_port,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_networkacl_ingress_rdp,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_networkacl_ingress_ssh,
+)
+from cartography.rules.data.rules.ec2_network_exposure import aws_ec2_networkacl_unused
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_all_ports_open,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_any_port_open,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_cassandra_ports,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_elasticsearch_kibana_ports,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_ftp_ports,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_high_risk_tcp_ports,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_kafka_port,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_launch_wizard,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_memcached_port,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_mongodb_ports,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_mysql_port,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_oracle_ports,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_postgres_port,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_redis_port,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_rule_sprawl,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_specific_public_ip,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_sqlserver_ports,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_telnet_port,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_unused,
+)
+from cartography.rules.data.rules.ec2_network_exposure import (
+    aws_ec2_securitygroup_wide_public_cidrs,
+)
 from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.github_posture import github_codeowners_coverage
 from cartography.rules.data.rules.github_posture import github_default_branch_protection
@@ -403,6 +502,44 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # EC2 compute, network and storage hygiene
+    aws_ec2_instance_detailed_monitoring.id: aws_ec2_instance_detailed_monitoring,
+    aws_ec2_instance_internal_ports_exposed.id: aws_ec2_instance_internal_ports_exposed,
+    aws_ec2_instance_managed_by_ssm.id: aws_ec2_instance_managed_by_ssm,
+    aws_ec2_instance_max_age.id: aws_ec2_instance_max_age,
+    aws_ec2_instance_multiple_enis.id: aws_ec2_instance_multiple_enis,
+    aws_ec2_instance_paravirtual.id: aws_ec2_instance_paravirtual,
+    aws_ec2_instance_profile_attached.id: aws_ec2_instance_profile_attached,
+    aws_ec2_instance_public_ip.id: aws_ec2_instance_public_ip,
+    aws_ec2_instance_public_with_profile.id: aws_ec2_instance_public_with_profile,
+    aws_launch_template_imdsv2.id: aws_launch_template_imdsv2,
+    aws_ec2_ebs_snapshot_encryption.id: aws_ec2_ebs_snapshot_encryption,
+    aws_ec2_ebs_volume_has_snapshot.id: aws_ec2_ebs_volume_has_snapshot,
+    aws_ec2_elastic_ip_unassigned.id: aws_ec2_elastic_ip_unassigned,
+    aws_ec2_networkacl_ingress_any_port.id: aws_ec2_networkacl_ingress_any_port,
+    aws_ec2_networkacl_ingress_rdp.id: aws_ec2_networkacl_ingress_rdp,
+    aws_ec2_networkacl_ingress_ssh.id: aws_ec2_networkacl_ingress_ssh,
+    aws_ec2_networkacl_unused.id: aws_ec2_networkacl_unused,
+    aws_ec2_securitygroup_all_ports_open.id: aws_ec2_securitygroup_all_ports_open,
+    aws_ec2_securitygroup_any_port_open.id: aws_ec2_securitygroup_any_port_open,
+    aws_ec2_securitygroup_cassandra_ports.id: aws_ec2_securitygroup_cassandra_ports,
+    aws_ec2_securitygroup_elasticsearch_kibana_ports.id: aws_ec2_securitygroup_elasticsearch_kibana_ports,
+    aws_ec2_securitygroup_ftp_ports.id: aws_ec2_securitygroup_ftp_ports,
+    aws_ec2_securitygroup_high_risk_tcp_ports.id: aws_ec2_securitygroup_high_risk_tcp_ports,
+    aws_ec2_securitygroup_kafka_port.id: aws_ec2_securitygroup_kafka_port,
+    aws_ec2_securitygroup_launch_wizard.id: aws_ec2_securitygroup_launch_wizard,
+    aws_ec2_securitygroup_memcached_port.id: aws_ec2_securitygroup_memcached_port,
+    aws_ec2_securitygroup_mongodb_ports.id: aws_ec2_securitygroup_mongodb_ports,
+    aws_ec2_securitygroup_mysql_port.id: aws_ec2_securitygroup_mysql_port,
+    aws_ec2_securitygroup_oracle_ports.id: aws_ec2_securitygroup_oracle_ports,
+    aws_ec2_securitygroup_postgres_port.id: aws_ec2_securitygroup_postgres_port,
+    aws_ec2_securitygroup_redis_port.id: aws_ec2_securitygroup_redis_port,
+    aws_ec2_securitygroup_rule_sprawl.id: aws_ec2_securitygroup_rule_sprawl,
+    aws_ec2_securitygroup_specific_public_ip.id: aws_ec2_securitygroup_specific_public_ip,
+    aws_ec2_securitygroup_sqlserver_ports.id: aws_ec2_securitygroup_sqlserver_ports,
+    aws_ec2_securitygroup_telnet_port.id: aws_ec2_securitygroup_telnet_port,
+    aws_ec2_securitygroup_unused.id: aws_ec2_securitygroup_unused,
+    aws_ec2_securitygroup_wide_public_cidrs.id: aws_ec2_securitygroup_wide_public_cidrs,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
