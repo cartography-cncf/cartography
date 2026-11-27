@@ -259,6 +259,31 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
     device_security_posture_gaps,
 )
 from cartography.rules.data.rules.device_security_posture_gaps import device_update_gaps
+from cartography.rules.data.rules.elb_classic_hygiene import aws_elb_encrypted_listeners
+from cartography.rules.data.rules.elb_classic_hygiene import aws_elb_internet_facing
+from cartography.rules.data.rules.elb_classic_hygiene import aws_elb_listener_tls_policy
+from cartography.rules.data.rules.elbv2_listener_tls_policy import (
+    aws_elbv2_listener_fips_tls,
+)
+from cartography.rules.data.rules.elbv2_listener_tls_policy import (
+    aws_elbv2_listener_pqc_tls,
+)
+from cartography.rules.data.rules.elbv2_listener_tls_policy import (
+    aws_elbv2_listener_secure_ssl_policy,
+)
+from cartography.rules.data.rules.elbv2_load_balancer_hygiene import (
+    aws_elbv2_alb_public_ingress,
+)
+from cartography.rules.data.rules.elbv2_load_balancer_hygiene import (
+    aws_elbv2_has_listeners,
+)
+from cartography.rules.data.rules.elbv2_load_balancer_hygiene import aws_elbv2_multi_az
+from cartography.rules.data.rules.elbv2_load_balancer_hygiene import (
+    aws_elbv2_nlb_tls_termination,
+)
+from cartography.rules.data.rules.elbv2_load_balancer_hygiene import (
+    aws_elbv2_waf_attached,
+)
 from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.github_posture import github_codeowners_coverage
 from cartography.rules.data.rules.github_posture import github_default_branch_protection
@@ -403,6 +428,18 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # Classic ELB and ELBv2 listener / load balancer hygiene
+    aws_elb_encrypted_listeners.id: aws_elb_encrypted_listeners,
+    aws_elb_internet_facing.id: aws_elb_internet_facing,
+    aws_elb_listener_tls_policy.id: aws_elb_listener_tls_policy,
+    aws_elbv2_alb_public_ingress.id: aws_elbv2_alb_public_ingress,
+    aws_elbv2_has_listeners.id: aws_elbv2_has_listeners,
+    aws_elbv2_multi_az.id: aws_elbv2_multi_az,
+    aws_elbv2_nlb_tls_termination.id: aws_elbv2_nlb_tls_termination,
+    aws_elbv2_waf_attached.id: aws_elbv2_waf_attached,
+    aws_elbv2_listener_fips_tls.id: aws_elbv2_listener_fips_tls,
+    aws_elbv2_listener_pqc_tls.id: aws_elbv2_listener_pqc_tls,
+    aws_elbv2_listener_secure_ssl_policy.id: aws_elbv2_listener_secure_ssl_policy,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
