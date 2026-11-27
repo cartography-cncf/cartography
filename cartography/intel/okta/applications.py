@@ -8,10 +8,12 @@ from typing import Any
 import neo4j
 from okta.client import Client as OktaClient
 from okta.models.application import Application as OktaApplication
+from okta.models.application_json_converter import ApplicationJsonConverter
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import collect_raw_paginated
 from cartography.intel.okta.common import is_resource_not_found_error
 from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.application import OktaApplicationSchema
@@ -19,6 +21,18 @@ from cartography.models.okta.reply_uri import OktaReplyUriSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# The SDK picks an application model by signOnMode only. SAML settings have no `app`
+# field and SWA settings declare fixed fields, so catalog-specific `settings.app` keys
+# that name the target tenant are dropped. Read them from the raw JSON instead, and
+# keep only these keys because other apps put unrelated values in `settings.app`.
+_SETTINGS_APP_ALLOWLIST: dict[str, str] = {
+    "domain": "settings_app_domain",
+    "githubOrg": "settings_app_github_org",
+    "loginUrl": "settings_app_login_url",
+    "instanceType": "settings_app_instance_type",
+    "customDomain": "settings_app_custom_domain",
+}
 
 
 @timeit
@@ -36,8 +50,11 @@ def sync_okta_applications(
     """
 
     logger.info("Syncing Okta applications")
-    applications = asyncio.run(_get_okta_applications(okta_client))
-    transformed_applications = _transform_okta_applications(okta_client, applications)
+    raw_applications = asyncio.run(_get_okta_applications(okta_client))
+    applications = [ApplicationJsonConverter.from_dict(raw) for raw in raw_applications]
+    transformed_applications = _transform_okta_applications(
+        okta_client, applications, raw_applications=raw_applications
+    )
     _load_okta_applications(
         neo4j_session, transformed_applications, common_job_parameters
     )
@@ -49,26 +66,33 @@ def sync_okta_applications(
 
 
 @timeit
-async def _get_okta_applications(okta_client: OktaClient) -> list[OktaApplication]:
+async def _get_okta_applications(okta_client: OktaClient) -> list[dict[str, Any]]:
     """
-    Get Okta applications list from Okta
+    Get Okta applications list from Okta as raw JSON dicts
     :param okta_client: An Okta client object
-    :return: List of Okta applications
+    :return: List of raw Okta application dicts
     """
-    return await collect_paginated(okta_client.list_applications, limit=200)
+    return await collect_raw_paginated(
+        okta_client, "/api/v1/apps", params={"limit": "200"}
+    )
 
 
 @timeit
 def _transform_okta_applications(
     okta_client: OktaClient,
     okta_applications: list[OktaApplication],
+    raw_applications: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     :param okta_client: An Okta client object
     Convert a list of Okta applications into a format for Neo4j
     :param okta_applications: List of Okta applications
+    :param raw_applications: Optional list of raw Okta application dicts
     :return: List of application dicts
     """
+    raw_apps_by_id: dict[str, dict[str, Any]] = {
+        raw["id"]: raw for raw in (raw_applications or []) if "id" in raw
+    }
     transformed_applications: list[OktaApplication] = []
     logger.info("Transforming %s Okta applications", len(okta_applications))
     for okta_application in okta_applications:
@@ -153,6 +177,17 @@ def _transform_okta_applications(
         application_props["settings_app_username_field"] = getattr(
             settings_app, "username_field", None
         )
+        raw_app = raw_apps_by_id.get(okta_application.id) or {}
+        raw_settings = raw_app.get("settings")
+        raw_settings_app = (
+            raw_settings.get("app") if isinstance(raw_settings, dict) else None
+        )
+        if not isinstance(raw_settings_app, dict):
+            raw_settings_app = {}
+        for raw_key, prop_name in _SETTINGS_APP_ALLOWLIST.items():
+            val = raw_settings_app.get(raw_key)
+            # Keep strings only: other apps may put maps here, which Neo4j cannot store.
+            application_props[prop_name] = val if isinstance(val, str) and val else None
         application_props["settings_app_implicit_assignment"] = getattr(
             settings, "implicit_assignment", None
         )
