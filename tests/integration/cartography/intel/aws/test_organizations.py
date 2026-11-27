@@ -329,6 +329,41 @@ def test_sync_aws_accounts_preserves_organizations_name(neo4j_session):
     }
 
 
+def test_sync_aws_accounts_falls_back_when_org_name_is_null(neo4j_session):
+    """An org_id with no stored name must not blank the account name.
+
+    org_names.get(id, profile_name) returns None when the key exists with a None
+    value, so selecting such a row would persist None over a usable name. See the
+    cubic-dev review on PR #3721.
+    """
+    # Arrange: the account carries an org_id but no name.
+    account_name = "test-account-1"
+    account_id = TEST_ACCOUNTS[account_name]
+    run_write_query(
+        neo4j_session,
+        """
+        MERGE (a:AWSAccount {id: $account_id})
+        SET a.org_id = "o-exampleorgid"
+        SET a.name = null
+        """,
+        account_id=account_id,
+    )
+
+    # Act
+    cartography.intel.aws.organizations.load_aws_accounts(
+        neo4j_session,
+        {account_name: account_id},
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws"},
+    )
+
+    # Assert: the profile name is used rather than None.
+    assert check_nodes(neo4j_session, "AWSAccount", ["id", "name"]) == {
+        (account_id, account_name),
+    }
+
+
 def test_sync_aws_accounts_uses_profile_name_without_org_id(neo4j_session):
     """
     Ensure a config-only account still falls back to the profile name.
