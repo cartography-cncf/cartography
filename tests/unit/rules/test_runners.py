@@ -5,10 +5,12 @@ These tests focus on verifying that the aggregation logic for findings
 correctly sums up from facts → findings.
 """
 
+import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from neo4j.exceptions import AuthError
+from neo4j.time import DateTime
 
 from cartography.rules.runners import _run_single_rule
 from cartography.rules.runners import run_rules
@@ -317,3 +319,58 @@ def test_run_single_rule_propagates_frameworks(mock_run_fact):
     assert rule_result.rule_frameworks[0].scope == "aws"
     assert rule_result.rule_frameworks[0].revision == "5.0"
     assert rule_result.rule_frameworks[0].requirement == "1.14"
+
+
+@patch("cartography.rules.runners.GraphDatabase.driver")
+def test_run_rules_json_serializes_timestamp_findings(mock_driver_factory, capsys):
+    # Arrange
+    driver = mock_driver_factory.return_value
+    session = driver.session.return_value.__enter__.return_value
+    session.execute_read.side_effect = [
+        [
+            {
+                "access_key_id": "example-key",
+                "key_create_date": DateTime.from_iso_format(
+                    "2026-01-02T03:04:05+00:00"
+                ),
+                "audit": {
+                    "events": [
+                        {
+                            "at": DateTime.from_iso_format(
+                                "2026-01-03T00:00:00.123456789+00:00"
+                            )
+                        }
+                    ]
+                },
+            }
+        ],
+        [{"count": 1}],
+    ]
+
+    # Act
+    exit_code = run_rules(
+        ["aws_admin_users_with_access_keys"],
+        "bolt://localhost:7687",
+        "neo4j",
+        None,
+        "neo4j",
+        output_format="json",
+    )
+
+    # Assert
+    assert exit_code == 0
+    report = json.loads(capsys.readouterr().out)
+    assert len(report) == 1
+    assert report[0]["rule_id"] == "aws_admin_users_with_access_keys"
+    fact = report[0]["facts"][0]
+    assert (fact["total_assets"], fact["failing"], fact["passing"]) == (1, 1, 0)
+    assert len(fact["findings"]) == 1
+    finding = fact["findings"][0]
+    assert finding["access_key_id"] == "example-key"
+    assert finding["source"] == "AWS"
+    assert finding["key_create_date"] == "2026-01-02T03:04:05+00:00"
+    assert finding["last_used_date"] is None
+    assert finding["extra"] == {
+        "audit": {"events": [{"at": "2026-01-03T00:00:00.123456789+00:00"}]}
+    }
+    driver.close.assert_called_once_with()
