@@ -2,8 +2,12 @@
 Unit tests for AWS CloudFront intel module.
 """
 
+import copy
+import re
+
 from cartography.intel.aws import cloudfront
 from tests.data.aws import cloudfront as test_data
+from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 
 
 def test_extract_s3_bucket_name_standard():
@@ -190,6 +194,87 @@ def test_transform_cloudfront_distributions_empty():
     assert result == []
 
 
+def test_transform_origin_domain_names_alb():
+    """Test that custom origin DomainNames are collected, including an ALB origin."""
+    # Act
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN,
+    )
+
+    # Assert
+    assert len(result) == 1
+    dist = result[0]
+    assert dist["origin_domain_names"] == sorted(
+        [LOAD_BALANCER_DATA[0]["DNSName"], "origin.backend.example.com"],
+    )
+    # S3 extraction is unchanged: this distribution has no S3 origins.
+    assert "s3_origin_bucket_names" not in dist
+
+
+def test_transform_origin_domain_names_s3_only():
+    """Test that S3 origin endpoint domains are collected alongside bucket names."""
+    # Act
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS,
+    )
+
+    # Assert
+    dist = result[0]
+    assert dist["origin_domain_names"] == ["my-test-bucket.s3.amazonaws.com"]
+    assert dist["s3_origin_bucket_names"] == ["my-test-bucket"]
+
+
+def test_transform_origin_domain_names_empty():
+    """Test that a distribution with no origins gets an empty domain name list."""
+    # Arrange
+    dist = copy.deepcopy(test_data.CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN[0])
+    dist["Origins"] = {"Quantity": 0, "Items": []}
+
+    # Act
+    result = cloudfront.transform_cloudfront_distributions([dist])
+
+    # Assert
+    assert result[0]["origin_domain_names"] == []
+
+
+def test_transform_origin_domain_names_deduplicated_and_sorted():
+    """Test that duplicate origin DomainNames are deduplicated and sorted."""
+    # Act
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS_VPC_ORIGIN,
+    )
+
+    # Assert
+    assert result[0]["origin_domain_names"] == [
+        "internal-app-1234567890.us-east-1.elb.amazonaws.com",
+        "www.example.com",
+    ]
+
+
+def test_transform_origin_domain_names_lowercased_for_matcher_compatibility():
+    """Origin domain names are lowercased to match AWSLoadBalancerV2.dnsname.
+
+    `dnsname` is lowercased at ingestion (DNSNameLower), and relationship matchers
+    compare by equality. AWS preserves the load balancer name's case in CloudFront's
+    origin DomainName, so an origin written as `My-ALB-1234...eu-west-1.elb.amazonaws.com`
+    would never match unless the origin list is lowercased too.
+    """
+    # Arrange: an origin whose DomainName carries uppercase, as AWS can return it.
+    dist = copy.deepcopy(test_data.CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0])
+    dist["Origins"]["Items"][0][
+        "DomainName"
+    ] = "My-ALB-1234567890.eu-west-1.elb.amazonaws.com"
+
+    # Act
+    result = cloudfront.transform_cloudfront_distributions([dist])
+
+    # Assert: lowercased, and therefore equal to the LB node's `dnsname`.
+    assert result[0]["origin_domain_names"] == [
+        "my-alb-1234567890.eu-west-1.elb.amazonaws.com",
+        "origin.backend.example.com",
+    ]
+
+
 def test_extract_lambda_arns_from_cache_behavior():
     """Test extracting Lambda ARNs from cache behavior."""
     cache_behavior = {
@@ -230,3 +315,76 @@ def test_extract_lambda_arns_from_cache_behavior_missing():
 
     arns = cloudfront._extract_lambda_arns_from_cache_behavior(cache_behavior)
     assert arns == []
+
+
+def test_path_pattern_to_regex():
+    """CloudFront glob semantics: '*' crosses '/', '?' is one char, rest literal."""
+    rx = cloudfront._path_pattern_to_regex("/basket*")
+    assert re.match(rx, "/basket")
+    assert re.match(rx, "/basket/items/1")
+    assert not re.match(rx, "/Basket")  # case-sensitive
+    assert not re.match(rx, "/shop/basket")  # anchored
+
+    rx = cloudfront._path_pattern_to_regex("/api/v?/users")
+    assert re.match(rx, "/api/v2/users")
+    assert not re.match(rx, "/api/v22/users")
+
+    rx = cloudfront._path_pattern_to_regex("*.jpg")
+    assert re.match(rx, "/img/a.jpg")
+    assert not re.match(rx, "/img/a.jpeg")
+
+    # Regex metacharacters in patterns stay literal
+    rx = cloudfront._path_pattern_to_regex("/a.b+c")
+    assert re.match(rx, "/a.b+c")
+    assert not re.match(rx, "/axbbc")
+
+
+def test_transform_cloudfront_distributions_behaviors():
+    """Behaviors keep evaluation order, with aligned regexes and origin ids."""
+    dist = copy.deepcopy(test_data.CLOUDFRONT_DISTRIBUTIONS_MULTI_ORIGIN[0])
+    # Prepend a behavior to prove list order is preserved, not sorted.
+    dist["CacheBehaviors"]["Items"].insert(
+        0,
+        {
+            "PathPattern": "/api/*",
+            "TargetOriginId": "S3-primary",
+            "ViewerProtocolPolicy": "redirect-to-https",
+        },
+    )
+
+    result = cloudfront.transform_cloudfront_distributions([dist])
+    d = result[0]
+
+    assert d["behavior_path_patterns"] == ["/api/*", "/backup/*"]
+    assert d["behavior_target_origin_ids"] == ["S3-primary", "S3-backup"]
+    assert d["behavior_path_regexes"] == [
+        cloudfront._path_pattern_to_regex("/api/*"),
+        cloudfront._path_pattern_to_regex("/backup/*"),
+    ]
+    assert d["default_target_origin_id"] == "S3-primary"
+    assert d["origin_id_domain_pairs"] == [
+        "S3-backup|backup-bucket.s3-website-us-west-2.amazonaws.com",
+        "S3-primary|primary-bucket.s3.amazonaws.com",
+    ]
+    # The domain|path contract: the backup origin carries an OriginPath, so the
+    # endpoint records which path each origin serves.
+    assert d["origin_endpoints"] == [
+        "backup-bucket.s3-website-us-west-2.amazonaws.com|/backup",
+        "primary-bucket.s3.amazonaws.com|",
+    ]
+
+
+def test_transform_cloudfront_distributions_no_behaviors():
+    """Default-only distributions get null behavior lists but keep the default origin."""
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS,
+    )
+    d = result[0]
+
+    assert d["behavior_path_patterns"] is None
+    assert d["behavior_path_regexes"] is None
+    assert d["behavior_target_origin_ids"] is None
+    assert d["default_target_origin_id"] == "S3-my-bucket"
+    assert d["origin_id_domain_pairs"] == [
+        "S3-my-bucket|my-test-bucket.s3.amazonaws.com",
+    ]

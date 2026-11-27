@@ -6,6 +6,11 @@ See: https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_ListDistribu
 See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudfront/client/list_distributions.html
 """
 
+import copy
+from typing import Any
+
+from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
+
 TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 123456789
 
@@ -427,6 +432,39 @@ CLOUDFRONT_DISTRIBUTIONS_VPC_ORIGIN = [
         "Staging": False,
     },
 ]
+
+# Distribution whose custom origin is an ALB. The first origin's DomainName is exactly
+# the DNSName of the first load balancer in LOAD_BALANCER_DATA so the SERVES_FROM matcher
+# joins against it. A second custom origin with no matching load balancer proves that
+# only matching origins get an edge.
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN: list[dict[str, Any]] = copy.deepcopy(
+    CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN
+)
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0][
+    "Comment"
+] = "Distribution with an ALB custom origin"
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0]["Origins"]["Items"][0]["DomainName"] = (
+    LOAD_BALANCER_DATA[0]["DNSName"]
+)
+_alb_backend_origin = copy.deepcopy(
+    CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0]["Origins"]["Items"][0]
+)
+_alb_backend_origin["Id"] = "Custom-backend"
+_alb_backend_origin["DomainName"] = "origin.backend.example.com"
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0]["Origins"]["Items"].append(_alb_backend_origin)
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN[0]["Origins"]["Quantity"] = 2
+
+# Same distribution after the ALB origin is removed, leaving only the non-LB custom
+# origin. Used to test that a stale SERVES_FROM edge to the load balancer is cleaned up.
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED: list[dict[str, Any]] = copy.deepcopy(
+    CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN
+)
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED[0]["Origins"]["Items"] = [
+    origin
+    for origin in CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED[0]["Origins"]["Items"]
+    if origin["DomainName"] != LOAD_BALANCER_DATA[0]["DNSName"]
+]
+CLOUDFRONT_DISTRIBUTIONS_ALB_ORIGIN_REMOVED[0]["Origins"]["Quantity"] = 1
 
 # Simulated list_distributions API response
 LIST_DISTRIBUTIONS_RESPONSE = {
