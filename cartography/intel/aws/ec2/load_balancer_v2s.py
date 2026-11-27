@@ -1,6 +1,5 @@
 import logging
 import re
-from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -152,9 +151,28 @@ def _condition_values_to_regex(values: List[str], lowercase: bool = False) -> st
     return "^(?:" + "|".join(bodies) + ")$"
 
 
-def _rule_condition_values(
-    rule: Dict, field: str, config_key: str
-) -> List[str]:
+def _regex_values_to_regex(
+    glob_values: List[str],
+    regex_values: List[str],
+    lowercase: bool = False,
+) -> str:
+    """Combine glob `Values` and verbatim `RegexValues` into one anchored regex.
+
+    Returns '' only when the rule carries no condition of this type at all, which
+    the consumer reads as "matches anything". Glob values are translated; regex
+    values are already Java regexes and are wrapped as-is.
+    """
+    bodies = [
+        _wildcard_to_regex_body(v.lower() if lowercase else v) for v in glob_values
+    ]
+    for value in regex_values:
+        bodies.append(value.lower() if lowercase else value)
+    if not bodies:
+        return ""
+    return "^(?:" + "|".join(bodies) + ")$"
+
+
+def _rule_condition_values(rule: Dict, field: str, config_key: str) -> List[str]:
     """Collect the Values of every condition of the given field on a rule."""
     values: List[str] = []
     for cond in rule.get("Conditions") or []:
@@ -164,6 +182,21 @@ def _rule_condition_values(
         values.extend(config.get("Values") or [])
         # Legacy rule shape stores Values directly on the condition.
         values.extend(cond.get("Values") or [])
+    return values
+
+
+def _rule_condition_regex_values(rule: Dict, field: str, config_key: str) -> List[str]:
+    """Collect RegexValues of every condition of the given field on a rule.
+
+    ALB listeners evaluate `RegexValues` with Java regex syntax rather than the
+    glob `Values` syntax, so they are kept separate and used verbatim.
+    """
+    values: List[str] = []
+    for cond in rule.get("Conditions") or []:
+        if cond.get("Field") != field:
+            continue
+        config = cond.get(config_key) or {}
+        values.extend(config.get("RegexValues") or [])
     return values
 
 
@@ -203,9 +236,21 @@ def _transform_listener_rules(listener: Dict) -> Dict:
     for rule in rules:
         path_values = _rule_condition_values(rule, "path-pattern", "PathPatternConfig")
         host_values = _rule_condition_values(rule, "host-header", "HostHeaderConfig")
-        path_patterns.append("|".join(path_values))
-        path_regexes.append(_condition_values_to_regex(path_values))
-        host_regexes.append(_condition_values_to_regex(host_values, lowercase=True))
+        path_regex_values = _rule_condition_regex_values(
+            rule, "path-pattern", "PathPatternConfig"
+        )
+        host_regex_values = _rule_condition_regex_values(
+            rule, "host-header", "HostHeaderConfig"
+        )
+        path_patterns.append("|".join(path_values + path_regex_values))
+        # `RegexValues` are already Java regexes, so they are combined verbatim
+        # rather than glob-translated. A condition that supplies only regexes
+        # must not collapse to '' ("match any"), which would route a request to
+        # the wrong target group.
+        path_regexes.append(_regex_values_to_regex(path_values, path_regex_values))
+        host_regexes.append(
+            _regex_values_to_regex(host_values, host_regex_values, lowercase=True)
+        )
         target_group_arns.append(_rule_forward_target_group_arn(rule))
         priorities.append(
             "default" if rule.get("IsDefault") else str(rule.get("Priority", ""))

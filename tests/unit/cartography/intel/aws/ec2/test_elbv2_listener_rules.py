@@ -175,6 +175,100 @@ class TestRuleForwardTargetGroupArn:
         assert load_balancer_v2s._rule_forward_target_group_arn(rule) == ""
 
 
+class TestRegexValues:
+    """RegexValues are Java regexes, not globs: they must survive verbatim.
+
+    If a regex-only rule were read as no-condition, its regex would be '' and the
+    consumer treats that as "match any", routing requests to the wrong target
+    group. See the cubic-dev review on PR #3725.
+    """
+
+    def test_regex_values_are_read(self):
+        rule = {
+            "Conditions": [
+                {
+                    "Field": "path-pattern",
+                    "PathPatternConfig": {"RegexValues": ["^/api/(v1|v2)/.*$"]},
+                }
+            ]
+        }
+        assert load_balancer_v2s._rule_condition_regex_values(
+            rule, "path-pattern", "PathPatternConfig"
+        ) == ["^/api/(v1|v2)/.*$"]
+
+    def test_regex_only_rule_does_not_become_match_any(self):
+        listener = {
+            "ListenerArn": LISTENER_ARN,
+            "Rules": [
+                {
+                    "RuleArn": f"{LISTENER_ARN}/rule/1",
+                    "Priority": "1",
+                    "Conditions": [
+                        {
+                            "Field": "path-pattern",
+                            "PathPatternConfig": {"RegexValues": ["^/api/.*$"]},
+                        }
+                    ],
+                    "Actions": _forward_action(TG_BLUE),
+                }
+            ],
+        }
+        out = load_balancer_v2s._transform_listener_rules(listener)
+        regex = out["rule_path_regexes"][0]
+        # Not the "match any" empty string.
+        assert regex != ""
+        assert re.match(regex, "/api/orders")
+        assert not re.match(regex, "/other/orders")
+
+    def test_glob_and_regex_values_combine_into_one_alternation(self):
+        listener = {
+            "ListenerArn": LISTENER_ARN,
+            "Rules": [
+                {
+                    "RuleArn": f"{LISTENER_ARN}/rule/1",
+                    "Priority": "1",
+                    "Conditions": [
+                        {
+                            "Field": "path-pattern",
+                            "PathPatternConfig": {
+                                "Values": ["/static/*"],
+                                "RegexValues": ["^/api/.*$"],
+                            },
+                        }
+                    ],
+                    "Actions": _forward_action(TG_BLUE),
+                }
+            ],
+        }
+        out = load_balancer_v2s._transform_listener_rules(listener)
+        regex = out["rule_path_regexes"][0]
+        assert re.match(regex, "/static/app.js")
+        assert re.match(regex, "/api/orders")
+        assert not re.match(regex, "/other")
+
+    def test_host_regex_values_are_lowercased(self):
+        listener = {
+            "ListenerArn": LISTENER_ARN,
+            "Rules": [
+                {
+                    "RuleArn": f"{LISTENER_ARN}/rule/1",
+                    "Priority": "1",
+                    "Conditions": [
+                        {
+                            "Field": "host-header",
+                            "HostHeaderConfig": {
+                                "RegexValues": ["^API\\.Example\\.COM$"]
+                            },
+                        }
+                    ],
+                    "Actions": _forward_action(TG_BLUE),
+                }
+            ],
+        }
+        out = load_balancer_v2s._transform_listener_rules(listener)
+        assert re.match(out["rule_host_regexes"][0], "api.example.com")
+
+
 class TestTransformListenerRules:
     def test_lists_are_index_aligned_and_default_is_last(self):
         listener = {
