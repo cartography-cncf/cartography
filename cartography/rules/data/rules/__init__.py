@@ -1,3 +1,9 @@
+from cartography.rules.data.rules.acm_certificate_hygiene import (
+    aws_acm_certificate_expiring_soon,
+)
+from cartography.rules.data.rules.acm_certificate_hygiene import (
+    aws_acm_certificate_weak_key,
+)
 from cartography.rules.data.rules.aws_admin_users_with_access_keys import (
     aws_admin_users_with_access_keys,
 )
@@ -404,6 +410,9 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 # Rule registry - all available rules
 RULES = {
     zoom_security_review.id: zoom_security_review,
+    # ACM certificate hygiene
+    aws_acm_certificate_expiring_soon.id: aws_acm_certificate_expiring_soon,
+    aws_acm_certificate_weak_key.id: aws_acm_certificate_weak_key,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
     github_organization_security_settings.id: github_organization_security_settings,
