@@ -228,6 +228,24 @@ from cartography.rules.data.rules.cis_kubernetes_workloads import (
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
 )
+from cartography.rules.data.rules.cloudfront_edge_protection import (
+    aws_cloudfront_geo_restrictions,
+)
+from cartography.rules.data.rules.cloudfront_edge_protection import (
+    aws_cloudfront_waf_attached,
+)
+from cartography.rules.data.rules.cloudfront_tls_configuration import (
+    aws_cloudfront_custom_ssl_certificate,
+)
+from cartography.rules.data.rules.cloudfront_tls_configuration import (
+    aws_cloudfront_https_sni,
+)
+from cartography.rules.data.rules.cloudfront_tls_configuration import (
+    aws_cloudfront_pqc_tls_policy,
+)
+from cartography.rules.data.rules.cloudfront_viewer_protocol import (
+    aws_cloudfront_https_viewer_policy,
+)
 from cartography.rules.data.rules.compute_instance_exposed import (
     compute_instance_exposed,
 )
@@ -403,6 +421,13 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # CloudFront TLS, viewer protocol, WAF and geo restrictions
+    aws_cloudfront_custom_ssl_certificate.id: aws_cloudfront_custom_ssl_certificate,
+    aws_cloudfront_https_sni.id: aws_cloudfront_https_sni,
+    aws_cloudfront_pqc_tls_policy.id: aws_cloudfront_pqc_tls_policy,
+    aws_cloudfront_https_viewer_policy.id: aws_cloudfront_https_viewer_policy,
+    aws_cloudfront_waf_attached.id: aws_cloudfront_waf_attached,
+    aws_cloudfront_geo_restrictions.id: aws_cloudfront_geo_restrictions,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
