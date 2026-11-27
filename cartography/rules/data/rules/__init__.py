@@ -362,6 +362,61 @@ from cartography.rules.data.rules.public_snapshots import public_snapshots
 from cartography.rules.data.rules.pylon_admin_service_accounts import (
     pylon_admin_service_accounts,
 )
+from cartography.rules.data.rules.rds_cluster_hygiene import (
+    aws_rds_cluster_backtrack_enabled,
+)
+from cartography.rules.data.rules.rds_cluster_hygiene import (
+    aws_rds_cluster_default_admin_username,
+)
+from cartography.rules.data.rules.rds_cluster_hygiene import (
+    aws_rds_cluster_deletion_protection,
+)
+from cartography.rules.data.rules.rds_cluster_hygiene import aws_rds_cluster_iam_auth
+from cartography.rules.data.rules.rds_cluster_hygiene import (
+    aws_rds_cluster_minor_upgrade,
+)
+from cartography.rules.data.rules.rds_cluster_hygiene import aws_rds_cluster_multi_az
+from cartography.rules.data.rules.rds_cluster_hygiene import (
+    aws_rds_cluster_non_default_port,
+)
+from cartography.rules.data.rules.rds_cluster_hygiene import (
+    aws_rds_cluster_storage_encrypted,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import (
+    aws_rds_instance_auto_minor_version_upgrade,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import (
+    aws_rds_instance_default_admin_username,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import (
+    aws_rds_instance_deletion_protection,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import (
+    aws_rds_instance_enhanced_monitoring,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import (
+    aws_rds_instance_iam_authentication,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import (
+    aws_rds_instance_inside_vpc,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import aws_rds_instance_multi_az
+from cartography.rules.data.rules.rds_instance_hygiene import (
+    aws_rds_instance_non_default_port,
+)
+from cartography.rules.data.rules.rds_instance_hygiene import aws_rds_snapshot_encrypted
+from cartography.rules.data.rules.security_monitoring_gaps import (
+    aws_rds_cluster_critical_event_subscription,
+)
+from cartography.rules.data.rules.security_monitoring_gaps import (
+    aws_rds_instance_critical_event_subscription,
+)
+from cartography.rules.data.rules.security_monitoring_gaps import (
+    aws_rds_instance_event_subscription_parameter_groups,
+)
+from cartography.rules.data.rules.security_monitoring_gaps import (
+    aws_rds_instance_event_subscription_security_groups,
+)
 from cartography.rules.data.rules.security_monitoring_gaps import (
     aws_security_hub_configuration_gaps,
 )
@@ -403,6 +458,28 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # RDS cluster and instance hygiene, plus event-subscription coverage
+    aws_rds_cluster_backtrack_enabled.id: aws_rds_cluster_backtrack_enabled,
+    aws_rds_cluster_default_admin_username.id: aws_rds_cluster_default_admin_username,
+    aws_rds_cluster_deletion_protection.id: aws_rds_cluster_deletion_protection,
+    aws_rds_cluster_iam_auth.id: aws_rds_cluster_iam_auth,
+    aws_rds_cluster_minor_upgrade.id: aws_rds_cluster_minor_upgrade,
+    aws_rds_cluster_multi_az.id: aws_rds_cluster_multi_az,
+    aws_rds_cluster_non_default_port.id: aws_rds_cluster_non_default_port,
+    aws_rds_cluster_storage_encrypted.id: aws_rds_cluster_storage_encrypted,
+    aws_rds_instance_auto_minor_version_upgrade.id: aws_rds_instance_auto_minor_version_upgrade,
+    aws_rds_instance_default_admin_username.id: aws_rds_instance_default_admin_username,
+    aws_rds_instance_deletion_protection.id: aws_rds_instance_deletion_protection,
+    aws_rds_instance_enhanced_monitoring.id: aws_rds_instance_enhanced_monitoring,
+    aws_rds_instance_iam_authentication.id: aws_rds_instance_iam_authentication,
+    aws_rds_instance_inside_vpc.id: aws_rds_instance_inside_vpc,
+    aws_rds_instance_multi_az.id: aws_rds_instance_multi_az,
+    aws_rds_instance_non_default_port.id: aws_rds_instance_non_default_port,
+    aws_rds_snapshot_encrypted.id: aws_rds_snapshot_encrypted,
+    aws_rds_cluster_critical_event_subscription.id: aws_rds_cluster_critical_event_subscription,
+    aws_rds_instance_critical_event_subscription.id: aws_rds_instance_critical_event_subscription,
+    aws_rds_instance_event_subscription_parameter_groups.id: aws_rds_instance_event_subscription_parameter_groups,
+    aws_rds_instance_event_subscription_security_groups.id: aws_rds_instance_event_subscription_security_groups,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
