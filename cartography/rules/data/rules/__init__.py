@@ -1,3 +1,21 @@
+from cartography.rules.data.rules.apigateway_authorization import (
+    aws_apigateway_methods_authorized,
+)
+from cartography.rules.data.rules.apigateway_authorization import (
+    aws_apigateway_public_api_authorized,
+)
+from cartography.rules.data.rules.apigateway_authorization import (
+    aws_apigateway_restapi_resource_policy_public,
+)
+from cartography.rules.data.rules.apigateway_stage_configuration import (
+    aws_apigateway_stage_client_certificate,
+)
+from cartography.rules.data.rules.apigateway_stage_configuration import (
+    aws_apigateway_stage_waf_attached,
+)
+from cartography.rules.data.rules.apigateway_stage_configuration import (
+    aws_apigateway_stage_xray_tracing,
+)
 from cartography.rules.data.rules.aws_admin_users_with_access_keys import (
     aws_admin_users_with_access_keys,
 )
@@ -403,6 +421,13 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 
 # Rule registry - all available rules
 RULES = {
+    # API Gateway authorization coverage and stage configuration
+    aws_apigateway_methods_authorized.id: aws_apigateway_methods_authorized,
+    aws_apigateway_public_api_authorized.id: aws_apigateway_public_api_authorized,
+    aws_apigateway_restapi_resource_policy_public.id: aws_apigateway_restapi_resource_policy_public,
+    aws_apigateway_stage_client_certificate.id: aws_apigateway_stage_client_certificate,
+    aws_apigateway_stage_waf_attached.id: aws_apigateway_stage_waf_attached,
+    aws_apigateway_stage_xray_tracing.id: aws_apigateway_stage_xray_tracing,
     zoom_security_review.id: zoom_security_review,
     # GitHub Rules
     github_secret_scanning_disabled.id: github_secret_scanning_disabled,
