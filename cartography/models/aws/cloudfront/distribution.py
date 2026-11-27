@@ -127,6 +127,12 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
         description="IDs of the VPC origins the distribution forwards to. A VPC origin lets CloudFront reach an internal load balancer or a private EC2 instance, so a target behind one can be internet-facing without a public address. Unset when the distribution has none.",
     )
 
+    origin_domain_names: PropertyRef = PropertyRef(
+        "origin_domain_names",
+        extra_index=True,
+        description="Domain names of all origins configured on this distribution, including custom origins such as load balancers",
+    )
+
     # WAF integration
     web_acl_id: PropertyRef = PropertyRef(
         "WebACLId",
@@ -178,6 +184,28 @@ class CloudFrontDistributionToS3BucketRel(CartographyRelSchema):
     rel_label: str = "SERVES_FROM"
     properties: CloudFrontDistributionToS3BucketRelProperties = (
         CloudFrontDistributionToS3BucketRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudFrontDistributionToLoadBalancerV2RelProperties(CartographyRelProperties):
+    """Properties for the relationship between AWSCloudFrontDistribution and AWSLoadBalancerV2."""
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudFrontDistributionToLoadBalancerV2Rel(CartographyRelSchema):
+    """Indicates that the CloudFront distribution serves content from an ALB or NLB custom origin."""
+
+    target_node_label: str = "AWSLoadBalancerV2"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"dnsname": PropertyRef("origin_domain_names", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SERVES_FROM"
+    properties: CloudFrontDistributionToLoadBalancerV2RelProperties = (
+        CloudFrontDistributionToLoadBalancerV2RelProperties()
     )
 
 
@@ -250,6 +278,7 @@ class CloudFrontDistributionSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudFrontDistributionToS3BucketRel(),
+            CloudFrontDistributionToLoadBalancerV2Rel(),
             CloudFrontDistributionToACMCertificateRel(),
             CloudFrontDistributionToLambdaRel(),
         ],
