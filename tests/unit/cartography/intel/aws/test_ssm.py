@@ -14,7 +14,10 @@ from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
 from cartography.intel.aws.ssm import get_instance_patches
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
+from cartography.intel.aws.ssm import get_ssm_documents
+from cartography.intel.aws.ssm import SSMDocumentTransientRegionFailure
 from cartography.intel.aws.ssm import sync_public_parameters
+from cartography.intel.aws.ssm import transform_ssm_documents
 from cartography.intel.aws.ssm import transform_ssm_parameters
 
 
@@ -203,6 +206,103 @@ def test_get_instance_patches_handles_error_on_second_instance(
         c.kwargs["InstanceId"] for c in paginator.paginate.call_args_list
     ] == expected_calls
     assert patches == expected_patches
+
+
+def test_get_ssm_documents_lists_self_owned_documents_and_sharing() -> None:
+    document = {"Name": "RunSecurityBaseline", "Owner": "000000000000"}
+    paginator = MagicMock()
+    paginator.paginate.return_value = [{"DocumentIdentifiers": [document]}]
+    client = MagicMock()
+    client.get_paginator.return_value = paginator
+    client.describe_document_permission.side_effect = [
+        {"AccountIds": ["111122223333"], "NextToken": "page-2"},
+        {"AccountIds": ["all"]},
+    ]
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+
+    documents = get_ssm_documents(boto3_session, "us-east-1")
+
+    assert documents == [
+        {
+            "Name": "RunSecurityBaseline",
+            "Owner": "000000000000",
+            "SharedAccountIds": ["111122223333", "all"],
+        },
+    ]
+    paginator.paginate.assert_called_once_with(
+        Filters=[{"Key": "Owner", "Values": ["Self"]}],
+    )
+    assert client.describe_document_permission.call_args_list == [
+        call(Name="RunSecurityBaseline", PermissionType="Share"),
+        call(
+            Name="RunSecurityBaseline",
+            PermissionType="Share",
+            NextToken="page-2",
+        ),
+    ]
+
+
+def test_get_ssm_documents_keeps_document_when_permission_lookup_fails() -> None:
+    document = {"Name": "PrivateAutomation"}
+    paginator = MagicMock()
+    paginator.paginate.return_value = [{"DocumentIdentifiers": [document]}]
+    client = MagicMock()
+    client.get_paginator.return_value = paginator
+    client.describe_document_permission.side_effect = [
+        {"AccountIds": ["111122223333"], "NextToken": "page-2"},
+        ClientError(
+            {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
+            "DescribeDocumentPermission",
+        ),
+    ]
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+
+    documents = get_ssm_documents(boto3_session, "us-east-1")
+
+    assert documents == [{"Name": "PrivateAutomation", "SharedAccountIds": None}]
+
+
+def test_get_ssm_documents_raises_on_server_error() -> None:
+    # Arrange
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.side_effect = ClientError(
+        {
+            "Error": {"Code": "InternalServerError", "Message": ""},
+            "ResponseMetadata": {"HTTPStatusCode": 500},
+        },
+        "ListDocuments",
+    )
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+
+    # Act and assert
+    with pytest.raises(SSMDocumentTransientRegionFailure):
+        get_ssm_documents(boto3_session, "us-east-1")
+
+
+def test_transform_ssm_documents_builds_arn_and_security_fields() -> None:
+    transformed = transform_ssm_documents(
+        [
+            {
+                "Name": "RunSecurityBaseline",
+                "CreatedDate": datetime(2024, 6, 1, tzinfo=timezone.utc),
+                "SharedAccountIds": ["all"],
+            },
+        ],
+        "cn-north-1",
+        "000000000000",
+    )
+
+    assert transformed == [
+        {
+            "Name": "RunSecurityBaseline",
+            "CreatedDate": datetime(2024, 6, 1, tzinfo=timezone.utc),
+            "SharedAccountIds": ["all"],
+            "Arn": "arn:aws-cn:ssm:cn-north-1:000000000000:document/RunSecurityBaseline",
+        },
+    ]
 
 
 def test_transform_ssm_parameters_preserves_arn_identity_and_dates() -> None:
