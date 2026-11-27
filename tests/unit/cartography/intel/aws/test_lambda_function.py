@@ -119,6 +119,24 @@ def test_get_function_url_config_returns_none_on_not_found():
     assert lambda_function.get_function_url_config(client, "sample-function-3") is None
 
 
+def test_get_function_url_config_raises_on_non_notfound_error():
+    """A permission error must not be reported as "this function has no URL".
+
+    Returning None here would overwrite a known URL with None while the region
+    still looked successful, so the sync would silently lose last-known-good
+    state. See the cubic-dev review on PR #3622.
+    """
+    client = MagicMock()
+    client.get_function_url_config.side_effect = _client_error(
+        "AccessDeniedException",
+        "not authorized to perform: lambda:GetFunctionUrlConfig",
+        403,
+    )
+
+    with pytest.raises(lambda_function.LambdaTransientRegionFailure):
+        lambda_function.get_function_url_config(client, "sample-function-3")
+
+
 def test_get_function_url_config_returns_response_when_configured():
     # Arrange
     client = MagicMock()

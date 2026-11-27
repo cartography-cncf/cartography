@@ -145,12 +145,13 @@ def get_function_url_config(
             raise LambdaTransientRegionFailure(
                 f"AWS SDK retries were exhausted for transient GetFunctionUrlConfig failure on function {function_name}"
             ) from error
-        logger.warning(
-            "Error getting function URL config for Lambda function %s: %s",
-            function_name,
-            error,
-        )
-        return None
+        # A permission or unexpected API error must not be reported as "this
+        # function has no URL": the loader would then write None over a known
+        # URL while the region still looks successful. Abort the region so the
+        # sync preserves last-known-good state instead.
+        raise LambdaTransientRegionFailure(
+            f"Unexpected error getting function URL config for Lambda function {function_name}: {error}"
+        ) from error
     except (
         ConnectionClosedError,
         ConnectTimeoutError,
@@ -161,13 +162,6 @@ def get_function_url_config(
         raise LambdaTransientRegionFailure(
             f"Encountered a transient Lambda endpoint failure while calling GetFunctionUrlConfig on function {function_name}"
         ) from error
-    except Exception as error:
-        logger.warning(
-            "Error getting function URL config for Lambda function %s: %s",
-            function_name,
-            error,
-        )
-        return None
 
 
 @timeit
