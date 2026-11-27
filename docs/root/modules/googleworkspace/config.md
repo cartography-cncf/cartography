@@ -135,6 +135,36 @@ Cartography skips device sync.
 Legacy domain-wide delegation configurations may also include
 `https://www.googleapis.com/auth/cloud-platform`.
 
+To sync standalone Apps Script projects, enable the **Google Drive API** and
+**Apps Script API**, and authorize these three optional scopes for domain-wide
+delegation:
+
+- `https://www.googleapis.com/auth/drive.metadata.readonly`
+- `https://www.googleapis.com/auth/script.projects.readonly`
+- `https://www.googleapis.com/auth/script.deployments.readonly`
+
+Apps Script sync runs only with service account credentials that can impersonate
+users through domain-wide delegation: `delegated` authentication, or `default`
+credentials that load such a service account key. OAuth user credentials skip
+it. If the three scopes aren't delegated, Cartography skips Apps Script sync
+without failing. When enabled, it makes at least one Drive `files.list` call for
+each active user and two Apps Script calls (`projects.get` and
+`projects.deployments.list`) for each standalone project, plus one more call
+for each further page of scripts or deployments.
+
+Each user must also turn on the Apps Script API in their own
+[Apps Script settings](https://script.google.com/home/usersettings). Until they
+do, Cartography can't read that user's projects and keeps the projects it
+synced for that user earlier. Cleanup removes stale projects only of users whose
+projects were all read; a project deleted between listing and reading does not
+count against its owner. If the Drive API or Apps Script API is disabled in the
+Google Cloud project, or a Google API returns an unexpected error, Cartography
+skips Apps Script sync. Apps Script sync runs after the other Google Workspace
+syncs, so an error in it does not skip them.
+
+Cartography lists only scripts that a user owns in My Drive. Scripts in shared
+drives and scripts bound to a Google Doc, Sheet, Slides, or Form aren't synced.
+
 ## Configure Cartography
 
 For delegated service account authentication:

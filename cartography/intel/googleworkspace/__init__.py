@@ -15,6 +15,7 @@ from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 from cartography.config import Config
+from cartography.intel.googleworkspace import apps_script
 from cartography.intel.googleworkspace import devices
 from cartography.intel.googleworkspace import groups
 from cartography.intel.googleworkspace import oauth_apps
@@ -217,3 +218,12 @@ def start_googleworkspace_ingestion(
         logger.info(
             "Skipping device sync - cloud-identity.devices.readonly scope not authorized",
         )
+
+    # Optional and the most expensive sync (calls per user and per project), so it
+    # runs last: an error in it can no longer skip groups or devices.
+    apps_script.sync_googleworkspace_apps_script(
+        neo4j_session,
+        creds,
+        config.update_tag,
+        common_job_parameters,
+    )
