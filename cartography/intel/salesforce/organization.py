@@ -23,6 +23,7 @@ def sync(
 ) -> dict[str, Any]:
     org = get(client)
     org = transform(org)
+    org["instance_url"] = client.instance_url.rstrip("/")
     load_organization(neo4j_session, org, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
     return org

@@ -29,11 +29,17 @@ def test_sync_salesforce_organization(mock_get, neo4j_session):
 
     # Act
     cartography.intel.salesforce.organization.sync(
-        neo4j_session, Mock(), common_job_parameters
+        neo4j_session,
+        Mock(instance_url="https://example.my.salesforce.com/"),
+        common_job_parameters,
     )
 
     # Assert the organization node exists with the Tenant label
-    assert check_nodes(neo4j_session, "SalesforceOrganization", ["id", "name"]) == {
-        (test_data.ORG_ID, "Simpson Corp"),
+    assert check_nodes(
+        neo4j_session,
+        "SalesforceOrganization",
+        ["id", "name", "instance_url"],
+    ) == {
+        (test_data.ORG_ID, "Simpson Corp", "https://example.my.salesforce.com"),
     }
     assert check_nodes(neo4j_session, "Tenant", ["id"]) == {(test_data.ORG_ID,)}

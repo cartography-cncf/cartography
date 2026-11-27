@@ -14,6 +14,7 @@ from cartography.intel.okta import authenticators
 from cartography.intel.okta import awssaml
 from cartography.intel.okta import devices
 from cartography.intel.okta import factors
+from cartography.intel.okta import federation
 from cartography.intel.okta import groups
 from cartography.intel.okta import log_streams
 from cartography.intel.okta import network_zones
@@ -259,6 +260,13 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     awssaml.sync_okta_aws_saml(
         neo4j_session,
         config.okta_saml_role_regex,
+        config.update_tag,
+        config.okta_org_id,
+    )
+
+    # Link Okta SSO apps to SaaS tenant nodes
+    federation.sync_okta_federation(
+        neo4j_session,
         config.update_tag,
         config.okta_org_id,
     )

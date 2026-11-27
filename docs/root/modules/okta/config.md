@@ -183,3 +183,5 @@ cartography \
 For an Okta preview environment or another region, set `--okta-base-domain`. The default is `okta.com`.
 
 When Okta administers AWS as a [SAML provider](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC), Cartography matches Okta groups to the AWS roles they control. If your group names do not use the standard `^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$` pattern from [Enabling Group Based Role Mapping in Okta](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC), provide your pattern with `--okta-saml-role-regex`.
+
+Cartography links Okta Slack, GitHub Cloud, Google Workspace, and Salesforce apps to the tenants they sign users into with `FEDERATES_TO` relationships. The links need no extra Okta permissions, but the target tenant nodes must already exist when the Okta module runs. With the default module order, Okta syncs after Google Workspace and before GitHub, Salesforce, and Slack, so links to `GitHubOrganization`, `SalesforceOrganization`, and `SlackTeam` nodes appear from the next sync after those nodes exist. Inactive Okta apps are not linked.

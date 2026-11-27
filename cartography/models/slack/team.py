@@ -22,6 +22,18 @@ class SlackTeamNodeProperties(CartographyNodeProperties):
     email_domain: PropertyRef = PropertyRef(
         "email_domain", description="Email domain associated with the workspace."
     )
+    enterprise_id: PropertyRef = PropertyRef(
+        "enterprise_id",
+        description="Enterprise Grid organization ID for the workspace, if applicable.",
+    )
+    enterprise_name: PropertyRef = PropertyRef(
+        "enterprise_name",
+        description="Enterprise Grid organization name for the workspace, if applicable.",
+    )
+    enterprise_domain: PropertyRef = PropertyRef(
+        "enterprise_domain",
+        description="Enterprise Grid organization domain for the workspace, if applicable.",
+    )
 
 
 @dataclass(frozen=True)
