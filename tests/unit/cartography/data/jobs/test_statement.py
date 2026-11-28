@@ -62,3 +62,27 @@ def test_run_iterative_uses_retryable_write_until_no_updates(
         call(session, statement._run_noniterative),
         call(session, statement._run_noniterative),
     ]
+
+
+def test_statement_keeps_its_batch_size_when_another_statement_shared_its_parameters():
+    # Arrange: a sync builds a cleanup statement with a small batch from the
+    # parameters it later passes to another job.
+    shared_parameters = {"UPDATE_TAG": 1}
+    GraphStatement(
+        "MATCH (n) RETURN n",
+        parameters=shared_parameters,
+        iterationsize=1000,
+        batched_transactions=True,
+    )
+    statement = GraphStatement(
+        "MATCH (n) RETURN n",
+        iterationsize=10000,
+        batched_transactions=True,
+    )
+
+    # Act
+    statement.merge_parameters(shared_parameters)
+
+    # Assert
+    assert statement.parameters["LIMIT_SIZE"] == 10000
+    assert statement.parameters["SCAN_LIMIT_SIZE"] == 10000 * SCAN_BATCHES_PER_RUN
