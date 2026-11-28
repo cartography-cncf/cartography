@@ -328,6 +328,7 @@ class GraphStatement:
         Each run changes up to $SCAN_LIMIT_SIZE rows from a single scan, so a large label is
         scanned once per $SCAN_LIMIT_SIZE rows rather than once per $LIMIT_SIZE.
         """
+        runs = 0
         while True:
             summary = run_autocommit_query_with_retry(
                 session,
@@ -337,6 +338,15 @@ class GraphStatement:
             _record_stats(summary)
             if not summary.counters.contains_updates:
                 break
+            runs += 1
+            # A statement that needs many runs logs nothing else until it completes.
+            logger.info(
+                "%s statement #%s: run %s updated %s",
+                self.parent_job_name,
+                self.parent_job_sequence_num,
+                runs,
+                summary.counters,
+            )
 
     def _run_iterative(self, session: neo4j.Session) -> None:
         """

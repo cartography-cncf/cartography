@@ -603,14 +603,17 @@ def test_sync_inspector_migrates_only_the_synced_accounts_cve_findings(
     neo4j_session,
 ):
     # Arrange: two admin accounts each hold a finding that an earlier version
-    # labeled :CVE. Only one of them syncs.
+    # labeled :CVE and CVEMetadata enriched. Only one of them syncs.
     _kernel, openssl = LIST_FINDINGS_EC2_PACKAGE
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
-        MERGE (:AWSAccount {id: $acc})-[:RESOURCE]->(:AWSInspectorFinding:CVE {id: $arn})
+        MERGE (m:CVEMetadata {id: 'CVE-2023-1234'})
+        MERGE (:AWSAccount {id: $acc})-[:RESOURCE]->(synced:AWSInspectorFinding:CVE {id: $arn})
         MERGE (:AWSAccount {id: '999999999999'})
-              -[:RESOURCE]->(:AWSInspectorFinding:CVE {id: 'arn:other-admin'})
+              -[:RESOURCE]->(other:AWSInspectorFinding:CVE {id: 'arn:other-admin'})
+        MERGE (m)-[:ENRICHES]->(synced)
+        MERGE (m)-[:ENRICHES]->(other)
         """,
         acc=TEST_ACC_ID_1,
         arn=OPENSSL_FINDING_ARN,
@@ -625,6 +628,14 @@ def test_sync_inspector_migrates_only_the_synced_accounts_cve_findings(
         ("CVE-2023-1234",),
         ("arn:other-admin",),
     }
+    assert check_rels(
+        neo4j_session,
+        "CVEMetadata",
+        "id",
+        "AWSInspectorFinding",
+        "id",
+        "ENRICHES",
+    ) == {("CVE-2023-1234", "arn:other-admin")}
 
 
 def test_sync_inspector_keeps_an_instance_whose_findings_were_read_partially(
