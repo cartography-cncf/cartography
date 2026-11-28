@@ -159,7 +159,9 @@ class GraphStatement:
                 until it makes no updates. Defaults to False.
         """
         self.query = query
-        self.parameters = parameters or {}
+        # Copy: callers share one parameter dict across jobs, and LIMIT_SIZE written into it
+        # would override the batch size of every job that merges it later.
+        self.parameters = dict(parameters or {})
         self.iterative = iterative
         self.iterationsize = iterationsize
         if iterationsize < 0:
